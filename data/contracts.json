@@ -1,0 +1,7 @@
+{
+  "scrapedAt": null,
+  "contractYear": 2026,
+  "playerCount": 0,
+  "players": [],
+  "_comment": "Run 'pnpm scrape:contracts' to populate this file with real data"
+}

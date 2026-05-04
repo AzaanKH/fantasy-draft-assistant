@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Fantasy Draft Assistant",
+  "version": "1.0.0",
+  "description": "Real-time draft recommendations for Sleeper fantasy football",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://sleeper.app/*",
+    "https://sleeper.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://sleeper.app/*", "https://sleeper.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Open Draft Assistant"
+  }
+}

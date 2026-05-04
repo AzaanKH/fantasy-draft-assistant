@@ -1,0 +1,31 @@
+{
+  "name": "fantasy-draft-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fantasy football draft assistant with React web app and Chrome extension for Sleeper",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm dev:web & pnpm dev:server & wait",
+    "dev:web": "pnpm --filter web-app dev",
+    "dev:server": "pnpm --filter server dev",
+    "dev:extension": "pnpm --filter extension dev",
+    "build": "pnpm run -r build",
+    "build:web": "pnpm --filter web-app build",
+    "build:server": "pnpm --filter server build",
+    "build:extension": "pnpm --filter extension build",
+    "typecheck": "pnpm run -r typecheck",
+    "lint": "pnpm run -r lint",
+    "scrape:ecr": "pnpm --filter scripts scrape:ecr",
+    "scrape:contracts": "pnpm --filter scripts scrape:contracts",
+    "clean": "pnpm run -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "shadcn": "^3.6.3",
+    "typescript": "^5.7.0"
+  }
+}

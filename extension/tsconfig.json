@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist",
+    "types": ["chrome"],
+    "paths": {
+      "@fantasy-draft/shared": ["../shared/src"]
+    },
+    "noEmit": true
+  },
+  "include": ["src/**/*", "../shared/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

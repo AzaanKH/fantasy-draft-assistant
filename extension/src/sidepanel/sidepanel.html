@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fantasy Draft Assistant</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #333;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .status-badge.connected {
+      background: #22c55e20;
+      color: #22c55e;
+    }
+
+    .status-badge.disconnected {
+      background: #ef444420;
+      color: #ef4444;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .card {
+      background: #252542;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .pick-position-selector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pick-position-selector label {
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    .pick-position-selector select {
+      background: #1a1a2e;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+
+    .open-webapp-btn {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .open-webapp-btn:hover {
+      background: #2563eb;
+    }
+
+    .picks-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .pick-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .pick-item:last-child {
+      border-bottom: none;
+    }
+
+    .pick-number {
+      font-size: 11px;
+      color: #666;
+      width: 24px;
+    }
+
+    .pick-player {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .pick-position {
+      font-size: 10px;
+      color: #3b82f6;
+      background: #3b82f620;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin: 0 6px;
+    }
+
+    .pick-team {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: #666;
+      font-size: 13px;
+    }
+
+    .instructions {
+      font-size: 12px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    .instructions ol {
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+
+    .instructions li {
+      margin-bottom: 6px;
+    }
+
+    .clear-btn {
+      background: transparent;
+      color: #ef4444;
+      border: 1px solid #ef4444;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .clear-btn:hover {
+      background: #ef444420;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Draft Assistant</h1>
+    <span id="status-badge" class="status-badge disconnected">Not in draft</span>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <div class="pick-position-selector">
+        <label for="pick-position">My Draft Position:</label>
+        <select id="pick-position">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12">12</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <button id="open-webapp" class="open-webapp-btn">
+      Open Full Draft Board
+    </button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Detected Picks (<span id="picks-count">0</span>)</div>
+    <div class="card">
+      <div id="picks-list" class="picks-list">
+        <div class="empty-state">No picks detected yet</div>
+      </div>
+      <button id="clear-picks" class="clear-btn" style="display: none;">Clear Picks</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How to Use</div>
+    <div class="card instructions">
+      <ol>
+        <li>Open a Sleeper draft room</li>
+        <li>Set your draft position above</li>
+        <li>Picks will be detected automatically from chat</li>
+        <li>Click "Open Full Draft Board" for recommendations</li>
+      </ol>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scrape:ecr": "tsx src/scrape-ecr.ts",
+    "scrape:contracts": "tsx src/scrape-contracts.ts",
+    "fetch:sleeper": "tsx src/fetch-sleeper-adp.ts",
+    "generate:team-env": "tsx src/generate-team-env.ts",
+    "fetch:all": "tsx src/scrape-ecr.ts && tsx src/fetch-sleeper-adp.ts && tsx src/generate-team-env.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@fantasy-draft/shared": "workspace:*",
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.10.0"
+  }
+}

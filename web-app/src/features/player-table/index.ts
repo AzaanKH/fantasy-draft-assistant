@@ -1,0 +1,1 @@
+export { PlayerTable } from './PlayerTable';
