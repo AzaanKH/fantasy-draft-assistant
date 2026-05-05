@@ -14,11 +14,13 @@ import type {
   DetectedPick,
   DraftRoomStatus,
 } from '../shared/types';
-import { STORAGE_KEYS } from '../shared/types';
+import { DEFAULT_SYNC_SERVER_URL, STORAGE_KEYS } from '../shared/types';
+import type { DraftSyncSnapshot } from '@fantasy-draft/shared';
 
 // In-memory state
 let detectedPicks: DetectedPick[] = [];
 let draftStatus: DraftRoomStatus = { isInDraftRoom: false };
+let syncSnapshot: DraftSyncSnapshot | null = null;
 
 /**
  * Save picks to storage
@@ -49,6 +51,33 @@ async function loadState(): Promise<void> {
 
   detectedPicks = result[STORAGE_KEYS.DETECTED_PICKS] ?? [];
   draftStatus = result[STORAGE_KEYS.DRAFT_STATUS] ?? { isInDraftRoom: false };
+}
+
+async function getSyncServerUrl(): Promise<string> {
+  const result = await chrome.storage.local.get([STORAGE_KEYS.SYNC_SERVER_URL]);
+  return result[STORAGE_KEYS.SYNC_SERVER_URL] ?? DEFAULT_SYNC_SERVER_URL;
+}
+
+async function refreshSnapshot(): Promise<void> {
+  if (!draftStatus.draftId) {
+    syncSnapshot = null;
+    return;
+  }
+
+  try {
+    const syncServerUrl = await getSyncServerUrl();
+    const response = await fetch(
+      `${syncServerUrl}/api/sync/drafts/${draftStatus.draftId}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Snapshot request failed: ${response.status}`);
+    }
+
+    syncSnapshot = (await response.json()) as DraftSyncSnapshot;
+  } catch (error) {
+    console.warn('[Fantasy Draft BG] Failed to refresh sync snapshot:', error);
+  }
 }
 
 /**
@@ -90,6 +119,10 @@ function handleMessage(
       saveDraftStatus();
       console.log('[Fantasy Draft BG] Draft status updated:', draftStatus);
 
+      void refreshSnapshot().then(() => {
+        notifySidePanel();
+      });
+
       // If entering draft room, open side panel
       if (draftStatus.isInDraftRoom) {
         openSidePanelForCurrentTab();
@@ -102,7 +135,7 @@ function handleMessage(
     case 'GET_DRAFT_STATUS': {
       sendResponse({
         success: true,
-        data: { picks: detectedPicks, status: draftStatus },
+        data: { picks: detectedPicks, status: draftStatus, snapshot: syncSnapshot },
       });
       break;
     }
@@ -141,7 +174,7 @@ function notifySidePanel(): void {
   chrome.runtime
     .sendMessage({
       type: 'SYNC_STATE',
-      data: { picks: detectedPicks, status: draftStatus },
+      data: { picks: detectedPicks, status: draftStatus, snapshot: syncSnapshot },
     })
     .catch(() => {
       // Side panel might not be open, ignore error
@@ -175,6 +208,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   // Initialize storage with defaults
   await chrome.storage.local.set({
     [STORAGE_KEYS.MY_PICK_POSITION]: 1,
+    [STORAGE_KEYS.SYNC_SERVER_URL]: DEFAULT_SYNC_SERVER_URL,
   });
 });
 

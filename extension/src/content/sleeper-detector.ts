@@ -90,36 +90,6 @@ function getPickKey(pick: DetectedPick): string {
 }
 
 /**
- * Scan the draft board for picks
- * Sleeper shows picks in various formats - we'll look for common patterns
- */
-function scanDraftBoard(): DetectedPick[] {
-  const picks: DetectedPick[] = [];
-
-  // Get all text content that might contain pick info
-  // Look for elements that contain pick patterns
-  const allElements = document.querySelectorAll('*');
-
-  for (const element of allElements) {
-    // Skip if element has children with text (we want leaf nodes)
-    if (element.children.length > 0) continue;
-
-    const text = element.textContent?.trim() ?? '';
-
-    // Skip empty or very short text
-    if (text.length < 5 || text.length > 100) continue;
-
-    // Try to parse as a pick
-    const pick = parsePickFromText(text);
-    if (pick && pick.playerName) {
-      picks.push(pick);
-    }
-  }
-
-  return picks;
-}
-
-/**
  * Alternative: Look for draft pick elements by common Sleeper patterns
  */
 function findDraftPickElements(): DetectedPick[] {

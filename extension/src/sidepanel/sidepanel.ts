@@ -7,8 +7,9 @@
  * - Opens the full web app
  */
 
-import { STORAGE_KEYS, DEFAULT_WEB_APP_URL } from '../shared/types';
+import { STORAGE_KEYS, DEFAULT_SYNC_SERVER_URL, DEFAULT_WEB_APP_URL } from '../shared/types';
 import type { DetectedPick, DraftRoomStatus, ExtensionMessage } from '../shared/types';
+import type { DraftPickEvent, DraftSyncSnapshot, DraftSyncUpdate } from '@fantasy-draft/shared';
 
 // DOM Elements
 const statusBadge = document.getElementById('status-badge') as HTMLSpanElement;
@@ -21,11 +22,25 @@ const clearPicksBtn = document.getElementById('clear-picks') as HTMLButtonElemen
 // State
 let picks: DetectedPick[] = [];
 let draftStatus: DraftRoomStatus = { isInDraftRoom: false };
+let syncSnapshot: DraftSyncSnapshot | null = null;
+let eventSource: EventSource | null = null;
 
 /**
  * Update the status badge
  */
 function updateStatusBadge(): void {
+  if (syncSnapshot?.draft) {
+    const label =
+      syncSnapshot.draft.status === 'drafting'
+        ? 'Live Sync'
+        : syncSnapshot.draft.status === 'complete'
+          ? 'Draft Complete'
+          : 'Connected';
+    statusBadge.textContent = label;
+    statusBadge.className = 'status-badge connected';
+    return;
+  }
+
   if (draftStatus.isInDraftRoom) {
     statusBadge.textContent = 'In Draft Room';
     statusBadge.className = 'status-badge connected';
@@ -39,24 +54,25 @@ function updateStatusBadge(): void {
  * Render the picks list
  */
 function renderPicks(): void {
-  picksCount.textContent = picks.length.toString();
+  const canonicalPicks = syncSnapshot?.picks ?? [];
+  picksCount.textContent = canonicalPicks.length.toString();
 
-  if (picks.length === 0) {
-    picksList.innerHTML = '<div class="empty-state">No picks detected yet</div>';
+  if (canonicalPicks.length === 0) {
+    picksList.innerHTML = '<div class="empty-state">No synced picks yet</div>';
     clearPicksBtn.style.display = 'none';
     return;
   }
 
-  clearPicksBtn.style.display = 'block';
+  clearPicksBtn.style.display = syncSnapshot ? 'none' : 'block';
 
-  const html = picks
+  const html = canonicalPicks
     .map(
-      (pick, index) => `
+      (pick: DraftPickEvent) => `
       <div class="pick-item">
-        <span class="pick-number">${pick.pickNumber ?? (index + 1)}.</span>
+        <span class="pick-number">${pick.pickNumber}.</span>
         <span class="pick-player">${escapeHtml(pick.playerName)}</span>
-        ${pick.position ? `<span class="pick-position">${escapeHtml(pick.position)}</span>` : ''}
-        <span class="pick-team">${escapeHtml(pick.teamName)}</span>
+        <span class="pick-position">${escapeHtml(pick.position)}</span>
+        <span class="pick-team">${escapeHtml(pick.nflTeam ?? '')}</span>
       </div>
     `
     )
@@ -89,13 +105,54 @@ async function loadState(): Promise<void> {
     if (response?.success && response.data) {
       picks = response.data.picks ?? [];
       draftStatus = response.data.status ?? { isInDraftRoom: false };
+      syncSnapshot = response.data.snapshot ?? null;
     }
   } catch {
     console.warn('[Side Panel] Failed to get draft status');
   }
 
+  await connectToSyncStream();
   updateStatusBadge();
   renderPicks();
+}
+
+async function getSyncServerUrl(): Promise<string> {
+  const result = await chrome.storage.local.get([STORAGE_KEYS.SYNC_SERVER_URL]);
+  return result[STORAGE_KEYS.SYNC_SERVER_URL] ?? DEFAULT_SYNC_SERVER_URL;
+}
+
+async function connectToSyncStream(): Promise<void> {
+  if (!draftStatus.draftId) {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    return;
+  }
+
+  const syncServerUrl = await getSyncServerUrl();
+
+  if (eventSource) {
+    eventSource.close();
+  }
+
+  eventSource = new EventSource(
+    `${syncServerUrl}/api/sync/drafts/${draftStatus.draftId}/events`
+  );
+
+  eventSource.onmessage = (event) => {
+    const update = JSON.parse(event.data) as DraftSyncUpdate;
+    syncSnapshot = update.snapshot;
+    updateStatusBadge();
+    renderPicks();
+  };
+
+  eventSource.onerror = () => {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  };
 }
 
 /**
@@ -114,7 +171,9 @@ async function openWebApp(): Promise<void> {
   const url = result[STORAGE_KEYS.WEB_APP_URL] ?? DEFAULT_WEB_APP_URL;
 
   // Pass picks count as URL param so web app knows sync is active
-  const urlWithParams = `${url}?picks=${picks.length}&position=${pickPositionSelect.value}`;
+  const picksCountValue = syncSnapshot?.picks.length ?? picks.length;
+  const draftIdParam = draftStatus.draftId ? `&draftId=${draftStatus.draftId}` : '';
+  const urlWithParams = `${url}?picks=${picksCountValue}&position=${pickPositionSelect.value}${draftIdParam}`;
 
   await chrome.tabs.create({ url: urlWithParams });
 }
@@ -123,6 +182,10 @@ async function openWebApp(): Promise<void> {
  * Clear all detected picks
  */
 async function clearPicks(): Promise<void> {
+  if (syncSnapshot) {
+    return;
+  }
+
   picks = [];
   await chrome.storage.local.set({ [STORAGE_KEYS.DETECTED_PICKS]: [] });
   renderPicks();
@@ -135,6 +198,8 @@ function handleMessage(message: ExtensionMessage): void {
   if (message.type === 'SYNC_STATE' && message.data) {
     picks = message.data.picks ?? picks;
     draftStatus = message.data.status ?? draftStatus;
+    syncSnapshot = message.data.snapshot ?? syncSnapshot;
+    void connectToSyncStream();
     updateStatusBadge();
     renderPicks();
   }

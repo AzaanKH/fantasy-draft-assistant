@@ -10,7 +10,8 @@
   ],
   "host_permissions": [
     "https://sleeper.app/*",
-    "https://sleeper.com/*"
+    "https://sleeper.com/*",
+    "http://localhost:3001/*"
   ],
   "background": {
     "service_worker": "background.js",
