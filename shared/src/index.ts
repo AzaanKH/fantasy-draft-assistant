@@ -94,3 +94,17 @@ export type {
   ContractPlayer,
   RawECRData,
 } from './scrapers';
+
+// Sync types
+export { DraftSyncEngine, normalizeSleeperPick } from './sync';
+
+export type {
+  SleeperDraftPick,
+  SleeperDraftMetadata,
+  DraftSyncSource,
+  DraftPickConfidence,
+  DraftPickEvent,
+  DraftSyncState,
+  DraftSyncSnapshot,
+  DraftSyncUpdate,
+} from './sync';

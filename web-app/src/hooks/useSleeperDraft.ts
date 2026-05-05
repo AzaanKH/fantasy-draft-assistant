@@ -1,84 +1,43 @@
 /**
  * Sleeper Draft Integration Hook
  *
- * Polls the Sleeper API for live draft picks and syncs with local state.
- *
- * Usage:
- * 1. Start a draft on Sleeper
- * 2. Get the draft_id from the URL: sleeper.com/draft/nfl/{draft_id}
- * 3. Enter the draft_id in the app
- * 4. Picks will sync automatically every few seconds
+ * Consumes canonical draft sync state from the local sync server.
+ * The server polls Sleeper, stores the latest snapshot, and pushes
+ * updates to the app over SSE.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Player, Position } from '@fantasy-draft/shared';
+import type {
+  DraftSyncSnapshot,
+  DraftSyncUpdate,
+  DraftPickEvent,
+  Player,
+  Position,
+} from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
 
-/**
- * Sleeper draft pick response
- */
-interface SleeperPick {
-  round: number;
-  roster_id: number;
-  player_id: string;
-  picked_by: string;
-  pick_no: number;
-  metadata: {
-    first_name: string;
-    last_name: string;
-    position: string;
-    team: string;
-    status: string;
-  } | null;
-  is_keeper: boolean | null;
-  draft_slot: number;
-  draft_id: string;
-}
-
-/**
- * Sleeper draft metadata
- */
-interface SleeperDraft {
-  draft_id: string;
-  status: 'pre_draft' | 'drafting' | 'complete';
-  type: 'snake' | 'linear' | 'auction';
-  settings: {
-    teams: number;
-    rounds: number;
-    pick_timer: number;
-  };
-  draft_order: Record<string, number> | null;
-}
-
-const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
-
-/**
- * Fetch draft metadata
- */
-async function fetchDraft(draftId: string): Promise<SleeperDraft> {
-  const response = await fetch(`${SLEEPER_API_BASE}/draft/${draftId}`);
+async function fetchDraftSnapshot(draftId: string): Promise<DraftSyncSnapshot> {
+  const response = await fetch(`/api/sync/drafts/${draftId}`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch draft: ${response.status}`);
+    throw new Error(`Failed to fetch draft snapshot: ${response.status}`);
   }
-  return response.json() as Promise<SleeperDraft>;
+
+  return response.json() as Promise<DraftSyncSnapshot>;
 }
 
-/**
- * Fetch all picks in a draft
- */
-async function fetchDraftPicks(draftId: string): Promise<SleeperPick[]> {
-  const response = await fetch(`${SLEEPER_API_BASE}/draft/${draftId}/picks`);
+async function requestRefresh(draftId: string): Promise<DraftSyncSnapshot> {
+  const response = await fetch(`/api/sync/drafts/${draftId}/refresh`, {
+    method: 'POST',
+  });
   if (!response.ok) {
-    throw new Error(`Failed to fetch picks: ${response.status}`);
+    throw new Error(`Failed to refresh draft snapshot: ${response.status}`);
   }
-  return response.json() as Promise<SleeperPick[]>;
+
+  return response.json() as Promise<DraftSyncSnapshot>;
 }
 
-/**
- * Normalize position from Sleeper format
- */
 function normalizePosition(pos: string): Position {
   const map: Record<string, Position> = {
     QB: 'QB',
@@ -88,158 +47,162 @@ function normalizePosition(pos: string): Position {
     K: 'K',
     DEF: 'DEF',
     DST: 'DEF',
+    'D/ST': 'DEF',
   };
   return map[pos] ?? 'RB';
 }
 
-/**
- * Hook to connect to a Sleeper draft
- */
 export function useSleeperDraft(draftId: string | null) {
   const queryClient = useQueryClient();
   const { players } = usePlayerDataQuery();
+  const [liveSnapshot, setLiveSnapshot] = useState<DraftSyncSnapshot | null>(null);
   const processedPicksRef = useRef<Set<string>>(new Set());
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
-  const [lastSyncedPick, setLastSyncedPick] = useState<number>(0);
 
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
   const setConfig = useDraftStore((state) => state.setConfig);
-  const [myPicksCount, setMyPicksCount] = useState<number>(0);
 
-  // Fetch draft metadata
-  const draftQuery = useQuery({
-    queryKey: ['sleeper-draft', draftId],
-    queryFn: () => fetchDraft(draftId!),
-    enabled: !!draftId,
-    staleTime: 30000, // 30 seconds
-  });
-
-  // Update config when draft loads
-  useEffect(() => {
-    if (draftQuery.data) {
-      setConfig({
-        totalTeams: draftQuery.data.settings.teams,
-        totalRounds: draftQuery.data.settings.rounds,
-      });
-    }
-  }, [draftQuery.data, setConfig]);
-
-  // Fetch picks with polling
-  const picksQuery = useQuery({
-    queryKey: ['sleeper-draft-picks', draftId],
-    queryFn: () => fetchDraftPicks(draftId!),
-    enabled: !!draftId && (draftQuery.data?.status === 'drafting' || draftQuery.data?.status === 'complete'),
-    refetchInterval: draftQuery.data?.status === 'drafting' ? 3000 : false, // Poll only during live draft
+  const snapshotQuery = useQuery({
+    queryKey: ['sleeper-sync-snapshot', draftId],
+    queryFn: () => fetchDraftSnapshot(draftId!),
+    enabled: Boolean(draftId),
     staleTime: 1000,
   });
 
-  // Match Sleeper player to our player data
-  const findMatchingPlayer = useCallback(
-    (pick: SleeperPick): Player | undefined => {
-      // First try matching by Sleeper player_id
-      const byId = players.find((p) => p.id === pick.player_id);
-      if (byId) return byId;
+  useEffect(() => {
+    if (!draftId) {
+      setLiveSnapshot(null);
+      return;
+    }
 
-      // Fall back to name + team matching
-      if (pick.metadata) {
-        const fullName = `${pick.metadata.first_name} ${pick.metadata.last_name}`;
-        const byName = players.find(
-          (p) =>
-            p.name.toLowerCase() === fullName.toLowerCase() &&
-            p.team === pick.metadata?.team
+    const eventSource = new EventSource(`/api/sync/drafts/${draftId}/events`);
+
+    eventSource.onmessage = (event) => {
+      const update = JSON.parse(event.data) as DraftSyncUpdate;
+      setLiveSnapshot(update.snapshot);
+      queryClient.setQueryData(['sleeper-sync-snapshot', draftId], update.snapshot);
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [draftId, queryClient]);
+
+  const snapshot = liveSnapshot ?? snapshotQuery.data ?? null;
+
+  useEffect(() => {
+    if (!snapshot?.draft) {
+      return;
+    }
+
+    setConfig({
+      totalTeams: snapshot.draft.settings.teams,
+      totalRounds: snapshot.draft.settings.rounds,
+    });
+  }, [setConfig, snapshot?.draft]);
+
+  const playerIndexes = useMemo(() => {
+    const byId = new Map<string, Player>();
+    const byNameTeam = new Map<string, Player>();
+
+    for (const player of players) {
+      byId.set(player.id, player);
+      byNameTeam.set(`${player.name.toLowerCase()}|${player.team}`, player);
+    }
+
+    return { byId, byNameTeam };
+  }, [players]);
+
+  const findMatchingPlayer = useCallback(
+    (pick: DraftPickEvent): Player | undefined => {
+      const byId = playerIndexes.byId.get(pick.playerId);
+      if (byId) {
+        return byId;
+      }
+
+      if (pick.nflTeam) {
+        return playerIndexes.byNameTeam.get(
+          `${pick.playerName.toLowerCase()}|${pick.nflTeam}`
         );
-        if (byName) return byName;
       }
 
       return undefined;
     },
-    [players]
+    [playerIndexes]
   );
 
-  // Process new picks
   useEffect(() => {
-    if (!picksQuery.data || players.length === 0) return;
+    if (!snapshot || players.length === 0) {
+      return;
+    }
 
-    setSyncStatus('syncing');
-    let newPicksProcessed = 0;
-    let myPicks = 0;
-
-    for (const pick of picksQuery.data) {
-      const pickKey = `${pick.draft_id}-${pick.pick_no}`;
-
-      // Count user's picks (even if already processed, for accurate count)
-      if (pick.draft_slot === myPickPosition) {
-        myPicks++;
+    for (const pick of snapshot.picks) {
+      const pickKey = `${pick.draftId}-${pick.pickNumber}`;
+      if (processedPicksRef.current.has(pickKey)) {
+        continue;
       }
 
-      // Skip already processed picks
-      if (processedPicksRef.current.has(pickKey)) continue;
-
       const matchedPlayer = findMatchingPlayer(pick);
-      const playerName = matchedPlayer?.name ??
-        (pick.metadata ? `${pick.metadata.first_name} ${pick.metadata.last_name}` : 'Unknown');
-      const position = matchedPlayer?.position ??
-        (pick.metadata ? normalizePosition(pick.metadata.position) : 'RB');
+      const isMyPick = pick.draftSlot === myPickPosition;
+      const position = matchedPlayer?.position ?? normalizePosition(pick.position);
+      const playerName = matchedPlayer?.name ?? pick.playerName;
 
-      // Check if this is the user's pick
-      const isMyPick = pick.draft_slot === myPickPosition;
-
-      // Mark as drafted
       markPlayerDrafted(
-        matchedPlayer?.id ?? pick.player_id,
+        matchedPlayer?.id ?? pick.playerId,
         playerName,
         position,
-        pick.draft_slot - 1,
-        isMyPick ? 'My Team' : `Team ${pick.draft_slot}`,
-        pick.pick_no
+        pick.teamIndex,
+        isMyPick ? 'My Team' : `Team ${pick.draftSlot}`,
+        pick.pickNumber
       );
 
-      // Add to user's roster if it's their pick
       if (isMyPick && matchedPlayer) {
         addToMyRoster(matchedPlayer);
       }
 
       processedPicksRef.current.add(pickKey);
-      newPicksProcessed++;
-      setLastSyncedPick(pick.pick_no);
+    }
+  }, [snapshot, players, findMatchingPlayer, myPickPosition, markPlayerDrafted, addToMyRoster]);
+
+  const refresh = useCallback(async () => {
+    if (!draftId) {
+      return;
     }
 
-    setMyPicksCount(myPicks);
+    const refreshedSnapshot = await requestRefresh(draftId);
+    setLiveSnapshot(refreshedSnapshot);
+    queryClient.setQueryData(['sleeper-sync-snapshot', draftId], refreshedSnapshot);
+  }, [draftId, queryClient]);
 
-    if (newPicksProcessed > 0) {
-      console.log(`[Sleeper Sync] Processed ${newPicksProcessed} new picks (${myPicks} are yours)`);
-    }
-
-    setSyncStatus('synced');
-  }, [picksQuery.data, players, findMatchingPlayer, markPlayerDrafted, addToMyRoster, myPickPosition]);
-
-  // Manual refresh
-  const refresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['sleeper-draft-picks', draftId] });
-  }, [queryClient, draftId]);
-
-  // Reset when draft changes
   useEffect(() => {
     processedPicksRef.current = new Set();
-    setLastSyncedPick(0);
-    setMyPicksCount(0);
-    setSyncStatus('idle');
   }, [draftId]);
 
+  const myPicksCount = useMemo(() => {
+    if (!snapshot) {
+      return 0;
+    }
+
+    return snapshot.picks.filter((pick) => pick.draftSlot === myPickPosition).length;
+  }, [snapshot, myPickPosition]);
+
   return {
-    draft: draftQuery.data,
-    picks: picksQuery.data ?? [],
-    isLoading: draftQuery.isLoading || picksQuery.isLoading,
-    isError: draftQuery.isError || picksQuery.isError,
-    error: draftQuery.error ?? picksQuery.error,
-    syncStatus,
-    lastSyncedPick,
-    totalPicks: picksQuery.data?.length ?? 0,
+    draft: snapshot?.draft ?? null,
+    picks: snapshot?.picks ?? [],
+    isLoading: snapshotQuery.isLoading && !snapshot,
+    isError: snapshotQuery.isError,
+    error: snapshotQuery.error,
+    syncStatus: snapshot?.status ?? 'idle',
+    lastSyncedPick: snapshot?.picks.at(-1)?.pickNumber ?? 0,
+    totalPicks: snapshot?.picks.length ?? 0,
     myPicksCount,
     refresh,
-    isDrafting: draftQuery.data?.status === 'drafting',
-    isComplete: draftQuery.data?.status === 'complete',
+    isDrafting: snapshot?.draft?.status === 'drafting',
+    isComplete: snapshot?.draft?.status === 'complete',
   };
 }
