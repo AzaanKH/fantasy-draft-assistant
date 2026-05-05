@@ -65,6 +65,7 @@ async function refreshSnapshot(): Promise<void> {
   }
 
   try {
+    syncSnapshot = null;
     const syncServerUrl = await getSyncServerUrl();
     const response = await fetch(
       `${syncServerUrl}/api/sync/drafts/${draftStatus.draftId}`
@@ -76,6 +77,7 @@ async function refreshSnapshot(): Promise<void> {
 
     syncSnapshot = (await response.json()) as DraftSyncSnapshot;
   } catch (error) {
+    syncSnapshot = null;
     console.warn('[Fantasy Draft BG] Failed to refresh sync snapshot:', error);
   }
 }
@@ -115,7 +117,11 @@ function handleMessage(
     }
 
     case 'DRAFT_ROOM_STATUS': {
+      const previousDraftId = draftStatus.draftId;
       draftStatus = message.data;
+      if (previousDraftId !== draftStatus.draftId) {
+        syncSnapshot = null;
+      }
       saveDraftStatus();
       console.log('[Fantasy Draft BG] Draft status updated:', draftStatus);
 

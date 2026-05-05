@@ -198,7 +198,9 @@ function handleMessage(message: ExtensionMessage): void {
   if (message.type === 'SYNC_STATE' && message.data) {
     picks = message.data.picks ?? picks;
     draftStatus = message.data.status ?? draftStatus;
-    syncSnapshot = message.data.snapshot ?? syncSnapshot;
+    if ('snapshot' in message.data) {
+      syncSnapshot = message.data.snapshot ?? null;
+    }
     void connectToSyncStream();
     updateStatusBadge();
     renderPicks();

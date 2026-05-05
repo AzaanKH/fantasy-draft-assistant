@@ -188,7 +188,7 @@ export function SleeperConnect() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Picks auto-sync every 3 seconds during live draft.
+        Picks auto-sync every 1 second during live draft.
       </p>
     </div>
   );

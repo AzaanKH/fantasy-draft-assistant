@@ -7,7 +7,7 @@ import {
   type SleeperDraftPick,
 } from '@fantasy-draft/shared';
 
-export const DEFAULT_POLL_INTERVAL_MS = 3000;
+export const DEFAULT_POLL_INTERVAL_MS = 1000;
 export const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
 
 export type FetchJson = <T>(url: string) => Promise<T>;
