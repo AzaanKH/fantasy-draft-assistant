@@ -12,7 +12,13 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Player, Position, NFLTeam, TeamEnvironment, ECRPlayer } from '@fantasy-draft/shared';
+import type {
+  FantasyProsSnapshot,
+  Player,
+  Position,
+  NFLTeam,
+  TeamEnvironment,
+} from '@fantasy-draft/shared';
 import {
   mergePlayerData,
   filterByPosition,
@@ -22,16 +28,7 @@ import {
   type ContractPlayerData,
 } from '@/lib/calculations';
 import { useDraftStore } from '@/stores/draftStore';
-
-/**
- * ECR rankings JSON file structure
- */
-interface ECRDataFile {
-  scrapedAt: string;
-  source: string;
-  playerCount: number;
-  players: ECRPlayer[];
-}
+import { fantasyProsProvider } from '@/lib/providers/fantasypros';
 
 /**
  * Sleeper ADP JSON file structure
@@ -64,14 +61,10 @@ interface ContractDataFile {
 }
 
 /**
- * Fetch ECR rankings data
+ * Fetch FantasyPros snapshot data
  */
-async function fetchECRData(): Promise<ECRDataFile> {
-  const response = await fetch('/data/ecr-rankings.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load ECR data: ${response.status}`);
-  }
-  return response.json() as Promise<ECRDataFile>;
+async function fetchFantasyProsSnapshot(): Promise<FantasyProsSnapshot> {
+  return fantasyProsProvider.getSnapshot();
 }
 
 /**
@@ -111,9 +104,9 @@ async function fetchContractData(): Promise<ContractDataFile> {
  * Hook to load and merge all player data sources
  */
 export function usePlayerDataQuery() {
-  const ecrQuery = useQuery({
-    queryKey: ['ecr-rankings'],
-    queryFn: fetchECRData,
+  const fantasyProsQuery = useQuery({
+    queryKey: ['fantasypros-snapshot'],
+    queryFn: fetchFantasyProsSnapshot,
     staleTime: Infinity, // Data doesn't change during draft
   });
 
@@ -136,22 +129,22 @@ export function usePlayerDataQuery() {
   });
 
   const isLoading =
-    ecrQuery.isLoading ||
+    fantasyProsQuery.isLoading ||
     sleeperQuery.isLoading ||
     teamEnvQuery.isLoading;
 
   const isError =
-    ecrQuery.isError ||
+    fantasyProsQuery.isError ||
     sleeperQuery.isError ||
     teamEnvQuery.isError;
 
   const error =
-    ecrQuery.error ?? sleeperQuery.error ?? teamEnvQuery.error;
+    fantasyProsQuery.error ?? sleeperQuery.error ?? teamEnvQuery.error;
 
   // Merge all data sources into Player objects
   const players = useMemo<Player[]>(() => {
     if (
-      !ecrQuery.data ||
+      !fantasyProsQuery.data ||
       !sleeperQuery.data ||
       !teamEnvQuery.data
     ) {
@@ -159,12 +152,14 @@ export function usePlayerDataQuery() {
     }
 
     return mergePlayerData(
-      ecrQuery.data.players,
+      fantasyProsQuery.data.rankings,
+      fantasyProsQuery.data.projections,
+      fantasyProsQuery.data.news,
       sleeperQuery.data.players,
       teamEnvQuery.data.teams,
       contractQuery.data?.players ?? []
     );
-  }, [ecrQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data]);
+  }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data]);
 
   return {
     players,
@@ -172,9 +167,11 @@ export function usePlayerDataQuery() {
     isError,
     error,
     dataInfo: {
-      ecrScrapedAt: ecrQuery.data?.scrapedAt,
+      fantasyProsRefreshedAt: fantasyProsQuery.data?.metadata.refreshedAt,
+      fantasyProsSource: fantasyProsQuery.data?.metadata.source,
+      fantasyProsSourceType: fantasyProsQuery.data?.metadata.sourceType,
       sleeperFetchedAt: sleeperQuery.data?.fetchedAt,
-      ecrCount: ecrQuery.data?.playerCount ?? 0,
+      fantasyProsCount: fantasyProsQuery.data?.metadata.rankingCount ?? 0,
       sleeperCount: sleeperQuery.data?.playerCount ?? 0,
       contractsError: contractQuery.error ?? null,
     },

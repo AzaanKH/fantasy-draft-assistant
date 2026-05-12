@@ -70,14 +70,36 @@ function RecommendationRow({
         <div className="flex flex-col">
           <span className="text-sm font-medium">{recommendation.playerName}</span>
           <span className="text-xs text-muted-foreground">{recommendation.reason}</span>
+          {recommendation.diagnostics && (
+            <span className="text-[11px] text-muted-foreground/80">
+              Proj {recommendation.diagnostics.projectedPoints.toFixed(1)}
+              {' · '}
+              Tier {recommendation.diagnostics.tier}
+            </span>
+          )}
         </div>
       </div>
 
-      {showScore && (
-        <span className="text-xs font-mono text-muted-foreground">
-          {recommendation.score.toFixed(1)}
-        </span>
-      )}
+      <div className="flex flex-col items-end gap-1">
+        {recommendation.diagnostics && (
+          <span
+            className={cn(
+              'text-[11px] font-mono',
+              recommendation.diagnostics.marketDelta > 0 && 'text-green-600',
+              recommendation.diagnostics.marketDelta < 0 && 'text-red-500',
+              recommendation.diagnostics.marketDelta === 0 && 'text-muted-foreground'
+            )}
+          >
+            {recommendation.diagnostics.marketDelta > 0 ? '+' : ''}
+            {recommendation.diagnostics.marketDelta}
+          </span>
+        )}
+        {showScore && (
+          <span className="text-xs font-mono text-muted-foreground">
+            {recommendation.score.toFixed(1)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -154,6 +176,19 @@ function TopPickHighlight({
       </div>
       <div className="text-lg font-bold">{recommendation.playerName}</div>
       <div className="text-xs text-muted-foreground">{recommendation.reason}</div>
+      {recommendation.subScores && recommendation.diagnostics && (
+        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+          <span>Proj {recommendation.diagnostics.projectedPoints.toFixed(1)}</span>
+          <span>Tier {recommendation.diagnostics.tier}</span>
+          <span>
+            FP #{recommendation.diagnostics.expertRank} / SL #{recommendation.diagnostics.marketRank}
+          </span>
+          <span>
+            Delta {recommendation.diagnostics.marketDelta > 0 ? '+' : ''}
+            {recommendation.diagnostics.marketDelta}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

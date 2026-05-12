@@ -129,6 +129,26 @@ export interface Recommendation {
   readonly position: Position;
   readonly reason: string;
   readonly score: number;
+  readonly diagnostics?: {
+    readonly expertRank: number;
+    readonly marketRank: number;
+    readonly marketDelta: number;
+    readonly projectedPoints: number;
+    readonly tier: number;
+  };
+  readonly subScores?: {
+    readonly expertRankScore: number;
+    readonly marketValueScore: number;
+    readonly projectionScore: number;
+    readonly replacementScore: number;
+    readonly upsideScore: number;
+    readonly tierUrgencyScore: number;
+    readonly survivalScore: number;
+    readonly riskPenalty: number;
+    readonly needMultiplier?: number;
+    readonly scarcityMultiplier?: number;
+    readonly tePremiumBoost?: number;
+  };
 }
 
 /**

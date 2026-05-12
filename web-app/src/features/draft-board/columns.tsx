@@ -82,6 +82,20 @@ function ValueDisplay({ value }: { value: number }) {
   return <span className={className}>{prefix}{value}</span>;
 }
 
+function MarketDeltaDisplay({ player }: { player: Player }) {
+  const delta = player.valueScore;
+  const label = delta > 0 ? 'Steal' : delta < 0 ? 'Reach' : 'Even';
+
+  return (
+    <div className="flex flex-col">
+      <ValueDisplay value={delta} />
+      <span className="text-[11px] text-muted-foreground">
+        FP #{player.ecrRank} / SL #{player.marketRank} {label}
+      </span>
+    </div>
+  );
+}
+
 /**
  * Sortable header component
  */
@@ -179,7 +193,7 @@ export const columns: ColumnDef<Player>[] = [
   {
     accessorKey: 'sleeperAdp',
     header: ({ column }) => (
-      <SortableHeader column={column}>ADP</SortableHeader>
+      <SortableHeader column={column}>Sleeper</SortableHeader>
     ),
     cell: ({ row }) => (
       <span className="font-mono text-sm text-muted-foreground">
@@ -189,10 +203,8 @@ export const columns: ColumnDef<Player>[] = [
   },
   {
     accessorKey: 'valueScore',
-    header: ({ column }) => (
-      <SortableHeader column={column}>Value</SortableHeader>
-    ),
-    cell: ({ row }) => <ValueDisplay value={row.getValue('valueScore')} />,
+    header: ({ column }) => <SortableHeader column={column}>FP vs SL</SortableHeader>,
+    cell: ({ row }) => <MarketDeltaDisplay player={row.original} />,
   },
   {
     accessorKey: 'highlightLevel',

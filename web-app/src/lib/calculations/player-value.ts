@@ -8,6 +8,8 @@
 import type {
   Player,
   HighlightLevel,
+  FantasyProsProjection,
+  FantasyProsNewsItem,
   NFLTeam,
   Position,
   TeamEnvironment,
@@ -39,6 +41,24 @@ export interface ContractPlayerData {
   readonly contractEndYear: number;
   readonly isContractYear: boolean;
 }
+
+const REPLACEMENT_POSITIONAL_RANKS: Record<Position, number> = {
+  QB: 12,
+  RB: 30,
+  WR: 30,
+  TE: 14,
+  K: 12,
+  DEF: 12,
+};
+
+const TIER_THRESHOLDS: Record<Position, readonly number[]> = {
+  QB: [4, 8, 12, 18],
+  RB: [8, 16, 24, 36],
+  WR: [8, 16, 24, 36],
+  TE: [3, 6, 10, 16],
+  K: [8, 16, 24],
+  DEF: [8, 16, 24],
+};
 
 /**
  * Calculate value score: ECR rank - Sleeper ADP
@@ -111,14 +131,59 @@ export function createPlayerKey(name: string, team: NFLTeam): string {
   return `${normalizePlayerName(name)}|${team}`;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getTier(position: Position, positionalRank: number): number {
+  const thresholds = TIER_THRESHOLDS[position];
+  const thresholdIndex = thresholds.findIndex((threshold) => positionalRank <= threshold);
+  return thresholdIndex >= 0 ? thresholdIndex + 1 : thresholds.length + 1;
+}
+
+function getTierDropoffScore(position: Position, positionalRank: number): number {
+  const thresholds = TIER_THRESHOLDS[position];
+  const tier = getTier(position, positionalRank);
+  const tierStart = tier === 1 ? 1 : (thresholds[tier - 2] ?? 0) + 1;
+  const tierEnd = thresholds[tier - 1] ?? (thresholds[thresholds.length - 1] ?? positionalRank);
+  const progress = (positionalRank - tierStart) / Math.max(1, tierEnd - tierStart + 1);
+  return Number((1 - progress).toFixed(2));
+}
+
+function getProjectedPoints(ecrRank: number, sleeperAdp: number, offenseScore: number): number {
+  const rankScore = Math.max(0, 300 - ecrRank);
+  const marketScore = Math.max(0, 300 - sleeperAdp);
+  return Number((rankScore * 0.45 + marketScore * 0.35 + offenseScore * 8).toFixed(1));
+}
+
+function getValueOverReplacement(position: Position, positionalRank: number): number {
+  const replacementRank = REPLACEMENT_POSITIONAL_RANKS[position];
+  return Math.max(0, replacementRank - positionalRank);
+}
+
+function getNextPickSurvivalProbability(valueScore: number): number {
+  return Number(clamp(0.5 + valueScore / 50, 0.05, 0.95).toFixed(2));
+}
+
+function getNewsStatus(status: string | undefined): Player['newsStatus'] {
+  const normalized = status?.toLowerCase() ?? 'unknown';
+  if (normalized.includes('question')) return 'questionable';
+  if (normalized.includes('out') || normalized.includes('injured reserve')) return 'out';
+  if (normalized.includes('limited')) return 'limited';
+  if (normalized.includes('active')) return 'healthy';
+  return 'unknown';
+}
+
 /**
  * Merge ECR, Sleeper ADP, Team Environment, and Contract data into Player objects
  */
 export function mergePlayerData(
-  ecrPlayers: ECRPlayer[],
-  sleeperPlayers: SleeperADPPlayer[],
+  ecrPlayers: readonly ECRPlayer[],
+  fantasyProsProjections: readonly FantasyProsProjection[],
+  fantasyProsNews: readonly FantasyProsNewsItem[],
+  sleeperPlayers: readonly SleeperADPPlayer[],
   teamEnvironments: Record<NFLTeam, TeamEnvironment>,
-  contractPlayers: ContractPlayerData[] = []
+  contractPlayers: readonly ContractPlayerData[] = []
 ): Player[] {
   // Build lookup maps for Sleeper ADP and contracts
   const sleeperMap = new Map<string, SleeperADPPlayer>();
@@ -133,6 +198,18 @@ export function mergePlayerData(
     contractMap.set(key, player);
   }
 
+  const projectionMap = new Map<string, FantasyProsProjection>();
+  for (const projection of fantasyProsProjections) {
+    const key = createPlayerKey(projection.name, projection.team);
+    projectionMap.set(key, projection);
+  }
+
+  const newsMap = new Map<string, FantasyProsNewsItem>();
+  for (const newsItem of fantasyProsNews) {
+    const key = createPlayerKey(newsItem.name, newsItem.team);
+    newsMap.set(key, newsItem);
+  }
+
   const players: Player[] = [];
   const unmatchedEcr: string[] = [];
 
@@ -141,6 +218,8 @@ export function mergePlayerData(
     const sleeper = sleeperMap.get(key);
     const contract = contractMap.get(key);
     const teamEnv = teamEnvironments[ecr.team];
+    const projection = projectionMap.get(key);
+    const newsItem = newsMap.get(key);
 
     // Use Sleeper ADP if available, otherwise estimate from ECR rank
     // Players not on Sleeper might be rookies or lesser-known players
@@ -153,6 +232,43 @@ export function mergePlayerData(
     const valueScore = calculateValueScore(ecr.rank, sleeperAdp);
     const isContractYear = contract?.isContractYear ?? false;
     const highlightLevel = calculateHighlightLevel(valueScore, isContractYear, teamEnv);
+    const offenseScore = teamEnv?.offenseScore ?? 5;
+    const projectedPoints = projection?.projectedPoints
+      ?? getProjectedPoints(ecr.rank, sleeperAdp, offenseScore);
+    const valueOverReplacement = getValueOverReplacement(ecr.position, ecr.positionalRank);
+    const tier = getTier(ecr.position, ecr.positionalRank);
+    const tierDropoffScore = getTierDropoffScore(ecr.position, ecr.positionalRank);
+    const nextPickSurvivalProbability = getNextPickSurvivalProbability(valueScore);
+    const upsideScore = Number(
+      clamp(
+        5 + valueScore / 6 + offenseScore / 2 + (isContractYear ? 0.75 : 0),
+        1,
+        10
+      ).toFixed(1)
+    );
+    const floorScore = Number(
+      clamp(
+        4 + valueOverReplacement / 5 + offenseScore / 2 - Math.max(0, -valueScore) / 10,
+        1,
+        10
+      ).toFixed(1)
+    );
+    const ceilingScore = Number(clamp((upsideScore + offenseScore) / 2, 1, 10).toFixed(1));
+    const injuryRiskScore = Number(
+      clamp(
+        newsItem?.status === 'healthy'
+          ? 2
+          : sleeper?.status === 'Active'
+            ? 2
+            : newsItem?.status === 'limited'
+              ? 5
+              : sleeper?.status || newsItem
+                ? 6
+                : 4,
+        1,
+        10
+      ).toFixed(1)
+    );
 
     players.push({
       id: sleeper?.playerId ?? `ecr-${ecr.rank}`,
@@ -163,9 +279,23 @@ export function mergePlayerData(
       ecrRank: ecr.rank,
       sleeperAdp,
       valueScore,
+      marketRank: sleeperAdp,
+      marketAdp: sleeperAdp,
+      marketAdpTrend: 0,
       isContractYear,
       contractEndYear: contract?.contractEndYear,
-      offensiveEnvironmentScore: teamEnv?.offenseScore ?? 5,
+      offensiveEnvironmentScore: offenseScore,
+      projectedPoints,
+      valueOverReplacement,
+      tier,
+      tierDropoffScore,
+      nextPickSurvivalProbability,
+      ceilingScore,
+      floorScore,
+      upsideScore,
+      injuryRiskScore,
+      newsStatus: newsItem?.status ?? getNewsStatus(sleeper?.status),
+      stackPartnerTeam: ecr.team,
       highlightLevel,
     });
   }
@@ -202,7 +332,14 @@ export function filterDrafted(
 /**
  * Sort players by different criteria
  */
-export type SortField = 'ecrRank' | 'sleeperAdp' | 'valueScore' | 'name';
+export type SortField =
+  | 'ecrRank'
+  | 'sleeperAdp'
+  | 'valueScore'
+  | 'projectedPoints'
+  | 'valueOverReplacement'
+  | 'upsideScore'
+  | 'name';
 export type SortDirection = 'asc' | 'desc';
 
 export function sortPlayers(
@@ -222,6 +359,15 @@ export function sortPlayers(
         break;
       case 'valueScore':
         comparison = b.valueScore - a.valueScore; // Higher value first by default
+        break;
+      case 'projectedPoints':
+        comparison = b.projectedPoints - a.projectedPoints;
+        break;
+      case 'valueOverReplacement':
+        comparison = b.valueOverReplacement - a.valueOverReplacement;
+        break;
+      case 'upsideScore':
+        comparison = b.upsideScore - a.upsideScore;
         break;
       case 'name':
         comparison = a.name.localeCompare(b.name);

@@ -65,6 +65,22 @@ From the repo root:
 pnpm install
 ```
 
+## Environment
+
+For local API credentials, use a repo-root `.env.local`.
+
+Example:
+
+```bash
+cp .env.example .env.local
+```
+
+Then set:
+
+```bash
+FANTASYPROS_API_KEY=your_key_here
+```
+
 ## Local Development
 
 Run everything:
@@ -88,6 +104,18 @@ pnpm dev:web
 pnpm dev:server
 pnpm dev:extension
 ```
+
+Refresh the cached FantasyPros snapshot manually:
+
+```bash
+pnpm refresh:fantasypros
+```
+
+That command:
+
+- scrapes the latest ECR rankings
+- rewrites `data/fantasypros-snapshot.json`
+- keeps the web app pointed at a stable local snapshot instead of live FantasyPros requests
 
 ## Chrome Extension Setup
 
@@ -212,12 +240,14 @@ Implemented:
 - web app consuming server sync instead of polling Sleeper directly
 - extension side panel consuming server-backed canonical snapshot
 - mock fixture-based server tests
+- cached FantasyPros snapshot provider
+- manual `pnpm refresh:fantasypros` snapshot refresh flow
+- recommendation sub-scores and clearer FantasyPros vs Sleeper deltas in the UI
 
 Not yet implemented:
 
-- richer projection and tier data model
-- next-pick survival modeling
-- upside/risk scoring
+- real FantasyPros API adapter
+- real FantasyPros projections/news ingestion
 - automated browser-level extension integration tests
 
 ## Known Limitations
