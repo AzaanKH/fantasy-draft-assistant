@@ -267,7 +267,7 @@ Implemented:
 - mock fixture-based server tests
 - cached FantasyPros snapshot provider
 - real FantasyPros API-backed snapshot refresh
-- manual `pnpm refresh:fantasypros` snapshot refresh flow
+- manual `pnpm refresh:fantasypros:manual` snapshot refresh flow
 - recommendation sub-scores and clearer FantasyPros vs Sleeper deltas in the UI
 
 Not yet implemented:

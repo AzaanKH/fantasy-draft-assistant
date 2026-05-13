@@ -38,6 +38,26 @@ describe('fantasyProsApiInternals', () => {
     ]);
   });
 
+  it('skips rankings with missing or invalid consensus rank values', () => {
+    const rankings = fantasyProsApiInternals.buildRankings([
+      {
+        player_id: 123,
+        player_name: 'Missing Rank',
+        player_team_id: 'BUF',
+        player_position_id: 'WR',
+      },
+      {
+        player_id: 124,
+        player_name: 'Bad Rank',
+        player_team_id: 'BUF',
+        player_position_id: 'WR',
+        rank_ecr: 'not-a-number',
+      },
+    ]);
+
+    expect(rankings).toEqual([]);
+  });
+
   it('builds projections using the requested scoring output', () => {
     const projections = fantasyProsApiInternals.buildProjections(
       [{

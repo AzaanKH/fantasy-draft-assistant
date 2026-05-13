@@ -12,6 +12,7 @@ import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared';
 const FANTASYPROS_API_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const FANTASYPROS_SPORT_PATH = 'nfl';
 const FANTASYPROS_SPORT_NAME = 'NFL';
+const FANTASYPROS_REQUEST_TIMEOUT_MS = 10_000;
 
 export interface FantasyProsApiOptions {
   readonly apiKey: string;
@@ -176,12 +177,28 @@ async function fetchFantasyProsJson<T>(
     }
   }
 
-  const response = await fetch(url, {
-    headers: {
-      'x-api-key': apiKey,
-      accept: 'application/json',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FANTASYPROS_REQUEST_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        'x-api-key': apiKey,
+        accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(
+        `FantasyPros API request timed out after ${FANTASYPROS_REQUEST_TIMEOUT_MS}ms for ${url.pathname}`
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -229,7 +246,10 @@ function buildRankings(players: readonly FantasyProsConsensusPlayer[]): ECRPlaye
       return [];
     }
 
-    const rank = parseNumber(player.rank_ecr);
+    const rank = parseNumber(player.rank_ecr, Number.NaN);
+    if (!Number.isFinite(rank)) {
+      return [];
+    }
 
     return [{
       rank,

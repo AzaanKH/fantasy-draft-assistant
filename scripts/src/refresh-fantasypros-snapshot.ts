@@ -55,23 +55,18 @@ function buildManualSnapshot(ecrData: EcrDataFile): FantasyProsSnapshot {
   };
 }
 
-function resolveSeason(manualSnapshot: EcrDataFile): number {
-  const currentYear = new Date().getFullYear();
-  return manualSnapshot.season ?? currentYear;
-}
-
 async function main(): Promise<void> {
-  const ecrData = await readEcrFile();
   const apiKey = process.env['FANTASYPROS_API_KEY']?.trim();
   const snapshotMode = process.env['FANTASYPROS_SNAPSHOT_MODE']?.trim().toLowerCase();
   const preferManual = snapshotMode === 'manual';
   let snapshot: FantasyProsSnapshot;
+  let ecrData: EcrDataFile | undefined;
 
   if (apiKey && !preferManual) {
     try {
       snapshot = await fetchFantasyProsSnapshot({
         apiKey,
-        season: resolveSeason(ecrData),
+        season: new Date().getFullYear(),
         scoring: 'PPR',
       });
       console.log(
@@ -81,9 +76,11 @@ async function main(): Promise<void> {
     } catch (error) {
       console.warn('FantasyPros API refresh failed, falling back to local ECR snapshot.');
       console.warn(error);
+      ecrData = await readEcrFile();
       snapshot = buildManualSnapshot(ecrData);
     }
   } else {
+    ecrData = await readEcrFile();
     snapshot = buildManualSnapshot(ecrData);
   }
 
