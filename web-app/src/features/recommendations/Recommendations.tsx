@@ -47,6 +47,8 @@ function RecommendationRow({
       onDraft(recommendation.playerId);
     }
   };
+  const projectedPoints = recommendation.diagnostics?.projectedPoints;
+  const marketDelta = recommendation.diagnostics?.marketDelta;
 
   return (
     <div
@@ -72,7 +74,7 @@ function RecommendationRow({
           <span className="text-xs text-muted-foreground">{recommendation.reason}</span>
           {recommendation.diagnostics && (
             <span className="text-[11px] text-muted-foreground/80">
-              Proj {recommendation.diagnostics.projectedPoints.toFixed(1)}
+              Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : '-'}
               {' · '}
               Tier {recommendation.diagnostics.tier}
             </span>
@@ -85,13 +87,14 @@ function RecommendationRow({
           <span
             className={cn(
               'text-[11px] font-mono',
-              recommendation.diagnostics.marketDelta > 0 && 'text-green-600',
-              recommendation.diagnostics.marketDelta < 0 && 'text-red-500',
-              recommendation.diagnostics.marketDelta === 0 && 'text-muted-foreground'
+              typeof marketDelta === 'number' && marketDelta > 0 && 'text-green-600',
+              typeof marketDelta === 'number' && marketDelta < 0 && 'text-red-500',
+              (typeof marketDelta !== 'number' || marketDelta === 0) && 'text-muted-foreground'
             )}
           >
-            {recommendation.diagnostics.marketDelta > 0 ? '+' : ''}
-            {recommendation.diagnostics.marketDelta}
+            {typeof marketDelta === 'number'
+              ? `${marketDelta > 0 ? '+' : ''}${marketDelta}`
+              : '-'}
           </span>
         )}
         {showScore && (
