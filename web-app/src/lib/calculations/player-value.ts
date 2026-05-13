@@ -146,8 +146,13 @@ function getTierDropoffScore(position: Position, positionalRank: number): number
   const tier = getTier(position, positionalRank);
   const tierStart = tier === 1 ? 1 : (thresholds[tier - 2] ?? 0) + 1;
   const tierEnd = thresholds[tier - 1] ?? (thresholds[thresholds.length - 1] ?? positionalRank);
-  const progress = (positionalRank - tierStart) / Math.max(1, tierEnd - tierStart + 1);
-  return Number((1 - progress).toFixed(2));
+  const progress = clamp(
+    (positionalRank - tierStart) / Math.max(1, tierEnd - tierStart + 1),
+    0,
+    1
+  );
+  const dropoff = clamp(1 - progress, 0, 1);
+  return Number(dropoff.toFixed(2));
 }
 
 function getProjectedPoints(ecrRank: number, sleeperAdp: number, offenseScore: number): number {
@@ -168,9 +173,10 @@ function getNextPickSurvivalProbability(valueScore: number): number {
 function getNewsStatus(status: string | undefined): Player['newsStatus'] {
   const normalized = status?.toLowerCase() ?? 'unknown';
   if (normalized.includes('question')) return 'questionable';
+  if (normalized.includes('inactive')) return 'out';
   if (normalized.includes('out') || normalized.includes('injured reserve')) return 'out';
   if (normalized.includes('limited')) return 'limited';
-  if (normalized.includes('active')) return 'healthy';
+  if (/\bactive\b/.test(normalized)) return 'healthy';
   return 'unknown';
 }
 

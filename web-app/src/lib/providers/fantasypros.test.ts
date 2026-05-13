@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FantasyProsSnapshot } from '@fantasy-draft/shared';
 import { CachedFantasyProsProvider } from './fantasypros';
 
 describe('CachedFantasyProsProvider', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('loads the cached snapshot', async () => {
     const snapshot: FantasyProsSnapshot = {
       metadata: {

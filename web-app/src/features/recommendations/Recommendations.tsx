@@ -155,6 +155,8 @@ function TopPickHighlight({
     return null;
   }
 
+  const projectedPoints = recommendation.diagnostics?.projectedPoints;
+
   return (
     <div
       className={cn(
@@ -176,16 +178,20 @@ function TopPickHighlight({
       </div>
       <div className="text-lg font-bold">{recommendation.playerName}</div>
       <div className="text-xs text-muted-foreground">{recommendation.reason}</div>
-      {recommendation.subScores && recommendation.diagnostics && (
+      {recommendation.diagnostics && (
         <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-          <span>Proj {recommendation.diagnostics.projectedPoints.toFixed(1)}</span>
-          <span>Tier {recommendation.diagnostics.tier}</span>
           <span>
-            FP #{recommendation.diagnostics.expertRank} / SL #{recommendation.diagnostics.marketRank}
+            Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : 'N/A'}
+          </span>
+          <span>Tier {recommendation.diagnostics?.tier ?? 'N/A'}</span>
+          <span>
+            FP #{recommendation.diagnostics?.expertRank ?? 'N/A'} / SL #
+            {recommendation.diagnostics?.marketRank ?? 'N/A'}
           </span>
           <span>
-            Delta {recommendation.diagnostics.marketDelta > 0 ? '+' : ''}
-            {recommendation.diagnostics.marketDelta}
+            Delta {typeof recommendation.diagnostics?.marketDelta === 'number'
+              ? `${recommendation.diagnostics.marketDelta > 0 ? '+' : ''}${recommendation.diagnostics.marketDelta}`
+              : 'N/A'}
           </span>
         </div>
       )}

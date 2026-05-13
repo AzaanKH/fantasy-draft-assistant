@@ -12,6 +12,7 @@ const INPUT_FILE = join(DATA_DIR, 'ecr-rankings.json');
 const OUTPUT_FILE = join(DATA_DIR, 'fantasypros-snapshot.json');
 
 interface EcrDataFile {
+  readonly season?: number;
   readonly scrapedAt: string;
   readonly source: string;
   readonly playerCount: number;
@@ -30,14 +31,16 @@ async function writeSnapshot(snapshot: FantasyProsSnapshot): Promise<void> {
 
 async function main(): Promise<void> {
   const ecrData = await readEcrFile();
+  const derivedSeason = ecrData.season ?? new Date(ecrData.scrapedAt).getFullYear();
+  const rankingCount = ecrData.players?.length ?? ecrData.playerCount;
 
   const snapshot: FantasyProsSnapshot = {
     metadata: {
-      season: 2026,
+      season: derivedSeason,
       sourceType: 'manual-refresh',
       source: ecrData.source,
       refreshedAt: ecrData.scrapedAt,
-      rankingCount: ecrData.playerCount,
+      rankingCount,
       projectionCount: 0,
       newsCount: 0,
     },
