@@ -1,5 +1,11 @@
 # Fantasy Football Draft Assistant - Technical Specification
 
+> Note
+>
+> This spec reflects the original project direction and some parts of it are now outdated.
+> For current source-selection, team-environment, and model-layer decisions, use
+> [docs/data-strategy.md](docs/data-strategy.md) as the active reference.
+
 ## Project Overview
 
 A dual-platform fantasy football draft assistant consisting of a React web app and Chrome extension for the Sleeper platform. The system highlights undervalued players based on FantasyPros ECR vs Sleeper rankings, contract year status, and offensive environment.
@@ -572,6 +578,17 @@ packages:
 ---
 
 ## Data Sources & Collection
+
+> Current note
+>
+> The current source plan is no longer limited to FantasyPros + Spotrac + Sleeper.
+> The active direction is:
+>
+> - `Sleeper` for live draft state and market context
+> - `FantasyPros` for current rankings, projections, and news via cached snapshot refresh
+> - `nflreadpy` / `nflverse` for historical modeling, ID mapping, and derived team environment
+>
+> See [docs/data-strategy.md](docs/data-strategy.md) for the maintained rationale and build order.
 
 ### 1. FantasyPros ECR Rankings
 

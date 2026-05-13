@@ -6,6 +6,19 @@ Fantasy football draft assistant for Sleeper with:
 - a Chrome extension side panel for draft-room awareness
 - a local sync server that polls Sleeper, stores a canonical draft snapshot, and streams updates to clients
 
+## Reference Docs
+
+- Data strategy and source decisions: [docs/data-strategy.md](docs/data-strategy.md)
+- Original technical spec: [fantasy-draft-assistant-spec.md](fantasy-draft-assistant-spec.md)
+
+Use `docs/data-strategy.md` as the current source of truth for:
+
+- source selection
+- why `nflreadpy` / `nflverse` is the historical-modeling base
+- why FantasyPros is the current expert/projection source
+- why team environment should be derived data
+- why prediction and recommendation should stay separate
+
 ## Current Architecture
 
 ### Web app
@@ -113,9 +126,21 @@ pnpm refresh:fantasypros
 
 That command:
 
-- scrapes the latest ECR rankings
+- tries the FantasyPros API when `FANTASYPROS_API_KEY` is present
+- falls back to the local ECR snapshot when the API request fails
 - rewrites `data/fantasypros-snapshot.json`
-- keeps the web app pointed at a stable local snapshot instead of live FantasyPros requests
+
+The current live API integration uses the public FantasyPros endpoints under:
+
+```text
+https://api.fantasypros.com/public/v2/json/nfl/...
+```
+
+Force the old scrape/manual path:
+
+```bash
+pnpm refresh:fantasypros:manual
+```
 
 ## Chrome Extension Setup
 
@@ -241,13 +266,14 @@ Implemented:
 - extension side panel consuming server-backed canonical snapshot
 - mock fixture-based server tests
 - cached FantasyPros snapshot provider
+- real FantasyPros API-backed snapshot refresh
 - manual `pnpm refresh:fantasypros` snapshot refresh flow
 - recommendation sub-scores and clearer FantasyPros vs Sleeper deltas in the UI
 
 Not yet implemented:
 
-- real FantasyPros API adapter
-- real FantasyPros projections/news ingestion
+- derived `team-environment.json` pipeline backed by nflreadpy / nflverse
+- prediction layer built on historical nflverse-style data
 - automated browser-level extension integration tests
 
 ## Known Limitations
