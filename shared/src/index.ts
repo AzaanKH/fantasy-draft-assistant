@@ -2,16 +2,19 @@
 export {
   NFL_TEAMS,
   POSITIONS,
+  NEWS_STATUSES,
   HIGHLIGHT_LEVELS,
   isPosition,
   isNFLTeam,
   isHighlightLevel,
+  isNewsStatus,
   isPlayer,
 } from './player';
 
 export type {
   NFLTeam,
   Position,
+  NewsStatus,
   HighlightLevel,
   Player,
 } from './player';
@@ -94,6 +97,20 @@ export type {
   ContractPlayer,
   RawECRData,
 } from './scrapers';
+
+// FantasyPros snapshot types
+export {
+  FANTASYPROS_SNAPSHOT_SOURCES,
+  isFantasyProsSnapshotSource,
+} from './fantasypros';
+
+export type {
+  FantasyProsSnapshotSource,
+  FantasyProsProjection,
+  FantasyProsNewsItem,
+  FantasyProsSnapshotMetadata,
+  FantasyProsSnapshot,
+} from './fantasypros';
 
 // Sync types
 export { DraftSyncEngine, normalizeSleeperPick } from './sync';

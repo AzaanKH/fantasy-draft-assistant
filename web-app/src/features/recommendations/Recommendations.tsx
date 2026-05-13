@@ -47,6 +47,8 @@ function RecommendationRow({
       onDraft(recommendation.playerId);
     }
   };
+  const projectedPoints = recommendation.diagnostics?.projectedPoints;
+  const marketDelta = recommendation.diagnostics?.marketDelta;
 
   return (
     <div
@@ -70,14 +72,37 @@ function RecommendationRow({
         <div className="flex flex-col">
           <span className="text-sm font-medium">{recommendation.playerName}</span>
           <span className="text-xs text-muted-foreground">{recommendation.reason}</span>
+          {recommendation.diagnostics && (
+            <span className="text-[11px] text-muted-foreground/80">
+              Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : '-'}
+              {' · '}
+              Tier {recommendation.diagnostics.tier}
+            </span>
+          )}
         </div>
       </div>
 
-      {showScore && (
-        <span className="text-xs font-mono text-muted-foreground">
-          {recommendation.score.toFixed(1)}
-        </span>
-      )}
+      <div className="flex flex-col items-end gap-1">
+        {recommendation.diagnostics && (
+          <span
+            className={cn(
+              'text-[11px] font-mono',
+              typeof marketDelta === 'number' && marketDelta > 0 && 'text-green-600',
+              typeof marketDelta === 'number' && marketDelta < 0 && 'text-red-500',
+              (typeof marketDelta !== 'number' || marketDelta === 0) && 'text-muted-foreground'
+            )}
+          >
+            {typeof marketDelta === 'number'
+              ? `${marketDelta > 0 ? '+' : ''}${marketDelta}`
+              : '-'}
+          </span>
+        )}
+        {showScore && (
+          <span className="text-xs font-mono text-muted-foreground">
+            {recommendation.score.toFixed(1)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -133,6 +158,8 @@ function TopPickHighlight({
     return null;
   }
 
+  const projectedPoints = recommendation.diagnostics?.projectedPoints;
+
   return (
     <div
       className={cn(
@@ -154,6 +181,23 @@ function TopPickHighlight({
       </div>
       <div className="text-lg font-bold">{recommendation.playerName}</div>
       <div className="text-xs text-muted-foreground">{recommendation.reason}</div>
+      {recommendation.diagnostics && (
+        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+          <span>
+            Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : 'N/A'}
+          </span>
+          <span>Tier {recommendation.diagnostics?.tier ?? 'N/A'}</span>
+          <span>
+            FP #{recommendation.diagnostics?.expertRank ?? 'N/A'} / SL #
+            {recommendation.diagnostics?.marketRank ?? 'N/A'}
+          </span>
+          <span>
+            Delta {typeof recommendation.diagnostics?.marketDelta === 'number'
+              ? `${recommendation.diagnostics.marketDelta > 0 ? '+' : ''}${recommendation.diagnostics.marketDelta}`
+              : 'N/A'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

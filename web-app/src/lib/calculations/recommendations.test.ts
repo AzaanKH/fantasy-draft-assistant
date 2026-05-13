@@ -18,8 +18,22 @@ function createPlayer(
     ecrRank,
     sleeperAdp: ecrRank,
     valueScore: 0,
+    marketRank: ecrRank,
+    marketAdp: ecrRank,
+    marketAdpTrend: 0,
     isContractYear: false,
     offensiveEnvironmentScore: 5,
+    projectedPoints: 200 - ecrRank,
+    valueOverReplacement: Math.max(0, 20 - ecrRank / 5),
+    tier: 1,
+    tierDropoffScore: 0.8,
+    nextPickSurvivalProbability: 0.5,
+    ceilingScore: 7,
+    floorScore: 6,
+    upsideScore: 6,
+    injuryRiskScore: 2,
+    newsStatus: 'healthy',
+    stackPartnerTeam: 'DET',
     highlightLevel: 'neutral',
   };
 }
@@ -58,7 +72,7 @@ describe('getRecommendations', () => {
       const { bestAvailable } = getRecommendations(players, needs, 10);
 
       expect(bestAvailable[0]?.playerName).toBe('Player p1');
-      expect(bestAvailable[0]?.reason).toBe('ECR #10');
+      expect(bestAvailable[0]?.reason).toContain('FP #10');
       expect(bestAvailable[1]?.playerName).toBe('Player p2');
       expect(bestAvailable[2]?.playerName).toBe('Player p3');
     });
@@ -74,13 +88,15 @@ describe('getRecommendations', () => {
       expect(bestAvailable).toHaveLength(5);
     });
 
-    it('calculates score as 100 - ecrRank', () => {
+    it('calculates a positive composite best-available score', () => {
       const players = [createPlayer('p1', 'QB', 15)];
       const needs = createNeeds([{ position: 'QB', priority: 'low' }]);
 
       const { bestAvailable } = getRecommendations(players, needs);
 
-      expect(bestAvailable[0]?.score).toBe(85); // 100 - 15
+      expect(bestAvailable[0]?.score).toBeGreaterThan(0);
+      expect(bestAvailable[0]?.subScores?.expertRankScore).toBeGreaterThan(0);
+      expect(bestAvailable[0]?.diagnostics?.marketRank).toBe(15);
     });
   });
 
@@ -186,7 +202,8 @@ describe('getRecommendations', () => {
 
       const { byNeed } = getRecommendations(players, needs);
 
-      expect(byNeed[0]?.reason).toBe('critical need, scarcity 7.5');
+      expect(byNeed[0]?.reason).toContain('critical need');
+      expect(byNeed[0]?.reason).toContain('FP #10');
     });
 
     it('sorts by calculated score descending', () => {
@@ -223,6 +240,17 @@ describe('getRecommendations', () => {
       expect(bestAvailable).toHaveLength(1);
       expect(byNeed).toHaveLength(0);
     });
+  });
+
+  it('exposes named sub-scores on need-based recommendations', () => {
+    const players = [createPlayer('p1', 'TE', 20)];
+    const needs = createNeeds([{ position: 'TE', priority: 'critical', scarcityScore: 9 }]);
+
+    const { byNeed } = getRecommendations(players, needs);
+
+    expect(byNeed[0]?.subScores?.needMultiplier).toBe(2);
+    expect(byNeed[0]?.subScores?.scarcityMultiplier).toBe(1.45);
+    expect(byNeed[0]?.subScores?.tePremiumBoost).toBe(1.15);
   });
 });
 

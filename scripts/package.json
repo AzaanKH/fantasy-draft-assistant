@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "scrape:ecr": "tsx src/scrape-ecr.ts",
+    "refresh:fantasypros-snapshot": "tsx src/refresh-fantasypros-snapshot.ts",
     "scrape:contracts": "tsx src/scrape-contracts.ts",
     "fetch:sleeper": "tsx src/fetch-sleeper-adp.ts",
     "generate:team-env": "tsx src/generate-team-env.ts",

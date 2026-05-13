@@ -11,6 +11,9 @@ import type {
   Recommendation,
 } from '@fantasy-draft/shared';
 
+type RecommendationDiagnostics = NonNullable<Recommendation['diagnostics']>;
+type RecommendationSubScores = NonNullable<Recommendation['subScores']>;
+
 /**
  * Result of the recommendation engine
  */
@@ -19,6 +22,91 @@ export interface RecommendationResult {
   readonly bestAvailable: readonly Recommendation[];
   /** Players recommended based on team needs and scarcity */
   readonly byNeed: readonly Recommendation[];
+}
+
+function getDiagnostics(player: Player): RecommendationDiagnostics {
+  return {
+    expertRank: player.ecrRank,
+    marketRank: player.marketRank,
+    marketDelta: player.valueScore,
+    projectedPoints: player.projectedPoints,
+    tier: player.tier,
+  };
+}
+
+function getBaseSubScores(player: Player): RecommendationSubScores {
+  return {
+    expertRankScore: Math.max(0, 120 - player.ecrRank),
+    marketValueScore: player.valueScore * 0.75,
+    projectionScore: player.projectedPoints * 0.14,
+    replacementScore: player.valueOverReplacement * 3.25,
+    upsideScore: player.upsideScore * 1.8,
+    tierUrgencyScore: player.tierDropoffScore * 8,
+    survivalScore: (1 - player.nextPickSurvivalProbability) * 18,
+    riskPenalty: player.injuryRiskScore,
+  };
+}
+
+function sumBaseSubScores(subScores: RecommendationSubScores): number {
+  return (
+    subScores.expertRankScore +
+    subScores.marketValueScore +
+    subScores.projectionScore +
+    subScores.replacementScore +
+    subScores.upsideScore +
+    subScores.tierUrgencyScore +
+    subScores.survivalScore -
+    subScores.riskPenalty
+  );
+}
+
+function formatMarketDelta(valueScore: number): string {
+  if (valueScore > 0) {
+    return `Steal +${valueScore}`;
+  }
+  if (valueScore < 0) {
+    return `Reach ${valueScore}`;
+  }
+  return 'Market even';
+}
+
+function buildBestAvailableRecommendation(player: Player): Recommendation {
+  const subScores = getBaseSubScores(player);
+  const diagnostics = getDiagnostics(player);
+
+  return {
+    playerId: player.id,
+    playerName: player.name,
+    position: player.position,
+    reason: `FP #${player.ecrRank}, Sleeper #${player.marketRank}, ${formatMarketDelta(player.valueScore)}`,
+    score: sumBaseSubScores(subScores),
+    diagnostics,
+    subScores,
+  };
+}
+
+function buildNeedRecommendation(player: Player, need: PositionNeed): Recommendation {
+  const baseSubScores = getBaseSubScores(player);
+  const needMultiplier = need.priority === 'critical' ? 2 : 1.5;
+  const scarcityMultiplier = 1 + need.scarcityScore / 20;
+  const tePremiumBoost = player.position === 'TE' ? 1.15 : 1;
+
+  const subScores: RecommendationSubScores = {
+    ...baseSubScores,
+    needMultiplier,
+    scarcityMultiplier,
+    tePremiumBoost,
+  };
+
+  return {
+    playerId: player.id,
+    playerName: player.name,
+    position: player.position,
+    reason: `${need.priority} need · FP #${player.ecrRank} vs Sleeper #${player.marketRank} · ${formatMarketDelta(player.valueScore)}`,
+    score: sumBaseSubScores(baseSubScores) * needMultiplier * scarcityMultiplier * tePremiumBoost,
+    diagnostics: getDiagnostics(player),
+    subScores,
+  };
 }
 
 /**
@@ -41,18 +129,10 @@ export function getRecommendations(
   teamNeeds: readonly PositionNeed[],
   limit: number = 10
 ): RecommendationResult {
-  // Best Available: Pure ECR ranking
-  const sortedByEcr = [...availablePlayers].sort((a, b) => a.ecrRank - b.ecrRank);
-
-  const bestAvailable: Recommendation[] = sortedByEcr
-    .slice(0, limit)
-    .map((player) => ({
-      playerId: player.id,
-      playerName: player.name,
-      position: player.position,
-      reason: `ECR #${player.ecrRank}`,
-      score: 100 - player.ecrRank,
-    }));
+  const bestAvailable = [...availablePlayers]
+    .map(buildBestAvailableRecommendation)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 
   // By Need: Factor in team needs and scarcity
   const criticalPositions = teamNeeds
@@ -75,24 +155,7 @@ export function getRecommendations(
         return null;
       }
 
-      // Calculate score multipliers
-      const needMultiplier = need.priority === 'critical' ? 2 : 1.5;
-      const scarcityMultiplier = 1 + need.scarcityScore / 20;
-
-      // TE Premium boost for this league (+0.5 PPR for TEs)
-      const tePremiumBoost = player.position === 'TE' ? 1.15 : 1;
-
-      // Base score from ECR, then apply multipliers
-      const baseScore = 100 - player.ecrRank;
-      const score = baseScore * needMultiplier * scarcityMultiplier * tePremiumBoost;
-
-      return {
-        playerId: player.id,
-        playerName: player.name,
-        position: player.position,
-        reason: `${need.priority} need, scarcity ${need.scarcityScore.toFixed(1)}`,
-        score,
-      };
+      return buildNeedRecommendation(player, need);
     })
     .filter((r): r is Recommendation => r !== null)
     .sort((a, b) => b.score - a.score)

@@ -408,10 +408,22 @@ export function PlayerTable() {
               Contract-year data unavailable.
             </div>
           )}
-          {dataInfo.ecrScrapedAt && (
+          {dataInfo.fantasyProsRefreshedAt && (
             <div className="text-muted-foreground">
-              ECR data from{' '}
-              {new Date(dataInfo.ecrScrapedAt).toLocaleDateString()}
+              FantasyPros snapshot from{' '}
+              {new Date(dataInfo.fantasyProsRefreshedAt).toLocaleString()}
+              {dataInfo.fantasyProsSourceType && (
+                <span>
+                  {' · '}
+                  {dataInfo.fantasyProsSourceType}
+                </span>
+              )}
+            </div>
+          )}
+          {dataInfo.sleeperFetchedAt && (
+            <div className="text-muted-foreground">
+              Sleeper market snapshot from{' '}
+              {new Date(dataInfo.sleeperFetchedAt).toLocaleString()}
             </div>
           )}
         </div>

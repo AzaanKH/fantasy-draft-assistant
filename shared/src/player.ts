@@ -17,6 +17,16 @@ export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
 
 export type Position = (typeof POSITIONS)[number];
 
+export const NEWS_STATUSES = [
+  'healthy',
+  'limited',
+  'questionable',
+  'out',
+  'unknown',
+] as const;
+
+export type NewsStatus = (typeof NEWS_STATUSES)[number];
+
 /**
  * Highlight levels for player recommendations
  * - strong-buy: Value >= +10 AND (contract year OR top-10 offense)
@@ -44,6 +54,12 @@ export interface Player {
   readonly sleeperAdp: number;
   /** ECR - ADP (positive = undervalued on Sleeper) */
   readonly valueScore: number;
+  /** Generic market/platform rank snapshot */
+  readonly marketRank: number;
+  /** Generic market ADP snapshot */
+  readonly marketAdp: number;
+  /** Positive means player is rising up the market */
+  readonly marketAdpTrend: number;
 
   /** Player is in final year of contract */
   readonly isContractYear: boolean;
@@ -51,6 +67,28 @@ export interface Player {
   readonly contractEndYear?: number;
   /** Team offensive environment score (1-10 scale) */
   readonly offensiveEnvironmentScore: number;
+  /** Derived projection proxy until external projection source is added */
+  readonly projectedPoints: number;
+  /** Derived value-over-replacement style score */
+  readonly valueOverReplacement: number;
+  /** Position-specific draft tier */
+  readonly tier: number;
+  /** Size of the dropoff after this player within the position */
+  readonly tierDropoffScore: number;
+  /** Heuristic probability that player survives to a later pick window */
+  readonly nextPickSurvivalProbability: number;
+  /** Ceiling-oriented score */
+  readonly ceilingScore: number;
+  /** Floor-oriented score */
+  readonly floorScore: number;
+  /** Upside-oriented score */
+  readonly upsideScore: number;
+  /** Higher means more fragility/risk */
+  readonly injuryRiskScore: number;
+  /** Current availability/news signal */
+  readonly newsStatus: NewsStatus;
+  /** Simple same-team stack partners for QB/WR/TE-style correlations */
+  readonly stackPartnerTeam: NFLTeam;
 
   /** Calculated highlight level for UI */
   readonly highlightLevel: HighlightLevel;
@@ -79,6 +117,10 @@ export function isHighlightLevel(value: unknown): value is HighlightLevel {
   return typeof value === 'string' && HIGHLIGHT_LEVELS.includes(value as HighlightLevel);
 }
 
+export function isNewsStatus(value: unknown): value is NewsStatus {
+  return typeof value === 'string' && NEWS_STATUSES.includes(value as NewsStatus);
+}
+
 /**
  * Type guard to validate Player object structure
  */
@@ -98,8 +140,22 @@ export function isPlayer(obj: unknown): obj is Player {
     typeof candidate['ecrRank'] === 'number' &&
     typeof candidate['sleeperAdp'] === 'number' &&
     typeof candidate['valueScore'] === 'number' &&
+    typeof candidate['marketRank'] === 'number' &&
+    typeof candidate['marketAdp'] === 'number' &&
+    typeof candidate['marketAdpTrend'] === 'number' &&
     typeof candidate['isContractYear'] === 'boolean' &&
     typeof candidate['offensiveEnvironmentScore'] === 'number' &&
+    typeof candidate['projectedPoints'] === 'number' &&
+    typeof candidate['valueOverReplacement'] === 'number' &&
+    typeof candidate['tier'] === 'number' &&
+    typeof candidate['tierDropoffScore'] === 'number' &&
+    typeof candidate['nextPickSurvivalProbability'] === 'number' &&
+    typeof candidate['ceilingScore'] === 'number' &&
+    typeof candidate['floorScore'] === 'number' &&
+    typeof candidate['upsideScore'] === 'number' &&
+    typeof candidate['injuryRiskScore'] === 'number' &&
+    isNewsStatus(candidate['newsStatus']) &&
+    isNFLTeam(candidate['stackPartnerTeam']) &&
     isHighlightLevel(candidate['highlightLevel'])
   );
 }
