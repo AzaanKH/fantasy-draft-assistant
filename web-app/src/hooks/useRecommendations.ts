@@ -8,11 +8,28 @@
  */
 
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Recommendation } from '@fantasy-draft/shared';
-import { getRecommendations, getTopRecommendation } from '@/lib/calculations';
+import {
+  applyLeagueSurvivalModel,
+  getRecommendations,
+  getTopRecommendation,
+  type LeagueSurvivalModel,
+} from '@/lib/calculations';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 import { useDraftStore } from '@/stores/draftStore';
+
+async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
+  const response = await fetch('/data/league-history/survival-model.json');
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load league survival model: ${String(response.status)}`);
+  }
+  return response.json() as Promise<LeagueSurvivalModel>;
+}
 
 /**
  * Hook to get player recommendations
@@ -29,10 +46,23 @@ export function useRecommendations(limit: number = 5): {
   const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const config = useDraftStore((state) => state.config);
+  const currentPick = useDraftStore((state) => state.currentPick);
+  const survivalModelQuery = useQuery({
+    queryKey: ['league-survival-model'],
+    queryFn: fetchLeagueSurvivalModel,
+    staleTime: Infinity,
+  });
 
   const availablePlayers = useMemo(() => {
-    return players.filter((p) => !draftedPlayerIds.has(p.id));
-  }, [players, draftedPlayerIds]);
+    const available = players.filter((p) => !draftedPlayerIds.has(p.id));
+    return applyLeagueSurvivalModel(available, survivalModelQuery.data, {
+      currentPick,
+      myPickPosition: config.myPickPosition,
+      totalTeams: config.totalTeams,
+      totalRounds: config.totalRounds,
+    });
+  }, [players, draftedPlayerIds, survivalModelQuery.data, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds]);
 
   const recommendations = useMemo(() => {
     if (availablePlayers.length === 0) {
@@ -51,7 +81,7 @@ export function useRecommendations(limit: number = 5): {
   return {
     ...recommendations,
     topPick,
-    isLoading: playersLoading || needsLoading,
+    isLoading: playersLoading || needsLoading || survivalModelQuery.isLoading,
   };
 }
 

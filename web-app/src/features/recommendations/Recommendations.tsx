@@ -49,6 +49,7 @@ function RecommendationRow({
   };
   const projectedPoints = recommendation.diagnostics?.projectedPoints;
   const marketDelta = recommendation.diagnostics?.marketDelta;
+  const survivalProbability = recommendation.diagnostics?.nextPickSurvivalProbability;
 
   return (
     <div
@@ -77,6 +78,12 @@ function RecommendationRow({
               Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : '-'}
               {' · '}
               Tier {recommendation.diagnostics.tier}
+              {typeof survivalProbability === 'number' && (
+                <>
+                  {' · '}
+                  Wait {Math.round(survivalProbability * 100)}%
+                </>
+              )}
             </span>
           )}
         </div>
@@ -159,6 +166,7 @@ function TopPickHighlight({
   }
 
   const projectedPoints = recommendation.diagnostics?.projectedPoints;
+  const survivalProbability = recommendation.diagnostics?.nextPickSurvivalProbability;
 
   return (
     <div
@@ -196,6 +204,16 @@ function TopPickHighlight({
               ? `${recommendation.diagnostics.marketDelta > 0 ? '+' : ''}${recommendation.diagnostics.marketDelta}`
               : 'N/A'}
           </span>
+          <span>
+            Wait {typeof survivalProbability === 'number'
+              ? `${Math.round(survivalProbability * 100)}%`
+              : 'N/A'}
+          </span>
+          {recommendation.diagnostics.leaguePositionTendency && (
+            <span className="col-span-2">
+              {recommendation.diagnostics.leaguePositionTendency}
+            </span>
+          )}
         </div>
       )}
     </div>

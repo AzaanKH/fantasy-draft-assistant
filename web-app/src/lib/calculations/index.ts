@@ -33,6 +33,20 @@ export { estimatePlayerPrediction } from './prediction-score';
 
 export type { PredictionLayerResult } from './prediction-score';
 
+export {
+  applyLeagueSurvivalModel,
+  estimateLeagueSurvivalProbability,
+  getNextUserPick,
+} from './survival';
+
+export type {
+  LeagueSurvivalAdpBucket,
+  LeagueSurvivalManagerTendency,
+  LeagueSurvivalModel,
+  LeagueSurvivalPositionSummary,
+  SurvivalContext,
+} from './survival';
+
 // Legacy exports from player-value (for backwards compatibility)
 export {
   calculateHighlightLevel,

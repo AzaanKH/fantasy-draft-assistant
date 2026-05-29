@@ -31,6 +31,10 @@ function getDiagnostics(player: Player): RecommendationDiagnostics {
     marketDelta: player.valueScore,
     projectedPoints: player.projectedPoints,
     tier: player.tier,
+    nextPickSurvivalProbability: player.nextPickSurvivalProbability,
+    leagueAdjustedMarketRank: player.leagueAdjustedMarketRank,
+    leagueMarketDelta: player.leagueMarketDelta,
+    leaguePositionTendency: player.leaguePositionTendency,
   };
 }
 
@@ -73,12 +77,16 @@ function formatMarketDelta(valueScore: number): string {
 function buildBestAvailableRecommendation(player: Player): Recommendation {
   const subScores = getBaseSubScores(player);
   const diagnostics = getDiagnostics(player);
+  const survivalPercent = Math.round(player.nextPickSurvivalProbability * 100);
+  const leagueContext = player.leaguePositionTendency
+    ? `, ${survivalPercent}% to next pick`
+    : '';
 
   return {
     playerId: player.id,
     playerName: player.name,
     position: player.position,
-    reason: `FP #${player.ecrRank}, Sleeper #${player.marketRank}, ${formatMarketDelta(player.valueScore)}`,
+    reason: `FP #${player.ecrRank}, Sleeper #${player.marketRank}, ${formatMarketDelta(player.valueScore)}${leagueContext}`,
     score: sumBaseSubScores(subScores),
     diagnostics,
     subScores,
@@ -102,7 +110,7 @@ function buildNeedRecommendation(player: Player, need: PositionNeed): Recommenda
     playerId: player.id,
     playerName: player.name,
     position: player.position,
-    reason: `${need.priority} need · FP #${player.ecrRank} vs Sleeper #${player.marketRank} · ${formatMarketDelta(player.valueScore)}`,
+    reason: `${need.priority} need · FP #${player.ecrRank} vs Sleeper #${player.marketRank} · ${formatMarketDelta(player.valueScore)} · ${Math.round(player.nextPickSurvivalProbability * 100)}% to next pick`,
     score: sumBaseSubScores(baseSubScores) * needMultiplier * scarcityMultiplier * tePremiumBoost,
     diagnostics: getDiagnostics(player),
     subScores,
