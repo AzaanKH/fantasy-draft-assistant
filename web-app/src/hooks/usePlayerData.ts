@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import type {
   FantasyProsSnapshot,
   Player,
+  PlayerPrediction,
   Position,
   NFLTeam,
   TeamEnvironment,
@@ -60,6 +61,12 @@ interface ContractDataFile {
   players: ContractPlayerData[];
 }
 
+interface PredictionsDataFile {
+  generatedAt: string | null;
+  modelVersion: string;
+  players: PlayerPrediction[];
+}
+
 /**
  * Fetch FantasyPros snapshot data
  */
@@ -73,7 +80,7 @@ async function fetchFantasyProsSnapshot(): Promise<FantasyProsSnapshot> {
 async function fetchSleeperData(): Promise<SleeperDataFile> {
   const response = await fetch('/data/sleeper-adp.json');
   if (!response.ok) {
-    throw new Error(`Failed to load Sleeper data: ${response.status}`);
+    throw new Error(`Failed to load Sleeper data: ${String(response.status)}`);
   }
   return response.json() as Promise<SleeperDataFile>;
 }
@@ -84,7 +91,7 @@ async function fetchSleeperData(): Promise<SleeperDataFile> {
 async function fetchTeamEnvData(): Promise<TeamEnvDataFile> {
   const response = await fetch('/data/team-environment.json');
   if (!response.ok) {
-    throw new Error(`Failed to load team environment data: ${response.status}`);
+    throw new Error(`Failed to load team environment data: ${String(response.status)}`);
   }
   return response.json() as Promise<TeamEnvDataFile>;
 }
@@ -95,9 +102,20 @@ async function fetchTeamEnvData(): Promise<TeamEnvDataFile> {
 async function fetchContractData(): Promise<ContractDataFile> {
   const response = await fetch('/data/contracts.json');
   if (!response.ok) {
-    throw new Error(`Failed to load contract data: ${response.status}`);
+    throw new Error(`Failed to load contract data: ${String(response.status)}`);
   }
   return response.json() as Promise<ContractDataFile>;
+}
+
+async function fetchPredictionData(): Promise<PredictionsDataFile> {
+  const response = await fetch('/data/predictions.json');
+  if (response.status === 404) {
+    return { generatedAt: null, modelVersion: 'none', players: [] };
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load prediction data: ${String(response.status)}`);
+  }
+  return response.json() as Promise<PredictionsDataFile>;
 }
 
 /**
@@ -128,18 +146,29 @@ export function usePlayerDataQuery() {
     staleTime: Infinity,
   });
 
+  const predictionQuery = useQuery({
+    queryKey: ['predictions'],
+    queryFn: fetchPredictionData,
+    staleTime: Infinity,
+  });
+
   const isLoading =
     fantasyProsQuery.isLoading ||
     sleeperQuery.isLoading ||
-    teamEnvQuery.isLoading;
+    teamEnvQuery.isLoading ||
+    predictionQuery.isLoading;
 
   const isError =
     fantasyProsQuery.isError ||
     sleeperQuery.isError ||
-    teamEnvQuery.isError;
+    teamEnvQuery.isError ||
+    predictionQuery.isError;
 
   const error =
-    fantasyProsQuery.error ?? sleeperQuery.error ?? teamEnvQuery.error;
+    fantasyProsQuery.error ??
+    sleeperQuery.error ??
+    teamEnvQuery.error ??
+    predictionQuery.error;
 
   // Merge all data sources into Player objects
   const players = useMemo<Player[]>(() => {
@@ -157,9 +186,10 @@ export function usePlayerDataQuery() {
       fantasyProsQuery.data.news,
       sleeperQuery.data.players,
       teamEnvQuery.data.teams,
-      contractQuery.data?.players ?? []
+      contractQuery.data?.players ?? [],
+      predictionQuery.data?.players ?? []
     );
-  }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data]);
+  }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, predictionQuery.data]);
 
   return {
     players,
@@ -174,6 +204,8 @@ export function usePlayerDataQuery() {
       fantasyProsCount: fantasyProsQuery.data?.metadata.rankingCount ?? 0,
       sleeperCount: sleeperQuery.data?.playerCount ?? 0,
       contractsError: contractQuery.error ?? null,
+      predictionModelVersion: predictionQuery.data?.modelVersion,
+      predictionsError: predictionQuery.error ?? null,
     },
   };
 }

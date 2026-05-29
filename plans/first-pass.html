@@ -1,0 +1,1607 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fantasy Draft Prediction Layer - First Pass Plan</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    :root {
+      --ink: #18202a;
+      --muted: #5f6d7a;
+      --line: #d9e0e7;
+      --panel: #ffffff;
+      --page: #f6f8fa;
+      --green: #1d7f5f;
+      --blue: #2563a8;
+      --gold: #a15c10;
+      --red: #b42335;
+      --violet: #6b45a1;
+      --code: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--page);
+      font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 36px 0 56px;
+    }
+
+    header {
+      padding: 34px 0 26px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 4.5rem);
+      line-height: 0.96;
+      letter-spacing: 0;
+      max-width: 980px;
+    }
+
+    h2 {
+      margin: 42px 0 14px;
+      font-size: 1.6rem;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 1.05rem;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 12px;
+      max-width: 900px;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    code:not(pre code) {
+      background: #e9eef3;
+      color: #202936;
+      border-radius: 4px;
+      padding: 0.08rem 0.28rem;
+      font-size: 0.92em;
+    }
+
+    pre {
+      border-radius: 8px;
+      overflow: auto;
+      border: 1px solid #263241;
+    }
+
+    .lede {
+      color: var(--muted);
+      font-size: 1.08rem;
+      max-width: 880px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: var(--panel);
+      color: #334155;
+      font-size: 0.85rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .card h3,
+    .card h4 {
+      margin-top: 0;
+    }
+
+    .callout {
+      border-left: 4px solid var(--blue);
+      background: #eef5fb;
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin: 18px 0;
+    }
+
+    .callout strong {
+      color: #153e75;
+    }
+
+    .risk {
+      border-left-color: var(--red);
+      background: #fff1f2;
+    }
+
+    .risk strong {
+      color: #9f1239;
+    }
+
+    .ok {
+      border-left-color: var(--green);
+      background: #eefaf4;
+    }
+
+    .ok strong {
+      color: #16654b;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: table;
+    }
+
+    th,
+    td {
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #eef2f6;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #334155;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .tag.green { background: var(--green); }
+    .tag.blue { background: var(--blue); }
+    .tag.gold { background: var(--gold); }
+    .tag.red { background: var(--red); }
+    .tag.violet { background: var(--violet); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(130px, 1fr));
+      gap: 12px;
+      align-items: stretch;
+      margin: 16px 0 8px;
+    }
+
+    .node {
+      position: relative;
+      min-height: 118px;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .node:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6b7280;
+      font-weight: 800;
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .node span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .score-bars {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .bar {
+      display: grid;
+      grid-template-columns: 150px 1fr 56px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .track {
+      height: 12px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .fill.blue { width: 78%; background: var(--blue); }
+    .fill.green { width: 72%; background: var(--green); }
+    .fill.gold { width: 54%; background: var(--gold); }
+    .fill.violet { width: 38%; background: var(--violet); }
+    .fill.red { width: 18%; background: var(--red); }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      counter-reset: phase;
+    }
+
+    .phase {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 16px 16px;
+      min-height: 210px;
+    }
+
+    .phase::before {
+      counter-increment: phase;
+      content: counter(phase);
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: white;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    .mini {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .diagram {
+      width: 100%;
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .source-list {
+      columns: 2;
+      column-gap: 30px;
+    }
+
+    .source-list li {
+      break-inside: avoid;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        width: min(100vw - 24px, 1180px);
+      }
+
+      .grid.cols-2,
+      .grid.cols-3,
+      .timeline,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .node:not(:last-child)::after {
+        content: "v";
+        right: 16px;
+        top: auto;
+        bottom: -18px;
+        transform: none;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+
+      .source-list {
+        columns: 1;
+      }
+
+      .bar {
+        grid-template-columns: 120px 1fr 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Prediction Layer Plan for the Fantasy Draft Assistant</h1>
+      <p class="lede">
+        Build a free-data prediction layer that learns from historical pre-draft ranks, player opportunity,
+        team context, and actual season outcomes. Keep prediction separate from live roster-aware recommendation
+        so the app can explain both "how good is this player?" and "is this the right pick for my roster now?"
+      </p>
+      <div class="meta">
+        <span class="pill">Generated: May 28, 2026</span>
+        <span class="pill">Repo: fantasy-draft-assistant</span>
+        <span class="pill">Target file: plans/first-pass.hmtl</span>
+        <span class="pill">Primary strategy: free/open data + local cache</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Executive Decision</h2>
+      <div class="callout ok">
+        <strong>Recommended first pass:</strong>
+        use FantasyPros only for the current expert snapshot, Sleeper for live draft and market context,
+        and nflverse/nflreadpy plus ffopportunity for historical training and backtesting. For historical
+        pre-draft rankings, start with free DynastyProcess/ffverse ranking data through
+        <code>nflreadpy.load_ff_rankings(type="all")</code> rather than trying to repeatedly call or scrape
+        FantasyPros during model training.
+      </div>
+
+      <div class="grid cols-3">
+        <article class="card">
+          <h3>What Changes</h3>
+          <p>Add a new offline data pipeline and prediction artifact consumed by the existing player merge and recommendation engine.</p>
+          <ul>
+            <li><code>data/predictions.json</code></li>
+            <li><code>data/model-features.json</code></li>
+            <li><code>scripts/src/build-prediction-dataset.ts</code></li>
+            <li><code>web-app/src/lib/calculations/prediction-score.ts</code></li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>What Stays</h3>
+          <p>The current app structure is good: React + shared types + cached JSON data + local Sleeper sync. The plan extends that shape.</p>
+          <ul>
+            <li>FantasyPros snapshot adapter stays current-season focused.</li>
+            <li>Sleeper sync remains the live draft truth.</li>
+            <li>Team needs remain in recommendation logic.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>What Not To Do</h3>
+          <p>Do not train directly against the user's live roster need. That creates a model that learns roster construction artifacts instead of player quality.</p>
+          <ul>
+            <li>No live API dependency during draft picks.</li>
+            <li>No unversioned scraping as the core training source.</li>
+            <li>No claimed edge until backtested.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Current App Fit</h2>
+      <p>
+        The repo already has the right separation points. The current recommendation engine in
+        <code>web-app/src/lib/calculations/recommendations.ts</code> combines ECR, market rank, projected points,
+        replacement value, tiers, survival probability, risk, and team need. The prediction layer should replace
+        the heuristic <code>projectedPoints</code>, <code>ceilingScore</code>, <code>floorScore</code>, and
+        <code>injuryRiskScore</code> proxies with trained or backtested values, then let the existing roster-aware
+        recommendation scorer consume them.
+      </p>
+
+      <div class="flow" aria-label="Data flow">
+        <div class="node">
+          <strong>Source Pulls</strong>
+          <span>Sleeper, FantasyPros, nflreadpy, ffopportunity, optional LeagueLogs</span>
+        </div>
+        <div class="node">
+          <strong>Normalize IDs</strong>
+          <span>Sleeper ID, FantasyPros ID, GSIS ID, ESPN ID, player name fallback</span>
+        </div>
+        <div class="node">
+          <strong>Feature Build</strong>
+          <span>pre-draft rank, ADP, age, role, team context, opportunity, historical form</span>
+        </div>
+        <div class="node">
+          <strong>Prediction</strong>
+          <span>points, VOR, ceiling, floor, uncertainty, breakout probability</span>
+        </div>
+        <div class="node">
+          <strong>Recommendation</strong>
+          <span>prediction + roster needs + scarcity + market value + survival</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Free Data Source Plan</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Use</th>
+            <th>Access</th>
+            <th>Reliability Notes</th>
+            <th>Decision</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Sleeper API</strong></td>
+            <td>Live draft state, draft picks, player ID map, platform context, trending add/drop signals.</td>
+            <td>Free, read-only, no token required.</td>
+            <td>Player map is around 5 MB and Sleeper asks callers to use it once per day at most. General guidance is to stay under 1000 calls/min.</td>
+            <td><span class="tag green">Keep</span></td>
+          </tr>
+          <tr>
+            <td><strong>FantasyPros Public API</strong></td>
+            <td>Current ECR, current projections, current news/injury blurbs.</td>
+            <td>Free API key for personal, non-commercial use.</td>
+            <td>Terms prohibit competing products and allow throttling/suspension. Use cached snapshots and attribution.</td>
+            <td><span class="tag green">Keep current only</span></td>
+          </tr>
+          <tr>
+            <td><strong>nflreadpy / nflverse</strong></td>
+            <td>Historical player stats, team stats, rosters, schedules, depth charts, contracts, IDs.</td>
+            <td>Open data through Python package and nflverse repos.</td>
+            <td>Best free foundation for repeatable modeling and backtests. Use offline scripts, not browser calls.</td>
+            <td><span class="tag green">Primary history</span></td>
+          </tr>
+          <tr>
+            <td><strong>ffopportunity / ffverse</strong></td>
+            <td>Expected fantasy points, opportunity and usage features, target/rush/pass opportunity quality.</td>
+            <td>Free precomputed data through ffverse/nflreadpy.</td>
+            <td>High value for separating role/opportunity from noisy touchdowns.</td>
+            <td><span class="tag green">Primary features</span></td>
+          </tr>
+          <tr>
+            <td><strong>DynastyProcess / ffverse rankings</strong></td>
+            <td>Historical FantasyPros-style redraft rankings and current ranking snapshots for simulation.</td>
+            <td>Free GitHub-hosted data, available from ffverse tooling.</td>
+            <td>Use this as the historical pre-draft rank source. Validate coverage by year and scoring format before first model.</td>
+            <td><span class="tag blue">Use for historical ranks</span></td>
+          </tr>
+          <tr>
+            <td><strong>LeagueLogs Developer API</strong></td>
+            <td>Optional current market values, player metadata keyed by Sleeper ID, blurbs, NFL state.</td>
+            <td>Free, no auth, attribution required.</td>
+            <td>Good optional enrichment. Market coverage excludes K and DEF and refreshes every 6 hours.</td>
+            <td><span class="tag gold">Optional</span></td>
+          </tr>
+          <tr>
+            <td><strong>Fantasy Football Data Pros</strong></td>
+            <td>Optional validation data for weekly/season fantasy output.</td>
+            <td>Free REST endpoints, no auth.</td>
+            <td>Useful as a sanity check only; current app docs already flag it as not suitable for primary current-season data.</td>
+            <td><span class="tag gold">Fallback only</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Storage Decision</h2>
+      <p>
+        Keep the draft app runtime on static JSON, and move historical modeling work into local analytical files.
+        The recommended stack is JSON for browser consumption, Parquet for raw/intermediate extracts, and DuckDB
+        for local joins, profiling, and model dataset creation.
+      </p>
+
+      <div class="callout ok">
+        <strong>Decision:</strong>
+        use <code>data/*.json</code> as the runtime contract and <code>data/model/fantasy-draft.duckdb</code>
+        plus <code>data/model/*.parquet</code> as the offline modeling workspace. Do not add Convex, Postgres,
+        or Docker until the app needs multi-user hosted persistence or reproducible cloud training.
+      </div>
+
+      <div class="grid cols-3">
+        <article class="card">
+          <h3>JSON Runtime</h3>
+          <p>Best for the web app and extension because files are small, cacheable, easy to ship, and require no server during the draft.</p>
+          <ul>
+            <li><code>data/fantasypros-snapshot.json</code></li>
+            <li><code>data/sleeper-adp.json</code></li>
+            <li><code>data/team-environment.json</code></li>
+            <li><code>data/predictions.json</code></li>
+            <li><code>data/model-report.json</code></li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>DuckDB Modeling</h3>
+          <p>DuckDB is an embedded analytical database: scripts open a local <code>.duckdb</code> file directly and run SQL against it. There is no database server to start.</p>
+          <ul>
+            <li>Free and open-source under the MIT license.</li>
+            <li>Works well with Parquet and CSV files.</li>
+            <li>Good fit for player-season joins and backtests.</li>
+            <li>Not intended to be the live app state database.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>When To Upgrade</h3>
+          <p>Add a hosted database only when the product needs hosted multi-user workflows.</p>
+          <ul>
+            <li>Use Convex if multiple users need shared live draft rooms or cloud sync.</li>
+            <li>Use Postgres if the app becomes a hosted SaaS with account data.</li>
+            <li>Use Docker if Python/nflreadpy setup becomes painful across machines.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Storage Layout</h3>
+      <pre><code class="language-text">data/
+  fantasypros-snapshot.json       # runtime: current expert/projection/news snapshot
+  sleeper-adp.json                # runtime: current market snapshot
+  predictions.json                # runtime: model outputs keyed by Sleeper player id
+  model-report.json               # runtime: model version, seasons, metrics, warnings
+
+data/model/
+  fantasy-draft.duckdb            # local analytical database, not loaded by browser
+  raw/*.parquet                   # source-shaped nflverse / ffopportunity extracts
+  normalized/*.parquet            # cleaned player/team/season tables
+  training-dataset.parquet        # model-ready player-season rows
+  backtests/*.json                # historical evaluation outputs
+
+data/league-history/
+  league-drafts.duckdb            # optional local DB for your league's last 4 draft years
+  raw/*.json                      # original exported drafts, preserved unchanged</code></pre>
+
+      <h3>DuckDB Usage Sketch</h3>
+      <pre><code class="language-python">import duckdb
+
+con = duckdb.connect("data/model/fantasy-draft.duckdb")
+
+con.execute("""
+  create or replace table weekly_player_stats as
+  select *
+  from read_parquet('data/model/raw/player_stats.parquet')
+""")
+
+con.execute("""
+  create or replace table training_rows as
+  select
+    r.season,
+    ids.sleeper_id,
+    r.player_name,
+    r.position,
+    ranks.ecr_rank,
+    stats.prior_year_points_per_game,
+    opp.prior_year_expected_points_per_game,
+    outcomes.actual_points
+  from normalized_rosters r
+  left join player_ids ids using (gsis_id)
+  left join historical_rankings ranks using (season, player_id)
+  left join prior_stats stats using (season, player_id)
+  left join prior_opportunity opp using (season, player_id)
+  left join season_outcomes outcomes using (season, player_id)
+""")
+
+con.sql("copy training_rows to 'data/model/training-dataset.parquet'")</code></pre>
+    </section>
+
+    <section>
+      <h2>Training Data Design</h2>
+      <p>
+        Create one player-season row per draft-relevant player. The model should see the player's pre-season
+        information as it would have existed before draft day, then learn against the actual regular-season fantasy outcome.
+      </p>
+
+      <div class="diagram">
+        <svg width="1040" height="300" role="img" aria-label="Training data table diagram">
+          <rect x="20" y="24" width="1000" height="252" rx="8" fill="#fff" stroke="#d9e0e7"></rect>
+          <text x="40" y="60" font-family="Inter, sans-serif" font-size="20" font-weight="700" fill="#18202a">player_season_training_row</text>
+          <g font-family="Inter, sans-serif" font-size="14">
+            <rect x="40" y="88" width="180" height="152" rx="6" fill="#eef5fb" stroke="#b8cee4"></rect>
+            <text x="56" y="116" font-weight="700" fill="#153e75">Identity</text>
+            <text x="56" y="144" fill="#334155">season</text>
+            <text x="56" y="168" fill="#334155">sleeper_id</text>
+            <text x="56" y="192" fill="#334155">gsis_id</text>
+            <text x="56" y="216" fill="#334155">fantasypros_id</text>
+
+            <rect x="240" y="88" width="210" height="152" rx="6" fill="#eefaf4" stroke="#b4dac9"></rect>
+            <text x="256" y="116" font-weight="700" fill="#16654b">Pre-Draft Signals</text>
+            <text x="256" y="144" fill="#334155">ecr_rank, adp</text>
+            <text x="256" y="168" fill="#334155">positional_rank</text>
+            <text x="256" y="192" fill="#334155">age, experience</text>
+            <text x="256" y="216" fill="#334155">contract / team</text>
+
+            <rect x="470" y="88" width="220" height="152" rx="6" fill="#fff7ed" stroke="#e7c18e"></rect>
+            <text x="486" y="116" font-weight="700" fill="#92400e">Context Features</text>
+            <text x="486" y="144" fill="#334155">prior-year points</text>
+            <text x="486" y="168" fill="#334155">xFP / opportunity</text>
+            <text x="486" y="192" fill="#334155">team pace / EPA</text>
+            <text x="486" y="216" fill="#334155">depth chart role</text>
+
+            <rect x="710" y="88" width="280" height="152" rx="6" fill="#f5f3ff" stroke="#c9bee6"></rect>
+            <text x="726" y="116" font-weight="700" fill="#5b318d">Labels</text>
+            <text x="726" y="144" fill="#334155">actual fantasy points</text>
+            <text x="726" y="168" fill="#334155">actual VOR</text>
+            <text x="726" y="192" fill="#334155">top-12 / top-24 / top-36 hit</text>
+            <text x="726" y="216" fill="#334155">games played / volatility</text>
+          </g>
+        </svg>
+      </div>
+
+      <h3>Feature Families</h3>
+      <div class="grid cols-2">
+        <article class="card">
+          <h3>Player Quality Features</h3>
+          <ul>
+            <li>Last 1-3 years fantasy points per game, weighted recent years higher.</li>
+            <li>Last 1-3 years expected fantasy points and opportunity share.</li>
+            <li>Position-specific efficiency: yards per route, yards per carry, TD rate, pass attempts, target share.</li>
+            <li>Age, years of experience, rookie indicator, missed games trend.</li>
+            <li>Contract-year and team-change indicators.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Market and Expert Features</h3>
+          <ul>
+            <li>Historical pre-draft overall rank and positional rank.</li>
+            <li>ADP or market rank where available.</li>
+            <li>Rank-vs-ADP delta.</li>
+            <li>Rank bucket, tier, and position scarcity at draft time.</li>
+            <li>Current-season FantasyPros snapshot only for the live draft artifact.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Team Context Features</h3>
+          <ul>
+            <li>Team points scored, plays per game, pass rate, rush rate.</li>
+            <li>Passing/rushing efficiency proxies from nflverse team stats.</li>
+            <li>Projected offensive environment from prior years and roster continuity.</li>
+            <li>Depth chart rank and role competition.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Outcome Labels</h3>
+          <ul>
+            <li>Full-season fantasy points in selected scoring format.</li>
+            <li>Fantasy points per game with minimum game thresholds.</li>
+            <li>Value over replacement by position.</li>
+            <li>Ceiling and floor from weekly distribution.</li>
+            <li>Top-N positional hit flags.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Rookies, Low-Experience Players, and Injuries</h3>
+      <p>
+        Missing NFL history must be modeled explicitly. A rookie with no NFL stats is not the same as a veteran
+        with several low-production seasons. The dataset should preserve why data is missing and give the model
+        cohort-specific features instead of converting missing history to zero.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Handling</th>
+            <th>Feature Examples</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Rookies</strong></td>
+            <td>Use a rookie-specific prior based on position, draft capital, age, team context, projected depth-chart path, current FantasyPros rank, and Sleeper ADP.</td>
+            <td><code>isRookie</code>, <code>nflDraftRound</code>, <code>nflDraftPick</code>, <code>rookieRankBucket</code>, <code>depthChartPathScore</code></td>
+          </tr>
+          <tr>
+            <td><strong>Year 2-3 players</strong></td>
+            <td>Use shrinkage: combine their limited NFL history with a position/age/draft-capital prior. Reduce the prior as the player accumulates real NFL usage.</td>
+            <td><code>yearsExperience</code>, <code>gamesSampleSize</code>, <code>priorWeight</code>, <code>recentUsageTrend</code>, <code>roleChangeFlag</code></td>
+          </tr>
+          <tr>
+            <td><strong>Veterans</strong></td>
+            <td>Use weighted 1-3 year production, opportunity, games played, efficiency, team changes, and role continuity. Recent seasons should usually carry more weight.</td>
+            <td><code>weightedPointsPerGame</code>, <code>weightedXfpPerGame</code>, <code>missedGames3yr</code>, <code>teamChange</code>, <code>ageCurveBucket</code></td>
+          </tr>
+          <tr>
+            <td><strong>Injured players</strong></td>
+            <td>Keep injury as availability and uncertainty, not just a raw quality downgrade. Adjust expected games, widen projection range, and add risk penalty when current status or missed-game history justifies it.</td>
+            <td><code>currentNewsStatus</code>, <code>pupOrIrFlag</code>, <code>missedGames1yr</code>, <code>missedGames3yr</code>, <code>uncertaintyScore</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <pre><code class="language-ts">type MissingHistoryReason =
+  | 'rookie'
+  | 'limited_experience'
+  | 'missed_season_injury'
+  | 'source_gap'
+  | 'not_draft_relevant';
+
+interface ExperienceFeatures {
+  readonly isRookie: boolean;
+  readonly yearsExperience: number;
+  readonly gamesSampleSize: number;
+  readonly missingHistoryReason: MissingHistoryReason | null;
+  readonly priorWeight: number;       // higher for rookies/young players
+  readonly playerHistoryWeight: number; // higher for established veterans
+}</code></pre>
+    </section>
+
+    <section>
+      <h2>Model Shape</h2>
+      <p>
+        The first pass does not need deep learning. Start with transparent, robust models that are easy to backtest,
+        easy to ship as JSON, and easy to explain in the draft UI.
+      </p>
+
+      <div class="grid cols-3">
+        <article class="card">
+          <h3>Baseline</h3>
+          <p>Weighted heuristic using historical rank, prior-year points, opportunity, and team environment.</p>
+          <p><strong>Why:</strong> fast to build, exposes feature bugs, and creates a benchmark.</p>
+        </article>
+        <article class="card">
+          <h3>Model V1</h3>
+          <p>Gradient boosted trees or random forest trained per scoring format, with position as a feature or per-position models.</p>
+          <p><strong>Why:</strong> handles nonlinear interactions like age curves and rank buckets without much manual tuning.</p>
+        </article>
+        <article class="card">
+          <h3>Ship Format</h3>
+          <p>Offline script writes JSON predictions. Browser never trains the model and never depends on Python.</p>
+          <p><strong>Why:</strong> keeps draft-day UX fast and reliable.</p>
+        </article>
+      </div>
+
+      <h3>Prediction Outputs</h3>
+      <div class="score-bars">
+        <div class="bar">
+          <span>Projected points</span>
+          <div class="track"><div class="fill blue"></div></div>
+          <strong>78%</strong>
+        </div>
+        <div class="bar">
+          <span>Value over replacement</span>
+          <div class="track"><div class="fill green"></div></div>
+          <strong>72%</strong>
+        </div>
+        <div class="bar">
+          <span>Ceiling</span>
+          <div class="track"><div class="fill gold"></div></div>
+          <strong>54%</strong>
+        </div>
+        <div class="bar">
+          <span>Uncertainty</span>
+          <div class="track"><div class="fill violet"></div></div>
+          <strong>38%</strong>
+        </div>
+        <div class="bar">
+          <span>Risk penalty</span>
+          <div class="track"><div class="fill red"></div></div>
+          <strong>18%</strong>
+        </div>
+      </div>
+
+      <pre><code class="language-ts">export interface PredictionOutput {
+  readonly playerId: string;          // Sleeper player id preferred
+  readonly season: number;
+  readonly scoring: 'standard' | 'half_ppr' | 'ppr';
+  readonly modelVersion: string;
+
+  readonly projectedPoints: number;
+  readonly projectedPointsPerGame: number;
+  readonly valueOverReplacement: number;
+  readonly floorPoints: number;       // conservative weekly/full-season distribution estimate
+  readonly ceilingPoints: number;     // upside distribution estimate
+  readonly uncertaintyScore: number;  // higher means less confidence
+  readonly breakoutProbability: number;
+  readonly bustProbability: number;
+
+  readonly drivers: readonly PredictionDriver[];
+}
+
+export interface PredictionDriver {
+  readonly label: string;
+  readonly direction: 'positive' | 'negative' | 'neutral';
+  readonly weight: number;
+  readonly detail: string;
+}</code></pre>
+    </section>
+
+    <section>
+      <h2>Recommendation Formula</h2>
+      <p>
+        Team needs belong after prediction. A player's baseline quality should not change because the roster needs a running back;
+        the recommendation score should change because the roster needs a running back.
+      </p>
+
+      <pre><code class="language-ts">recommendationScore =
+  predictionValue
+  + expertValue
+  + marketValue
+  + opportunityValue
+  + scarcityUrgency
+  + rosterNeedBoost
+  + stackCorrelationBoost
+  - uncertaintyPenalty
+  - injuryRiskPenalty;</code></pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Source</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>predictionValue</code></td>
+            <td>New prediction artifact</td>
+            <td>Projected VOR and points, normalized by position.</td>
+          </tr>
+          <tr>
+            <td><code>expertValue</code></td>
+            <td>FantasyPros current ECR</td>
+            <td>Expert consensus rank and tier.</td>
+          </tr>
+          <tr>
+            <td><code>marketValue</code></td>
+            <td>Sleeper ADP / optional LeagueLogs</td>
+            <td>Positive when predicted value exceeds market cost.</td>
+          </tr>
+          <tr>
+            <td><code>scarcityUrgency</code></td>
+            <td>Available-player pool + pick distance</td>
+            <td>How costly it is to wait until the user's next pick.</td>
+          </tr>
+          <tr>
+            <td><code>rosterNeedBoost</code></td>
+            <td>Existing <code>calculateTeamNeeds</code></td>
+            <td>Boost high-priority open starter slots; reduce late K/DEF until configured round.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>League Draft History</h2>
+      <p>
+        The user's last four league drafts are highly valuable, but they should mostly improve recommendation
+        timing rather than base player quality. Base prediction asks "how good is this player likely to be?"
+        League history asks "will this player survive to my next pick in this specific room?"
+      </p>
+
+      <div class="grid cols-2">
+        <article class="card">
+          <h3>Best Uses</h3>
+          <ul>
+            <li>Pick-survival probability by round, position, ADP bucket, and roster state.</li>
+            <li>League-specific positional runs, such as early QB/TE pressure.</li>
+            <li>Manager tendencies if draft slots/managers are stable across years.</li>
+            <li>Draft-room ADP correction: your league's actual cost versus Sleeper/FantasyPros market cost.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Do Not Use For</h3>
+          <ul>
+            <li>Training whether a player was good in the NFL.</li>
+            <li>Overfitting to one manager's unusual pick from a single year.</li>
+            <li>Replacing broad market ADP with a tiny league sample.</li>
+            <li>Changing the prediction model based on your current roster needs.</li>
+          </ul>
+        </article>
+      </div>
+
+      <pre><code class="language-ts">interface LeagueDraftPickHistory {
+  readonly season: number;
+  readonly leagueId: string;
+  readonly draftId: string;
+  readonly pickNo: number;
+  readonly round: number;
+  readonly slot: number;
+  readonly managerKey: string | null;
+  readonly sleeperPlayerId: string;
+  readonly playerName: string;
+  readonly position: Position;
+  readonly marketAdpAtDraft: number | null;
+  readonly rosterCountsBeforePick: Partial&lt;Record&lt;Position, number&gt;&gt;;
+}
+
+interface LeagueSurvivalSignal {
+  readonly playerId: string;
+  readonly currentPick: number;
+  readonly nextUserPick: number;
+  readonly marketSurvivalProbability: number;
+  readonly leagueAdjustedSurvivalProbability: number;
+  readonly explanation: string;
+}</code></pre>
+
+      <div class="callout">
+        <strong>Implementation note:</strong>
+        import the four historical drafts into <code>data/league-history/league-drafts.duckdb</code>,
+        preserve the raw exports, and emit a compact <code>data/league-history/survival-model.json</code>
+        for the runtime app. This keeps personal league data local and avoids adding a hosted database.
+      </div>
+
+      <h3>Provided League Drafts</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Season</th>
+            <th>Sleeper Draft ID</th>
+            <th>User Slot</th>
+            <th>Scoring / Roster Settings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2022</td>
+            <td><code>856833702632767488</code></td>
+            <td>7</td>
+            <td>Fetched: 10 teams, snake, 14 rounds, PPR, roster <code>QB RB RB WR WR TE FLEX FLEX DEF BNx5</code>.</td>
+          </tr>
+          <tr>
+            <td>2023</td>
+            <td><code>989653487862562817</code></td>
+            <td>6</td>
+            <td>Fetched: 10 teams, snake, 13 rounds, PPR, roster <code>QB RB RB WR WR TE FLEX FLEX BNx5</code>.</td>
+          </tr>
+          <tr>
+            <td>2024</td>
+            <td><code>1117608116687826945</code></td>
+            <td>8</td>
+            <td>Fetched: 10 teams, snake, 14 rounds, PPR, roster <code>QB RB RB WR WR TE FLEX FLEX K BNx5</code>.</td>
+          </tr>
+          <tr>
+            <td>2025</td>
+            <td><code>1180348405031780353</code></td>
+            <td>8</td>
+            <td>Fetched: 10 teams, snake, 14 rounds, PPR, roster <code>QB RB RB WR WR TE FLEX FLEX K BNx5</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Verified Sleeper Draft Pull</h3>
+      <p>
+        Sleeper returned the league name <strong>Ummati Official</strong> for all four draft IDs. The import should
+        preserve both <code>draft_slot</code> and <code>roster_id</code> because traded picks can make a user's team
+        roster ID differ from the original draft slot on individual picks. The verification below lists the picks
+        tied to the provided draft slot.
+      </p>
+
+      <details>
+        <summary>2022 slot 7 picks</summary>
+        <p class="mini">League <code>856833701722570752</code>, complete snake draft, roster ID for slot picks: <code>4</code>.</p>
+        <ol>
+          <li>1.07 Ja'Marr Chase, WR, CIN</li>
+          <li>2.14 Aaron Jones, RB, GB</li>
+          <li>3.27 Saquon Barkley, RB, NYG</li>
+          <li>4.34 Darren Waller, TE, LV</li>
+          <li>5.47 Allen Robinson, WR, LAR</li>
+          <li>6.54 Jalen Hurts, QB, PHI</li>
+          <li>7.67 Jerry Jeudy, WR, DEN</li>
+          <li>8.74 Kenneth Walker, RB, SEA</li>
+          <li>9.87 Hunter Renfrow, WR, LV</li>
+          <li>10.94 Cordarrelle Patterson, RB, ATL</li>
+          <li>11.107 Chris Olave, WR, NO</li>
+          <li>12.114 Garrett Wilson, WR, NYJ</li>
+          <li>13.127 Michael Gallup, WR, DAL</li>
+          <li>14.134 San Francisco 49ers, DEF, SF</li>
+        </ol>
+      </details>
+
+      <details>
+        <summary>2023 slot 6 picks</summary>
+        <p class="mini">League <code>989653487862562816</code>, complete snake draft, roster ID for slot picks: <code>4</code>.</p>
+        <ol>
+          <li>1.06 Tyreek Hill, WR, MIA</li>
+          <li>2.15 Josh Allen, QB, BUF</li>
+          <li>3.26 Jahmyr Gibbs, RB, DET</li>
+          <li>4.35 T.J. Hockenson, TE, MIN</li>
+          <li>5.46 DJ Moore, WR, CHI</li>
+          <li>6.55 James Conner, RB, ARI</li>
+          <li>7.66 Rachaad White, RB, TB</li>
+          <li>8.75 Jordan Addison, WR, MIN</li>
+          <li>9.86 Zach Charbonnet, RB, SEA</li>
+          <li>10.95 Tua Tagovailoa, QB, MIA</li>
+          <li>11.106 Garrett Wilson, WR, NYJ</li>
+          <li>12.115 Odell Beckham, WR, BAL</li>
+          <li>13.126 Darnell Mooney, WR, CHI</li>
+        </ol>
+      </details>
+
+      <details>
+        <summary>2024 actual user picks after draft trades</summary>
+        <p class="mini">
+          League <code>1117608116687826944</code>, complete snake draft. The user's original slot was 8,
+          but 2024 included draft-pick trades. Use roster/pick ownership plus the manual overrides below for
+          user-roster analysis; do not assume original slot 8 equals every user pick.
+        </p>
+        <ol>
+          <li>1.08 Bijan Robinson, RB, ATL</li>
+          <li>2.17 Chris Olave, WR, NO <span class="tag blue">manual trade override</span></li>
+          <li>3.24 Cooper Kupp, WR, LAR <span class="tag blue">manual trade override</span></li>
+          <li>4.33 DJ Moore, WR, CHI</li>
+          <li>5.48 Anthony Richardson, QB, IND</li>
+          <li>6.57 Evan Engram, TE, JAX <span class="tag blue">manual trade override</span></li>
+          <li>7.68 Chris Godwin, WR, TB</li>
+          <li>8.73 Zamir White, RB, LV</li>
+          <li>9.88 Brian Thomas, WR, JAX</li>
+          <li>10.93 Jayden Daniels, QB, WAS</li>
+          <li>11.108 Chase Brown, RB, CIN</li>
+          <li>12.113 Harrison Butker, K, KC</li>
+          <li>13.128 Tyler Lockett, WR, SEA</li>
+          <li>14.133 Elijah Mitchell, RB, SF</li>
+        </ol>
+        <p class="mini">
+          Excluded from the user's actual roster picks: 2.13 Saquon Barkley and 3.28 Jalen Hurts. They were
+          original slot-8 pick locations returned by Sleeper, not the user's actual selections after trades.
+        </p>
+      </details>
+
+      <details>
+        <summary>2025 slot 8 picks</summary>
+        <p class="mini">League <code>1180348405031780352</code>, complete snake draft, roster ID for slot picks: <code>4</code>.</p>
+        <ol>
+          <li>1.08 Christian McCaffrey, RB, SF</li>
+          <li>2.13 Ashton Jeanty, RB, LV</li>
+          <li>3.28 Lamar Jackson, QB, BAL</li>
+          <li>4.33 Davante Adams, WR, LAR</li>
+          <li>5.48 DeVonta Smith, WR, PHI</li>
+          <li>6.53 T.J. Hockenson, TE, MIN</li>
+          <li>7.68 D'Andre Swift, RB, CHI</li>
+          <li>8.73 Brian Thomas, WR, JAX</li>
+          <li>9.88 Matthew Golden, WR, GB</li>
+          <li>10.93 Chris Godwin, WR, TB</li>
+          <li>11.108 Javonte Williams, RB, DAL</li>
+          <li>12.113 Chase McLaughlin, K, TB</li>
+          <li>13.128 Jayden Higgins, WR, HOU</li>
+          <li>14.133 Rhamondre Stevenson, RB, NE</li>
+        </ol>
+      </details>
+
+      <div class="callout ok">
+        <strong>Scoring must be season-specific:</strong>
+        because this league's scoring has changed, the import should store scoring and roster settings by season.
+        Do not use the current league scoring to grade older drafts. Each season's actual fantasy points, roster
+        needs, replacement levels, and pick-survival interpretation should be calculated using that season's rules.
+      </div>
+
+      <h3>League Scoring History</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Season</th>
+            <th>Core Format</th>
+            <th>Season-Specific Differences</th>
+            <th>Model Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2022</td>
+            <td>PPR: pass yd 0.04, pass TD 4, INT -2, rush/rec yd 0.1, rush/rec TD 6, reception 1.</td>
+            <td>IDP sack +1 appears in scoring settings, but no IDP roster slot was fetched. Defense slot was present.</td>
+            <td>Use normal PPR offensive scoring; evaluate DEF if retained in draft history.</td>
+          </tr>
+          <tr>
+            <td>2023</td>
+            <td>PPR with the same passing, rushing, receiving, kicking, defense, special-teams, and misc values as 2022.</td>
+            <td>No rush-attempt bonus; no TE reception bonus. Sleeper roster positions fetched without K or DEF.</td>
+            <td>Offensive players use base PPR; K/DEF should not affect roster-need backtests for this year.</td>
+          </tr>
+          <tr>
+            <td>2024</td>
+            <td>PPR plus rush attempts.</td>
+            <td>Rush attempt +0.20. No TE reception bonus. K slot present, DEF slot absent in fetched roster positions.</td>
+            <td>Boost high-volume rushing roles, including rushing QBs and early-down RBs.</td>
+          </tr>
+          <tr>
+            <td>2025</td>
+            <td>PPR plus rush attempts and TE premium.</td>
+            <td>Rush attempt +0.20 and TE reception bonus +0.50. K slot present, DEF slot absent in fetched roster positions.</td>
+            <td>Boost rushing volume and give TE targets extra value; TE receptions are effectively 1.5 points.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <pre><code class="language-ts">const BASE_LEAGUE_SCORING = {
+  pass_yd: 0.04,
+  pass_td: 4,
+  pass_2pt: 2,
+  pass_int: -2,
+  rush_yd: 0.1,
+  rush_td: 6,
+  rush_2pt: 2,
+  rec: 1,
+  rec_yd: 0.1,
+  rec_td: 6,
+  rec_2pt: 2,
+  fgm_0_19: 3,
+  fgm_20_29: 3,
+  fgm_30_39: 3,
+  fgm_40_49: 4,
+  fgm_50p: 5,
+  xpm: 1,
+  fgmiss: -1,
+  xpmiss: -1,
+  def_td: 6,
+  pts_allow_0: 5,
+  pts_allow_1_6: 4,
+  pts_allow_7_13: 3,
+  pts_allow_14_20: 1,
+  pts_allow_28_34: -1,
+  pts_allow_35p: -4,
+  yds_allow_0_100: 5,
+  yds_allow_100_199: 3,
+  yds_allow_200_299: 2,
+  yds_allow_350_399: -1,
+  yds_allow_400_449: -3,
+  yds_allow_450_499: -5,
+  yds_allow_500_549: -6,
+  yds_allow_550p: -7,
+  sack: 1,
+  int: 2,
+  fum_rec: 2,
+  safe: 2,
+  ff: 1,
+  blk_kick: 2,
+  def_st_td: 6,
+  def_st_ff: 1,
+  def_st_fum_rec: 1,
+  st_td: 6,
+  st_ff: 1,
+  st_fum_rec: 1,
+  fum_lost: -2,
+  fum_rec_td: 6,
+} as const;
+
+const LEAGUE_SCORING_BY_SEASON = {
+  2022: {
+    ...BASE_LEAGUE_SCORING,
+    idp_sack: 1,
+  },
+  2023: {
+    ...BASE_LEAGUE_SCORING,
+  },
+  2024: {
+    ...BASE_LEAGUE_SCORING,
+    rush_att: 0.2,
+  },
+  2025: {
+    ...BASE_LEAGUE_SCORING,
+    rush_att: 0.2,
+    bonus_rec_te: 0.5,
+  },
+} as const;</code></pre>
+
+      <div class="callout risk">
+        <strong>Roster settings caveat:</strong>
+        Sleeper metadata shows roster-position changes: 2022 included DEF, 2023 included neither K nor DEF,
+        and 2024-2025 included K but not DEF. The import should store the fetched roster positions and flag this
+        for manual review because it affects historical roster-need and replacement-level calculations.
+      </div>
+
+      <div class="callout">
+        <strong>Draft-trade caveat:</strong>
+        2024 proves the league-history import needs a manual override layer. Sleeper exposes both original
+        <code>draft_slot</code> and resulting <code>roster_id</code>, and traded picks can make slot-based
+        reconstruction wrong for the user's actual draft. Preserve raw picks unchanged, then apply explicit
+        ownership overrides for user-roster analysis.
+      </div>
+
+      <pre><code class="language-ts">interface LeagueSeasonSettings {
+  readonly season: 2022 | 2023 | 2024 | 2025;
+  readonly draftId: string;
+  readonly userSlot: number;
+  readonly teams: number | null;
+  readonly scoringType: 'standard' | 'half_ppr' | 'ppr' | 'custom' | null;
+  readonly scoringSettings: Record&lt;string, number&gt;;
+  readonly rosterPositions: readonly string[];
+  readonly draftType: 'snake' | 'auction' | 'linear' | null;
+}
+
+interface LeagueDraftPickOverride {
+  readonly season: number;
+  readonly draftId: string;
+  readonly pickNo: number;
+  readonly userRosterAction: 'include' | 'exclude';
+  readonly reason: 'draft_trade' | 'manual_correction';
+  readonly note: string;
+}
+
+const USER_2024_PICK_OVERRIDES: readonly LeagueDraftPickOverride[] = [
+  {
+    season: 2024,
+    draftId: '1117608116687826945',
+    pickNo: 13,
+    userRosterAction: 'exclude',
+    reason: 'draft_trade',
+    note: 'Original slot 8 pick, not user actual selection after trades.',
+  },
+  {
+    season: 2024,
+    draftId: '1117608116687826945',
+    pickNo: 17,
+    userRosterAction: 'include',
+    reason: 'draft_trade',
+    note: 'User selected Chris Olave at 2.07.',
+  },
+  {
+    season: 2024,
+    draftId: '1117608116687826945',
+    pickNo: 24,
+    userRosterAction: 'include',
+    reason: 'draft_trade',
+    note: 'User selected Cooper Kupp at 3.04.',
+  },
+  {
+    season: 2024,
+    draftId: '1117608116687826945',
+    pickNo: 28,
+    userRosterAction: 'exclude',
+    reason: 'draft_trade',
+    note: 'Original slot 8 pick, not user actual selection after trades.',
+  },
+  {
+    season: 2024,
+    draftId: '1117608116687826945',
+    pickNo: 57,
+    userRosterAction: 'include',
+    reason: 'draft_trade',
+    note: 'User selected Evan Engram at 6.07.',
+  },
+];</code></pre>
+    </section>
+
+    <section>
+      <h2>Implementation Phases</h2>
+      <div class="timeline">
+        <article class="phase">
+          <h3>Data Audit</h3>
+          <p class="mini">Goal: prove the free historical data can cover the last few draft years.</p>
+          <ul>
+            <li>Install or script against <code>nflreadpy</code>.</li>
+            <li>Pull 2021-2025 historical rankings, player stats, rosters, schedules, teams, depth charts, and ffopportunity.</li>
+            <li>Profile missing IDs by year and position.</li>
+            <li>Write <code>data/source-audit.json</code>.</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <h3>Dataset Builder</h3>
+          <p class="mini">Goal: produce one reproducible player-season dataset.</p>
+          <ul>
+            <li>Create <code>scripts/src/build-prediction-dataset.ts</code>.</li>
+            <li>Persist normalized player IDs.</li>
+            <li>Generate features and labels.</li>
+            <li>Add schema validation and row-count checks.</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <h3>Backtest Baseline</h3>
+          <p class="mini">Goal: measure whether this beats ECR-only decisions.</p>
+          <ul>
+            <li>Train on seasons before the test year.</li>
+            <li>Simulate draft picks by historical available players.</li>
+            <li>Compare against ECR-only, Sleeper ADP-only, and current heuristic.</li>
+            <li>Report hit rate, VOR, regret, and calibration.</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <h3>App Integration</h3>
+          <p class="mini">Goal: make live recommendations consume prediction outputs.</p>
+          <ul>
+            <li>Add prediction fields to shared <code>Player</code> type.</li>
+            <li>Merge <code>data/predictions.json</code> in <code>usePlayerDataQuery</code>.</li>
+            <li>Update recommendation diagnostics and UI explanations.</li>
+            <li>Keep cached fallback when predictions are missing.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Proposed Files</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>scripts/src/audit-free-sources.ts</code></td>
+            <td>Runs data-source probes, documents coverage, and catches source-shape changes.</td>
+          </tr>
+          <tr>
+            <td><code>scripts/src/build-prediction-dataset.ts</code></td>
+            <td>Builds player-season training rows from pre-draft signals and actual outcomes.</td>
+          </tr>
+          <tr>
+            <td><code>scripts/src/train-prediction-baseline.ts</code></td>
+            <td>Starts with a transparent heuristic or calls a Python training script for model V1.</td>
+          </tr>
+          <tr>
+            <td><code>scripts/src/backtest-recommendations.ts</code></td>
+            <td>Measures draft decision quality against historical outcomes.</td>
+          </tr>
+          <tr>
+            <td><code>shared/src/prediction.ts</code></td>
+            <td>Shared prediction artifact types and validators.</td>
+          </tr>
+          <tr>
+            <td><code>web-app/src/lib/calculations/prediction-score.ts</code></td>
+            <td>Converts prediction artifact into normalized recommendation sub-scores.</td>
+          </tr>
+          <tr>
+            <td><code>data/predictions.json</code></td>
+            <td>Draft-day static prediction snapshot keyed by Sleeper player ID.</td>
+          </tr>
+          <tr>
+            <td><code>data/model-report.json</code></td>
+            <td>Model version, training seasons, feature coverage, and backtest metrics.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Data Pull Sketch</h2>
+      <p>
+        The repository is TypeScript-first. For nflreadpy, the cleanest first pass is a small Python extraction script
+        that writes normalized parquet or JSON, then TypeScript scripts consume those files. That avoids reimplementing
+        nflverse download logic in Node.
+      </p>
+
+      <pre><code class="language-python"># scripts/python/export_nflverse_features.py
+import nflreadpy as nfl
+
+SEASONS = [2021, 2022, 2023, 2024, 2025]
+
+player_stats = nfl.load_player_stats(SEASONS, stat_type="offense")
+team_stats = nfl.load_team_stats(SEASONS, summary_level="week")
+rosters = nfl.load_rosters(SEASONS)
+depth_charts = nfl.load_depth_charts(SEASONS)
+ff_ids = nfl.load_ff_playerids()
+opportunity = nfl.load_ff_opportunity(SEASONS, stat_type="weekly")
+rankings = nfl.load_ff_rankings(type="all")
+
+# Write stable local extracts for TypeScript scripts.
+player_stats.write_parquet("data/model/player_stats.parquet")
+team_stats.write_parquet("data/model/team_stats.parquet")
+rosters.write_parquet("data/model/rosters.parquet")
+depth_charts.write_parquet("data/model/depth_charts.parquet")
+ff_ids.write_parquet("data/model/player_ids.parquet")
+opportunity.write_parquet("data/model/opportunity.parquet")
+rankings.write_parquet("data/model/historical_rankings.parquet")</code></pre>
+
+      <pre><code class="language-ts">// scripts/src/build-prediction-dataset.ts
+type TrainingRow = {
+  season: number;
+  sleeperId: string;
+  playerName: string;
+  position: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
+  age: number | null;
+  predraftOverallRank: number | null;
+  predraftPositionRank: number | null;
+  priorYearPointsPerGame: number | null;
+  priorYearExpectedPointsPerGame: number | null;
+  teamEnvironmentScore: number | null;
+  depthChartRank: number | null;
+  actualPoints: number;
+  actualValueOverReplacement: number;
+  gamesPlayed: number;
+};</code></pre>
+    </section>
+
+    <section>
+      <h2>Backtesting</h2>
+      <p>
+        Backtesting decides whether the prediction layer is better than current rankings, not whether the model looks
+        sophisticated. Run season-by-season walk-forward tests: train on all seasons before the target season and evaluate
+        on the target season.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Definition</th>
+            <th>Why It Matters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>MAE / RMSE</td>
+            <td>Error between projected and actual fantasy points.</td>
+            <td>Checks raw projection accuracy.</td>
+          </tr>
+          <tr>
+            <td>Top-N hit rate</td>
+            <td>Percent of recommended players who finish top 12/24/36 at their position.</td>
+            <td>Matches draft-useful decision quality.</td>
+          </tr>
+          <tr>
+            <td>VOR captured</td>
+            <td>Total actual value over replacement from selected players.</td>
+            <td>Penalizes empty points from replaceable positions.</td>
+          </tr>
+          <tr>
+            <td>Regret by pick</td>
+            <td>Best available actual VOR minus selected actual VOR.</td>
+            <td>Surfaces where the scorer misses obvious picks.</td>
+          </tr>
+          <tr>
+            <td>Calibration</td>
+            <td>Do 70% confidence ranges contain the outcome about 70% of the time?</td>
+            <td>Makes risk labels honest.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>Pass condition for V1:</strong>
+        the prediction-aware recommendation should beat ECR-only and the current heuristic on at least two of:
+        VOR captured, regret by pick, and top-N hit rate. If it only improves RMSE, it is not necessarily better for drafting.
+      </div>
+    </section>
+
+    <section>
+      <h2>UI Changes</h2>
+      <p>
+        Keep the UI practical: users drafting live need direct recommendations and quick explanations, not a model dashboard.
+      </p>
+
+      <div class="grid cols-2">
+        <article class="card">
+          <h3>Player Table Columns</h3>
+          <ul>
+            <li><strong>Pred:</strong> projected points or VOR rank.</li>
+            <li><strong>Range:</strong> floor to ceiling marker.</li>
+            <li><strong>Risk:</strong> low/medium/high from uncertainty and injury features.</li>
+            <li><strong>Why:</strong> top two positive or negative drivers.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Recommendation Card</h3>
+          <ul>
+            <li>Show "Best for roster" separately from "Best pure value".</li>
+            <li>Keep current diagnostics: FP rank, Sleeper rank, market delta.</li>
+            <li>Add prediction diagnostics: projected VOR, ceiling, risk, next-pick survival.</li>
+            <li>Show a fallback badge when prediction data is missing.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Known Risks</h2>
+      <div class="callout risk">
+        <strong>FantasyPros terms and competition risk:</strong>
+        keep API use personal/non-commercial, cached, attributed, and current-season focused. Do not make FantasyPros API data the historical training backbone.
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Risk</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Player ID mismatches across sources</td>
+            <td>Use nflverse/ffverse player ID maps first, Sleeper ID as app key, and name/team/position fallback with duplicate detection.</td>
+          </tr>
+          <tr>
+            <td>Historical ranking coverage gaps</td>
+            <td>Audit rankings by season, scoring format, and position before training. Exclude rows with missing pre-draft rank from rank-based tests.</td>
+          </tr>
+          <tr>
+            <td>Small sample size for season-level model</td>
+            <td>Use simple models first, evaluate by position, and avoid overfitting with too many correlated features.</td>
+          </tr>
+          <tr>
+            <td>Draft-day source outage</td>
+            <td>Every live source writes a cached JSON snapshot. The app reads local data during drafts.</td>
+          </tr>
+          <tr>
+            <td>False precision</td>
+            <td>Display tiers, ranges, and top drivers instead of pretending point projections are exact.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>First Milestone Checklist</h2>
+      <ul>
+        <li>Create a source audit script and confirm coverage for 2021-2025.</li>
+        <li>Choose scoring defaults: standard, half PPR, PPR; start with PPR if only one can be built first.</li>
+        <li>Build the player-season dataset and write row validation checks.</li>
+        <li>Ship a transparent baseline model and <code>data/model-report.json</code>.</li>
+        <li>Integrate <code>data/predictions.json</code> into <code>mergePlayerData</code>.</li>
+        <li>Update recommendations to include prediction subscores and diagnostics.</li>
+        <li>Add tests around missing prediction data and stable recommendation ordering.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Sources</h2>
+      <ul class="source-list">
+        <li><a href="https://docs.sleeper.com/">Sleeper API docs</a> - free read-only API, player map guidance, draft/player endpoints, call-frequency guidance.</li>
+        <li><a href="https://duckdb.org/faq">DuckDB FAQ</a> - confirms DuckDB is open-source under the MIT license and has no separate enterprise version.</li>
+        <li><a href="https://duckdb.org/docs/stable/">DuckDB documentation</a> - embedded/local database usage, file formats, Python integration, and analytical SQL workflows.</li>
+        <li><a href="https://api.fantasypros.com/v2/docs">FantasyPros API reference</a> - NFL players, player points, targets, consensus rankings, compare players, news endpoints.</li>
+        <li><a href="https://support.fantasypros.com/hc/en-us/articles/49749297704475-How-do-I-request-access-to-the-FantasyPros-API">FantasyPros API access article</a> - free public API key for personal, non-commercial use.</li>
+        <li><a href="https://api.fantasypros.com/public/v2/terms-of-use">FantasyPros API terms</a> - competition restrictions and throttling/suspension rights.</li>
+        <li><a href="https://nflreadpy.nflverse.com/api/load_functions/">nflreadpy load functions</a> - schedules, players, rosters, team stats, depth charts, contracts, ffopportunity, ff rankings, player IDs.</li>
+        <li><a href="https://www.rdocumentation.org/packages/nflreadr/versions/1.4.1/topics/load_ff_rankings">nflreadr <code>load_ff_rankings</code></a> - confirms <code>type="all"</code> provides the full historical ranking archive from DynastyProcess data.</li>
+        <li><a href="https://www.ffverse.com/">ffverse / ffopportunity overview</a> - expected fantasy points and opportunity data built from nflverse play-by-play.</li>
+        <li><a href="https://rdrr.io/github/ffverse/ffsimulator/man/ffs_latest_rankings.html">ffsimulator latest rankings docs</a> - ffverse access to DynastyProcess FantasyPros redraft ranking data.</li>
+        <li><a href="https://developer.leaguelogs.com/">LeagueLogs Developer API</a> - optional free attributed market index and player metadata keyed by Sleeper ID.</li>
+        <li><a href="https://www.fantasyfootballdatapros.com/our_api">Fantasy Football Data Pros API</a> - optional free historical fantasy output sanity-check source.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+</body>
+</html>

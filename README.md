@@ -9,6 +9,7 @@ Fantasy football draft assistant for Sleeper with:
 ## Reference Docs
 
 - Data strategy and source decisions: [docs/data-strategy.md](docs/data-strategy.md)
+- Local DuckDB modeling workspace: [docs/modeling-duckdb.md](docs/modeling-duckdb.md)
 - Original technical spec: [fantasy-draft-assistant-spec.md](fantasy-draft-assistant-spec.md)
 
 Use `docs/data-strategy.md` as the current source of truth for:
@@ -141,6 +142,18 @@ Force the old scrape/manual path:
 ```bash
 pnpm refresh:fantasypros:manual
 ```
+
+## Local Modeling With DuckDB
+
+The prediction/modeling workspace is local and embedded. It uses DuckDB plus Parquet under `data/model/`; no database server or Docker container is required.
+
+```bash
+pnpm --filter scripts model:duckdb:init
+pnpm --filter scripts model:profile
+pnpm --filter scripts model:dataset
+```
+
+See [docs/modeling-duckdb.md](docs/modeling-duckdb.md) for the layout and query examples.
 
 ## Chrome Extension Setup
 

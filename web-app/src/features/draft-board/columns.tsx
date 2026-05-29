@@ -96,6 +96,49 @@ function MarketDeltaDisplay({ player }: { player: Player }) {
   );
 }
 
+function renderPredictionDisplay(player: Player) {
+  return (
+    <div className="flex flex-col">
+      <span className="font-mono text-sm font-medium">
+        {player.projectedPoints.toFixed(1)}
+      </span>
+      <span className="text-[11px] text-muted-foreground capitalize">
+        {player.predictionSource}
+      </span>
+    </div>
+  );
+}
+
+function renderRangeDisplay(player: Player) {
+  return (
+    <div className="flex flex-col">
+      <span className="font-mono text-sm">
+        {player.floorScore.toFixed(1)} / {player.ceilingScore.toFixed(1)}
+      </span>
+      <span className="text-[11px] text-muted-foreground">Floor / Ceiling</span>
+    </div>
+  );
+}
+
+function renderRiskDisplay(player: Player) {
+  const risk = Math.max(player.injuryRiskScore, player.uncertaintyScore);
+  const className = cn(
+    'font-mono text-sm',
+    risk >= 7 && 'text-red-600 dark:text-red-400 font-bold',
+    risk >= 5 && risk < 7 && 'text-orange-600 dark:text-orange-400',
+    risk < 5 && 'text-muted-foreground'
+  );
+
+  return (
+    <div className="flex flex-col">
+      <span className={className}>{risk.toFixed(1)}</span>
+      <span className="text-[11px] text-muted-foreground">
+        Inj {player.injuryRiskScore.toFixed(1)} / Var {player.uncertaintyScore.toFixed(1)}
+      </span>
+    </div>
+  );
+}
+
 /**
  * Sortable header component
  */
@@ -116,7 +159,9 @@ function SortableHeader({ column, children, className }: SortableHeaderProps) {
       variant="ghost"
       size="sm"
       className={cn('-ml-3 h-8', className)}
-      onClick={() => column.toggleSorting(sorted === 'asc')}
+      onClick={() => {
+        column.toggleSorting(sorted === 'asc');
+      }}
     >
       {children}
       {sorted === 'asc' ? (
@@ -205,6 +250,31 @@ export const columns: ColumnDef<Player>[] = [
     accessorKey: 'valueScore',
     header: ({ column }) => <SortableHeader column={column}>FP vs SL</SortableHeader>,
     cell: ({ row }) => <MarketDeltaDisplay player={row.original} />,
+  },
+  {
+    accessorKey: 'projectedPoints',
+    header: ({ column }) => <SortableHeader column={column}>Proj</SortableHeader>,
+    cell: ({ row }) => renderPredictionDisplay(row.original),
+  },
+  {
+    accessorKey: 'valueOverReplacement',
+    header: ({ column }) => <SortableHeader column={column}>VOR</SortableHeader>,
+    cell: ({ row }) => (
+      <span className="font-mono text-sm">
+        {row.original.valueOverReplacement.toFixed(1)}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'ceilingScore',
+    header: ({ column }) => <SortableHeader column={column}>Range</SortableHeader>,
+    cell: ({ row }) => renderRangeDisplay(row.original),
+  },
+  {
+    id: 'injuryRiskScore',
+    accessorFn: (player) => Math.max(player.injuryRiskScore, player.uncertaintyScore),
+    header: ({ column }) => <SortableHeader column={column}>Risk</SortableHeader>,
+    cell: ({ row }) => renderRiskDisplay(row.original),
   },
   {
     accessorKey: 'highlightLevel',

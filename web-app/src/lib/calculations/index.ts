@@ -29,6 +29,10 @@ export {
 
 export type { RecommendationResult } from './recommendations';
 
+export { estimatePlayerPrediction } from './prediction-score';
+
+export type { PredictionLayerResult } from './prediction-score';
+
 // Legacy exports from player-value (for backwards compatibility)
 export {
   calculateHighlightLevel,
