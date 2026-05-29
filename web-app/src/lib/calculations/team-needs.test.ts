@@ -127,6 +127,38 @@ describe('calculateTeamNeeds', () => {
     });
   });
 
+  describe('special teams timing', () => {
+    it('defers kicker and defense urgency until the late rounds', () => {
+      const roster = createRoster({});
+      const scarcity = createScarcityScores({ K: 10, DEF: 10 });
+
+      const needs = calculateTeamNeeds(
+        roster,
+        DEFAULT_ROSTER_REQUIREMENTS,
+        scarcity,
+        { currentPick: 55, deferSpecialTeamsUntilPick: 121 }
+      );
+
+      expect(needs.find((n) => n.position === 'K')?.priority).toBe('low');
+      expect(needs.find((n) => n.position === 'DEF')?.priority).toBe('low');
+    });
+
+    it('allows kicker and defense needs in the late rounds', () => {
+      const roster = createRoster({});
+      const scarcity = createScarcityScores({ K: 10, DEF: 10 });
+
+      const needs = calculateTeamNeeds(
+        roster,
+        DEFAULT_ROSTER_REQUIREMENTS,
+        scarcity,
+        { currentPick: 125, deferSpecialTeamsUntilPick: 121 }
+      );
+
+      expect(needs.find((n) => n.position === 'K')?.priority).toBe('critical');
+      expect(needs.find((n) => n.position === 'DEF')?.priority).toBe('critical');
+    });
+  });
+
   describe('startersFilled calculation', () => {
     it('correctly calculates startersFilled', () => {
       const roster = createRoster({

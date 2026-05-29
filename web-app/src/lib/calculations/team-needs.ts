@@ -13,6 +13,11 @@ import type {
   NeedPriority,
 } from '@fantasy-draft/shared';
 
+interface TeamNeedsOptions {
+  readonly currentPick?: number;
+  readonly deferSpecialTeamsUntilPick?: number;
+}
+
 /**
  * Priority order for sorting needs (lower index = higher priority)
  */
@@ -46,7 +51,8 @@ const PRIORITY_ORDER: Record<NeedPriority, number> = {
 export function calculateTeamNeeds(
   roster: Roster,
   requirements: RosterRequirements,
-  scarcityScores: Map<Position, number>
+  scarcityScores: Map<Position, number>,
+  options: TeamNeedsOptions = {}
 ): PositionNeed[] {
   const needs: PositionNeed[] = [];
   const positions: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
@@ -56,10 +62,17 @@ export function calculateTeamNeeds(
     const needed = requirements[position].starters;
     const max = requirements[position].max;
     const scarcity = scarcityScores.get(position) ?? 5;
+    const shouldDeferSpecialTeams =
+      (position === 'K' || position === 'DEF') &&
+      options.currentPick !== undefined &&
+      options.deferSpecialTeamsUntilPick !== undefined &&
+      options.currentPick < options.deferSpecialTeamsUntilPick;
 
     let priority: NeedPriority;
 
-    if (filled === 0 && needed > 0) {
+    if (shouldDeferSpecialTeams) {
+      priority = filled < max ? 'low' : 'filled';
+    } else if (filled === 0 && needed > 0) {
       // No players at position that needs starters
       priority = 'critical';
     } else if (filled < needed) {

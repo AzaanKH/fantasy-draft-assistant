@@ -17,6 +17,7 @@ import type {
 } from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
+import { normalizePlayerName } from '@/lib/calculations';
 
 async function fetchDraftSnapshot(draftId: string): Promise<DraftSyncSnapshot> {
   const response = await fetch(`/api/sync/drafts/${draftId}`);
@@ -109,13 +110,23 @@ export function useSleeperDraft(draftId: string | null) {
   const playerIndexes = useMemo(() => {
     const byId = new Map<string, Player>();
     const byNameTeam = new Map<string, Player>();
+    const byNamePosition = new Map<string, Player>();
+    const duplicateNamePositionKeys = new Set<string>();
 
     for (const player of players) {
       byId.set(player.id, player);
-      byNameTeam.set(`${player.name.toLowerCase()}|${player.team}`, player);
+      byNameTeam.set(`${normalizePlayerName(player.name)}|${player.team}`, player);
+
+      const namePositionKey = `${normalizePlayerName(player.name)}|${player.position}`;
+      if (byNamePosition.has(namePositionKey)) {
+        duplicateNamePositionKeys.add(namePositionKey);
+        byNamePosition.delete(namePositionKey);
+      } else if (!duplicateNamePositionKeys.has(namePositionKey)) {
+        byNamePosition.set(namePositionKey, player);
+      }
     }
 
-    return { byId, byNameTeam };
+    return { byId, byNameTeam, byNamePosition };
   }, [players]);
 
   const findMatchingPlayer = useCallback(
@@ -126,12 +137,17 @@ export function useSleeperDraft(draftId: string | null) {
       }
 
       if (pick.nflTeam) {
-        return playerIndexes.byNameTeam.get(
-          `${pick.playerName.toLowerCase()}|${pick.nflTeam}`
+        const byNameTeam = playerIndexes.byNameTeam.get(
+          `${normalizePlayerName(pick.playerName)}|${pick.nflTeam}`
         );
+        if (byNameTeam) {
+          return byNameTeam;
+        }
       }
 
-      return undefined;
+      return playerIndexes.byNamePosition.get(
+        `${normalizePlayerName(pick.playerName)}|${normalizePosition(pick.position)}`
+      );
     },
     [playerIndexes]
   );
