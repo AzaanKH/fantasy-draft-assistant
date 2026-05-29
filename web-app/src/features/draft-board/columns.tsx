@@ -9,7 +9,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Player, Position, HighlightLevel } from '@fantasy-draft/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -32,6 +32,25 @@ function PositionBadge({ position }: { position: Position }) {
   );
 }
 
+function CompactMetric({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className="flex flex-col leading-tight">
+      <span className={cn('font-mono text-sm font-semibold tabular-nums', className)}>
+        {value}
+      </span>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 /**
  * Highlight badge with color-coded background
  */
@@ -39,11 +58,11 @@ function HighlightBadge({ level }: { level: HighlightLevel }) {
   const config: Record<HighlightLevel, { label: string; className: string }> = {
     'strong-buy': {
       label: 'Strong Buy',
-      className: 'bg-green-500 text-white border-green-600',
+      className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
     },
     'good-value': {
       label: 'Good Value',
-      className: 'bg-yellow-500 text-black border-yellow-600',
+      className: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-300',
     },
     neutral: {
       label: '',
@@ -51,7 +70,7 @@ function HighlightBadge({ level }: { level: HighlightLevel }) {
     },
     avoid: {
       label: 'Avoid',
-      className: 'bg-red-500 text-white border-red-600',
+      className: 'border-red-500/35 bg-red-500/15 text-red-700 dark:text-red-300',
     },
   };
 
@@ -65,17 +84,43 @@ function HighlightBadge({ level }: { level: HighlightLevel }) {
   );
 }
 
+function SignalChip({ level }: { level: HighlightLevel }) {
+  const config: Record<HighlightLevel, { label: string; className: string }> = {
+    'strong-buy': {
+      label: 'Strong value',
+      className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    },
+    'good-value': {
+      label: 'Value',
+      className: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-300',
+    },
+    neutral: {
+      label: '',
+      className: '',
+    },
+    avoid: {
+      label: 'Caution',
+      className: 'border-red-500/35 bg-red-500/15 text-red-700 dark:text-red-300',
+    },
+  };
+
+  const { label, className } = config[level];
+  if (!label) return null;
+
+  return (
+    <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px]', className)}>
+      {label}
+    </Badge>
+  );
+}
+
 /**
  * Value score display with positive/negative coloring
  */
 function ValueDisplay({ value }: { value: number }) {
   const className = cn(
-    'font-mono text-sm',
-    value >= 10 && 'text-green-600 dark:text-green-400 font-bold',
-    value >= 5 && value < 10 && 'text-green-500 dark:text-green-500',
-    value <= -15 && 'text-red-600 dark:text-red-400 font-bold',
-    value < -5 && value > -15 && 'text-red-500 dark:text-red-500',
-    value >= -5 && value < 5 && 'text-muted-foreground'
+    'font-mono text-sm tabular-nums',
+    Math.abs(value) >= 5 ? 'font-semibold text-foreground' : 'text-muted-foreground'
   );
 
   const prefix = value > 0 ? '+' : '';
@@ -92,6 +137,34 @@ function MarketDeltaDisplay({ player }: { player: Player }) {
       <span className="text-[11px] text-muted-foreground">
         FP #{player.ecrRank} / SL #{player.marketRank} {label}
       </span>
+    </div>
+  );
+}
+
+function renderMarketDisplay(player: Player) {
+  const delta = player.valueScore;
+  const label = delta > 0 ? 'Steal' : delta < 0 ? 'Reach' : 'Even';
+
+  return (
+    <div className="flex flex-col leading-tight">
+      <ValueDisplay value={delta} />
+      <span className="text-[11px] text-muted-foreground">
+        FP {player.ecrRank} / SL {player.marketRank}
+      </span>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function renderValueDisplay(player: Player) {
+  return (
+    <div className="grid min-w-[120px] grid-cols-2 gap-3">
+      <CompactMetric label="Proj" value={player.projectedPoints.toFixed(1)} />
+      <CompactMetric
+        label="VOR"
+        value={`+${player.valueOverReplacement.toFixed(1)}`}
+        className="text-foreground"
+      />
     </div>
   );
 }
@@ -124,9 +197,7 @@ function renderRiskDisplay(player: Player) {
   const risk = Math.max(player.injuryRiskScore, player.uncertaintyScore);
   const className = cn(
     'font-mono text-sm',
-    risk >= 7 && 'text-red-600 dark:text-red-400 font-bold',
-    risk >= 5 && risk < 7 && 'text-orange-600 dark:text-orange-400',
-    risk < 5 && 'text-muted-foreground'
+    risk >= 7 ? 'font-semibold text-foreground' : 'text-muted-foreground'
   );
 
   return (
@@ -288,26 +359,117 @@ export const columns: ColumnDef<Player>[] = [
  * Column definitions with draft action button
  */
 export function getColumnsWithActions(
-  onDraft: (player: Player) => void
+  onDraft: (player: Player) => void,
+  options: {
+    advanced?: boolean;
+    onInspect?: (player: Player) => void;
+  } = {}
 ): ColumnDef<Player>[] {
+  const compactColumns: ColumnDef<Player>[] = [
+    {
+      accessorKey: 'ecrRank',
+      header: ({ column }) => (
+        <SortableHeader column={column}>Rank</SortableHeader>
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-sm font-semibold text-muted-foreground">
+          {row.getValue('ecrRank')}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <SortableHeader column={column}>Player</SortableHeader>
+      ),
+      cell: ({ row }) => {
+        const player = row.original;
+        return (
+          <div className="flex min-w-[190px] flex-col leading-tight">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold">{player.name}</span>
+              <SignalChip level={player.highlightLevel} />
+            </div>
+            <span className="mt-0.5 text-[11px] text-muted-foreground">
+              {player.team}
+              {player.isContractYear ? ' · Contract year' : ''}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'position',
+      header: 'Pos',
+      cell: ({ row }) => <PositionBadge position={row.getValue('position')} />,
+      filterFn: (row, id, value: string[]) => {
+        return value.includes(row.getValue(id));
+      },
+    },
+    {
+      accessorKey: 'byeWeek',
+      header: ({ column }) => (
+        <SortableHeader column={column}>Bye</SortableHeader>
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-sm text-muted-foreground">
+          {row.getValue('byeWeek')}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'valueScore',
+      header: ({ column }) => <SortableHeader column={column}>Market</SortableHeader>,
+      cell: ({ row }) => renderMarketDisplay(row.original),
+    },
+    {
+      accessorKey: 'valueOverReplacement',
+      header: ({ column }) => <SortableHeader column={column}>Value</SortableHeader>,
+      cell: ({ row }) => renderValueDisplay(row.original),
+    },
+    {
+      id: 'injuryRiskScore',
+      accessorFn: (player) => Math.max(player.injuryRiskScore, player.uncertaintyScore),
+      header: ({ column }) => <SortableHeader column={column}>Risk</SortableHeader>,
+      cell: ({ row }) => renderRiskDisplay(row.original),
+    },
+  ];
+
+  const baseColumns = options.advanced ? columns : compactColumns;
+
   return [
-    ...columns,
+    ...baseColumns,
     {
       id: 'actions',
       header: '',
       cell: ({ row }) => {
         const player = row.original;
         return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDraft(player);
-            }}
-          >
-            Draft
-          </Button>
+          <div className="flex justify-end gap-1">
+            {options.onInspect && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`View ${player.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  options.onInspect?.(player);
+                }}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDraft(player);
+              }}
+            >
+              Draft
+            </Button>
+          </div>
         );
       },
       enableSorting: false,

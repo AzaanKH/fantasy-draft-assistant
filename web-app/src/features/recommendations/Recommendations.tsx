@@ -11,6 +11,7 @@ import * as React from 'react';
 import type { Position, Recommendation } from '@fantasy-draft/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
@@ -29,6 +30,67 @@ const positionColors: Record<Position, string> = {
   DEF: 'bg-gray-500/20 text-gray-700 border-gray-500',
 };
 
+function formatDelta(value: number | undefined): string {
+  if (typeof value !== 'number') return '-';
+  return `${value > 0 ? '+' : ''}${String(value)}`;
+}
+
+function getPrimaryReason(reason: string): string {
+  return reason.split(' · ')[0] ?? reason;
+}
+
+function MetricPill({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string;
+  tone?: 'neutral' | 'good' | 'warn' | 'bad';
+}) {
+  const toneClass = {
+    neutral: 'border-border bg-muted/30 text-muted-foreground',
+    good: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    warn: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-300',
+    bad: 'border-red-500/35 bg-red-500/15 text-red-700 dark:text-red-300',
+  }[tone];
+
+  return (
+    <span className={cn('rounded-md border px-2 py-1 text-[11px]', toneClass)}>
+      <span className="text-muted-foreground">{label}</span>{' '}
+      <span className="font-mono font-semibold tabular-nums">{value}</span>
+    </span>
+  );
+}
+
+function getRecommendationTone(
+  marketDelta: number | undefined,
+  survivalProbability: number | undefined
+): 'neutral' | 'good' | 'warn' | 'bad' {
+  if (typeof marketDelta === 'number' && marketDelta <= -6) {
+    return 'bad';
+  }
+  if (typeof survivalProbability === 'number' && survivalProbability < 0.4) {
+    return 'warn';
+  }
+  if (typeof marketDelta === 'number' && marketDelta > 0) {
+    return 'good';
+  }
+  return 'neutral';
+}
+
+function getRecommendationSurface(tone: 'neutral' | 'good' | 'warn' | 'bad'): string {
+  return {
+    neutral: 'border-transparent bg-muted/25 hover:bg-muted/40',
+    good:
+      'border-emerald-500/25 bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12] dark:bg-emerald-500/[0.10] dark:hover:bg-emerald-500/[0.16]',
+    warn:
+      'border-amber-500/25 bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/[0.10] dark:hover:bg-amber-500/[0.16]',
+    bad:
+      'border-red-500/25 bg-red-500/[0.08] hover:bg-red-500/[0.12] dark:bg-red-500/[0.10] dark:hover:bg-red-500/[0.16]',
+  }[tone];
+}
+
 /**
  * Individual recommendation row
  */
@@ -36,12 +98,10 @@ function RecommendationRow({
   recommendation,
   rank,
   onDraft,
-  showScore = false,
 }: {
   recommendation: Recommendation;
   rank: number;
   onDraft?: (playerId: string) => void;
-  showScore?: boolean;
 }) {
   const handleClick = () => {
     if (onDraft) {
@@ -51,65 +111,75 @@ function RecommendationRow({
   const projectedPoints = recommendation.diagnostics?.projectedPoints;
   const marketDelta = recommendation.diagnostics?.marketDelta;
   const survivalProbability = recommendation.diagnostics?.nextPickSurvivalProbability;
+  const vor = recommendation.diagnostics?.valueOverReplacement;
+  const marketTone = typeof marketDelta === 'number' && marketDelta > 0
+    ? 'good'
+    : typeof marketDelta === 'number' && marketDelta < -5
+      ? 'bad'
+      : 'neutral';
+  const rowTone = getRecommendationTone(marketDelta, survivalProbability);
 
   return (
     <div
       className={cn(
-        'flex items-center justify-between py-2 px-3 rounded-md transition-colors',
-        rank === 1
-          ? 'bg-green-500/10 border border-green-500/30'
-          : 'bg-muted/30 hover:bg-muted/50',
+        'rounded-md border px-3 py-3 transition-colors',
+        getRecommendationSurface(rowTone),
         onDraft && 'cursor-pointer'
       )}
       onClick={handleClick}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground w-4">{rank}</span>
+      <div className="flex items-start gap-3">
+        <span className="mt-1 w-4 text-xs text-muted-foreground">{rank}</span>
         <Badge
           variant="outline"
-          className={cn('text-xs', positionColors[recommendation.position])}
+          className={cn('mt-0.5 text-xs', positionColors[recommendation.position])}
         >
           {recommendation.position}
         </Badge>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{recommendation.playerName}</span>
-          <span className="text-xs text-muted-foreground">{recommendation.reason}</span>
-          {recommendation.diagnostics && (
-            <span className="text-[11px] text-muted-foreground/80">
-              Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : '-'}
-              {' · '}
-              Tier {recommendation.diagnostics.tier}
-              {typeof survivalProbability === 'number' && (
-                <>
-                  {' · '}
-                  Wait {Math.round(survivalProbability * 100)}%
-                </>
-              )}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col items-end gap-1">
-        {recommendation.diagnostics && (
-          <span
-            className={cn(
-              'text-[11px] font-mono',
-              typeof marketDelta === 'number' && marketDelta > 0 && 'text-green-600',
-              typeof marketDelta === 'number' && marketDelta < 0 && 'text-red-500',
-              (typeof marketDelta !== 'number' || marketDelta === 0) && 'text-muted-foreground'
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-sm font-semibold leading-tight">{recommendation.playerName}</span>
+            {onDraft && (
+              <Button
+                size="sm"
+                variant={rank === 1 ? 'default' : 'outline'}
+                className="h-7 px-2 text-xs"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleClick();
+                }}
+              >
+                Draft
+              </Button>
             )}
-          >
-            {typeof marketDelta === 'number'
-              ? `${marketDelta > 0 ? '+' : ''}${String(marketDelta)}`
-              : '-'}
-          </span>
-        )}
-        {showScore && (
-          <span className="text-xs font-mono text-muted-foreground">
-            {recommendation.score.toFixed(1)}
-          </span>
-        )}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {getPrimaryReason(recommendation.reason)}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <MetricPill
+              label="VOR"
+              value={typeof vor === 'number' ? `+${vor.toFixed(0)}` : '-'}
+              tone="good"
+            />
+            <MetricPill
+              label="Market"
+              value={formatDelta(marketDelta)}
+              tone={marketTone}
+            />
+            <MetricPill
+              label="Wait"
+              value={typeof survivalProbability === 'number'
+                ? `${String(Math.round(survivalProbability * 100))}%`
+                : '-'}
+              tone={typeof survivalProbability === 'number' && survivalProbability < 0.4 ? 'warn' : 'neutral'}
+            />
+            <MetricPill
+              label="Proj"
+              value={typeof projectedPoints === 'number' ? projectedPoints.toFixed(0) : '-'}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -122,12 +192,10 @@ function RecommendationList({
   recommendations,
   emptyMessage,
   onDraft,
-  showScore = false,
 }: {
   recommendations: readonly Recommendation[];
   emptyMessage: string;
   onDraft?: (playerId: string) => void;
-  showScore?: boolean;
 }) {
   if (recommendations.length === 0) {
     return (
@@ -145,7 +213,6 @@ function RecommendationList({
           recommendation={rec}
           rank={index + 1}
           onDraft={onDraft}
-          showScore={showScore}
         />
       ))}
     </div>
@@ -169,17 +236,23 @@ function TopPickHighlight({
   const projectedPoints = recommendation.diagnostics?.projectedPoints;
   const survivalProbability = recommendation.diagnostics?.nextPickSurvivalProbability;
   const diagnostics = recommendation.diagnostics;
+  const marketDelta = diagnostics?.marketDelta;
+  const marketTone = typeof marketDelta === 'number' && marketDelta > 0
+    ? 'good'
+    : typeof marketDelta === 'number' && marketDelta < -5
+      ? 'bad'
+      : 'neutral';
 
   return (
     <div
       className={cn(
-        'p-3 rounded-lg bg-gradient-to-r from-green-500/20 to-green-500/5 border border-green-500/30',
-        onDraft && 'cursor-pointer hover:from-green-500/30'
+        'rounded-lg border border-emerald-500/30 bg-emerald-500/[0.09] p-4 dark:bg-emerald-500/[0.11]',
+        onDraft && 'cursor-pointer hover:bg-emerald-500/[0.13] dark:hover:bg-emerald-500/[0.17]'
       )}
       onClick={() => onDraft?.(recommendation.playerId)}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-semibold text-green-600 uppercase">
+        <span className="text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-300">
           Top Pick
         </span>
         <Badge
@@ -189,30 +262,36 @@ function TopPickHighlight({
           {recommendation.position}
         </Badge>
       </div>
-      <div className="text-lg font-bold">{recommendation.playerName}</div>
-      <div className="text-xs text-muted-foreground">{recommendation.reason}</div>
+      <div className="text-xl font-bold leading-tight">{recommendation.playerName}</div>
+      <div className="mt-1 text-xs text-muted-foreground">
+        {getPrimaryReason(recommendation.reason)}
+      </div>
       {diagnostics && (
-        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-          <span>
-            Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : 'N/A'}
-          </span>
-          <span>Tier {String(diagnostics.tier)}</span>
-          <span>
-            FP #{String(diagnostics.expertRank)} / SL #
-            {String(diagnostics.marketRank)}
-          </span>
-          <span>
-            Delta {typeof diagnostics.marketDelta === 'number'
-              ? `${diagnostics.marketDelta > 0 ? '+' : ''}${String(diagnostics.marketDelta)}`
-              : 'N/A'}
-          </span>
-          <span>
-            Wait {typeof survivalProbability === 'number'
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <MetricPill
+            label="VOR"
+            value={`+${diagnostics.valueOverReplacement.toFixed(0)}`}
+            tone="good"
+          />
+          <MetricPill
+            label="Proj"
+            value={typeof projectedPoints === 'number' ? projectedPoints.toFixed(0) : '-'}
+          />
+          <MetricPill
+            label="Market"
+            value={formatDelta(marketDelta)}
+            tone={marketTone}
+          />
+          <MetricPill
+            label="Wait"
+            value={typeof survivalProbability === 'number'
               ? `${String(Math.round(survivalProbability * 100))}%`
-              : 'N/A'}
-          </span>
+              : '-'}
+            tone={typeof survivalProbability === 'number' && survivalProbability < 0.4 ? 'warn' : 'neutral'}
+          />
+          <MetricPill label="Tier" value={String(diagnostics.tier)} />
           {diagnostics.leaguePositionTendency && (
-            <span className="col-span-2">
+            <span className="w-full pt-1 text-[11px] text-muted-foreground">
               {diagnostics.leaguePositionTendency}
             </span>
           )}
@@ -278,12 +357,12 @@ export function Recommendations() {
   }
 
   return (
-    <Card>
+    <Card className="gap-4 rounded-lg py-5">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Recommendations</CardTitle>
           {isMyTurn && (
-            <Badge className="bg-green-500 text-white text-xs">Your Pick!</Badge>
+            <Badge className="bg-green-500 text-white text-xs">Your Pick</Badge>
           )}
         </div>
       </CardHeader>
@@ -296,24 +375,23 @@ export function Recommendations() {
 
         {/* Tabbed Recommendations */}
         <Tabs defaultValue="draft-now" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="draft-now" className="text-xs">
+          <TabsList className="grid h-auto w-full grid-cols-3 p-1">
+            <TabsTrigger value="draft-now" className="px-1.5 text-[11px]">
               Draft Now
             </TabsTrigger>
-            <TabsTrigger value="by-need" className="text-xs">
+            <TabsTrigger value="by-need" className="px-1.5 text-[11px]">
               By Need
             </TabsTrigger>
-            <TabsTrigger value="best-available" className="text-xs">
-              Best Available
+            <TabsTrigger value="best-available" className="px-1.5 text-[11px]">
+              Best Avail.
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="draft-now" className="mt-2">
             <RecommendationList
-              recommendations={draftNow}
-              emptyMessage="No draft recommendations"
+              recommendations={draftNow.slice(1)}
+              emptyMessage="No alternate draft recommendations"
               onDraft={isMyTurn ? handleDraft : undefined}
-              showScore
             />
           </TabsContent>
 
@@ -322,7 +400,6 @@ export function Recommendations() {
               recommendations={byNeed}
               emptyMessage="No need-based recommendations"
               onDraft={isMyTurn ? handleDraft : undefined}
-              showScore
             />
           </TabsContent>
 

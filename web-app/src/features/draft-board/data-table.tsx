@@ -87,13 +87,13 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
-      <div className="rounded-md border">
+      <div className="overflow-hidden rounded-lg border border-border/70">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/25">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
+                  <TableHead key={header.id} className="h-9 whitespace-nowrap px-3 text-xs">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -118,7 +118,7 @@ export function DataTable<TData, TValue>({
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="px-3 py-3">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -142,7 +142,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between space-x-2 py-4">
+      <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-muted-foreground text-sm">
           Showing {table.getRowModel().rows.length} of{' '}
           {table.getFilteredRowModel().rows.length} players
