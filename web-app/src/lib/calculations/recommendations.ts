@@ -72,6 +72,7 @@ function getDiagnostics(player: Player): RecommendationDiagnostics {
     marketRank: player.marketRank,
     marketDelta: player.valueScore,
     projectedPoints: player.projectedPoints,
+    valueOverReplacement: player.valueOverReplacement,
     tier: player.tier,
     nextPickSurvivalProbability: player.nextPickSurvivalProbability,
     leagueAdjustedMarketRank: player.leagueAdjustedMarketRank,

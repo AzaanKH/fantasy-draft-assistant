@@ -19,6 +19,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { DataTable } from './data-table';
 import { getColumnsWithActions } from './columns';
 import { SleeperConnect } from './SleeperConnect';
@@ -181,9 +188,9 @@ function PositionStats() {
   const stats = usePositionStats();
 
   return (
-    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
       {POSITIONS.map((pos) => (
-        <span key={pos}>
+        <span key={pos} className="tabular-nums">
           {pos}: {stats[pos].available}/{stats[pos].total}
         </span>
       ))}
@@ -197,14 +204,136 @@ function PositionStats() {
 function getRowHighlightClass(player: Player): string {
   const classes: Record<HighlightLevel, string> = {
     'strong-buy':
-      'bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-950/50',
+      'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12] dark:bg-emerald-500/[0.10] dark:hover:bg-emerald-500/[0.16]',
     'good-value':
-      'bg-yellow-50 dark:bg-yellow-950/30 hover:bg-yellow-100 dark:hover:bg-yellow-950/50',
-    neutral: 'hover:bg-muted/50',
+      'bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/[0.10] dark:hover:bg-amber-500/[0.16]',
+    neutral: 'hover:bg-muted/35',
     avoid:
-      'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50',
+      'bg-red-500/[0.08] hover:bg-red-500/[0.12] dark:bg-red-500/[0.10] dark:hover:bg-red-500/[0.16]',
   };
   return classes[player.highlightLevel];
+}
+
+function MetricTile({
+  label,
+  value,
+  detail,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'neutral' | 'good' | 'warn' | 'bad';
+}) {
+  const toneClass = {
+    neutral: 'border-border bg-muted/25',
+    good: 'border-foreground/25 bg-muted/35 text-foreground',
+    warn: 'border-muted-foreground/30 bg-muted/30 text-foreground',
+    bad: 'border-muted-foreground/35 bg-muted/25 text-foreground',
+  }[tone];
+
+  return (
+    <div className={cn('rounded-md border px-3 py-2', toneClass)}>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 font-mono text-sm font-semibold tabular-nums">{value}</div>
+      {detail && <div className="mt-0.5 text-[11px] text-muted-foreground">{detail}</div>}
+    </div>
+  );
+}
+
+function PlayerDetailDialog({
+  player,
+  open,
+  onOpenChange,
+  onDraft,
+}: {
+  player: Player | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDraft: (player: Player) => void;
+}) {
+  if (!player) {
+    return null;
+  }
+
+  const marketTone = player.valueScore > 0 ? 'good' : player.valueScore < -5 ? 'bad' : 'neutral';
+  const risk = Math.max(player.injuryRiskScore, player.uncertaintyScore);
+  const riskTone = risk >= 6 ? 'bad' : risk >= 4.5 ? 'warn' : 'neutral';
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex flex-wrap items-center gap-2">
+            {player.name}
+            <Badge variant="outline">{player.position}</Badge>
+            <span className="text-sm font-normal text-muted-foreground">{player.team}</span>
+          </DialogTitle>
+          <DialogDescription>
+            Projection quality, replacement value, market cost, and risk for this pick.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricTile
+            label="VOR"
+            value={`+${player.valueOverReplacement.toFixed(1)}`}
+            detail="vs replacement"
+            tone="good"
+          />
+          <MetricTile
+            label="Projection"
+            value={player.projectedPoints.toFixed(1)}
+            detail={player.predictionSource}
+          />
+          <MetricTile
+            label="Market"
+            value={`${player.valueScore > 0 ? '+' : ''}${player.valueScore}`}
+            detail={`FP ${player.ecrRank} / SL ${player.marketRank}`}
+            tone={marketTone}
+          />
+          <MetricTile
+            label="Wait"
+            value={`${Math.round(player.nextPickSurvivalProbability * 100)}%`}
+            detail="to next pick"
+            tone={player.nextPickSurvivalProbability < 0.4 ? 'warn' : 'neutral'}
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MetricTile
+            label="Range"
+            value={`${player.floorScore.toFixed(1)} / ${player.ceilingScore.toFixed(1)}`}
+            detail="floor / ceiling"
+          />
+          <MetricTile
+            label="Risk"
+            value={risk.toFixed(1)}
+            detail={`inj ${player.injuryRiskScore.toFixed(1)} / var ${player.uncertaintyScore.toFixed(1)}`}
+            tone={riskTone}
+          />
+          <MetricTile
+            label="Tier"
+            value={String(player.tier)}
+            detail={`drop ${player.tierDropoffScore.toFixed(2)}`}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              onDraft(player);
+              onOpenChange(false);
+            }}
+          >
+            Draft {player.name}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 /**
@@ -217,6 +346,8 @@ export function PlayerTable() {
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [showDrafted, setShowDrafted] = React.useState(false);
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [selectedPlayer, setSelectedPlayer] = React.useState<Player | null>(null);
 
   const draftedIds = useDraftStore((state) => state.draftedPlayerIds);
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
@@ -293,15 +424,19 @@ export function PlayerTable() {
 
   // Get columns with draft action
   const columns = React.useMemo(
-    () => getColumnsWithActions(handleDraft),
-    [handleDraft]
+    () =>
+      getColumnsWithActions(handleDraft, {
+        advanced: showAdvanced,
+        onInspect: setSelectedPlayer,
+      }),
+    [handleDraft, showAdvanced]
   );
 
   // Get row styling (drafted players greyed out)
   const getRowClassName = React.useCallback(
     (player: Player) => {
       if (draftedIds.has(player.id)) {
-        return 'opacity-40 bg-muted/50';
+        return 'opacity-40 bg-muted/30';
       }
       return getRowHighlightClass(player);
     },
@@ -334,100 +469,125 @@ export function PlayerTable() {
   const pickInRound = ((currentPick - 1) % config.totalTeams) + 1;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-3">
-            Available Players
-            {isMyTurn && (
-              <Badge className="bg-green-500 text-white">Your Pick!</Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Round {round}</span>
-            <span>·</span>
-            <span>Pick {pickInRound}</span>
-            <span>·</span>
-            <span className="font-mono">#{currentPick}</span>
+    <>
+      <Card className="gap-4 rounded-lg py-5">
+        <CardHeader className="pb-1">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-2">
+              <CardTitle className="flex flex-wrap items-center gap-3 text-lg">
+                Available Players
+                {isMyTurn && (
+                  <Badge className="bg-green-500 text-white">Your Pick</Badge>
+                )}
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>Round {round}</span>
+                <span>·</span>
+                <span>Pick {pickInRound}</span>
+                <span>·</span>
+                <span className="font-mono">#{currentPick}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <SleeperConnect />
+              <MyRoster />
+              <DraftSimulationControls players={players} />
+            </div>
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <PositionFilters selected={positionFilter} onSelect={setPositionFilter} />
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="space-y-2">
+              <PositionFilters selected={positionFilter} onSelect={setPositionFilter} />
+              <PositionStats />
+            </div>
 
-          <div className="flex items-center gap-4">
-            <Input
-              placeholder="Search players..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48"
-            />
-
-            <div className="flex items-center gap-2">
-              <Switch
-                id="show-drafted"
-                checked={showDrafted}
-                onCheckedChange={setShowDrafted}
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="Search players..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-56"
               />
-              <label
-                htmlFor="show-drafted"
-                className="text-sm text-muted-foreground cursor-pointer"
-              >
-                Show drafted
-              </label>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="show-drafted"
+                  checked={showDrafted}
+                  onCheckedChange={setShowDrafted}
+                />
+                <label
+                  htmlFor="show-drafted"
+                  className="cursor-pointer text-sm text-muted-foreground"
+                >
+                  Drafted
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="show-advanced"
+                  checked={showAdvanced}
+                  onCheckedChange={setShowAdvanced}
+                />
+                <label
+                  htmlFor="show-advanced"
+                  className="cursor-pointer text-sm text-muted-foreground"
+                >
+                  Advanced
+                </label>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Position Stats */}
-        <PositionStats />
+          <DataTable
+            columns={columns}
+            data={filteredPlayers}
+            onRowClick={setSelectedPlayer}
+            getRowClassName={getRowClassName}
+            pageSize={30}
+          />
 
-        {/* Draft Controls: My Team + Sleeper Sync + Simulation */}
-        <div className="flex flex-wrap gap-2">
-          <MyRoster />
-          <SleeperConnect />
-          <DraftSimulationControls players={players} />
-        </div>
+          {/* Data freshness info */}
+          <div className="space-y-1 text-right text-xs">
+            {dataInfo.contractsError && (
+              <div className="text-destructive/80">
+                Contract-year data unavailable.
+              </div>
+            )}
+            {dataInfo.fantasyProsRefreshedAt && (
+              <div className="text-muted-foreground">
+                FantasyPros snapshot from{' '}
+                {new Date(dataInfo.fantasyProsRefreshedAt).toLocaleString()}
+                {dataInfo.fantasyProsSourceType && (
+                  <span>
+                    {' · '}
+                    {dataInfo.fantasyProsSourceType}
+                  </span>
+                )}
+              </div>
+            )}
+            {dataInfo.sleeperFetchedAt && (
+              <div className="text-muted-foreground">
+                Sleeper market snapshot from{' '}
+                {new Date(dataInfo.sleeperFetchedAt).toLocaleString()}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Data Table - Large page size for scrolling instead of pagination */}
-        <DataTable
-          columns={columns}
-          data={filteredPlayers}
-          onRowClick={handleDraft}
-          getRowClassName={getRowClassName}
-          pageSize={100}
-        />
-
-        {/* Data freshness info */}
-        <div className="space-y-1 text-xs text-right">
-          {dataInfo.contractsError && (
-            <div className="text-destructive/80">
-              Contract-year data unavailable.
-            </div>
-          )}
-          {dataInfo.fantasyProsRefreshedAt && (
-            <div className="text-muted-foreground">
-              FantasyPros snapshot from{' '}
-              {new Date(dataInfo.fantasyProsRefreshedAt).toLocaleString()}
-              {dataInfo.fantasyProsSourceType && (
-                <span>
-                  {' · '}
-                  {dataInfo.fantasyProsSourceType}
-                </span>
-              )}
-            </div>
-          )}
-          {dataInfo.sleeperFetchedAt && (
-            <div className="text-muted-foreground">
-              Sleeper market snapshot from{' '}
-              {new Date(dataInfo.sleeperFetchedAt).toLocaleString()}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      <PlayerDetailDialog
+        player={selectedPlayer}
+        open={selectedPlayer !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPlayer(null);
+        }}
+        onDraft={handleDraft}
+      />
+    </>
   );
 }

@@ -134,6 +134,7 @@ export interface Recommendation {
     readonly marketRank: number;
     readonly marketDelta: number;
     readonly projectedPoints: number;
+    readonly valueOverReplacement: number;
     readonly tier: number;
     readonly nextPickSurvivalProbability?: number;
     readonly leagueAdjustedMarketRank?: number;
