@@ -25,6 +25,9 @@
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:fantasypros:manual": "pnpm scrape:ecr && FANTASYPROS_SNAPSHOT_MODE=manual pnpm --filter scripts refresh:fantasypros-snapshot",
     "scrape:contracts": "pnpm --filter scripts scrape:contracts",
+    "model:duckdb:init": "pnpm --filter scripts model:duckdb:init",
+    "model:profile": "pnpm --filter scripts model:profile",
+    "model:dataset": "pnpm --filter scripts model:dataset",
     "clean": "pnpm run -r clean && rm -rf node_modules"
   },
   "devDependencies": {

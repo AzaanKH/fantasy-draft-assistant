@@ -11,19 +11,23 @@
     "import:league-history": "tsx src/import-league-draft-history.ts",
     "generate:team-env": "tsx src/generate-team-env.ts",
     "fetch:all": "tsx src/scrape-ecr.ts && tsx src/fetch-sleeper-adp.ts && tsx src/generate-team-env.ts",
+    "model:duckdb:init": "tsx src/model/init-duckdb.ts",
+    "model:profile": "tsx src/model/profile-model-sources.ts",
+    "model:dataset": "tsx src/build-prediction-dataset.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@duckdb/node-api": "1.5.3-r.2",
     "@fantasy-draft/shared": "workspace:*",
     "dotenv": "^16.6.1",
     "playwright": "^1.49.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "tsx": "^4.19.0",
     "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
     "vitest": "^4.0.17"
   }
 }
