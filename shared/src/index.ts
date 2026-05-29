@@ -4,9 +4,11 @@ export {
   POSITIONS,
   NEWS_STATUSES,
   HIGHLIGHT_LEVELS,
+  PREDICTION_SOURCES,
   isPosition,
   isNFLTeam,
   isHighlightLevel,
+  isPredictionSource,
   isNewsStatus,
   isPlayer,
 } from './player';
@@ -16,6 +18,8 @@ export type {
   Position,
   NewsStatus,
   HighlightLevel,
+  PredictionSource,
+  PlayerPrediction,
   Player,
 } from './player';
 

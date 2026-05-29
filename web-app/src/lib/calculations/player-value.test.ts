@@ -70,4 +70,78 @@ describe('mergePlayerData', () => {
     expect(players[0]?.tierDropoffScore).toBeGreaterThanOrEqual(0);
     expect(players[0]?.tierDropoffScore).toBeLessThanOrEqual(1);
   });
+
+  it('falls back to name-plus-position matching when offseason team data drifts', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer({ name: 'Kenneth Walker III', position: 'RB', team: 'KC' })],
+      [],
+      [],
+      [createSleeperPlayer({
+        name: 'Kenneth Walker',
+        position: 'RB',
+        team: 'SEA',
+        playerId: '8151',
+        sleeperAdp: 42,
+      })],
+      teamEnvironment
+    );
+
+    expect(players[0]?.id).toBe('8151');
+    expect(players[0]?.team).toBe('SEA');
+    expect(players[0]?.sleeperAdp).toBe(42);
+  });
+
+  it('uses model prediction overrides before heuristic projections', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer()],
+      [],
+      [],
+      [createSleeperPlayer({ playerId: '123' })],
+      teamEnvironment,
+      [],
+      [{
+        playerId: '123',
+        name: 'Test Player',
+        position: 'WR',
+        team: 'DET',
+        projectedPoints: 241.5,
+        valueOverReplacement: 44.2,
+        ceilingScore: 9.1,
+        floorScore: 6.4,
+        uncertaintyScore: 4.8,
+        injuryRiskScore: 2.5,
+        source: 'model',
+        modelVersion: 'test',
+      }]
+    );
+
+    expect(players[0]?.projectedPoints).toBe(241.5);
+    expect(players[0]?.valueOverReplacement).toBe(44.2);
+    expect(players[0]?.ceilingScore).toBe(9.1);
+    expect(players[0]?.floorScore).toBe(6.4);
+    expect(players[0]?.uncertaintyScore).toBe(4.8);
+    expect(players[0]?.injuryRiskScore).toBe(2.5);
+    expect(players[0]?.predictionSource).toBe('model');
+  });
+
+  it('raises uncertainty for rookies without treating them as injured', () => {
+    const veteran = mergePlayerData(
+      [createEcrPlayer()],
+      [],
+      [],
+      [createSleeperPlayer({ yearsExp: 4, status: 'Active' })],
+      teamEnvironment
+    )[0];
+
+    const rookie = mergePlayerData(
+      [createEcrPlayer()],
+      [],
+      [],
+      [createSleeperPlayer({ yearsExp: 0, status: 'Active' })],
+      teamEnvironment
+    )[0];
+
+    expect(rookie?.uncertaintyScore).toBeGreaterThan(veteran?.uncertaintyScore ?? 0);
+    expect(rookie?.injuryRiskScore).toBe(2);
+  });
 });

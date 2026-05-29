@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-05-29T03:05:06.964Z",
+  "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "currentSeason": 2026,
+  "responsibilities": {
+    "nflverse": [
+      "historical NFL player stats",
+      "historical rosters",
+      "historical schedules",
+      "historical team stats",
+      "player ID mapping"
+    ],
+    "ffopportunity": [
+      "expected fantasy points",
+      "expected yardage/touchdown opportunity",
+      "team opportunity share metrics"
+    ],
+    "dynastyprocess": [
+      "historical pre-draft rankings",
+      "market-style redraft rankings",
+      "cross-platform fantasy player IDs"
+    ],
+    "predictionLayer": [
+      "uses nflverse production/history",
+      "uses ffopportunity expected points/opportunity",
+      "uses DynastyProcess pre-draft ranking context"
+    ],
+    "rosterAwareRecommendation": [
+      "uses prediction outputs",
+      "uses current FantasyPros",
+      "uses current Sleeper ADP",
+      "uses team needs"
+    ],
+    "leagueHistorySurvivalModel": [
+      "uses imported Sleeper draft IDs",
+      "uses historical pick outcomes",
+      "uses current/historical ADP and ranking context"
+    ],
+    "draftPickTradeGrader": [
+      "uses prediction layer",
+      "uses survival model",
+      "uses roster-aware recommendation inputs"
+    ]
+  },
+  "artifacts": {
+    "trainingDatasetParquet": "/Users/azaankhalfe/Desktop/fantasy-draft/fantasy-draft-assistant/data/model/training-dataset.parquet",
+    "predictionsJson": "/Users/azaankhalfe/Desktop/fantasy-draft/fantasy-draft-assistant/data/predictions.json",
+    "leagueHistorySurvivalTable": "model.league_history_survival_training_dataset",
+    "draftPickTradeGraderTable": "model.draft_pick_trade_grader_features"
+  },
+  "counts": [
+    {
+      "tableName": "source.nflverse_player_stats",
+      "rowCount": 10049
+    },
+    {
+      "tableName": "source.nflverse_rosters",
+      "rowCount": 15538
+    },
+    {
+      "tableName": "source.nflverse_schedules",
+      "rowCount": 1424
+    },
+    {
+      "tableName": "source.nflverse_team_stats",
+      "rowCount": 160
+    },
+    {
+      "tableName": "source.nflverse_player_ids",
+      "rowCount": 25037
+    },
+    {
+      "tableName": "source.ffopportunity_weekly",
+      "rowCount": 30243
+    },
+    {
+      "tableName": "source.dynastyprocess_rankings",
+      "rowCount": 1735541
+    },
+    {
+      "tableName": "source.dynastyprocess_player_ids",
+      "rowCount": 12456
+    },
+    {
+      "tableName": "model.prediction_training_dataset",
+      "rowCount": 3231
+    },
+    {
+      "tableName": "model.prediction_outputs",
+      "rowCount": 727
+    },
+    {
+      "tableName": "model.league_history_survival_training_dataset",
+      "rowCount": 550
+    },
+    {
+      "tableName": "model.draft_pick_trade_grader_features",
+      "rowCount": 727
+    }
+  ]
+}

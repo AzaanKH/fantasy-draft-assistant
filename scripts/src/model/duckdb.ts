@@ -19,6 +19,9 @@ export interface ModelPaths {
   readonly sleeperAdpJson: string;
   readonly teamEnvironmentJson: string;
   readonly contractsJson: string;
+  readonly leagueDraftHistoryJson: string;
+  readonly predictionsJson: string;
+  readonly modelReportJson: string;
   readonly normalizedPlayersParquet: string;
   readonly trainingDatasetParquet: string;
   readonly profileReportJson: string;
@@ -29,6 +32,9 @@ export const MODEL_PATHS: ModelPaths = {
   sleeperAdpJson: join(DATA_DIR, 'sleeper-adp.json'),
   teamEnvironmentJson: join(DATA_DIR, 'team-environment.json'),
   contractsJson: join(DATA_DIR, 'contracts.json'),
+  leagueDraftHistoryJson: join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'),
+  predictionsJson: join(DATA_DIR, 'predictions.json'),
+  modelReportJson: join(DATA_DIR, 'model-report.json'),
   normalizedPlayersParquet: join(NORMALIZED_MODEL_DIR, 'current-player-join.parquet'),
   trainingDatasetParquet: join(MODEL_DIR, 'training-dataset.parquet'),
   profileReportJson: join(MODEL_DIR, 'profile-report.json'),

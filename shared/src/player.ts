@@ -38,6 +38,26 @@ export const HIGHLIGHT_LEVELS = ['strong-buy', 'good-value', 'neutral', 'avoid']
 
 export type HighlightLevel = (typeof HIGHLIGHT_LEVELS)[number];
 
+export const PREDICTION_SOURCES = ['model', 'fantasypros', 'heuristic'] as const;
+
+export type PredictionSource = (typeof PREDICTION_SOURCES)[number];
+
+export interface PlayerPrediction {
+  readonly playerId?: string;
+  readonly name: string;
+  readonly position: Position;
+  readonly team: NFLTeam;
+  readonly projectedPoints: number;
+  readonly valueOverReplacement?: number;
+  readonly ceilingScore?: number;
+  readonly floorScore?: number;
+  readonly uncertaintyScore?: number;
+  readonly riskScore?: number;
+  readonly injuryRiskScore?: number;
+  readonly source: PredictionSource;
+  readonly modelVersion?: string;
+}
+
 /**
  * Core player interface with all ranking and metadata fields
  */
@@ -83,8 +103,12 @@ export interface Player {
   readonly floorScore: number;
   /** Upside-oriented score */
   readonly upsideScore: number;
+  /** Higher means wider projection range / lower confidence */
+  readonly uncertaintyScore: number;
   /** Higher means more fragility/risk */
   readonly injuryRiskScore: number;
+  /** Source that supplied the prediction layer fields */
+  readonly predictionSource: PredictionSource;
   /** Current availability/news signal */
   readonly newsStatus: NewsStatus;
   /** Simple same-team stack partners for QB/WR/TE-style correlations */
@@ -115,6 +139,10 @@ export function isNFLTeam(value: unknown): value is NFLTeam {
  */
 export function isHighlightLevel(value: unknown): value is HighlightLevel {
   return typeof value === 'string' && HIGHLIGHT_LEVELS.includes(value as HighlightLevel);
+}
+
+export function isPredictionSource(value: unknown): value is PredictionSource {
+  return typeof value === 'string' && PREDICTION_SOURCES.includes(value as PredictionSource);
 }
 
 export function isNewsStatus(value: unknown): value is NewsStatus {
@@ -153,7 +181,9 @@ export function isPlayer(obj: unknown): obj is Player {
     typeof candidate['ceilingScore'] === 'number' &&
     typeof candidate['floorScore'] === 'number' &&
     typeof candidate['upsideScore'] === 'number' &&
+    typeof candidate['uncertaintyScore'] === 'number' &&
     typeof candidate['injuryRiskScore'] === 'number' &&
+    isPredictionSource(candidate['predictionSource']) &&
     isNewsStatus(candidate['newsStatus']) &&
     isNFLTeam(candidate['stackPartnerTeam']) &&
     isHighlightLevel(candidate['highlightLevel'])
