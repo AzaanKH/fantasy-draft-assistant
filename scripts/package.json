@@ -8,6 +8,7 @@
     "refresh:fantasypros-snapshot": "tsx src/refresh-fantasypros-snapshot.ts",
     "scrape:contracts": "tsx src/scrape-contracts.ts",
     "fetch:sleeper": "tsx src/fetch-sleeper-adp.ts",
+    "import:league-history": "tsx src/import-league-draft-history.ts",
     "generate:team-env": "tsx src/generate-team-env.ts",
     "fetch:all": "tsx src/scrape-ecr.ts && tsx src/fetch-sleeper-adp.ts && tsx src/generate-team-env.ts",
     "test": "vitest run",

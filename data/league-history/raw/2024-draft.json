@@ -1,0 +1,69 @@
+{
+  "created": 1720821048475,
+  "creators": [
+    "783922770726977536",
+    "986752100124205056"
+  ],
+  "draft_id": "1117608116687826945",
+  "draft_order": {
+    "user_d615ad5b6472": 8,
+    "user_63e5e1d705b3": 7,
+    "user_b9289a511d51": 9,
+    "user_22dfe2c84c9d": 3,
+    "user_2e9386bd2dba": 10,
+    "user_d8ecf12b7f31": 4,
+    "user_bd2ce25c636f": 1,
+    "user_ab9605333901": 5,
+    "user_39e871fc8003": 6,
+    "user_12ab8bf44f92": 2
+  },
+  "last_message_id": "1136057762779013120",
+  "last_message_time": 1725219786880,
+  "last_picked": 1725219785945,
+  "league_id": "1117608116687826944",
+  "metadata": {
+    "description": "",
+    "name": "Ummati Official",
+    "scoring_type": "ppr"
+  },
+  "season": "2024",
+  "season_type": "regular",
+  "settings": {
+    "alpha_sort": 0,
+    "autopause_enabled": 0,
+    "autopause_end_time": 1020,
+    "autopause_start_time": 300,
+    "autostart": 0,
+    "cpu_autopick": 1,
+    "enforce_position_limits": 1,
+    "nomination_timer": 60,
+    "pick_timer": 120,
+    "player_type": 0,
+    "reversal_round": 0,
+    "rounds": 14,
+    "slots_bn": 5,
+    "slots_flex": 2,
+    "slots_k": 1,
+    "slots_qb": 1,
+    "slots_rb": 2,
+    "slots_te": 1,
+    "slots_wr": 2,
+    "teams": 10
+  },
+  "slot_to_roster_id": {
+    "1": 8,
+    "2": 5,
+    "3": 6,
+    "4": 2,
+    "5": 9,
+    "6": 10,
+    "7": 3,
+    "8": 4,
+    "9": 7,
+    "10": 1
+  },
+  "sport": "nfl",
+  "start_time": 1725214872835,
+  "status": "complete",
+  "type": "snake"
+}
