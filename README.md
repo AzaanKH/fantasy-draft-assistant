@@ -103,6 +103,8 @@ Run everything:
 pnpm dev
 ```
 
+`pnpm dev` refreshes the cached Sleeper market snapshot and FantasyPros snapshot before starting local services.
+
 That starts:
 
 - `shared` build watcher
@@ -125,7 +127,13 @@ Refresh the cached FantasyPros snapshot manually:
 pnpm refresh:fantasypros
 ```
 
-That command:
+Refresh both Sleeper and FantasyPros snapshots manually:
+
+```bash
+pnpm refresh:data
+```
+
+The FantasyPros refresh:
 
 - tries the FantasyPros API when `FANTASYPROS_API_KEY` is present
 - falls back to the local ECR snapshot when the API request fails

@@ -23,6 +23,7 @@ const DATA_DIR = join(__dirname, '../../data');
 const OUTPUT_FILE = join(DATA_DIR, 'sleeper-adp.json');
 
 const SLEEPER_PLAYERS_URL = 'https://api.sleeper.app/v1/players/nfl';
+const SLEEPER_UNRANKED_SEARCH_RANK = 999;
 
 /**
  * Raw player data from Sleeper API
@@ -71,6 +72,15 @@ function isValidTeam(value: string | null): value is NFLTeam {
   return value !== null && NFL_TEAMS.includes(value as NFLTeam);
 }
 
+function isUsableSearchRank(value: number | null | undefined): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value > 0 &&
+    value < SLEEPER_UNRANKED_SEARCH_RANK
+  );
+}
+
 /**
  * Fetch all players from Sleeper API
  */
@@ -100,8 +110,8 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
     // Skip players without a team (free agents, retired, etc.)
     if (!player.team) continue;
 
-    // Skip players without search_rank (no ADP data)
-    if (player.search_rank === null || player.search_rank === undefined) continue;
+    // Sleeper uses large sentinel ranks like 999/9999999 for unranked players.
+    if (!isUsableSearchRank(player.search_rank)) continue;
 
     // Skip non-fantasy positions
     if (!isValidPosition(player.position)) continue;

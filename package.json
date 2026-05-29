@@ -10,6 +10,7 @@
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "predev": "pnpm refresh:data",
     "dev": "pnpm dev:shared & pnpm dev:web & pnpm dev:server & pnpm dev:extension & wait",
     "dev:shared": "pnpm --filter @fantasy-draft/shared build --watch",
     "dev:web": "pnpm --filter web-app dev",
@@ -22,6 +23,8 @@
     "typecheck": "pnpm run -r typecheck",
     "lint": "pnpm run -r lint",
     "scrape:ecr": "pnpm --filter scripts scrape:ecr",
+    "refresh:sleeper": "pnpm --filter scripts fetch:sleeper",
+    "refresh:data": "pnpm refresh:sleeper && pnpm refresh:fantasypros",
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:fantasypros:manual": "pnpm scrape:ecr && FANTASYPROS_SNAPSHOT_MODE=manual pnpm --filter scripts refresh:fantasypros-snapshot",
     "scrape:contracts": "pnpm --filter scripts scrape:contracts",
