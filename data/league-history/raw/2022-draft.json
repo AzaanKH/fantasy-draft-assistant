@@ -1,0 +1,68 @@
+{
+  "created": 1658647583203,
+  "creators": [
+    "783922770726977536"
+  ],
+  "draft_id": "856833702632767488",
+  "draft_order": {
+    "734368165714345984": 7,
+    "738976793800966144": 2,
+    "739274603586818048": 10,
+    "739285484714561536": 8,
+    "773013918196027392": 1,
+    "782780082631655424": 3,
+    "783922770726977536": 5,
+    "857181633793593344": 6,
+    "857188296403595264": 4,
+    "857191358107086848": 9
+  },
+  "last_message_id": "865087170497531904",
+  "last_message_time": 1660615363290,
+  "last_picked": 1660615362731,
+  "league_id": "856833701722570752",
+  "metadata": {
+    "description": "",
+    "name": "Ummati Official",
+    "scoring_type": "ppr"
+  },
+  "season": "2022",
+  "season_type": "regular",
+  "settings": {
+    "alpha_sort": 0,
+    "autopause_enabled": 0,
+    "autopause_end_time": 1020,
+    "autopause_start_time": 300,
+    "autostart": 0,
+    "cpu_autopick": 1,
+    "enforce_position_limits": 1,
+    "nomination_timer": 60,
+    "pick_timer": 120,
+    "player_type": 0,
+    "reversal_round": 0,
+    "rounds": 14,
+    "slots_bn": 5,
+    "slots_def": 1,
+    "slots_flex": 2,
+    "slots_qb": 1,
+    "slots_rb": 2,
+    "slots_te": 1,
+    "slots_wr": 2,
+    "teams": 10
+  },
+  "slot_to_roster_id": {
+    "1": 6,
+    "2": 5,
+    "3": 1,
+    "4": 9,
+    "5": 2,
+    "6": 8,
+    "7": 4,
+    "8": 7,
+    "9": 10,
+    "10": 3
+  },
+  "sport": "nfl",
+  "start_time": 1660609810659,
+  "status": "complete",
+  "type": "snake"
+}

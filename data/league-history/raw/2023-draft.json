@@ -1,0 +1,68 @@
+{
+  "created": 1690314287680,
+  "creators": [
+    "783922770726977536",
+    "857188296403595264"
+  ],
+  "draft_id": "989653487862562817",
+  "draft_order": {
+    "734368165714345984": 6,
+    "739274603586818048": 1,
+    "739285484714561536": 9,
+    "773013918196027392": 3,
+    "782780082631655424": 8,
+    "783922770726977536": 5,
+    "857181633793593344": 4,
+    "857188296403595264": 10,
+    "857191358107086848": 2,
+    "986752100124205056": 7
+  },
+  "last_message_id": "993982000451022848",
+  "last_message_time": 1691346285501,
+  "last_picked": 1691346284649,
+  "league_id": "989653487862562816",
+  "metadata": {
+    "description": "",
+    "name": "Ummati Official",
+    "scoring_type": "ppr"
+  },
+  "season": "2023",
+  "season_type": "regular",
+  "settings": {
+    "alpha_sort": 0,
+    "autopause_enabled": 0,
+    "autopause_end_time": 1020,
+    "autopause_start_time": 300,
+    "autostart": 0,
+    "cpu_autopick": 1,
+    "enforce_position_limits": 1,
+    "nomination_timer": 60,
+    "pick_timer": 120,
+    "player_type": 0,
+    "reversal_round": 0,
+    "rounds": 13,
+    "slots_bn": 5,
+    "slots_flex": 2,
+    "slots_qb": 1,
+    "slots_rb": 2,
+    "slots_te": 1,
+    "slots_wr": 2,
+    "teams": 10
+  },
+  "slot_to_roster_id": {
+    "1": 3,
+    "2": 10,
+    "3": 6,
+    "4": 8,
+    "5": 2,
+    "6": 4,
+    "7": 5,
+    "8": 1,
+    "9": 7,
+    "10": 9
+  },
+  "sport": "nfl",
+  "start_time": 1691341430504,
+  "status": "complete",
+  "type": "snake"
+}
