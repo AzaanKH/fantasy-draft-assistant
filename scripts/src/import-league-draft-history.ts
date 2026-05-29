@@ -4,9 +4,10 @@
  * Usage: pnpm --filter scripts import:league-history
  */
 
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
@@ -15,6 +16,8 @@ const RAW_DIR = join(LEAGUE_HISTORY_DIR, 'raw');
 const OUTPUT_FILE = join(LEAGUE_HISTORY_DIR, 'leagueDraftHistory.json');
 
 const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
+const FETCH_TIMEOUT_MS = 10_000;
+const REDACTED = '[REDACTED]';
 
 type ScoringType = 'standard' | 'half_ppr' | 'ppr' | 'custom' | null;
 type DraftType = 'snake' | 'auction' | 'linear' | null;
@@ -84,6 +87,7 @@ interface SleeperRoster {
   readonly roster_id: number;
   readonly owner_id: string | null;
   readonly league_id: string;
+  readonly metadata?: Record<string, unknown> | null;
   readonly settings?: Record<string, number>;
   readonly players?: readonly string[] | null;
 }
@@ -91,9 +95,8 @@ interface SleeperRoster {
 interface SleeperUser {
   readonly user_id: string;
   readonly display_name: string;
-  readonly metadata?: {
-    readonly team_name?: string;
-  };
+  readonly metadata?: Record<string, unknown> | null;
+  readonly settings?: Record<string, unknown> | null;
 }
 
 interface LeagueDraftPick {
@@ -102,7 +105,7 @@ interface LeagueDraftPick {
   readonly leagueId: string;
   readonly pickNo: number;
   readonly round: number;
-  readonly roundPick: number;
+  readonly roundPick: number | null;
   readonly draftSlot: number;
   readonly rosterId: number;
   readonly pickedByUserId: string;
@@ -230,15 +233,117 @@ const USER_2024_PICK_OVERRIDES: readonly LeagueDraftPickOverride[] = [
   },
 ];
 
-async function fetchJson<T>(path: string): Promise<T> {
+type Validator<T> = (value: unknown) => value is T;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNumberRecord(value: unknown): value is Record<string, number> {
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === 'number');
+}
+
+function isStringNumberRecord(value: unknown): value is Record<string, number> {
+  return isNumberRecord(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === 'string' || value === null;
+}
+
+function isSleeperDraft(value: unknown): value is SleeperDraft {
+  return (
+    isRecord(value) &&
+    typeof value.draft_id === 'string' &&
+    typeof value.league_id === 'string' &&
+    typeof value.season === 'string' &&
+    typeof value.status === 'string' &&
+    typeof value.type === 'string' &&
+    isNumberRecord(value.settings) &&
+    (value.draft_order === null || isStringNumberRecord(value.draft_order))
+  );
+}
+
+function isSleeperLeague(value: unknown): value is SleeperLeague {
+  return (
+    isRecord(value) &&
+    typeof value.league_id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.season === 'string' &&
+    isNumberRecord(value.settings) &&
+    isNumberRecord(value.scoring_settings) &&
+    Array.isArray(value.roster_positions) &&
+    value.roster_positions.every((position) => typeof position === 'string')
+  );
+}
+
+function isSleeperDraftPick(value: unknown): value is SleeperDraftPick {
+  return (
+    isRecord(value) &&
+    typeof value.round === 'number' &&
+    typeof value.roster_id === 'number' &&
+    typeof value.player_id === 'string' &&
+    typeof value.picked_by === 'string' &&
+    typeof value.pick_no === 'number' &&
+    typeof value.draft_slot === 'number' &&
+    typeof value.draft_id === 'string' &&
+    (value.metadata === null || isRecord(value.metadata))
+  );
+}
+
+function isSleeperRoster(value: unknown): value is SleeperRoster {
+  return (
+    isRecord(value) &&
+    typeof value.roster_id === 'number' &&
+    isNullableString(value.owner_id) &&
+    typeof value.league_id === 'string'
+  );
+}
+
+function isSleeperUser(value: unknown): value is SleeperUser {
+  return (
+    isRecord(value) &&
+    typeof value.user_id === 'string' &&
+    typeof value.display_name === 'string'
+  );
+}
+
+function isArrayOf<T>(validator: Validator<T>): Validator<readonly T[]> {
+  return (value: unknown): value is readonly T[] =>
+    Array.isArray(value) && value.every((entry) => validator(entry));
+}
+
+async function fetchJson<T>(
+  path: string,
+  validator: Validator<T>,
+  timeoutMs: number = FETCH_TIMEOUT_MS
+): Promise<T> {
   const url = `${SLEEPER_API_BASE}${path}`;
-  const response = await fetch(url);
+  let response: Response;
+
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+    ) {
+      throw new Error(`Sleeper request timed out after ${timeoutMs}ms for ${url}`);
+    }
+
+    throw error;
+  }
 
   if (!response.ok) {
     throw new Error(`Sleeper request failed: ${response.status} ${response.statusText} for ${url}`);
   }
 
-  return response.json() as Promise<T>;
+  const data = (await response.json()) as unknown;
+  if (!validator(data)) {
+    throw new Error(`Sleeper response did not match expected shape for ${url}`);
+  }
+
+  return data;
 }
 
 async function writeJson(path: string, data: unknown): Promise<void> {
@@ -278,26 +383,111 @@ function playerName(pick: SleeperDraftPick): string {
   return metadataName || pick.player_id;
 }
 
+export function pseudonymizeUserId(userId: string): string {
+  const digest = createHash('sha256').update(`league-history:${userId}`).digest('hex');
+  return `user_${digest.slice(0, 12)}`;
+}
+
+export function sanitizeRawValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeRawValue(entry));
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => {
+      if (key.startsWith('p_nick_')) {
+        return [key, REDACTED];
+      }
+
+      if (key === 'user_id' || key === 'owner_id' || key === 'picked_by') {
+        return [key, typeof entry === 'string' ? pseudonymizeUserId(entry) : entry];
+      }
+
+      if (key === 'draft_order' && isStringNumberRecord(entry)) {
+        return [
+          key,
+          Object.fromEntries(
+            Object.entries(entry).map(([userId, draftSlot]) => [
+              pseudonymizeUserId(userId),
+              draftSlot,
+            ])
+          ),
+        ];
+      }
+
+      if (key === 'reactions' && isRecord(entry)) {
+        return [
+          key,
+          Object.fromEntries(
+            Object.entries(entry).map(([userId, reactions]) => [
+              pseudonymizeUserId(userId),
+              sanitizeRawValue(reactions),
+            ])
+          ),
+        ];
+      }
+
+      if (
+        key === 'display_name' ||
+        key === 'team_name' ||
+        key === 'last_author_display_name'
+      ) {
+        return [key, REDACTED];
+      }
+
+      if (key === 'avatar' || key.endsWith('_avatar')) {
+        return [key, null];
+      }
+
+      if (
+        key === 'allow_pn' ||
+        key === 'allow_sms' ||
+        key === 'mention_pn' ||
+        key.endsWith('_pn')
+      ) {
+        return [key, 'off'];
+      }
+
+      return [key, sanitizeRawValue(entry)];
+    })
+  );
+}
+
 function buildUserMaps(
   rosters: readonly SleeperRoster[],
   users: readonly SleeperUser[]
 ): {
   readonly rosterIdToOwner: Record<string, string | null>;
-  readonly userIdToDisplayName: Record<string, string>;
+  readonly rawUserIdToDisplayName: Record<string, string>;
+  readonly sanitizedUserIdToDisplayName: Record<string, string>;
 } {
   return {
     rosterIdToOwner: Object.fromEntries(
-      rosters.map((roster) => [String(roster.roster_id), roster.owner_id])
+      rosters.map((roster) => [
+        String(roster.roster_id),
+        roster.owner_id ? pseudonymizeUserId(roster.owner_id) : null,
+      ])
     ),
-    userIdToDisplayName: Object.fromEntries(
-      users.map((user) => [user.user_id, user.display_name])
+    rawUserIdToDisplayName: Object.fromEntries(
+      users.map((user) => [user.user_id, pseudonymizeUserId(user.user_id)])
+    ),
+    sanitizedUserIdToDisplayName: Object.fromEntries(
+      users.map((user) => {
+        const pseudonymizedUserId = pseudonymizeUserId(user.user_id);
+        return [pseudonymizedUserId, pseudonymizedUserId];
+      })
     ),
   };
 }
 
 function cleanPicks(
   config: LeagueDraftConfig,
-  league: SleeperLeague,
+  leagueId: string,
+  resolvedTeamCount: number | null,
   picks: readonly SleeperDraftPick[],
   userIdToDisplayName: Record<string, string>
 ): readonly LeagueDraftPick[] {
@@ -330,13 +520,13 @@ function cleanPicks(
       return {
         season: config.season,
         draftId: config.draftId,
-        leagueId: league.league_id,
+        leagueId,
         pickNo: pick.pick_no,
         round: pick.round,
-        roundPick: ((pick.pick_no - 1) % (league.settings.num_teams ?? 10)) + 1,
+        roundPick: resolvedTeamCount ? ((pick.pick_no - 1) % resolvedTeamCount) + 1 : null,
         draftSlot: pick.draft_slot,
         rosterId: pick.roster_id,
-        pickedByUserId: pick.picked_by,
+        pickedByUserId: pseudonymizeUserId(pick.picked_by),
         pickedByDisplayName: userIdToDisplayName[pick.picked_by] ?? null,
         playerId: pick.player_id,
         playerName: playerName(pick),
@@ -387,23 +577,40 @@ function buildWarnings(seasons: readonly LeagueSeasonHistory[]): readonly string
 
 async function importSeason(config: LeagueDraftConfig): Promise<LeagueSeasonHistory> {
   const [draft, picks, league, rosters, users] = await Promise.all([
-    fetchJson<SleeperDraft>(`/draft/${config.draftId}`),
-    fetchJson<SleeperDraftPick[]>(`/draft/${config.draftId}/picks`),
-    fetchJson<SleeperLeague>(`/league/${config.leagueId}`),
-    fetchJson<SleeperRoster[]>(`/league/${config.leagueId}/rosters`),
-    fetchJson<SleeperUser[]>(`/league/${config.leagueId}/users`),
+    fetchJson<SleeperDraft>(`/draft/${config.draftId}`, isSleeperDraft),
+    fetchJson<readonly SleeperDraftPick[]>(
+      `/draft/${config.draftId}/picks`,
+      isArrayOf(isSleeperDraftPick)
+    ),
+    fetchJson<SleeperLeague>(`/league/${config.leagueId}`, isSleeperLeague),
+    fetchJson<readonly SleeperRoster[]>(
+      `/league/${config.leagueId}/rosters`,
+      isArrayOf(isSleeperRoster)
+    ),
+    fetchJson<readonly SleeperUser[]>(
+      `/league/${config.leagueId}/users`,
+      isArrayOf(isSleeperUser)
+    ),
   ]);
+  const resolvedTeamCount = draft.settings.teams ?? league.settings.num_teams ?? null;
 
   await Promise.all([
-    writeJson(join(RAW_DIR, `${config.season}-draft.json`), draft),
-    writeJson(join(RAW_DIR, `${config.season}-picks.json`), picks),
-    writeJson(join(RAW_DIR, `${config.season}-league.json`), league),
-    writeJson(join(RAW_DIR, `${config.season}-rosters.json`), rosters),
-    writeJson(join(RAW_DIR, `${config.season}-users.json`), users),
+    writeJson(join(RAW_DIR, `${config.season}-draft.json`), sanitizeRawValue(draft)),
+    writeJson(join(RAW_DIR, `${config.season}-picks.json`), sanitizeRawValue(picks)),
+    writeJson(join(RAW_DIR, `${config.season}-league.json`), sanitizeRawValue(league)),
+    writeJson(join(RAW_DIR, `${config.season}-rosters.json`), sanitizeRawValue(rosters)),
+    writeJson(join(RAW_DIR, `${config.season}-users.json`), sanitizeRawValue(users)),
   ]);
 
-  const { rosterIdToOwner, userIdToDisplayName } = buildUserMaps(rosters, users);
-  const cleanSeasonPicks = cleanPicks(config, league, picks, userIdToDisplayName);
+  const { rosterIdToOwner, rawUserIdToDisplayName, sanitizedUserIdToDisplayName } =
+    buildUserMaps(rosters, users);
+  const cleanSeasonPicks = cleanPicks(
+    config,
+    league.league_id,
+    resolvedTeamCount,
+    picks,
+    rawUserIdToDisplayName
+  );
   const userPicks = cleanSeasonPicks.filter((pick) => pick.isUserPick);
 
   return {
@@ -415,16 +622,23 @@ async function importSeason(config: LeagueDraftConfig): Promise<LeagueSeasonHist
     draftType: normalizeDraftType(draft.type),
     userSlot: config.userSlot,
     userRosterId: config.userRosterId,
-    teams: draft.settings.teams ?? league.settings.num_teams ?? null,
+    teams: resolvedTeamCount,
     rounds: draft.settings.rounds ?? null,
     scoringType: normalizeScoringType(draft.metadata?.scoring_type),
     scoringSettings: league.scoring_settings,
     leagueSettings: league.settings,
     draftSettings: draft.settings,
     rosterPositions: league.roster_positions,
-    draftOrder: draft.draft_order,
+    draftOrder: draft.draft_order
+      ? Object.fromEntries(
+          Object.entries(draft.draft_order).map(([userId, draftSlot]) => [
+            pseudonymizeUserId(userId),
+            draftSlot,
+          ])
+        )
+      : null,
     rosterIdToOwner,
-    userIdToDisplayName,
+    userIdToDisplayName: sanitizedUserIdToDisplayName,
     picks: cleanSeasonPicks,
     userPicks,
   };
@@ -460,7 +674,14 @@ async function main(): Promise<void> {
   console.log(`Cleaned user-pick rows: ${userPicks}.`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+function isCliEntryPoint(): boolean {
+  const entryPoint = process.argv[1];
+  return Boolean(entryPoint && import.meta.url === pathToFileURL(entryPoint).href);
+}
+
+if (isCliEntryPoint()) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
