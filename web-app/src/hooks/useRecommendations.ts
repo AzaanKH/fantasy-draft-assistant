@@ -8,11 +8,73 @@
  */
 
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Recommendation } from '@fantasy-draft/shared';
-import { getRecommendations, getTopRecommendation } from '@/lib/calculations';
+import {
+  applyLeagueSurvivalModel,
+  getRecommendations,
+  getTopRecommendation,
+  type LeagueSurvivalModel,
+} from '@/lib/calculations';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 import { useDraftStore } from '@/stores/draftStore';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isLeagueSurvivalPositionSummary(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value['position'] === 'string' &&
+    isNumber(value['leagueMedianPick']) &&
+    isNumber(value['sleeperMedianPick']) &&
+    isNumber(value['pickPremium']) &&
+    isNumber(value['top50RateDelta']) &&
+    isNumber(value['top100RateDelta']) &&
+    isNumber(value['sampleSize'])
+  );
+}
+
+function isLeagueSurvivalModel(value: unknown): value is LeagueSurvivalModel {
+  if (
+    !isRecord(value) ||
+    typeof value['generatedAt'] !== 'string' ||
+    typeof value['modelVersion'] !== 'string' ||
+    typeof value['leagueName'] !== 'string' ||
+    !Array.isArray(value['seasons']) ||
+    !value['seasons'].every(isNumber) ||
+    !isNumber(value['sampleSize']) ||
+    !isRecord(value['positions'])
+  ) {
+    return false;
+  }
+
+  const positions = value['positions'];
+  return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].every((position) =>
+    isLeagueSurvivalPositionSummary(positions[position])
+  );
+}
+
+async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
+  const response = await fetch('/data/league-history/survival-model.json');
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load league survival model: ${String(response.status)}`);
+  }
+  const parsed = await response.json() as unknown;
+  if (!isLeagueSurvivalModel(parsed)) {
+    throw new Error('Invalid league survival model shape from /data/league-history/survival-model.json');
+  }
+  return parsed;
+}
 
 /**
  * Hook to get player recommendations
@@ -29,10 +91,23 @@ export function useRecommendations(limit: number = 5): {
   const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const config = useDraftStore((state) => state.config);
+  const currentPick = useDraftStore((state) => state.currentPick);
+  const survivalModelQuery = useQuery({
+    queryKey: ['league-survival-model'],
+    queryFn: fetchLeagueSurvivalModel,
+    staleTime: Infinity,
+  });
 
   const availablePlayers = useMemo(() => {
-    return players.filter((p) => !draftedPlayerIds.has(p.id));
-  }, [players, draftedPlayerIds]);
+    const available = players.filter((p) => !draftedPlayerIds.has(p.id));
+    return applyLeagueSurvivalModel(available, survivalModelQuery.data, {
+      currentPick,
+      myPickPosition: config.myPickPosition,
+      totalTeams: config.totalTeams,
+      totalRounds: config.totalRounds,
+    });
+  }, [players, draftedPlayerIds, survivalModelQuery.data, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds]);
 
   const recommendations = useMemo(() => {
     if (availablePlayers.length === 0) {

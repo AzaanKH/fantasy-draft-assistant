@@ -97,6 +97,14 @@ export interface Player {
   readonly tierDropoffScore: number;
   /** Heuristic probability that player survives to a later pick window */
   readonly nextPickSurvivalProbability: number;
+  /** League-adjusted expected draft cost after applying historical room tendencies */
+  readonly leagueAdjustedMarketRank?: number;
+  /** Negative means this league tends to take this profile earlier than Sleeper ADP */
+  readonly leagueMarketDelta?: number;
+  /** Short explanation of the league-history tendency applied to this player */
+  readonly leaguePositionTendency?: string;
+  /** Source used for next-pick survival probability */
+  readonly survivalModelSource?: 'league-history' | 'heuristic';
   /** Ceiling-oriented score */
   readonly ceilingScore: number;
   /** Floor-oriented score */
@@ -149,6 +157,14 @@ export function isNewsStatus(value: unknown): value is NewsStatus {
   return typeof value === 'string' && NEWS_STATUSES.includes(value as NewsStatus);
 }
 
+function isOptionalNumber(value: unknown): value is number | undefined {
+  return value === undefined || typeof value === 'number';
+}
+
+function isSurvivalModelSource(value: unknown): value is Player['survivalModelSource'] {
+  return value === undefined || value === 'league-history' || value === 'heuristic';
+}
+
 /**
  * Type guard to validate Player object structure
  */
@@ -178,6 +194,11 @@ export function isPlayer(obj: unknown): obj is Player {
     typeof candidate['tier'] === 'number' &&
     typeof candidate['tierDropoffScore'] === 'number' &&
     typeof candidate['nextPickSurvivalProbability'] === 'number' &&
+    isOptionalNumber(candidate['leagueAdjustedMarketRank']) &&
+    isOptionalNumber(candidate['leagueMarketDelta']) &&
+    (candidate['leaguePositionTendency'] === undefined ||
+      typeof candidate['leaguePositionTendency'] === 'string') &&
+    isSurvivalModelSource(candidate['survivalModelSource']) &&
     typeof candidate['ceilingScore'] === 'number' &&
     typeof candidate['floorScore'] === 'number' &&
     typeof candidate['upsideScore'] === 'number' &&

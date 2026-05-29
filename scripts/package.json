@@ -9,6 +9,7 @@
     "scrape:contracts": "tsx src/scrape-contracts.ts",
     "fetch:sleeper": "tsx src/fetch-sleeper-adp.ts",
     "import:league-history": "tsx src/import-league-draft-history.ts",
+    "build:league-survival": "tsx src/build-league-survival-model.ts",
     "generate:team-env": "tsx src/generate-team-env.ts",
     "fetch:all": "tsx src/scrape-ecr.ts && tsx src/fetch-sleeper-adp.ts && tsx src/generate-team-env.ts",
     "model:duckdb:init": "tsx src/model/init-duckdb.ts",

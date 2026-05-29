@@ -1,0 +1,816 @@
+{
+  "generatedAt": "2026-05-29T09:04:16.539Z",
+  "modelVersion": "league-history-survival-v1-2022-2025",
+  "leagueName": "Ummati Official",
+  "seasons": [
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "sampleSize": 550,
+  "sourceResponsibilities": {
+    "leagueHistory": "Estimates draft-room position cost and pick survival from this league only.",
+    "sleeperAdp": "Provides broad-market draft cost baseline within the historical draftable pick range.",
+    "predictionLayer": "Not used for player quality; survival is applied after projected value is known."
+  },
+  "baseline": {
+    "leaguePickCount": 550,
+    "maxHistoricalPick": 140,
+    "sleeperPlayerCount": 121
+  },
+  "positions": {
+    "QB": {
+      "position": "QB",
+      "leagueMedianPick": 80,
+      "sleeperMedianPick": 61,
+      "pickPremium": 19,
+      "top50RateDelta": 0.001,
+      "top100RateDelta": -0.208,
+      "sampleSize": 65
+    },
+    "RB": {
+      "position": "RB",
+      "leagueMedianPick": 65.5,
+      "sleeperMedianPick": 53,
+      "pickPremium": 12.5,
+      "top50RateDelta": -0.088,
+      "top100RateDelta": -0.08,
+      "sampleSize": 178
+    },
+    "WR": {
+      "position": "WR",
+      "leagueMedianPick": 62.5,
+      "sleeperMedianPick": 63,
+      "pickPremium": -0.5,
+      "top50RateDelta": 0.034,
+      "top100RateDelta": 0.038,
+      "sampleSize": 220
+    },
+    "TE": {
+      "position": "TE",
+      "leagueMedianPick": 79,
+      "sleeperMedianPick": 79,
+      "pickPremium": 0,
+      "top50RateDelta": 0.188,
+      "top100RateDelta": -0.056,
+      "sampleSize": 59
+    },
+    "K": {
+      "position": "K",
+      "leagueMedianPick": 119,
+      "sleeperMedianPick": 127,
+      "pickPremium": -8,
+      "top50RateDelta": 0,
+      "top100RateDelta": -0.033,
+      "sampleSize": 18
+    },
+    "DEF": {
+      "position": "DEF",
+      "leagueMedianPick": 125.5,
+      "sleeperMedianPick": 0,
+      "pickPremium": 0,
+      "top50RateDelta": 0,
+      "top100RateDelta": 0.2,
+      "sampleSize": 10
+    }
+  },
+  "adpBuckets": [
+    {
+      "label": "top-24",
+      "minPick": 1,
+      "maxPick": 24,
+      "leagueSampleSize": 96,
+      "sleeperSampleSize": 26,
+      "positions": {
+        "QB": {
+          "leaguePickRate": 0.073,
+          "sleeperPickRate": 0.192,
+          "rateDelta": -0.119
+        },
+        "RB": {
+          "leaguePickRate": 0.427,
+          "sleeperPickRate": 0.423,
+          "rateDelta": 0.004
+        },
+        "WR": {
+          "leaguePickRate": 0.448,
+          "sleeperPickRate": 0.385,
+          "rateDelta": 0.063
+        },
+        "TE": {
+          "leaguePickRate": 0.052,
+          "sleeperPickRate": 0,
+          "rateDelta": 0.052
+        },
+        "K": {
+          "leaguePickRate": 0,
+          "sleeperPickRate": 0,
+          "rateDelta": 0
+        },
+        "DEF": {
+          "leaguePickRate": 0,
+          "sleeperPickRate": 0,
+          "rateDelta": 0
+        }
+      }
+    },
+    {
+      "label": "25-50",
+      "minPick": 25,
+      "maxPick": 50,
+      "leagueSampleSize": 104,
+      "sleeperSampleSize": 18,
+      "positions": {
+        "QB": {
+          "leaguePickRate": 0.154,
+          "sleeperPickRate": 0.056,
+          "rateDelta": 0.098
+        },
+        "RB": {
+          "leaguePickRate": 0.288,
+          "sleeperPickRate": 0.444,
+          "rateDelta": -0.156
+        },
+        "WR": {
+          "leaguePickRate": 0.452,
+          "sleeperPickRate": 0.444,
+          "rateDelta": 0.007
+        },
+        "TE": {
+          "leaguePickRate": 0.106,
+          "sleeperPickRate": 0.056,
+          "rateDelta": 0.05
+        },
+        "K": {
+          "leaguePickRate": 0,
+          "sleeperPickRate": 0,
+          "rateDelta": 0
+        },
+        "DEF": {
+          "leaguePickRate": 0,
+          "sleeperPickRate": 0,
+          "rateDelta": 0
+        }
+      }
+    },
+    {
+      "label": "51-100",
+      "minPick": 51,
+      "maxPick": 100,
+      "leagueSampleSize": 200,
+      "sleeperSampleSize": 50,
+      "positions": {
+        "QB": {
+          "leaguePickRate": 0.085,
+          "sleeperPickRate": 0.16,
+          "rateDelta": -0.075
+        },
+        "RB": {
+          "leaguePickRate": 0.35,
+          "sleeperPickRate": 0.3,
+          "rateDelta": 0.05
+        },
+        "WR": {
+          "leaguePickRate": 0.44,
+          "sleeperPickRate": 0.38,
+          "rateDelta": 0.06
+        },
+        "TE": {
+          "leaguePickRate": 0.1,
+          "sleeperPickRate": 0.14,
+          "rateDelta": -0.04
+        },
+        "K": {
+          "leaguePickRate": 0.015,
+          "sleeperPickRate": 0.02,
+          "rateDelta": -0.005
+        },
+        "DEF": {
+          "leaguePickRate": 0.01,
+          "sleeperPickRate": 0,
+          "rateDelta": 0.01
+        }
+      }
+    },
+    {
+      "label": "101-plus",
+      "minPick": 101,
+      "maxPick": 140,
+      "leagueSampleSize": 150,
+      "sleeperSampleSize": 27,
+      "positions": {
+        "QB": {
+          "leaguePickRate": 0.167,
+          "sleeperPickRate": 0.111,
+          "rateDelta": 0.056
+        },
+        "RB": {
+          "leaguePickRate": 0.247,
+          "sleeperPickRate": 0.185,
+          "rateDelta": 0.061
+        },
+        "WR": {
+          "leaguePickRate": 0.28,
+          "sleeperPickRate": 0.407,
+          "rateDelta": -0.127
+        },
+        "TE": {
+          "leaguePickRate": 0.153,
+          "sleeperPickRate": 0.148,
+          "rateDelta": 0.005
+        },
+        "K": {
+          "leaguePickRate": 0.1,
+          "sleeperPickRate": 0.148,
+          "rateDelta": -0.048
+        },
+        "DEF": {
+          "leaguePickRate": 0.053,
+          "sleeperPickRate": 0,
+          "rateDelta": 0.053
+        }
+      }
+    }
+  ],
+  "managerTendencies": [
+    {
+      "managerKey": "user_d8ecf12b7f31",
+      "draftSlots": [
+        4,
+        5,
+        6,
+        8,
+        9,
+        10
+      ],
+      "sampleSize": 57,
+      "positions": {
+        "QB": {
+          "picks": 5,
+          "pickRate": 0.088,
+          "earlyPickRate": 0.4,
+          "leaguePickRateDelta": -0.03
+        },
+        "RB": {
+          "picks": 21,
+          "pickRate": 0.368,
+          "earlyPickRate": 0.81,
+          "leaguePickRateDelta": 0.045
+        },
+        "WR": {
+          "picks": 24,
+          "pickRate": 0.421,
+          "earlyPickRate": 0.875,
+          "leaguePickRateDelta": 0.021
+        },
+        "TE": {
+          "picks": 6,
+          "pickRate": 0.105,
+          "earlyPickRate": 0.333,
+          "leaguePickRateDelta": -0.002
+        },
+        "K": {
+          "picks": 0,
+          "pickRate": 0,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": -0.033
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.018,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": -0.001
+        }
+      }
+    },
+    {
+      "managerKey": "user_d615ad5b6472",
+      "draftSlots": [
+        4,
+        6,
+        7,
+        8
+      ],
+      "sampleSize": 56,
+      "positions": {
+        "QB": {
+          "picks": 6,
+          "pickRate": 0.107,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": -0.011
+        },
+        "RB": {
+          "picks": 17,
+          "pickRate": 0.304,
+          "earlyPickRate": 0.765,
+          "leaguePickRateDelta": -0.02
+        },
+        "WR": {
+          "picks": 26,
+          "pickRate": 0.464,
+          "earlyPickRate": 0.692,
+          "leaguePickRateDelta": 0.064
+        },
+        "TE": {
+          "picks": 4,
+          "pickRate": 0.071,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": -0.036
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.003
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.018,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0
+        }
+      }
+    },
+    {
+      "managerKey": "user_63e5e1d705b3",
+      "draftSlots": [
+        1,
+        4,
+        5,
+        7,
+        9,
+        10
+      ],
+      "sampleSize": 56,
+      "positions": {
+        "QB": {
+          "picks": 9,
+          "pickRate": 0.161,
+          "earlyPickRate": 0.667,
+          "leaguePickRateDelta": 0.043
+        },
+        "RB": {
+          "picks": 17,
+          "pickRate": 0.304,
+          "earlyPickRate": 0.706,
+          "leaguePickRateDelta": -0.02
+        },
+        "WR": {
+          "picks": 20,
+          "pickRate": 0.357,
+          "earlyPickRate": 0.8,
+          "leaguePickRateDelta": -0.043
+        },
+        "TE": {
+          "picks": 7,
+          "pickRate": 0.125,
+          "earlyPickRate": 0.571,
+          "leaguePickRateDelta": 0.018
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": 0.003
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.018,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": 0
+        }
+      }
+    },
+    {
+      "managerKey": "user_22dfe2c84c9d",
+      "draftSlots": [
+        1,
+        3,
+        10
+      ],
+      "sampleSize": 55,
+      "positions": {
+        "QB": {
+          "picks": 4,
+          "pickRate": 0.073,
+          "earlyPickRate": 0.25,
+          "leaguePickRateDelta": -0.045
+        },
+        "RB": {
+          "picks": 23,
+          "pickRate": 0.418,
+          "earlyPickRate": 0.739,
+          "leaguePickRateDelta": 0.095
+        },
+        "WR": {
+          "picks": 22,
+          "pickRate": 0.4,
+          "earlyPickRate": 0.818,
+          "leaguePickRateDelta": 0
+        },
+        "TE": {
+          "picks": 4,
+          "pickRate": 0.073,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": -0.035
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.004
+        },
+        "DEF": {
+          "picks": 0,
+          "pickRate": 0,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": -0.018
+        }
+      }
+    },
+    {
+      "managerKey": "user_bd2ce25c636f",
+      "draftSlots": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "sampleSize": 55,
+      "positions": {
+        "QB": {
+          "picks": 6,
+          "pickRate": 0.109,
+          "earlyPickRate": 0.833,
+          "leaguePickRateDelta": -0.009
+        },
+        "RB": {
+          "picks": 19,
+          "pickRate": 0.345,
+          "earlyPickRate": 0.684,
+          "leaguePickRateDelta": 0.022
+        },
+        "WR": {
+          "picks": 22,
+          "pickRate": 0.4,
+          "earlyPickRate": 0.909,
+          "leaguePickRateDelta": 0
+        },
+        "TE": {
+          "picks": 5,
+          "pickRate": 0.091,
+          "earlyPickRate": 0.4,
+          "leaguePickRateDelta": -0.016
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.004
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.018,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0
+        }
+      }
+    },
+    {
+      "managerKey": "user_b9289a511d51",
+      "draftSlots": [
+        5,
+        7,
+        8,
+        9
+      ],
+      "sampleSize": 55,
+      "positions": {
+        "QB": {
+          "picks": 8,
+          "pickRate": 0.145,
+          "earlyPickRate": 0.5,
+          "leaguePickRateDelta": 0.027
+        },
+        "RB": {
+          "picks": 15,
+          "pickRate": 0.273,
+          "earlyPickRate": 0.867,
+          "leaguePickRateDelta": -0.051
+        },
+        "WR": {
+          "picks": 20,
+          "pickRate": 0.364,
+          "earlyPickRate": 0.9,
+          "leaguePickRateDelta": -0.036
+        },
+        "TE": {
+          "picks": 8,
+          "pickRate": 0.145,
+          "earlyPickRate": 0.625,
+          "leaguePickRateDelta": 0.038
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.004
+        },
+        "DEF": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.018
+        }
+      }
+    },
+    {
+      "managerKey": "user_39e871fc8003",
+      "draftSlots": [
+        2,
+        6,
+        9
+      ],
+      "sampleSize": 55,
+      "positions": {
+        "QB": {
+          "picks": 6,
+          "pickRate": 0.109,
+          "earlyPickRate": 0.667,
+          "leaguePickRateDelta": -0.009
+        },
+        "RB": {
+          "picks": 18,
+          "pickRate": 0.327,
+          "earlyPickRate": 0.778,
+          "leaguePickRateDelta": 0.004
+        },
+        "WR": {
+          "picks": 24,
+          "pickRate": 0.436,
+          "earlyPickRate": 0.833,
+          "leaguePickRateDelta": 0.036
+        },
+        "TE": {
+          "picks": 4,
+          "pickRate": 0.073,
+          "earlyPickRate": 0.25,
+          "leaguePickRateDelta": -0.035
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.036,
+          "earlyPickRate": 0.5,
+          "leaguePickRateDelta": 0.004
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.018,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0
+        }
+      }
+    },
+    {
+      "managerKey": "user_ab9605333901",
+      "draftSlots": [
+        1,
+        4,
+        5,
+        8,
+        10
+      ],
+      "sampleSize": 54,
+      "positions": {
+        "QB": {
+          "picks": 8,
+          "pickRate": 0.148,
+          "earlyPickRate": 0.5,
+          "leaguePickRateDelta": 0.03
+        },
+        "RB": {
+          "picks": 17,
+          "pickRate": 0.315,
+          "earlyPickRate": 0.882,
+          "leaguePickRateDelta": -0.009
+        },
+        "WR": {
+          "picks": 19,
+          "pickRate": 0.352,
+          "earlyPickRate": 0.789,
+          "leaguePickRateDelta": -0.048
+        },
+        "TE": {
+          "picks": 7,
+          "pickRate": 0.13,
+          "earlyPickRate": 0.571,
+          "leaguePickRateDelta": 0.022
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.037,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.004
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.019,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": 0
+        }
+      }
+    },
+    {
+      "managerKey": "user_2e9386bd2dba",
+      "draftSlots": [
+        1,
+        3,
+        4,
+        5,
+        8,
+        10
+      ],
+      "sampleSize": 53,
+      "positions": {
+        "QB": {
+          "picks": 5,
+          "pickRate": 0.094,
+          "earlyPickRate": 0.6,
+          "leaguePickRateDelta": -0.024
+        },
+        "RB": {
+          "picks": 16,
+          "pickRate": 0.302,
+          "earlyPickRate": 0.875,
+          "leaguePickRateDelta": -0.022
+        },
+        "WR": {
+          "picks": 22,
+          "pickRate": 0.415,
+          "earlyPickRate": 0.773,
+          "leaguePickRateDelta": 0.015
+        },
+        "TE": {
+          "picks": 7,
+          "pickRate": 0.132,
+          "earlyPickRate": 0.571,
+          "leaguePickRateDelta": 0.025
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.038,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.005
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.019,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.001
+        }
+      }
+    },
+    {
+      "managerKey": "user_12ab8bf44f92",
+      "draftSlots": [
+        2,
+        3,
+        4,
+        7
+      ],
+      "sampleSize": 40,
+      "positions": {
+        "QB": {
+          "picks": 6,
+          "pickRate": 0.15,
+          "earlyPickRate": 0.667,
+          "leaguePickRateDelta": 0.032
+        },
+        "RB": {
+          "picks": 11,
+          "pickRate": 0.275,
+          "earlyPickRate": 0.909,
+          "leaguePickRateDelta": -0.049
+        },
+        "WR": {
+          "picks": 16,
+          "pickRate": 0.4,
+          "earlyPickRate": 0.688,
+          "leaguePickRateDelta": 0
+        },
+        "TE": {
+          "picks": 5,
+          "pickRate": 0.125,
+          "earlyPickRate": 0.8,
+          "leaguePickRateDelta": 0.018
+        },
+        "K": {
+          "picks": 2,
+          "pickRate": 0.05,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.017
+        },
+        "DEF": {
+          "picks": 0,
+          "pickRate": 0,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": -0.018
+        }
+      }
+    },
+    {
+      "managerKey": "user_bb85d2af0e8f",
+      "draftSlots": [
+        2
+      ],
+      "sampleSize": 14,
+      "positions": {
+        "QB": {
+          "picks": 2,
+          "pickRate": 0.143,
+          "earlyPickRate": 0.5,
+          "leaguePickRateDelta": 0.025
+        },
+        "RB": {
+          "picks": 4,
+          "pickRate": 0.286,
+          "earlyPickRate": 0.75,
+          "leaguePickRateDelta": -0.038
+        },
+        "WR": {
+          "picks": 5,
+          "pickRate": 0.357,
+          "earlyPickRate": 0.8,
+          "leaguePickRateDelta": -0.043
+        },
+        "TE": {
+          "picks": 2,
+          "pickRate": 0.143,
+          "earlyPickRate": 1,
+          "leaguePickRateDelta": 0.036
+        },
+        "K": {
+          "picks": 0,
+          "pickRate": 0,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": -0.033
+        },
+        "DEF": {
+          "picks": 1,
+          "pickRate": 0.071,
+          "earlyPickRate": 0,
+          "leaguePickRateDelta": 0.053
+        }
+      }
+    }
+  ],
+  "roundPositionRates": [
+    {
+      "season": 2022,
+      "positions": {
+        "QB": 0.1,
+        "RB": 0.329,
+        "WR": 0.4,
+        "TE": 0.1,
+        "K": 0,
+        "DEF": 0.071
+      }
+    },
+    {
+      "season": 2023,
+      "positions": {
+        "QB": 0.138,
+        "RB": 0.331,
+        "WR": 0.415,
+        "TE": 0.115,
+        "K": 0,
+        "DEF": 0
+      }
+    },
+    {
+      "season": 2024,
+      "positions": {
+        "QB": 0.121,
+        "RB": 0.321,
+        "WR": 0.393,
+        "TE": 0.1,
+        "K": 0.064,
+        "DEF": 0
+      }
+    },
+    {
+      "season": 2025,
+      "positions": {
+        "QB": 0.114,
+        "RB": 0.314,
+        "WR": 0.393,
+        "TE": 0.114,
+        "K": 0.064,
+        "DEF": 0
+      }
+    }
+  ]
+}

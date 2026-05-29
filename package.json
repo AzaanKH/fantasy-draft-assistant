@@ -28,6 +28,7 @@
     "model:duckdb:init": "pnpm --filter scripts model:duckdb:init",
     "model:profile": "pnpm --filter scripts model:profile",
     "model:dataset": "pnpm --filter scripts model:dataset",
+    "model:league-survival": "pnpm --filter scripts build:league-survival",
     "clean": "pnpm run -r clean && rm -rf node_modules"
   },
   "devDependencies": {
