@@ -6,6 +6,7 @@
 
 import { writeFile } from 'node:fs/promises';
 import {
+  MODEL_DB_PATH,
   MODEL_PATHS,
   connectModelDb,
 } from './duckdb.js';
@@ -37,6 +38,24 @@ interface PositionRow {
 function asNumber(value: bigint | number | null): number | null {
   if (value === null) return null;
   return Number(value);
+}
+
+function normalizeDuckDbValue(value: unknown): unknown {
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeDuckDbValue(entry));
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, normalizeDuckDbValue(entry)])
+    );
+  }
+
+  return value;
 }
 
 async function main(): Promise<void> {
@@ -90,7 +109,7 @@ async function main(): Promise<void> {
     const coverage = coverageReader.getRowObjects()[0] as CoverageRow | undefined;
     const report = {
       generatedAt: new Date().toISOString(),
-      source: 'data/model/fantasy-draft.duckdb',
+      source: MODEL_DB_PATH,
       tables: (countsReader.getRowObjects() as unknown as CountRow[]).map((row) => ({
         tableName: row.table_name,
         rowCount: Number(row.row_count),
@@ -114,7 +133,7 @@ async function main(): Promise<void> {
         avgSleeperAdp: asNumber(row.avg_sleeper_adp),
         avgEcrRank: asNumber(row.avg_ecr_rank),
       })),
-      topUnmatchedByAdp: unmatchedReader.getRowObjects(),
+      topUnmatchedByAdp: unmatchedReader.getRowObjects().map((row) => normalizeDuckDbValue(row)),
     };
 
     await writeFile(MODEL_PATHS.profileReportJson, JSON.stringify(report, null, 2));

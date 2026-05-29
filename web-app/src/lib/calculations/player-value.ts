@@ -261,10 +261,11 @@ export function mergePlayerData(
 
   for (const ecr of ecrPlayers) {
     const sleeper = resolvePlayerMatch(ecr, sleeperMap, sleeperFallbackMap);
-    const contract = resolvePlayerMatch(ecr, contractMap, contractFallbackMap);
-    const projection = resolvePlayerMatch(ecr, projectionMap, projectionFallbackMap);
-    const newsItem = resolvePlayerMatch(ecr, newsMap, newsFallbackMap);
     const canonicalTeam = sleeper?.team ?? ecr.team;
+    const canonicalPlayer = { ...ecr, team: canonicalTeam };
+    const contract = resolvePlayerMatch(canonicalPlayer, contractMap, contractFallbackMap);
+    const projection = resolvePlayerMatch(canonicalPlayer, projectionMap, projectionFallbackMap);
+    const newsItem = resolvePlayerMatch(canonicalPlayer, newsMap, newsFallbackMap);
     const teamEnv = teamEnvironmentLookup[canonicalTeam];
 
     // Use Sleeper ADP if available, otherwise estimate from ECR rank
@@ -301,7 +302,7 @@ export function mergePlayerData(
         newsStatus,
         fantasyProsProjection: projection,
         modelPrediction:
-          modelPrediction ?? resolvePlayerMatch(ecr, predictionMap, predictionFallbackMap),
+          modelPrediction ?? resolvePlayerMatch(canonicalPlayer, predictionMap, predictionFallbackMap),
       }
     );
 

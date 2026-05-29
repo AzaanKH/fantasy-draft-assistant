@@ -14,6 +14,17 @@ const teamEnvironment = {
     rushAttemptsRank: 12,
     coachingStability: true,
   },
+  SEA: {
+    team: 'SEA',
+    name: 'Seattle Seahawks',
+    offenseScore: 6,
+    passVolume: 'medium',
+    rushVolume: 'medium',
+    pointsRank: 16,
+    passAttemptsRank: 15,
+    rushAttemptsRank: 15,
+    coachingStability: true,
+  },
 } as unknown as Record<NFLTeam, TeamEnvironment>;
 
 function createEcrPlayer(overrides: Partial<ECRPlayer> = {}): ECRPlayer {
@@ -109,6 +120,50 @@ describe('mergePlayerData', () => {
     expect(players[0]?.id).toBe('8151');
     expect(players[0]?.team).toBe('SEA');
     expect(players[0]?.sleeperAdp).toBe(42);
+  });
+
+  it('uses the Sleeper-resolved team for enrichment lookups', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer({ name: 'Kenneth Walker III', position: 'RB', team: 'KC' })],
+      [],
+      [{
+        name: 'Kenneth Walker',
+        position: 'RB',
+        team: 'SEA',
+        status: 'out',
+        headline: 'Ruled out',
+        updatedAt: '2026-05-29T00:00:00.000Z',
+      }],
+      [createSleeperPlayer({
+        name: 'Kenneth Walker',
+        position: 'RB',
+        team: 'SEA',
+        playerId: '8151',
+        sleeperAdp: 42,
+        status: 'Active',
+      })],
+      teamEnvironment,
+      [{
+        name: 'Kenneth Walker',
+        position: 'RB',
+        team: 'SEA',
+        contractEndYear: 2026,
+        isContractYear: true,
+      }],
+      [{
+        name: 'Kenneth Walker',
+        position: 'RB',
+        team: 'SEA',
+        projectedPoints: 180,
+        source: 'model',
+      }]
+    );
+
+    expect(players[0]?.team).toBe('SEA');
+    expect(players[0]?.isContractYear).toBe(true);
+    expect(players[0]?.newsStatus).toBe('out');
+    expect(players[0]?.projectedPoints).toBe(99);
+    expect(players[0]?.predictionSource).toBe('model');
   });
 
   it('uses model prediction overrides before heuristic projections', () => {
