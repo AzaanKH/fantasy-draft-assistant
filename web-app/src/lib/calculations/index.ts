@@ -27,7 +27,7 @@ export {
   getTopRecommendation,
 } from './recommendations';
 
-export type { RecommendationResult } from './recommendations';
+export type { RecommendationContext, RecommendationResult } from './recommendations';
 
 export { estimatePlayerPrediction } from './prediction-score';
 

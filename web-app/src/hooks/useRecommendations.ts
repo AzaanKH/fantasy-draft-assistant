@@ -83,6 +83,7 @@ async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
  * @returns Object with bestAvailable and byNeed recommendation arrays
  */
 export function useRecommendations(limit: number = 5): {
+  draftNow: readonly Recommendation[];
   bestAvailable: readonly Recommendation[];
   byNeed: readonly Recommendation[];
   topPick: Recommendation | null;
@@ -93,6 +94,7 @@ export function useRecommendations(limit: number = 5): {
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
+  const isMyTurn = useDraftStore((state) => state.isMyTurn);
   const survivalModelQuery = useQuery({
     queryKey: ['league-survival-model'],
     queryFn: fetchLeagueSurvivalModel,
@@ -111,17 +113,25 @@ export function useRecommendations(limit: number = 5): {
 
   const recommendations = useMemo(() => {
     if (availablePlayers.length === 0) {
-      return { bestAvailable: [], byNeed: [] };
+      return { draftNow: [], bestAvailable: [], byNeed: [] };
     }
-    return getRecommendations(availablePlayers, needs, limit);
-  }, [availablePlayers, needs, limit]);
+    return getRecommendations(availablePlayers, needs, limit, {
+      currentPick,
+      totalPicks: config.totalTeams * config.totalRounds,
+      isMyTurn,
+    });
+  }, [availablePlayers, needs, limit, currentPick, config.totalTeams, config.totalRounds, isMyTurn]);
 
   const topPick = useMemo(() => {
     if (availablePlayers.length === 0) {
       return null;
     }
-    return getTopRecommendation(availablePlayers, needs);
-  }, [availablePlayers, needs]);
+    return getTopRecommendation(availablePlayers, needs, {
+      currentPick,
+      totalPicks: config.totalTeams * config.totalRounds,
+      isMyTurn,
+    });
+  }, [availablePlayers, needs, currentPick, config.totalTeams, config.totalRounds, isMyTurn]);
 
   return {
     ...recommendations,
@@ -170,7 +180,7 @@ export function usePositionRecommendations(
       playerId: player.id,
       playerName: player.name,
       position: player.position,
-      reason: `ECR #${player.ecrRank}`,
+      reason: `ECR #${String(player.ecrRank)}`,
       score: 100 - player.ecrRank,
     }));
   }, [players, position, draftedPlayerIds, limit]);

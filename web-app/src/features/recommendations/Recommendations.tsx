@@ -1,9 +1,10 @@
 /**
  * Recommendations Component
  *
- * Displays player recommendations in two modes:
- * - Best Available: Pure ECR ranking
+ * Displays player recommendations in three modes:
+ * - Draft Now: Combined roster-aware ranking
  * - By Need: Factoring in team needs and scarcity
+ * - Best Available: Pure player/market value
  */
 
 import * as React from 'react';
@@ -100,7 +101,7 @@ function RecommendationRow({
             )}
           >
             {typeof marketDelta === 'number'
-              ? `${marketDelta > 0 ? '+' : ''}${marketDelta}`
+              ? `${marketDelta > 0 ? '+' : ''}${String(marketDelta)}`
               : '-'}
           </span>
         )}
@@ -167,6 +168,7 @@ function TopPickHighlight({
 
   const projectedPoints = recommendation.diagnostics?.projectedPoints;
   const survivalProbability = recommendation.diagnostics?.nextPickSurvivalProbability;
+  const diagnostics = recommendation.diagnostics;
 
   return (
     <div
@@ -189,29 +191,29 @@ function TopPickHighlight({
       </div>
       <div className="text-lg font-bold">{recommendation.playerName}</div>
       <div className="text-xs text-muted-foreground">{recommendation.reason}</div>
-      {recommendation.diagnostics && (
+      {diagnostics && (
         <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
           <span>
             Proj {typeof projectedPoints === 'number' ? projectedPoints.toFixed(1) : 'N/A'}
           </span>
-          <span>Tier {recommendation.diagnostics?.tier ?? 'N/A'}</span>
+          <span>Tier {String(diagnostics.tier)}</span>
           <span>
-            FP #{recommendation.diagnostics?.expertRank ?? 'N/A'} / SL #
-            {recommendation.diagnostics?.marketRank ?? 'N/A'}
+            FP #{String(diagnostics.expertRank)} / SL #
+            {String(diagnostics.marketRank)}
           </span>
           <span>
-            Delta {typeof recommendation.diagnostics?.marketDelta === 'number'
-              ? `${recommendation.diagnostics.marketDelta > 0 ? '+' : ''}${recommendation.diagnostics.marketDelta}`
+            Delta {typeof diagnostics.marketDelta === 'number'
+              ? `${diagnostics.marketDelta > 0 ? '+' : ''}${String(diagnostics.marketDelta)}`
               : 'N/A'}
           </span>
           <span>
             Wait {typeof survivalProbability === 'number'
-              ? `${Math.round(survivalProbability * 100)}%`
+              ? `${String(Math.round(survivalProbability * 100))}%`
               : 'N/A'}
           </span>
-          {recommendation.diagnostics.leaguePositionTendency && (
+          {diagnostics.leaguePositionTendency && (
             <span className="col-span-2">
-              {recommendation.diagnostics.leaguePositionTendency}
+              {diagnostics.leaguePositionTendency}
             </span>
           )}
         </div>
@@ -224,23 +226,13 @@ function TopPickHighlight({
  * Main Recommendations component
  */
 export function Recommendations() {
-  const { bestAvailable, byNeed, topPick, isLoading } = useRecommendations(5);
+  const { draftNow, bestAvailable, byNeed, topPick, isLoading } = useRecommendations(5);
   const { players } = usePlayerDataQuery();
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
-
-  // Calculate if it's user's turn
-  const isMyTurn = React.useMemo(() => {
-    const round = Math.ceil(currentPick / config.totalTeams);
-    const pickInRound = ((currentPick - 1) % config.totalTeams) + 1;
-    const isOddRound = round % 2 === 1;
-    const positionThisRound = isOddRound
-      ? pickInRound
-      : config.totalTeams - pickInRound + 1;
-    return positionThisRound === config.myPickPosition;
-  }, [currentPick, config.totalTeams, config.myPickPosition]);
+  const isMyTurn = useDraftStore((state) => state.isMyTurn);
 
   // Handle drafting a player from recommendations
   const handleDraft = React.useCallback(
@@ -255,7 +247,7 @@ export function Recommendations() {
         return isOddRound ? pickInRound - 1 : config.totalTeams - pickInRound;
       })();
 
-      const teamName = isMyTurn ? 'My Team' : `Team ${teamIndex + 1}`;
+      const teamName = isMyTurn ? 'My Team' : `Team ${String(teamIndex + 1)}`;
 
       markPlayerDrafted(
         player.id,
@@ -303,8 +295,11 @@ export function Recommendations() {
         />
 
         {/* Tabbed Recommendations */}
-        <Tabs defaultValue="by-need" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="draft-now" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="draft-now" className="text-xs">
+              Draft Now
+            </TabsTrigger>
             <TabsTrigger value="by-need" className="text-xs">
               By Need
             </TabsTrigger>
@@ -312,6 +307,15 @@ export function Recommendations() {
               Best Available
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="draft-now" className="mt-2">
+            <RecommendationList
+              recommendations={draftNow}
+              emptyMessage="No draft recommendations"
+              onDraft={isMyTurn ? handleDraft : undefined}
+              showScore
+            />
+          </TabsContent>
 
           <TabsContent value="by-need" className="mt-2">
             <RecommendationList
