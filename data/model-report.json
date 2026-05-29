@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-29T03:05:06.964Z",
+  "generatedAt": "2026-05-29T04:04:59.544Z",
   "seasons": [
     2021,
     2022,
@@ -49,8 +49,8 @@
     ]
   },
   "artifacts": {
-    "trainingDatasetParquet": "/Users/azaankhalfe/Desktop/fantasy-draft/fantasy-draft-assistant/data/model/training-dataset.parquet",
-    "predictionsJson": "/Users/azaankhalfe/Desktop/fantasy-draft/fantasy-draft-assistant/data/predictions.json",
+    "trainingDatasetParquet": "./data/model/training-dataset.parquet",
+    "predictionsJson": "./data/predictions.json",
     "leagueHistorySurvivalTable": "model.league_history_survival_training_dataset",
     "draftPickTradeGraderTable": "model.draft_pick_trade_grader_features"
   },

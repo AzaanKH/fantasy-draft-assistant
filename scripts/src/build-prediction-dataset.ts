@@ -300,7 +300,7 @@ async function main(): Promise<void> {
             ids.gsis_id,
             ids.sleeper_player_id,
             r.player::varchar as player_name,
-            lower(regexp_replace(r.player, '[^a-z0-9]', '', 'g')) as normalized_name,
+            regexp_replace(lower(r.player), '[^a-z0-9]', '', 'g') as normalized_name,
             r.pos::varchar as position,
             coalesce(r.team, r.tm)::varchar as team,
             r.page_type::varchar as ranking_type,
@@ -496,29 +496,30 @@ async function main(): Promise<void> {
             avg(replacement_points) as replacement_points
           from model.historical_replacement_points
           group by position
+        ),
+        projected as (
+          select
+            current_features.*,
+            greatest(
+              0,
+              coalesce(
+                projected_points,
+                trailing_expected_points_per_game_3yr * 17,
+                trailing_points_per_game_3yr * 17,
+                greatest(0, 300 - coalesce(ecr_rank, sleeper_adp, dynastyprocess_current_ecr, 300)) * 0.72
+              )
+            ) as base_projected_points
+          from model.current_prediction_features current_features
         )
         select
           sleeper_player_id,
           player_name,
           position,
           team,
+          base_projected_points as projected_points,
           greatest(
             0,
-            coalesce(
-              projected_points,
-              trailing_expected_points_per_game_3yr * 17,
-              trailing_points_per_game_3yr * 17,
-              greatest(0, 300 - coalesce(ecr_rank, sleeper_adp, dynastyprocess_current_ecr, 300)) * 0.72
-            )
-          ) as projected_points,
-          greatest(
-            0,
-            coalesce(
-              projected_points,
-              trailing_expected_points_per_game_3yr * 17,
-              trailing_points_per_game_3yr * 17,
-              greatest(0, 300 - coalesce(ecr_rank, sleeper_adp, dynastyprocess_current_ecr, 300)) * 0.72
-            ) - coalesce(replacement.replacement_points, 0)
+            base_projected_points - coalesce(replacement.replacement_points, 0)
           ) as value_over_replacement,
           least(10, greatest(1,
             5
@@ -553,7 +554,7 @@ async function main(): Promise<void> {
               else 2
             end
           )) as injury_risk_score
-        from model.current_prediction_features current_features
+        from projected current_features
         left join replacement
           using (position)
         where sleeper_player_id is not null`,
@@ -716,8 +717,8 @@ async function main(): Promise<void> {
           currentSeason,
           responsibilities: SOURCE_RESPONSIBILITIES,
           artifacts: {
-            trainingDatasetParquet: MODEL_PATHS.trainingDatasetParquet,
-            predictionsJson: MODEL_PATHS.predictionsJson,
+            trainingDatasetParquet: './data/model/training-dataset.parquet',
+            predictionsJson: './data/predictions.json',
             leagueHistorySurvivalTable: 'model.league_history_survival_training_dataset',
             draftPickTradeGraderTable: 'model.draft_pick_trade_grader_features',
           },

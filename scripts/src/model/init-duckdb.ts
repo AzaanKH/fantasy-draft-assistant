@@ -36,7 +36,7 @@ interface TeamEnvironmentJson {
 }
 
 const normalizeNameSql = (column: string): string =>
-  `lower(regexp_replace(${column}, '[^a-z0-9]', '', 'g'))`;
+  `regexp_replace(lower(${column}), '[^a-z0-9]', '', 'g')`;
 
 async function main(): Promise<void> {
   await ensureModelDirs();

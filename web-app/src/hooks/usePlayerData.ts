@@ -155,15 +155,20 @@ export function usePlayerDataQuery() {
   const isLoading =
     fantasyProsQuery.isLoading ||
     sleeperQuery.isLoading ||
-    teamEnvQuery.isLoading;
+    teamEnvQuery.isLoading ||
+    predictionQuery.isLoading;
 
   const isError =
     fantasyProsQuery.isError ||
     sleeperQuery.isError ||
-    teamEnvQuery.isError;
+    teamEnvQuery.isError ||
+    predictionQuery.isError;
 
   const error =
-    fantasyProsQuery.error ?? sleeperQuery.error ?? teamEnvQuery.error;
+    fantasyProsQuery.error ??
+    sleeperQuery.error ??
+    teamEnvQuery.error ??
+    predictionQuery.error;
 
   // Merge all data sources into Player objects
   const players = useMemo<Player[]>(() => {

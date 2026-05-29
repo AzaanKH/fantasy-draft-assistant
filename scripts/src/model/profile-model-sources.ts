@@ -8,7 +8,6 @@ import { writeFile } from 'node:fs/promises';
 import {
   MODEL_PATHS,
   connectModelDb,
-  runStatements,
 } from './duckdb.js';
 
 interface CountRow {
@@ -44,13 +43,6 @@ async function main(): Promise<void> {
   const connection = await connectModelDb();
 
   try {
-    await runStatements(connection, [
-      `create schema if not exists model`,
-      `create or replace view model.current_player_join_parquet as
-        select *
-        from read_parquet('${MODEL_PATHS.normalizedPlayersParquet.replaceAll("'", "''")}')`,
-    ]);
-
     const countsReader = await connection.runAndReadAll(`
       select 'sleeper_adp_current' as table_name, count(*) as row_count from model.sleeper_adp_current
       union all

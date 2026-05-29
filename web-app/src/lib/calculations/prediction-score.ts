@@ -72,11 +72,11 @@ function getExperienceUncertainty(age: number | null | undefined, yearsExp: numb
 function getInjuryRisk(newsStatus: NewsStatus, sleeperStatus: string | undefined): number {
   const status = sleeperStatus?.toLowerCase() ?? '';
 
-  if (newsStatus === 'healthy' || /\bactive\b/.test(status)) return 2;
-  if (newsStatus === 'limited') return 5;
-  if (newsStatus === 'questionable') return 6.5;
   if (newsStatus === 'out' || status.includes('inactive') || status.includes('injured reserve')) return 9;
   if (status.includes('pup') || status.includes('nfi')) return 8;
+  if (newsStatus === 'limited') return 5;
+  if (newsStatus === 'questionable') return 6.5;
+  if (newsStatus === 'healthy' || /\bactive\b/.test(status)) return 2;
   return 4;
 }
 

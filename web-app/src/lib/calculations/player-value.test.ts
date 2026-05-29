@@ -58,6 +58,26 @@ describe('mergePlayerData', () => {
     expect(players[0]?.newsStatus).toBe('out');
   });
 
+  it('lets explicit out news override active sleeper status for injury risk', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer()],
+      [],
+      [{
+        name: 'Test Player',
+        position: 'WR',
+        team: 'DET',
+        status: 'out',
+        headline: 'Ruled out',
+        updatedAt: '2026-05-29T00:00:00.000Z',
+      }],
+      [createSleeperPlayer({ status: 'Active' })],
+      teamEnvironment
+    );
+
+    expect(players[0]?.newsStatus).toBe('out');
+    expect(players[0]?.injuryRiskScore).toBe(9);
+  });
+
   it('clamps tier dropoff scores for players beyond the last threshold', () => {
     const players = mergePlayerData(
       [createEcrPlayer({ positionalRank: 60 })],

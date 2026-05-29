@@ -271,7 +271,8 @@ export const columns: ColumnDef<Player>[] = [
     cell: ({ row }) => renderRangeDisplay(row.original),
   },
   {
-    accessorKey: 'injuryRiskScore',
+    id: 'injuryRiskScore',
+    accessorFn: (player) => Math.max(player.injuryRiskScore, player.uncertaintyScore),
     header: ({ column }) => <SortableHeader column={column}>Risk</SortableHeader>,
     cell: ({ row }) => renderRiskDisplay(row.original),
   },
