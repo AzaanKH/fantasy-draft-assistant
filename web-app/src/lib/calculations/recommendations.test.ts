@@ -58,6 +58,71 @@ function createNeeds(
 }
 
 describe('getRecommendations', () => {
+  describe('draftNow', () => {
+    it('combines prediction value, roster need, scarcity, market value, and survival', () => {
+      const players = [
+        {
+          ...createPlayer('value-rb', 'RB', 35),
+          valueScore: 14,
+          marketRank: 49,
+          marketAdp: 49,
+          valueOverReplacement: 25,
+          nextPickSurvivalProbability: 0.18,
+          predictionSource: 'model' as const,
+        },
+        {
+          ...createPlayer('safe-wr', 'WR', 22),
+          valueScore: 0,
+          valueOverReplacement: 10,
+          nextPickSurvivalProbability: 0.85,
+        },
+      ];
+      const needs = createNeeds([
+        { position: 'RB', priority: 'critical', scarcityScore: 8 },
+        { position: 'WR', priority: 'low', scarcityScore: 2 },
+      ]);
+
+      const { draftNow } = getRecommendations(players, needs, 10, {
+        currentPick: 25,
+        totalPicks: 150,
+        isMyTurn: true,
+      });
+
+      expect(draftNow[0]?.playerName).toBe('Player value-rb');
+      expect(draftNow[0]?.reason).toContain('critical roster need');
+      expect(draftNow[0]?.reason).toContain('VOR 25.0');
+      expect(draftNow[0]?.reason).toContain('Steal +14');
+      expect(draftNow[0]?.reason).toContain('unlikely to survive');
+      expect(draftNow[0]?.subScores?.rosterNeedScore).toBe(34);
+      expect(draftNow[0]?.subScores?.scarcityScore).toBeGreaterThan(0);
+      expect(draftNow[0]?.subScores?.draftStateScore).toBeGreaterThan(0);
+    });
+
+    it('penalizes kicker and defense recommendations before the late rounds', () => {
+      const players = [
+        createPlayer('k1', 'K', 5),
+        createPlayer('rb1', 'RB', 45),
+      ];
+      const needs = createNeeds([
+        { position: 'K', priority: 'critical', scarcityScore: 8 },
+        { position: 'RB', priority: 'medium', scarcityScore: 5 },
+      ]);
+
+      const early = getRecommendations(players, needs, 10, {
+        currentPick: 20,
+        totalPicks: 150,
+      }).draftNow;
+      const late = getRecommendations(players, needs, 10, {
+        currentPick: 125,
+        totalPicks: 150,
+      }).draftNow;
+
+      expect(early[0]?.position).toBe('RB');
+      expect(late.find((rec) => rec.position === 'K')?.subScores?.draftStateScore)
+        .toBeGreaterThan(0);
+    });
+  });
+
   describe('bestAvailable', () => {
     it('returns players sorted by ECR rank', () => {
       const players = [
@@ -81,7 +146,7 @@ describe('getRecommendations', () => {
 
     it('respects the limit parameter', () => {
       const players = Array.from({ length: 20 }, (_, i) =>
-        createPlayer(`p${i + 1}`, 'WR', i + 1)
+        createPlayer(`p${String(i + 1)}`, 'WR', i + 1)
       );
       const needs = createNeeds([{ position: 'WR', priority: 'low' }]);
 
@@ -152,10 +217,12 @@ describe('getRecommendations', () => {
       const qbRec = byNeed.find((r) => r.position === 'QB');
       const rbRec = byNeed.find((r) => r.position === 'RB');
 
+      expect(qbRec).toBeDefined();
+      expect(rbRec).toBeDefined();
       // Same ECR rank (20), so base score is 80
       // QB: 80 * 2 (critical) * 1.25 (scarcity 5 -> 1 + 5/20)
       // RB: 80 * 1.5 (high) * 1.25 (scarcity)
-      expect(qbRec!.score).toBeGreaterThan(rbRec!.score);
+      expect(qbRec?.score).toBeGreaterThan(rbRec?.score ?? 0);
     });
 
     it('applies scarcity multiplier', () => {
@@ -173,8 +240,10 @@ describe('getRecommendations', () => {
       const qbRec = byNeed.find((r) => r.position === 'QB');
       const teRec = byNeed.find((r) => r.position === 'TE');
 
+      expect(qbRec).toBeDefined();
+      expect(teRec).toBeDefined();
       // TE should rank higher due to higher scarcity
-      expect(teRec!.score).toBeGreaterThan(qbRec!.score);
+      expect(teRec?.score).toBeGreaterThan(qbRec?.score ?? 0);
     });
 
     it('applies TE premium boost (1.15x)', () => {
@@ -192,8 +261,10 @@ describe('getRecommendations', () => {
       const wrRec = byNeed.find((r) => r.position === 'WR');
       const teRec = byNeed.find((r) => r.position === 'TE');
 
+      expect(wrRec).toBeDefined();
+      expect(teRec).toBeDefined();
       // TE should rank higher due to TE premium
-      expect(teRec!.score).toBeGreaterThan(wrRec!.score);
+      expect(teRec?.score).toBeGreaterThan(wrRec?.score ?? 0);
     });
 
     it('includes reason with priority and scarcity', () => {
@@ -228,8 +299,9 @@ describe('getRecommendations', () => {
     it('handles empty players array', () => {
       const needs = createNeeds([{ position: 'QB', priority: 'critical' }]);
 
-      const { bestAvailable, byNeed } = getRecommendations([], needs);
+      const { draftNow, bestAvailable, byNeed } = getRecommendations([], needs);
 
+      expect(draftNow).toHaveLength(0);
       expect(bestAvailable).toHaveLength(0);
       expect(byNeed).toHaveLength(0);
     });
@@ -257,7 +329,7 @@ describe('getRecommendations', () => {
 });
 
 describe('getTopRecommendation', () => {
-  it('returns top byNeed recommendation when available', () => {
+  it('returns the top combined draft-now recommendation when available', () => {
     const players = [
       createPlayer('p1', 'QB', 10, 'Patrick Mahomes'),
       createPlayer('p2', 'RB', 5, 'Christian McCaffrey'),
@@ -271,6 +343,7 @@ describe('getTopRecommendation', () => {
 
     expect(result?.playerName).toBe('Patrick Mahomes');
     expect(result?.position).toBe('QB');
+    expect(result?.reason).toContain('critical roster need');
   });
 
   it('falls back to bestAvailable when no need-based recommendations', () => {

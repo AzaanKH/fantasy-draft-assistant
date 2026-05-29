@@ -148,6 +148,9 @@ export interface Recommendation {
     readonly upsideScore: number;
     readonly tierUrgencyScore: number;
     readonly survivalScore: number;
+    readonly rosterNeedScore?: number;
+    readonly scarcityScore?: number;
+    readonly draftStateScore?: number;
     readonly riskPenalty: number;
     readonly needMultiplier?: number;
     readonly scarcityMultiplier?: number;
