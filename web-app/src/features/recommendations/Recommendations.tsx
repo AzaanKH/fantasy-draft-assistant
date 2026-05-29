@@ -1,7 +1,7 @@
 /**
  * Recommendations Component
  *
- * Displays player recommendations in two modes:
+ * Displays player recommendations in three modes:
  * - Draft Now: Combined roster-aware ranking
  * - By Need: Factoring in team needs and scarcity
  * - Best Available: Pure player/market value
@@ -232,17 +232,7 @@ export function Recommendations() {
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
-
-  // Calculate if it's user's turn
-  const isMyTurn = React.useMemo(() => {
-    const round = Math.ceil(currentPick / config.totalTeams);
-    const pickInRound = ((currentPick - 1) % config.totalTeams) + 1;
-    const isOddRound = round % 2 === 1;
-    const positionThisRound = isOddRound
-      ? pickInRound
-      : config.totalTeams - pickInRound + 1;
-    return positionThisRound === config.myPickPosition;
-  }, [currentPick, config.totalTeams, config.myPickPosition]);
+  const isMyTurn = useDraftStore((state) => state.isMyTurn);
 
   // Handle drafting a player from recommendations
   const handleDraft = React.useCallback(
