@@ -540,11 +540,11 @@ async function main(): Promise<void> {
           select
             projected.*,
             case
-              when coalesce(news_status, status) = 'out' then 9
-              when coalesce(news_status, status) = 'questionable' then 6.5
-              when coalesce(news_status, status) = 'limited' then 5
-              when lower(coalesce(status, '')) like '%injured reserve%' then 9
-              when lower(coalesce(status, '')) like '%pup%' then 8
+              when lower(coalesce(news_status, status, '')) = 'out' then 9
+              when lower(coalesce(news_status, status, '')) = 'questionable' then 6.5
+              when lower(coalesce(news_status, status, '')) = 'limited' then 5
+              when lower(coalesce(news_status, status, '')) like '%injured reserve%' then 9
+              when lower(coalesce(news_status, status, '')) like '%pup%' then 8
               else 2
             end as current_status_risk,
             case

@@ -229,7 +229,7 @@ Keep availability and uncertainty as separate model signals:
 - Historical missed games only count when the player had a meaningful prior season: at least eight games plus a position-adjusted fantasy-points-per-game threshold. This avoids treating late-emerging starters as injured.
 - Rookies and players without history keep the neutral historical availability baseline of `2`.
 - The UI displays overall risk as the greater of availability risk and uncertainty, with an `Avail / Unc` breakdown.
-- Recommendation scoring subtracts the availability-risk score and a smaller uncertainty penalty equal to `uncertaintyScore * 0.35`.
+- Recommendation scoring subtracts the availability-risk score and a smaller uncertainty penalty equal to `round(player.uncertaintyScore * 0.35)`.
 
 ## Expected Improvement
 
