@@ -118,11 +118,12 @@ describe('getRecommendations', () => {
       }).draftNow;
 
       expect(early[0]?.position).toBe('RB');
+      expect(early.some((rec) => rec.position === 'K')).toBe(false);
       expect(late.find((rec) => rec.position === 'K')?.subScores?.draftStateScore)
         .toBeGreaterThan(0);
     });
 
-    it('caps malformed special-teams VOR before scoring early recommendations', () => {
+    it('caps malformed special-teams VOR before scoring recommendations', () => {
       const players = [
         {
           ...createPlayer('bad-kicker', 'K', 403),
@@ -138,15 +139,43 @@ describe('getRecommendations', () => {
       ]);
 
       const draftNow = getRecommendations(players, needs, 10, {
-        currentPick: 20,
+        currentPick: 125,
         totalPicks: 150,
       }).draftNow;
       const kicker = draftNow.find((recommendation) => recommendation.playerId === 'bad-kicker');
 
-      expect(draftNow[0]?.position).toBe('RB');
       expect(kicker?.subScores?.replacementScore).toBe(75);
       expect(kicker?.diagnostics?.valueOverReplacement).toBe(20);
       expect(kicker?.reason).toContain('VOR 20.0');
+    });
+
+    it('defers special teams from every recommendation list in round one', () => {
+      const players = [
+        {
+          ...createPlayer('k1', 'K', 186),
+          valueScore: 813,
+          marketRank: 999,
+          marketAdp: 999,
+          projectedPoints: 153,
+          valueOverReplacement: 153,
+        },
+        createPlayer('rb1', 'RB', 8),
+        createPlayer('wr1', 'WR', 12),
+      ];
+      const needs = createNeeds([
+        { position: 'K', priority: 'critical', scarcityScore: 10 },
+        { position: 'RB', priority: 'critical', scarcityScore: 5 },
+        { position: 'WR', priority: 'critical', scarcityScore: 5 },
+      ]);
+
+      const recommendations = getRecommendations(players, needs, 10, {
+        currentPick: 7,
+        totalPicks: 150,
+      });
+
+      expect(recommendations.draftNow.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.bestAvailable.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.byNeed.some((rec) => rec.position === 'K')).toBe(false);
     });
 
     it('applies a smaller uncertainty penalty separately from availability risk', () => {

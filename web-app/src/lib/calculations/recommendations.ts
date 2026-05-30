@@ -51,6 +51,7 @@ const PROJECTION_BASELINES: Record<Player['position'], number> = {
   DEF: 130,
 };
 const SPECIAL_TEAMS_MAX_VOR = 20;
+const SPECIAL_TEAMS_LATE_DRAFT_PROGRESS = 0.72;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -71,6 +72,14 @@ function getDraftProgress(context: RecommendationContext | undefined): number {
     return 0;
   }
   return clamp((context.currentPick - 1) / context.totalPicks, 0, 1);
+}
+
+function isSpecialTeams(player: Player): boolean {
+  return player.position === 'K' || player.position === 'DEF';
+}
+
+function shouldDeferSpecialTeams(context: RecommendationContext | undefined): boolean {
+  return getDraftProgress(context) < SPECIAL_TEAMS_LATE_DRAFT_PROGRESS;
 }
 
 function getDiagnostics(player: Player): RecommendationDiagnostics {
@@ -138,8 +147,8 @@ function formatMarketDelta(valueScore: number): string {
 
 function getDraftStateScore(player: Player, context: RecommendationContext | undefined): number {
   const draftProgress = getDraftProgress(context);
-  const isLateDraft = draftProgress >= 0.72;
-  const earlyKickerDefensePenalty = player.position === 'K' || player.position === 'DEF'
+  const isLateDraft = draftProgress >= SPECIAL_TEAMS_LATE_DRAFT_PROGRESS;
+  const earlyKickerDefensePenalty = isSpecialTeams(player)
     ? isLateDraft
       ? 0
       : -140 * (1 - draftProgress)
@@ -147,7 +156,7 @@ function getDraftStateScore(player: Player, context: RecommendationContext | und
   const turnUrgencyBoost = context?.isMyTurn
     ? (1 - player.nextPickSurvivalProbability) * 4
     : 0;
-  const lateKickerDefenseBoost = isLateDraft && (player.position === 'K' || player.position === 'DEF')
+  const lateKickerDefenseBoost = isLateDraft && isSpecialTeams(player)
     ? 8
     : 0;
 
@@ -275,8 +284,12 @@ export function getRecommendations(
 ): RecommendationResult {
   const needsByPosition = new Map(teamNeeds.map((need) => [need.position, need]));
   const scarcityScores = calculateAllScarcityScores(availablePlayers);
+  const hasOffensivePlayers = availablePlayers.some((player) => !isSpecialTeams(player));
+  const recommendationPool = shouldDeferSpecialTeams(context) && hasOffensivePlayers
+    ? availablePlayers.filter((player) => !isSpecialTeams(player))
+    : availablePlayers;
 
-  const draftNow = [...availablePlayers]
+  const draftNow = [...recommendationPool]
     .map((player) =>
       buildDraftNowRecommendation(
         player,
@@ -288,7 +301,7 @@ export function getRecommendations(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
-  const bestAvailable = [...availablePlayers]
+  const bestAvailable = [...recommendationPool]
     .map(buildBestAvailableRecommendation)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
@@ -305,7 +318,7 @@ export function getRecommendations(
         .filter((n) => n.priority === 'medium')
         .map((n) => n.position);
 
-  const byNeed: Recommendation[] = availablePlayers
+  const byNeed: Recommendation[] = recommendationPool
     .filter((p) => targetPositions.includes(p.position))
     .map((player) => {
       const need = teamNeeds.find((n) => n.position === player.position);

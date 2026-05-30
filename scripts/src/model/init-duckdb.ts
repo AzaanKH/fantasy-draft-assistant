@@ -75,7 +75,7 @@ async function main(): Promise<void> {
           p.position::varchar as position,
           p.team::varchar as team,
           case
-            when p.sleeperAdp::double >= 9999999 then null
+            when p.sleeperAdp::double >= 999 then null
             else p.sleeperAdp::double
           end as sleeper_adp,
           p.age::double as age,
