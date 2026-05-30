@@ -58,11 +58,11 @@ function HighlightBadge({ level }: { level: HighlightLevel }) {
   const config: Record<HighlightLevel, { label: string; className: string }> = {
     'strong-buy': {
       label: 'Strong Buy',
-      className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+      className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-300',
     },
     'good-value': {
       label: 'Good Value',
-      className: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-300',
+      className: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300',
     },
     neutral: {
       label: '',
@@ -70,7 +70,7 @@ function HighlightBadge({ level }: { level: HighlightLevel }) {
     },
     avoid: {
       label: 'Avoid',
-      className: 'border-red-500/35 bg-red-500/15 text-red-700 dark:text-red-300',
+      className: 'border-red-500/35 bg-red-500/15 text-red-700 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300',
     },
   };
 
@@ -88,11 +88,11 @@ function SignalChip({ level }: { level: HighlightLevel }) {
   const config: Record<HighlightLevel, { label: string; className: string }> = {
     'strong-buy': {
       label: 'Strong value',
-      className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+      className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-300',
     },
     'good-value': {
       label: 'Value',
-      className: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-300',
+      className: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300',
     },
     neutral: {
       label: '',
@@ -100,7 +100,7 @@ function SignalChip({ level }: { level: HighlightLevel }) {
     },
     avoid: {
       label: 'Caution',
-      className: 'border-red-500/35 bg-red-500/15 text-red-700 dark:text-red-300',
+      className: 'border-red-500/35 bg-red-500/15 text-red-700 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300',
     },
   };
 

@@ -50,9 +50,9 @@ function MetricPill({
 }) {
   const toneClass = {
     neutral: 'border-border bg-muted/30 text-muted-foreground',
-    good: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-    warn: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-300',
-    bad: 'border-red-500/35 bg-red-500/15 text-red-700 dark:text-red-300',
+    good: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-300',
+    warn: 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300',
+    bad: 'border-red-500/35 bg-red-500/15 text-red-700 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300',
   }[tone];
 
   return (
@@ -83,11 +83,11 @@ function getRecommendationSurface(tone: 'neutral' | 'good' | 'warn' | 'bad'): st
   return {
     neutral: 'border-transparent bg-muted/25 hover:bg-muted/40',
     good:
-      'border-emerald-500/25 bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12] dark:bg-emerald-500/[0.10] dark:hover:bg-emerald-500/[0.16]',
+      'border-emerald-500/25 bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12] dark:border-emerald-500/40 dark:bg-emerald-500/[0.14] dark:hover:bg-emerald-500/[0.18]',
     warn:
-      'border-amber-500/25 bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/[0.10] dark:hover:bg-amber-500/[0.16]',
+      'border-amber-500/25 bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:border-amber-500/40 dark:bg-amber-500/[0.14] dark:hover:bg-amber-500/[0.18]',
     bad:
-      'border-red-500/25 bg-red-500/[0.08] hover:bg-red-500/[0.12] dark:bg-red-500/[0.10] dark:hover:bg-red-500/[0.16]',
+      'border-red-500/25 bg-red-500/[0.08] hover:bg-red-500/[0.12] dark:border-red-500/40 dark:bg-red-500/[0.14] dark:hover:bg-red-500/[0.18]',
   }[tone];
 }
 
@@ -246,8 +246,8 @@ function TopPickHighlight({
   return (
     <div
       className={cn(
-        'rounded-lg border border-emerald-500/30 bg-emerald-500/[0.09] p-4 dark:bg-emerald-500/[0.11]',
-        onDraft && 'cursor-pointer hover:bg-emerald-500/[0.13] dark:hover:bg-emerald-500/[0.17]'
+        'rounded-lg border border-emerald-500/30 bg-emerald-500/[0.09] p-4 dark:border-emerald-500/40 dark:bg-emerald-500/[0.14]',
+        onDraft && 'cursor-pointer hover:bg-emerald-500/[0.13] dark:hover:bg-emerald-500/[0.18]'
       )}
       onClick={() => onDraft?.(recommendation.playerId)}
     >
