@@ -219,6 +219,18 @@ Signal families:
 - `urgency`: chance player is gone by next pick
 - `risk`: injury, fragility, uncertainty
 
+### Availability Risk
+
+Keep availability and uncertainty as separate model signals:
+
+- `injuryRiskScore` is the availability-risk score. It uses the greater of current status risk and historical availability risk.
+- Current status risk comes from FantasyPros news and Sleeper status. Active or unknown status has a neutral baseline of `2`; limited, questionable, PUP, IR, and out statuses raise it.
+- Historical availability risk uses missed games from the previous three seasons with recency weights of `1.0`, `0.6`, and `0.3`.
+- Historical missed games only count when the player had a meaningful prior season: at least eight games plus a position-adjusted fantasy-points-per-game threshold. This avoids treating late-emerging starters as injured.
+- Rookies and players without history keep the neutral historical availability baseline of `2`.
+- The UI displays overall risk as the greater of availability risk and uncertainty, with an `Avail / Unc` breakdown.
+- Recommendation scoring subtracts the availability-risk score and a smaller uncertainty penalty equal to `round(player.uncertaintyScore * 0.35)`.
+
 ## Expected Improvement
 
 The project should not claim a fixed performance gain from the model without backtesting.

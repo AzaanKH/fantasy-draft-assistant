@@ -418,6 +418,19 @@ async function main(): Promise<void> {
             order by base.season
             rows between 3 preceding and 1 preceding
           ) as trailing_points_volatility_3yr,
+          greatest(0, 17 - base.games) as missed_games,
+          case
+            when lag(base.games) over (
+              partition by base.gsis_id
+              order by base.season
+            ) >= 8
+              and lag(base.actual_points_per_game) over (
+                partition by base.gsis_id
+                order by base.season
+              ) >= case when base.position = 'QB' then 8 else 5 end
+              then greatest(0, 17 - base.games)
+            else 0
+          end as availability_eligible_missed_games,
           case
             when base.is_rookie then 'rookie_prior'
             when base.gsis_id is null then 'id_gap'
@@ -456,6 +469,15 @@ async function main(): Promise<void> {
             avg(expected_points_per_game) as trailing_expected_points_per_game_3yr,
             stddev_samp(actual_points_per_game) as trailing_points_volatility_3yr,
             avg(actual_value_over_replacement) as trailing_value_over_replacement_3yr,
+            max(actual_points_per_game) as trailing_max_points_per_game_3yr,
+            sum(
+              case
+                when season = ${currentSeason - 1} then availability_eligible_missed_games
+                when season = ${currentSeason - 2} then availability_eligible_missed_games * 0.6
+                when season = ${currentSeason - 3} then availability_eligible_missed_games * 0.3
+                else 0
+              end
+            ) as trailing_weighted_availability_missed_games_3yr,
             count(*) as history_seasons
           from model.prediction_training_dataset
           where season between ${currentSeason - 3} and ${currentSeason - 1}
@@ -478,6 +500,9 @@ async function main(): Promise<void> {
           history.trailing_expected_points_per_game_3yr,
           history.trailing_points_volatility_3yr,
           history.trailing_value_over_replacement_3yr,
+          history.trailing_max_points_per_game_3yr,
+          coalesce(history.trailing_weighted_availability_missed_games_3yr, 0)
+            as trailing_weighted_availability_missed_games_3yr,
           coalesce(history.history_seasons, 0) as history_seasons,
           current_rankings.predraft_ecr as dynastyprocess_current_ecr,
           current_rankings.predraft_rank_sd as dynastyprocess_current_rank_sd
@@ -510,6 +535,30 @@ async function main(): Promise<void> {
               )
             ) as base_projected_points
           from model.current_prediction_features current_features
+        ),
+        risk_components as (
+          select
+            projected.*,
+            case
+              when lower(coalesce(news_status, status, '')) = 'out' then 9
+              when lower(coalesce(news_status, status, '')) = 'questionable' then 6.5
+              when lower(coalesce(news_status, status, '')) = 'limited' then 5
+              when lower(coalesce(news_status, status, '')) like '%injured reserve%' then 9
+              when lower(coalesce(news_status, status, '')) like '%pup%' then 8
+              else 2
+            end as current_status_risk,
+            case
+              when years_experience = 0 then 2
+              when history_seasons = 0 then 2
+              when coalesce(trailing_max_points_per_game_3yr, 0) <
+                case when position = 'QB' then 8 else 5 end
+                then 2
+              else 2 + least(
+                4,
+                trailing_weighted_availability_missed_games_3yr / (17 * 1.9) * 14
+              )
+            end as historical_availability_risk
+          from projected
         )
         select
           sleeper_player_id,
@@ -545,16 +594,9 @@ async function main(): Promise<void> {
             + coalesce(dynastyprocess_current_rank_sd, 0) / 18
           )) as uncertainty_score,
           least(10, greatest(1,
-            case
-              when coalesce(news_status, status) = 'out' then 9
-              when coalesce(news_status, status) = 'questionable' then 6.5
-              when coalesce(news_status, status) = 'limited' then 5
-              when lower(coalesce(status, '')) like '%injured reserve%' then 9
-              when lower(coalesce(status, '')) like '%pup%' then 8
-              else 2
-            end
+            greatest(current_status_risk, historical_availability_risk)
           )) as injury_risk_score
-        from projected current_features
+        from risk_components current_features
         left join replacement
           using (position)
         where sleeper_player_id is not null`,

@@ -313,7 +313,7 @@ function PlayerDetailDialog({
           <MetricTile
             label="Risk"
             value={risk.toFixed(1)}
-            detail={`inj ${player.injuryRiskScore.toFixed(1)} / var ${player.uncertaintyScore.toFixed(1)}`}
+            detail={`avail ${player.injuryRiskScore.toFixed(1)} / unc ${player.uncertaintyScore.toFixed(1)}`}
             tone={riskTone}
           />
           <MetricTile

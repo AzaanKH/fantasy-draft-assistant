@@ -97,6 +97,7 @@ function getBaseSubScores(player: Player): RecommendationSubScores {
     tierUrgencyScore: player.tierDropoffScore * 8,
     survivalScore: (1 - player.nextPickSurvivalProbability) * 18,
     riskPenalty: player.injuryRiskScore,
+    uncertaintyPenalty: round(player.uncertaintyScore * 0.35),
   };
 }
 
@@ -112,7 +113,8 @@ function sumBaseSubScores(subScores: RecommendationSubScores): number {
     (subScores.rosterNeedScore ?? 0) +
     (subScores.scarcityScore ?? 0) +
     (subScores.draftStateScore ?? 0) -
-    subScores.riskPenalty
+    subScores.riskPenalty -
+    subScores.uncertaintyPenalty
   );
 }
 

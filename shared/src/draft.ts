@@ -153,6 +153,7 @@ export interface Recommendation {
     readonly scarcityScore?: number;
     readonly draftStateScore?: number;
     readonly riskPenalty: number;
+    readonly uncertaintyPenalty: number;
     readonly needMultiplier?: number;
     readonly scarcityMultiplier?: number;
     readonly tePremiumBoost?: number;

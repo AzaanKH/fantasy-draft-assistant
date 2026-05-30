@@ -204,7 +204,7 @@ function renderRiskDisplay(player: Player) {
     <div className="flex flex-col">
       <span className={className}>{risk.toFixed(1)}</span>
       <span className="text-[11px] text-muted-foreground">
-        Inj {player.injuryRiskScore.toFixed(1)} / Var {player.uncertaintyScore.toFixed(1)}
+        Avail {player.injuryRiskScore.toFixed(1)} / Unc {player.uncertaintyScore.toFixed(1)}
       </span>
     </div>
   );
