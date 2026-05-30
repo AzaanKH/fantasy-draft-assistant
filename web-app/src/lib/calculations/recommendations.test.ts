@@ -145,6 +145,8 @@ describe('getRecommendations', () => {
 
       expect(draftNow[0]?.position).toBe('RB');
       expect(kicker?.subScores?.replacementScore).toBe(75);
+      expect(kicker?.diagnostics?.valueOverReplacement).toBe(20);
+      expect(kicker?.reason).toContain('VOR 20.0');
     });
 
     it('applies a smaller uncertainty penalty separately from availability risk', () => {

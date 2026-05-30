@@ -306,11 +306,11 @@ Implemented:
 - real FantasyPros API-backed snapshot refresh
 - manual `pnpm refresh:fantasypros:manual` snapshot refresh flow
 - recommendation sub-scores and clearer FantasyPros vs Sleeper deltas in the UI
+- derived `team-environment.json` pipeline backed by nflverse completed-season data
+- prediction layer built on historical nflverse and ffopportunity data
 
 Not yet implemented:
 
-- derived `team-environment.json` pipeline backed by nflreadpy / nflverse
-- prediction layer built on historical nflverse-style data
 - automated browser-level extension integration tests
 
 ## Known Limitations

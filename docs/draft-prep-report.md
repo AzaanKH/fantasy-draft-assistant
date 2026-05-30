@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-05-30T05:56:12.319Z
+Generated: 2026-05-30T15:59:34.147Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,9 +8,9 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Age |
 | --- | --- |
-| FantasyPros | 0.4h |
-| League survival | 0.3h |
-| Team environment | 0.4h |
+| FantasyPros | 10.5h |
+| League survival | 10.4h |
+| Team environment | 0h |
 | Predictions | 0h |
 
 ## Historical Room Trends

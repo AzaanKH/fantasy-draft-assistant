@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-05-30T05:56:12.319Z",
+  "generatedAt": "2026-05-30T15:59:34.147Z",
   "leagueName": "Ummati Official",
   "currentSeason": 2026,
-  "canonicalApproach": "./docs/draft-approach.md",
+  "canonicalApproach": "../docs/draft-approach.md",
   "keeperStatus": {
     "updatedAt": null,
     "season": 2026,
     "keepers": []
   },
   "artifactFreshness": {
-    "fantasyProsHours": 0.4,
-    "survivalModelHours": 0.3,
-    "teamEnvironmentHours": 0.4,
+    "fantasyProsHours": 10.5,
+    "survivalModelHours": 10.4,
+    "teamEnvironmentHours": 0,
     "predictionsHours": 0
   },
   "scoringNotes": [

@@ -383,7 +383,7 @@ async function main(): Promise<void> {
           ts.passing_tds + ts.rushing_tds + ts.receiving_tds as team_offensive_tds,
           row_number() over (
             partition by ps.season, ps.position
-            order by ps.fantasy_points_ppr desc nulls last
+            order by current_league_actual_points desc nulls last
           ) as actual_position_rank
         from model.nflverse_player_seasons ps
         left join model.dynastyprocess_player_ids ids

@@ -167,7 +167,7 @@ async function main(): Promise<void> {
     generatedAt: new Date().toISOString(),
     leagueName: history.leagueName,
     currentSeason: fantasyPros.metadata.season,
-    canonicalApproach: './docs/draft-approach.md',
+    canonicalApproach: '../docs/draft-approach.md',
     keeperStatus: currentKeepers ?? {
       updatedAt: null,
       season: fantasyPros.metadata.season,

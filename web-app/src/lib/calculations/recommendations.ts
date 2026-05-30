@@ -60,6 +60,12 @@ function round(value: number, digits: number = 1): number {
   return Number(value.toFixed(digits));
 }
 
+function getGuardedValueOverReplacement(player: Player): number {
+  return player.position === 'K' || player.position === 'DEF'
+    ? Math.min(player.valueOverReplacement, SPECIAL_TEAMS_MAX_VOR)
+    : player.valueOverReplacement;
+}
+
 function getDraftProgress(context: RecommendationContext | undefined): number {
   if (!context?.currentPick || !context.totalPicks || context.totalPicks <= 0) {
     return 0;
@@ -73,7 +79,7 @@ function getDiagnostics(player: Player): RecommendationDiagnostics {
     marketRank: player.marketRank,
     marketDelta: player.valueScore,
     projectedPoints: player.projectedPoints,
-    valueOverReplacement: player.valueOverReplacement,
+    valueOverReplacement: getGuardedValueOverReplacement(player),
     tier: player.tier,
     nextPickSurvivalProbability: player.nextPickSurvivalProbability,
     leagueAdjustedMarketRank: player.leagueAdjustedMarketRank,
@@ -88,9 +94,7 @@ function getBaseSubScores(player: Player): RecommendationSubScores {
     : player.predictionSource === 'fantasypros'
       ? 2
       : 0;
-  const replacementValue = player.position === 'K' || player.position === 'DEF'
-    ? Math.min(player.valueOverReplacement, SPECIAL_TEAMS_MAX_VOR)
-    : player.valueOverReplacement;
+  const replacementValue = getGuardedValueOverReplacement(player);
 
   return {
     expertRankScore: Math.max(0, 120 - player.ecrRank),
@@ -189,7 +193,7 @@ function buildDraftNowRecommendation(
     position: player.position,
     reason: [
       getNeedReason(need),
-      `VOR ${player.valueOverReplacement.toFixed(1)}`,
+      `VOR ${getGuardedValueOverReplacement(player).toFixed(1)}`,
       formatMarketDelta(player.valueScore),
       survivalText,
     ].join(' · '),

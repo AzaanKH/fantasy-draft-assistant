@@ -75,7 +75,6 @@ interface RankedTeamStat extends TeamStatRow {
   readonly passAttemptsRank: number;
   readonly rushAttemptsRank: number;
   readonly totalYardsRank: number;
-  readonly offensiveTdsRank: number;
   readonly passingEpaRank: number;
   readonly rushingEpaRank: number;
 }
@@ -115,11 +114,10 @@ function round(value: number, digits: number = 1): number {
 }
 
 function buildEnvironments(rows: readonly TeamStatRow[]): TeamEnvironment[] {
-  const pointsRanks = rankDescending(rows, (row) => row.offensive_tds);
+  const offensiveTdsRanks = rankDescending(rows, (row) => row.offensive_tds);
   const passAttemptsRanks = rankDescending(rows, (row) => row.pass_attempts);
   const rushAttemptsRanks = rankDescending(rows, (row) => row.rush_attempts);
   const totalYardsRanks = rankDescending(rows, (row) => row.total_yards);
-  const offensiveTdsRanks = rankDescending(rows, (row) => row.offensive_tds);
   const passingEpaRanks = rankDescending(rows, (row) => row.passing_epa);
   const rushingEpaRanks = rankDescending(rows, (row) => row.rushing_epa);
 
@@ -130,11 +128,10 @@ function buildEnvironments(rows: readonly TeamStatRow[]): TeamEnvironment[] {
     return [{
       ...row,
       team,
-      pointsRank: getRank(pointsRanks, row.team),
+      pointsRank: getRank(offensiveTdsRanks, row.team),
       passAttemptsRank: getRank(passAttemptsRanks, row.team),
       rushAttemptsRank: getRank(rushAttemptsRanks, row.team),
       totalYardsRank: getRank(totalYardsRanks, row.team),
-      offensiveTdsRank: getRank(offensiveTdsRanks, row.team),
       passingEpaRank: getRank(passingEpaRanks, row.team),
       rushingEpaRank: getRank(rushingEpaRanks, row.team),
     }];
@@ -142,9 +139,8 @@ function buildEnvironments(rows: readonly TeamStatRow[]): TeamEnvironment[] {
 
   return rankedRows.map((row) => {
     const compositeRank =
-      row.pointsRank * 0.35 +
+      row.pointsRank * 0.55 +
       row.totalYardsRank * 0.2 +
-      row.offensiveTdsRank * 0.2 +
       row.passingEpaRank * 0.15 +
       row.rushingEpaRank * 0.1;
     const offenseScore = 1 + 9 * ((NFL_TEAMS.length - compositeRank) / (NFL_TEAMS.length - 1));
