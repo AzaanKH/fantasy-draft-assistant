@@ -10,7 +10,7 @@ import type { Player, Position, HighlightLevel } from '@fantasy-draft/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, ArrowUp, ArrowDown, Eye } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatSignedNumber } from '@/lib/utils';
 
 /**
  * Position badge with color coding
@@ -162,7 +162,7 @@ function renderValueDisplay(player: Player) {
       <CompactMetric label="Proj" value={player.projectedPoints.toFixed(1)} />
       <CompactMetric
         label="VOR"
-        value={`+${player.valueOverReplacement.toFixed(1)}`}
+        value={formatSignedNumber(player.valueOverReplacement, 1)}
         className="text-foreground"
       />
     </div>

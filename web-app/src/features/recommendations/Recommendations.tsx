@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useDraftStore } from '@/stores/draftStore';
-import { cn } from '@/lib/utils';
+import { cn, formatSignedNumber } from '@/lib/utils';
 
 /**
  * Position colors for badges
@@ -32,7 +32,7 @@ const positionColors: Record<Position, string> = {
 
 function formatDelta(value: number | undefined): string {
   if (typeof value !== 'number') return '-';
-  return `${value > 0 ? '+' : ''}${String(value)}`;
+  return formatSignedNumber(value);
 }
 
 function getPrimaryReason(reason: string): string {
@@ -159,7 +159,7 @@ function RecommendationRow({
           <div className="mt-2 flex flex-wrap gap-1.5">
             <MetricPill
               label="VOR"
-              value={typeof vor === 'number' ? `+${vor.toFixed(0)}` : '-'}
+              value={typeof vor === 'number' ? formatSignedNumber(vor, 0) : '-'}
               tone="good"
             />
             <MetricPill
@@ -270,7 +270,7 @@ function TopPickHighlight({
         <div className="mt-3 flex flex-wrap gap-1.5">
           <MetricPill
             label="VOR"
-            value={`+${diagnostics.valueOverReplacement.toFixed(0)}`}
+            value={formatSignedNumber(diagnostics.valueOverReplacement, 0)}
             tone="good"
           />
           <MetricPill
@@ -304,7 +304,7 @@ function TopPickHighlight({
 /**
  * Main Recommendations component
  */
-export function Recommendations() {
+export function Recommendations(): React.ReactElement {
   const { draftNow, bestAvailable, byNeed, topPick, isLoading } = useRecommendations(5);
   const { players } = usePlayerDataQuery();
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);

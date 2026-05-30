@@ -32,7 +32,7 @@ import { SleeperConnect } from './SleeperConnect';
 import { MyRoster } from '@/features/my-roster';
 import { useFilteredPlayers, usePositionStats } from '@/hooks/usePlayerData';
 import { useDraftStore } from '@/stores/draftStore';
-import { cn } from '@/lib/utils';
+import { cn, formatSignedNumber } from '@/lib/utils';
 
 /** Position filter type including FLEX */
 type PositionFilter = Position | 'ALL' | 'FLEX';
@@ -245,11 +245,13 @@ function MetricTile({
 
 function PlayerDetailDialog({
   player,
+  isDrafted,
   open,
   onOpenChange,
   onDraft,
 }: {
   player: Player | null;
+  isDrafted: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDraft: (player: Player) => void;
@@ -279,7 +281,7 @@ function PlayerDetailDialog({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricTile
             label="VOR"
-            value={`+${player.valueOverReplacement.toFixed(1)}`}
+            value={formatSignedNumber(player.valueOverReplacement, 1)}
             detail="vs replacement"
             tone="good"
           />
@@ -323,12 +325,14 @@ function PlayerDetailDialog({
 
         <div className="flex justify-end">
           <Button
+            disabled={isDrafted}
             onClick={() => {
+              if (isDrafted) return;
               onDraft(player);
               onOpenChange(false);
             }}
           >
-            Draft {player.name}
+            {isDrafted ? 'Already drafted' : `Draft ${player.name}`}
           </Button>
         </div>
       </DialogContent>
@@ -398,6 +402,8 @@ export function PlayerTable() {
   // Handle drafting a player
   const handleDraft = React.useCallback(
     (player: Player) => {
+      if (draftedIds.has(player.id)) return;
+
       const teamIndex = (() => {
         const round = Math.ceil(currentPick / config.totalTeams);
         const pickInRound = ((currentPick - 1) % config.totalTeams) + 1;
@@ -419,7 +425,15 @@ export function PlayerTable() {
         addToMyRoster(player);
       }
     },
-    [currentPick, config.totalTeams, isMyTurn, markPlayerDrafted, addToMyRoster]
+    [currentPick, config.totalTeams, draftedIds, isMyTurn, markPlayerDrafted, addToMyRoster]
+  );
+
+  const handleInspect = React.useCallback(
+    (player: Player) => {
+      if (draftedIds.has(player.id)) return;
+      setSelectedPlayer(player);
+    },
+    [draftedIds]
   );
 
   // Get columns with draft action
@@ -427,9 +441,9 @@ export function PlayerTable() {
     () =>
       getColumnsWithActions(handleDraft, {
         advanced: showAdvanced,
-        onInspect: setSelectedPlayer,
+        onInspect: handleInspect,
       }),
-    [handleDraft, showAdvanced]
+    [handleDraft, handleInspect, showAdvanced]
   );
 
   // Get row styling (drafted players greyed out)
@@ -546,7 +560,7 @@ export function PlayerTable() {
           <DataTable
             columns={columns}
             data={filteredPlayers}
-            onRowClick={setSelectedPlayer}
+            onRowClick={handleInspect}
             getRowClassName={getRowClassName}
             pageSize={30}
           />
@@ -582,7 +596,8 @@ export function PlayerTable() {
 
       <PlayerDetailDialog
         player={selectedPlayer}
-        open={selectedPlayer !== null}
+        isDrafted={selectedPlayer !== null && draftedIds.has(selectedPlayer.id)}
+        open={selectedPlayer !== null && !draftedIds.has(selectedPlayer.id)}
         onOpenChange={(open) => {
           if (!open) setSelectedPlayer(null);
         }}
