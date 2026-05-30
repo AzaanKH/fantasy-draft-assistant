@@ -204,12 +204,12 @@ function PositionStats() {
 function getRowHighlightClass(player: Player): string {
   const classes: Record<HighlightLevel, string> = {
     'strong-buy':
-      'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12] dark:bg-emerald-500/[0.10] dark:hover:bg-emerald-500/[0.16]',
+      'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12] dark:bg-emerald-500/[0.14] dark:hover:bg-emerald-500/[0.18]',
     'good-value':
-      'bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/[0.10] dark:hover:bg-amber-500/[0.16]',
+      'bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/[0.14] dark:hover:bg-amber-500/[0.18]',
     neutral: 'hover:bg-muted/35',
     avoid:
-      'bg-red-500/[0.08] hover:bg-red-500/[0.12] dark:bg-red-500/[0.10] dark:hover:bg-red-500/[0.16]',
+      'bg-red-500/[0.08] hover:bg-red-500/[0.12] dark:bg-red-500/[0.14] dark:hover:bg-red-500/[0.18]',
   };
   return classes[player.highlightLevel];
 }
