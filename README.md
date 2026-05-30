@@ -9,6 +9,9 @@ Fantasy football draft assistant for Sleeper with:
 ## Reference Docs
 
 - Data strategy and source decisions: [docs/data-strategy.md](docs/data-strategy.md)
+- Draft approach: [docs/draft-approach.md](docs/draft-approach.md)
+- Data refresh policy: [docs/data-refresh.md](docs/data-refresh.md)
+- Generated draft prep report: [docs/draft-prep-report.md](docs/draft-prep-report.md)
 - Local DuckDB modeling workspace: [docs/modeling-duckdb.md](docs/modeling-duckdb.md)
 - Original technical spec: [fantasy-draft-assistant-spec.md](fantasy-draft-assistant-spec.md)
 
@@ -103,6 +106,10 @@ Run everything:
 pnpm dev
 ```
 
+`pnpm dev` reports stale data but does not refresh JSON artifacts automatically.
+Use explicit refresh commands so ordinary development does not make network
+requests or rewrite tracked snapshots.
+
 That starts:
 
 - `shared` build watcher
@@ -125,7 +132,24 @@ Refresh the cached FantasyPros snapshot manually:
 pnpm refresh:fantasypros
 ```
 
-That command:
+Refresh the daily draft-week inputs:
+
+```bash
+pnpm refresh:daily
+```
+
+Prepare all draft artifacts, run the baseline backtest, and generate the prep
+report:
+
+```bash
+pnpm prepare:draft
+```
+
+`pnpm prepare:draft` refreshes daily inputs, rebuilds the local DuckDB dataset
+and survival model, runs the baseline backtest, and rewrites the draft prep
+report.
+
+During the FantasyPros refresh step, the script:
 
 - tries the FantasyPros API when `FANTASYPROS_API_KEY` is present
 - falls back to the local ECR snapshot when the API request fails
@@ -282,11 +306,11 @@ Implemented:
 - real FantasyPros API-backed snapshot refresh
 - manual `pnpm refresh:fantasypros:manual` snapshot refresh flow
 - recommendation sub-scores and clearer FantasyPros vs Sleeper deltas in the UI
+- derived `team-environment.json` pipeline backed by nflverse completed-season data
+- prediction layer built on historical nflverse and ffopportunity data
 
 Not yet implemented:
 
-- derived `team-environment.json` pipeline backed by nflreadpy / nflverse
-- prediction layer built on historical nflverse-style data
 - automated browser-level extension integration tests
 
 ## Known Limitations

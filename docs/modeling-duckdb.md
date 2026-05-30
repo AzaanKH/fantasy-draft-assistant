@@ -35,6 +35,12 @@ Build the first model dataset:
 pnpm --filter scripts model:dataset
 ```
 
+Run the transparent historical recommendation replay:
+
+```bash
+pnpm model:backtest
+```
+
 The first dataset is a current-season feature table with placeholder historical labels. It is intentionally shaped so later nflverse/ffopportunity extracts can fill prior production, opportunity, and outcome columns without changing the app runtime contract.
 
 ## Source Responsibilities
@@ -47,7 +53,7 @@ The modeling pipeline keeps source ownership explicit:
 | `ffopportunity / ffverse` | Expected fantasy points and opportunity metrics. |
 | `DynastyProcess / ffverse rankings` | Historical pre-draft rankings, market-style redraft rankings, and cross-platform fantasy player IDs. |
 | Prediction layer | nflverse production/history, ffopportunity expected points/opportunity, and DynastyProcess ranking context. |
-| Roster-aware recommendation | Prediction outputs, current FantasyPros, current Sleeper ADP, and team needs. |
+| Roster-aware recommendation | Prediction outputs, current FantasyPros, current Sleeper `search_rank` platform proxy, and team needs. |
 | League-history survival model | Imported Sleeper draft IDs, your historical picks, and current/historical ADP/ranking context. |
 | Draft-pick trade grader | Prediction layer outputs, survival model features, and roster-aware recommendation inputs. |
 

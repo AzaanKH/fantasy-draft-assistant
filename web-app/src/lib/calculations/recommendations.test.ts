@@ -122,6 +122,33 @@ describe('getRecommendations', () => {
         .toBeGreaterThan(0);
     });
 
+    it('caps malformed special-teams VOR before scoring early recommendations', () => {
+      const players = [
+        {
+          ...createPlayer('bad-kicker', 'K', 403),
+          projectedPoints: 126,
+          valueOverReplacement: 126,
+          predictionSource: 'model' as const,
+        },
+        createPlayer('rb1', 'RB', 45),
+      ];
+      const needs = createNeeds([
+        { position: 'K', priority: 'critical', scarcityScore: 8 },
+        { position: 'RB', priority: 'medium', scarcityScore: 5 },
+      ]);
+
+      const draftNow = getRecommendations(players, needs, 10, {
+        currentPick: 20,
+        totalPicks: 150,
+      }).draftNow;
+      const kicker = draftNow.find((recommendation) => recommendation.playerId === 'bad-kicker');
+
+      expect(draftNow[0]?.position).toBe('RB');
+      expect(kicker?.subScores?.replacementScore).toBe(75);
+      expect(kicker?.diagnostics?.valueOverReplacement).toBe(20);
+      expect(kicker?.reason).toContain('VOR 20.0');
+    });
+
     it('applies a smaller uncertainty penalty separately from availability risk', () => {
       const players = [
         {

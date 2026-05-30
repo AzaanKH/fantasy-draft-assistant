@@ -47,7 +47,13 @@ export interface PlayerPrediction {
   readonly name: string;
   readonly position: Position;
   readonly team: NFLTeam;
+  /** Base PPR projection before league-specific bonuses */
+  readonly baseProjectedPoints?: number;
+  /** Rush-attempt and TE-premium points added for this league */
+  readonly customScoringAdjustment?: number;
   readonly projectedPoints: number;
+  /** Projection after league-specific bonuses */
+  readonly customProjectedPoints?: number;
   readonly valueOverReplacement?: number;
   readonly ceilingScore?: number;
   readonly floorScore?: number;
@@ -70,7 +76,7 @@ export interface Player {
 
   /** FantasyPros Expert Consensus Ranking */
   readonly ecrRank: number;
-  /** Sleeper platform ADP */
+  /** Sleeper search_rank platform-ordering proxy; not observed draft ADP */
   readonly sleeperAdp: number;
   /** ECR - ADP (positive = undervalued on Sleeper) */
   readonly valueScore: number;
@@ -99,7 +105,7 @@ export interface Player {
   readonly nextPickSurvivalProbability: number;
   /** League-adjusted expected draft cost after applying historical room tendencies */
   readonly leagueAdjustedMarketRank?: number;
-  /** Negative means this league tends to take this profile earlier than Sleeper ADP */
+  /** Negative means this league tends to take this profile earlier than the Sleeper proxy */
   readonly leagueMarketDelta?: number;
   /** Short explanation of the league-history tendency applied to this player */
   readonly leaguePositionTendency?: string;

@@ -1,8 +1,8 @@
 /**
  * Sleeper ADP Fetcher
  *
- * Fetches player data from the Sleeper API including their ADP rankings.
- * Sleeper uses 'search_rank' as their ADP proxy.
+ * Fetches player data from the Sleeper API including its search-rank proxy.
+ * This is a Sleeper platform signal, not a true draft-derived ADP feed.
  *
  * API Docs: https://docs.sleeper.com/
  * Usage: pnpm fetch:sleeper
@@ -164,6 +164,8 @@ async function main(): Promise<void> {
     const output = {
       fetchedAt: new Date().toISOString(),
       source: SLEEPER_PLAYERS_URL,
+      signalType: 'search_rank_proxy',
+      caveat: 'Sleeper search_rank is a platform ordering proxy, not observed draft ADP.',
       playerCount: players.length,
       players,
     };

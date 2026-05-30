@@ -10,6 +10,16 @@ const server = createSyncServer({
   pollIntervalMs: POLL_INTERVAL_MS,
 });
 
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(
+      `[sync-server] Port ${String(PORT)} is already in use. Stop the existing dev session before starting another.`
+    );
+    process.exit(1);
+  }
+  throw error;
+});
+
 server.listen(PORT, () => {
   console.log(`[sync-server] Listening on http://localhost:${PORT}`);
 });
