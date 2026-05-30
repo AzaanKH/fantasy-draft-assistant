@@ -77,7 +77,7 @@ function getInjuryRisk(newsStatus: NewsStatus, sleeperStatus: string | undefined
   if (newsStatus === 'limited') return 5;
   if (newsStatus === 'questionable') return 6.5;
   if (newsStatus === 'healthy' || /\bactive\b/.test(status)) return 2;
-  return 4;
+  return 2;
 }
 
 function getAvailabilityMultiplier(newsStatus: NewsStatus): number {

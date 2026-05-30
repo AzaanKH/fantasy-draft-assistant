@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-29T03:05:06.959Z",
+  "generatedAt": "2026-05-30T05:08:58.389Z",
   "modelVersion": "historical-sources-v1-2021-2025",
   "sources": {
     "nflverse": [
@@ -52,7 +52,7 @@
       "ceilingScore": 10,
       "floorScore": 7.6,
       "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -65,8 +65,8 @@
       "valueOverReplacement": 209.9,
       "ceilingScore": 10,
       "floorScore": 7.2,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 5.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -108,7 +108,7 @@
       "ceilingScore": 10,
       "floorScore": 7.1,
       "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -150,7 +150,7 @@
       "ceilingScore": 4.5,
       "floorScore": 3.5,
       "uncertaintyScore": 4.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -164,7 +164,7 @@
       "ceilingScore": 10,
       "floorScore": 7.8,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -178,7 +178,7 @@
       "ceilingScore": 8.4,
       "floorScore": 5.8,
       "uncertaintyScore": 3.5,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -192,7 +192,7 @@
       "ceilingScore": 8.7,
       "floorScore": 6.1,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -220,7 +220,7 @@
       "ceilingScore": 5.9,
       "floorScore": 4.2,
       "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -233,8 +233,8 @@
       "valueOverReplacement": 153.2,
       "ceilingScore": 9.7,
       "floorScore": 7,
-      "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.2,
+      "injuryRiskScore": 3.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -248,7 +248,7 @@
       "ceilingScore": 10,
       "floorScore": 8.1,
       "uncertaintyScore": 2.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -262,7 +262,7 @@
       "ceilingScore": 4.7,
       "floorScore": 3.2,
       "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -276,7 +276,7 @@
       "ceilingScore": 6.1,
       "floorScore": 4.3,
       "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -289,8 +289,8 @@
       "valueOverReplacement": 35.4,
       "ceilingScore": 5.3,
       "floorScore": 4.1,
-      "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.5,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -303,8 +303,8 @@
       "valueOverReplacement": 34.9,
       "ceilingScore": 6.4,
       "floorScore": 4.5,
-      "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -331,7 +331,7 @@
       "valueOverReplacement": 27.4,
       "ceilingScore": 6.5,
       "floorScore": 4.9,
-      "uncertaintyScore": 4.8,
+      "uncertaintyScore": 4.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -345,7 +345,7 @@
       "valueOverReplacement": 136.1,
       "ceilingScore": 7.9,
       "floorScore": 5.1,
-      "uncertaintyScore": 3.9,
+      "uncertaintyScore": 3.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -374,7 +374,7 @@
       "ceilingScore": 9.7,
       "floorScore": 7.1,
       "uncertaintyScore": 4.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -416,7 +416,7 @@
       "ceilingScore": 10,
       "floorScore": 7.6,
       "uncertaintyScore": 3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -430,7 +430,7 @@
       "ceilingScore": 6.2,
       "floorScore": 4.8,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -443,8 +443,8 @@
       "valueOverReplacement": 95.3,
       "ceilingScore": 7.4,
       "floorScore": 5.2,
-      "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -471,7 +471,7 @@
       "valueOverReplacement": 119.9,
       "ceilingScore": 9.4,
       "floorScore": 7.5,
-      "uncertaintyScore": 3.9,
+      "uncertaintyScore": 4,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -486,7 +486,7 @@
       "ceilingScore": 10,
       "floorScore": 6.8,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -499,7 +499,7 @@
       "valueOverReplacement": 116.3,
       "ceilingScore": 10,
       "floorScore": 7.9,
-      "uncertaintyScore": 3.2,
+      "uncertaintyScore": 3.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -513,8 +513,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.3,
       "floorScore": 3.7,
-      "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.4,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -528,21 +528,7 @@
       "ceilingScore": 6,
       "floorScore": 4.5,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "8138",
-      "name": "James Cook",
-      "position": "RB",
-      "team": "BUF",
-      "projectedPoints": 266.2,
-      "valueOverReplacement": 109.2,
-      "ceilingScore": 10,
-      "floorScore": 7.4,
-      "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -555,7 +541,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.4,
       "floorScore": 1.9,
-      "uncertaintyScore": 4.4,
+      "uncertaintyScore": 4.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -570,7 +556,7 @@
       "ceilingScore": 10,
       "floorScore": 7.1,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -583,8 +569,8 @@
       "valueOverReplacement": 106.7,
       "ceilingScore": 10,
       "floorScore": 7.3,
-      "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.5,
+      "injuryRiskScore": 3.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -598,7 +584,7 @@
       "ceilingScore": 4.4,
       "floorScore": 2.9,
       "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -612,7 +598,7 @@
       "ceilingScore": 6,
       "floorScore": 4.5,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -625,8 +611,8 @@
       "valueOverReplacement": 100.3,
       "ceilingScore": 9.2,
       "floorScore": 6.7,
-      "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.3,
+      "injuryRiskScore": 3.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -640,7 +626,7 @@
       "ceilingScore": 8,
       "floorScore": 5.6,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -653,8 +639,8 @@
       "valueOverReplacement": 66.3,
       "ceilingScore": 7,
       "floorScore": 4.8,
-      "uncertaintyScore": 4.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.8,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -667,8 +653,8 @@
       "valueOverReplacement": 65.7,
       "ceilingScore": 6.7,
       "floorScore": 4.7,
-      "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.5,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -695,8 +681,8 @@
       "valueOverReplacement": 64.5,
       "ceilingScore": 7.6,
       "floorScore": 5.3,
-      "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.1,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -709,8 +695,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.9,
       "floorScore": 1.2,
-      "uncertaintyScore": 4.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.4,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -723,8 +709,8 @@
       "valueOverReplacement": 97,
       "ceilingScore": 9,
       "floorScore": 6.9,
-      "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.1,
+      "injuryRiskScore": 2.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -738,7 +724,7 @@
       "ceilingScore": 4,
       "floorScore": 3.5,
       "uncertaintyScore": 4.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -752,7 +738,7 @@
       "ceilingScore": 8,
       "floorScore": 5.8,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -766,7 +752,7 @@
       "ceilingScore": 8.5,
       "floorScore": 6,
       "uncertaintyScore": 3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -780,7 +766,7 @@
       "ceilingScore": 1.8,
       "floorScore": 1.6,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -794,7 +780,7 @@
       "ceilingScore": 10,
       "floorScore": 7.2,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -807,8 +793,22 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.6,
       "floorScore": 2.6,
-      "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 3.2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "8138",
+      "name": "James Cook",
+      "position": "RB",
+      "team": "BUF",
+      "projectedPoints": 239.2,
+      "valueOverReplacement": 82.2,
+      "ceilingScore": 10,
+      "floorScore": 7.4,
+      "uncertaintyScore": 3.2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -821,7 +821,7 @@
       "valueOverReplacement": 49.1,
       "ceilingScore": 7.4,
       "floorScore": 5.5,
-      "uncertaintyScore": 3,
+      "uncertaintyScore": 3.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -836,7 +836,7 @@
       "ceilingScore": 7.5,
       "floorScore": 5.5,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -849,8 +849,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 5.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.4,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -864,7 +864,7 @@
       "ceilingScore": 6.6,
       "floorScore": 4.9,
       "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -878,7 +878,7 @@
       "ceilingScore": 8.4,
       "floorScore": 6,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -891,8 +891,8 @@
       "valueOverReplacement": 38.7,
       "ceilingScore": 8.2,
       "floorScore": 6.1,
-      "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3,
+      "injuryRiskScore": 4.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -905,7 +905,7 @@
       "valueOverReplacement": 38.2,
       "ceilingScore": 6.8,
       "floorScore": 5.8,
-      "uncertaintyScore": 4,
+      "uncertaintyScore": 4.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -933,8 +933,8 @@
       "valueOverReplacement": 68.6,
       "ceilingScore": 7.8,
       "floorScore": 5.9,
-      "uncertaintyScore": 4.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.2,
+      "injuryRiskScore": 5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -948,7 +948,7 @@
       "ceilingScore": 6.1,
       "floorScore": 3.9,
       "uncertaintyScore": 3.5,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -962,7 +962,21 @@
       "ceilingScore": 6,
       "floorScore": 4.7,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "2449",
+      "name": "Stefon Diggs",
+      "position": "WR",
+      "team": "NE",
+      "projectedPoints": 223.5,
+      "valueOverReplacement": 33.6,
+      "ceilingScore": 6,
+      "floorScore": 4.9,
+      "uncertaintyScore": 4.9,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -976,21 +990,7 @@
       "ceilingScore": 6.5,
       "floorScore": 4.5,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "2449",
-      "name": "Stefon Diggs",
-      "position": "WR",
-      "team": "NE",
-      "projectedPoints": 223.5,
-      "valueOverReplacement": 33.6,
-      "ceilingScore": 6,
-      "floorScore": 4.9,
-      "uncertaintyScore": 5.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1004,7 +1004,7 @@
       "ceilingScore": 6.7,
       "floorScore": 5,
       "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1018,7 +1018,7 @@
       "ceilingScore": 8.2,
       "floorScore": 6.2,
       "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1032,7 +1032,7 @@
       "ceilingScore": 7.3,
       "floorScore": 5.2,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1045,8 +1045,8 @@
       "valueOverReplacement": 29.2,
       "ceilingScore": 4.7,
       "floorScore": 3.6,
-      "uncertaintyScore": 4.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.7,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1060,7 +1060,7 @@
       "ceilingScore": 7,
       "floorScore": 5,
       "uncertaintyScore": 5.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1074,7 +1074,7 @@
       "ceilingScore": 4.6,
       "floorScore": 3.4,
       "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1088,7 +1088,7 @@
       "ceilingScore": 8.3,
       "floorScore": 5.6,
       "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1101,7 +1101,7 @@
       "valueOverReplacement": 24.8,
       "ceilingScore": 7.5,
       "floorScore": 5.5,
-      "uncertaintyScore": 3.8,
+      "uncertaintyScore": 3.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -1116,6 +1116,20 @@
       "ceilingScore": 4.6,
       "floorScore": 3,
       "uncertaintyScore": 4.1,
+      "injuryRiskScore": 4.6,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11557",
+      "name": "Joe Milton",
+      "position": "QB",
+      "team": "DAL",
+      "projectedPoints": 211,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 7.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -1129,8 +1143,8 @@
       "valueOverReplacement": 18.2,
       "ceilingScore": 6,
       "floorScore": 4.6,
-      "uncertaintyScore": 4.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.5,
+      "injuryRiskScore": 3.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1143,8 +1157,8 @@
       "valueOverReplacement": 17.2,
       "ceilingScore": 5.2,
       "floorScore": 3.3,
-      "uncertaintyScore": 4.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.6,
+      "injuryRiskScore": 4.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1158,7 +1172,7 @@
       "ceilingScore": 6.8,
       "floorScore": 5.4,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1186,7 +1200,7 @@
       "ceilingScore": 4.7,
       "floorScore": 3.6,
       "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1214,7 +1228,7 @@
       "ceilingScore": 7.1,
       "floorScore": 5.2,
       "uncertaintyScore": 4.5,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1227,8 +1241,8 @@
       "valueOverReplacement": 43.3,
       "ceilingScore": 8,
       "floorScore": 5.6,
-      "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.1,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1247,20 +1261,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12519",
-      "name": "Luther Burden",
-      "position": "WR",
-      "team": "CHI",
-      "projectedPoints": 196.6,
-      "valueOverReplacement": 6.7,
-      "ceilingScore": 4.3,
-      "floorScore": 3.7,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "7611",
       "name": "Rhamondre Stevenson",
       "position": "RB",
@@ -1270,7 +1270,7 @@
       "ceilingScore": 6,
       "floorScore": 5.1,
       "uncertaintyScore": 3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1284,7 +1284,7 @@
       "ceilingScore": 6.3,
       "floorScore": 5.1,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1312,7 +1312,7 @@
       "ceilingScore": 6.3,
       "floorScore": 4.4,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1325,8 +1325,8 @@
       "valueOverReplacement": 34.1,
       "ceilingScore": 6.5,
       "floorScore": 5.1,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 3.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1354,21 +1354,7 @@
       "ceilingScore": 6.8,
       "floorScore": 5.2,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "8205",
-      "name": "Isiah Pacheco",
-      "position": "RB",
-      "team": "KC",
-      "projectedPoints": 189.9,
-      "valueOverReplacement": 33,
-      "ceilingScore": 5.3,
-      "floorScore": 3.4,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1387,6 +1373,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "8205",
+      "name": "Isiah Pacheco",
+      "position": "RB",
+      "team": "KC",
+      "projectedPoints": 189.9,
+      "valueOverReplacement": 33,
+      "ceilingScore": 5.3,
+      "floorScore": 3.4,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 5,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12529",
       "name": "TreVeyon Henderson",
       "position": "RB",
@@ -1395,7 +1395,7 @@
       "valueOverReplacement": 32.4,
       "ceilingScore": 7.9,
       "floorScore": 6.5,
-      "uncertaintyScore": 4.2,
+      "uncertaintyScore": 4.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -1409,8 +1409,8 @@
       "valueOverReplacement": 47.9,
       "ceilingScore": 6.1,
       "floorScore": 4.7,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.1,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1424,7 +1424,7 @@
       "ceilingScore": 7.5,
       "floorScore": 6,
       "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1438,7 +1438,7 @@
       "ceilingScore": 6.5,
       "floorScore": 5,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1448,11 +1448,11 @@
       "position": "TE",
       "team": "PHI",
       "projectedPoints": 185.6,
-      "valueOverReplacement": 44.3,
+      "valueOverReplacement": 44.2,
       "ceilingScore": 6.8,
       "floorScore": 4.8,
-      "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 5.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1465,8 +1465,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.1,
       "floorScore": 2.4,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.9,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1480,7 +1480,7 @@
       "ceilingScore": 3.5,
       "floorScore": 2.6,
       "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1494,7 +1494,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1507,8 +1507,8 @@
       "valueOverReplacement": 27.4,
       "ceilingScore": 6.5,
       "floorScore": 5.5,
-      "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.4,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1521,7 +1521,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 4.3,
+      "uncertaintyScore": 4.2,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -1536,7 +1536,7 @@
       "ceilingScore": 1.6,
       "floorScore": 1,
       "uncertaintyScore": 4.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1550,7 +1550,7 @@
       "ceilingScore": 5.3,
       "floorScore": 3.7,
       "uncertaintyScore": 3.5,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1564,7 +1564,7 @@
       "ceilingScore": 5.1,
       "floorScore": 4.1,
       "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1577,8 +1577,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.3,
       "floorScore": 2.4,
-      "uncertaintyScore": 4.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.9,
+      "injuryRiskScore": 5.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1591,8 +1591,8 @@
       "valueOverReplacement": 16.1,
       "ceilingScore": 6,
       "floorScore": 4.2,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.4,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1606,7 +1606,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1619,8 +1619,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 6.2,
       "floorScore": 4.6,
-      "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.4,
+      "injuryRiskScore": 3.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1633,8 +1633,8 @@
       "valueOverReplacement": 13.8,
       "ceilingScore": 5.9,
       "floorScore": 4.7,
-      "uncertaintyScore": 3.5,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1647,8 +1647,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.1,
       "floorScore": 1.2,
-      "uncertaintyScore": 6.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 6.3,
+      "injuryRiskScore": 4.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1661,8 +1661,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3,
       "floorScore": 2,
-      "uncertaintyScore": 5.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.1,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1676,7 +1676,7 @@
       "ceilingScore": 4.6,
       "floorScore": 3.3,
       "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1689,8 +1689,8 @@
       "valueOverReplacement": 27.2,
       "ceilingScore": 8.9,
       "floorScore": 6.3,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.1,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1717,8 +1717,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5,
       "floorScore": 3.7,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.4,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1732,7 +1732,7 @@
       "ceilingScore": 3.2,
       "floorScore": 2.4,
       "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1745,8 +1745,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5,
       "floorScore": 3.1,
-      "uncertaintyScore": 4.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.7,
+      "injuryRiskScore": 3.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1773,8 +1773,8 @@
       "valueOverReplacement": 8.8,
       "ceilingScore": 6.4,
       "floorScore": 4.6,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.2,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1788,7 +1788,7 @@
       "ceilingScore": 7.1,
       "floorScore": 5.1,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1801,8 +1801,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.1,
       "floorScore": 3.8,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 3.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1829,8 +1829,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.3,
       "floorScore": 3.7,
-      "uncertaintyScore": 5,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.9,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1843,8 +1843,8 @@
       "valueOverReplacement": 19.5,
       "ceilingScore": 6.9,
       "floorScore": 4.9,
-      "uncertaintyScore": 4.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.2,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1857,8 +1857,8 @@
       "valueOverReplacement": 2.9,
       "ceilingScore": 6.1,
       "floorScore": 3.9,
-      "uncertaintyScore": 4.5,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.3,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1871,7 +1871,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.8,
       "floorScore": 3.7,
-      "uncertaintyScore": 4.2,
+      "uncertaintyScore": 4.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -1886,7 +1886,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1899,8 +1899,8 @@
       "valueOverReplacement": 15.6,
       "ceilingScore": 5.8,
       "floorScore": 4.6,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1941,8 +1941,8 @@
       "valueOverReplacement": 14.5,
       "ceilingScore": 3.8,
       "floorScore": 2.8,
-      "uncertaintyScore": 4.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.6,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1969,8 +1969,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.8,
       "floorScore": 2.6,
-      "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.3,
+      "injuryRiskScore": 3.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -1983,8 +1983,8 @@
       "valueOverReplacement": 11.8,
       "ceilingScore": 6.1,
       "floorScore": 4.4,
-      "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.5,
+      "injuryRiskScore": 5.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2011,8 +2011,8 @@
       "valueOverReplacement": 11.2,
       "ceilingScore": 5.9,
       "floorScore": 5.1,
-      "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.5,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2025,8 +2025,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.8,
       "floorScore": 2.1,
-      "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.7,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2039,8 +2039,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3,
       "floorScore": 2.1,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4,
+      "injuryRiskScore": 4.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2059,6 +2059,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "2197",
+      "name": "Brandin Cooks",
+      "position": "WR",
+      "team": "BUF",
+      "projectedPoints": 147.9,
+      "valueOverReplacement": 0,
+      "ceilingScore": 3.3,
+      "floorScore": 2.2,
+      "uncertaintyScore": 4.6,
+      "injuryRiskScore": 5.7,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "11646",
       "name": "Jalen Coker",
       "position": "WR",
@@ -2068,21 +2082,7 @@
       "ceilingScore": 2.1,
       "floorScore": 2.6,
       "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "2197",
-      "name": "Brandin Cooks",
-      "position": "WR",
-      "team": "BUF",
-      "projectedPoints": 147.9,
-      "valueOverReplacement": 0,
-      "ceilingScore": 3.3,
-      "floorScore": 2.2,
-      "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2110,7 +2110,7 @@
       "ceilingScore": 4,
       "floorScore": 2.8,
       "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2123,8 +2123,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.1,
       "floorScore": 3,
-      "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2138,7 +2138,7 @@
       "ceilingScore": 6.9,
       "floorScore": 4.9,
       "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2151,8 +2151,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5,
       "floorScore": 3.9,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.9,
+      "injuryRiskScore": 2.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2165,8 +2165,8 @@
       "valueOverReplacement": 2.3,
       "ceilingScore": 6.3,
       "floorScore": 4.5,
-      "uncertaintyScore": 4.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.3,
+      "injuryRiskScore": 4.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2194,7 +2194,7 @@
       "ceilingScore": 4.8,
       "floorScore": 3.2,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2207,7 +2207,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 2.2,
-      "uncertaintyScore": 4.8,
+      "uncertaintyScore": 4.6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2222,7 +2222,7 @@
       "ceilingScore": 4.5,
       "floorScore": 3.3,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2236,7 +2236,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2263,7 +2263,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 6.2,
       "floorScore": 4.5,
-      "uncertaintyScore": 5.2,
+      "uncertaintyScore": 7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2277,22 +2277,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.7,
       "floorScore": 4.1,
-      "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12474",
-      "name": "Woody Marks",
-      "position": "RB",
-      "team": "HOU",
-      "projectedPoints": 139.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.6,
-      "floorScore": 5,
-      "uncertaintyScore": 5,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.2,
+      "injuryRiskScore": 5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2306,6 +2292,20 @@
       "ceilingScore": 4.2,
       "floorScore": 3.1,
       "uncertaintyScore": 3.5,
+      "injuryRiskScore": 5.1,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12474",
+      "name": "Woody Marks",
+      "position": "RB",
+      "team": "HOU",
+      "projectedPoints": 139.5,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.6,
+      "floorScore": 5,
+      "uncertaintyScore": 5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2325,20 +2325,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "9502",
-      "name": "Tank Dell",
-      "position": "WR",
-      "team": "HOU",
-      "projectedPoints": 139.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 4.9,
-      "floorScore": 3.2,
-      "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "12533",
       "name": "Jacory Croskey-Merritt",
       "position": "RB",
@@ -2347,8 +2333,22 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.8,
       "floorScore": 4.9,
-      "uncertaintyScore": 4.3,
+      "uncertaintyScore": 4.8,
       "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "9502",
+      "name": "Tank Dell",
+      "position": "WR",
+      "team": "HOU",
+      "projectedPoints": 139.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 4.9,
+      "floorScore": 3.2,
+      "uncertaintyScore": 4.4,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2361,7 +2361,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.2,
       "floorScore": 2.9,
-      "uncertaintyScore": 4.3,
+      "uncertaintyScore": 4.2,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2404,7 +2404,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2418,7 +2418,7 @@
       "ceilingScore": 5,
       "floorScore": 3.6,
       "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2437,20 +2437,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12493",
-      "name": "Oronde Gadsden",
-      "position": "TE",
-      "team": "LAC",
-      "projectedPoints": 135.7,
-      "valueOverReplacement": 0,
-      "ceilingScore": 5.7,
-      "floorScore": 4.6,
-      "uncertaintyScore": 5.4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11618",
       "name": "Jalen McMillan",
       "position": "WR",
@@ -2459,8 +2445,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.6,
       "floorScore": 2.1,
-      "uncertaintyScore": 5.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.6,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2473,7 +2459,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.9,
       "floorScore": 2.7,
-      "uncertaintyScore": 4.9,
+      "uncertaintyScore": 4.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2535,6 +2521,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "12493",
+      "name": "Oronde Gadsden",
+      "position": "TE",
+      "team": "LAC",
+      "projectedPoints": 134,
+      "valueOverReplacement": 0,
+      "ceilingScore": 5.7,
+      "floorScore": 4.6,
+      "uncertaintyScore": 6.4,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "2749",
       "name": "Raheem Mostert",
       "position": "RB",
@@ -2544,7 +2544,7 @@
       "ceilingScore": 4.5,
       "floorScore": 3.1,
       "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2557,8 +2557,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.9,
       "floorScore": 4.4,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.6,
+      "injuryRiskScore": 3.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2600,7 +2600,7 @@
       "ceilingScore": 5.3,
       "floorScore": 4.3,
       "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2627,7 +2627,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.5,
       "floorScore": 1.9,
-      "uncertaintyScore": 5.1,
+      "uncertaintyScore": 5.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2656,7 +2656,7 @@
       "ceilingScore": 2.4,
       "floorScore": 2.1,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2669,8 +2669,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.9,
       "floorScore": 1.8,
-      "uncertaintyScore": 4.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 6,
+      "injuryRiskScore": 5.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2683,7 +2683,21 @@
       "valueOverReplacement": 0,
       "ceilingScore": 7.5,
       "floorScore": 5.3,
-      "uncertaintyScore": 4.4,
+      "uncertaintyScore": 4.3,
+      "injuryRiskScore": 5.9,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12519",
+      "name": "Luther Burden",
+      "position": "WR",
+      "team": "CHI",
+      "projectedPoints": 124.9,
+      "valueOverReplacement": 0,
+      "ceilingScore": 4.3,
+      "floorScore": 3.7,
+      "uncertaintyScore": 4.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2697,8 +2711,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.2,
       "floorScore": 2.2,
-      "uncertaintyScore": 4.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.5,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2726,7 +2740,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2739,7 +2753,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.2,
       "floorScore": 4,
-      "uncertaintyScore": 3.6,
+      "uncertaintyScore": 3.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2753,7 +2767,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.2,
-      "uncertaintyScore": 6,
+      "uncertaintyScore": 5.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2810,7 +2824,7 @@
       "ceilingScore": 4.9,
       "floorScore": 3.4,
       "uncertaintyScore": 4.5,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2837,7 +2851,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.3,
       "floorScore": 3.9,
-      "uncertaintyScore": 5.1,
+      "uncertaintyScore": 5.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2851,8 +2865,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.1,
       "floorScore": 2.5,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 3.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2865,8 +2879,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.7,
       "floorScore": 1.7,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2880,7 +2894,7 @@
       "ceilingScore": 2.7,
       "floorScore": 1.8,
       "uncertaintyScore": 5.5,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2894,7 +2908,7 @@
       "ceilingScore": 2,
       "floorScore": 1.7,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2907,8 +2921,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 1.9,
-      "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.9,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2921,8 +2935,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.9,
       "floorScore": 3.5,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.9,
+      "injuryRiskScore": 4.4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2935,7 +2949,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 6.8,
       "floorScore": 5,
-      "uncertaintyScore": 5.8,
+      "uncertaintyScore": 6.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -2963,8 +2977,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5,
       "floorScore": 4.4,
-      "uncertaintyScore": 4.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.7,
+      "injuryRiskScore": 2.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -2991,7 +3005,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.9,
       "floorScore": 3.6,
-      "uncertaintyScore": 4.8,
+      "uncertaintyScore": 5.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3019,8 +3033,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.7,
       "floorScore": 1.9,
-      "uncertaintyScore": 5.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.6,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3034,7 +3048,7 @@
       "ceilingScore": 1.9,
       "floorScore": 1.2,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3062,7 +3076,7 @@
       "ceilingScore": 1.6,
       "floorScore": 1.4,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3075,7 +3089,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.3,
       "floorScore": 2.2,
-      "uncertaintyScore": 5,
+      "uncertaintyScore": 4.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3089,7 +3103,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.9,
       "floorScore": 3.6,
-      "uncertaintyScore": 4.3,
+      "uncertaintyScore": 4.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3104,7 +3118,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3117,8 +3131,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 1.9,
-      "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.9,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3145,7 +3159,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.3,
       "floorScore": 3.2,
-      "uncertaintyScore": 4.5,
+      "uncertaintyScore": 4.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3187,8 +3201,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.9,
       "floorScore": 3.7,
-      "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.3,
+      "injuryRiskScore": 5.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3216,7 +3230,7 @@
       "ceilingScore": 4.4,
       "floorScore": 3.3,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3230,7 +3244,7 @@
       "ceilingScore": 3.4,
       "floorScore": 2,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3243,7 +3257,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.5,
-      "uncertaintyScore": 5.5,
+      "uncertaintyScore": 5.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3257,7 +3271,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 3.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3271,7 +3285,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.5,
       "floorScore": 3.2,
-      "uncertaintyScore": 4,
+      "uncertaintyScore": 3.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3299,7 +3313,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.3,
       "floorScore": 1.1,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 6.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3313,7 +3327,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.2,
       "floorScore": 2.2,
-      "uncertaintyScore": 6.1,
+      "uncertaintyScore": 5.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3327,8 +3341,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.1,
       "floorScore": 1.9,
-      "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.1,
+      "injuryRiskScore": 4.1,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3341,7 +3355,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.6,
       "floorScore": 2.8,
-      "uncertaintyScore": 5.9,
+      "uncertaintyScore": 6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3355,8 +3369,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.6,
       "floorScore": 3.4,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.6,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3369,8 +3383,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 6,
       "floorScore": 4.5,
-      "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.1,
+      "injuryRiskScore": 4.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3383,7 +3397,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 4.2,
+      "uncertaintyScore": 4.4,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3411,8 +3425,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.7,
       "floorScore": 1.6,
-      "uncertaintyScore": 7.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 7.5,
+      "injuryRiskScore": 5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3426,6 +3440,20 @@
       "ceilingScore": 1.2,
       "floorScore": 1.4,
       "uncertaintyScore": 2.8,
+      "injuryRiskScore": 5.6,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "8180",
+      "name": "Jalen Nailor",
+      "position": "WR",
+      "team": "MIN",
+      "projectedPoints": 95.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 2,
+      "floorScore": 1.6,
+      "uncertaintyScore": 5.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3445,20 +3473,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "8180",
-      "name": "Jalen Nailor",
-      "position": "WR",
-      "team": "MIN",
-      "projectedPoints": 95.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 2,
-      "floorScore": 1.6,
-      "uncertaintyScore": 5.9,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "10219",
       "name": "Chris Rodriguez",
       "position": "RB",
@@ -3467,7 +3481,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.2,
       "floorScore": 2.1,
-      "uncertaintyScore": 4.7,
+      "uncertaintyScore": 4.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3482,7 +3496,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3495,7 +3509,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.1,
       "floorScore": 1.2,
-      "uncertaintyScore": 2.7,
+      "uncertaintyScore": 7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3510,7 +3524,7 @@
       "ceilingScore": 2.6,
       "floorScore": 2.4,
       "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3537,8 +3551,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.2,
-      "uncertaintyScore": 4.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.1,
+      "injuryRiskScore": 3.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3551,7 +3565,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.7,
       "floorScore": 2.7,
-      "uncertaintyScore": 3.8,
+      "uncertaintyScore": 4.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3566,7 +3580,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.3,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3579,8 +3593,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 1.6,
-      "uncertaintyScore": 5.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.4,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3621,8 +3635,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.1,
       "floorScore": 2.8,
-      "uncertaintyScore": 4.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.4,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3649,7 +3663,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.2,
       "floorScore": 1.4,
-      "uncertaintyScore": 6.1,
+      "uncertaintyScore": 6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3678,7 +3692,7 @@
       "ceilingScore": 1.5,
       "floorScore": 1.7,
       "uncertaintyScore": 2.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3691,8 +3705,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.2,
       "floorScore": 2.1,
-      "uncertaintyScore": 4.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3719,8 +3733,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.1,
       "floorScore": 3,
-      "uncertaintyScore": 4.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.6,
+      "injuryRiskScore": 3.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3733,8 +3747,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.7,
       "floorScore": 2.4,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.5,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3748,7 +3762,7 @@
       "ceilingScore": 2.8,
       "floorScore": 2.2,
       "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3762,7 +3776,7 @@
       "ceilingScore": 2.5,
       "floorScore": 1.9,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3790,7 +3804,7 @@
       "ceilingScore": 2,
       "floorScore": 1.9,
       "uncertaintyScore": 2.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3804,7 +3818,7 @@
       "ceilingScore": 2,
       "floorScore": 1.6,
       "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3817,8 +3831,22 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 1.6,
-      "uncertaintyScore": 4.5,
+      "uncertaintyScore": 4.2,
       "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "2359",
+      "name": "Ameer Abdullah",
+      "position": "RB",
+      "team": "IND",
+      "projectedPoints": 82.8,
+      "valueOverReplacement": 0,
+      "ceilingScore": 3,
+      "floorScore": 2.3,
+      "uncertaintyScore": 3,
+      "injuryRiskScore": 3.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3837,20 +3865,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "2359",
-      "name": "Ameer Abdullah",
-      "position": "RB",
-      "team": "IND",
-      "projectedPoints": 82.8,
-      "valueOverReplacement": 0,
-      "ceilingScore": 3,
-      "floorScore": 2.3,
-      "uncertaintyScore": 3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11597",
       "name": "Theo Johnson",
       "position": "TE",
@@ -3859,8 +3873,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.2,
       "floorScore": 3.6,
-      "uncertaintyScore": 5.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.8,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -3873,21 +3887,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.2,
       "floorScore": 2.5,
-      "uncertaintyScore": 4.4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "5938",
-      "name": "Lil'Jordan Humphrey",
-      "position": "WR",
-      "team": "DEN",
-      "projectedPoints": 82.1,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1.3,
-      "uncertaintyScore": 2.6,
+      "uncertaintyScore": 4.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3901,7 +3901,21 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.9,
       "floorScore": 2.8,
-      "uncertaintyScore": 4.6,
+      "uncertaintyScore": 4.5,
+      "injuryRiskScore": 3.6,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "5938",
+      "name": "Lil'Jordan Humphrey",
+      "position": "WR",
+      "team": "DEN",
+      "projectedPoints": 82.1,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1.3,
+      "uncertaintyScore": 2.6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3935,20 +3949,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11474",
-      "name": "Dylan Drummond",
-      "position": "WR",
-      "team": "ATL",
-      "projectedPoints": 80.8,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 2.5,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "7529",
       "name": "Gary Brightwell",
       "position": "RB",
@@ -3963,6 +3963,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "11474",
+      "name": "Dylan Drummond",
+      "position": "WR",
+      "team": "ATL",
+      "projectedPoints": 80.8,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 2.5,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12535",
       "name": "Isaac TeSlaa",
       "position": "WR",
@@ -3971,7 +3985,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.2,
       "floorScore": 2.4,
-      "uncertaintyScore": 5,
+      "uncertaintyScore": 4.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -3985,7 +3999,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.1,
-      "uncertaintyScore": 5.4,
+      "uncertaintyScore": 5.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4000,7 +4014,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 5.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4027,8 +4041,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.9,
       "floorScore": 3.1,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4,
+      "injuryRiskScore": 5.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4041,8 +4055,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.2,
       "floorScore": 3.1,
-      "uncertaintyScore": 3.6,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 3.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4056,7 +4070,7 @@
       "ceilingScore": 2.6,
       "floorScore": 1.8,
       "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4084,7 +4098,7 @@
       "ceilingScore": 1.4,
       "floorScore": 1,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4097,8 +4111,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.6,
       "floorScore": 1.9,
-      "uncertaintyScore": 5.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.8,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4145,20 +4159,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "7593",
-      "name": "Trey Sermon",
-      "position": "RB",
-      "team": "PIT",
-      "projectedPoints": 73.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1.3,
-      "floorScore": 1.4,
-      "uncertaintyScore": 2.8,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "8423",
       "name": "Brittain Brown",
       "position": "RB",
@@ -4173,15 +4173,15 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11821",
-      "name": "Tahj Washington",
-      "position": "WR",
-      "team": "MIA",
-      "projectedPoints": 72.5,
+      "playerId": "7593",
+      "name": "Trey Sermon",
+      "position": "RB",
+      "team": "PIT",
+      "projectedPoints": 73.3,
       "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 3.7,
+      "ceilingScore": 1.3,
+      "floorScore": 1.4,
+      "uncertaintyScore": 2.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4196,6 +4196,20 @@
       "ceilingScore": 4,
       "floorScore": 3.7,
       "uncertaintyScore": 5.8,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11821",
+      "name": "Tahj Washington",
+      "position": "WR",
+      "team": "MIA",
+      "projectedPoints": 72.5,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4252,7 +4266,7 @@
       "ceilingScore": 3.3,
       "floorScore": 2.6,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4280,7 +4294,7 @@
       "ceilingScore": 3.2,
       "floorScore": 3.1,
       "uncertaintyScore": 2.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4307,8 +4321,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.7,
       "floorScore": 2.8,
-      "uncertaintyScore": 5.5,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.6,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4355,20 +4369,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11568",
-      "name": "Blake Watson",
-      "position": "RB",
-      "team": "TEN",
-      "projectedPoints": 69,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1.1,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11592",
       "name": "Erick All",
       "position": "TE",
@@ -4378,6 +4378,20 @@
       "ceilingScore": 2.9,
       "floorScore": 2.4,
       "uncertaintyScore": 4.1,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11568",
+      "name": "Blake Watson",
+      "position": "RB",
+      "team": "TEN",
+      "projectedPoints": 69,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1.1,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4397,20 +4411,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11637",
-      "name": "Keon Coleman",
-      "position": "WR",
-      "team": "BUF",
-      "projectedPoints": 67.6,
-      "valueOverReplacement": 0,
-      "ceilingScore": 3.8,
-      "floorScore": 3,
-      "uncertaintyScore": 5.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "5880",
       "name": "Parris Campbell",
       "position": "WR",
@@ -4425,6 +4425,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "11637",
+      "name": "Keon Coleman",
+      "position": "WR",
+      "team": "BUF",
+      "projectedPoints": 67.6,
+      "valueOverReplacement": 0,
+      "ceilingScore": 3.8,
+      "floorScore": 3,
+      "uncertaintyScore": 5.4,
+      "injuryRiskScore": 4.2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12499",
       "name": "Elic Ayomanor",
       "position": "WR",
@@ -4433,7 +4447,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.6,
       "floorScore": 3.4,
-      "uncertaintyScore": 6,
+      "uncertaintyScore": 5.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4475,7 +4489,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.7,
       "floorScore": 1.6,
-      "uncertaintyScore": 3.9,
+      "uncertaintyScore": 4.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4490,20 +4504,20 @@
       "ceilingScore": 3.4,
       "floorScore": 2.7,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "7694",
-      "name": "Tommy Tremble",
-      "position": "TE",
-      "team": "CAR",
+      "playerId": "5000",
+      "name": "Chase Edmonds",
+      "position": "RB",
+      "team": "WAS",
       "projectedPoints": 64.3,
       "valueOverReplacement": 0,
-      "ceilingScore": 2.7,
-      "floorScore": 2.9,
-      "uncertaintyScore": 2.6,
+      "ceilingScore": 1,
+      "floorScore": 1.2,
+      "uncertaintyScore": 2.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4523,15 +4537,29 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "5000",
-      "name": "Chase Edmonds",
-      "position": "RB",
-      "team": "WAS",
+      "playerId": "7694",
+      "name": "Tommy Tremble",
+      "position": "TE",
+      "team": "CAR",
       "projectedPoints": 64.3,
       "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1.2,
-      "uncertaintyScore": 2.9,
+      "ceilingScore": 2.7,
+      "floorScore": 2.9,
+      "uncertaintyScore": 2.6,
+      "injuryRiskScore": 2.9,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12495",
+      "name": "Ollie Gordon",
+      "position": "RB",
+      "team": "MIA",
+      "projectedPoints": 63.6,
+      "valueOverReplacement": 0,
+      "ceilingScore": 3.5,
+      "floorScore": 2.7,
+      "uncertaintyScore": 5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4545,8 +4573,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.6,
       "floorScore": 2,
-      "uncertaintyScore": 5.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 7.3,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4573,8 +4601,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.6,
       "floorScore": 2.4,
-      "uncertaintyScore": 4.1,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.3,
+      "injuryRiskScore": 2.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4607,20 +4635,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "8089",
-      "name": "Sal Cannella",
-      "position": "TE",
-      "team": "CLE",
-      "projectedPoints": 62.2,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1.4,
-      "uncertaintyScore": 2.5,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "7561",
       "name": "Elijah Mitchell",
       "position": "RB",
@@ -4635,6 +4649,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "8089",
+      "name": "Sal Cannella",
+      "position": "TE",
+      "team": "CLE",
+      "projectedPoints": 62.2,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1.4,
+      "uncertaintyScore": 2.5,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12492",
       "name": "Pat Bryant",
       "position": "WR",
@@ -4643,7 +4671,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.2,
       "floorScore": 2.3,
-      "uncertaintyScore": 5,
+      "uncertaintyScore": 4.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4671,8 +4699,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.2,
       "floorScore": 1.3,
-      "uncertaintyScore": 4.4,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.2,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4685,7 +4713,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 5.9,
+      "uncertaintyScore": 5.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4741,8 +4769,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.9,
       "floorScore": 2.9,
-      "uncertaintyScore": 4.7,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 5.2,
+      "injuryRiskScore": 2.7,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4798,7 +4826,7 @@
       "ceilingScore": 2.3,
       "floorScore": 1.9,
       "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -4853,7 +4881,21 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 2.5,
-      "uncertaintyScore": 5.2,
+      "uncertaintyScore": 5.1,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12455",
+      "name": "Brashard Smith",
+      "position": "RB",
+      "team": "KC",
+      "projectedPoints": 57.8,
+      "valueOverReplacement": 0,
+      "ceilingScore": 3.8,
+      "floorScore": 2.9,
+      "uncertaintyScore": 4.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -4868,20 +4910,6 @@
       "ceilingScore": 1.4,
       "floorScore": 1.4,
       "uncertaintyScore": 2.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12455",
-      "name": "Brashard Smith",
-      "position": "RB",
-      "team": "KC",
-      "projectedPoints": 57.8,
-      "valueOverReplacement": 0,
-      "ceilingScore": 3.8,
-      "floorScore": 2.9,
-      "uncertaintyScore": 4.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5021,7 +5049,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.6,
       "floorScore": 2.2,
-      "uncertaintyScore": 4.9,
+      "uncertaintyScore": 5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5063,7 +5091,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.1,
       "floorScore": 1.9,
-      "uncertaintyScore": 5.2,
+      "uncertaintyScore": 5.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5077,7 +5105,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.5,
       "floorScore": 2.1,
-      "uncertaintyScore": 4.8,
+      "uncertaintyScore": 5.2,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5092,7 +5120,7 @@
       "ceilingScore": 3.4,
       "floorScore": 2.8,
       "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 4.2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -5106,7 +5134,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -5119,8 +5147,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 5.7,
       "floorScore": 4.2,
-      "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.2,
+      "injuryRiskScore": 2.8,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -5245,8 +5273,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3.1,
       "floorScore": 2,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.8,
+      "injuryRiskScore": 4.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -5321,6 +5349,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "12542",
+      "name": "Efton Chism",
+      "position": "WR",
+      "team": "NE",
+      "projectedPoints": 48.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "7106",
       "name": "Lawrence Cager",
       "position": "TE",
@@ -5349,20 +5391,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "10867",
-      "name": "Jake Bobo",
-      "position": "WR",
-      "team": "SEA",
-      "projectedPoints": 47.2,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 2.8,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11643",
       "name": "Jaylen Wright",
       "position": "RB",
@@ -5377,6 +5405,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "10867",
+      "name": "Jake Bobo",
+      "position": "WR",
+      "team": "SEA",
+      "projectedPoints": 47.2,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 2.8,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "9481",
       "name": "Luke Musgrave",
       "position": "TE",
@@ -5385,8 +5427,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 3,
       "floorScore": 2.3,
-      "uncertaintyScore": 3.5,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 4.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -5483,8 +5525,8 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.3,
       "floorScore": 3,
-      "uncertaintyScore": 4.3,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 4.2,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -5525,7 +5567,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.9,
       "floorScore": 2.7,
-      "uncertaintyScore": 3.3,
+      "uncertaintyScore": 4.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5539,7 +5581,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 4.2,
+      "uncertaintyScore": 5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5587,20 +5629,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "7716",
-      "name": "John Bates",
-      "position": "TE",
-      "team": "WAS",
-      "projectedPoints": 42.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1.9,
-      "floorScore": 2,
-      "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "10214",
       "name": "Davis Allen",
       "position": "TE",
@@ -5610,6 +5638,20 @@
       "ceilingScore": 2.6,
       "floorScore": 2.1,
       "uncertaintyScore": 2.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "7716",
+      "name": "John Bates",
+      "position": "TE",
+      "team": "WAS",
+      "projectedPoints": 42.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1.9,
+      "floorScore": 2,
+      "uncertaintyScore": 5.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5671,20 +5713,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "8145",
-      "name": "Jeremy Ruckert",
-      "position": "TE",
-      "team": "NYJ",
-      "projectedPoints": 40.7,
-      "valueOverReplacement": 0,
-      "ceilingScore": 2.1,
-      "floorScore": 2.3,
-      "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11257",
       "name": "Shedrick Jackson",
       "position": "WR",
@@ -5694,6 +5722,20 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.1,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "8145",
+      "name": "Jeremy Ruckert",
+      "position": "TE",
+      "team": "NYJ",
+      "projectedPoints": 40.7,
+      "valueOverReplacement": 0,
+      "ceilingScore": 2.1,
+      "floorScore": 2.3,
+      "uncertaintyScore": 2.6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5735,7 +5777,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.3,
       "floorScore": 1.3,
-      "uncertaintyScore": 3.9,
+      "uncertaintyScore": 7.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5819,7 +5861,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 4.5,
       "floorScore": 3.2,
-      "uncertaintyScore": 5.5,
+      "uncertaintyScore": 5.4,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5839,20 +5881,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12505",
-      "name": "Jalen Royals",
-      "position": "WR",
-      "team": "KC",
-      "projectedPoints": 35.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 5.4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "12471",
       "name": "DJ Giddens",
       "position": "RB",
@@ -5862,6 +5890,20 @@
       "ceilingScore": 1.4,
       "floorScore": 1.6,
       "uncertaintyScore": 5.2,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12505",
+      "name": "Jalen Royals",
+      "position": "WR",
+      "team": "KC",
+      "projectedPoints": 35.5,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 5.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5903,7 +5945,21 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.2,
       "floorScore": 1.3,
-      "uncertaintyScore": 6.1,
+      "uncertaintyScore": 6,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11629",
+      "name": "Devontez Walker",
+      "position": "WR",
+      "team": "BAL",
+      "projectedPoints": 34.2,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5918,20 +5974,6 @@
       "ceilingScore": 2.1,
       "floorScore": 2.5,
       "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "11629",
-      "name": "Devontez Walker",
-      "position": "WR",
-      "team": "BAL",
-      "projectedPoints": 34.2,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 4.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -5959,7 +6001,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.9,
       "floorScore": 2,
-      "uncertaintyScore": 5.4,
+      "uncertaintyScore": 5.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6105,6 +6147,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "8177",
+      "name": "Grant Calcaterra",
+      "position": "TE",
+      "team": "PHI",
+      "projectedPoints": 31.6,
+      "valueOverReplacement": 0,
+      "ceilingScore": 2.8,
+      "floorScore": 2.1,
+      "uncertaintyScore": 2.6,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "8885",
       "name": "Tucker Fisk",
       "position": "TE",
@@ -6127,20 +6183,6 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.1,
-      "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "8177",
-      "name": "Grant Calcaterra",
-      "position": "TE",
-      "team": "PHI",
-      "projectedPoints": 31.6,
-      "valueOverReplacement": 0,
-      "ceilingScore": 2.8,
-      "floorScore": 2.1,
       "uncertaintyScore": 2.6,
       "injuryRiskScore": 2,
       "source": "model",
@@ -6183,35 +6225,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.6,
       "floorScore": 1.8,
-      "uncertaintyScore": 4.9,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12495",
-      "name": "Ollie Gordon",
-      "position": "RB",
-      "team": "MIA",
-      "projectedPoints": 30.6,
-      "valueOverReplacement": 0,
-      "ceilingScore": 3.5,
-      "floorScore": 2.7,
-      "uncertaintyScore": 4.9,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12658",
-      "name": "Jackson Hawes",
-      "position": "TE",
-      "team": "BUF",
-      "projectedPoints": 30.4,
-      "valueOverReplacement": 0,
-      "ceilingScore": 3.3,
-      "floorScore": 2.6,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 5.2,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6231,15 +6245,15 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12485",
-      "name": "Tez Johnson",
-      "position": "WR",
-      "team": "TB",
-      "projectedPoints": 30.3,
+      "playerId": "12658",
+      "name": "Jackson Hawes",
+      "position": "TE",
+      "team": "BUF",
+      "projectedPoints": 30.4,
       "valueOverReplacement": 0,
-      "ceilingScore": 3.2,
-      "floorScore": 2.8,
-      "uncertaintyScore": 5.3,
+      "ceilingScore": 3.3,
+      "floorScore": 2.6,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6254,6 +6268,20 @@
       "ceilingScore": 2.7,
       "floorScore": 2.2,
       "uncertaintyScore": 4.1,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12485",
+      "name": "Tez Johnson",
+      "position": "WR",
+      "team": "TB",
+      "projectedPoints": 30.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 3.2,
+      "floorScore": 2.8,
+      "uncertaintyScore": 5.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6301,20 +6329,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12851",
-      "name": "Rivaldo Fairweather",
-      "position": "TE",
-      "team": "ARI",
-      "projectedPoints": 28.9,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.2,
-      "floorScore": 5,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "12062",
       "name": "Cam Grandy",
       "position": "TE",
@@ -6324,6 +6338,20 @@
       "ceilingScore": 1.6,
       "floorScore": 1.5,
       "uncertaintyScore": 3.8,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12851",
+      "name": "Rivaldo Fairweather",
+      "position": "TE",
+      "team": "ARI",
+      "projectedPoints": 28.9,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.2,
+      "floorScore": 5,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6379,7 +6407,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.8,
       "floorScore": 1.6,
-      "uncertaintyScore": 5.3,
+      "uncertaintyScore": 4.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6399,20 +6427,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "6130",
-      "name": "Devin Singletary",
-      "position": "RB",
-      "team": "NYG",
-      "projectedPoints": 27.2,
-      "valueOverReplacement": 0,
-      "ceilingScore": 4.5,
-      "floorScore": 3.9,
-      "uncertaintyScore": 4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "4219",
       "name": "Jeremy McNichols",
       "position": "RB",
@@ -6423,6 +6437,20 @@
       "floorScore": 1.8,
       "uncertaintyScore": 2.9,
       "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "6130",
+      "name": "Devin Singletary",
+      "position": "RB",
+      "team": "NYG",
+      "projectedPoints": 27.2,
+      "valueOverReplacement": 0,
+      "ceilingScore": 4.5,
+      "floorScore": 3.9,
+      "uncertaintyScore": 4,
+      "injuryRiskScore": 2.5,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -6539,6 +6567,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "8214",
+      "name": "Cole Turner",
+      "position": "TE",
+      "team": "MIA",
+      "projectedPoints": 24.5,
+      "valueOverReplacement": 0,
+      "ceilingScore": 2.8,
+      "floorScore": 2.2,
+      "uncertaintyScore": 2.5,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12656",
       "name": "Robbie Ouzts",
       "position": "RB",
@@ -6567,20 +6609,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "8214",
-      "name": "Cole Turner",
-      "position": "TE",
-      "team": "MIA",
-      "projectedPoints": 24.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 2.8,
-      "floorScore": 2.2,
-      "uncertaintyScore": 2.5,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11942",
       "name": "Colson Yankoff",
       "position": "TE",
@@ -6603,21 +6631,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 2.4,
       "floorScore": 1.9,
-      "uncertaintyScore": 5.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12045",
-      "name": "Jack Westover",
-      "position": "TE",
-      "team": "NE",
-      "projectedPoints": 23.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1.3,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 5.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6637,6 +6651,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "12045",
+      "name": "Jack Westover",
+      "position": "TE",
+      "team": "NE",
+      "projectedPoints": 23.5,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1.3,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "11569",
       "name": "Jarquez Hunter",
       "position": "RB",
@@ -6645,7 +6673,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 6.5,
       "floorScore": 5,
-      "uncertaintyScore": 5.2,
+      "uncertaintyScore": 4.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6721,20 +6749,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12829",
-      "name": "Coleman Owen",
-      "position": "WR",
-      "team": "IND",
-      "projectedPoints": 22.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "5781",
       "name": "Malik Turner",
       "position": "WR",
@@ -6744,6 +6758,20 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 2.5,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12829",
+      "name": "Coleman Owen",
+      "position": "WR",
+      "team": "IND",
+      "projectedPoints": 22.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6785,7 +6813,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.7,
-      "uncertaintyScore": 5.2,
+      "uncertaintyScore": 5.3,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6847,20 +6875,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11068",
-      "name": "Mitch Tinsley",
-      "position": "WR",
-      "team": "CIN",
-      "projectedPoints": 19.1,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1.3,
-      "floorScore": 1.3,
-      "uncertaintyScore": 2.5,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11168",
       "name": "Xavier Smith",
       "position": "WR",
@@ -6884,6 +6898,20 @@
       "ceilingScore": 3.5,
       "floorScore": 2.7,
       "uncertaintyScore": 2.7,
+      "injuryRiskScore": 4.1,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11068",
+      "name": "Mitch Tinsley",
+      "position": "WR",
+      "team": "CIN",
+      "projectedPoints": 19.1,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1.3,
+      "floorScore": 1.3,
+      "uncertaintyScore": 2.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6939,7 +6967,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.6,
       "floorScore": 1.5,
-      "uncertaintyScore": 4.9,
+      "uncertaintyScore": 4.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -6968,7 +6996,7 @@
       "ceilingScore": 3.1,
       "floorScore": 1.9,
       "uncertaintyScore": 5.8,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -6981,7 +7009,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.7,
-      "uncertaintyScore": 4.5,
+      "uncertaintyScore": 4.4,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7015,20 +7043,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11557",
-      "name": "Joe Milton",
-      "position": "QB",
-      "team": "DAL",
-      "projectedPoints": 12.2,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 7.3,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "7842",
       "name": "Luke Farrell",
       "position": "TE",
@@ -7057,20 +7071,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "2307",
-      "name": "Marcus Mariota",
-      "position": "QB",
-      "team": "WAS",
-      "projectedPoints": 11.8,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 4.5,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "7757",
       "name": "Ben Skowronek",
       "position": "WR",
@@ -7081,6 +7081,20 @@
       "floorScore": 1,
       "uncertaintyScore": 2.5,
       "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "2307",
+      "name": "Marcus Mariota",
+      "position": "QB",
+      "team": "WAS",
+      "projectedPoints": 11.8,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 4.6,
+      "injuryRiskScore": 4,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7108,7 +7122,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 4.2,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 3.3,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7149,21 +7163,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.5,
       "floorScore": 1.8,
-      "uncertaintyScore": 5.2,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "7585",
-      "name": "Davis Mills",
-      "position": "QB",
-      "team": "HOU",
-      "projectedPoints": 10.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 3.3,
+      "uncertaintyScore": 5.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7183,30 +7183,16 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "10857",
-      "name": "Stetson Bennett",
+      "playerId": "7585",
+      "name": "Davis Mills",
       "position": "QB",
-      "team": "LAR",
+      "team": "HOU",
       "projectedPoints": 10.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.5,
-      "floorScore": 5,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "11292",
-      "name": "Tommy DeVito",
-      "position": "QB",
-      "team": "NE",
-      "projectedPoints": 10.4,
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 2.9,
-      "injuryRiskScore": 2,
+      "uncertaintyScore": 3.3,
+      "injuryRiskScore": 3.6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7221,6 +7207,20 @@
       "floorScore": 2.3,
       "uncertaintyScore": 2.5,
       "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11292",
+      "name": "Tommy DeVito",
+      "position": "QB",
+      "team": "NE",
+      "projectedPoints": 10.4,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 2.9,
+      "injuryRiskScore": 5.9,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7247,21 +7247,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 3.4,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "7527",
-      "name": "Mac Jones",
-      "position": "QB",
-      "team": "SF",
-      "projectedPoints": 10.2,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 3.9,
+      "uncertaintyScore": 4.4,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7277,6 +7263,20 @@
       "floorScore": 1,
       "uncertaintyScore": 3.9,
       "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "7527",
+      "name": "Mac Jones",
+      "position": "QB",
+      "team": "SF",
+      "projectedPoints": 10.2,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 4.5,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7303,21 +7303,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "11608",
-      "name": "Isaiah Williams",
-      "position": "WR",
-      "team": "NYJ",
-      "projectedPoints": 9.9,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 4.1,
+      "uncertaintyScore": 5.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7337,29 +7323,15 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "4464",
-      "name": "Nick Mullens",
-      "position": "QB",
-      "team": "JAX",
-      "projectedPoints": 9.7,
+      "playerId": "11608",
+      "name": "Isaiah Williams",
+      "position": "WR",
+      "team": "NYJ",
+      "projectedPoints": 9.9,
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12898",
-      "name": "Seth Henigan",
-      "position": "QB",
-      "team": "IND",
-      "projectedPoints": 9.7,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.3,
-      "floorScore": 5,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 4.1,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7379,6 +7351,34 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "12898",
+      "name": "Seth Henigan",
+      "position": "QB",
+      "team": "IND",
+      "projectedPoints": 9.7,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.3,
+      "floorScore": 5,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "4464",
+      "name": "Nick Mullens",
+      "position": "QB",
+      "team": "JAX",
+      "projectedPoints": 9.7,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 3.8,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12511",
       "name": "Will Howard",
       "position": "QB",
@@ -7388,20 +7388,6 @@
       "ceilingScore": 6.1,
       "floorScore": 5,
       "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "4274",
-      "name": "David Moore",
-      "position": "WR",
-      "team": "CAR",
-      "projectedPoints": 9.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 2.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7421,16 +7407,16 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "8219",
-      "name": "Jelani Woods",
-      "position": "TE",
-      "team": "NYJ",
-      "projectedPoints": 9.2,
+      "playerId": "4274",
+      "name": "David Moore",
+      "position": "WR",
+      "team": "CAR",
+      "projectedPoints": 9.3,
       "valueOverReplacement": 0,
       "ceilingScore": 1,
-      "floorScore": 1.4,
-      "uncertaintyScore": 2.5,
-      "injuryRiskScore": 2,
+      "floorScore": 1,
+      "uncertaintyScore": 2.9,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7443,7 +7429,21 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 4.4,
+      "uncertaintyScore": 4.1,
+      "injuryRiskScore": 6,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "8219",
+      "name": "Jelani Woods",
+      "position": "TE",
+      "team": "NYJ",
+      "projectedPoints": 9.2,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1.4,
+      "uncertaintyScore": 2.5,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7500,7 +7500,7 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.1,
-      "injuryRiskScore": 2,
+      "injuryRiskScore": 6,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
     },
@@ -7513,7 +7513,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 4.6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7541,21 +7541,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1,
-      "uncertaintyScore": 6.2,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12826",
-      "name": "Ulysses Bentley",
-      "position": "RB",
-      "team": "IND",
-      "projectedPoints": 8.5,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1.1,
-      "floorScore": 1.4,
-      "uncertaintyScore": 3.7,
+      "uncertaintyScore": 8.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7570,6 +7556,20 @@
       "ceilingScore": 1.5,
       "floorScore": 1.2,
       "uncertaintyScore": 2.8,
+      "injuryRiskScore": 2.5,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12826",
+      "name": "Ulysses Bentley",
+      "position": "RB",
+      "team": "IND",
+      "projectedPoints": 8.5,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1.1,
+      "floorScore": 1.4,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7589,34 +7589,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "13150",
-      "name": "Darius Cooper",
-      "position": "WR",
-      "team": "PHI",
-      "projectedPoints": 8.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "4995",
-      "name": "Ian Thomas",
-      "position": "TE",
-      "team": "LV",
-      "projectedPoints": 8.3,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1.2,
-      "floorScore": 1.7,
-      "uncertaintyScore": 2.6,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "10225",
       "name": "Jonathan Mingo",
       "position": "WR",
@@ -7626,6 +7598,20 @@
       "ceilingScore": 1.1,
       "floorScore": 1,
       "uncertaintyScore": 2.9,
+      "injuryRiskScore": 2.8,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "13150",
+      "name": "Darius Cooper",
+      "position": "WR",
+      "team": "PHI",
+      "projectedPoints": 8.3,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7645,15 +7631,15 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12516",
-      "name": "Kalel Mullings",
-      "position": "RB",
-      "team": "TEN",
-      "projectedPoints": 5.4,
+      "playerId": "4995",
+      "name": "Ian Thomas",
+      "position": "TE",
+      "team": "LV",
+      "projectedPoints": 8.3,
       "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1.4,
-      "uncertaintyScore": 3.7,
+      "ceilingScore": 1.2,
+      "floorScore": 1.7,
+      "uncertaintyScore": 2.6,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7668,6 +7654,20 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 2.5,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12516",
+      "name": "Kalel Mullings",
+      "position": "RB",
+      "team": "TEN",
+      "projectedPoints": 5.4,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1,
+      "floorScore": 1.4,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7695,7 +7695,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1.2,
       "floorScore": 1.6,
-      "uncertaintyScore": 5.9,
+      "uncertaintyScore": 5.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7729,20 +7729,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12171",
-      "name": "British Brooks",
-      "position": "RB",
-      "team": "HOU",
-      "projectedPoints": 2.4,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1.3,
-      "floorScore": 1.2,
-      "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "5127",
       "name": "Kyle Allen",
       "position": "QB",
@@ -7752,6 +7738,20 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 2.6,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "12171",
+      "name": "British Brooks",
+      "position": "RB",
+      "team": "HOU",
+      "projectedPoints": 2.4,
+      "valueOverReplacement": 0,
+      "ceilingScore": 1.3,
+      "floorScore": 1.2,
+      "uncertaintyScore": 3.8,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -7780,20 +7780,6 @@
       "ceilingScore": 1,
       "floorScore": 1,
       "uncertaintyScore": 3.8,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "5806",
-      "name": "John Wolford",
-      "position": "QB",
-      "team": "MIN",
-      "projectedPoints": 0,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.4,
-      "floorScore": 5,
-      "uncertaintyScore": 3.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -8317,6 +8303,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "10857",
+      "name": "Stetson Bennett",
+      "position": "QB",
+      "team": "LAR",
+      "projectedPoints": 0,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.5,
+      "floorScore": 5,
+      "uncertaintyScore": 3.9,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12925",
       "name": "Jamaal Pritchett",
       "position": "WR",
@@ -8681,20 +8681,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12542",
-      "name": "Efton Chism",
-      "position": "WR",
-      "team": "NE",
-      "projectedPoints": 0,
-      "valueOverReplacement": 0,
-      "ceilingScore": 1,
-      "floorScore": 1,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11570",
       "name": "Rasheen Ali",
       "position": "RB",
@@ -8961,20 +8947,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "13066",
-      "name": "Ben Sauls",
-      "position": "K",
-      "team": "NYG",
-      "projectedPoints": 0,
-      "valueOverReplacement": 0,
-      "ceilingScore": 5.8,
-      "floorScore": 5,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "11773",
       "name": "Keilan Robinson",
       "position": "RB",
@@ -8983,6 +8955,20 @@
       "valueOverReplacement": 0,
       "ceilingScore": 1,
       "floorScore": 1.1,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "13066",
+      "name": "Ben Sauls",
+      "position": "K",
+      "team": "NYG",
+      "projectedPoints": 0,
+      "valueOverReplacement": 0,
+      "ceilingScore": 5.8,
+      "floorScore": 5,
       "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
@@ -9031,6 +9017,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "12705",
+      "name": "Graham Mertz",
+      "position": "QB",
+      "team": "HOU",
+      "projectedPoints": 0,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.6,
+      "floorScore": 5,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "11789",
       "name": "Joshua Karty",
       "position": "K",
@@ -9073,20 +9073,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "12705",
-      "name": "Graham Mertz",
-      "position": "QB",
-      "team": "HOU",
-      "projectedPoints": 0,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.6,
-      "floorScore": 5,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "8176",
       "name": "Danny Gray",
       "position": "WR",
@@ -9096,20 +9082,6 @@
       "ceilingScore": 6.8,
       "floorScore": 5,
       "uncertaintyScore": 3.9,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
-      "playerId": "12971",
-      "name": "Ke'Shawn Williams",
-      "position": "WR",
-      "team": "CIN",
-      "projectedPoints": 0,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.6,
-      "floorScore": 5,
-      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -9129,6 +9101,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "12971",
+      "name": "Ke'Shawn Williams",
+      "position": "WR",
+      "team": "CIN",
+      "projectedPoints": 0,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.6,
+      "floorScore": 5,
+      "uncertaintyScore": 3.7,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "3309",
       "name": "Wendell Smallwood",
       "position": "RB",
@@ -9138,6 +9124,20 @@
       "ceilingScore": 6,
       "floorScore": 5,
       "uncertaintyScore": 3.9,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
+      "playerId": "11598",
+      "name": "Tanner McLachlan",
+      "position": "TE",
+      "team": "LAC",
+      "projectedPoints": 0,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.3,
+      "floorScore": 5,
+      "uncertaintyScore": 3.7,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"
@@ -10179,20 +10179,6 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
-      "playerId": "11598",
-      "name": "Tanner McLachlan",
-      "position": "TE",
-      "team": "LAC",
-      "projectedPoints": 0,
-      "valueOverReplacement": 0,
-      "ceilingScore": 6.3,
-      "floorScore": 5,
-      "uncertaintyScore": 3.7,
-      "injuryRiskScore": 2,
-      "source": "model",
-      "modelVersion": "historical-sources-v1-2021-2025"
-    },
-    {
       "playerId": "12725",
       "name": "Luke Lachey",
       "position": "TE",
@@ -10207,6 +10193,20 @@
       "modelVersion": "historical-sources-v1-2021-2025"
     },
     {
+      "playerId": "5806",
+      "name": "John Wolford",
+      "position": "QB",
+      "team": "MIN",
+      "projectedPoints": 0,
+      "valueOverReplacement": 0,
+      "ceilingScore": 6.4,
+      "floorScore": 5,
+      "uncertaintyScore": 3.9,
+      "injuryRiskScore": 2,
+      "source": "model",
+      "modelVersion": "historical-sources-v1-2021-2025"
+    },
+    {
       "playerId": "12462",
       "name": "Damien Martinez",
       "position": "RB",
@@ -10215,7 +10215,7 @@
       "valueOverReplacement": 0,
       "ceilingScore": 6.4,
       "floorScore": 5,
-      "uncertaintyScore": 4.7,
+      "uncertaintyScore": 5.9,
       "injuryRiskScore": 2,
       "source": "model",
       "modelVersion": "historical-sources-v1-2021-2025"

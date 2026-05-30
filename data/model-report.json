@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-29T04:04:59.544Z",
+  "generatedAt": "2026-05-30T05:08:58.395Z",
   "seasons": [
     2021,
     2022,
@@ -73,7 +73,7 @@
     },
     {
       "tableName": "source.nflverse_player_ids",
-      "rowCount": 25037
+      "rowCount": 25036
     },
     {
       "tableName": "source.ffopportunity_weekly",
@@ -81,11 +81,11 @@
     },
     {
       "tableName": "source.dynastyprocess_rankings",
-      "rowCount": 1735541
+      "rowCount": 1740454
     },
     {
       "tableName": "source.dynastyprocess_player_ids",
-      "rowCount": 12456
+      "rowCount": 12457
     },
     {
       "tableName": "model.prediction_training_dataset",

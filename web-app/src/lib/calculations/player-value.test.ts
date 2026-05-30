@@ -219,4 +219,16 @@ describe('mergePlayerData', () => {
     expect(rookie?.uncertaintyScore).toBeGreaterThan(veteran?.uncertaintyScore ?? 0);
     expect(rookie?.injuryRiskScore).toBe(2);
   });
+
+  it('keeps missing Sleeper status at neutral availability risk', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer()],
+      [],
+      [],
+      [],
+      teamEnvironment
+    );
+
+    expect(players[0]?.injuryRiskScore).toBe(2);
+  });
 });

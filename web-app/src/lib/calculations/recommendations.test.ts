@@ -121,6 +121,31 @@ describe('getRecommendations', () => {
       expect(late.find((rec) => rec.position === 'K')?.subScores?.draftStateScore)
         .toBeGreaterThan(0);
     });
+
+    it('applies a smaller uncertainty penalty separately from availability risk', () => {
+      const players = [
+        {
+          ...createPlayer('stable-wr', 'WR', 20),
+          uncertaintyScore: 2,
+          injuryRiskScore: 4,
+        },
+        {
+          ...createPlayer('uncertain-wr', 'WR', 20),
+          uncertaintyScore: 8,
+          injuryRiskScore: 4,
+        },
+      ];
+      const needs = createNeeds([{ position: 'WR', priority: 'medium' }]);
+
+      const { draftNow } = getRecommendations(players, needs, 10);
+      const stable = draftNow.find((rec) => rec.playerId === 'stable-wr');
+      const uncertain = draftNow.find((rec) => rec.playerId === 'uncertain-wr');
+
+      expect(stable?.subScores?.riskPenalty).toBe(4);
+      expect(stable?.subScores?.uncertaintyPenalty).toBe(0.7);
+      expect(uncertain?.subScores?.uncertaintyPenalty).toBe(2.8);
+      expect(stable?.score).toBeGreaterThan(uncertain?.score ?? 0);
+    });
   });
 
   describe('bestAvailable', () => {
