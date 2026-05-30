@@ -50,6 +50,7 @@ const PROJECTION_BASELINES: Record<Player['position'], number> = {
   K: 130,
   DEF: 130,
 };
+const SPECIAL_TEAMS_MAX_VOR = 20;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -87,12 +88,15 @@ function getBaseSubScores(player: Player): RecommendationSubScores {
     : player.predictionSource === 'fantasypros'
       ? 2
       : 0;
+  const replacementValue = player.position === 'K' || player.position === 'DEF'
+    ? Math.min(player.valueOverReplacement, SPECIAL_TEAMS_MAX_VOR)
+    : player.valueOverReplacement;
 
   return {
     expertRankScore: Math.max(0, 120 - player.ecrRank),
     marketValueScore: player.valueScore * 0.75,
     projectionScore: Math.max(0, (player.projectedPoints - PROJECTION_BASELINES[player.position]) * 0.18) + predictionSourceBoost,
-    replacementScore: player.valueOverReplacement * 3.75,
+    replacementScore: replacementValue * 3.75,
     upsideScore: player.upsideScore * 1.8,
     tierUrgencyScore: player.tierDropoffScore * 8,
     survivalScore: (1 - player.nextPickSurvivalProbability) * 18,

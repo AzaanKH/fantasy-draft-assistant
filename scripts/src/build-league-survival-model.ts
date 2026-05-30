@@ -339,7 +339,7 @@ async function main(): Promise<void> {
     sampleSize: totalLeaguePicks,
     sourceResponsibilities: {
       leagueHistory: 'Estimates draft-room position cost and pick survival from this league only.',
-      sleeperAdp: 'Provides broad-market draft cost baseline within the historical draftable pick range.',
+      sleeperAdp: 'Provides a weak Sleeper search_rank platform-ordering proxy within the historical draftable pick range; it is not observed draft ADP.',
       predictionLayer: 'Not used for player quality; survival is applied after projected value is known.',
     },
     baseline: {

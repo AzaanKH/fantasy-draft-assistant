@@ -16,6 +16,7 @@ The project should use a multi-source model with clear responsibilities:
 
 - `Sleeper`: live draft state and platform market context
 - `FantasyPros`: current expert rankings, current projections, current news
+- `Underdog best-ball ADP`: external market-temperature context only
 - `nflreadpy` / `nflverse`: historical model-training data, team environment inputs, player/team ID mapping, depth charts, schedules, rosters, team stats
 - `ffopportunity` / ffverse data via nflverse tooling: expected fantasy points and opportunity signals
 
@@ -59,6 +60,21 @@ Practical implication:
 - the project should ingest FantasyPros into a cached local snapshot
 - the app should not depend on repeated live requests during the draft
 - the recommendation engine should treat FantasyPros as one current-season signal family, not the whole system
+
+### Underdog Best-Ball ADP
+
+Use Underdog best-ball ADP only as an external market-temperature signal:
+
+- monitor broad positional movement and large player risers/fallers
+- compare it with home-league and Sleeper signals during draft prep
+- do not replace home-league survival estimates with it
+- do not feed it directly into recommendation scoring without normalization
+
+Why:
+
+- Underdog best ball is half PPR
+- roster construction and optimal strategy differ from this keeper league
+- it is still useful because active drafts reveal current market movement earlier than many home-league feeds
 
 ### nflreadpy / nflverse
 

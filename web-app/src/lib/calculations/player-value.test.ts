@@ -231,4 +231,22 @@ describe('mergePlayerData', () => {
 
     expect(players[0]?.injuryRiskScore).toBe(2);
   });
+
+  it('treats the Sleeper unranked sentinel as neutral market data', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer({ rank: 318, name: 'Greg Dulcich', position: 'TE' })],
+      [],
+      [],
+      [createSleeperPlayer({
+        name: 'Greg Dulcich',
+        position: 'TE',
+        sleeperAdp: 9_999_999,
+      })],
+      teamEnvironment
+    );
+
+    expect(players[0]?.sleeperAdp).toBe(318);
+    expect(players[0]?.marketRank).toBe(318);
+    expect(players[0]?.valueScore).toBe(0);
+  });
 });

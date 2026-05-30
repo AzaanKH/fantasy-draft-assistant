@@ -1,7 +1,7 @@
 /**
  * Player value calculation utilities
  *
- * Merges ECR + Sleeper ADP + Team Environment data
+ * Merges ECR + Sleeper platform proxy + Team Environment data
  * and calculates value scores and highlight levels.
  */
 
@@ -20,7 +20,7 @@ import { isTopOffense, isDecentOffense } from '@fantasy-draft/shared';
 import { estimatePlayerPrediction } from './prediction-score';
 
 /**
- * Sleeper ADP player data structure
+ * Sleeper search_rank platform proxy data structure
  */
 export interface SleeperADPPlayer {
   readonly playerId: string;
@@ -53,8 +53,19 @@ const TIER_THRESHOLDS: Record<Position, readonly number[]> = {
   DEF: [8, 16, 24],
 };
 
+const SLEEPER_UNRANKED_SENTINEL = 9_999_999;
+
+function resolveSleeperMarketRank(sleeperAdp: number | undefined, ecrRank: number): number {
+  return sleeperAdp !== undefined &&
+    Number.isFinite(sleeperAdp) &&
+    sleeperAdp > 0 &&
+    sleeperAdp < SLEEPER_UNRANKED_SENTINEL
+    ? sleeperAdp
+    : ecrRank;
+}
+
 /**
- * Calculate value score: ECR rank - Sleeper ADP
+ * Calculate value score: ECR rank - Sleeper platform proxy
  * Positive = undervalued on Sleeper (good)
  * Negative = overvalued on Sleeper (bad)
  */
@@ -203,7 +214,7 @@ function getNewsStatus(status: string | undefined): Player['newsStatus'] {
 }
 
 /**
- * Merge ECR, Sleeper ADP, Team Environment, and Contract data into Player objects
+ * Merge ECR, Sleeper platform proxy, Team Environment, and Contract data into Player objects
  */
 export function mergePlayerData(
   ecrPlayers: readonly ECRPlayer[],
@@ -216,7 +227,7 @@ export function mergePlayerData(
 ): Player[] {
   const teamEnvironmentLookup: Partial<Record<NFLTeam, TeamEnvironment>> = teamEnvironments;
 
-  // Build lookup maps for Sleeper ADP and contracts
+  // Build lookup maps for the Sleeper platform proxy and contracts
   const sleeperMap = new Map<string, SleeperADPPlayer>();
   for (const player of sleeperPlayers) {
     const key = createPlayerKey(player.name, player.team);
@@ -268,9 +279,9 @@ export function mergePlayerData(
     const newsItem = resolvePlayerMatch(canonicalPlayer, newsMap, newsFallbackMap);
     const teamEnv = teamEnvironmentLookup[canonicalTeam];
 
-    // Use Sleeper ADP if available, otherwise estimate from ECR rank
-    // Players not on Sleeper might be rookies or lesser-known players
-    const sleeperAdp = sleeper?.sleeperAdp ?? ecr.rank + 50;
+    // Sleeper uses 9,999,999 for unranked players. Preserve their Sleeper identity
+    // but keep missing platform rank neutral so it cannot dominate recommendations.
+    const sleeperAdp = resolveSleeperMarketRank(sleeper?.sleeperAdp, ecr.rank);
 
     if (!sleeper) {
       unmatchedEcr.push(ecr.name);
@@ -287,6 +298,8 @@ export function mergePlayerData(
     const modelPrediction = sleeper
       ? predictionIdMap.get(sleeper.playerId)
       : undefined;
+    const resolvedModelPrediction =
+      modelPrediction ?? resolvePlayerMatch(canonicalPlayer, predictionMap, predictionFallbackMap);
     const prediction = estimatePlayerPrediction(
       {
         position: ecr.position,
@@ -301,8 +314,7 @@ export function mergePlayerData(
         sleeperStatus: sleeper?.status,
         newsStatus,
         fantasyProsProjection: projection,
-        modelPrediction:
-          modelPrediction ?? resolvePlayerMatch(canonicalPlayer, predictionMap, predictionFallbackMap),
+        modelPrediction: resolvedModelPrediction,
       }
     );
 
@@ -322,6 +334,7 @@ export function mergePlayerData(
       contractEndYear: contract?.contractEndYear,
       offensiveEnvironmentScore: offenseScore,
       projectedPoints: prediction.projectedPoints,
+      customProjectedPoints: resolvedModelPrediction?.customProjectedPoints,
       valueOverReplacement: prediction.valueOverReplacement,
       tier,
       tierDropoffScore,

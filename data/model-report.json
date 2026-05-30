@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T05:08:58.395Z",
+  "generatedAt": "2026-05-30T05:56:09.801Z",
   "seasons": [
     2021,
     2022,
@@ -34,13 +34,13 @@
     "rosterAwareRecommendation": [
       "uses prediction outputs",
       "uses current FantasyPros",
-      "uses current Sleeper ADP",
+      "uses current Sleeper search_rank platform proxy",
       "uses team needs"
     ],
     "leagueHistorySurvivalModel": [
       "uses imported Sleeper draft IDs",
       "uses historical pick outcomes",
-      "uses current/historical ADP and ranking context"
+      "uses current Sleeper platform proxy and historical ranking context"
     ],
     "draftPickTradeGrader": [
       "uses prediction layer",
@@ -93,7 +93,7 @@
     },
     {
       "tableName": "model.prediction_outputs",
-      "rowCount": 727
+      "rowCount": 975
     },
     {
       "tableName": "model.league_history_survival_training_dataset",
@@ -101,7 +101,7 @@
     },
     {
       "tableName": "model.draft_pick_trade_grader_features",
-      "rowCount": 727
+      "rowCount": 975
     }
   ]
 }

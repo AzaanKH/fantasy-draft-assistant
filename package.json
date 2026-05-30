@@ -10,6 +10,7 @@
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "predev": "pnpm data:check && pnpm --filter scripts check:dev-ports",
     "dev": "pnpm dev:shared & pnpm dev:web & pnpm dev:server & pnpm dev:extension & wait",
     "dev:shared": "pnpm --filter @fantasy-draft/shared build --watch",
     "dev:web": "pnpm --filter web-app dev",
@@ -24,11 +25,18 @@
     "scrape:ecr": "pnpm --filter scripts scrape:ecr",
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:fantasypros:manual": "pnpm scrape:ecr && FANTASYPROS_SNAPSHOT_MODE=manual pnpm --filter scripts refresh:fantasypros-snapshot",
+    "refresh:sleeper": "pnpm --filter scripts fetch:sleeper",
+    "refresh:team-env": "pnpm --filter scripts generate:team-env",
+    "refresh:daily": "pnpm refresh:sleeper && pnpm refresh:fantasypros && pnpm refresh:team-env",
     "scrape:contracts": "pnpm --filter scripts scrape:contracts",
+    "data:check": "pnpm --filter scripts check:data-freshness",
     "model:duckdb:init": "pnpm --filter scripts model:duckdb:init",
     "model:profile": "pnpm --filter scripts model:profile",
     "model:dataset": "pnpm --filter scripts model:dataset",
     "model:league-survival": "pnpm --filter scripts build:league-survival",
+    "model:backtest": "pnpm --filter scripts backtest:recommendations",
+    "report:draft-prep": "pnpm --filter scripts generate:draft-prep",
+    "prepare:draft": "pnpm refresh:daily && pnpm model:duckdb:init && pnpm model:dataset && pnpm model:league-survival && pnpm model:backtest && pnpm report:draft-prep",
     "clean": "pnpm run -r clean && rm -rf node_modules"
   },
   "devDependencies": {

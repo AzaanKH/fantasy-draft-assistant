@@ -20,6 +20,7 @@ import {
   runStatements,
   sqlString,
 } from './model/duckdb.js';
+import { CURRENT_LEAGUE_SCORING_ADJUSTMENTS } from './model/league-scoring.js';
 
 interface FantasyProsSnapshot {
   readonly metadata?: {
@@ -37,6 +38,8 @@ interface PredictionRow {
   readonly player_name: string;
   readonly position: string;
   readonly team: string;
+  readonly base_projected_points: number | bigint;
+  readonly custom_scoring_adjustment: number | bigint;
   readonly projected_points: number | bigint;
   readonly value_over_replacement: number | bigint;
   readonly ceiling_score: number | bigint;
@@ -71,13 +74,13 @@ const SOURCE_RESPONSIBILITIES = {
   rosterAwareRecommendation: [
     'uses prediction outputs',
     'uses current FantasyPros',
-    'uses current Sleeper ADP',
+    'uses current Sleeper search_rank platform proxy',
     'uses team needs',
   ],
   leagueHistorySurvivalModel: [
     'uses imported Sleeper draft IDs',
     'uses historical pick outcomes',
-    'uses current/historical ADP and ranking context',
+    'uses current Sleeper platform proxy and historical ranking context',
   ],
   draftPickTradeGrader: [
     'uses prediction layer',
@@ -107,6 +110,8 @@ const REPLACEMENT_RANK_SQL = `
     else 12
   end
 `;
+const RUSH_ATTEMPT_BONUS = CURRENT_LEAGUE_SCORING_ADJUSTMENTS.rushAttemptBonus;
+const TE_RECEPTION_BONUS = CURRENT_LEAGUE_SCORING_ADJUSTMENTS.teReceptionBonus;
 
 function sqlList(values: readonly string[]): string {
   return `[${values.map(sqlString).join(', ')}]`;
@@ -284,7 +289,7 @@ async function main(): Promise<void> {
             try_cast(draft_round as integer) as draft_round,
             try_cast(draft_pick as integer) as draft_pick,
             row_number() over (
-              partition by db_season, coalesce(sleeper_id, gsis_id, fantasypros_id), position
+              partition by coalesce(sleeper_id, gsis_id, fantasypros_id), position
               order by db_season desc
             ) as row_number
           from source.dynastyprocess_player_ids
@@ -310,13 +315,14 @@ async function main(): Promise<void> {
             r.worst::double as predraft_worst_rank,
             cast(r.scrape_date as date) as scrape_date,
             row_number() over (
-              partition by extract(year from cast(r.scrape_date as date)), r.id, r.page_type
-              order by cast(r.scrape_date as date) desc
+              partition by extract(year from cast(r.scrape_date as date)), r.id
+              order by
+                case when r.page_type = 'redraft-overall' then 0 else 1 end,
+                cast(r.scrape_date as date) desc
             ) as recency_rank
           from source.dynastyprocess_rankings r
           left join model.dynastyprocess_player_ids ids
             on r.id::varchar = ids.fantasypros_id
-            and extract(year from cast(r.scrape_date as date))::integer = ids.season
           where r.page_type in ('redraft-overall', 'best-overall')
             and r.pos in ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
             and cast(r.scrape_date as date)
@@ -339,6 +345,13 @@ async function main(): Promise<void> {
           case when ids.draft_year = ps.season then true else false end as is_rookie,
           ps.games,
           ps.fantasy_points_ppr as actual_points,
+          ps.fantasy_points_ppr
+            + coalesce(ps.rush_attempts, 0) * ${RUSH_ATTEMPT_BONUS}
+            + case
+                when ps.position = 'TE' then coalesce(ps.receptions, 0) * ${TE_RECEPTION_BONUS}
+                else 0
+              end
+            as current_league_actual_points,
           ps.fantasy_points_ppr / nullif(ps.games, 0) as actual_points_per_game,
           ps.fantasy_points_standard as actual_standard_points,
           ps.pass_attempts,
@@ -375,7 +388,6 @@ async function main(): Promise<void> {
         from model.nflverse_player_seasons ps
         left join model.dynastyprocess_player_ids ids
           on ps.gsis_id = ids.gsis_id
-          and ps.season = ids.season
         left join model.ffopportunity_player_seasons opp
           on ps.gsis_id = opp.gsis_id
           and ps.season = opp.season
@@ -393,13 +405,13 @@ async function main(): Promise<void> {
         select
           season,
           position,
-          max(actual_points) filter (where actual_position_rank = ${REPLACEMENT_RANK_SQL}) as replacement_points
+          max(current_league_actual_points) filter (where actual_position_rank = ${REPLACEMENT_RANK_SQL}) as replacement_points
         from model.historical_prediction_base
         group by season, position`,
       `create or replace table model.prediction_training_dataset as
         select
           base.*,
-          coalesce(base.actual_points, 0) - coalesce(repl.replacement_points, 0) as actual_value_over_replacement,
+          coalesce(base.current_league_actual_points, 0) - coalesce(repl.replacement_points, 0) as actual_value_over_replacement,
           base.actual_position_rank <= 12 as actual_top_12_position,
           base.actual_position_rank <= 24 as actual_top_24_position,
           base.actual_position_rank <= 36 as actual_top_36_position,
@@ -469,6 +481,8 @@ async function main(): Promise<void> {
             avg(expected_points_per_game) as trailing_expected_points_per_game_3yr,
             stddev_samp(actual_points_per_game) as trailing_points_volatility_3yr,
             avg(actual_value_over_replacement) as trailing_value_over_replacement_3yr,
+            avg(rush_attempts / nullif(games, 0)) as trailing_rush_attempts_per_game_3yr,
+            avg(receptions / nullif(games, 0)) as trailing_receptions_per_game_3yr,
             max(actual_points_per_game) as trailing_max_points_per_game_3yr,
             sum(
               case
@@ -487,7 +501,6 @@ async function main(): Promise<void> {
           select *
           from model.dynastyprocess_predraft_rankings
           where season = ${currentSeason}
-            and ranking_type = 'redraft-overall'
         )
         select
           c.*,
@@ -500,6 +513,8 @@ async function main(): Promise<void> {
           history.trailing_expected_points_per_game_3yr,
           history.trailing_points_volatility_3yr,
           history.trailing_value_over_replacement_3yr,
+          history.trailing_rush_attempts_per_game_3yr,
+          history.trailing_receptions_per_game_3yr,
           history.trailing_max_points_per_game_3yr,
           coalesce(history.trailing_weighted_availability_missed_games_3yr, 0)
             as trailing_weighted_availability_missed_games_3yr,
@@ -515,12 +530,26 @@ async function main(): Promise<void> {
           on ids.gsis_id = current_rankings.gsis_id
           and c.position = current_rankings.position`,
       `create or replace table model.prediction_outputs as
-        with replacement as (
+        with historical_replacement as (
           select
             position,
             avg(replacement_points) as replacement_points
           from model.historical_replacement_points
+          where position <> 'K'
           group by position
+        ),
+        current_kicker_replacement as (
+          select
+            position,
+            max(projected_points) filter (where positional_rank = 12) as replacement_points
+          from model.current_player_join
+          where position = 'K'
+          group by position
+        ),
+        replacement as (
+          select * from historical_replacement
+          union all
+          select * from current_kicker_replacement
         ),
         projected as (
           select
@@ -533,7 +562,11 @@ async function main(): Promise<void> {
                 trailing_points_per_game_3yr * 17,
                 greatest(0, 300 - coalesce(ecr_rank, sleeper_adp, dynastyprocess_current_ecr, 300)) * 0.72
               )
-            ) as base_projected_points
+            ) as base_ppr_projected_points,
+            coalesce(trailing_rush_attempts_per_game_3yr, 0) * 17
+              as projected_rush_attempts,
+            coalesce(trailing_receptions_per_game_3yr, 0) * 17
+              as projected_receptions
           from model.current_prediction_features current_features
         ),
         risk_components as (
@@ -565,10 +598,30 @@ async function main(): Promise<void> {
           player_name,
           position,
           team,
-          base_projected_points as projected_points,
+          base_ppr_projected_points as base_projected_points,
+          projected_rush_attempts * ${RUSH_ATTEMPT_BONUS}
+            + case
+                when position = 'TE' then projected_receptions * ${TE_RECEPTION_BONUS}
+                else 0
+              end
+            as custom_scoring_adjustment,
+          base_ppr_projected_points
+            + projected_rush_attempts * ${RUSH_ATTEMPT_BONUS}
+            + case
+                when position = 'TE' then projected_receptions * ${TE_RECEPTION_BONUS}
+                else 0
+              end
+            as projected_points,
           greatest(
             0,
-            base_projected_points - coalesce(replacement.replacement_points, 0)
+            (
+              base_ppr_projected_points
+              + projected_rush_attempts * ${RUSH_ATTEMPT_BONUS}
+              + case
+                  when position = 'TE' then projected_receptions * ${TE_RECEPTION_BONUS}
+                  else 0
+                end
+            ) - coalesce(replacement.replacement_points, 0)
           ) as value_over_replacement,
           least(10, greatest(1,
             5
@@ -693,6 +746,8 @@ async function main(): Promise<void> {
         player_name,
         position,
         team,
+        round(base_projected_points, 1) as base_projected_points,
+        round(custom_scoring_adjustment, 1) as custom_scoring_adjustment,
         round(projected_points, 1) as projected_points,
         round(value_over_replacement, 1) as value_over_replacement,
         round(ceiling_score, 1) as ceiling_score,
@@ -716,7 +771,10 @@ async function main(): Promise<void> {
             name: row.player_name,
             position: row.position,
             team: row.team,
+            baseProjectedPoints: asNumber(row.base_projected_points),
+            customScoringAdjustment: asNumber(row.custom_scoring_adjustment),
             projectedPoints: asNumber(row.projected_points),
+            customProjectedPoints: asNumber(row.projected_points),
             valueOverReplacement: asNumber(row.value_over_replacement),
             ceilingScore: asNumber(row.ceiling_score),
             floorScore: asNumber(row.floor_score),

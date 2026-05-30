@@ -1,0 +1,531 @@
+{
+  "generatedAt": "2026-05-30T05:56:12.319Z",
+  "leagueName": "Ummati Official",
+  "currentSeason": 2026,
+  "canonicalApproach": "./docs/draft-approach.md",
+  "keeperStatus": {
+    "updatedAt": null,
+    "season": 2026,
+    "keepers": []
+  },
+  "artifactFreshness": {
+    "fantasyProsHours": 0.4,
+    "survivalModelHours": 0.3,
+    "teamEnvironmentHours": 0.4,
+    "predictionsHours": 0
+  },
+  "scoringNotes": [
+    "Current projections add +0.20 points per rush attempt.",
+    "Current TE projections add +0.50 points per reception on top of base PPR."
+  ],
+  "historicalRoomTrends": [
+    {
+      "season": 2022,
+      "userSlot": 7,
+      "freshPickCount": 140,
+      "keeperCount": 0,
+      "firstFreshPickByPosition": {
+        "QB": 22,
+        "RB": 1,
+        "WR": 5,
+        "TE": 16
+      },
+      "top50FreshPicksByPosition": {
+        "QB": 7,
+        "RB": 18,
+        "WR": 20,
+        "TE": 5
+      },
+      "userDraftSequence": [
+        "1:Ja'Marr Chase(WR)",
+        "2:Aaron Jones(RB)",
+        "3:Saquon Barkley(RB)",
+        "4:Darren Waller(TE)",
+        "5:Allen Robinson(WR)",
+        "6:Jalen Hurts(QB)",
+        "7:Jerry Jeudy(WR)",
+        "8:Kenneth Walker(RB)",
+        "9:Hunter Renfrow(WR)",
+        "10:Cordarrelle Patterson(RB)",
+        "11:Chris Olave(WR)",
+        "12:Garrett Wilson(WR)",
+        "13:Michael Gallup(WR)",
+        "14:San Francisco 49ers(DEF)"
+      ]
+    },
+    {
+      "season": 2023,
+      "userSlot": 6,
+      "freshPickCount": 122,
+      "keeperCount": 8,
+      "firstFreshPickByPosition": {
+        "QB": 12,
+        "RB": 2,
+        "WR": 1,
+        "TE": 3
+      },
+      "top50FreshPicksByPosition": {
+        "QB": 6,
+        "RB": 17,
+        "WR": 21,
+        "TE": 4
+      },
+      "userDraftSequence": [
+        "1:Tyreek Hill(WR)",
+        "2:Josh Allen(QB)",
+        "3:Jahmyr Gibbs(RB)",
+        "4:T.J. Hockenson(TE)",
+        "5:DJ Moore(WR)",
+        "6:James Conner(RB)",
+        "7:Rachaad White(RB)",
+        "8:Jordan Addison(WR)",
+        "9:Zach Charbonnet(RB)",
+        "10:Tua Tagovailoa(QB)",
+        "11:Garrett Wilson(WR)[K]",
+        "12:Odell Beckham(WR)",
+        "13:Darnell Mooney(WR)"
+      ]
+    },
+    {
+      "season": 2024,
+      "userSlot": 8,
+      "freshPickCount": 130,
+      "keeperCount": 10,
+      "firstFreshPickByPosition": {
+        "QB": 19,
+        "RB": 1,
+        "WR": 2,
+        "TE": 20
+      },
+      "top50FreshPicksByPosition": {
+        "QB": 6,
+        "RB": 16,
+        "WR": 22,
+        "TE": 4
+      },
+      "userDraftSequence": [
+        "1:Bijan Robinson(RB)",
+        "2:Chris Olave(WR)",
+        "3:Cooper Kupp(WR)",
+        "4:DJ Moore(WR)[K]",
+        "5:Anthony Richardson(QB)",
+        "6:Tee Higgins(WR)",
+        "6:Evan Engram(TE)",
+        "7:Chris Godwin(WR)",
+        "8:Zamir White(RB)",
+        "9:Brian Thomas(WR)",
+        "10:Jayden Daniels(QB)",
+        "11:Chase Brown(RB)",
+        "12:Harrison Butker(K)",
+        "13:Tyler Lockett(WR)",
+        "14:Elijah Mitchell(RB)"
+      ]
+    },
+    {
+      "season": 2025,
+      "userSlot": 8,
+      "freshPickCount": 131,
+      "keeperCount": 9,
+      "firstFreshPickByPosition": {
+        "QB": 23,
+        "RB": 2,
+        "WR": 1,
+        "TE": 34
+      },
+      "top50FreshPicksByPosition": {
+        "QB": 4,
+        "RB": 18,
+        "WR": 24,
+        "TE": 1
+      },
+      "userDraftSequence": [
+        "1:Christian McCaffrey(RB)",
+        "2:Ashton Jeanty(RB)",
+        "3:Lamar Jackson(QB)",
+        "4:Davante Adams(WR)",
+        "5:DeVonta Smith(WR)",
+        "6:T.J. Hockenson(TE)",
+        "7:D'Andre Swift(RB)",
+        "8:Brian Thomas(WR)[K]",
+        "9:Matthew Golden(WR)",
+        "10:Chris Godwin(WR)",
+        "11:Javonte Williams(RB)",
+        "12:Chase McLaughlin(K)",
+        "13:Jayden Higgins(WR)",
+        "14:Rhamondre Stevenson(RB)"
+      ]
+    }
+  ],
+  "leaguePositionSummary": {
+    "QB": {
+      "position": "QB",
+      "leagueMedianPick": 80,
+      "sleeperMedianPick": 39,
+      "pickPremium": 25,
+      "top50RateDelta": -0.239,
+      "top100RateDelta": -0.274,
+      "sampleSize": 65
+    },
+    "RB": {
+      "position": "RB",
+      "leagueMedianPick": 65.5,
+      "sleeperMedianPick": 55,
+      "pickPremium": 10.5,
+      "top50RateDelta": -0.083,
+      "top100RateDelta": 0.051,
+      "sampleSize": 178
+    },
+    "WR": {
+      "position": "WR",
+      "leagueMedianPick": 62.5,
+      "sleeperMedianPick": 61,
+      "pickPremium": 1.5,
+      "top50RateDelta": 0.027,
+      "top100RateDelta": 0.027,
+      "sampleSize": 220
+    },
+    "TE": {
+      "position": "TE",
+      "leagueMedianPick": 79,
+      "sleeperMedianPick": 97.5,
+      "pickPremium": -18.5,
+      "top50RateDelta": 0.164,
+      "top100RateDelta": 0.039,
+      "sampleSize": 59
+    },
+    "K": {
+      "position": "K",
+      "leagueMedianPick": 119,
+      "sleeperMedianPick": 0,
+      "pickPremium": 0,
+      "top50RateDelta": 0,
+      "top100RateDelta": 0.167,
+      "sampleSize": 18
+    },
+    "DEF": {
+      "position": "DEF",
+      "leagueMedianPick": 125.5,
+      "sleeperMedianPick": 0,
+      "pickPremium": 0,
+      "top50RateDelta": 0,
+      "top100RateDelta": 0.2,
+      "sampleSize": 10
+    }
+  },
+  "currentFantasyProsTiers": {
+    "QB": [
+      {
+        "rank": 24,
+        "positionalRank": 1,
+        "name": "Josh Allen"
+      },
+      {
+        "rank": 29,
+        "positionalRank": 2,
+        "name": "Lamar Jackson"
+      },
+      {
+        "rank": 31,
+        "positionalRank": 3,
+        "name": "Drake Maye"
+      },
+      {
+        "rank": 44,
+        "positionalRank": 4,
+        "name": "Joe Burrow"
+      },
+      {
+        "rank": 52,
+        "positionalRank": 5,
+        "name": "Jayden Daniels"
+      },
+      {
+        "rank": 53,
+        "positionalRank": 6,
+        "name": "Jalen Hurts"
+      },
+      {
+        "rank": 70,
+        "positionalRank": 7,
+        "name": "Justin Herbert"
+      },
+      {
+        "rank": 72,
+        "positionalRank": 8,
+        "name": "Jaxson Dart"
+      },
+      {
+        "rank": 74,
+        "positionalRank": 9,
+        "name": "Caleb Williams"
+      },
+      {
+        "rank": 80,
+        "positionalRank": 10,
+        "name": "Trevor Lawrence"
+      },
+      {
+        "rank": 85,
+        "positionalRank": 11,
+        "name": "Dak Prescott"
+      },
+      {
+        "rank": 94,
+        "positionalRank": 12,
+        "name": "Brock Purdy"
+      }
+    ],
+    "RB": [
+      {
+        "rank": 2,
+        "positionalRank": 1,
+        "name": "Bijan Robinson"
+      },
+      {
+        "rank": 5,
+        "positionalRank": 2,
+        "name": "Jahmyr Gibbs"
+      },
+      {
+        "rank": 7,
+        "positionalRank": 3,
+        "name": "Christian McCaffrey"
+      },
+      {
+        "rank": 10,
+        "positionalRank": 4,
+        "name": "Jonathan Taylor"
+      },
+      {
+        "rank": 13,
+        "positionalRank": 5,
+        "name": "De'Von Achane"
+      },
+      {
+        "rank": 15,
+        "positionalRank": 6,
+        "name": "Ashton Jeanty"
+      },
+      {
+        "rank": 21,
+        "positionalRank": 7,
+        "name": "Chase Brown"
+      },
+      {
+        "rank": 23,
+        "positionalRank": 8,
+        "name": "James Cook III"
+      },
+      {
+        "rank": 25,
+        "positionalRank": 9,
+        "name": "Omarion Hampton"
+      },
+      {
+        "rank": 27,
+        "positionalRank": 10,
+        "name": "Saquon Barkley"
+      },
+      {
+        "rank": 33,
+        "positionalRank": 11,
+        "name": "Kenneth Walker III"
+      },
+      {
+        "rank": 34,
+        "positionalRank": 12,
+        "name": "Jeremiyah Love"
+      },
+      {
+        "rank": 39,
+        "positionalRank": 13,
+        "name": "Derrick Henry"
+      },
+      {
+        "rank": 40,
+        "positionalRank": 14,
+        "name": "Breece Hall"
+      },
+      {
+        "rank": 41,
+        "positionalRank": 15,
+        "name": "Josh Jacobs"
+      },
+      {
+        "rank": 46,
+        "positionalRank": 16,
+        "name": "Travis Etienne Jr."
+      },
+      {
+        "rank": 48,
+        "positionalRank": 17,
+        "name": "Kyren Williams"
+      },
+      {
+        "rank": 49,
+        "positionalRank": 18,
+        "name": "Javonte Williams"
+      }
+    ],
+    "WR": [
+      {
+        "rank": 1,
+        "positionalRank": 1,
+        "name": "Ja'Marr Chase"
+      },
+      {
+        "rank": 3,
+        "positionalRank": 2,
+        "name": "Puka Nacua"
+      },
+      {
+        "rank": 4,
+        "positionalRank": 3,
+        "name": "Jaxon Smith-Njigba"
+      },
+      {
+        "rank": 6,
+        "positionalRank": 4,
+        "name": "Amon-Ra St. Brown"
+      },
+      {
+        "rank": 8,
+        "positionalRank": 5,
+        "name": "CeeDee Lamb"
+      },
+      {
+        "rank": 9,
+        "positionalRank": 6,
+        "name": "Justin Jefferson"
+      },
+      {
+        "rank": 11,
+        "positionalRank": 7,
+        "name": "Drake London"
+      },
+      {
+        "rank": 12,
+        "positionalRank": 8,
+        "name": "Nico Collins"
+      },
+      {
+        "rank": 16,
+        "positionalRank": 9,
+        "name": "Malik Nabers"
+      },
+      {
+        "rank": 17,
+        "positionalRank": 10,
+        "name": "George Pickens"
+      },
+      {
+        "rank": 18,
+        "positionalRank": 11,
+        "name": "Chris Olave"
+      },
+      {
+        "rank": 19,
+        "positionalRank": 12,
+        "name": "Rashee Rice"
+      },
+      {
+        "rank": 20,
+        "positionalRank": 13,
+        "name": "A.J. Brown"
+      },
+      {
+        "rank": 26,
+        "positionalRank": 14,
+        "name": "Tetairoa McMillan"
+      },
+      {
+        "rank": 28,
+        "positionalRank": 15,
+        "name": "Garrett Wilson"
+      },
+      {
+        "rank": 30,
+        "positionalRank": 16,
+        "name": "DeVonta Smith"
+      },
+      {
+        "rank": 32,
+        "positionalRank": 17,
+        "name": "Tee Higgins"
+      },
+      {
+        "rank": 35,
+        "positionalRank": 18,
+        "name": "Ladd McConkey"
+      }
+    ],
+    "TE": [
+      {
+        "rank": 14,
+        "positionalRank": 1,
+        "name": "Trey McBride"
+      },
+      {
+        "rank": 22,
+        "positionalRank": 2,
+        "name": "Brock Bowers"
+      },
+      {
+        "rank": 36,
+        "positionalRank": 3,
+        "name": "Colston Loveland"
+      },
+      {
+        "rank": 56,
+        "positionalRank": 4,
+        "name": "Tyler Warren"
+      },
+      {
+        "rank": 68,
+        "positionalRank": 5,
+        "name": "Tucker Kraft"
+      },
+      {
+        "rank": 69,
+        "positionalRank": 6,
+        "name": "Harold Fannin Jr."
+      },
+      {
+        "rank": 84,
+        "positionalRank": 7,
+        "name": "Kyle Pitts Sr."
+      },
+      {
+        "rank": 89,
+        "positionalRank": 8,
+        "name": "Sam LaPorta"
+      },
+      {
+        "rank": 103,
+        "positionalRank": 9,
+        "name": "Jake Ferguson"
+      },
+      {
+        "rank": 107,
+        "positionalRank": 10,
+        "name": "Travis Kelce"
+      },
+      {
+        "rank": 108,
+        "positionalRank": 11,
+        "name": "Dalton Kincaid"
+      },
+      {
+        "rank": 119,
+        "positionalRank": 12,
+        "name": "George Kittle"
+      }
+    ]
+  },
+  "draftDayChecklist": [
+    "Run pnpm prepare:draft during draft week.",
+    "Enter the final keeper list in data/league-history/current-keepers.json when announced.",
+    "Run pnpm report:draft-prep after keeper changes.",
+    "Use best-ball ADP as external market context only; do not replace league-specific survival."
+  ]
+}
