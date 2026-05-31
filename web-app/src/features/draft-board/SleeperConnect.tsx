@@ -59,6 +59,7 @@ export function SleeperConnect() {
   const [draftIdInput, setDraftIdInput] = React.useState('');
   const [draftPosition, setDraftPosition] = React.useState('1');
   const [connectedDraftId, setConnectedDraftId] = React.useState<string | null>(null);
+  const [isDraftPositionConfirmed, setIsDraftPositionConfirmed] = React.useState(false);
 
   const setConfig = useDraftStore((state) => state.setConfig);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
@@ -73,11 +74,18 @@ export function SleeperConnect() {
     isDrafting,
     isComplete,
     refresh,
-  } = useSleeperDraft(connectedDraftId);
+  } = useSleeperDraft(connectedDraftId, isDraftPositionConfirmed);
 
   const isConnecting =
     connectedDraftId !== null && !draft && !isError;
   const isSyncing = syncStatus === 'syncing';
+  const draftSlotsCount = draft?.settings.teams ?? 0;
+  const draftSlots = React.useMemo(
+    () => Array.from({ length: draftSlotsCount }, (_, index) => index + 1),
+    [draftSlotsCount]
+  );
+  const draftPositionNumber = Number.parseInt(draftPosition, 10);
+  const isDraftPositionValid = draftSlots.includes(draftPositionNumber);
 
   const handleConnect = () => {
     // Extract draft ID from a full Sleeper URL if one was pasted.
@@ -87,12 +95,22 @@ export function SleeperConnect() {
       return;
     }
 
-    setConfig({ myPickPosition: Number.parseInt(draftPosition, 10) });
     setConnectedDraftId(id);
+  };
+
+  const handleConfirmDraftPosition = () => {
+    if (!isDraftPositionValid) {
+      return;
+    }
+
+    setConfig({ myPickPosition: draftPositionNumber });
+    setIsDraftPositionConfirmed(true);
   };
 
   const handleDisconnect = () => {
     setConnectedDraftId(null);
+    setDraftPosition('1');
+    setIsDraftPositionConfirmed(false);
   };
 
   const dialogContent = !connectedDraftId ? (
@@ -121,27 +139,6 @@ export function SleeperConnect() {
         </p>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Your draft slot</label>
-        <div className="flex items-center gap-3">
-          <Select value={draftPosition} onValueChange={setDraftPosition}>
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((position) => (
-                <SelectItem key={position} value={position.toString()}>
-                  Slot {position}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground">
-            Used to identify your picks and build your roster.
-          </span>
-        </div>
-      </div>
-
       <div className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
         Picks import automatically every second during the draft. Sleeper login
         is not required.
@@ -149,7 +146,7 @@ export function SleeperConnect() {
 
       <DialogFooter>
         <Button onClick={handleConnect} disabled={!draftIdInput.trim()}>
-          Connect and sync
+          Continue
         </Button>
       </DialogFooter>
     </div>
@@ -177,6 +174,38 @@ export function SleeperConnect() {
       <DialogFooter>
         <Button variant="outline" onClick={handleDisconnect}>
           Edit draft details
+        </Button>
+      </DialogFooter>
+    </div>
+  ) : !isDraftPositionConfirmed ? (
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Your draft slot</label>
+        <div className="flex items-center gap-3">
+          <Select value={draftPosition} onValueChange={setDraftPosition}>
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {draftSlots.map((position) => (
+                <SelectItem key={position} value={position.toString()}>
+                  Slot {position}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">
+            Used to identify your picks and build your roster.
+          </span>
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button
+          onClick={handleConfirmDraftPosition}
+          disabled={!isDraftPositionValid}
+        >
+          Start syncing
         </Button>
       </DialogFooter>
     </div>
@@ -280,7 +309,9 @@ export function SleeperConnect() {
                     ? 'Sleeper sync needs attention'
                     : isConnecting
                       ? 'Connecting to Sleeper...'
-                      : 'Sleeper draft connected'}
+                      : !isDraftPositionConfirmed
+                        ? 'Choose your draft slot'
+                        : 'Sleeper draft connected'}
               </span>
               {connectedDraftId && !isError && !isConnecting && (
                 <Badge
@@ -298,6 +329,8 @@ export function SleeperConnect() {
                   ? lastError ?? 'Open sync settings to check the draft URL or ID.'
                   : isConnecting
                     ? 'Fetching the draft room and importing picks.'
+                    : !isDraftPositionConfirmed
+                      ? `${String(draftSlotsCount)}-team draft found · choose your slot to start importing picks.`
                     : `${String(totalPicks)} picks synced · ${String(myPicksCount)} yours · slot ${String(myPickPosition)} · ${
                         isSyncing ? 'checking for picks' : 'updates every second'
                       }`}
@@ -317,6 +350,8 @@ export function SleeperConnect() {
                 ? 'Fix connection'
                 : isConnecting
                   ? 'View progress'
+                  : !isDraftPositionConfirmed
+                    ? 'Choose slot'
                   : 'Manage sync'}
           </Button>
         </DialogTrigger>

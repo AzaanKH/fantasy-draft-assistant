@@ -52,7 +52,10 @@ function normalizePosition(pos: string): Position {
   return map[pos] ?? 'RB';
 }
 
-export function useSleeperDraft(draftId: string | null) {
+export function useSleeperDraft(
+  draftId: string | null,
+  shouldImportPicks: boolean = true
+) {
   const queryClient = useQueryClient();
   const { players } = usePlayerDataQuery();
   const [liveSnapshot, setLiveSnapshot] = useState<DraftSyncSnapshot | null>(null);
@@ -138,7 +141,7 @@ export function useSleeperDraft(draftId: string | null) {
   );
 
   useEffect(() => {
-    if (!snapshot || players.length === 0) {
+    if (!snapshot || players.length === 0 || !shouldImportPicks) {
       return;
     }
 
@@ -168,7 +171,7 @@ export function useSleeperDraft(draftId: string | null) {
 
       processedPicksRef.current.add(pickKey);
     }
-  }, [snapshot, players, findMatchingPlayer, myPickPosition, markPlayerDrafted, addToMyRoster]);
+  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, markPlayerDrafted, addToMyRoster]);
 
   const refresh = useCallback(async () => {
     if (!draftId) {
@@ -192,13 +195,18 @@ export function useSleeperDraft(draftId: string | null) {
     return snapshot.picks.filter((pick) => pick.draftSlot === myPickPosition).length;
   }, [snapshot, myPickPosition]);
 
+  const lastError = snapshot?.lastError ?? snapshotQuery.error?.message ?? null;
+  const error = snapshot?.lastError
+    ? new Error(snapshot.lastError)
+    : snapshotQuery.error;
+
   return {
     draft: snapshot?.draft ?? null,
     picks: snapshot?.picks ?? [],
     isLoading: snapshotQuery.isLoading && !snapshot,
     isError: snapshotQuery.isError || snapshot?.status === 'error',
-    error: snapshotQuery.error,
-    lastError: snapshot?.lastError ?? snapshotQuery.error?.message ?? null,
+    error,
+    lastError,
     syncStatus: snapshot?.status ?? 'idle',
     lastSyncedPick: snapshot?.picks.at(-1)?.pickNumber ?? 0,
     totalPicks: snapshot?.picks.length ?? 0,
