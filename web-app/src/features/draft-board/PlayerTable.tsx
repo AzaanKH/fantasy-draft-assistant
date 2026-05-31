@@ -504,7 +504,6 @@ export function PlayerTable() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <SleeperConnect />
               <MyRoster />
               <DraftSimulationControls players={players} />
             </div>
@@ -512,6 +511,8 @@ export function PlayerTable() {
         </CardHeader>
 
         <CardContent className="space-y-4">
+          <SleeperConnect />
+
           {/* Filters */}
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="space-y-2">
