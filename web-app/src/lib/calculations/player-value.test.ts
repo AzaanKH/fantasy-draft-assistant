@@ -249,4 +249,22 @@ describe('mergePlayerData', () => {
     expect(players[0]?.marketRank).toBe(318);
     expect(players[0]?.valueScore).toBe(0);
   });
+
+  it('treats Sleeper placeholder rank 999 as neutral market data', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer({ rank: 186, name: 'Brandon Aubrey', position: 'K' })],
+      [],
+      [],
+      [createSleeperPlayer({
+        name: 'Brandon Aubrey',
+        position: 'K',
+        sleeperAdp: 999,
+      })],
+      teamEnvironment
+    );
+
+    expect(players[0]?.sleeperAdp).toBe(186);
+    expect(players[0]?.marketRank).toBe(186);
+    expect(players[0]?.valueScore).toBe(0);
+  });
 });

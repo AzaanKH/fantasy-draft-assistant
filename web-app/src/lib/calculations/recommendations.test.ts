@@ -16,6 +16,7 @@ function createPlayer(
     team: 'DET',
     byeWeek: 6,
     ecrRank,
+    positionalRank: ecrRank,
     sleeperAdp: ecrRank,
     valueScore: 0,
     marketRank: ecrRank,
@@ -118,11 +119,12 @@ describe('getRecommendations', () => {
       }).draftNow;
 
       expect(early[0]?.position).toBe('RB');
+      expect(early.some((rec) => rec.position === 'K')).toBe(false);
       expect(late.find((rec) => rec.position === 'K')?.subScores?.draftStateScore)
         .toBeGreaterThan(0);
     });
 
-    it('caps malformed special-teams VOR before scoring early recommendations', () => {
+    it('caps malformed special-teams VOR before scoring recommendations', () => {
       const players = [
         {
           ...createPlayer('bad-kicker', 'K', 403),
@@ -138,15 +140,55 @@ describe('getRecommendations', () => {
       ]);
 
       const draftNow = getRecommendations(players, needs, 10, {
-        currentPick: 20,
+        currentPick: 125,
         totalPicks: 150,
       }).draftNow;
       const kicker = draftNow.find((recommendation) => recommendation.playerId === 'bad-kicker');
 
-      expect(draftNow[0]?.position).toBe('RB');
       expect(kicker?.subScores?.replacementScore).toBe(75);
       expect(kicker?.diagnostics?.valueOverReplacement).toBe(20);
       expect(kicker?.reason).toContain('VOR 20.0');
+    });
+
+    it('defers special teams from every recommendation list in round one', () => {
+      const players = [
+        {
+          ...createPlayer('k1', 'K', 186),
+          valueScore: 813,
+          marketRank: 999,
+          marketAdp: 999,
+          projectedPoints: 153,
+          valueOverReplacement: 153,
+        },
+        {
+          ...createPlayer('def1', 'DEF', 190),
+          valueScore: 809,
+          marketRank: 999,
+          marketAdp: 999,
+          projectedPoints: 140,
+          valueOverReplacement: 140,
+        },
+        createPlayer('rb1', 'RB', 8),
+        createPlayer('wr1', 'WR', 12),
+      ];
+      const needs = createNeeds([
+        { position: 'K', priority: 'critical', scarcityScore: 10 },
+        { position: 'DEF', priority: 'critical', scarcityScore: 10 },
+        { position: 'RB', priority: 'critical', scarcityScore: 5 },
+        { position: 'WR', priority: 'critical', scarcityScore: 5 },
+      ]);
+
+      const recommendations = getRecommendations(players, needs, 10, {
+        currentPick: 7,
+        totalPicks: 150,
+      });
+
+      expect(recommendations.draftNow.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.draftNow.some((rec) => rec.position === 'DEF')).toBe(false);
+      expect(recommendations.bestAvailable.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.bestAvailable.some((rec) => rec.position === 'DEF')).toBe(false);
+      expect(recommendations.byNeed.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.byNeed.some((rec) => rec.position === 'DEF')).toBe(false);
     });
 
     it('applies a smaller uncertainty penalty separately from availability risk', () => {
@@ -216,6 +258,45 @@ describe('getRecommendations', () => {
       expect(bestAvailable[0]?.score).toBeGreaterThan(0);
       expect(bestAvailable[0]?.subScores?.expertRankScore).toBeGreaterThan(0);
       expect(bestAvailable[0]?.diagnostics?.marketRank).toBe(15);
+    });
+  });
+
+  describe('marketValues', () => {
+    it('sorts players by Sleeper market discount relative to ECR', () => {
+      const players = [
+        {
+          ...createPlayer('small-value', 'WR', 20),
+          marketRank: 25,
+          marketAdp: 25,
+          valueScore: 5,
+        },
+        {
+          ...createPlayer('steal', 'RB', 30),
+          marketRank: 48,
+          marketAdp: 48,
+          valueScore: 18,
+        },
+        {
+          ...createPlayer('reach', 'QB', 12),
+          marketRank: 8,
+          marketAdp: 8,
+          valueScore: -4,
+        },
+      ];
+      const needs = createNeeds([
+        { position: 'QB', priority: 'critical' },
+        { position: 'RB', priority: 'low' },
+        { position: 'WR', priority: 'low' },
+      ]);
+
+      const { marketValues } = getRecommendations(players, needs, 10);
+
+      expect(marketValues.map((recommendation) => recommendation.playerId)).toEqual([
+        'steal',
+        'small-value',
+        'reach',
+      ]);
+      expect(marketValues[0]?.reason).toContain('Steal +18');
     });
   });
 
@@ -351,10 +432,11 @@ describe('getRecommendations', () => {
     it('handles empty players array', () => {
       const needs = createNeeds([{ position: 'QB', priority: 'critical' }]);
 
-      const { draftNow, bestAvailable, byNeed } = getRecommendations([], needs);
+      const { draftNow, bestAvailable, marketValues, byNeed } = getRecommendations([], needs);
 
       expect(draftNow).toHaveLength(0);
       expect(bestAvailable).toHaveLength(0);
+      expect(marketValues).toHaveLength(0);
       expect(byNeed).toHaveLength(0);
     });
 

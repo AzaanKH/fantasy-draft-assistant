@@ -14,6 +14,7 @@ function createPlayer(overrides: Partial<Player> = {}): Player {
     team: 'BAL',
     byeWeek: 7,
     ecrRank: 38,
+    positionalRank: 6,
     sleeperAdp: 40,
     valueScore: 2,
     marketRank: 40,

@@ -53,13 +53,13 @@ const TIER_THRESHOLDS: Record<Position, readonly number[]> = {
   DEF: [8, 16, 24],
 };
 
-const SLEEPER_UNRANKED_SENTINEL = 9_999_999;
+const SLEEPER_PLACEHOLDER_RANK = 999;
 
 function resolveSleeperMarketRank(sleeperAdp: number | undefined, ecrRank: number): number {
   return sleeperAdp !== undefined &&
     Number.isFinite(sleeperAdp) &&
     sleeperAdp > 0 &&
-    sleeperAdp < SLEEPER_UNRANKED_SENTINEL
+    sleeperAdp < SLEEPER_PLACEHOLDER_RANK
     ? sleeperAdp
     : ecrRank;
 }
@@ -279,8 +279,8 @@ export function mergePlayerData(
     const newsItem = resolvePlayerMatch(canonicalPlayer, newsMap, newsFallbackMap);
     const teamEnv = teamEnvironmentLookup[canonicalTeam];
 
-    // Sleeper uses 9,999,999 for unranked players. Preserve their Sleeper identity
-    // but keep missing platform rank neutral so it cannot dominate recommendations.
+    // Sleeper uses placeholder search ranks such as 999 and 9,999,999 for
+    // unranked players. Keep that missing signal neutral so it cannot dominate.
     const sleeperAdp = resolveSleeperMarketRank(sleeper?.sleeperAdp, ecr.rank);
 
     if (!sleeper) {
@@ -325,6 +325,7 @@ export function mergePlayerData(
       team: canonicalTeam,
       byeWeek: ecr.byeWeek,
       ecrRank: ecr.rank,
+      positionalRank: ecr.positionalRank,
       sleeperAdp,
       valueScore,
       marketRank: sleeperAdp,

@@ -85,6 +85,7 @@ async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
 export function useRecommendations(limit: number = 5): {
   draftNow: readonly Recommendation[];
   bestAvailable: readonly Recommendation[];
+  marketValues: readonly Recommendation[];
   byNeed: readonly Recommendation[];
   topPick: Recommendation | null;
   isLoading: boolean;
@@ -113,7 +114,7 @@ export function useRecommendations(limit: number = 5): {
 
   const recommendations = useMemo(() => {
     if (availablePlayers.length === 0) {
-      return { draftNow: [], bestAvailable: [], byNeed: [] };
+      return { draftNow: [], bestAvailable: [], marketValues: [], byNeed: [] };
     }
     return getRecommendations(availablePlayers, needs, limit, {
       currentPick,
