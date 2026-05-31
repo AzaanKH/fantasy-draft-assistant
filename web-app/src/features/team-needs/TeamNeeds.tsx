@@ -20,7 +20,7 @@ const priorityColors: Record<NeedPriority, string> = {
   critical: 'bg-red-500 text-white',
   high: 'bg-orange-500 text-white',
   medium: 'bg-yellow-500 text-black',
-  low: 'bg-blue-500/20 text-blue-700 border-blue-500',
+  low: 'bg-emerald-500/20 text-emerald-700 border-emerald-500',
   filled: 'bg-green-500/20 text-green-700 border-green-500',
 };
 
@@ -35,6 +35,16 @@ const positionColors: Record<Position, string> = {
   K: 'text-purple-600',
   DEF: 'text-gray-600',
 };
+
+function formatPriority(priority: NeedPriority): string {
+  if (priority === 'low') {
+    return 'starter filled';
+  }
+  if (priority === 'filled') {
+    return 'full';
+  }
+  return priority;
+}
 
 /**
  * Scarcity indicator bar - compact version
@@ -86,7 +96,7 @@ function NeedRow({
             variant={priority === 'low' || priority === 'filled' ? 'outline' : 'default'}
             className={cn('text-[10px] px-1.5 py-0', priorityColors[priority])}
           >
-            {priority}
+            {formatPriority(priority)}
           </Badge>
         </div>
         <span className="text-[11px] text-muted-foreground">
@@ -129,7 +139,7 @@ export function TeamNeeds() {
           <CardTitle className="text-base">Team Needs</CardTitle>
           {criticalPositions.length > 0 && (
             <Badge variant="destructive" className="text-xs">
-              {criticalPositions.length} critical
+              {criticalPositions.length} urgent
             </Badge>
           )}
         </div>

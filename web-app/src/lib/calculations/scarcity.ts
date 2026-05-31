@@ -46,7 +46,7 @@ export function calculatePositionalScarcity(
 
   // Count elite players still available at this position
   const eliteAvailable = availablePlayers.filter(
-    (p) => p.position === position && p.ecrRank <= threshold
+    (p) => p.position === position && p.positionalRank <= threshold
   ).length;
 
   // Calculate scarcity: fewer elite players = higher scarcity

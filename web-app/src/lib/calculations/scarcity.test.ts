@@ -15,6 +15,7 @@ function createPlayer(id: string, position: Player['position'], ecrRank: number)
     team: 'DET',
     byeWeek: 6,
     ecrRank,
+    positionalRank: ecrRank,
     sleeperAdp: ecrRank,
     valueScore: 0,
     marketRank: ecrRank,
@@ -120,6 +121,17 @@ describe('calculatePositionalScarcity', () => {
 
       const result = calculatePositionalScarcity('TE', players);
       expect(result).toBe(5); // Only counts the 5 elite TEs
+    });
+
+    it('uses positional rank instead of overall ECR rank', () => {
+      const qbs = createPlayersAtPosition('QB', 12, 100).map((player, index) => ({
+        ...player,
+        positionalRank: index + 1,
+      }));
+
+      const result = calculatePositionalScarcity('QB', qbs);
+
+      expect(result).toBe(1);
     });
 
     it('only counts players at the specified position', () => {

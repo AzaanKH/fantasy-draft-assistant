@@ -76,6 +76,8 @@ export interface Player {
 
   /** FantasyPros Expert Consensus Ranking */
   readonly ecrRank: number;
+  /** FantasyPros rank within the player's position */
+  readonly positionalRank: number;
   /** Sleeper search_rank platform-ordering proxy; not observed draft ADP */
   readonly sleeperAdp: number;
   /** ECR - ADP (positive = undervalued on Sleeper) */
@@ -188,6 +190,7 @@ export function isPlayer(obj: unknown): obj is Player {
     isNFLTeam(candidate['team']) &&
     typeof candidate['byeWeek'] === 'number' &&
     typeof candidate['ecrRank'] === 'number' &&
+    typeof candidate['positionalRank'] === 'number' &&
     typeof candidate['sleeperAdp'] === 'number' &&
     typeof candidate['valueScore'] === 'number' &&
     typeof candidate['marketRank'] === 'number' &&

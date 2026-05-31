@@ -325,6 +325,7 @@ export function mergePlayerData(
       team: canonicalTeam,
       byeWeek: ecr.byeWeek,
       ecrRank: ecr.rank,
+      positionalRank: ecr.positionalRank,
       sleeperAdp,
       valueScore,
       marketRank: sleeperAdp,

@@ -28,8 +28,10 @@ export interface RecommendationContext {
 export interface RecommendationResult {
   /** Roster-aware answer to "Who should I draft right now?" */
   readonly draftNow: readonly Recommendation[];
-  /** Best available players by pure ECR ranking */
+  /** Best available players by composite player-quality score */
   readonly bestAvailable: readonly Recommendation[];
+  /** Players with the largest Sleeper market discount relative to ECR */
+  readonly marketValues: readonly Recommendation[];
   /** Players recommended based on team needs and scarcity */
   readonly byNeed: readonly Recommendation[];
 }
@@ -231,6 +233,25 @@ function buildBestAvailableRecommendation(player: Player): Recommendation {
   };
 }
 
+function buildMarketValueRecommendation(player: Player): Recommendation {
+  const subScores = getBaseSubScores(player);
+  const diagnostics = getDiagnostics(player);
+
+  return {
+    playerId: player.id,
+    playerName: player.name,
+    position: player.position,
+    reason: [
+      formatMarketDelta(player.valueScore),
+      `FP #${String(player.ecrRank)} vs Sleeper #${String(player.marketRank)}`,
+      `${String(Math.round(player.nextPickSurvivalProbability * 100))}% to next pick`,
+    ].join(' · '),
+    score: player.valueScore,
+    diagnostics,
+    subScores,
+  };
+}
+
 function buildNeedRecommendation(player: Player, need: PositionNeed): Recommendation {
   const baseSubScores = getBaseSubScores(player);
   const needMultiplier = need.priority === 'critical' ? 2 : 1.5;
@@ -263,10 +284,11 @@ function buildNeedRecommendation(player: Player, need: PositionNeed): Recommenda
 /**
  * Generate player recommendations
  *
- * Three recommendation lists:
+ * Four recommendation lists:
  * 1. Draft Now: Combined roster-aware ranking for the current pick
- * 2. Best Available: Pure player/market value regardless of need
- * 3. By Need: Position-filtered view for urgent roster gaps
+ * 2. Best Available: Composite player quality regardless of need
+ * 3. Best Value: Largest Sleeper market discounts relative to ECR
+ * 4. By Need: Position-filtered view for urgent roster gaps
  *
  * @param availablePlayers - Players not yet drafted
  * @param teamNeeds - Current team positional needs
@@ -306,6 +328,15 @@ export function getRecommendations(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
+  const marketValues = [...recommendationPool]
+    .map(buildMarketValueRecommendation)
+    .sort((a, b) =>
+      b.score - a.score ||
+      (a.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) -
+        (b.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER)
+    )
+    .slice(0, limit);
+
   // By Need: Factor in team needs and scarcity
   const criticalPositions = teamNeeds
     .filter((n) => n.priority === 'critical' || n.priority === 'high')
@@ -333,7 +364,7 @@ export function getRecommendations(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
-  return { draftNow, bestAvailable, byNeed };
+  return { draftNow, bestAvailable, marketValues, byNeed };
 }
 
 /**

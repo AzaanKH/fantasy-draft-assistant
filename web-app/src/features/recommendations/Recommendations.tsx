@@ -1,10 +1,11 @@
 /**
  * Recommendations Component
  *
- * Displays player recommendations in three modes:
+ * Displays player recommendations in four modes:
  * - Draft Now: Combined roster-aware ranking
  * - By Need: Factoring in team needs and scarcity
- * - Best Available: Pure player/market value
+ * - Best Available: Composite player quality
+ * - Best Value: Largest Sleeper market discounts relative to ECR
  */
 
 import * as React from 'react';
@@ -305,7 +306,7 @@ function TopPickHighlight({
  * Main Recommendations component
  */
 export function Recommendations(): React.ReactElement {
-  const { draftNow, bestAvailable, byNeed, topPick, isLoading } = useRecommendations(5);
+  const { draftNow, bestAvailable, marketValues, byNeed, topPick, isLoading } = useRecommendations(5);
   const { players } = usePlayerDataQuery();
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
@@ -375,7 +376,7 @@ export function Recommendations(): React.ReactElement {
 
         {/* Tabbed Recommendations */}
         <Tabs defaultValue="draft-now" className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-3 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-4 p-1">
             <TabsTrigger value="draft-now" className="px-1.5 text-[11px]">
               Draft Now
             </TabsTrigger>
@@ -384,6 +385,9 @@ export function Recommendations(): React.ReactElement {
             </TabsTrigger>
             <TabsTrigger value="best-available" className="px-1.5 text-[11px]">
               Best Avail.
+            </TabsTrigger>
+            <TabsTrigger value="best-value" className="px-1.5 text-[11px]">
+              Best Value
             </TabsTrigger>
           </TabsList>
 
@@ -396,6 +400,9 @@ export function Recommendations(): React.ReactElement {
           </TabsContent>
 
           <TabsContent value="by-need" className="mt-2">
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              Urgent starter gaps only. Check Best Value for market steals.
+            </div>
             <RecommendationList
               recommendations={byNeed}
               emptyMessage="No need-based recommendations"
@@ -407,6 +414,14 @@ export function Recommendations(): React.ReactElement {
             <RecommendationList
               recommendations={bestAvailable}
               emptyMessage="No players available"
+              onDraft={isMyTurn ? handleDraft : undefined}
+            />
+          </TabsContent>
+
+          <TabsContent value="best-value" className="mt-2">
+            <RecommendationList
+              recommendations={marketValues}
+              emptyMessage="No market values available"
               onDraft={isMyTurn ? handleDraft : undefined}
             />
           </TabsContent>
