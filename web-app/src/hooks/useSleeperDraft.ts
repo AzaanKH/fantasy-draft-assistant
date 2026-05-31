@@ -93,7 +93,8 @@ export function useSleeperDraft(draftId: string | null) {
     };
   }, [draftId, queryClient]);
 
-  const snapshot = liveSnapshot ?? snapshotQuery.data ?? null;
+  const snapshot =
+    liveSnapshot?.draftId === draftId ? liveSnapshot : snapshotQuery.data ?? null;
 
   useEffect(() => {
     if (!snapshot?.draft) {
@@ -195,8 +196,9 @@ export function useSleeperDraft(draftId: string | null) {
     draft: snapshot?.draft ?? null,
     picks: snapshot?.picks ?? [],
     isLoading: snapshotQuery.isLoading && !snapshot,
-    isError: snapshotQuery.isError,
+    isError: snapshotQuery.isError || snapshot?.status === 'error',
     error: snapshotQuery.error,
+    lastError: snapshot?.lastError ?? snapshotQuery.error?.message ?? null,
     syncStatus: snapshot?.status ?? 'idle',
     lastSyncedPick: snapshot?.picks.at(-1)?.pickNumber ?? 0,
     totalPicks: snapshot?.picks.length ?? 0,
