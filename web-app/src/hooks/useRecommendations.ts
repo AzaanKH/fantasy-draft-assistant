@@ -18,7 +18,7 @@ import {
 } from '@/lib/calculations';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
-import { useDraftStore } from '@/stores/draftStore';
+import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -95,7 +95,7 @@ export function useRecommendations(limit: number = 5): {
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
-  const isMyTurn = useDraftStore((state) => state.isMyTurn);
+  const isMyTurn = useIsMyTurn();
   const survivalModelQuery = useQuery({
     queryKey: ['league-survival-model'],
     queryFn: fetchLeagueSurvivalModel,

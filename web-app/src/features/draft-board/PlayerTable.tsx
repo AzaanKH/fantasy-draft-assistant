@@ -29,6 +29,7 @@ import {
 import { DataTable } from './data-table';
 import { getColumnsWithActions } from './columns';
 import { SleeperConnect } from './SleeperConnect';
+import { OnTheClock } from './OnTheClock';
 import { MyRoster } from '@/features/my-roster';
 import { useFilteredPlayers, usePositionStats } from '@/hooks/usePlayerData';
 import { useDraftStore } from '@/stores/draftStore';
@@ -509,6 +510,8 @@ export function PlayerTable() {
             </div>
           </div>
         </CardHeader>
+
+        <OnTheClock players={players} onDraft={handleDraft} />
 
         <CardContent className="space-y-4">
           <SleeperConnect />
