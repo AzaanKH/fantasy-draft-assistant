@@ -37,6 +37,77 @@ import { useSleeperDraft } from '@/hooks/useSleeperDraft';
 import { useDraftStore } from '@/stores/draftStore';
 import { cn } from '@/lib/utils';
 
+interface SleeperConnectProps {
+  fantasyProsRefreshedAt?: string;
+  sleeperFetchedAt?: string;
+  fantasyProsSourceType?: string;
+  predictionModelVersion?: string;
+  predictionsError?: Error | null;
+  contractsError?: Error | null;
+}
+
+type ConfidenceTone = 'neutral' | 'good' | 'warn' | 'bad';
+
+function formatRelativeAge(timestamp: string, now: number): string | null {
+  const refreshedAt = Date.parse(timestamp);
+  if (Number.isNaN(refreshedAt)) {
+    return null;
+  }
+
+  const elapsedMinutes = Math.max(0, Math.floor((now - refreshedAt) / 60_000));
+  if (elapsedMinutes < 1) return 'just now';
+  if (elapsedMinutes < 60) return `${String(elapsedMinutes)}m ago`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${String(elapsedHours)}h ago`;
+
+  return `${String(Math.floor(elapsedHours / 24))}d ago`;
+}
+
+function formatTimestamp(timestamp: string | undefined): string {
+  if (!timestamp) return 'unavailable';
+
+  const parsed = Date.parse(timestamp);
+  return Number.isNaN(parsed) ? timestamp : new Date(parsed).toLocaleString();
+}
+
+function getOldestTimestamp(timestamps: readonly (string | undefined)[]): string | null {
+  const validTimestamps = timestamps.filter(
+    (timestamp): timestamp is string =>
+      timestamp !== undefined && !Number.isNaN(Date.parse(timestamp))
+  );
+
+  if (validTimestamps.length === 0) return null;
+
+  return validTimestamps.reduce((oldest, timestamp) =>
+    Date.parse(timestamp) < Date.parse(oldest) ? timestamp : oldest
+  );
+}
+
+function DataConfidenceItem({
+  children,
+  title,
+  tone,
+}: {
+  children: React.ReactNode;
+  title?: string;
+  tone: ConfidenceTone;
+}) {
+  const dotClass = {
+    neutral: 'bg-muted-foreground/60',
+    good: 'bg-green-600',
+    warn: 'bg-amber-500',
+    bad: 'bg-destructive',
+  }[tone];
+
+  return (
+    <span className="inline-flex items-center gap-1.5" title={title}>
+      <span className={cn('size-1.5 rounded-full', dotClass)} />
+      <span>{children}</span>
+    </span>
+  );
+}
+
 function SyncDetail({
   children,
   label,
@@ -54,13 +125,31 @@ function SyncDetail({
   );
 }
 
-export function SleeperConnect(): React.ReactElement {
+export function SleeperConnect({
+  fantasyProsRefreshedAt,
+  sleeperFetchedAt,
+  fantasyProsSourceType,
+  predictionModelVersion,
+  predictionsError,
+  contractsError,
+}: SleeperConnectProps): React.ReactElement {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [draftIdInput, setDraftIdInput] = React.useState('');
   const [draftPosition, setDraftPosition] = React.useState('1');
   const [connectedDraftId, setConnectedDraftId] = React.useState<string | null>(null);
   const [isDraftPositionConfirmed, setIsDraftPositionConfirmed] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [now, setNow] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const setConfig = useDraftStore((state) => state.setConfig);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
@@ -85,6 +174,30 @@ export function SleeperConnect(): React.ReactElement {
   );
   const draftPositionNumber = Number.parseInt(draftPosition, 10);
   const isDraftPositionValid = draftSlots.includes(draftPositionNumber);
+  const marketRefreshedAt = getOldestTimestamp([
+    fantasyProsRefreshedAt,
+    sleeperFetchedAt,
+  ]);
+  const marketAge = marketRefreshedAt
+    ? formatRelativeAge(marketRefreshedAt, now)
+    : null;
+  const marketAgeHours = marketRefreshedAt
+    ? Math.max(0, (now - Date.parse(marketRefreshedAt)) / 3_600_000)
+    : null;
+  const marketTone: ConfidenceTone =
+    marketAgeHours === null
+      ? 'bad'
+      : marketAgeHours >= 72
+        ? 'bad'
+        : marketAgeHours >= 24
+          ? 'warn'
+          : 'good';
+  const marketTitle = [
+    `FantasyPros snapshot: ${formatTimestamp(fantasyProsRefreshedAt)}${fantasyProsSourceType ? ` (${fantasyProsSourceType})` : ''}`,
+    `Sleeper market snapshot: ${formatTimestamp(sleeperFetchedAt)}`,
+  ].join('\n');
+  const hasPredictionModel =
+    predictionModelVersion !== undefined && predictionModelVersion !== 'none';
 
   const handleConnect = () => {
     // Extract draft ID from a full Sleeper URL if one was pasted.
@@ -343,6 +456,49 @@ export function SleeperConnect(): React.ReactElement {
                       ? `${String(draftSlotsCount)}-team draft found · choose your slot to start importing picks.`
                     : `${String(totalPicks)} picks synced · ${String(myPicksCount)} yours · slot ${String(myPickPosition)} · updates every second`}
             </p>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <DataConfidenceItem
+                tone={
+                  isError
+                    ? 'bad'
+                    : connectedDraftId && !isConnecting && isDraftPositionConfirmed
+                      ? 'good'
+                      : 'neutral'
+                }
+              >
+                {isError
+                  ? 'Draft sync needs attention'
+                  : isConnecting
+                    ? 'Draft sync connecting'
+                    : connectedDraftId && isDraftPositionConfirmed
+                      ? isComplete
+                        ? 'Draft sync complete'
+                        : isDrafting
+                          ? 'Live draft connected'
+                          : 'Draft sync ready'
+                      : 'Live draft not connected'}
+              </DataConfidenceItem>
+              <DataConfidenceItem tone={marketTone} title={marketTitle}>
+                {marketAge
+                  ? `Market data refreshed ${marketAge}`
+                  : 'Market data unavailable'}
+              </DataConfidenceItem>
+              <DataConfidenceItem
+                tone={predictionsError ? 'bad' : hasPredictionModel ? 'good' : 'warn'}
+                title={hasPredictionModel ? `Model: ${predictionModelVersion}` : undefined}
+              >
+                {predictionsError
+                  ? 'Model unavailable'
+                  : hasPredictionModel
+                    ? 'Model ready'
+                    : 'Model not loaded'}
+              </DataConfidenceItem>
+              {contractsError && (
+                <DataConfidenceItem tone="warn">
+                  Contract data unavailable
+                </DataConfidenceItem>
+              )}
+            </div>
           </div>
         </div>
 
