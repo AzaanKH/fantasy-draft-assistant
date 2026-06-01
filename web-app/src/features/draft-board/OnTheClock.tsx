@@ -41,7 +41,7 @@ export function OnTheClock({
 }: {
   players: readonly Player[];
   onDraft: (player: Player) => void;
-}) {
+}): React.ReactElement | null {
   const [showWhy, setShowWhy] = React.useState(false);
   const { draftNow, topPick, isLoading } = useRecommendations(3);
   const config = useDraftStore((state) => state.config);
