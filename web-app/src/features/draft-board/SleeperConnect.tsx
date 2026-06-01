@@ -60,13 +60,13 @@ export function SleeperConnect() {
   const [draftPosition, setDraftPosition] = React.useState('1');
   const [connectedDraftId, setConnectedDraftId] = React.useState<string | null>(null);
   const [isDraftPositionConfirmed, setIsDraftPositionConfirmed] = React.useState(false);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const setConfig = useDraftStore((state) => state.setConfig);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
 
   const {
     draft,
-    syncStatus,
     totalPicks,
     myPicksCount,
     isError,
@@ -78,7 +78,6 @@ export function SleeperConnect() {
 
   const isConnecting =
     connectedDraftId !== null && !draft && !isError;
-  const isSyncing = syncStatus === 'syncing';
   const draftSlotsCount = draft?.settings.teams ?? 0;
   const draftSlots = React.useMemo(
     () => Array.from({ length: draftSlotsCount }, (_, index) => index + 1),
@@ -111,6 +110,16 @@ export function SleeperConnect() {
     setConnectedDraftId(null);
     setDraftPosition('1');
     setIsDraftPositionConfirmed(false);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const dialogContent = !connectedDraftId ? (
@@ -236,7 +245,7 @@ export function SleeperConnect() {
         </Badge>
         <span>{myPicksCount} of your picks imported</span>
         <span>·</span>
-        <span>{isSyncing ? 'Checking for new picks...' : 'Synced every second'}</span>
+        <span>Synced every second</span>
       </div>
 
       <DialogFooter className="sm:justify-between">
@@ -248,10 +257,11 @@ export function SleeperConnect() {
           <Button
             variant="outline"
             onClick={() => {
-              void refresh();
+              void handleRefresh();
             }}
+            disabled={isRefreshing}
           >
-            <RefreshCw className={cn(isSyncing && 'animate-spin')} />
+            <RefreshCw className={cn(isRefreshing && 'animate-spin')} />
             Refresh now
           </Button>
           <Button
@@ -289,7 +299,7 @@ export function SleeperConnect() {
                   : 'bg-background text-muted-foreground'
             )}
           >
-            {isConnecting || isSyncing ? (
+            {isConnecting ? (
               <LoaderCircle className="size-4 animate-spin" />
             ) : connectedDraftId && !isError ? (
               <CheckCircle2 className="size-4" />
@@ -331,9 +341,7 @@ export function SleeperConnect() {
                     ? 'Fetching the draft room and importing picks.'
                     : !isDraftPositionConfirmed
                       ? `${String(draftSlotsCount)}-team draft found · choose your slot to start importing picks.`
-                    : `${String(totalPicks)} picks synced · ${String(myPicksCount)} yours · slot ${String(myPickPosition)} · ${
-                        isSyncing ? 'checking for picks' : 'updates every second'
-                      }`}
+                    : `${String(totalPicks)} picks synced · ${String(myPicksCount)} yours · slot ${String(myPickPosition)} · updates every second`}
             </p>
           </div>
         </div>
