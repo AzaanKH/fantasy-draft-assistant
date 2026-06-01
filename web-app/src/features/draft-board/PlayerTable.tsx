@@ -522,7 +522,14 @@ export function PlayerTable() {
         <ShortlistQueue players={players} onDraft={handleDraft} />
 
         <CardContent className="space-y-4">
-          <SleeperConnect />
+          <SleeperConnect
+            fantasyProsRefreshedAt={dataInfo.fantasyProsRefreshedAt}
+            sleeperFetchedAt={dataInfo.sleeperFetchedAt}
+            fantasyProsSourceType={dataInfo.fantasyProsSourceType}
+            predictionModelVersion={dataInfo.predictionModelVersion}
+            predictionsError={dataInfo.predictionsError}
+            contractsError={dataInfo.contractsError}
+          />
 
           {/* Filters */}
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -577,32 +584,6 @@ export function PlayerTable() {
             pageSize={30}
           />
 
-          {/* Data freshness info */}
-          <div className="space-y-1 text-right text-xs">
-            {dataInfo.contractsError && (
-              <div className="text-destructive/80">
-                Contract-year data unavailable.
-              </div>
-            )}
-            {dataInfo.fantasyProsRefreshedAt && (
-              <div className="text-muted-foreground">
-                FantasyPros snapshot from{' '}
-                {new Date(dataInfo.fantasyProsRefreshedAt).toLocaleString()}
-                {dataInfo.fantasyProsSourceType && (
-                  <span>
-                    {' · '}
-                    {dataInfo.fantasyProsSourceType}
-                  </span>
-                )}
-              </div>
-            )}
-            {dataInfo.sleeperFetchedAt && (
-              <div className="text-muted-foreground">
-                Sleeper market snapshot from{' '}
-                {new Date(dataInfo.sleeperFetchedAt).toLocaleString()}
-              </div>
-            )}
-          </div>
         </CardContent>
       </Card>
 
