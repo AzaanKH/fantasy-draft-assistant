@@ -5,7 +5,7 @@
  * - Draft Now: Combined roster-aware ranking
  * - By Need: Factoring in team needs and scarcity
  * - Best Available: Composite player quality
- * - Best Value: Largest Sleeper market discounts relative to ECR
+ * - Best Value: Actionable Sleeper market discounts above replacement level
  */
 
 import * as React from 'react';
@@ -13,6 +13,7 @@ import type { Position, Recommendation } from '@fantasy-draft/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
@@ -306,7 +307,16 @@ function TopPickHighlight({
  * Main Recommendations component
  */
 export function Recommendations(): React.ReactElement {
-  const { draftNow, bestAvailable, marketValues, byNeed, topPick, isLoading } = useRecommendations(5);
+  const {
+    draftNow,
+    bestAvailable,
+    marketValues,
+    marketStashes,
+    byNeed,
+    topPick,
+    isLoading,
+  } = useRecommendations(5);
+  const [showMarketStashes, setShowMarketStashes] = React.useState(false);
   const { players } = usePlayerDataQuery();
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
@@ -419,11 +429,35 @@ export function Recommendations(): React.ReactElement {
           </TabsContent>
 
           <TabsContent value="best-value" className="mt-2">
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              Draftable contributors with a meaningful Sleeper discount.
+            </div>
             <RecommendationList
               recommendations={marketValues}
-              emptyMessage="No market values available"
+              emptyMessage="No actionable market values available"
               onDraft={isMyTurn ? handleDraft : undefined}
             />
+            {marketStashes.length > 0 && (
+              <div className="mt-3 border-t pt-3">
+                <label className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                  <span>Show late-round stashes ({marketStashes.length})</span>
+                  <Switch
+                    checked={showMarketStashes}
+                    onCheckedChange={setShowMarketStashes}
+                    aria-label="Show late-round stashes"
+                  />
+                </label>
+                {showMarketStashes && (
+                  <div className="mt-2">
+                    <RecommendationList
+                      recommendations={marketStashes}
+                      emptyMessage="No late-round stashes available"
+                      onDraft={isMyTurn ? handleDraft : undefined}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 

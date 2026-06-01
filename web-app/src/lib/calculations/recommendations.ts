@@ -36,8 +36,10 @@ export interface RecommendationResult {
   readonly draftNow: readonly Recommendation[];
   /** Best available players by composite player-quality score */
   readonly bestAvailable: readonly Recommendation[];
-  /** Players with the largest Sleeper market discount relative to ECR */
+  /** Draftable contributors with a meaningful Sleeper market discount */
   readonly marketValues: readonly Recommendation[];
+  /** Discounted replacement-level players hidden from Best Value by default */
+  readonly marketStashes: readonly Recommendation[];
   /** Players recommended based on team needs and scarcity */
   readonly byNeed: readonly Recommendation[];
 }
@@ -60,6 +62,8 @@ const PROJECTION_BASELINES: Record<Player['position'], number> = {
   DEF: 130,
 };
 const SPECIAL_TEAMS_MAX_VOR = 20;
+const MIN_ACTIONABLE_MARKET_DISCOUNT = 5;
+const MIN_ACTIONABLE_MARKET_VOR = 1;
 
 function round(value: number, digits: number = 1): number {
   return Number(value.toFixed(digits));
@@ -256,7 +260,7 @@ function buildBestAvailableRecommendation(player: Player): Recommendation {
   };
 }
 
-function buildMarketValueRecommendation(player: Player): Recommendation {
+function buildMarketValueRecommendation(player: Player, isLateRoundStash: boolean = false): Recommendation {
   const subScores = getBaseSubScores(player);
   const diagnostics = getDiagnostics(player);
 
@@ -265,6 +269,7 @@ function buildMarketValueRecommendation(player: Player): Recommendation {
     playerName: player.name,
     position: player.position,
     reason: [
+      ...(isLateRoundStash ? ['Late-round stash'] : []),
       formatMarketDelta(player.valueScore),
       `FP #${String(player.ecrRank)} vs Sleeper #${String(player.marketRank)}`,
       `${String(Math.round(player.nextPickSurvivalProbability * 100))}% to next pick`,
@@ -273,6 +278,32 @@ function buildMarketValueRecommendation(player: Player): Recommendation {
     diagnostics,
     subScores,
   };
+}
+
+function hasMaterialMarketDiscount(player: Player): boolean {
+  return player.valueScore >= MIN_ACTIONABLE_MARKET_DISCOUNT;
+}
+
+function isActionableMarketValue(player: Player): boolean {
+  return (
+    hasMaterialMarketDiscount(player) &&
+    getGuardedValueOverReplacement(player) >= MIN_ACTIONABLE_MARKET_VOR
+  );
+}
+
+function isLateRoundStash(player: Player): boolean {
+  return (
+    hasMaterialMarketDiscount(player) &&
+    getGuardedValueOverReplacement(player) < MIN_ACTIONABLE_MARKET_VOR
+  );
+}
+
+function sortByMarketDiscount(a: Recommendation, b: Recommendation): number {
+  return (
+    b.score - a.score ||
+    (a.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) -
+      (b.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER)
+  );
 }
 
 function buildNeedRecommendation(player: Player, need: PositionNeed): Recommendation {
@@ -307,16 +338,17 @@ function buildNeedRecommendation(player: Player, need: PositionNeed): Recommenda
 /**
  * Generate player recommendations
  *
- * Four recommendation lists:
+ * Five recommendation lists:
  * 1. Draft Now: Combined roster-aware ranking for the current pick
  * 2. Best Available: Composite player quality regardless of need
- * 3. Best Value: Largest Sleeper market discounts relative to ECR
+ * 3. Best Value: Actionable Sleeper market discounts above replacement level
  * 4. By Need: Position-filtered view for urgent roster gaps
+ * 5. Market Stashes: Discounted replacement-level players hidden from Best Value by default
  *
  * @param availablePlayers - Players not yet drafted
  * @param teamNeeds - Current team positional needs
  * @param limit - Maximum recommendations per list (default: 10)
- * @returns Object with draftNow, bestAvailable, and byNeed recommendation arrays
+ * @returns Object with draftNow, bestAvailable, marketValues, marketStashes, and byNeed recommendation arrays
  *
  * @example
  * const { bestAvailable, byNeed } = getRecommendations(available, needs, 5);
@@ -352,12 +384,15 @@ export function getRecommendations(
     .slice(0, limit);
 
   const marketValues = [...recommendationPool]
-    .map(buildMarketValueRecommendation)
-    .sort((a, b) =>
-      b.score - a.score ||
-      (a.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) -
-        (b.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER)
-    )
+    .filter(isActionableMarketValue)
+    .map((player) => buildMarketValueRecommendation(player))
+    .sort(sortByMarketDiscount)
+    .slice(0, limit);
+
+  const marketStashes = [...recommendationPool]
+    .filter(isLateRoundStash)
+    .map((player) => buildMarketValueRecommendation(player, true))
+    .sort(sortByMarketDiscount)
     .slice(0, limit);
 
   // By Need: Factor in team needs and scarcity
@@ -387,7 +422,7 @@ export function getRecommendations(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
-  return { draftNow, bestAvailable, marketValues, byNeed };
+  return { draftNow, bestAvailable, marketValues, marketStashes, byNeed };
 }
 
 /**
