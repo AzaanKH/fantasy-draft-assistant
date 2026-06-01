@@ -338,16 +338,17 @@ function buildNeedRecommendation(player: Player, need: PositionNeed): Recommenda
 /**
  * Generate player recommendations
  *
- * Four recommendation lists:
+ * Five recommendation lists:
  * 1. Draft Now: Combined roster-aware ranking for the current pick
  * 2. Best Available: Composite player quality regardless of need
  * 3. Best Value: Actionable Sleeper market discounts above replacement level
  * 4. By Need: Position-filtered view for urgent roster gaps
+ * 5. Market Stashes: Discounted replacement-level players hidden from Best Value by default
  *
  * @param availablePlayers - Players not yet drafted
  * @param teamNeeds - Current team positional needs
  * @param limit - Maximum recommendations per list (default: 10)
- * @returns Object with draftNow, bestAvailable, and byNeed recommendation arrays
+ * @returns Object with draftNow, bestAvailable, marketValues, marketStashes, and byNeed recommendation arrays
  *
  * @example
  * const { bestAvailable, byNeed } = getRecommendations(available, needs, 5);
