@@ -54,6 +54,7 @@ const TIER_THRESHOLDS: Record<Position, readonly number[]> = {
 };
 
 const SLEEPER_PLACEHOLDER_RANK = 999;
+const reportedUnmatchedEcrSignatures = new Set<string>();
 
 function resolveSleeperMarketRank(sleeperAdp: number | undefined, ecrRank: number): number {
   return sleeperAdp !== undefined &&
@@ -353,9 +354,13 @@ export function mergePlayerData(
   }
 
   if (unmatchedEcr.length > 0) {
-    console.warn(
-      `[mergePlayerData] ${String(unmatchedEcr.length)} ECR players not found in Sleeper data`
-    );
+    const signature = [...unmatchedEcr].sort().join('\0');
+    if (!reportedUnmatchedEcrSignatures.has(signature)) {
+      reportedUnmatchedEcrSignatures.add(signature);
+      console.warn(
+        `[mergePlayerData] ${String(unmatchedEcr.length)} ECR players not found in Sleeper data`
+      );
+    }
   }
 
   return players;
