@@ -73,6 +73,10 @@ interface DraftConfig {
   myPickPosition: number;
 }
 
+interface RecordedDraftPick extends DraftPick {
+  readonly shortlistIndex?: number;
+}
+
 /**
  * Complete draft store state
  */
@@ -83,7 +87,7 @@ interface DraftState {
   // Draft progress
   currentPick: number;
   draftedPlayerIds: Set<string>;
-  draftHistory: DraftPick[];
+  draftHistory: RecordedDraftPick[];
   shortlistedPlayerIds: string[];
 
   // My team
@@ -236,10 +240,11 @@ export const useDraftStore = create<DraftStore>()(
           return;
         }
 
+        const shortlistIndex = state.shortlistedPlayerIds.indexOf(playerId);
         state.draftedPlayerIds.add(playerId);
-        state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-          (shortlistedPlayerId) => shortlistedPlayerId !== playerId
-        );
+        if (shortlistIndex >= 0) {
+          state.shortlistedPlayerIds.splice(shortlistIndex, 1);
+        }
         state.draftHistory.push({
           pickNumber: pickNumberToUse,
           playerId,
@@ -248,6 +253,7 @@ export const useDraftStore = create<DraftStore>()(
           teamIndex,
           teamName,
           timestamp: Date.now(),
+          ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
         });
         if (pickNumber !== undefined) {
           state.currentPick = Math.max(state.currentPick, pickNumberToUse + 1);
@@ -261,6 +267,16 @@ export const useDraftStore = create<DraftStore>()(
         const lastPick = state.draftHistory.pop();
         if (lastPick) {
           state.draftedPlayerIds.delete(lastPick.playerId);
+          if (
+            lastPick.shortlistIndex !== undefined &&
+            !state.shortlistedPlayerIds.includes(lastPick.playerId)
+          ) {
+            state.shortlistedPlayerIds.splice(
+              Math.min(lastPick.shortlistIndex, state.shortlistedPlayerIds.length),
+              0,
+              lastPick.playerId
+            );
+          }
           if (lastPick.teamName === 'My Team') {
             const roster = state.myRoster[lastPick.position] as string[];
             const index = roster.lastIndexOf(lastPick.playerId);
@@ -350,7 +366,8 @@ export const useDraftStore = create<DraftStore>()(
  */
 export const useCurrentPick = () => useDraftStore((state) => state.currentPick);
 export const useDraftedIds = () => useDraftStore((state) => state.draftedPlayerIds);
-export const useShortlistedIds = () => useDraftStore((state) => state.shortlistedPlayerIds);
+export const useShortlistedIds = (): DraftState['shortlistedPlayerIds'] =>
+  useDraftStore((state) => state.shortlistedPlayerIds);
 export const useMyRoster = () => useDraftStore((state) => state.myRoster);
 export const useFilter = () => useDraftStore((state) => state.filter);
 export const useSort = () => useDraftStore((state) => state.sort);

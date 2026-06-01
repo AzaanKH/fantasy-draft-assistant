@@ -30,4 +30,27 @@ describe('draftStore shortlist', () => {
     togglePlayerShortlisted('player-a');
     expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([]);
   });
+
+  it('removes shortlisted players when importing a pick', () => {
+    const { markPlayerDrafted, togglePlayerShortlisted } = useDraftStore.getState();
+
+    togglePlayerShortlisted('player-a');
+    markPlayerDrafted('player-a', 'Player A', 'WR', 1, 'Team 1', 3);
+    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([]);
+  });
+
+  it('restores a shortlisted player in the same position when undoing a pick', () => {
+    const { markPlayerDrafted, togglePlayerShortlisted, undoLastPick } =
+      useDraftStore.getState();
+
+    togglePlayerShortlisted('player-a');
+    togglePlayerShortlisted('player-b');
+    markPlayerDrafted('player-a', 'Player A', 'WR', 0, 'Team 1');
+    undoLastPick();
+
+    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([
+      'player-a',
+      'player-b',
+    ]);
+  });
 });
