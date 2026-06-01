@@ -12,6 +12,12 @@ import type {
   Recommendation,
 } from '@fantasy-draft/shared';
 import { calculateAllScarcityScores } from './scarcity';
+import {
+  getDraftProgress,
+  isSpecialTeamsPosition,
+  shouldDeferSpecialTeams,
+  SPECIAL_TEAMS_LATE_DRAFT_PROGRESS,
+} from './draft-stage';
 
 type RecommendationDiagnostics = NonNullable<Recommendation['diagnostics']>;
 type RecommendationSubScores = NonNullable<Recommendation['subScores']>;
@@ -41,6 +47,7 @@ const NEED_SCORES: Record<NeedPriority, number> = {
   high: 24,
   medium: 14,
   low: 4,
+  defer: -24,
   filled: -18,
 };
 
@@ -53,14 +60,13 @@ const PROJECTION_BASELINES: Record<Player['position'], number> = {
   DEF: 130,
 };
 const SPECIAL_TEAMS_MAX_VOR = 20;
-const SPECIAL_TEAMS_LATE_DRAFT_PROGRESS = 0.72;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
 
 function round(value: number, digits: number = 1): number {
   return Number(value.toFixed(digits));
+}
+
+function interpolate(start: number, end: number, progress: number): number {
+  return start + (end - start) * progress;
 }
 
 function getGuardedValueOverReplacement(player: Player): number {
@@ -69,19 +75,30 @@ function getGuardedValueOverReplacement(player: Player): number {
     : player.valueOverReplacement;
 }
 
-function getDraftProgress(context: RecommendationContext | undefined): number {
-  if (!context?.currentPick || !context.totalPicks || context.totalPicks <= 0) {
-    return 0;
+function getRosterAdjustedValueOverReplacement(
+  player: Player,
+  need: PositionNeed | undefined,
+  context: RecommendationContext | undefined
+): number {
+  const replacementValue = getGuardedValueOverReplacement(player);
+  if (!need || need.priority !== 'low') {
+    return replacementValue;
   }
-  return clamp((context.currentPick - 1) / context.totalPicks, 0, 1);
+
+  const draftProgress = getDraftProgress(context);
+  // Positional VOR overstates the FLEX or bench utility of a second QB or TE.
+  if (player.position === 'QB') {
+    return replacementValue * interpolate(0.2, 0.65, draftProgress);
+  }
+  if (player.position === 'TE') {
+    return replacementValue * interpolate(0.45, 0.8, draftProgress);
+  }
+
+  return replacementValue;
 }
 
 function isSpecialTeams(player: Player): boolean {
-  return player.position === 'K' || player.position === 'DEF';
-}
-
-function shouldDeferSpecialTeams(context: RecommendationContext | undefined): boolean {
-  return getDraftProgress(context) < SPECIAL_TEAMS_LATE_DRAFT_PROGRESS;
+  return isSpecialTeamsPosition(player.position);
 }
 
 function getDiagnostics(player: Player): RecommendationDiagnostics {
@@ -99,13 +116,15 @@ function getDiagnostics(player: Player): RecommendationDiagnostics {
   };
 }
 
-function getBaseSubScores(player: Player): RecommendationSubScores {
+function getBaseSubScores(
+  player: Player,
+  replacementValue: number = getGuardedValueOverReplacement(player)
+): RecommendationSubScores {
   const predictionSourceBoost = player.predictionSource === 'model'
     ? 5
     : player.predictionSource === 'fantasypros'
       ? 2
       : 0;
-  const replacementValue = getGuardedValueOverReplacement(player);
 
   return {
     expertRankScore: Math.max(0, 120 - player.ecrRank),
@@ -175,6 +194,9 @@ function getNeedReason(need: PositionNeed | undefined): string {
   if (need.priority === 'low') {
     return 'depth fit';
   }
+  if (need.priority === 'defer') {
+    return 'defer until late rounds';
+  }
   return `${need.priority} roster need`;
 }
 
@@ -185,10 +207,11 @@ function buildDraftNowRecommendation(
   context: RecommendationContext | undefined
 ): Recommendation {
   const rosterNeedScore = NEED_SCORES[need?.priority ?? 'low'];
+  const replacementValue = getRosterAdjustedValueOverReplacement(player, need, context);
   const scarcityScore = poolScarcityScore * 2.1 + player.tierDropoffScore * 5;
   const draftStateScore = getDraftStateScore(player, context);
   const subScores: RecommendationSubScores = {
-    ...getBaseSubScores(player),
+    ...getBaseSubScores(player, replacementValue),
     rosterNeedScore,
     scarcityScore: round(scarcityScore),
     draftStateScore,
