@@ -45,6 +45,8 @@ export function useTeamNeeds(): {
   const { players, isLoading } = usePlayerDataQuery();
   const myRoster = useDraftStore((state) => state.myRoster);
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const currentPick = useDraftStore((state) => state.currentPick);
+  const config = useDraftStore((state) => state.config);
 
   const scarcityScores = useMemo(() => {
     const availablePlayers = players.filter((p) => !draftedPlayerIds.has(p.id));
@@ -52,8 +54,12 @@ export function useTeamNeeds(): {
   }, [players, draftedPlayerIds]);
 
   const needs = useMemo(() => {
-    return calculateTeamNeeds(myRoster, DEFAULT_ROSTER_REQUIREMENTS, scarcityScores);
-  }, [myRoster, scarcityScores]);
+    return calculateTeamNeeds(myRoster, DEFAULT_ROSTER_REQUIREMENTS, scarcityScores, {
+      currentPick,
+      totalPicks: config.totalTeams * config.totalRounds,
+      totalRounds: config.totalRounds,
+    });
+  }, [myRoster, scarcityScores, currentPick, config.totalTeams, config.totalRounds]);
 
   const criticalPositions = useMemo(() => {
     return getCriticalPositions(needs);
@@ -77,6 +83,7 @@ export function useIsPositionNeed(position: Position): boolean {
     return (
       need !== undefined &&
       need.priority !== 'low' &&
+      need.priority !== 'defer' &&
       need.priority !== 'filled'
     );
   }, [needs, position]);

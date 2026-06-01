@@ -35,27 +35,50 @@ function createScarcityScores(
 
 describe('calculateTeamNeeds', () => {
   describe('critical priority', () => {
-    it('returns critical when no players at a position that needs starters', () => {
+    it('prioritizes empty multi-starter positions at pick one', () => {
       const roster = createRoster({});
       const scarcity = createScarcityScores({});
 
-      const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity);
+      const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity, {
+        currentPick: 1,
+        totalPicks: 150,
+        totalRounds: 15,
+      });
 
-      // All starter positions should be critical
       const criticalNeeds = needs.filter((n) => n.priority === 'critical');
-      expect(criticalNeeds.length).toBeGreaterThan(0);
-      expect(criticalNeeds.map((n) => n.position)).toContain('QB');
-      expect(criticalNeeds.map((n) => n.position)).toContain('RB');
+      expect(criticalNeeds.map((n) => n.position)).toEqual(['RB', 'WR']);
+      expect(needs.find((n) => n.position === 'QB')?.priority).toBe('medium');
+      expect(needs.find((n) => n.position === 'TE')?.priority).toBe('medium');
+      expect(needs.find((n) => n.position === 'K')?.priority).toBe('defer');
+      expect(needs.find((n) => n.position === 'DEF')?.priority).toBe('defer');
     });
 
-    it('marks QB as critical when empty', () => {
+    it('marks QB as critical when empty after the draft midpoint', () => {
       const roster = createRoster({ RB: ['rb1', 'rb2'], WR: ['wr1', 'wr2'] });
       const scarcity = createScarcityScores({});
 
-      const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity);
+      const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity, {
+        currentPick: 91,
+        totalPicks: 150,
+        totalRounds: 15,
+      });
 
       const qbNeed = needs.find((n) => n.position === 'QB');
       expect(qbNeed?.priority).toBe('critical');
+    });
+
+    it('marks kicker and defense as critical when still empty in the late rounds', () => {
+      const roster = createRoster({});
+      const scarcity = createScarcityScores({});
+
+      const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity, {
+        currentPick: 125,
+        totalPicks: 150,
+        totalRounds: 15,
+      });
+
+      expect(needs.find((n) => n.position === 'K')?.priority).toBe('critical');
+      expect(needs.find((n) => n.position === 'DEF')?.priority).toBe('critical');
     });
   });
 
@@ -151,7 +174,7 @@ describe('getCriticalPositions', () => {
       WR: ['wr1', 'wr2'], // low
       TE: ['te1'], // low
     });
-    const scarcity = createScarcityScores({ RB: 8 });
+    const scarcity = createScarcityScores({ QB: 8, RB: 8 });
 
     const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity);
     const criticalPositions = getCriticalPositions(needs);
@@ -207,5 +230,21 @@ describe('isPositionNeed', () => {
 
     expect(isPositionNeed(needs, 'QB')).toBe(false);
     expect(isPositionNeed(needs, 'TE')).toBe(false);
+  });
+
+  it('returns false for deferred positions', () => {
+    const needs = calculateTeamNeeds(
+      createRoster({}),
+      DEFAULT_ROSTER_REQUIREMENTS,
+      createScarcityScores({}),
+      {
+        currentPick: 1,
+        totalPicks: 150,
+        totalRounds: 15,
+      }
+    );
+
+    expect(isPositionNeed(needs, 'K')).toBe(false);
+    expect(isPositionNeed(needs, 'DEF')).toBe(false);
   });
 });

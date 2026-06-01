@@ -215,6 +215,37 @@ describe('getRecommendations', () => {
       expect(uncertain?.subScores?.uncertaintyPenalty).toBe(2.8);
       expect(stable?.score).toBeGreaterThan(uncertain?.score ?? 0);
     });
+
+    it('discounts an early luxury TE after the starting TE slot is filled', () => {
+      const players = [
+        {
+          ...createPlayer('luxury-te', 'TE', 25),
+          projectedPoints: 290,
+          valueOverReplacement: 121,
+        },
+        {
+          ...createPlayer('starter-rb', 'RB', 36),
+          projectedPoints: 287,
+          valueOverReplacement: 94,
+        },
+      ];
+      const needs = createNeeds([
+        { position: 'TE', priority: 'low', scarcityScore: 2 },
+        { position: 'RB', priority: 'critical', scarcityScore: 5 },
+      ]);
+
+      const recommendations = getRecommendations(players, needs, 10, {
+        currentPick: 27,
+        totalPicks: 150,
+      });
+      const luxuryTe = recommendations.draftNow.find((rec) => rec.playerId === 'luxury-te');
+
+      expect(recommendations.draftNow[0]?.playerId).toBe('starter-rb');
+      expect(luxuryTe?.reason).toContain('depth fit');
+      expect(luxuryTe?.subScores?.replacementScore).toBeLessThan(121 * 3.75);
+      expect(recommendations.bestAvailable[0]?.playerId).toBe('luxury-te');
+      expect(recommendations.bestAvailable[0]?.subScores?.replacementScore).toBe(121 * 3.75);
+    });
   });
 
   describe('bestAvailable', () => {

@@ -105,7 +105,7 @@ export interface DraftPick {
 /**
  * Priority levels for team positional needs
  */
-export const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'filled'] as const;
+export const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'defer', 'filled'] as const;
 
 export type NeedPriority = (typeof NEED_PRIORITIES)[number];
 

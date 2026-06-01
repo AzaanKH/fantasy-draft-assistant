@@ -21,6 +21,7 @@ const priorityColors: Record<NeedPriority, string> = {
   high: 'bg-orange-500 text-white',
   medium: 'bg-yellow-500 text-black',
   low: 'bg-emerald-500/20 text-emerald-700 border-emerald-500',
+  defer: 'bg-purple-500/10 text-purple-700 border-purple-500/40',
   filled: 'bg-green-500/20 text-green-700 border-green-500',
 };
 
@@ -93,7 +94,7 @@ function NeedRow({
             {position}
           </span>
           <Badge
-            variant={priority === 'low' || priority === 'filled' ? 'outline' : 'default'}
+            variant={priority === 'low' || priority === 'defer' || priority === 'filled' ? 'outline' : 'default'}
             className={cn('text-[10px] px-1.5 py-0', priorityColors[priority])}
           >
             {formatPriority(priority)}
