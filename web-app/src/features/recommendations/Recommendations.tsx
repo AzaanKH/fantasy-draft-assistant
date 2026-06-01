@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { useDraftStore } from '@/stores/draftStore';
+import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { cn, formatSignedNumber } from '@/lib/utils';
 
 /**
@@ -312,7 +312,7 @@ export function Recommendations(): React.ReactElement {
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
-  const isMyTurn = useDraftStore((state) => state.isMyTurn);
+  const isMyTurn = useIsMyTurn();
 
   // Handle drafting a player from recommendations
   const handleDraft = React.useCallback(

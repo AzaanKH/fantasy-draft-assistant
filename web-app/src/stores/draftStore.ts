@@ -130,7 +130,7 @@ type DraftStore = DraftState & DraftActions;
 /**
  * Calculate if it's the user's turn based on snake draft order
  */
-function calculateIsMyTurn(
+export function calculateIsMyTurn(
   currentPick: number,
   myPickPosition: number,
   totalTeams: number
@@ -324,3 +324,11 @@ export const useMyRoster = () => useDraftStore((state) => state.myRoster);
 export const useFilter = () => useDraftStore((state) => state.filter);
 export const useSort = () => useDraftStore((state) => state.sort);
 export const useDraftConfig = () => useDraftStore((state) => state.config);
+export const useIsMyTurn = () =>
+  useDraftStore((state) =>
+    calculateIsMyTurn(
+      state.currentPick,
+      state.config.myPickPosition,
+      state.config.totalTeams
+    )
+  );

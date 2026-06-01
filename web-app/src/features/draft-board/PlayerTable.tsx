@@ -29,9 +29,10 @@ import {
 import { DataTable } from './data-table';
 import { getColumnsWithActions } from './columns';
 import { SleeperConnect } from './SleeperConnect';
+import { OnTheClock } from './OnTheClock';
 import { MyRoster } from '@/features/my-roster';
 import { useFilteredPlayers, usePositionStats } from '@/hooks/usePlayerData';
-import { useDraftStore } from '@/stores/draftStore';
+import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { cn, formatSignedNumber } from '@/lib/utils';
 
 /** Position filter type including FLEX */
@@ -359,16 +360,7 @@ export function PlayerTable() {
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
 
-  // Calculate if it's user's turn
-  const isMyTurn = React.useMemo(() => {
-    const round = Math.ceil(currentPick / config.totalTeams);
-    const pickInRound = ((currentPick - 1) % config.totalTeams) + 1;
-    const isOddRound = round % 2 === 1;
-    const positionThisRound = isOddRound
-      ? pickInRound
-      : config.totalTeams - pickInRound + 1;
-    return positionThisRound === config.myPickPosition;
-  }, [currentPick, config.totalTeams, config.myPickPosition]);
+  const isMyTurn = useIsMyTurn();
 
   // Filter players based on UI state
   const filteredPlayers = React.useMemo(() => {
@@ -509,6 +501,8 @@ export function PlayerTable() {
             </div>
           </div>
         </CardHeader>
+
+        <OnTheClock players={players} onDraft={handleDraft} />
 
         <CardContent className="space-y-4">
           <SleeperConnect />
