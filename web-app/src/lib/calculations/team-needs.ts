@@ -52,7 +52,12 @@ const MID_DRAFT_PROGRESS = 0.5;
  * @returns Array of position needs sorted by priority
  *
  * @example
- * const needs = calculateTeamNeeds(myRoster, DEFAULT_ROSTER_REQUIREMENTS, scarcityMap);
+ * const needs = calculateTeamNeeds(
+ *   myRoster,
+ *   DEFAULT_ROSTER_REQUIREMENTS,
+ *   scarcityMap,
+ *   context
+ * );
  * // Returns: [{ position: 'RB', priority: 'critical', ... }, ...]
  */
 export function calculateTeamNeeds(
