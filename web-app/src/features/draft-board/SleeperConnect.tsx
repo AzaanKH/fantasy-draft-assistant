@@ -59,7 +59,7 @@ function formatRelativeAge(timestamp: string, now: number): string | null {
   if (elapsedMinutes < 60) return `${String(elapsedMinutes)}m ago`;
 
   const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 48) return `${String(elapsedHours)}h ago`;
+  if (elapsedHours < 24) return `${String(elapsedHours)}h ago`;
 
   return `${String(Math.floor(elapsedHours / 24))}d ago`;
 }
