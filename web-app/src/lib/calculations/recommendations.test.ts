@@ -187,6 +187,10 @@ describe('getRecommendations', () => {
       expect(recommendations.draftNow.some((rec) => rec.position === 'DEF')).toBe(false);
       expect(recommendations.bestAvailable.some((rec) => rec.position === 'K')).toBe(false);
       expect(recommendations.bestAvailable.some((rec) => rec.position === 'DEF')).toBe(false);
+      expect(recommendations.marketValues.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.marketValues.some((rec) => rec.position === 'DEF')).toBe(false);
+      expect(recommendations.marketStashes.some((rec) => rec.position === 'K')).toBe(false);
+      expect(recommendations.marketStashes.some((rec) => rec.position === 'DEF')).toBe(false);
       expect(recommendations.byNeed.some((rec) => rec.position === 'K')).toBe(false);
       expect(recommendations.byNeed.some((rec) => rec.position === 'DEF')).toBe(false);
     });
@@ -293,7 +297,7 @@ describe('getRecommendations', () => {
   });
 
   describe('marketValues', () => {
-    it('sorts players by Sleeper market discount relative to ECR', () => {
+    it('sorts actionable players by Sleeper market discount relative to ECR', () => {
       const players = [
         {
           ...createPlayer('small-value', 'WR', 20),
@@ -325,9 +329,59 @@ describe('getRecommendations', () => {
       expect(marketValues.map((recommendation) => recommendation.playerId)).toEqual([
         'steal',
         'small-value',
-        'reach',
       ]);
       expect(marketValues[0]?.reason).toContain('Steal +18');
+    });
+
+    it('hides replacement-level discounts from Best Value and labels them as late-round stashes', () => {
+      const players = [
+        {
+          ...createPlayer('actionable-rb', 'RB', 42),
+          marketRank: 60,
+          marketAdp: 60,
+          valueScore: 18,
+          valueOverReplacement: 8,
+        },
+        {
+          ...createPlayer('deep-qb', 'QB', 190),
+          marketRank: 339,
+          marketAdp: 339,
+          valueScore: 149,
+          valueOverReplacement: 0,
+        },
+      ];
+      const needs = createNeeds([
+        { position: 'QB', priority: 'low' },
+        { position: 'RB', priority: 'low' },
+      ]);
+
+      const { marketValues, marketStashes } = getRecommendations(players, needs, 10);
+
+      expect(marketValues.map((recommendation) => recommendation.playerId)).toEqual([
+        'actionable-rb',
+      ]);
+      expect(marketStashes.map((recommendation) => recommendation.playerId)).toEqual([
+        'deep-qb',
+      ]);
+      expect(marketStashes[0]?.reason).toContain('Late-round stash');
+    });
+
+    it('requires a meaningful market discount', () => {
+      const players = [
+        {
+          ...createPlayer('small-discount', 'WR', 30),
+          marketRank: 34,
+          marketAdp: 34,
+          valueScore: 4,
+          valueOverReplacement: 12,
+        },
+      ];
+      const needs = createNeeds([{ position: 'WR', priority: 'low' }]);
+
+      const { marketValues, marketStashes } = getRecommendations(players, needs, 10);
+
+      expect(marketValues).toHaveLength(0);
+      expect(marketStashes).toHaveLength(0);
     });
   });
 
@@ -463,11 +517,12 @@ describe('getRecommendations', () => {
     it('handles empty players array', () => {
       const needs = createNeeds([{ position: 'QB', priority: 'critical' }]);
 
-      const { draftNow, bestAvailable, marketValues, byNeed } = getRecommendations([], needs);
+      const { draftNow, bestAvailable, marketValues, marketStashes, byNeed } = getRecommendations([], needs);
 
       expect(draftNow).toHaveLength(0);
       expect(bestAvailable).toHaveLength(0);
       expect(marketValues).toHaveLength(0);
+      expect(marketStashes).toHaveLength(0);
       expect(byNeed).toHaveLength(0);
     });
 
