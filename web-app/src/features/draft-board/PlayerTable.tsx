@@ -30,6 +30,7 @@ import { DataTable } from './data-table';
 import { getColumnsWithActions } from './columns';
 import { SleeperConnect } from './SleeperConnect';
 import { OnTheClock } from './OnTheClock';
+import { ShortlistQueue } from './ShortlistQueue';
 import { MyRoster } from '@/features/my-roster';
 import { useFilteredPlayers, usePositionStats } from '@/hooks/usePlayerData';
 import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
@@ -355,8 +356,10 @@ export function PlayerTable() {
   const [selectedPlayer, setSelectedPlayer] = React.useState<Player | null>(null);
 
   const draftedIds = useDraftStore((state) => state.draftedPlayerIds);
+  const shortlistedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
+  const togglePlayerShortlisted = useDraftStore((state) => state.togglePlayerShortlisted);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
 
@@ -428,14 +431,24 @@ export function PlayerTable() {
     [draftedIds]
   );
 
+  const handleToggleShortlist = React.useCallback(
+    (player: Player) => {
+      togglePlayerShortlisted(player.id);
+    },
+    [togglePlayerShortlisted]
+  );
+
   // Get columns with draft action
   const columns = React.useMemo(
     () =>
       getColumnsWithActions(handleDraft, {
         advanced: showAdvanced,
         onInspect: handleInspect,
+        onToggleShortlist: handleToggleShortlist,
+        isShortlisted: (player) => shortlistedPlayerIds.includes(player.id),
+        isDrafted: (player) => draftedIds.has(player.id),
       }),
-    [handleDraft, handleInspect, showAdvanced]
+    [draftedIds, handleDraft, handleInspect, handleToggleShortlist, shortlistedPlayerIds, showAdvanced]
   );
 
   // Get row styling (drafted players greyed out)
@@ -444,9 +457,12 @@ export function PlayerTable() {
       if (draftedIds.has(player.id)) {
         return 'opacity-40 bg-muted/30';
       }
-      return getRowHighlightClass(player);
+      return cn(
+        getRowHighlightClass(player),
+        shortlistedPlayerIds.includes(player.id) && 'ring-1 ring-inset ring-amber-400/40'
+      );
     },
-    [draftedIds]
+    [draftedIds, shortlistedPlayerIds]
   );
 
   if (isLoading) {
@@ -503,6 +519,7 @@ export function PlayerTable() {
         </CardHeader>
 
         <OnTheClock players={players} onDraft={handleDraft} />
+        <ShortlistQueue players={players} onDraft={handleDraft} />
 
         <CardContent className="space-y-4">
           <SleeperConnect />
