@@ -54,7 +54,7 @@ function SyncDetail({
   );
 }
 
-export function SleeperConnect() {
+export function SleeperConnect(): React.ReactElement {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [draftIdInput, setDraftIdInput] = React.useState('');
   const [draftPosition, setDraftPosition] = React.useState('1');
