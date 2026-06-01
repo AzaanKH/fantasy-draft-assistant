@@ -9,7 +9,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Player, Position, HighlightLevel } from '@fantasy-draft/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowUpDown, ArrowUp, ArrowDown, Eye } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Eye, Star } from 'lucide-react';
 import { cn, formatSignedNumber } from '@/lib/utils';
 
 /**
@@ -363,6 +363,9 @@ export function getColumnsWithActions(
   options: {
     advanced?: boolean;
     onInspect?: (player: Player) => void;
+    onToggleShortlist?: (player: Player) => void;
+    isShortlisted?: (player: Player) => boolean;
+    isDrafted?: (player: Player) => boolean;
   } = {}
 ): ColumnDef<Player>[] {
   const compactColumns: ColumnDef<Player>[] = [
@@ -444,8 +447,26 @@ export function getColumnsWithActions(
       header: '',
       cell: ({ row }) => {
         const player = row.original;
+        const isShortlisted = options.isShortlisted?.(player) ?? false;
+        const isDrafted = options.isDrafted?.(player) ?? false;
         return (
           <div className="flex justify-end gap-1">
+            {options.onToggleShortlist && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`${isShortlisted ? 'Remove' : 'Add'} ${player.name} ${isShortlisted ? 'from' : 'to'} watchlist`}
+                aria-pressed={isShortlisted}
+                disabled={isDrafted}
+                className={cn(isShortlisted && 'text-amber-500 hover:text-amber-600')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  options.onToggleShortlist?.(player);
+                }}
+              >
+                <Star className={cn('h-4 w-4', isShortlisted && 'fill-current')} />
+              </Button>
+            )}
             {options.onInspect && (
               <Button
                 variant="ghost"
@@ -462,6 +483,7 @@ export function getColumnsWithActions(
             <Button
               variant="outline"
               size="sm"
+              disabled={isDrafted}
               onClick={(e) => {
                 e.stopPropagation();
                 onDraft(player);
