@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -250,6 +251,9 @@ export function MyRoster() {
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>My Team</DialogTitle>
+          <DialogDescription className="sr-only">
+            Review your drafted players by roster position.
+          </DialogDescription>
         </DialogHeader>
         <RosterContent />
       </DialogContent>

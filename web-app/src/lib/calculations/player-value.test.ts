@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ECRPlayer, NFLTeam, TeamEnvironment } from '@fantasy-draft/shared';
 import { mergePlayerData, type SleeperADPPlayer } from './player-value';
 
@@ -230,6 +230,27 @@ describe('mergePlayerData', () => {
     );
 
     expect(players[0]?.injuryRiskScore).toBe(2);
+  });
+
+  it('reports each unmatched ECR player cohort once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const unmatchedPlayer = createEcrPlayer({ name: 'Unmatched Player' });
+
+    try {
+      mergePlayerData([unmatchedPlayer], [], [], [], teamEnvironment);
+      mergePlayerData([unmatchedPlayer], [], [], [], teamEnvironment);
+      mergePlayerData(
+        [createEcrPlayer({ name: 'Unmatched Player', team: 'SEA' })],
+        [],
+        [],
+        [],
+        teamEnvironment
+      );
+
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('treats the Sleeper unranked sentinel as neutral market data', () => {
