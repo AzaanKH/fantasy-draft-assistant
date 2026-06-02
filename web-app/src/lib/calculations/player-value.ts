@@ -269,7 +269,7 @@ export function mergePlayerData(
   const predictionFallbackMap = buildUniqueNamePositionMap(modelPredictions);
 
   const players: Player[] = [];
-  const unmatchedEcr: string[] = [];
+  const unmatchedEcrKeys: string[] = [];
 
   for (const ecr of ecrPlayers) {
     const sleeper = resolvePlayerMatch(ecr, sleeperMap, sleeperFallbackMap);
@@ -285,7 +285,9 @@ export function mergePlayerData(
     const sleeperAdp = resolveSleeperMarketRank(sleeper?.sleeperAdp, ecr.rank);
 
     if (!sleeper) {
-      unmatchedEcr.push(ecr.name);
+      unmatchedEcrKeys.push(
+        `${normalizePlayerName(ecr.name)}|${ecr.position}|${ecr.team}`
+      );
     }
 
     const valueScore = calculateValueScore(ecr.rank, sleeperAdp);
@@ -353,12 +355,12 @@ export function mergePlayerData(
     });
   }
 
-  if (unmatchedEcr.length > 0) {
-    const signature = [...unmatchedEcr].sort().join('\0');
+  if (unmatchedEcrKeys.length > 0) {
+    const signature = [...unmatchedEcrKeys].sort().join('\0');
     if (!reportedUnmatchedEcrSignatures.has(signature)) {
       reportedUnmatchedEcrSignatures.add(signature);
       console.warn(
-        `[mergePlayerData] ${String(unmatchedEcr.length)} ECR players not found in Sleeper data`
+        `[mergePlayerData] ${String(unmatchedEcrKeys.length)} ECR players not found in Sleeper data`
       );
     }
   }

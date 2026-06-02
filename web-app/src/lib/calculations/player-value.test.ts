@@ -236,12 +236,21 @@ describe('mergePlayerData', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const unmatchedPlayer = createEcrPlayer({ name: 'Unmatched Player' });
 
-    mergePlayerData([unmatchedPlayer], [], [], [], teamEnvironment);
-    mergePlayerData([unmatchedPlayer], [], [], [], teamEnvironment);
-    mergePlayerData([createEcrPlayer({ name: 'Different Unmatched Player' })], [], [], [], teamEnvironment);
+    try {
+      mergePlayerData([unmatchedPlayer], [], [], [], teamEnvironment);
+      mergePlayerData([unmatchedPlayer], [], [], [], teamEnvironment);
+      mergePlayerData(
+        [createEcrPlayer({ name: 'Unmatched Player', team: 'SEA' })],
+        [],
+        [],
+        [],
+        teamEnvironment
+      );
 
-    expect(warn).toHaveBeenCalledTimes(2);
-    vi.restoreAllMocks();
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('treats the Sleeper unranked sentinel as neutral market data', () => {
