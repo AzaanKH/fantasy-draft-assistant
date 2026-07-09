@@ -20,6 +20,6 @@ server.on('error', (error: NodeJS.ErrnoException) => {
   throw error;
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`[sync-server] Listening on http://localhost:${PORT}`);
 });

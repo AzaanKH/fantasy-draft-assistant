@@ -53,4 +53,47 @@ describe('draftStore shortlist', () => {
       'player-b',
     ]);
   });
+
+  it('replaces imported Sleeper picks when the canonical snapshot changes', () => {
+    const { reconcileSleeperPicks } = useDraftStore.getState();
+
+    reconcileSleeperPicks([
+      {
+        pickNumber: 1,
+        playerId: 'player-a',
+        playerName: 'Player A',
+        position: 'WR',
+        teamIndex: 0,
+        teamName: 'My Team',
+        isMyPick: true,
+      },
+      {
+        pickNumber: 2,
+        playerId: 'player-b',
+        playerName: 'Player B',
+        position: 'RB',
+        teamIndex: 1,
+        teamName: 'Team 2',
+        isMyPick: false,
+      },
+    ]);
+
+    reconcileSleeperPicks([
+      {
+        pickNumber: 1,
+        playerId: 'player-c',
+        playerName: 'Player C',
+        position: 'TE',
+        teamIndex: 0,
+        teamName: 'My Team',
+        isMyPick: true,
+      },
+    ]);
+
+    const state = useDraftStore.getState();
+    expect([...state.draftedPlayerIds]).toEqual(['player-c']);
+    expect(state.myRoster.TE).toEqual(['player-c']);
+    expect(state.myRoster.WR).toEqual([]);
+    expect(state.currentPick).toBe(2);
+  });
 });

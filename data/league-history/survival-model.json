@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T05:35:54.160Z",
+  "generatedAt": "2026-07-09T23:42:56.100Z",
   "modelVersion": "league-history-survival-v1-2022-2025",
   "leagueName": "Ummati Official",
   "seasons": [
@@ -17,7 +17,7 @@
   "baseline": {
     "leaguePickCount": 550,
     "maxHistoricalPick": 140,
-    "sleeperPlayerCount": 164
+    "sleeperPlayerCount": 168
   },
   "positions": {
     "QB": {
@@ -32,26 +32,26 @@
     "RB": {
       "position": "RB",
       "leagueMedianPick": 65.5,
-      "sleeperMedianPick": 55,
-      "pickPremium": 10.5,
-      "top50RateDelta": -0.083,
-      "top100RateDelta": 0.051,
+      "sleeperMedianPick": 58,
+      "pickPremium": 7.5,
+      "top50RateDelta": -0.074,
+      "top100RateDelta": 0.047,
       "sampleSize": 178
     },
     "WR": {
       "position": "WR",
       "leagueMedianPick": 62.5,
-      "sleeperMedianPick": 61,
-      "pickPremium": 1.5,
-      "top50RateDelta": 0.027,
-      "top100RateDelta": 0.027,
+      "sleeperMedianPick": 62,
+      "pickPremium": 0.5,
+      "top50RateDelta": -0.022,
+      "top100RateDelta": 0.05,
       "sampleSize": 220
     },
     "TE": {
       "position": "TE",
       "leagueMedianPick": 79,
-      "sleeperMedianPick": 97.5,
-      "pickPremium": -18.5,
+      "sleeperMedianPick": 96.5,
+      "pickPremium": -17.5,
       "top50RateDelta": 0.164,
       "top100RateDelta": 0.039,
       "sampleSize": 59
@@ -81,27 +81,27 @@
       "minPick": 1,
       "maxPick": 24,
       "leagueSampleSize": 96,
-      "sleeperSampleSize": 33,
+      "sleeperSampleSize": 35,
       "positions": {
         "QB": {
           "leaguePickRate": 0.073,
-          "sleeperPickRate": 0.212,
-          "rateDelta": -0.139
+          "sleeperPickRate": 0.2,
+          "rateDelta": -0.127
         },
         "RB": {
           "leaguePickRate": 0.427,
-          "sleeperPickRate": 0.455,
-          "rateDelta": -0.027
+          "sleeperPickRate": 0.429,
+          "rateDelta": -0.001
         },
         "WR": {
           "leaguePickRate": 0.448,
-          "sleeperPickRate": 0.303,
-          "rateDelta": 0.145
+          "sleeperPickRate": 0.314,
+          "rateDelta": 0.134
         },
         "TE": {
           "leaguePickRate": 0.052,
-          "sleeperPickRate": 0.03,
-          "rateDelta": 0.022
+          "sleeperPickRate": 0.057,
+          "rateDelta": -0.005
         },
         "K": {
           "leaguePickRate": 0,
@@ -120,27 +120,27 @@
       "minPick": 25,
       "maxPick": 50,
       "leagueSampleSize": 104,
-      "sleeperSampleSize": 33,
+      "sleeperSampleSize": 35,
       "positions": {
         "QB": {
           "leaguePickRate": 0.154,
-          "sleeperPickRate": 0.273,
-          "rateDelta": -0.119
+          "sleeperPickRate": 0.257,
+          "rateDelta": -0.103
         },
         "RB": {
           "leaguePickRate": 0.288,
-          "sleeperPickRate": 0.333,
-          "rateDelta": -0.045
+          "sleeperPickRate": 0.314,
+          "rateDelta": -0.026
         },
         "WR": {
           "leaguePickRate": 0.452,
-          "sleeperPickRate": 0.333,
-          "rateDelta": 0.119
+          "sleeperPickRate": 0.4,
+          "rateDelta": 0.052
         },
         "TE": {
           "leaguePickRate": 0.106,
-          "sleeperPickRate": 0.061,
-          "rateDelta": 0.045
+          "sleeperPickRate": 0.029,
+          "rateDelta": 0.077
         },
         "K": {
           "leaguePickRate": 0,
@@ -159,27 +159,27 @@
       "minPick": 51,
       "maxPick": 100,
       "leagueSampleSize": 200,
-      "sleeperSampleSize": 57,
+      "sleeperSampleSize": 55,
       "positions": {
         "QB": {
           "leaguePickRate": 0.085,
-          "sleeperPickRate": 0.14,
-          "rateDelta": -0.055
+          "sleeperPickRate": 0.145,
+          "rateDelta": -0.06
         },
         "RB": {
           "leaguePickRate": 0.35,
-          "sleeperPickRate": 0.246,
-          "rateDelta": 0.104
+          "sleeperPickRate": 0.273,
+          "rateDelta": 0.077
         },
         "WR": {
           "leaguePickRate": 0.44,
-          "sleeperPickRate": 0.386,
-          "rateDelta": 0.054
+          "sleeperPickRate": 0.345,
+          "rateDelta": 0.095
         },
         "TE": {
           "leaguePickRate": 0.1,
-          "sleeperPickRate": 0.228,
-          "rateDelta": -0.128
+          "sleeperPickRate": 0.236,
+          "rateDelta": -0.136
         },
         "K": {
           "leaguePickRate": 0.015,
@@ -198,27 +198,27 @@
       "minPick": 101,
       "maxPick": 140,
       "leagueSampleSize": 150,
-      "sleeperSampleSize": 41,
+      "sleeperSampleSize": 43,
       "positions": {
         "QB": {
           "leaguePickRate": 0.167,
-          "sleeperPickRate": 0.073,
-          "rateDelta": 0.093
+          "sleeperPickRate": 0.07,
+          "rateDelta": 0.097
         },
         "RB": {
           "leaguePickRate": 0.247,
-          "sleeperPickRate": 0.341,
-          "rateDelta": -0.095
+          "sleeperPickRate": 0.326,
+          "rateDelta": -0.079
         },
         "WR": {
           "leaguePickRate": 0.28,
-          "sleeperPickRate": 0.293,
-          "rateDelta": -0.013
+          "sleeperPickRate": 0.326,
+          "rateDelta": -0.046
         },
         "TE": {
           "leaguePickRate": 0.153,
-          "sleeperPickRate": 0.293,
-          "rateDelta": -0.139
+          "sleeperPickRate": 0.279,
+          "rateDelta": -0.126
         },
         "K": {
           "leaguePickRate": 0.1,

@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-05-30T15:59:34.147Z
+Generated: 2026-07-09T23:42:58.269Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,8 +8,8 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Age |
 | --- | --- |
-| FantasyPros | 10.5h |
-| League survival | 10.4h |
+| FantasyPros | 0h |
+| League survival | 0h |
 | Team environment | 0h |
 | Predictions | 0h |
 
@@ -32,35 +32,35 @@ Fresh picks exclude keepers.
 
 | Overall | QB | Player |
 | --- | --- | --- |
-| 24 | 1 | Josh Allen |
-| 29 | 2 | Lamar Jackson |
-| 31 | 3 | Drake Maye |
-| 44 | 4 | Joe Burrow |
-| 52 | 5 | Jayden Daniels |
-| 53 | 6 | Jalen Hurts |
-| 70 | 7 | Justin Herbert |
-| 72 | 8 | Jaxson Dart |
-| 74 | 9 | Caleb Williams |
-| 80 | 10 | Trevor Lawrence |
-| 85 | 11 | Dak Prescott |
+| 23 | 1 | Josh Allen |
+| 31 | 2 | Lamar Jackson |
+| 34 | 3 | Drake Maye |
+| 42 | 4 | Joe Burrow |
+| 54 | 5 | Jayden Daniels |
+| 58 | 6 | Jalen Hurts |
+| 65 | 7 | Caleb Williams |
+| 66 | 8 | Justin Herbert |
+| 75 | 9 | Trevor Lawrence |
+| 79 | 10 | Dak Prescott |
+| 89 | 11 | Jaxson Dart |
 | 94 | 12 | Brock Purdy |
 
 ## Current FantasyPros TE Tier
 
 | Overall | TE | Player |
 | --- | --- | --- |
-| 14 | 1 | Trey McBride |
-| 22 | 2 | Brock Bowers |
-| 36 | 3 | Colston Loveland |
-| 56 | 4 | Tyler Warren |
+| 17 | 1 | Trey McBride |
+| 20 | 2 | Brock Bowers |
+| 37 | 3 | Colston Loveland |
+| 52 | 4 | Tyler Warren |
 | 68 | 5 | Tucker Kraft |
-| 69 | 6 | Harold Fannin Jr. |
-| 84 | 7 | Kyle Pitts Sr. |
-| 89 | 8 | Sam LaPorta |
-| 103 | 9 | Jake Ferguson |
-| 107 | 10 | Travis Kelce |
-| 108 | 11 | Dalton Kincaid |
-| 119 | 12 | George Kittle |
+| 72 | 6 | Harold Fannin Jr. |
+| 77 | 7 | Kyle Pitts Sr. |
+| 88 | 8 | Sam LaPorta |
+| 97 | 9 | Travis Kelce |
+| 105 | 10 | Jake Ferguson |
+| 111 | 11 | Dalton Kincaid |
+| 112 | 12 | George Kittle |
 
 ## Draft-Week Checklist
 

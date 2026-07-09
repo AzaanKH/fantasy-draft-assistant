@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-05-30T15:59:33.080Z
+Generated: 2026-07-09T23:42:57.314Z
 
 This is the first transparent replay baseline. It is deliberately limited and
 does not claim that the live recommendation scorer is fully validated.

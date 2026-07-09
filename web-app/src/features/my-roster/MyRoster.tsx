@@ -102,7 +102,8 @@ function RosterContent() {
 
   // Calculate total players on roster
   const totalPlayers = React.useMemo(() => {
-    return Object.values(myRoster).reduce((sum, arr) => sum + arr.length, 0);
+    const rosterGroups = Object.values(myRoster) as string[][];
+    return rosterGroups.reduce((sum, players) => sum + players.length, 0);
   }, [myRoster]);
 
   if (totalPlayers === 0) {
@@ -199,7 +200,9 @@ function RosterContent() {
       {/* Bench */}
       {(() => {
         // Calculate bench players (beyond starters)
-        const starterCounts = { QB: 1, RB: 4, WR: 4, TE: 2, K: 1, DEF: 1 };
+        const starterCounts: Record<Position, number> = {
+          QB: 1, RB: 4, WR: 4, TE: 2, K: 1, DEF: 1,
+        };
         const benchPlayers: { id: string; position: Position }[] = [];
 
         for (const pos of POSITIONS) {
@@ -231,7 +234,10 @@ function RosterContent() {
  */
 export function MyRoster() {
   const totalPlayers = useDraftStore((state) =>
-    Object.values(state.myRoster).reduce((sum, arr) => sum + arr.length, 0)
+    (Object.values(state.myRoster) as string[][]).reduce(
+      (sum, players) => sum + players.length,
+      0
+    )
   );
 
   return (

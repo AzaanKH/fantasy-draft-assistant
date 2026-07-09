@@ -67,6 +67,18 @@ describe('DraftSyncEngine', () => {
     expect(result.snapshot.picks).toHaveLength(2);
   });
 
+  it('reconciles removed and corrected picks from the latest snapshot', () => {
+    const engine = new DraftSyncEngine('draft-123');
+    engine.reconcile(createDraft(), [createPick(1, 'p1'), createPick(2, 'p2')]);
+
+    const result = engine.reconcile(createDraft(), [createPick(1, 'replacement')]);
+
+    expect(result.newPicks).toHaveLength(1);
+    expect(result.newPicks[0]?.playerId).toBe('replacement');
+    expect(result.snapshot.picks).toHaveLength(1);
+    expect(result.snapshot.picks[0]?.playerId).toBe('replacement');
+  });
+
   it('tracks sync failures in snapshot state', () => {
     const engine = new DraftSyncEngine('draft-123');
     engine.beginSync(100);

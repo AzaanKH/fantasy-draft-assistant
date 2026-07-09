@@ -43,7 +43,7 @@ function PositionFilter() {
           key={pos}
           variant={filter.position === pos ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setPositionFilter(pos)}
+          onClick={() => { setPositionFilter(pos); }}
           className="min-w-12"
         >
           {pos}
@@ -65,7 +65,7 @@ function SearchFilter() {
       type="text"
       placeholder="Search players..."
       value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
+      onChange={(e) => { setSearchQuery(e.target.value); }}
       className="px-3 py-2 border rounded-md bg-background text-foreground w-64 text-sm"
     />
   );
@@ -90,7 +90,7 @@ function SortableHeader({ field, children, className }: SortableHeaderProps) {
   return (
     <TableHead
       className={cn('cursor-pointer select-none hover:bg-muted/50', className)}
-      onClick={() => setSort(field)}
+      onClick={() => { setSort(field); }}
     >
       <span className="flex items-center gap-1">
         {children}
@@ -224,7 +224,7 @@ function PlayerRow({ player, onDraft }: PlayerRowProps) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onDraft(player)}
+          onClick={() => { onDraft(player); }}
         >
           Draft
         </Button>

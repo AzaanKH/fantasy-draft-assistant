@@ -75,6 +75,17 @@ interface DraftConfig {
 
 interface RecordedDraftPick extends DraftPick {
   readonly shortlistIndex?: number;
+  readonly source: 'manual' | 'sleeper';
+}
+
+export interface SleeperImportedPick {
+  readonly pickNumber: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly position: Position;
+  readonly teamIndex: number;
+  readonly teamName: string;
+  readonly isMyPick: boolean;
 }
 
 /**
@@ -116,8 +127,10 @@ interface DraftActions {
     position: Position,
     teamIndex: number,
     teamName: string,
-    pickNumber?: number
+    pickNumber?: number,
+    source?: RecordedDraftPick['source']
   ) => void;
+  reconcileSleeperPicks: (picks: readonly SleeperImportedPick[]) => void;
   undoLastPick: () => void;
   addToMyRoster: (player: Player) => void;
   resetDraft: () => void;
@@ -211,13 +224,13 @@ export const useDraftStore = create<DraftStore>()(
 
     // Configuration actions
     setConfig: (newConfig) =>
-      set((state) => {
+      { set((state) => {
         Object.assign(state.config, newConfig);
-      }),
+      }); },
 
     // Draft actions
-    markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber) =>
-      set((state) => {
+    markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual') =>
+      { set((state) => {
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
         const pickNumberToUse = pickNumber ?? state.currentPick;
 
@@ -253,6 +266,7 @@ export const useDraftStore = create<DraftStore>()(
           teamIndex,
           teamName,
           timestamp: Date.now(),
+          source,
           ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
         });
         if (pickNumber !== undefined) {
@@ -260,10 +274,47 @@ export const useDraftStore = create<DraftStore>()(
         } else {
           state.currentPick += 1;
         }
-      }),
+      }); },
+
+    reconcileSleeperPicks: (incomingPicks) =>
+      { set((state) => {
+        const remotePlayerIds = new Set(incomingPicks.map((pick) => pick.playerId));
+        const manualPicks = state.draftHistory.filter(
+          (pick) => pick.source === 'manual' && !remotePlayerIds.has(pick.playerId)
+        );
+        const remotePicks: RecordedDraftPick[] = incomingPicks.map((pick) => ({
+          pickNumber: pick.pickNumber,
+          playerId: pick.playerId,
+          playerName: pick.playerName,
+          position: pick.position,
+          teamIndex: pick.teamIndex,
+          teamName: pick.teamName,
+          timestamp: Date.now(),
+          source: 'sleeper',
+        }));
+        const draftHistory = [...manualPicks, ...remotePicks].sort(
+          (a, b) => a.pickNumber - b.pickNumber
+        );
+
+        state.draftHistory = draftHistory;
+        state.draftedPlayerIds = new Set(draftHistory.map((pick) => pick.playerId));
+        state.myRoster = createEmptyMutableRoster();
+        for (const pick of draftHistory) {
+          if (pick.teamName === 'My Team') {
+            state.myRoster[pick.position].push(pick.playerId);
+          }
+        }
+        state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
+          (playerId) => !state.draftedPlayerIds.has(playerId)
+        );
+        state.currentPick = Math.min(
+          state.config.totalTeams * state.config.totalRounds + 1,
+          Math.max(1, ...incomingPicks.map((pick) => pick.pickNumber + 1))
+        );
+      }); },
 
     undoLastPick: () =>
-      set((state) => {
+      { set((state) => {
         const lastPick = state.draftHistory.pop();
         if (lastPick) {
           state.draftedPlayerIds.delete(lastPick.playerId);
@@ -286,24 +337,24 @@ export const useDraftStore = create<DraftStore>()(
           }
           state.currentPick = Math.max(1, lastPick.pickNumber);
         }
-      }),
+      }); },
 
     addToMyRoster: (player) =>
-      set((state) => {
+      { set((state) => {
         const position = player.position;
         // Cast to mutable array for immer
         const roster = state.myRoster[position] as string[];
         roster.push(player.id);
-      }),
+      }); },
 
     resetDraft: () =>
-      set((state) => {
+      { set((state) => {
         state.currentPick = 1;
         state.draftedPlayerIds = new Set<string>();
         state.draftHistory = [];
         state.myRoster = createEmptyMutableRoster();
         state.shortlistedPlayerIds = [];
-      }),
+      }); },
 
     togglePlayerShortlisted: (playerId) => {
       set((state) => {
@@ -329,22 +380,22 @@ export const useDraftStore = create<DraftStore>()(
 
     // UI actions
     setPositionFilter: (position) =>
-      set((state) => {
+      { set((state) => {
         state.filter.position = position;
-      }),
+      }); },
 
     setHideNonStarters: (hide) =>
-      set((state) => {
+      { set((state) => {
         state.filter.hideNonStarters = hide;
-      }),
+      }); },
 
     setSearchQuery: (query) =>
-      set((state) => {
+      { set((state) => {
         state.filter.searchQuery = query;
-      }),
+      }); },
 
     setSort: (field, direction) =>
-      set((state) => {
+      { set((state) => {
         if (state.sort.field === field && !direction) {
           // Toggle direction if same field clicked
           state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
@@ -352,12 +403,12 @@ export const useDraftStore = create<DraftStore>()(
           state.sort.field = field;
           state.sort.direction = direction ?? 'asc';
         }
-      }),
+      }); },
 
     toggleSortDirection: () =>
-      set((state) => {
+      { set((state) => {
         state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
-      }),
+      }); },
   }))
 );
 

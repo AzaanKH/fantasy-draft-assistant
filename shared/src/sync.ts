@@ -69,6 +69,72 @@ export interface DraftSyncUpdate {
   readonly pick?: DraftPickEvent;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isDraftStatus(value: unknown): value is SleeperDraftMetadata['status'] {
+  return value === 'pre_draft' || value === 'drafting' || value === 'complete';
+}
+
+function isDraftType(value: unknown): value is SleeperDraftMetadata['type'] {
+  return value === 'snake' || value === 'linear' || value === 'auction';
+}
+
+/** Runtime validation for the untrusted Sleeper draft metadata response. */
+export function isSleeperDraftMetadata(value: unknown): value is SleeperDraftMetadata {
+  if (!isRecord(value) || !isRecord(value.settings)) {
+    return false;
+  }
+
+  return (
+    typeof value.draft_id === 'string' &&
+    isDraftStatus(value.status) &&
+    isDraftType(value.type) &&
+    isFiniteNumber(value.settings.teams) &&
+    isFiniteNumber(value.settings.rounds) &&
+    isFiniteNumber(value.settings.pick_timer) &&
+    (value.draft_order === null || isRecord(value.draft_order))
+  );
+}
+
+/** Runtime validation for an individual untrusted Sleeper draft pick response. */
+export function isSleeperDraftPick(value: unknown): value is SleeperDraftPick {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const metadata = value.metadata;
+  const validMetadata = metadata === null || (
+    isRecord(metadata) &&
+    typeof metadata.first_name === 'string' &&
+    typeof metadata.last_name === 'string' &&
+    typeof metadata.position === 'string' &&
+    typeof metadata.team === 'string' &&
+    typeof metadata.status === 'string'
+  );
+
+  return (
+    isFiniteNumber(value.round) &&
+    isFiniteNumber(value.roster_id) &&
+    typeof value.player_id === 'string' &&
+    typeof value.picked_by === 'string' &&
+    isFiniteNumber(value.pick_no) &&
+    validMetadata &&
+    (value.is_keeper === null || typeof value.is_keeper === 'boolean') &&
+    isFiniteNumber(value.draft_slot) &&
+    typeof value.draft_id === 'string'
+  );
+}
+
+export function isSleeperDraftPickList(value: unknown): value is SleeperDraftPick[] {
+  return Array.isArray(value) && value.every(isSleeperDraftPick);
+}
+
 function normalizePosition(value: string | undefined): Position {
   switch (value?.toUpperCase()) {
     case 'QB':
@@ -171,15 +237,22 @@ export class DraftSyncEngine {
       .map((pick) => normalizeSleeperPick(pick))
       .sort((a, b) => a.pickNumber - b.pickNumber);
 
+    const nextPicksByNumber = new Map<number, DraftPickEvent>();
     const newPicks: DraftPickEvent[] = [];
 
     for (const pick of normalizedPicks) {
-      if (this.picksByNumber.has(pick.pickNumber)) {
-        continue;
+      const previousPick = this.picksByNumber.get(pick.pickNumber);
+      if (!previousPick || previousPick.playerId !== pick.playerId) {
+        newPicks.push(pick);
       }
+      nextPicksByNumber.set(pick.pickNumber, pick);
+    }
 
-      this.picksByNumber.set(pick.pickNumber, pick);
-      newPicks.push(pick);
+    // Sleeper can correct a completed pick. Rebuild from the latest complete
+    // response so that removed or replaced picks do not linger locally.
+    this.picksByNumber.clear();
+    for (const [pickNumber, pick] of nextPicksByNumber) {
+      this.picksByNumber.set(pickNumber, pick);
     }
 
     const picks = [...this.picksByNumber.values()].sort(

@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import {
   DraftSyncEngine,
+  isSleeperDraftMetadata,
+  isSleeperDraftPickList,
   type DraftSyncSnapshot,
   type DraftSyncUpdate,
   type SleeperDraftMetadata,
@@ -20,6 +22,7 @@ interface ClientConnection {
 interface SyncServerOptions {
   readonly pollIntervalMs?: number;
   readonly fetchJson?: FetchJson;
+  readonly allowedOrigins?: readonly string[];
 }
 
 class DraftSession {
@@ -30,7 +33,8 @@ class DraftSession {
   private readonly fetchJson: FetchJson;
   private nextClientId = 1;
   private pollTimer: NodeJS.Timeout | null = null;
-  private isPolling = false;
+  private pollInFlight: Promise<boolean> | null = null;
+  private consecutiveFailures = 0;
 
   public constructor(
     draftId: string,
@@ -63,6 +67,14 @@ class DraftSession {
 
   public removeClient(id: number): void {
     this.clients.delete(id);
+    if (this.clients.size === 0) {
+      this.stopPolling();
+    }
+  }
+
+  public dispose(): void {
+    this.stopPolling();
+    this.clients.clear();
   }
 
   public async refresh(): Promise<DraftSyncSnapshot> {
@@ -75,30 +87,58 @@ class DraftSession {
       return;
     }
 
-    void this.pollOnce();
-    this.pollTimer = setInterval(() => {
-      void this.pollOnce();
-    }, this.pollIntervalMs);
+    void this.pollOnce().then(() => this.scheduleNextPoll());
   }
 
-  private async pollOnce(): Promise<void> {
-    if (this.isPolling) {
+  private stopPolling(): void {
+    if (this.pollTimer !== null) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private scheduleNextPoll(): void {
+    if (this.clients.size === 0 || this.pollTimer !== null) {
       return;
     }
 
-    this.isPolling = true;
+    const failureBackoffMs = Math.min(
+      this.pollIntervalMs * 2 ** this.consecutiveFailures,
+      30_000
+    );
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      void this.pollOnce().then(() => this.scheduleNextPoll());
+    }, failureBackoffMs);
+  }
+
+  private pollOnce(): Promise<boolean> {
+    if (this.pollInFlight) {
+      return this.pollInFlight;
+    }
+
+    this.pollInFlight = this.performPoll().finally(() => {
+      this.pollInFlight = null;
+    });
+    return this.pollInFlight;
+  }
+
+  private async performPoll(): Promise<boolean> {
     this.broadcast({
       type: 'status',
       snapshot: this.engine.beginSync(),
     });
 
     try {
-      const [draft, picks] = await Promise.all([
+      const [draftResponse, picksResponse] = await Promise.all([
         this.fetchJson<SleeperDraftMetadata>(`${SLEEPER_API_BASE}/draft/${this.draftId}`),
         this.fetchJson<SleeperDraftPick[]>(`${SLEEPER_API_BASE}/draft/${this.draftId}/picks`),
       ]);
+      if (!isSleeperDraftMetadata(draftResponse) || !isSleeperDraftPickList(picksResponse)) {
+        throw new Error('Sleeper returned an invalid draft payload');
+      }
 
-      const { snapshot, newPicks } = this.engine.reconcile(draft, picks);
+      const { snapshot, newPicks } = this.engine.reconcile(draftResponse, picksResponse);
 
       for (const pick of newPicks) {
         this.broadcast({
@@ -112,14 +152,16 @@ class DraftSession {
         type: 'snapshot',
         snapshot,
       });
+      this.consecutiveFailures = 0;
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown sync error';
       this.broadcast({
         type: 'status',
         snapshot: this.engine.failSync(message),
       });
-    } finally {
-      this.isPolling = false;
+      this.consecutiveFailures += 1;
+      return false;
     }
   }
 
@@ -134,25 +176,42 @@ class DraftSession {
   }
 }
 
-function setCorsHeaders(response: ServerResponse<IncomingMessage>): void {
-  response.setHeader('Access-Control-Allow-Origin', '*');
+function setCorsHeaders(
+  request: IncomingMessage,
+  response: ServerResponse<IncomingMessage>,
+  allowedOrigins: readonly string[]
+): void {
+  const origin = request.headers.origin;
+  const allowedOrigin = origin && (
+    allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://')
+  )
+    ? origin
+    : (allowedOrigins[0] ?? 'http://localhost:3000');
+  response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  response.setHeader('Vary', 'Origin');
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 function sendJson(
+  request: IncomingMessage,
   response: ServerResponse<IncomingMessage>,
   statusCode: number,
-  payload: unknown
+  payload: unknown,
+  allowedOrigins: readonly string[]
 ): void {
-  setCorsHeaders(response);
+  setCorsHeaders(request, response, allowedOrigins);
   response.statusCode = statusCode;
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.end(JSON.stringify(payload));
 }
 
-function sendNotFound(response: ServerResponse<IncomingMessage>): void {
-  sendJson(response, 404, { error: 'Not found' });
+function sendNotFound(
+  request: IncomingMessage,
+  response: ServerResponse<IncomingMessage>,
+  allowedOrigins: readonly string[]
+): void {
+  sendJson(request, response, 404, { error: 'Not found' }, allowedOrigins);
 }
 
 function parseDraftRoute(pathname: string): { draftId: string; isStream: boolean; isRefresh: boolean } | null {
@@ -182,6 +241,9 @@ export function createSyncServer(options: SyncServerOptions = {}) {
   const sessions = new Map<string, DraftSession>();
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const fetchJson = options.fetchJson ?? defaultFetchJson;
+  const allowedOrigins = options.allowedOrigins?.length
+    ? options.allowedOrigins
+    : ['http://localhost:3000'];
 
   function getSession(draftId: string): DraftSession {
     let session = sessions.get(draftId);
@@ -193,36 +255,41 @@ export function createSyncServer(options: SyncServerOptions = {}) {
     return session;
   }
 
-  return createServer(async (request, response) => {
+  const server = createServer(async (request, response) => {
     if (!request.url || !request.method) {
-      sendNotFound(response);
+      sendNotFound(request, response, allowedOrigins);
       return;
     }
 
     const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
 
     if (request.method === 'OPTIONS') {
-      setCorsHeaders(response);
+      setCorsHeaders(request, response, allowedOrigins);
       response.statusCode = 204;
       response.end();
       return;
     }
 
     if (url.pathname === '/api/health') {
-      sendJson(response, 200, { ok: true });
+      sendJson(request, response, 200, { ok: true }, allowedOrigins);
       return;
     }
 
     const route = parseDraftRoute(url.pathname);
     if (!route) {
-      sendNotFound(response);
+      sendNotFound(request, response, allowedOrigins);
+      return;
+    }
+
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(route.draftId)) {
+      sendJson(request, response, 400, { error: 'Invalid draft ID' }, allowedOrigins);
       return;
     }
 
     const session = getSession(route.draftId);
 
     if (route.isStream && request.method === 'GET') {
-      setCorsHeaders(response);
+      setCorsHeaders(request, response, allowedOrigins);
       response.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
@@ -241,7 +308,7 @@ export function createSyncServer(options: SyncServerOptions = {}) {
 
     if (route.isRefresh && request.method === 'POST') {
       const snapshot = await session.refresh();
-      sendJson(response, 200, snapshot);
+      sendJson(request, response, 200, snapshot, allowedOrigins);
       return;
     }
 
@@ -250,10 +317,19 @@ export function createSyncServer(options: SyncServerOptions = {}) {
       if (snapshot.status === 'idle') {
         await session.refresh();
       }
-      sendJson(response, 200, session.getSnapshot());
+      sendJson(request, response, 200, session.getSnapshot(), allowedOrigins);
       return;
     }
 
-    sendNotFound(response);
+    sendNotFound(request, response, allowedOrigins);
   });
+
+  server.on('close', () => {
+    for (const session of sessions.values()) {
+      session.dispose();
+    }
+    sessions.clear();
+  });
+
+  return server;
 }

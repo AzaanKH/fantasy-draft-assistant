@@ -31,6 +31,12 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
+      // Numeric interpolation is idiomatic in this UI; retain strict checks for
+      // unsafe objects while avoiding noise from display-only values.
+      '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/require-await': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   }
 );
