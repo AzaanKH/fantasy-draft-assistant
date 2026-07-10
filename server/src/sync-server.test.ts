@@ -29,7 +29,9 @@ describe('createSyncServer', () => {
     const { port } = server.address() as AddressInfo;
 
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`);
+      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
+        headers: { Origin: 'http://localhost:3000' },
+      });
       expect(response.ok).toBe(true);
 
       const snapshot = (await response.json()) as DraftSyncSnapshot;
@@ -41,7 +43,7 @@ describe('createSyncServer', () => {
       expect(snapshot.status).toBe('synced');
     } finally {
       await new Promise<void>((resolve, reject) => {
-        server.close((error?: Error) => {
+        server.shutdown((error?: Error) => {
           if (error) {
             reject(error);
             return;
@@ -67,7 +69,71 @@ describe('createSyncServer', () => {
       expect(await response.json()).toEqual({ ok: true });
     } finally {
       await new Promise<void>((resolve, reject) => {
-        server.close((error?: Error) => {
+        server.shutdown((error?: Error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('rejects unauthorized draft requests before fetching Sleeper', async () => {
+    let fetchCalls = 0;
+    const server = createSyncServer({
+      fetchJson: async <T>(): Promise<T> => {
+        fetchCalls += 1;
+        return draftFixture as T;
+      },
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
+        headers: { Origin: 'https://untrusted.example' },
+      });
+
+      expect(response.status).toBe(403);
+      expect(fetchCalls).toBe(0);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.shutdown((error?: Error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('times out stalled Sleeper requests and clears the sync state', async () => {
+    const server = createSyncServer({
+      requestTimeoutMs: 5,
+      fetchJson: <T>(_url: string, signal: AbortSignal) => new Promise<T>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(new Error('Sleeper request timed out')));
+      }),
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
+        headers: { Origin: 'http://localhost:3000' },
+      });
+      const snapshot = (await response.json()) as DraftSyncSnapshot;
+
+      expect(snapshot.status).toBe('error');
+      expect(snapshot.lastError).toBe('Sleeper request timed out');
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.shutdown((error?: Error) => {
           if (error) {
             reject(error);
             return;

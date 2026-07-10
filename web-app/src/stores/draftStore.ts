@@ -279,8 +279,12 @@ export const useDraftStore = create<DraftStore>()(
     reconcileSleeperPicks: (incomingPicks) =>
       { set((state) => {
         const remotePlayerIds = new Set(incomingPicks.map((pick) => pick.playerId));
+        const remotePickNumbers = new Set(incomingPicks.map((pick) => pick.pickNumber));
         const manualPicks = state.draftHistory.filter(
-          (pick) => pick.source === 'manual' && !remotePlayerIds.has(pick.playerId)
+          (pick) =>
+            pick.source === 'manual' &&
+            !remotePlayerIds.has(pick.playerId) &&
+            !remotePickNumbers.has(pick.pickNumber)
         );
         const remotePicks: RecordedDraftPick[] = incomingPicks.map((pick) => ({
           pickNumber: pick.pickNumber,
@@ -294,6 +298,10 @@ export const useDraftStore = create<DraftStore>()(
         }));
         const draftHistory = [...manualPicks, ...remotePicks].sort(
           (a, b) => a.pickNumber - b.pickNumber
+        );
+        const nextPick = draftHistory.reduce(
+          (maximum, pick) => Math.max(maximum, pick.pickNumber + 1),
+          1
         );
 
         state.draftHistory = draftHistory;
@@ -309,7 +317,7 @@ export const useDraftStore = create<DraftStore>()(
         );
         state.currentPick = Math.min(
           state.config.totalTeams * state.config.totalRounds + 1,
-          Math.max(1, ...incomingPicks.map((pick) => pick.pickNumber + 1))
+          nextPick
         );
       }); },
 

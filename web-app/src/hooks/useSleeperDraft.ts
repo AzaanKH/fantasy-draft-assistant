@@ -8,9 +8,9 @@
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isDraftSyncUpdate } from '@fantasy-draft/shared';
 import type {
   DraftSyncSnapshot,
-  DraftSyncUpdate,
   DraftPickEvent,
   Player,
   Position,
@@ -85,7 +85,11 @@ export function useSleeperDraft(
 
     eventSource.onmessage = (event: MessageEvent<string>) => {
       try {
-        const update = JSON.parse(event.data) as DraftSyncUpdate;
+        const parsed: unknown = JSON.parse(event.data);
+        if (!isDraftSyncUpdate(parsed)) {
+          return;
+        }
+        const update = parsed;
         setLiveSnapshot(update.snapshot);
         queryClient.setQueryData(['sleeper-sync-snapshot', draftId], update.snapshot);
       } catch {

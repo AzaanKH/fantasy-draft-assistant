@@ -1,17 +1,17 @@
 # Draft Prep Report
 
-Generated: 2026-07-09T23:42:58.269Z
+Generated: 2026-07-10T00:02:56.301Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 ## Artifact Freshness
 
-| Artifact | Age |
+| Artifact | Source timestamp |
 | --- | --- |
-| FantasyPros | 0h |
-| League survival | 0h |
-| Team environment | 0h |
-| Predictions | 0h |
+| FantasyPros | 2026-07-09T23:42:27.906Z |
+| League survival | 2026-07-09T23:42:56.100Z |
+| Team environment | 2026-07-09T23:42:29.812Z |
+| Predictions | 2026-07-09T23:42:54.823Z |
 
 ## Historical Room Trends
 

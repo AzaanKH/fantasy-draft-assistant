@@ -55,7 +55,9 @@ describe('draftStore shortlist', () => {
   });
 
   it('replaces imported Sleeper picks when the canonical snapshot changes', () => {
-    const { reconcileSleeperPicks } = useDraftStore.getState();
+    const { markPlayerDrafted, reconcileSleeperPicks } = useDraftStore.getState();
+
+    markPlayerDrafted('manual-player', 'Manual Player', 'RB', 0, 'My Team', 1);
 
     reconcileSleeperPicks([
       {
@@ -92,6 +94,7 @@ describe('draftStore shortlist', () => {
 
     const state = useDraftStore.getState();
     expect([...state.draftedPlayerIds]).toEqual(['player-c']);
+    expect(state.draftHistory).toHaveLength(1);
     expect(state.myRoster.TE).toEqual(['player-c']);
     expect(state.myRoster.WR).toEqual([]);
     expect(state.currentPick).toBe(2);

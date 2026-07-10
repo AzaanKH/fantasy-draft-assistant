@@ -1,4 +1,4 @@
-import type { Position } from './player';
+import { isPosition, type Position } from './player';
 
 export interface SleeperDraftPick {
   readonly round: number;
@@ -77,6 +77,14 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function isFiniteNumberRecord(value: unknown): value is Record<string, number> {
+  return (
+    isRecord(value) &&
+    !Array.isArray(value) &&
+    Object.values(value).every(isFiniteNumber)
+  );
+}
+
 function isDraftStatus(value: unknown): value is SleeperDraftMetadata['status'] {
   return value === 'pre_draft' || value === 'drafting' || value === 'complete';
 }
@@ -98,7 +106,7 @@ export function isSleeperDraftMetadata(value: unknown): value is SleeperDraftMet
     isFiniteNumber(value.settings.teams) &&
     isFiniteNumber(value.settings.rounds) &&
     isFiniteNumber(value.settings.pick_timer) &&
-    (value.draft_order === null || isRecord(value.draft_order))
+    (value.draft_order === null || isFiniteNumberRecord(value.draft_order))
   );
 }
 
@@ -133,6 +141,58 @@ export function isSleeperDraftPick(value: unknown): value is SleeperDraftPick {
 
 export function isSleeperDraftPickList(value: unknown): value is SleeperDraftPick[] {
   return Array.isArray(value) && value.every(isSleeperDraftPick);
+}
+
+function isDraftPickEvent(value: unknown): value is DraftPickEvent {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.draftId === 'string' &&
+    isFiniteNumber(value.pickNumber) &&
+    isFiniteNumber(value.round) &&
+    isFiniteNumber(value.rosterId) &&
+    isFiniteNumber(value.draftSlot) &&
+    isFiniteNumber(value.teamIndex) &&
+    typeof value.playerId === 'string' &&
+    typeof value.playerName === 'string' &&
+    isPosition(value.position) &&
+    (value.nflTeam === null || typeof value.nflTeam === 'string') &&
+    typeof value.isKeeper === 'boolean' &&
+    (value.source === 'sleeper-api' || value.source === 'extension-dom' || value.source === 'manual') &&
+    (value.confidence === 'confirmed' || value.confidence === 'probable') &&
+    isFiniteNumber(value.observedAt)
+  );
+}
+
+function isDraftSyncSnapshot(value: unknown): value is DraftSyncSnapshot {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.draftId === 'string' &&
+    (value.draft === null || isSleeperDraftMetadata(value.draft)) &&
+    Array.isArray(value.picks) &&
+    value.picks.every(isDraftPickEvent) &&
+    (value.status === 'idle' || value.status === 'syncing' || value.status === 'synced' || value.status === 'error') &&
+    (value.lastPolledAt === null || isFiniteNumber(value.lastPolledAt)) &&
+    (value.lastSuccessfulSyncAt === null || isFiniteNumber(value.lastSuccessfulSyncAt)) &&
+    (value.lastError === null || typeof value.lastError === 'string')
+  );
+}
+
+/** Runtime validation for the untrusted SSE payload consumed by the web app. */
+export function isDraftSyncUpdate(value: unknown): value is DraftSyncUpdate {
+  if (!isRecord(value) || !isDraftSyncSnapshot(value.snapshot)) {
+    return false;
+  }
+
+  return (
+    (value.type === 'snapshot' || value.type === 'pick' || value.type === 'status') &&
+    (value.pick === undefined || isDraftPickEvent(value.pick))
+  );
 }
 
 function normalizePosition(value: string | undefined): Position {

@@ -23,10 +23,6 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -34,7 +30,10 @@ export default tseslint.config(
       // Numeric interpolation is idiomatic in this UI; retain strict checks for
       // unsafe objects while avoiding noise from display-only values.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      // Existing control-flow relies on generic table/roster values whose
+      // nullability is not fully expressed by their upstream library types.
       '@typescript-eslint/no-unnecessary-condition': 'off',
+      // Response mocks intentionally expose `async json()` to mirror Fetch.
       '@typescript-eslint/require-await': 'off',
       'react-refresh/only-export-components': 'off',
     },

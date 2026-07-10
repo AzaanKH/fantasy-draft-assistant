@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import {
   DraftSyncEngine,
   isSleeperDraftMetadata,
@@ -10,9 +10,10 @@ import {
 } from '@fantasy-draft/shared';
 
 export const DEFAULT_POLL_INTERVAL_MS = 1000;
+export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 export const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
 
-export type FetchJson = <T>(url: string) => Promise<T>;
+export type FetchJson = <T>(url: string, signal: AbortSignal) => Promise<T>;
 
 interface ClientConnection {
   readonly id: number;
@@ -21,8 +22,14 @@ interface ClientConnection {
 
 interface SyncServerOptions {
   readonly pollIntervalMs?: number;
+  readonly requestTimeoutMs?: number;
   readonly fetchJson?: FetchJson;
   readonly allowedOrigins?: readonly string[];
+  readonly requestToken?: string;
+}
+
+export interface SyncServer extends Server {
+  shutdown: (callback?: (error?: Error) => void) => void;
 }
 
 class DraftSession {
@@ -30,6 +37,7 @@ class DraftSession {
   private readonly engine: DraftSyncEngine;
   private readonly clients = new Map<number, ClientConnection>();
   private readonly pollIntervalMs: number;
+  private readonly requestTimeoutMs: number;
   private readonly fetchJson: FetchJson;
   private nextClientId = 1;
   private pollTimer: NodeJS.Timeout | null = null;
@@ -39,12 +47,14 @@ class DraftSession {
   public constructor(
     draftId: string,
     fetchJson: FetchJson,
-    pollIntervalMs: number
+    pollIntervalMs: number,
+    requestTimeoutMs: number
   ) {
     this.draftId = draftId;
     this.engine = new DraftSyncEngine(draftId);
     this.fetchJson = fetchJson;
     this.pollIntervalMs = pollIntervalMs;
+    this.requestTimeoutMs = requestTimeoutMs;
   }
 
   public getSnapshot(): DraftSyncSnapshot {
@@ -74,6 +84,15 @@ class DraftSession {
 
   public dispose(): void {
     this.stopPolling();
+    for (const { response } of this.clients.values()) {
+      if (!response.writableEnded) {
+        try {
+          response.end();
+        } catch {
+          // A peer may close between the writable check and end().
+        }
+      }
+    }
     this.clients.clear();
   }
 
@@ -129,10 +148,13 @@ class DraftSession {
       snapshot: this.engine.beginSync(),
     });
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+
     try {
       const [draftResponse, picksResponse] = await Promise.all([
-        this.fetchJson<SleeperDraftMetadata>(`${SLEEPER_API_BASE}/draft/${this.draftId}`),
-        this.fetchJson<SleeperDraftPick[]>(`${SLEEPER_API_BASE}/draft/${this.draftId}/picks`),
+        this.fetchJson<SleeperDraftMetadata>(`${SLEEPER_API_BASE}/draft/${this.draftId}`, controller.signal),
+        this.fetchJson<SleeperDraftPick[]>(`${SLEEPER_API_BASE}/draft/${this.draftId}/picks`, controller.signal),
       ]);
       if (!isSleeperDraftMetadata(draftResponse) || !isSleeperDraftPickList(picksResponse)) {
         throw new Error('Sleeper returned an invalid draft payload');
@@ -162,6 +184,8 @@ class DraftSession {
       });
       this.consecutiveFailures += 1;
       return false;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -182,15 +206,26 @@ function setCorsHeaders(
   allowedOrigins: readonly string[]
 ): void {
   const origin = request.headers.origin;
-  const allowedOrigin = origin && (
-    allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://')
-  )
-    ? origin
-    : (allowedOrigins[0] ?? 'http://localhost:3000');
-  response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  if (origin && allowedOrigins.includes(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+  }
   response.setHeader('Vary', 'Origin');
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Sync-Token');
+}
+
+function isAuthorizedRequest(
+  request: IncomingMessage,
+  allowedOrigins: readonly string[],
+  requestToken: string | undefined
+): boolean {
+  const origin = request.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  const token = request.headers['x-sync-token'];
+  return typeof token === 'string' && requestToken !== undefined && token === requestToken;
 }
 
 function sendJson(
@@ -214,6 +249,14 @@ function sendNotFound(
   sendJson(request, response, 404, { error: 'Not found' }, allowedOrigins);
 }
 
+function sendForbidden(
+  request: IncomingMessage,
+  response: ServerResponse<IncomingMessage>,
+  allowedOrigins: readonly string[]
+): void {
+  sendJson(request, response, 403, { error: 'Forbidden' }, allowedOrigins);
+}
+
 function parseDraftRoute(pathname: string): { draftId: string; isStream: boolean; isRefresh: boolean } | null {
   const match = pathname.match(/^\/api\/sync\/drafts\/([^/]+)(?:\/(events|refresh))?$/);
   if (!match?.[1]) {
@@ -227,8 +270,8 @@ function parseDraftRoute(pathname: string): { draftId: string; isStream: boolean
   };
 }
 
-export async function defaultFetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+export async function defaultFetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
+  const response = await fetch(url, { signal });
 
   if (!response.ok) {
     throw new Error(`Sleeper request failed: ${response.status}`);
@@ -237,9 +280,10 @@ export async function defaultFetchJson<T>(url: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function createSyncServer(options: SyncServerOptions = {}) {
+export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const sessions = new Map<string, DraftSession>();
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   const fetchJson = options.fetchJson ?? defaultFetchJson;
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
@@ -248,7 +292,7 @@ export function createSyncServer(options: SyncServerOptions = {}) {
   function getSession(draftId: string): DraftSession {
     let session = sessions.get(draftId);
     if (!session) {
-      session = new DraftSession(draftId, fetchJson, pollIntervalMs);
+      session = new DraftSession(draftId, fetchJson, pollIntervalMs, requestTimeoutMs);
       sessions.set(draftId, session);
     }
 
@@ -263,15 +307,20 @@ export function createSyncServer(options: SyncServerOptions = {}) {
 
     const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
 
+    if (url.pathname === '/api/health') {
+      sendJson(request, response, 200, { ok: true }, allowedOrigins);
+      return;
+    }
+
+    if (!isAuthorizedRequest(request, allowedOrigins, options.requestToken)) {
+      sendForbidden(request, response, allowedOrigins);
+      return;
+    }
+
     if (request.method === 'OPTIONS') {
       setCorsHeaders(request, response, allowedOrigins);
       response.statusCode = 204;
       response.end();
-      return;
-    }
-
-    if (url.pathname === '/api/health') {
-      sendJson(request, response, 200, { ok: true }, allowedOrigins);
       return;
     }
 
@@ -324,12 +373,18 @@ export function createSyncServer(options: SyncServerOptions = {}) {
     sendNotFound(request, response, allowedOrigins);
   });
 
-  server.on('close', () => {
+  const disposeSessions = () => {
     for (const session of sessions.values()) {
       session.dispose();
     }
     sessions.clear();
-  });
+  };
 
-  return server;
+  const syncServer = server as SyncServer;
+  syncServer.shutdown = (callback) => {
+    disposeSessions();
+    server.close(callback);
+  };
+
+  return syncServer;
 }

@@ -119,6 +119,7 @@ export type {
 // Sync types
 export {
   DraftSyncEngine,
+  isDraftSyncUpdate,
   isSleeperDraftMetadata,
   isSleeperDraftPick,
   isSleeperDraftPickList,

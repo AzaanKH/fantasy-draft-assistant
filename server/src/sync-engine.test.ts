@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DraftSyncEngine,
+  isDraftSyncUpdate,
+  isSleeperDraftMetadata,
   type SleeperDraftMetadata,
   type SleeperDraftPick,
 } from '@fantasy-draft/shared';
@@ -87,5 +89,11 @@ describe('DraftSyncEngine', () => {
     expect(snapshot.status).toBe('error');
     expect(snapshot.lastError).toBe('boom');
     expect(snapshot.lastPolledAt).toBe(200);
+  });
+
+  it('rejects malformed draft orders and sync updates at runtime boundaries', () => {
+    expect(isSleeperDraftMetadata({ ...createDraft(), draft_order: ['not-a-slot'] })).toBe(false);
+    expect(isSleeperDraftMetadata({ ...createDraft(), draft_order: { user: '1' } })).toBe(false);
+    expect(isDraftSyncUpdate({ type: 'snapshot', snapshot: { draftId: 'draft-123' } })).toBe(false);
   });
 });
