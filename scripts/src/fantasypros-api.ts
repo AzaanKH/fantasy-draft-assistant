@@ -1,5 +1,6 @@
 import type {
   ECRPlayer,
+  FantasyProsAdpPlayer,
   FantasyProsNewsItem,
   FantasyProsProjection,
   FantasyProsSnapshot,
@@ -40,7 +41,7 @@ interface FantasyProsNewsResponse {
 }
 
 interface FantasyProsPlayerRecord {
-  readonly player_id?: number | string;
+  readonly player_id?: number | string | null;
   readonly player_name?: string;
   readonly position_id?: string;
   readonly player_positions?: string;
@@ -48,7 +49,7 @@ interface FantasyProsPlayerRecord {
 }
 
 interface FantasyProsConsensusPlayer {
-  readonly player_id?: number | string;
+  readonly player_id?: number | string | null;
   readonly player_name?: string;
   readonly player_team_id?: string;
   readonly player_position_id?: string;
@@ -61,7 +62,7 @@ interface FantasyProsConsensusPlayer {
 }
 
 interface FantasyProsProjectionPlayer {
-  readonly fpid?: number | string;
+  readonly fpid?: number | string | null;
   readonly name?: string;
   readonly position_id?: string;
   readonly team_id?: string;
@@ -73,7 +74,7 @@ interface FantasyProsProjectionPlayer {
 }
 
 interface FantasyProsNewsRecord {
-  readonly player_id?: number | string;
+  readonly player_id?: number | string | null;
   readonly player_name?: string;
   readonly title?: string;
   readonly category?: string;
@@ -144,21 +145,27 @@ function deriveNewsStatus(record: FantasyProsNewsRecord): NewsStatus {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+  const tokens: readonly string[] = normalized.match(/[a-z]+/g) ?? [];
+  const hasToken = (term: string): boolean => tokens.includes(term);
+  const hasOutToken = tokens.some((term, index) =>
+    term === 'out' &&
+    !['stand', 'stands', 'stood', 'standing'].includes(tokens[index - 1] ?? '')
+  );
 
   if (
-    normalized.includes('out') ||
-    normalized.includes('inactive') ||
-    normalized.includes('injured reserve')
+    hasOutToken ||
+    hasToken('inactive') ||
+    /\binjured\s+reserve\b/.test(normalized)
   ) {
     return 'out';
   }
-  if (normalized.includes('questionable') || normalized.includes('doubtful')) {
+  if (hasToken('questionable') || hasToken('doubtful')) {
     return 'questionable';
   }
-  if (normalized.includes('limited')) {
+  if (hasToken('limited')) {
     return 'limited';
   }
-  if (normalized.includes('healthy') || normalized.includes('active')) {
+  if (hasToken('healthy') || hasToken('active')) {
     return 'healthy';
   }
 
@@ -177,28 +184,38 @@ async function fetchFantasyProsJson<T>(
     }
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FANTASYPROS_REQUEST_TIMEOUT_MS);
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      headers: {
-        'x-api-key': apiKey,
-        accept: 'application/json',
-      },
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(
-        `FantasyPros API request timed out after ${FANTASYPROS_REQUEST_TIMEOUT_MS}ms for ${url.pathname}`
-      );
+  let response: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FANTASYPROS_REQUEST_TIMEOUT_MS);
+    try {
+      response = await fetch(url, {
+        headers: {
+          'x-api-key': apiKey,
+          accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(
+          `FantasyPros API request timed out after ${FANTASYPROS_REQUEST_TIMEOUT_MS}ms for ${url.pathname}`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+    if (response.status !== 429 || attempt === 2) break;
+    const retryHeader = response.headers.get('retry-after');
+    const retryAfterSeconds = retryHeader === null ? Number.NaN : Number(retryHeader);
+    const delayMs = Number.isFinite(retryAfterSeconds)
+      ? Math.min(10_000, Math.max(500, retryAfterSeconds * 1000))
+      : (attempt + 1) * 1500;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
+
+  if (!response) throw new Error(`FantasyPros API returned no response for ${url.pathname}`);
 
   if (!response.ok) {
     const body = await response.text();
@@ -252,6 +269,7 @@ function buildRankings(players: readonly FantasyProsConsensusPlayer[]): ECRPlaye
     }
 
     return [{
+      fantasyProsId: player.player_id != null ? String(player.player_id) : undefined,
       rank,
       name: player.player_name,
       position,
@@ -261,6 +279,29 @@ function buildRankings(players: readonly FantasyProsConsensusPlayer[]): ECRPlaye
       bestRank: parseNumber(player.rank_min, rank),
       worstRank: parseNumber(player.rank_max, rank),
       avgRank: parseNumber(player.rank_ave, rank),
+    }];
+  });
+}
+
+function buildAdp(players: readonly FantasyProsConsensusPlayer[]): FantasyProsAdpPlayer[] {
+  return players.flatMap((player) => {
+    const team = normalizeFantasyProsTeam(player.player_team_id);
+    const position = normalizeFantasyProsPosition(player.player_position_id);
+    const rank = parseNumber(player.rank_ecr, Number.NaN);
+    if (!team || !position || !player.player_name || !Number.isFinite(rank)) {
+      return [];
+    }
+
+    return [{
+      fantasyProsId: player.player_id != null ? String(player.player_id) : undefined,
+      rank,
+      name: player.player_name,
+      position,
+      team,
+      positionalRank: parsePositionalRank(player.pos_rank, rank),
+      bestRank: parseNumber(player.rank_min, rank),
+      worstRank: parseNumber(player.rank_max, rank),
+      averageRank: parseNumber(player.rank_ave, rank),
     }];
   });
 }
@@ -284,6 +325,7 @@ function buildProjections(
 
     return typeof points === 'number'
       ? [{
+          fantasyProsId: player.fpid != null ? String(player.fpid) : undefined,
           name: player.name,
           position,
           team,
@@ -310,6 +352,7 @@ function buildNews(
     }
 
     return [{
+      fantasyProsId: record.player_id != null ? String(record.player_id) : undefined,
       name,
       position,
       team,
@@ -324,7 +367,7 @@ export async function fetchFantasyProsSnapshot(
   options: FantasyProsApiOptions
 ): Promise<FantasyProsSnapshot> {
   const scoring = options.scoring ?? 'PPR';
-  const [playerIndex, rankingsResponse, newsResponse] = await Promise.all([
+  const [playerIndex, rankingsResponse, adpResponse, newsResponse] = await Promise.all([
     fetchFantasyProsPlayerIndex(options.apiKey),
     fetchFantasyProsJson<FantasyProsConsensusResponse>(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
@@ -333,6 +376,16 @@ export async function fetchFantasyProsSnapshot(
         position: 'ALL',
         scoring,
         week: 0,
+      }
+    ),
+    fetchFantasyProsJson<FantasyProsConsensusResponse>(
+      `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
+      options.apiKey,
+      {
+        position: 'ALL',
+        scoring,
+        week: 0,
+        type: 'ADP',
       }
     ),
     fetchFantasyProsJson<FantasyProsNewsResponse>(
@@ -359,6 +412,7 @@ export async function fetchFantasyProsSnapshot(
   }
 
   const rankings = buildRankings(rankingsResponse.players ?? []);
+  const adp = buildAdp(adpResponse.players ?? []);
   const projections = buildProjections(projectionsResponse.players ?? [], scoring);
   const news = buildNews(newsResponse, playerIndex);
   const refreshedAt = new Date().toISOString();
@@ -369,11 +423,15 @@ export async function fetchFantasyProsSnapshot(
       sourceType: 'api',
       source: rankingsResponse.source ?? `${FANTASYPROS_API_BASE_URL}/${FANTASYPROS_SPORT_NAME}`,
       refreshedAt,
+      projectionRefreshedAt: projections.length > 0 ? refreshedAt : undefined,
+      projectionSource: projections.length > 0 ? 'api' : undefined,
       rankingCount: rankings.length,
+      adpCount: adp.length,
       projectionCount: projections.length,
       newsCount: news.length,
     },
     rankings,
+    adp,
     projections,
     news,
   };
@@ -385,6 +443,7 @@ export const fantasyProsApiInternals = {
   parsePositionalRank,
   deriveNewsStatus,
   buildRankings,
+  buildAdp,
   buildProjections,
   buildNews,
 };

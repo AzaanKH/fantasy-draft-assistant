@@ -10,6 +10,7 @@ export const FANTASYPROS_SNAPSHOT_SOURCES = [
 export type FantasyProsSnapshotSource = (typeof FANTASYPROS_SNAPSHOT_SOURCES)[number];
 
 export interface FantasyProsProjection {
+  readonly fantasyProsId?: string;
   readonly name: string;
   readonly position: Position;
   readonly team: NFLTeam;
@@ -19,6 +20,7 @@ export interface FantasyProsProjection {
 }
 
 export interface FantasyProsNewsItem {
+  readonly fantasyProsId?: string;
   readonly name: string;
   readonly position: Position;
   readonly team: NFLTeam;
@@ -27,12 +29,27 @@ export interface FantasyProsNewsItem {
   readonly updatedAt: string;
 }
 
+export interface FantasyProsAdpPlayer {
+  readonly fantasyProsId?: string;
+  readonly rank: number;
+  readonly name: string;
+  readonly position: Position;
+  readonly team: NFLTeam;
+  readonly positionalRank: number;
+  readonly bestRank: number;
+  readonly worstRank: number;
+  readonly averageRank: number;
+}
+
 export interface FantasyProsSnapshotMetadata {
   readonly season: number;
   readonly sourceType: FantasyProsSnapshotSource;
   readonly source: string;
   readonly refreshedAt: string;
+  readonly projectionRefreshedAt?: string;
+  readonly projectionSource?: 'api' | 'preserved-cache';
   readonly rankingCount: number;
+  readonly adpCount: number;
   readonly projectionCount: number;
   readonly newsCount: number;
 }
@@ -40,6 +57,7 @@ export interface FantasyProsSnapshotMetadata {
 export interface FantasyProsSnapshot {
   readonly metadata: FantasyProsSnapshotMetadata;
   readonly rankings: readonly ECRPlayer[];
+  readonly adp: readonly FantasyProsAdpPlayer[];
   readonly projections: readonly FantasyProsProjection[];
   readonly news: readonly FantasyProsNewsItem[];
 }
@@ -52,4 +70,3 @@ export function isFantasyProsSnapshotSource(
     FANTASYPROS_SNAPSHOT_SOURCES.includes(value as FantasyProsSnapshotSource)
   );
 }
-

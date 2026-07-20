@@ -27,6 +27,7 @@ import {
   sortPlayers,
   type SleeperADPPlayer,
   type ContractPlayerData,
+  type PlayerIdentityData,
 } from '@/lib/calculations';
 import { useDraftStore } from '@/stores/draftStore';
 import { fantasyProsProvider } from '@/lib/providers/fantasypros';
@@ -55,7 +56,8 @@ interface TeamEnvDataFile {
  * Contract data JSON file structure
  */
 interface ContractDataFile {
-  scrapedAt: string | null;
+  generatedAt?: string | null;
+  scrapedAt?: string | null;
   contractYear: number;
   playerCount: number;
   players: ContractPlayerData[];
@@ -65,6 +67,47 @@ interface PredictionsDataFile {
   generatedAt: string | null;
   modelVersion: string;
   players: PlayerPrediction[];
+}
+
+interface PlayerIdentityFile {
+  generatedAt: string;
+  season: number;
+  players: PlayerIdentityData[];
+}
+
+interface RecommendationPolicyFile {
+  generatedAt: string;
+  modelVersion: string;
+  modelPredictionsEnabled: boolean;
+  contractSignalEnabled: boolean;
+  fallback: 'model' | 'fantasypros-ecr-market';
+  reason: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isPlayerIdentityFile(value: unknown): value is PlayerIdentityFile {
+  return (
+    isRecord(value) &&
+    typeof value['generatedAt'] === 'string' &&
+    typeof value['season'] === 'number' &&
+    Number.isFinite(value['season']) &&
+    Array.isArray(value['players'])
+  );
+}
+
+function isRecommendationPolicyFile(value: unknown): value is RecommendationPolicyFile {
+  return (
+    isRecord(value) &&
+    typeof value['generatedAt'] === 'string' &&
+    typeof value['modelVersion'] === 'string' &&
+    typeof value['modelPredictionsEnabled'] === 'boolean' &&
+    typeof value['contractSignalEnabled'] === 'boolean' &&
+    (value['fallback'] === 'model' || value['fallback'] === 'fantasypros-ecr-market') &&
+    typeof value['reason'] === 'string'
+  );
 }
 
 /**
@@ -118,6 +161,30 @@ async function fetchPredictionData(): Promise<PredictionsDataFile> {
   return response.json() as Promise<PredictionsDataFile>;
 }
 
+async function fetchPlayerIdentityData(): Promise<PlayerIdentityFile> {
+  const response = await fetch('/data/player-identity.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load player identity data: ${String(response.status)}`);
+  }
+  const parsed: unknown = await response.json();
+  if (!isPlayerIdentityFile(parsed)) {
+    throw new Error('Invalid player identity data format');
+  }
+  return parsed;
+}
+
+async function fetchRecommendationPolicy(): Promise<RecommendationPolicyFile> {
+  const response = await fetch('/data/recommendation-policy.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load recommendation policy: ${String(response.status)}`);
+  }
+  const parsed: unknown = await response.json();
+  if (!isRecommendationPolicyFile(parsed)) {
+    throw new Error('Invalid recommendation policy format');
+  }
+  return parsed;
+}
+
 /**
  * Hook to load and merge all player data sources
  */
@@ -151,31 +218,49 @@ export function usePlayerDataQuery() {
     queryFn: fetchPredictionData,
     staleTime: Infinity,
   });
+  const identityQuery = useQuery({
+    queryKey: ['player-identity'],
+    queryFn: fetchPlayerIdentityData,
+    staleTime: Infinity,
+  });
+  const recommendationPolicyQuery = useQuery({
+    queryKey: ['recommendation-policy'],
+    queryFn: fetchRecommendationPolicy,
+    staleTime: Infinity,
+  });
 
   const isLoading =
     fantasyProsQuery.isLoading ||
     sleeperQuery.isLoading ||
     teamEnvQuery.isLoading ||
-    predictionQuery.isLoading;
+    predictionQuery.isLoading ||
+    identityQuery.isLoading ||
+    recommendationPolicyQuery.isLoading;
 
   const isError =
     fantasyProsQuery.isError ||
     sleeperQuery.isError ||
     teamEnvQuery.isError ||
-    predictionQuery.isError;
+    predictionQuery.isError ||
+    identityQuery.isError ||
+    recommendationPolicyQuery.isError;
 
   const error =
     fantasyProsQuery.error ??
     sleeperQuery.error ??
     teamEnvQuery.error ??
-    predictionQuery.error;
+    predictionQuery.error ??
+    identityQuery.error ??
+    recommendationPolicyQuery.error;
 
   // Merge all data sources into Player objects
   const players = useMemo<Player[]>(() => {
     if (
       !fantasyProsQuery.data ||
       !sleeperQuery.data ||
-      !teamEnvQuery.data
+      !teamEnvQuery.data ||
+      !identityQuery.data ||
+      !recommendationPolicyQuery.data
     ) {
       return [];
     }
@@ -186,10 +271,16 @@ export function usePlayerDataQuery() {
       fantasyProsQuery.data.news,
       sleeperQuery.data.players,
       teamEnvQuery.data.teams,
-      contractQuery.data?.players ?? [],
-      predictionQuery.data?.players ?? []
+      recommendationPolicyQuery.data.contractSignalEnabled
+        ? contractQuery.data?.players ?? []
+        : [],
+      recommendationPolicyQuery.data.modelPredictionsEnabled
+        ? predictionQuery.data?.players ?? []
+        : [],
+      fantasyProsQuery.data.adp ?? [],
+      identityQuery.data.players
     );
-  }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, predictionQuery.data]);
+  }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, predictionQuery.data, identityQuery.data, recommendationPolicyQuery.data]);
 
   return {
     players,
@@ -205,6 +296,9 @@ export function usePlayerDataQuery() {
       sleeperCount: sleeperQuery.data?.playerCount ?? 0,
       contractsError: contractQuery.error ?? null,
       predictionModelVersion: predictionQuery.data?.modelVersion,
+      modelPredictionsEnabled: recommendationPolicyQuery.data?.modelPredictionsEnabled ?? false,
+      recommendationFallback: recommendationPolicyQuery.data?.fallback,
+      recommendationPolicyReason: recommendationPolicyQuery.data?.reason,
       predictionsError: predictionQuery.error ?? null,
     },
   };

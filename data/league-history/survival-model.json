@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T23:42:56.100Z",
+  "generatedAt": "2026-07-20T21:25:43.678Z",
   "modelVersion": "league-history-survival-v1-2022-2025",
   "leagueName": "Ummati Official",
   "seasons": [
@@ -17,7 +17,7 @@
   "baseline": {
     "leaguePickCount": 550,
     "maxHistoricalPick": 140,
-    "sleeperPlayerCount": 168
+    "sleeperPlayerCount": 166
   },
   "positions": {
     "QB": {
@@ -43,16 +43,16 @@
       "leagueMedianPick": 62.5,
       "sleeperMedianPick": 62,
       "pickPremium": 0.5,
-      "top50RateDelta": -0.022,
-      "top100RateDelta": 0.05,
+      "top50RateDelta": -0.002,
+      "top100RateDelta": 0.023,
       "sampleSize": 220
     },
     "TE": {
       "position": "TE",
       "leagueMedianPick": 79,
-      "sleeperMedianPick": 96.5,
-      "pickPremium": -17.5,
-      "top50RateDelta": 0.164,
+      "sleeperMedianPick": 97,
+      "pickPremium": -18,
+      "top50RateDelta": 0.128,
       "top100RateDelta": 0.039,
       "sampleSize": 59
     },
@@ -120,27 +120,27 @@
       "minPick": 25,
       "maxPick": 50,
       "leagueSampleSize": 104,
-      "sleeperSampleSize": 35,
+      "sleeperSampleSize": 34,
       "positions": {
         "QB": {
           "leaguePickRate": 0.154,
-          "sleeperPickRate": 0.257,
-          "rateDelta": -0.103
+          "sleeperPickRate": 0.265,
+          "rateDelta": -0.111
         },
         "RB": {
           "leaguePickRate": 0.288,
-          "sleeperPickRate": 0.314,
-          "rateDelta": -0.026
+          "sleeperPickRate": 0.324,
+          "rateDelta": -0.035
         },
         "WR": {
           "leaguePickRate": 0.452,
-          "sleeperPickRate": 0.4,
-          "rateDelta": 0.052
+          "sleeperPickRate": 0.353,
+          "rateDelta": 0.099
         },
         "TE": {
           "leaguePickRate": 0.106,
-          "sleeperPickRate": 0.029,
-          "rateDelta": 0.077
+          "sleeperPickRate": 0.059,
+          "rateDelta": 0.047
         },
         "K": {
           "leaguePickRate": 0,
@@ -159,27 +159,27 @@
       "minPick": 51,
       "maxPick": 100,
       "leagueSampleSize": 200,
-      "sleeperSampleSize": 55,
+      "sleeperSampleSize": 56,
       "positions": {
         "QB": {
           "leaguePickRate": 0.085,
-          "sleeperPickRate": 0.145,
-          "rateDelta": -0.06
+          "sleeperPickRate": 0.143,
+          "rateDelta": -0.058
         },
         "RB": {
           "leaguePickRate": 0.35,
-          "sleeperPickRate": 0.273,
-          "rateDelta": 0.077
+          "sleeperPickRate": 0.268,
+          "rateDelta": 0.082
         },
         "WR": {
           "leaguePickRate": 0.44,
-          "sleeperPickRate": 0.345,
-          "rateDelta": 0.095
+          "sleeperPickRate": 0.375,
+          "rateDelta": 0.065
         },
         "TE": {
           "leaguePickRate": 0.1,
-          "sleeperPickRate": 0.236,
-          "rateDelta": -0.136
+          "sleeperPickRate": 0.214,
+          "rateDelta": -0.114
         },
         "K": {
           "leaguePickRate": 0.015,
@@ -198,27 +198,27 @@
       "minPick": 101,
       "maxPick": 140,
       "leagueSampleSize": 150,
-      "sleeperSampleSize": 43,
+      "sleeperSampleSize": 41,
       "positions": {
         "QB": {
           "leaguePickRate": 0.167,
-          "sleeperPickRate": 0.07,
-          "rateDelta": 0.097
+          "sleeperPickRate": 0.073,
+          "rateDelta": 0.093
         },
         "RB": {
           "leaguePickRate": 0.247,
-          "sleeperPickRate": 0.326,
-          "rateDelta": -0.079
+          "sleeperPickRate": 0.341,
+          "rateDelta": -0.095
         },
         "WR": {
           "leaguePickRate": 0.28,
-          "sleeperPickRate": 0.326,
-          "rateDelta": -0.046
+          "sleeperPickRate": 0.293,
+          "rateDelta": -0.013
         },
         "TE": {
           "leaguePickRate": 0.153,
-          "sleeperPickRate": 0.279,
-          "rateDelta": -0.126
+          "sleeperPickRate": 0.293,
+          "rateDelta": -0.139
         },
         "K": {
           "leaguePickRate": 0.1,

@@ -25,6 +25,7 @@ describe('fantasyProsApiInternals', () => {
 
     expect(rankings).toEqual([
       {
+        fantasyProsId: '123',
         rank: 7,
         name: 'Player One',
         position: 'WR',
@@ -36,6 +37,30 @@ describe('fantasyProsApiInternals', () => {
         avgRank: 7.2,
       },
     ]);
+  });
+
+  it('parses consensus ADP separately from expert rankings', () => {
+    expect(fantasyProsApiInternals.buildAdp([{
+      player_id: 321,
+      player_name: 'Market Player',
+      player_team_id: 'KC',
+      player_position_id: 'TE',
+      rank_ecr: 18,
+      rank_min: 14,
+      rank_max: 24,
+      rank_ave: 18.5,
+      pos_rank: 'TE2',
+    }])).toEqual([{
+      fantasyProsId: '321',
+      rank: 18,
+      name: 'Market Player',
+      position: 'TE',
+      team: 'KC',
+      positionalRank: 2,
+      bestRank: 14,
+      worstRank: 24,
+      averageRank: 18.5,
+    }]);
   });
 
   it('skips rankings with missing or invalid consensus rank values', () => {
@@ -96,6 +121,7 @@ describe('fantasyProsApiInternals', () => {
 
     expect(news).toEqual([
       {
+        fantasyProsId: '789',
         name: 'Player Three',
         position: 'WR',
         team: 'KC',
@@ -104,5 +130,26 @@ describe('fantasyProsApiInternals', () => {
         updatedAt: '2026-05-12T12:00:00Z',
       },
     ]);
+  });
+
+  it('does not infer out status from unrelated substrings or standout phrasing', () => {
+    expect(fantasyProsApiInternals.deriveNewsStatus({
+      title: 'Rookie stood out without limitations at practice',
+    })).toBe('unknown');
+    expect(fantasyProsApiInternals.deriveNewsStatus({
+      title: 'Veteran ruled out for Sunday',
+    })).toBe('out');
+  });
+
+  it('omits null FantasyPros identifiers instead of serializing them', () => {
+    const rankings = fantasyProsApiInternals.buildRankings([{
+      player_id: null,
+      player_name: 'Player Without Id',
+      player_team_id: 'BUF',
+      player_position_id: 'WR',
+      rank_ecr: 50,
+    }]);
+
+    expect(rankings[0]?.fantasyProsId).toBeUndefined();
   });
 });

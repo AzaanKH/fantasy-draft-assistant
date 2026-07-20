@@ -15,6 +15,7 @@ describe('CachedFantasyProsProvider', () => {
         source: 'fixture.json',
         refreshedAt: '2026-05-07T00:00:00.000Z',
         rankingCount: 1,
+        adpCount: 0,
         projectionCount: 0,
         newsCount: 0,
       },
@@ -31,6 +32,7 @@ describe('CachedFantasyProsProvider', () => {
           avgRank: 1.2,
         },
       ],
+      adp: [],
       projections: [],
       news: [],
     };

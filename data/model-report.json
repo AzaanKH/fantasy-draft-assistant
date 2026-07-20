@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T23:42:54.834Z",
+  "generatedAt": "2026-07-20T22:21:22.784Z",
   "seasons": [
     2021,
     2022,
@@ -11,6 +11,8 @@
   "responsibilities": {
     "nflverse": [
       "historical NFL player stats",
+      "historical offensive snap share",
+      "historical Next Gen Stats efficiency",
       "historical rosters",
       "historical schedules",
       "historical team stats",
@@ -28,6 +30,7 @@
     ],
     "predictionLayer": [
       "uses nflverse production/history",
+      "uses leakage-safe trailing snap share and Next Gen Stats",
       "uses ffopportunity expected points/opportunity",
       "uses DynastyProcess pre-draft ranking context"
     ],
@@ -73,7 +76,23 @@
     },
     {
       "tableName": "source.nflverse_player_ids",
-      "rowCount": 25033
+      "rowCount": 25032
+    },
+    {
+      "tableName": "source.nflverse_snap_counts",
+      "rowCount": 132616
+    },
+    {
+      "tableName": "source.nflverse_nextgen_passing",
+      "rowCount": 3050
+    },
+    {
+      "tableName": "source.nflverse_nextgen_receiving",
+      "rowCount": 7351
+    },
+    {
+      "tableName": "source.nflverse_nextgen_rushing",
+      "rowCount": 3107
     },
     {
       "tableName": "source.ffopportunity_weekly",
@@ -81,7 +100,7 @@
     },
     {
       "tableName": "source.dynastyprocess_rankings",
-      "rowCount": 1775338
+      "rowCount": 1789032
     },
     {
       "tableName": "source.dynastyprocess_player_ids",
@@ -89,11 +108,11 @@
     },
     {
       "tableName": "model.prediction_training_dataset",
-      "rowCount": 3231
+      "rowCount": 3228
     },
     {
       "tableName": "model.prediction_outputs",
-      "rowCount": 990
+      "rowCount": 1021
     },
     {
       "tableName": "model.league_history_survival_training_dataset",
@@ -101,7 +120,7 @@
     },
     {
       "tableName": "model.draft_pick_trade_grader_features",
-      "rowCount": 990
+      "rowCount": 1021
     }
   ]
 }

@@ -9,6 +9,7 @@ import type {
   Player,
   HighlightLevel,
   FantasyProsProjection,
+  FantasyProsAdpPlayer,
   FantasyProsNewsItem,
   NFLTeam,
   PlayerPrediction,
@@ -44,6 +45,16 @@ export interface ContractPlayerData {
   readonly isContractYear: boolean;
 }
 
+export interface PlayerIdentityData {
+  readonly canonicalId: string;
+  readonly sleeperId?: string;
+  readonly fantasyProsId?: string;
+  readonly name: string;
+  readonly aliases: readonly string[];
+  readonly position: Position;
+  readonly team: NFLTeam;
+}
+
 const TIER_THRESHOLDS: Record<Position, readonly number[]> = {
   QB: [4, 8, 12, 18],
   RB: [8, 16, 24, 36],
@@ -66,9 +77,9 @@ function resolveSleeperMarketRank(sleeperAdp: number | undefined, ecrRank: numbe
 }
 
 /**
- * Calculate value score: ECR rank - Sleeper platform proxy
- * Positive = undervalued on Sleeper (good)
- * Negative = overvalued on Sleeper (bad)
+ * Calculate value score: market cost - expert rank.
+ * Positive = drafted later than expert rank (good value).
+ * Negative = drafted earlier than expert rank (potential reach).
  */
 export function calculateValueScore(ecrRank: number, sleeperAdp: number): number {
   return sleeperAdp - ecrRank;
@@ -224,7 +235,9 @@ export function mergePlayerData(
   sleeperPlayers: readonly SleeperADPPlayer[],
   teamEnvironments: Record<NFLTeam, TeamEnvironment>,
   contractPlayers: readonly ContractPlayerData[] = [],
-  modelPredictions: readonly PlayerPrediction[] = []
+  modelPredictions: readonly PlayerPrediction[] = [],
+  fantasyProsAdp: readonly FantasyProsAdpPlayer[] = [],
+  identities: readonly PlayerIdentityData[] = []
 ): Player[] {
   const teamEnvironmentLookup: Partial<Record<NFLTeam, TeamEnvironment>> = teamEnvironments;
 
@@ -235,6 +248,21 @@ export function mergePlayerData(
     sleeperMap.set(key, player);
   }
   const sleeperFallbackMap = buildUniqueNamePositionMap(sleeperPlayers);
+  const sleeperIdMap = new Map(sleeperPlayers.map((player) => [player.playerId, player]));
+  const identityByFantasyProsId = new Map(
+    identities.flatMap((identity) =>
+      identity.fantasyProsId ? [[identity.fantasyProsId, identity] as const] : []
+    )
+  );
+
+  const adpIdMap = new Map(
+    fantasyProsAdp.flatMap((player) =>
+      player.fantasyProsId ? [[player.fantasyProsId, player] as const] : []
+    )
+  );
+  const adpMap = new Map<string, FantasyProsAdpPlayer>();
+  for (const player of fantasyProsAdp) adpMap.set(createPlayerKey(player.name, player.team), player);
+  const adpFallbackMap = buildUniqueNamePositionMap(fantasyProsAdp);
 
   const contractMap = new Map<string, ContractPlayerData>();
   for (const player of contractPlayers) {
@@ -272,7 +300,12 @@ export function mergePlayerData(
   const unmatchedEcrKeys: string[] = [];
 
   for (const ecr of ecrPlayers) {
-    const sleeper = resolvePlayerMatch(ecr, sleeperMap, sleeperFallbackMap);
+    const identity = ecr.fantasyProsId
+      ? identityByFantasyProsId.get(ecr.fantasyProsId)
+      : undefined;
+    const sleeper =
+      (identity?.sleeperId ? sleeperIdMap.get(identity.sleeperId) : undefined) ??
+      resolvePlayerMatch(ecr, sleeperMap, sleeperFallbackMap);
     const canonicalTeam = sleeper?.team ?? ecr.team;
     const canonicalPlayer = { ...ecr, team: canonicalTeam };
     const contract = resolvePlayerMatch(canonicalPlayer, contractMap, contractFallbackMap);
@@ -280,9 +313,13 @@ export function mergePlayerData(
     const newsItem = resolvePlayerMatch(canonicalPlayer, newsMap, newsFallbackMap);
     const teamEnv = teamEnvironmentLookup[canonicalTeam];
 
-    // Sleeper uses placeholder search ranks such as 999 and 9,999,999 for
-    // unranked players. Keep that missing signal neutral so it cannot dominate.
-    const sleeperAdp = resolveSleeperMarketRank(sleeper?.sleeperAdp, ecr.rank);
+    // Sleeper search rank remains a separate platform signal. Consensus ADP is
+    // the primary observed-market input and falls back neutrally when missing.
+    const sleeperSearchRank = resolveSleeperMarketRank(sleeper?.sleeperAdp, ecr.rank);
+    const adp =
+      (ecr.fantasyProsId ? adpIdMap.get(ecr.fantasyProsId) : undefined) ??
+      resolvePlayerMatch(canonicalPlayer, adpMap, adpFallbackMap);
+    const consensusAdp = adp?.rank ?? sleeperSearchRank;
 
     if (!sleeper) {
       unmatchedEcrKeys.push(
@@ -290,7 +327,7 @@ export function mergePlayerData(
       );
     }
 
-    const valueScore = calculateValueScore(ecr.rank, sleeperAdp);
+    const valueScore = calculateValueScore(ecr.rank, consensusAdp);
     const isContractYear = contract?.isContractYear ?? false;
     const highlightLevel = calculateHighlightLevel(valueScore, isContractYear, teamEnv);
     const offenseScore = teamEnv?.offenseScore ?? 5;
@@ -308,7 +345,7 @@ export function mergePlayerData(
         position: ecr.position,
         ecrRank: ecr.rank,
         positionalRank: ecr.positionalRank,
-        sleeperAdp,
+        sleeperAdp: consensusAdp,
         offenseScore,
         valueScore,
         isContractYear,
@@ -322,17 +359,19 @@ export function mergePlayerData(
     );
 
     players.push({
-      id: sleeper?.playerId ?? `ecr-${String(ecr.rank)}`,
+      id: identity?.canonicalId ?? sleeper?.playerId ?? `ecr-${String(ecr.rank)}`,
       name: ecr.name,
       position: ecr.position,
       team: canonicalTeam,
       byeWeek: ecr.byeWeek,
       ecrRank: ecr.rank,
       positionalRank: ecr.positionalRank,
-      sleeperAdp,
+      sleeperAdp: sleeperSearchRank,
+      sleeperSearchRank,
+      consensusAdp,
       valueScore,
-      marketRank: sleeperAdp,
-      marketAdp: sleeperAdp,
+      marketRank: consensusAdp,
+      marketAdp: consensusAdp,
       marketAdpTrend: 0,
       isContractYear,
       contractEndYear: contract?.contractEndYear,

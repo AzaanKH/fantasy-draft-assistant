@@ -527,6 +527,8 @@ export function PlayerTable() {
             sleeperFetchedAt={dataInfo.sleeperFetchedAt}
             fantasyProsSourceType={dataInfo.fantasyProsSourceType}
             predictionModelVersion={dataInfo.predictionModelVersion}
+            modelPredictionsEnabled={dataInfo.modelPredictionsEnabled}
+            recommendationPolicyReason={dataInfo.recommendationPolicyReason}
             predictionsError={dataInfo.predictionsError}
             contractsError={dataInfo.contractsError}
           />

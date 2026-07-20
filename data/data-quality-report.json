@@ -1,0 +1,212 @@
+{
+  "generatedAt": "2026-07-20T22:22:00.978Z",
+  "season": 2026,
+  "status": "warn",
+  "summary": {
+    "passed": 31,
+    "warnings": 2,
+    "failures": 0
+  },
+  "checks": [
+    {
+      "id": "json.fantasypros-snapshot.json",
+      "status": "pass",
+      "message": "fantasypros-snapshot.json is valid JSON."
+    },
+    {
+      "id": "json.sleeper-adp.json",
+      "status": "pass",
+      "message": "sleeper-adp.json is valid JSON."
+    },
+    {
+      "id": "json.player-identity.json",
+      "status": "pass",
+      "message": "player-identity.json is valid JSON."
+    },
+    {
+      "id": "json.team-environment.json",
+      "status": "pass",
+      "message": "team-environment.json is valid JSON."
+    },
+    {
+      "id": "json.predictions.json",
+      "status": "pass",
+      "message": "predictions.json is valid JSON."
+    },
+    {
+      "id": "json.recommendation-policy.json",
+      "status": "pass",
+      "message": "recommendation-policy.json is valid JSON."
+    },
+    {
+      "id": "json.league-history/survival-model.json",
+      "status": "pass",
+      "message": "league-history/survival-model.json is valid JSON."
+    },
+    {
+      "id": "json.contracts.json",
+      "status": "pass",
+      "message": "contracts.json is valid JSON."
+    },
+    {
+      "id": "json.league-history/current-keepers.json",
+      "status": "pass",
+      "message": "league-history/current-keepers.json is valid JSON."
+    },
+    {
+      "id": "fantasypros.season",
+      "status": "pass",
+      "message": "FantasyPros snapshot season matches the draft season.",
+      "actual": "2026",
+      "expected": "2026"
+    },
+    {
+      "id": "fantasypros.rankings.count",
+      "status": "pass",
+      "message": "FantasyPros rankings meets the minimum usable count.",
+      "actual": 484,
+      "expected": ">= 350"
+    },
+    {
+      "id": "fantasypros.adp.count",
+      "status": "pass",
+      "message": "FantasyPros adp meets the minimum usable count.",
+      "actual": 402,
+      "expected": ">= 300"
+    },
+    {
+      "id": "fantasypros.projections.count",
+      "status": "pass",
+      "message": "FantasyPros projections meets the minimum usable count.",
+      "actual": 586,
+      "expected": ">= 400"
+    },
+    {
+      "id": "fantasypros.news.count",
+      "status": "pass",
+      "message": "FantasyPros news is present.",
+      "actual": 44,
+      "expected": "> 0"
+    },
+    {
+      "id": "fantasypros.projections.freshness",
+      "status": "pass",
+      "message": "FantasyPros projections are no more than 14 days old.",
+      "actual": 0,
+      "expected": "<= 14 days"
+    },
+    {
+      "id": "sleeper.count",
+      "status": "pass",
+      "message": "Sleeper player map meets the minimum usable count.",
+      "actual": 1021,
+      "expected": ">= 800"
+    },
+    {
+      "id": "sleeper.ids.unique",
+      "status": "pass",
+      "message": "Sleeper player IDs are unique.",
+      "actual": 0,
+      "expected": "0 duplicates"
+    },
+    {
+      "id": "identity.top250.match-rate",
+      "status": "pass",
+      "message": "Top-250 FantasyPros rankings map to a Sleeper identity.",
+      "actual": 1,
+      "expected": ">= 0.98"
+    },
+    {
+      "id": "identity.defenses",
+      "status": "pass",
+      "message": "All team defenses have canonical identities.",
+      "actual": 32,
+      "expected": "32"
+    },
+    {
+      "id": "team-environment.count",
+      "status": "pass",
+      "message": "Team environment contains all NFL teams.",
+      "actual": 32,
+      "expected": "32"
+    },
+    {
+      "id": "team-environment.season",
+      "status": "pass",
+      "message": "Team environment uses the latest completed season.",
+      "actual": "2025",
+      "expected": "2025"
+    },
+    {
+      "id": "predictions.count",
+      "status": "pass",
+      "message": "Prediction output meets the minimum usable count.",
+      "actual": 1021,
+      "expected": ">= 800"
+    },
+    {
+      "id": "predictions.finite",
+      "status": "pass",
+      "message": "All projected point values are finite.",
+      "actual": 0,
+      "expected": "0 invalid"
+    },
+    {
+      "id": "predictions.snap-ngs.coverage",
+      "status": "pass",
+      "message": "Snap-share and Next Gen Stats adjust a usable set of current predictions.",
+      "actual": 557,
+      "expected": ">= 100"
+    },
+    {
+      "id": "dependencies.identity",
+      "status": "pass",
+      "message": "Player identity is newer than its source snapshots."
+    },
+    {
+      "id": "dependencies.predictions",
+      "status": "pass",
+      "message": "Predictions are newer than all current input snapshots."
+    },
+    {
+      "id": "dependencies.recommendation-policy",
+      "status": "pass",
+      "message": "Recommendation policy is newer than the prediction artifact."
+    },
+    {
+      "id": "recommendation-policy.decision",
+      "status": "pass",
+      "message": "Recommendation policy explicitly enables the validated model or its fallback."
+    },
+    {
+      "id": "recommendation-policy.contract-signal",
+      "status": "pass",
+      "message": "Recommendation policy explicitly controls the unvalidated contract-year signal."
+    },
+    {
+      "id": "experimental.contract-signal",
+      "status": "warn",
+      "message": "Contract data is available for context, but its recommendation boost is disabled until backtested."
+    },
+    {
+      "id": "contracts.current-context",
+      "status": "pass",
+      "message": "Contract-year context is populated from nflverse.",
+      "actual": 324,
+      "expected": ">= 50"
+    },
+    {
+      "id": "contracts.source-freshness",
+      "status": "pass",
+      "message": "The upstream nflverse contracts release is no more than 30 days old.",
+      "actual": 0.5,
+      "expected": "<= 30 days"
+    },
+    {
+      "id": "optional.current-keepers",
+      "status": "warn",
+      "message": "Current keepers are not confirmed yet; live keeper adjustments remain disabled.",
+      "actual": 0
+    }
+  ]
+}

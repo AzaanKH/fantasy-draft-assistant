@@ -111,6 +111,7 @@ export {
 export type {
   FantasyProsSnapshotSource,
   FantasyProsProjection,
+  FantasyProsAdpPlayer,
   FantasyProsNewsItem,
   FantasyProsSnapshotMetadata,
   FantasyProsSnapshot,

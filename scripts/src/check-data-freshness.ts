@@ -32,6 +32,14 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     refreshCommand: 'pnpm refresh:sleeper',
   },
   {
+    label: 'Player identity map',
+    path: 'data/player-identity.json',
+    timestampPath: ['generatedAt'],
+    maxAgeHours: 24,
+    required: true,
+    refreshCommand: 'pnpm data:identity',
+  },
+  {
     label: 'Derived team environment',
     path: 'data/team-environment.json',
     timestampPath: ['generatedAt'],
@@ -40,12 +48,28 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     refreshCommand: 'pnpm refresh:team-env',
   },
   {
+    label: 'Contract context',
+    path: 'data/contracts.json',
+    timestampPath: ['generatedAt'],
+    maxAgeHours: 24 * 7,
+    required: true,
+    refreshCommand: 'pnpm refresh:contracts',
+  },
+  {
     label: 'Prediction artifact',
     path: 'data/predictions.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
     required: true,
     refreshCommand: 'pnpm prepare:draft',
+  },
+  {
+    label: 'Recommendation policy',
+    path: 'data/recommendation-policy.json',
+    timestampPath: ['generatedAt'],
+    maxAgeHours: 24 * 7,
+    required: true,
+    refreshCommand: 'pnpm model:backtest',
   },
   {
     label: 'League survival model',

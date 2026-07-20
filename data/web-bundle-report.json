@@ -1,0 +1,94 @@
+{
+  "generatedAt": "2026-07-20T22:22:14.805Z",
+  "budgets": {
+    "jsGzipBytes": 163840,
+    "cssGzipBytes": 20480
+  },
+  "totals": {
+    "jsGzipBytes": 139600,
+    "cssGzipBytes": 10530
+  },
+  "passed": true,
+  "assets": [
+    {
+      "file": "index-Doz3EDqE.css",
+      "type": "css",
+      "rawBytes": 62360,
+      "gzipBytes": 10530,
+      "brotliBytes": 8790
+    },
+    {
+      "file": "index-DxfoFpMM.js",
+      "type": "js",
+      "rawBytes": 454038,
+      "gzipBytes": 139600,
+      "brotliBytes": 120490
+    }
+  ],
+  "estimatedSourceComposition": [
+    {
+      "source": "application",
+      "sourceBytes": 225587
+    },
+    {
+      "source": "@tanstack/table-core",
+      "sourceBytes": 138845
+    },
+    {
+      "source": "react-dom",
+      "sourceBytes": 133667
+    },
+    {
+      "source": "@tanstack/query-core",
+      "sourceBytes": 76900
+    },
+    {
+      "source": "tailwind-merge",
+      "sourceBytes": 74233
+    },
+    {
+      "source": "immer",
+      "sourceBytes": 49821
+    },
+    {
+      "source": "@radix-ui/react-select",
+      "sourceBytes": 49584
+    },
+    {
+      "source": "@floating-ui/core",
+      "sourceBytes": 36167
+    },
+    {
+      "source": "@floating-ui/dom",
+      "sourceBytes": 27498
+    },
+    {
+      "source": "tslib",
+      "sourceBytes": 17648
+    },
+    {
+      "source": "@radix-ui/react-collection",
+      "sourceBytes": 17173
+    },
+    {
+      "source": "react-remove-scroll",
+      "sourceBytes": 16013
+    },
+    {
+      "source": "@radix-ui/react-dialog",
+      "sourceBytes": 12986
+    },
+    {
+      "source": "@radix-ui/react-popper",
+      "sourceBytes": 11613
+    },
+    {
+      "source": "lucide-react",
+      "sourceBytes": 10690
+    }
+  ],
+  "notes": [
+    "Source composition is an unminified source-map estimate; use it for direction, not transfer-size accounting.",
+    "Source-map files are excluded from transfer budgets."
+  ]
+}
