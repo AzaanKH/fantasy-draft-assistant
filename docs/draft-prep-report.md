@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-07-20T21:25:46.000Z
+Generated: 2026-07-20T22:21:25.388Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,10 +8,10 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Source timestamp |
 | --- | --- |
-| FantasyPros | 2026-07-20T21:25:04.521Z |
+| FantasyPros | 2026-07-20T22:20:58.076Z |
 | League survival | 2026-07-20T21:25:43.678Z |
 | Team environment | 2026-07-20T21:23:17.928Z |
-| Predictions | 2026-07-20T21:25:42.261Z |
+| Predictions | 2026-07-20T22:21:22.776Z |
 
 ## Historical Room Trends
 
@@ -35,15 +35,15 @@ Fresh picks exclude keepers.
 | 25 | 1 | Josh Allen |
 | 32 | 2 | Lamar Jackson |
 | 34 | 3 | Drake Maye |
-| 45 | 4 | Joe Burrow |
+| 44 | 4 | Joe Burrow |
 | 54 | 5 | Jayden Daniels |
 | 56 | 6 | Jalen Hurts |
-| 65 | 7 | Caleb Williams |
+| 66 | 7 | Caleb Williams |
 | 67 | 8 | Justin Herbert |
 | 75 | 9 | Trevor Lawrence |
 | 77 | 10 | Dak Prescott |
 | 92 | 11 | Jaxson Dart |
-| 95 | 12 | Brock Purdy |
+| 94 | 12 | Brock Purdy |
 
 ## Current FantasyPros TE Tier
 
@@ -54,7 +54,7 @@ Fresh picks exclude keepers.
 | 36 | 3 | Colston Loveland |
 | 52 | 4 | Tyler Warren |
 | 70 | 5 | Tucker Kraft |
-| 73 | 6 | Harold Fannin Jr. |
+| 72 | 6 | Harold Fannin Jr. |
 | 78 | 7 | Kyle Pitts Sr. |
 | 86 | 8 | Sam LaPorta |
 | 97 | 9 | Travis Kelce |

@@ -41,7 +41,7 @@ interface FantasyProsNewsResponse {
 }
 
 interface FantasyProsPlayerRecord {
-  readonly player_id?: number | string;
+  readonly player_id?: number | string | null;
   readonly player_name?: string;
   readonly position_id?: string;
   readonly player_positions?: string;
@@ -49,7 +49,7 @@ interface FantasyProsPlayerRecord {
 }
 
 interface FantasyProsConsensusPlayer {
-  readonly player_id?: number | string;
+  readonly player_id?: number | string | null;
   readonly player_name?: string;
   readonly player_team_id?: string;
   readonly player_position_id?: string;
@@ -62,7 +62,7 @@ interface FantasyProsConsensusPlayer {
 }
 
 interface FantasyProsProjectionPlayer {
-  readonly fpid?: number | string;
+  readonly fpid?: number | string | null;
   readonly name?: string;
   readonly position_id?: string;
   readonly team_id?: string;
@@ -74,7 +74,7 @@ interface FantasyProsProjectionPlayer {
 }
 
 interface FantasyProsNewsRecord {
-  readonly player_id?: number | string;
+  readonly player_id?: number | string | null;
   readonly player_name?: string;
   readonly title?: string;
   readonly category?: string;
@@ -145,21 +145,27 @@ function deriveNewsStatus(record: FantasyProsNewsRecord): NewsStatus {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+  const tokens: readonly string[] = normalized.match(/[a-z]+/g) ?? [];
+  const hasToken = (term: string): boolean => tokens.includes(term);
+  const hasOutToken = tokens.some((term, index) =>
+    term === 'out' &&
+    !['stand', 'stands', 'stood', 'standing'].includes(tokens[index - 1] ?? '')
+  );
 
   if (
-    normalized.includes('out') ||
-    normalized.includes('inactive') ||
-    normalized.includes('injured reserve')
+    hasOutToken ||
+    hasToken('inactive') ||
+    /\binjured\s+reserve\b/.test(normalized)
   ) {
     return 'out';
   }
-  if (normalized.includes('questionable') || normalized.includes('doubtful')) {
+  if (hasToken('questionable') || hasToken('doubtful')) {
     return 'questionable';
   }
-  if (normalized.includes('limited')) {
+  if (hasToken('limited')) {
     return 'limited';
   }
-  if (normalized.includes('healthy') || normalized.includes('active')) {
+  if (hasToken('healthy') || hasToken('active')) {
     return 'healthy';
   }
 
@@ -201,7 +207,8 @@ async function fetchFantasyProsJson<T>(
       clearTimeout(timeoutId);
     }
     if (response.status !== 429 || attempt === 2) break;
-    const retryAfterSeconds = Number(response.headers.get('retry-after'));
+    const retryHeader = response.headers.get('retry-after');
+    const retryAfterSeconds = retryHeader === null ? Number.NaN : Number(retryHeader);
     const delayMs = Number.isFinite(retryAfterSeconds)
       ? Math.min(10_000, Math.max(500, retryAfterSeconds * 1000))
       : (attempt + 1) * 1500;
@@ -262,7 +269,7 @@ function buildRankings(players: readonly FantasyProsConsensusPlayer[]): ECRPlaye
     }
 
     return [{
-      fantasyProsId: player.player_id === undefined ? undefined : String(player.player_id),
+      fantasyProsId: player.player_id != null ? String(player.player_id) : undefined,
       rank,
       name: player.player_name,
       position,
@@ -286,7 +293,7 @@ function buildAdp(players: readonly FantasyProsConsensusPlayer[]): FantasyProsAd
     }
 
     return [{
-      fantasyProsId: player.player_id === undefined ? undefined : String(player.player_id),
+      fantasyProsId: player.player_id != null ? String(player.player_id) : undefined,
       rank,
       name: player.player_name,
       position,
@@ -318,7 +325,7 @@ function buildProjections(
 
     return typeof points === 'number'
       ? [{
-          fantasyProsId: player.fpid === undefined ? undefined : String(player.fpid),
+          fantasyProsId: player.fpid != null ? String(player.fpid) : undefined,
           name: player.name,
           position,
           team,
@@ -345,7 +352,7 @@ function buildNews(
     }
 
     return [{
-      fantasyProsId: record.player_id === undefined ? undefined : String(record.player_id),
+      fantasyProsId: record.player_id != null ? String(record.player_id) : undefined,
       name,
       position,
       team,

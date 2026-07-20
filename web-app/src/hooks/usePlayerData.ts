@@ -84,6 +84,32 @@ interface RecommendationPolicyFile {
   reason: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isPlayerIdentityFile(value: unknown): value is PlayerIdentityFile {
+  return (
+    isRecord(value) &&
+    typeof value['generatedAt'] === 'string' &&
+    typeof value['season'] === 'number' &&
+    Number.isFinite(value['season']) &&
+    Array.isArray(value['players'])
+  );
+}
+
+function isRecommendationPolicyFile(value: unknown): value is RecommendationPolicyFile {
+  return (
+    isRecord(value) &&
+    typeof value['generatedAt'] === 'string' &&
+    typeof value['modelVersion'] === 'string' &&
+    typeof value['modelPredictionsEnabled'] === 'boolean' &&
+    typeof value['contractSignalEnabled'] === 'boolean' &&
+    (value['fallback'] === 'model' || value['fallback'] === 'fantasypros-ecr-market') &&
+    typeof value['reason'] === 'string'
+  );
+}
+
 /**
  * Fetch FantasyPros snapshot data
  */
@@ -140,7 +166,11 @@ async function fetchPlayerIdentityData(): Promise<PlayerIdentityFile> {
   if (!response.ok) {
     throw new Error(`Failed to load player identity data: ${String(response.status)}`);
   }
-  return response.json() as Promise<PlayerIdentityFile>;
+  const parsed: unknown = await response.json();
+  if (!isPlayerIdentityFile(parsed)) {
+    throw new Error('Invalid player identity data format');
+  }
+  return parsed;
 }
 
 async function fetchRecommendationPolicy(): Promise<RecommendationPolicyFile> {
@@ -148,7 +178,11 @@ async function fetchRecommendationPolicy(): Promise<RecommendationPolicyFile> {
   if (!response.ok) {
     throw new Error(`Failed to load recommendation policy: ${String(response.status)}`);
   }
-  return response.json() as Promise<RecommendationPolicyFile>;
+  const parsed: unknown = await response.json();
+  if (!isRecommendationPolicyFile(parsed)) {
+    throw new Error('Invalid recommendation policy format');
+  }
+  return parsed;
 }
 
 /**

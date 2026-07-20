@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-07-20T21:25:44.936Z
+Generated: 2026-07-20T22:21:24.330Z
 
 This replay is roster-aware and walk-forward. It is allowed to fail its ECR
 release gate; a failed gate means the model remains experimental.

@@ -131,4 +131,25 @@ describe('fantasyProsApiInternals', () => {
       },
     ]);
   });
+
+  it('does not infer out status from unrelated substrings or standout phrasing', () => {
+    expect(fantasyProsApiInternals.deriveNewsStatus({
+      title: 'Rookie stood out without limitations at practice',
+    })).toBe('unknown');
+    expect(fantasyProsApiInternals.deriveNewsStatus({
+      title: 'Veteran ruled out for Sunday',
+    })).toBe('out');
+  });
+
+  it('omits null FantasyPros identifiers instead of serializing them', () => {
+    const rankings = fantasyProsApiInternals.buildRankings([{
+      player_id: null,
+      player_name: 'Player Without Id',
+      player_team_id: 'BUF',
+      player_position_id: 'WR',
+      rank_ecr: 50,
+    }]);
+
+    expect(rankings[0]?.fantasyProsId).toBeUndefined();
+  });
 });

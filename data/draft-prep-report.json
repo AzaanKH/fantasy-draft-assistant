@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-20T21:25:46.000Z",
+  "generatedAt": "2026-07-20T22:21:25.388Z",
   "leagueName": "Ummati Official",
   "currentSeason": 2026,
   "canonicalApproach": "../docs/draft-approach.md",
@@ -9,10 +9,10 @@
     "keepers": []
   },
   "artifactFreshness": {
-    "fantasyProsRefreshedAt": "2026-07-20T21:25:04.521Z",
+    "fantasyProsRefreshedAt": "2026-07-20T22:20:58.076Z",
     "survivalModelGeneratedAt": "2026-07-20T21:25:43.678Z",
     "teamEnvironmentGeneratedAt": "2026-07-20T21:23:17.928Z",
-    "predictionsGeneratedAt": "2026-07-20T21:25:42.261Z"
+    "predictionsGeneratedAt": "2026-07-20T22:21:22.776Z"
   },
   "scoringNotes": [
     "Current projections add +0.20 points per rush attempt.",
@@ -230,7 +230,7 @@
         "name": "Drake Maye"
       },
       {
-        "rank": 45,
+        "rank": 44,
         "positionalRank": 4,
         "name": "Joe Burrow"
       },
@@ -245,7 +245,7 @@
         "name": "Jalen Hurts"
       },
       {
-        "rank": 65,
+        "rank": 66,
         "positionalRank": 7,
         "name": "Caleb Williams"
       },
@@ -270,7 +270,7 @@
         "name": "Jaxson Dart"
       },
       {
-        "rank": 95,
+        "rank": 94,
         "positionalRank": 12,
         "name": "Brock Purdy"
       }
@@ -317,7 +317,7 @@
         "name": "Chase Brown"
       },
       {
-        "rank": 24,
+        "rank": 23,
         "positionalRank": 9,
         "name": "Omarion Hampton"
       },
@@ -352,7 +352,7 @@
         "name": "Kyren Williams"
       },
       {
-        "rank": 44,
+        "rank": 45,
         "positionalRank": 16,
         "name": "Josh Jacobs"
       },
@@ -429,7 +429,7 @@
         "name": "Rashee Rice"
       },
       {
-        "rank": 23,
+        "rank": 24,
         "positionalRank": 13,
         "name": "DeVonta Smith"
       },
@@ -486,7 +486,7 @@
         "name": "Tucker Kraft"
       },
       {
-        "rank": 73,
+        "rank": 72,
         "positionalRank": 6,
         "name": "Harold Fannin Jr."
       },

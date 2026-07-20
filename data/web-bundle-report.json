@@ -1,34 +1,34 @@
 {
-  "generatedAt": "2026-07-20T21:27:40.389Z",
+  "generatedAt": "2026-07-20T22:22:14.805Z",
   "budgets": {
     "jsGzipBytes": 163840,
     "cssGzipBytes": 20480
   },
   "totals": {
-    "jsGzipBytes": 139497,
+    "jsGzipBytes": 139600,
     "cssGzipBytes": 10530
   },
   "passed": true,
   "assets": [
-    {
-      "file": "index-C_pp_nRz.js",
-      "type": "js",
-      "rawBytes": 453413,
-      "gzipBytes": 139497,
-      "brotliBytes": 120429
-    },
     {
       "file": "index-Doz3EDqE.css",
       "type": "css",
       "rawBytes": 62360,
       "gzipBytes": 10530,
       "brotliBytes": 8790
+    },
+    {
+      "file": "index-DxfoFpMM.js",
+      "type": "js",
+      "rawBytes": 454038,
+      "gzipBytes": 139600,
+      "brotliBytes": 120490
     }
   ],
   "estimatedSourceComposition": [
     {
       "source": "application",
-      "sourceBytes": 224475
+      "sourceBytes": 225587
     },
     {
       "source": "@tanstack/table-core",

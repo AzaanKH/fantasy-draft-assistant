@@ -2,9 +2,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
-import type {
-  ECRPlayer,
-  FantasyProsSnapshot,
+import {
+  isFantasyProsSnapshotSource,
+  type ECRPlayer,
+  type FantasyProsSnapshot,
 } from '@fantasy-draft/shared';
 import { fetchFantasyProsSnapshot } from './fantasypros-api.js';
 
@@ -35,9 +36,37 @@ async function writeSnapshot(snapshot: FantasyProsSnapshot): Promise<void> {
   await writeFile(OUTPUT_FILE, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isFantasyProsSnapshot(value: unknown): value is FantasyProsSnapshot {
+  if (!isRecord(value) || !isRecord(value['metadata'])) {
+    return false;
+  }
+
+  const metadata = value['metadata'];
+  return (
+    typeof metadata['season'] === 'number' &&
+    Number.isFinite(metadata['season']) &&
+    isFantasyProsSnapshotSource(metadata['sourceType']) &&
+    typeof metadata['source'] === 'string' &&
+    typeof metadata['refreshedAt'] === 'string' &&
+    typeof metadata['rankingCount'] === 'number' &&
+    typeof metadata['adpCount'] === 'number' &&
+    typeof metadata['projectionCount'] === 'number' &&
+    typeof metadata['newsCount'] === 'number' &&
+    Array.isArray(value['rankings']) &&
+    Array.isArray(value['adp']) &&
+    Array.isArray(value['projections']) &&
+    Array.isArray(value['news'])
+  );
+}
+
 async function readExistingSnapshot(): Promise<FantasyProsSnapshot | undefined> {
   try {
-    return JSON.parse(await readFile(OUTPUT_FILE, 'utf8')) as FantasyProsSnapshot;
+    const parsed: unknown = JSON.parse(await readFile(OUTPUT_FILE, 'utf8'));
+    return isFantasyProsSnapshot(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }

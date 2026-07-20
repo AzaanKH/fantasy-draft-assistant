@@ -1,8 +1,9 @@
 # Data Refresh Policy
 
-`pnpm dev` starts local watchers and servers. It intentionally does not mutate
-tracked JSON or make network-heavy refreshes. Use explicit refresh commands so a
-normal coding session remains fast and reproducible.
+`pnpm dev` starts local watchers and servers. Its `predev` check writes only
+`data/data-quality-report.json`; it does not refresh the other tracked JSON or
+make network-heavy requests. Use explicit refresh commands so a normal coding
+session remains fast and reproducible.
 
 ## Commands
 

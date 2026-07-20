@@ -109,10 +109,10 @@ function getPositionTendency(summary: LeagueSurvivalPositionSummary | undefined)
 function getAdpBucketPressure(
   model: LeagueSurvivalModel,
   position: Position,
-  sleeperAdp: number
+  marketAdp: number
 ): number | null {
   const bucket = model.adpBuckets?.find(
-    (candidate) => sleeperAdp >= candidate.minPick && sleeperAdp <= candidate.maxPick
+    (candidate) => marketAdp >= candidate.minPick && marketAdp <= candidate.maxPick
   );
   const delta = bucket?.positions[position]?.rateDelta;
   return typeof delta === 'number' ? delta : null;

@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-07-20T21:25:12.852Z",
+  "generatedAt": "2026-07-20T22:20:59.181Z",
   "season": 2026,
   "sources": {
-    "fantasyProsRefreshedAt": "2026-07-20T21:25:04.521Z",
+    "fantasyProsRefreshedAt": "2026-07-20T22:20:58.076Z",
     "sleeperFetchedAt": "2026-07-20T21:23:07.896Z"
   },
   "coverage": {
-    "fantasyProsRankings": 482,
-    "matchedFantasyProsRankings": 473,
-    "fantasyProsRankingMatchRate": 0.9813,
+    "fantasyProsRankings": 484,
+    "matchedFantasyProsRankings": 475,
+    "fantasyProsRankingMatchRate": 0.9814,
     "matchedDefenses": 32,
     "sleeperPlayers": 1021,
     "identityRecords": 1030
@@ -8459,13 +8459,14 @@
     {
       "canonicalId": "10234",
       "sleeperId": "10234",
+      "fantasyProsId": "25334",
       "name": "Derius Davis",
       "aliases": [
         "Derius Davis"
       ],
       "position": "WR",
       "team": "LAC",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11834",
@@ -9168,13 +9169,14 @@
     {
       "canonicalId": "10867",
       "sleeperId": "10867",
+      "fantasyProsId": "25339",
       "name": "Jake Bobo",
       "aliases": [
         "Jake Bobo"
       ],
       "position": "WR",
       "team": "SEA",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5947",

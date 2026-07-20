@@ -302,6 +302,7 @@ async function main(): Promise<void> {
             as avg_intended_air_yards
         from source.nflverse_nextgen_passing
         where season_type = 'REG'
+          and week > 0
         group by season, player_gsis_id`,
       `create or replace table model.nflverse_nextgen_receiving_seasons as
         select
@@ -315,6 +316,7 @@ async function main(): Promise<void> {
             as intended_air_yards_share
         from source.nflverse_nextgen_receiving
         where season_type = 'REG'
+          and week > 0
         group by season, player_gsis_id`,
       `create or replace table model.nflverse_nextgen_rushing_seasons as
         select
@@ -327,6 +329,7 @@ async function main(): Promise<void> {
             as rush_pct_over_expected
         from source.nflverse_nextgen_rushing
         where season_type = 'REG'
+          and week > 0
         group by season, player_gsis_id`,
       `create or replace table model.ffopportunity_player_seasons as
         select
