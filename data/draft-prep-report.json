@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T00:02:56.301Z",
+  "generatedAt": "2026-07-20T21:25:46.000Z",
   "leagueName": "Ummati Official",
   "currentSeason": 2026,
   "canonicalApproach": "../docs/draft-approach.md",
@@ -9,10 +9,10 @@
     "keepers": []
   },
   "artifactFreshness": {
-    "fantasyProsRefreshedAt": "2026-07-09T23:42:27.906Z",
-    "survivalModelGeneratedAt": "2026-07-09T23:42:56.100Z",
-    "teamEnvironmentGeneratedAt": "2026-07-09T23:42:29.812Z",
-    "predictionsGeneratedAt": "2026-07-09T23:42:54.823Z"
+    "fantasyProsRefreshedAt": "2026-07-20T21:25:04.521Z",
+    "survivalModelGeneratedAt": "2026-07-20T21:25:43.678Z",
+    "teamEnvironmentGeneratedAt": "2026-07-20T21:23:17.928Z",
+    "predictionsGeneratedAt": "2026-07-20T21:25:42.261Z"
   },
   "scoringNotes": [
     "Current projections add +0.20 points per rush attempt.",
@@ -180,16 +180,16 @@
       "leagueMedianPick": 62.5,
       "sleeperMedianPick": 62,
       "pickPremium": 0.5,
-      "top50RateDelta": -0.022,
-      "top100RateDelta": 0.05,
+      "top50RateDelta": -0.002,
+      "top100RateDelta": 0.023,
       "sampleSize": 220
     },
     "TE": {
       "position": "TE",
       "leagueMedianPick": 79,
-      "sleeperMedianPick": 96.5,
-      "pickPremium": -17.5,
-      "top50RateDelta": 0.164,
+      "sleeperMedianPick": 97,
+      "pickPremium": -18,
+      "top50RateDelta": 0.128,
       "top100RateDelta": 0.039,
       "sampleSize": 59
     },
@@ -215,12 +215,12 @@
   "currentFantasyProsTiers": {
     "QB": [
       {
-        "rank": 23,
+        "rank": 25,
         "positionalRank": 1,
         "name": "Josh Allen"
       },
       {
-        "rank": 31,
+        "rank": 32,
         "positionalRank": 2,
         "name": "Lamar Jackson"
       },
@@ -230,7 +230,7 @@
         "name": "Drake Maye"
       },
       {
-        "rank": 42,
+        "rank": 45,
         "positionalRank": 4,
         "name": "Joe Burrow"
       },
@@ -240,7 +240,7 @@
         "name": "Jayden Daniels"
       },
       {
-        "rank": 58,
+        "rank": 56,
         "positionalRank": 6,
         "name": "Jalen Hurts"
       },
@@ -250,7 +250,7 @@
         "name": "Caleb Williams"
       },
       {
-        "rank": 66,
+        "rank": 67,
         "positionalRank": 8,
         "name": "Justin Herbert"
       },
@@ -260,17 +260,17 @@
         "name": "Trevor Lawrence"
       },
       {
-        "rank": 79,
+        "rank": 77,
         "positionalRank": 10,
         "name": "Dak Prescott"
       },
       {
-        "rank": 89,
+        "rank": 92,
         "positionalRank": 11,
         "name": "Jaxson Dart"
       },
       {
-        "rank": 94,
+        "rank": 95,
         "positionalRank": 12,
         "name": "Brock Purdy"
       }
@@ -287,7 +287,7 @@
         "name": "Jahmyr Gibbs"
       },
       {
-        "rank": 7,
+        "rank": 8,
         "positionalRank": 3,
         "name": "Christian McCaffrey"
       },
@@ -297,12 +297,12 @@
         "name": "Jonathan Taylor"
       },
       {
-        "rank": 13,
+        "rank": 14,
         "positionalRank": 5,
         "name": "Ashton Jeanty"
       },
       {
-        "rank": 15,
+        "rank": 17,
         "positionalRank": 6,
         "name": "James Cook III"
       },
@@ -312,19 +312,19 @@
         "name": "De'Von Achane"
       },
       {
-        "rank": 21,
+        "rank": 19,
         "positionalRank": 8,
         "name": "Chase Brown"
       },
       {
-        "rank": 25,
+        "rank": 24,
         "positionalRank": 9,
-        "name": "Saquon Barkley"
+        "name": "Omarion Hampton"
       },
       {
         "rank": 26,
         "positionalRank": 10,
-        "name": "Omarion Hampton"
+        "name": "Saquon Barkley"
       },
       {
         "rank": 29,
@@ -342,29 +342,29 @@
         "name": "Derrick Henry"
       },
       {
-        "rank": 40,
+        "rank": 41,
         "positionalRank": 14,
         "name": "Breece Hall"
       },
       {
-        "rank": 43,
+        "rank": 42,
         "positionalRank": 15,
         "name": "Kyren Williams"
       },
       {
-        "rank": 46,
+        "rank": 44,
         "positionalRank": 16,
         "name": "Josh Jacobs"
       },
       {
         "rank": 47,
         "positionalRank": 17,
-        "name": "Travis Etienne Jr."
+        "name": "Javonte Williams"
       },
       {
         "rank": 48,
         "positionalRank": 18,
-        "name": "Javonte Williams"
+        "name": "Travis Etienne Jr."
       }
     ],
     "WR": [
@@ -389,7 +389,7 @@
         "name": "Amon-Ra St. Brown"
       },
       {
-        "rank": 8,
+        "rank": 7,
         "positionalRank": 5,
         "name": "CeeDee Lamb"
       },
@@ -406,12 +406,12 @@
       {
         "rank": 12,
         "positionalRank": 8,
-        "name": "Nico Collins"
+        "name": "A.J. Brown"
       },
       {
-        "rank": 14,
+        "rank": 13,
         "positionalRank": 9,
-        "name": "A.J. Brown"
+        "name": "Nico Collins"
       },
       {
         "rank": 16,
@@ -419,7 +419,7 @@
         "name": "George Pickens"
       },
       {
-        "rank": 19,
+        "rank": 20,
         "positionalRank": 11,
         "name": "Chris Olave"
       },
@@ -429,7 +429,7 @@
         "name": "Rashee Rice"
       },
       {
-        "rank": 24,
+        "rank": 23,
         "positionalRank": 13,
         "name": "DeVonta Smith"
       },
@@ -446,32 +446,32 @@
       {
         "rank": 30,
         "positionalRank": 16,
-        "name": "Malik Nabers"
+        "name": "Zay Flowers"
       },
       {
-        "rank": 32,
+        "rank": 31,
         "positionalRank": 17,
         "name": "Tee Higgins"
       },
       {
         "rank": 33,
         "positionalRank": 18,
-        "name": "Zay Flowers"
+        "name": "Ladd McConkey"
       }
     ],
     "TE": [
       {
-        "rank": 17,
+        "rank": 15,
         "positionalRank": 1,
         "name": "Trey McBride"
       },
       {
-        "rank": 20,
+        "rank": 21,
         "positionalRank": 2,
         "name": "Brock Bowers"
       },
       {
-        "rank": 37,
+        "rank": 36,
         "positionalRank": 3,
         "name": "Colston Loveland"
       },
@@ -481,22 +481,22 @@
         "name": "Tyler Warren"
       },
       {
-        "rank": 68,
+        "rank": 70,
         "positionalRank": 5,
         "name": "Tucker Kraft"
       },
       {
-        "rank": 72,
+        "rank": 73,
         "positionalRank": 6,
         "name": "Harold Fannin Jr."
       },
       {
-        "rank": 77,
+        "rank": 78,
         "positionalRank": 7,
         "name": "Kyle Pitts Sr."
       },
       {
-        "rank": 88,
+        "rank": 86,
         "positionalRank": 8,
         "name": "Sam LaPorta"
       },
@@ -506,19 +506,19 @@
         "name": "Travis Kelce"
       },
       {
-        "rank": 105,
+        "rank": 106,
         "positionalRank": 10,
         "name": "Jake Ferguson"
       },
       {
-        "rank": 111,
+        "rank": 110,
         "positionalRank": 11,
-        "name": "Dalton Kincaid"
+        "name": "George Kittle"
       },
       {
-        "rank": 112,
+        "rank": 115,
         "positionalRank": 12,
-        "name": "George Kittle"
+        "name": "Dalton Kincaid"
       }
     ]
   },

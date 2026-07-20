@@ -103,6 +103,18 @@ async function main(): Promise<void> {
           select unnest(rankings) as r
           from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
         )`,
+      `create or replace table model.fantasypros_adp_current as
+        select
+          a.rank::double as consensus_adp,
+          a.name::varchar as player_name,
+          ${normalizeNameSql('a.name')} as normalized_name,
+          a.position::varchar as position,
+          a.team::varchar as team,
+          a.positionalRank::integer as positional_adp
+        from (
+          select unnest(adp) as a
+          from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
+        )`,
       `create or replace table model.fantasypros_projections_current as
         select
           p.name::varchar as player_name,
@@ -182,6 +194,7 @@ async function main(): Promise<void> {
           coalesce(s.position, r.position, p.position) as position,
           coalesce(s.team, r.team, p.team) as team,
           s.sleeper_adp,
+          a.consensus_adp,
           s.age,
           s.years_experience,
           s.status,
@@ -215,6 +228,10 @@ async function main(): Promise<void> {
           on s.normalized_name = r.normalized_name
           and s.position = r.position
           and s.team = r.team
+        left join model.fantasypros_adp_current a
+          on s.normalized_name = a.normalized_name
+          and s.position = a.position
+          and s.team = a.team
         left join model.fantasypros_projections_current p
           on s.normalized_name = p.normalized_name
           and s.position = p.position

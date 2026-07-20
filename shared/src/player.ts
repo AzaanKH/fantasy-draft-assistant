@@ -49,6 +49,8 @@ export interface PlayerPrediction {
   readonly team: NFLTeam;
   /** Base PPR projection before league-specific bonuses */
   readonly baseProjectedPoints?: number;
+  /** Leakage-safe trailing snap-share and Next Gen Stats adjustment */
+  readonly usageEfficiencyAdjustment?: number;
   /** Rush-attempt and TE-premium points added for this league */
   readonly customScoringAdjustment?: number;
   readonly projectedPoints: number;
@@ -80,7 +82,11 @@ export interface Player {
   readonly positionalRank: number;
   /** Sleeper search_rank platform-ordering proxy; not observed draft ADP */
   readonly sleeperAdp: number;
-  /** ECR - ADP (positive = undervalued on Sleeper) */
+  /** Explicit alias for Sleeper's search-ordering signal. */
+  readonly sleeperSearchRank?: number;
+  /** Consensus observed-draft ADP, currently sourced from FantasyPros. */
+  readonly consensusAdp?: number;
+  /** Consensus ADP - ECR (positive = expert value versus observed market cost) */
   readonly valueScore: number;
   /** Generic market/platform rank snapshot */
   readonly marketRank: number;
@@ -192,6 +198,8 @@ export function isPlayer(obj: unknown): obj is Player {
     typeof candidate['ecrRank'] === 'number' &&
     typeof candidate['positionalRank'] === 'number' &&
     typeof candidate['sleeperAdp'] === 'number' &&
+    isOptionalNumber(candidate['sleeperSearchRank']) &&
+    isOptionalNumber(candidate['consensusAdp']) &&
     typeof candidate['valueScore'] === 'number' &&
     typeof candidate['marketRank'] === 'number' &&
     typeof candidate['marketAdp'] === 'number' &&

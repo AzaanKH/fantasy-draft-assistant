@@ -307,13 +307,13 @@ export const columns: ColumnDef<Player>[] = [
     ),
   },
   {
-    accessorKey: 'sleeperAdp',
+    accessorKey: 'marketAdp',
     header: ({ column }) => (
-      <SortableHeader column={column}>Sleeper</SortableHeader>
+      <SortableHeader column={column}>ADP</SortableHeader>
     ),
     cell: ({ row }) => (
       <span className="font-mono text-sm text-muted-foreground">
-        {row.getValue('sleeperAdp')}
+        {row.getValue('marketAdp')}
       </span>
     ),
   },

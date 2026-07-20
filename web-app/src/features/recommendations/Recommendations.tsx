@@ -5,7 +5,7 @@
  * - Draft Now: Combined roster-aware ranking
  * - By Need: Factoring in team needs and scarcity
  * - Best Available: Composite player quality
- * - Best Value: Actionable Sleeper market discounts above replacement level
+ * - Best Value: Actionable consensus-ADP discounts above replacement level
  */
 
 import * as React from 'react';
@@ -430,7 +430,7 @@ export function Recommendations(): React.ReactElement {
 
           <TabsContent value="best-value" className="mt-2">
             <div className="mb-2 text-[11px] text-muted-foreground">
-              Draftable contributors with a meaningful Sleeper discount.
+              Draftable contributors with a meaningful consensus ADP discount.
             </div>
             <RecommendationList
               recommendations={marketValues}

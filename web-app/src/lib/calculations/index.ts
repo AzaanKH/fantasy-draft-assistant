@@ -61,6 +61,7 @@ export {
 export type {
   SleeperADPPlayer,
   ContractPlayerData,
+  PlayerIdentityData,
   SortField,
   SortDirection,
 } from './player-value';

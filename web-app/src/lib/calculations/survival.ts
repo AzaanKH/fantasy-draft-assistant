@@ -143,21 +143,22 @@ export function estimateLeagueSurvivalProbability(
     return withHeuristicSurvivalSource(player);
   }
 
-  const bucketPressure = getAdpBucketPressure(model, player.position, player.sleeperAdp);
+  const marketAdp = player.marketAdp;
+  const bucketPressure = getAdpBucketPressure(model, player.position, marketAdp);
   const earlyBucketPressure = bucketPressure !== null
     ? bucketPressure * 10
-    : player.sleeperAdp <= 50
+    : marketAdp <= 50
       ? summary.top50RateDelta * 12
-      : player.sleeperAdp <= 100
+      : marketAdp <= 100
         ? summary.top100RateDelta * 8
         : 0;
   const leagueAdjustedMarketRank = clamp(
-    player.sleeperAdp + summary.pickPremium - earlyBucketPressure,
+    marketAdp + summary.pickPremium - earlyBucketPressure,
     1,
     context.totalTeams * context.totalRounds
   );
 
-  const scale = player.sleeperAdp <= 60 ? 7 : 11;
+  const scale = marketAdp <= 60 ? 7 : 11;
   const draftedByCurrentPick = logistic((context.currentPick - leagueAdjustedMarketRank) / scale);
   const draftedByNextPick = logistic((nextPick - leagueAdjustedMarketRank) / scale);
   const stillAvailableAtCurrentPick = Math.max(0.05, 1 - draftedByCurrentPick);
@@ -168,7 +169,7 @@ export function estimateLeagueSurvivalProbability(
     ...player,
     nextPickSurvivalProbability,
     leagueAdjustedMarketRank: Number(leagueAdjustedMarketRank.toFixed(1)),
-    leagueMarketDelta: Number((leagueAdjustedMarketRank - player.sleeperAdp).toFixed(1)),
+    leagueMarketDelta: Number((leagueAdjustedMarketRank - marketAdp).toFixed(1)),
     leaguePositionTendency: getPositionTendency(summary),
     survivalModelSource: 'league-history',
   };

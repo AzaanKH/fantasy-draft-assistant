@@ -55,6 +55,8 @@ export interface SleeperADPPlayer {
   readonly age: number | null;
   readonly yearsExp: number | null;
   readonly status: string;
+  readonly injuryStatus: string | null;
+  readonly depthChartOrder: number | null;
 }
 
 /**
@@ -97,18 +99,25 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
   const errors: string[] = [];
 
   for (const [playerId, player] of Object.entries(rawData)) {
-    // Skip players without a team (free agents, retired, etc.)
-    if (!player.team) continue;
+    const isTeamDefense = player.position === 'DEF' && isValidTeam(playerId);
+    const canonicalTeam = isTeamDefense ? playerId : player.team;
 
-    // Skip players without search_rank (no ADP data)
-    if (player.search_rank === null || player.search_rank === undefined) continue;
+    // Skip players without a team (free agents, retired, etc.). Sleeper team
+    // defenses are keyed by their team abbreviation and do not carry `team`.
+    if (!canonicalTeam) continue;
+
+    // Keep defenses for identity/sync even when Sleeper supplies no search rank.
+    if (
+      !isTeamDefense &&
+      (player.search_rank === null || player.search_rank === undefined)
+    ) continue;
 
     // Skip non-fantasy positions
     if (!isValidPosition(player.position)) continue;
 
     // Validate team
-    if (!isValidTeam(player.team)) {
-      errors.push(`Invalid team: ${player.team} for ${player.full_name}`);
+    if (!isValidTeam(canonicalTeam)) {
+      errors.push(`Invalid team: ${String(canonicalTeam)} for ${player.full_name}`);
       continue;
     }
 
@@ -117,13 +126,15 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
 
     players.push({
       playerId,
-      name: player.full_name,
+      name: player.full_name || `${canonicalTeam} Defense`,
       position: player.position as Position,
-      team: player.team as NFLTeam,
-      sleeperAdp: player.search_rank,
+      team: canonicalTeam,
+      sleeperAdp: player.search_rank ?? 999,
       age: player.age,
       yearsExp: player.years_exp,
       status: player.status,
+      injuryStatus: player.injury_status,
+      depthChartOrder: player.depth_chart_order,
     });
   }
 

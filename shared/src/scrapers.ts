@@ -5,6 +5,8 @@ import type { NFLTeam, Position } from './player';
  * This is the intermediate format before enrichment
  */
 export interface ECRPlayer {
+  /** Stable FantasyPros player identifier when the API supplied it. */
+  readonly fantasyProsId?: string;
   readonly rank: number;
   readonly name: string;
   readonly position: Position;

@@ -158,6 +158,11 @@ During the FantasyPros refresh step, the script:
 - tries the FantasyPros API when `FANTASYPROS_API_KEY` is present
 - falls back to the local ECR snapshot when the API request fails
 - rewrites `data/fantasypros-snapshot.json`
+- fetches consensus PPR ADP separately from expert consensus rankings
+
+The daily refresh also rebuilds `data/player-identity.json`. `pnpm prepare:draft`
+finishes with strict freshness and quality validation; required failures stop the
+command and are recorded in `data/data-quality-report.json`.
 
 The current live API integration uses the public FantasyPros endpoints under:
 
@@ -309,9 +314,11 @@ Implemented:
 - cached FantasyPros snapshot provider
 - real FantasyPros API-backed snapshot refresh
 - manual `pnpm refresh:fantasypros:manual` snapshot refresh flow
-- recommendation sub-scores and clearer FantasyPros vs Sleeper deltas in the UI
+- recommendation sub-scores and clearer ECR vs consensus-ADP deltas in the UI
 - derived `team-environment.json` pipeline backed by nflverse completed-season data
-- prediction layer built on historical nflverse and ffopportunity data
+- prediction layer built on historical nflverse production, snap share, Next Gen Stats, and ffopportunity data
+- backtest-generated recommendation policy that keeps failed models out of live suggestions
+- nflverse/OverTheCap contract context, policy-disabled as a recommendation boost until validated
 
 Not yet implemented:
 

@@ -253,7 +253,7 @@ function buildBestAvailableRecommendation(player: Player): Recommendation {
     playerId: player.id,
     playerName: player.name,
     position: player.position,
-    reason: `FP #${String(player.ecrRank)}, Sleeper #${String(player.marketRank)}, ${formatMarketDelta(player.valueScore)}${leagueContext}`,
+    reason: `FP #${String(player.ecrRank)}, ADP #${String(player.marketRank)}, ${formatMarketDelta(player.valueScore)}${leagueContext}`,
     score: sumBaseSubScores(subScores),
     diagnostics,
     subScores,
@@ -271,7 +271,7 @@ function buildMarketValueRecommendation(player: Player, isLateRoundStash: boolea
     reason: [
       ...(isLateRoundStash ? ['Late-round stash'] : []),
       formatMarketDelta(player.valueScore),
-      `FP #${String(player.ecrRank)} vs Sleeper #${String(player.marketRank)}`,
+      `FP #${String(player.ecrRank)} vs ADP #${String(player.marketRank)}`,
       `${String(Math.round(player.nextPickSurvivalProbability * 100))}% to next pick`,
     ].join(' · '),
     score: player.valueScore,
@@ -325,7 +325,7 @@ function buildNeedRecommendation(player: Player, need: PositionNeed): Recommenda
     position: player.position,
     reason: [
       `${need.priority} need`,
-      `FP #${String(player.ecrRank)} vs Sleeper #${String(player.marketRank)}`,
+      `FP #${String(player.ecrRank)} vs ADP #${String(player.marketRank)}`,
       formatMarketDelta(player.valueScore),
       `${String(Math.round(player.nextPickSurvivalProbability * 100))}% to next pick`,
     ].join(' · '),

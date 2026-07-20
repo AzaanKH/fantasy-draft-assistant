@@ -41,7 +41,7 @@ Run the transparent historical recommendation replay:
 pnpm model:backtest
 ```
 
-The first dataset is a current-season feature table with placeholder historical labels. It is intentionally shaped so later nflverse/ffopportunity extracts can fill prior production, opportunity, and outcome columns without changing the app runtime contract.
+The training dataset combines historical production, opportunity, offensive snap share, and position-specific Next Gen Stats. Every evaluated season receives only trailing features from earlier seasons.
 
 ## Source Responsibilities
 

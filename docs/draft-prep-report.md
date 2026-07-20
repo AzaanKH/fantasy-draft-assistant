@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-07-10T00:02:56.301Z
+Generated: 2026-07-20T21:25:46.000Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,10 +8,10 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Source timestamp |
 | --- | --- |
-| FantasyPros | 2026-07-09T23:42:27.906Z |
-| League survival | 2026-07-09T23:42:56.100Z |
-| Team environment | 2026-07-09T23:42:29.812Z |
-| Predictions | 2026-07-09T23:42:54.823Z |
+| FantasyPros | 2026-07-20T21:25:04.521Z |
+| League survival | 2026-07-20T21:25:43.678Z |
+| Team environment | 2026-07-20T21:23:17.928Z |
+| Predictions | 2026-07-20T21:25:42.261Z |
 
 ## Historical Room Trends
 
@@ -32,35 +32,35 @@ Fresh picks exclude keepers.
 
 | Overall | QB | Player |
 | --- | --- | --- |
-| 23 | 1 | Josh Allen |
-| 31 | 2 | Lamar Jackson |
+| 25 | 1 | Josh Allen |
+| 32 | 2 | Lamar Jackson |
 | 34 | 3 | Drake Maye |
-| 42 | 4 | Joe Burrow |
+| 45 | 4 | Joe Burrow |
 | 54 | 5 | Jayden Daniels |
-| 58 | 6 | Jalen Hurts |
+| 56 | 6 | Jalen Hurts |
 | 65 | 7 | Caleb Williams |
-| 66 | 8 | Justin Herbert |
+| 67 | 8 | Justin Herbert |
 | 75 | 9 | Trevor Lawrence |
-| 79 | 10 | Dak Prescott |
-| 89 | 11 | Jaxson Dart |
-| 94 | 12 | Brock Purdy |
+| 77 | 10 | Dak Prescott |
+| 92 | 11 | Jaxson Dart |
+| 95 | 12 | Brock Purdy |
 
 ## Current FantasyPros TE Tier
 
 | Overall | TE | Player |
 | --- | --- | --- |
-| 17 | 1 | Trey McBride |
-| 20 | 2 | Brock Bowers |
-| 37 | 3 | Colston Loveland |
+| 15 | 1 | Trey McBride |
+| 21 | 2 | Brock Bowers |
+| 36 | 3 | Colston Loveland |
 | 52 | 4 | Tyler Warren |
-| 68 | 5 | Tucker Kraft |
-| 72 | 6 | Harold Fannin Jr. |
-| 77 | 7 | Kyle Pitts Sr. |
-| 88 | 8 | Sam LaPorta |
+| 70 | 5 | Tucker Kraft |
+| 73 | 6 | Harold Fannin Jr. |
+| 78 | 7 | Kyle Pitts Sr. |
+| 86 | 8 | Sam LaPorta |
 | 97 | 9 | Travis Kelce |
-| 105 | 10 | Jake Ferguson |
-| 111 | 11 | Dalton Kincaid |
-| 112 | 12 | George Kittle |
+| 106 | 10 | Jake Ferguson |
+| 110 | 11 | George Kittle |
+| 115 | 12 | Dalton Kincaid |
 
 ## Draft-Week Checklist
 

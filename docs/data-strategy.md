@@ -30,7 +30,7 @@ Use Sleeper as the source of truth for:
 
 - live draft state
 - draft picks
-- current platform market rank / ADP proxy
+- current platform search/order rank as a secondary market signal
 - player IDs used during the draft
 
 Why:
@@ -46,6 +46,7 @@ Use FantasyPros for:
 - current consensus rankings
 - current expert projections
 - current news / injury items
+- consensus redraft ADP as the primary observed market-cost signal
 
 Do not use FantasyPros as the historical model-training base.
 
@@ -227,7 +228,7 @@ The current recommendation engine is still mostly a heuristic scorer. The intend
 Signal families:
 
 - `expert_value`: FantasyPros current rank / projection stance
-- `market_value`: FantasyPros vs Sleeper delta
+- `market_value`: FantasyPros ECR vs consensus PPR ADP delta
 - `projection_value`: projected points and value over replacement
 - `opportunity_value`: expected points, target share, carry share, route/usage proxies
 - `environment_value`: derived team environment
@@ -265,6 +266,11 @@ How to measure it:
 - realized season points / VOR from drafted players
 - regret analysis by pick
 - comparison of FantasyPros-only heuristics vs the multi-source model
+
+The generated `data/recommendation-policy.json` is the promotion boundary. If
+the model fails the ECR gate, the web app ignores model predictions and uses the
+FantasyPros/ECR/consensus-ADP heuristic path. Experimental predictions remain
+available for offline evaluation only.
 
 ## Recommended Build Order
 

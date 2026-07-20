@@ -42,6 +42,8 @@ interface SleeperConnectProps {
   sleeperFetchedAt?: string;
   fantasyProsSourceType?: string;
   predictionModelVersion?: string;
+  modelPredictionsEnabled?: boolean;
+  recommendationPolicyReason?: string;
   predictionsError?: Error | null;
   contractsError?: Error | null;
 }
@@ -130,6 +132,8 @@ export function SleeperConnect({
   sleeperFetchedAt,
   fantasyProsSourceType,
   predictionModelVersion,
+  modelPredictionsEnabled = false,
+  recommendationPolicyReason,
   predictionsError,
   contractsError,
 }: SleeperConnectProps): React.ReactElement {
@@ -484,14 +488,17 @@ export function SleeperConnect({
                   : 'Market data unavailable'}
               </DataConfidenceItem>
               <DataConfidenceItem
-                tone={predictionsError ? 'bad' : hasPredictionModel ? 'good' : 'warn'}
-                title={hasPredictionModel ? `Model: ${predictionModelVersion}` : undefined}
+                tone={predictionsError ? 'bad' : modelPredictionsEnabled ? 'good' : 'warn'}
+                title={recommendationPolicyReason ??
+                  (hasPredictionModel ? `Model: ${predictionModelVersion}` : undefined)}
               >
                 {predictionsError
                   ? 'Model unavailable'
-                  : hasPredictionModel
+                  : modelPredictionsEnabled && hasPredictionModel
                     ? 'Model ready'
-                    : 'Model not loaded'}
+                    : hasPredictionModel
+                      ? 'ECR fallback · model experimental'
+                      : 'Model not loaded'}
               </DataConfidenceItem>
               {contractsError && (
                 <DataConfidenceItem tone="warn">

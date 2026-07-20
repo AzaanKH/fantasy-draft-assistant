@@ -35,6 +35,38 @@ async function writeSnapshot(snapshot: FantasyProsSnapshot): Promise<void> {
   await writeFile(OUTPUT_FILE, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
 }
 
+async function readExistingSnapshot(): Promise<FantasyProsSnapshot | undefined> {
+  try {
+    return JSON.parse(await readFile(OUTPUT_FILE, 'utf8')) as FantasyProsSnapshot;
+  } catch {
+    return undefined;
+  }
+}
+
+function preserveUsableProjections(
+  snapshot: FantasyProsSnapshot,
+  existing: FantasyProsSnapshot | undefined
+): FantasyProsSnapshot {
+  if (snapshot.projections.length > 0 || !existing ||
+      existing.metadata.season !== snapshot.metadata.season || existing.projections.length < 400) {
+    return snapshot;
+  }
+  console.warn(
+    `Preserving ${String(existing.projections.length)} cached projections because the API projection request failed.`
+  );
+  return {
+    ...snapshot,
+    metadata: {
+      ...snapshot.metadata,
+      projectionCount: existing.projections.length,
+      projectionRefreshedAt:
+        existing.metadata.projectionRefreshedAt ?? existing.metadata.refreshedAt,
+      projectionSource: 'preserved-cache',
+    },
+    projections: existing.projections,
+  };
+}
+
 function buildManualSnapshot(ecrData: EcrDataFile): FantasyProsSnapshot {
   const derivedSeason = ecrData.season ?? new Date(ecrData.scrapedAt).getFullYear();
   const rankingCount = ecrData.players?.length ?? ecrData.playerCount;
@@ -46,10 +78,12 @@ function buildManualSnapshot(ecrData: EcrDataFile): FantasyProsSnapshot {
       source: ecrData.source,
       refreshedAt: ecrData.scrapedAt,
       rankingCount,
+      adpCount: 0,
       projectionCount: 0,
       newsCount: 0,
     },
     rankings: ecrData.players,
+    adp: [],
     projections: [],
     news: [],
   };
@@ -61,6 +95,7 @@ async function main(): Promise<void> {
   const preferManual = snapshotMode === 'manual';
   let snapshot: FantasyProsSnapshot;
   let ecrData: EcrDataFile | undefined;
+  const existingSnapshot = await readExistingSnapshot();
 
   if (apiKey && !preferManual) {
     try {
@@ -69,9 +104,11 @@ async function main(): Promise<void> {
         season: new Date().getFullYear(),
         scoring: 'PPR',
       });
+      snapshot = preserveUsableProjections(snapshot, existingSnapshot);
       console.log(
         `FantasyPros API snapshot refreshed: ${snapshot.metadata.rankingCount} rankings, ` +
-        `${snapshot.metadata.projectionCount} projections, ${snapshot.metadata.newsCount} news`
+        `${snapshot.metadata.adpCount} ADP, ${snapshot.metadata.projectionCount} projections, ` +
+        `${snapshot.metadata.newsCount} news`
       );
     } catch (error) {
       console.warn('FantasyPros API refresh failed, falling back to local ECR snapshot.');

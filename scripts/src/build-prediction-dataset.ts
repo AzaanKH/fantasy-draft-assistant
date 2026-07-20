@@ -2,7 +2,8 @@
  * Builds the model-ready fantasy football datasets from historical sources.
  *
  * Source responsibilities:
- * - nflreadpy / nflverse: historical NFL stats, rosters, schedules, team stats, player IDs
+ * - nflreadpy / nflverse: historical NFL stats, snap share, Next Gen Stats, rosters,
+ *   schedules, team stats, and player IDs
  * - ffopportunity / ffverse: expected fantasy points and opportunity metrics
  * - DynastyProcess / ffverse rankings: historical pre-draft and market-style rankings
  *
@@ -39,6 +40,7 @@ interface PredictionRow {
   readonly position: string;
   readonly team: string;
   readonly base_projected_points: number | bigint;
+  readonly usage_efficiency_adjustment: number | bigint;
   readonly custom_scoring_adjustment: number | bigint;
   readonly projected_points: number | bigint;
   readonly value_over_replacement: number | bigint;
@@ -51,6 +53,8 @@ interface PredictionRow {
 const SOURCE_RESPONSIBILITIES = {
   nflverse: [
     'historical NFL player stats',
+    'historical offensive snap share',
+    'historical Next Gen Stats efficiency',
     'historical rosters',
     'historical schedules',
     'historical team stats',
@@ -68,6 +72,7 @@ const SOURCE_RESPONSIBILITIES = {
   ],
   predictionLayer: [
     'uses nflverse production/history',
+    'uses leakage-safe trailing snap share and Next Gen Stats',
     'uses ffopportunity expected points/opportunity',
     'uses DynastyProcess pre-draft ranking context',
   ],
@@ -94,6 +99,12 @@ const SOURCE_URLS = {
     'https://github.com/nflverse/nflverse-data/releases/download/players/players.parquet',
   nflverseSchedules:
     'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.parquet',
+  nflverseNextGenPassing:
+    'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.parquet',
+  nflverseNextGenReceiving:
+    'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.parquet',
+  nflverseNextGenRushing:
+    'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.parquet',
   dynastyProcessRankings:
     'https://github.com/dynastyprocess/data/raw/master/files/db_fpecr.parquet',
   dynastyProcessPlayerIds:
@@ -165,6 +176,7 @@ async function main(): Promise<void> {
   const snapshot = await readJsonFile<FantasyProsSnapshot>(MODEL_PATHS.fantasyProsSnapshotJson);
   const currentSeason = snapshot.metadata?.season ?? new Date().getFullYear();
   const seasons = getSeasonWindow(currentSeason);
+  const modelVersion = `historical-sources-v2-snaps-ngs-${seasons[0]}-${seasons[seasons.length - 1]}`;
   const hasLeagueHistory = await exists(MODEL_PATHS.leagueDraftHistoryJson);
   const connection = await connectModelDb();
 
@@ -195,6 +207,21 @@ async function main(): Promise<void> {
       `create or replace table source.nflverse_player_ids as
         select *
         from read_parquet(${sqlString(SOURCE_URLS.nflversePlayers)})`,
+      `create or replace table source.nflverse_snap_counts as
+        select *
+        from read_parquet(${sqlList(nflverseSeasonUrls('snap_counts', 'snap_counts', seasons))})`,
+      `create or replace table source.nflverse_nextgen_passing as
+        select *
+        from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenPassing)})
+        where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
+      `create or replace table source.nflverse_nextgen_receiving as
+        select *
+        from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenReceiving)})
+        where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
+      `create or replace table source.nflverse_nextgen_rushing as
+        select *
+        from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenRushing)})
+        where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
 
       /**
        * ffopportunity / ffverse responsibility:
@@ -250,6 +277,57 @@ async function main(): Promise<void> {
           rushing_tds::double as rushing_tds,
           receiving_tds::double as receiving_tds
         from source.nflverse_team_stats`,
+      `create or replace table model.nflverse_snap_seasons as
+        select
+          snaps.season::integer as season,
+          ids.gsis_id::varchar as gsis_id,
+          sum(snaps.offense_snaps)::double as offense_snaps,
+          avg(snaps.offense_pct) filter (where snaps.offense_snaps > 0)::double
+            as offense_snap_share
+        from source.nflverse_snap_counts snaps
+        join source.nflverse_player_ids ids
+          on snaps.pfr_player_id = ids.pfr_id
+        where snaps.game_type = 'REG'
+          and snaps.position in ('QB', 'RB', 'WR', 'TE')
+        group by snaps.season, ids.gsis_id`,
+      `create or replace table model.nflverse_nextgen_passing_seasons as
+        select
+          season::integer as season,
+          player_gsis_id::varchar as gsis_id,
+          sum(attempts)::double as ngs_pass_attempts,
+          sum(completion_percentage_above_expectation * attempts)
+            / nullif(sum(attempts), 0) as completion_percentage_above_expectation,
+          sum(avg_time_to_throw * attempts) / nullif(sum(attempts), 0) as avg_time_to_throw,
+          sum(avg_intended_air_yards * attempts) / nullif(sum(attempts), 0)
+            as avg_intended_air_yards
+        from source.nflverse_nextgen_passing
+        where season_type = 'REG'
+        group by season, player_gsis_id`,
+      `create or replace table model.nflverse_nextgen_receiving_seasons as
+        select
+          season::integer as season,
+          player_gsis_id::varchar as gsis_id,
+          sum(targets)::double as ngs_targets,
+          sum(avg_separation * targets) / nullif(sum(targets), 0) as avg_separation,
+          sum(avg_yac_above_expectation * receptions) / nullif(sum(receptions), 0)
+            as avg_yac_above_expectation,
+          sum(percent_share_of_intended_air_yards * targets) / nullif(sum(targets), 0)
+            as intended_air_yards_share
+        from source.nflverse_nextgen_receiving
+        where season_type = 'REG'
+        group by season, player_gsis_id`,
+      `create or replace table model.nflverse_nextgen_rushing_seasons as
+        select
+          season::integer as season,
+          player_gsis_id::varchar as gsis_id,
+          sum(rush_attempts)::double as ngs_rush_attempts,
+          sum(rush_yards_over_expected) / nullif(sum(rush_attempts), 0)
+            as rush_yards_over_expected_per_attempt,
+          sum(rush_pct_over_expected * rush_attempts) / nullif(sum(rush_attempts), 0)
+            as rush_pct_over_expected
+        from source.nflverse_nextgen_rushing
+        where season_type = 'REG'
+        group by season, player_gsis_id`,
       `create or replace table model.ffopportunity_player_seasons as
         select
           season::integer as season,
@@ -364,6 +442,16 @@ async function main(): Promise<void> {
           ps.target_share,
           ps.air_yards_share,
           ps.wopr,
+          snaps.offense_snaps,
+          snaps.offense_snap_share,
+          ngs_pass.completion_percentage_above_expectation,
+          ngs_pass.avg_time_to_throw,
+          ngs_pass.avg_intended_air_yards,
+          ngs_rec.avg_separation,
+          ngs_rec.avg_yac_above_expectation,
+          ngs_rec.intended_air_yards_share,
+          ngs_rush.rush_yards_over_expected_per_attempt,
+          ngs_rush.rush_pct_over_expected,
           opp.expected_fantasy_points,
           opp.expected_fantasy_points / nullif(opp.opportunity_games, 0) as expected_points_per_game,
           opp.expected_pass_points,
@@ -400,7 +488,19 @@ async function main(): Promise<void> {
           and ps.position = rankings.position
         left join model.nflverse_team_seasons ts
           on ps.team = ts.team
-          and ps.season = ts.season`,
+          and ps.season = ts.season
+        left join model.nflverse_snap_seasons snaps
+          on ps.gsis_id = snaps.gsis_id
+          and ps.season = snaps.season
+        left join model.nflverse_nextgen_passing_seasons ngs_pass
+          on ps.gsis_id = ngs_pass.gsis_id
+          and ps.season = ngs_pass.season
+        left join model.nflverse_nextgen_receiving_seasons ngs_rec
+          on ps.gsis_id = ngs_rec.gsis_id
+          and ps.season = ngs_rec.season
+        left join model.nflverse_nextgen_rushing_seasons ngs_rush
+          on ps.gsis_id = ngs_rush.gsis_id
+          and ps.season = ngs_rush.season`,
       `create or replace table model.historical_replacement_points as
         select
           season,
@@ -425,6 +525,46 @@ async function main(): Promise<void> {
             order by base.season
             rows between 3 preceding and 1 preceding
           ) as trailing_expected_points_per_game_3yr,
+          avg(base.offense_snap_share) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_offense_snap_share_3yr,
+          avg(base.offense_snaps / nullif(base.games, 0)) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_offense_snaps_per_game_3yr,
+          avg(base.completion_percentage_above_expectation) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_completion_percentage_above_expectation_3yr,
+          avg(base.avg_separation) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_avg_separation_3yr,
+          avg(base.avg_yac_above_expectation) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_avg_yac_above_expectation_3yr,
+          avg(base.intended_air_yards_share) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_intended_air_yards_share_3yr,
+          avg(base.rush_yards_over_expected_per_attempt) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_rush_yards_over_expected_per_attempt_3yr,
+          avg(base.rush_pct_over_expected) over (
+            partition by base.gsis_id
+            order by base.season
+            rows between 3 preceding and 1 preceding
+          ) as trailing_rush_pct_over_expected_3yr,
           stddev_samp(base.actual_points_per_game) over (
             partition by base.gsis_id
             order by base.season
@@ -449,7 +589,7 @@ async function main(): Promise<void> {
             when base.games < 6 then 'limited_games'
             else 'player_history'
           end as history_bucket,
-          'nflverse: stats/rosters/schedules/team/player IDs; ffopportunity: expected points/opportunity; DynastyProcess: pre-draft rankings'::varchar
+          'nflverse: stats/snaps/NGS/rosters/schedules/team/player IDs; ffopportunity: expected points/opportunity; DynastyProcess: pre-draft rankings'::varchar
             as source_responsibility,
           now() as built_at
         from model.historical_prediction_base base
@@ -483,6 +623,16 @@ async function main(): Promise<void> {
             avg(actual_value_over_replacement) as trailing_value_over_replacement_3yr,
             avg(rush_attempts / nullif(games, 0)) as trailing_rush_attempts_per_game_3yr,
             avg(receptions / nullif(games, 0)) as trailing_receptions_per_game_3yr,
+            avg(offense_snap_share) as trailing_offense_snap_share_3yr,
+            avg(offense_snaps / nullif(games, 0)) as trailing_offense_snaps_per_game_3yr,
+            avg(completion_percentage_above_expectation)
+              as trailing_completion_percentage_above_expectation_3yr,
+            avg(avg_separation) as trailing_avg_separation_3yr,
+            avg(avg_yac_above_expectation) as trailing_avg_yac_above_expectation_3yr,
+            avg(intended_air_yards_share) as trailing_intended_air_yards_share_3yr,
+            avg(rush_yards_over_expected_per_attempt)
+              as trailing_rush_yards_over_expected_per_attempt_3yr,
+            avg(rush_pct_over_expected) as trailing_rush_pct_over_expected_3yr,
             max(actual_points_per_game) as trailing_max_points_per_game_3yr,
             sum(
               case
@@ -515,6 +665,14 @@ async function main(): Promise<void> {
           history.trailing_value_over_replacement_3yr,
           history.trailing_rush_attempts_per_game_3yr,
           history.trailing_receptions_per_game_3yr,
+          history.trailing_offense_snap_share_3yr,
+          history.trailing_offense_snaps_per_game_3yr,
+          history.trailing_completion_percentage_above_expectation_3yr,
+          history.trailing_avg_separation_3yr,
+          history.trailing_avg_yac_above_expectation_3yr,
+          history.trailing_intended_air_yards_share_3yr,
+          history.trailing_rush_yards_over_expected_per_attempt_3yr,
+          history.trailing_rush_pct_over_expected_3yr,
           history.trailing_max_points_per_game_3yr,
           coalesce(history.trailing_weighted_availability_missed_games_3yr, 0)
             as trailing_weighted_availability_missed_games_3yr,
@@ -551,9 +709,37 @@ async function main(): Promise<void> {
           union all
           select * from current_kicker_replacement
         ),
-        projected as (
+        feature_components as (
           select
             current_features.*,
+            least(15, greatest(-15,
+              case
+                when trailing_offense_snap_share_3yr is null then 0
+                when position = 'QB' then (trailing_offense_snap_share_3yr - 0.80) * 20
+                when position = 'RB' then (trailing_offense_snap_share_3yr - 0.38) * 20
+                when position = 'WR' then (trailing_offense_snap_share_3yr - 0.51) * 20
+                when position = 'TE' then (trailing_offense_snap_share_3yr - 0.45) * 20
+                else 0
+              end
+              + case
+                  when position = 'QB'
+                    then coalesce(trailing_completion_percentage_above_expectation_3yr, 0) * 0.20
+                  when position in ('WR', 'TE')
+                    then (coalesce(trailing_avg_separation_3yr,
+                            case when position = 'TE' then 3.42 else 2.84 end)
+                          - case when position = 'TE' then 3.42 else 2.84 end) * 2
+                      + coalesce(trailing_avg_yac_above_expectation_3yr, 0) * 0.8
+                  when position = 'RB'
+                    then coalesce(trailing_rush_yards_over_expected_per_attempt_3yr, 0) * 2
+                      + coalesce(trailing_rush_pct_over_expected_3yr, 0) * 2
+                  else 0
+                end
+            )) as usage_efficiency_adjustment
+          from model.current_prediction_features current_features
+        ),
+        projected as (
+          select
+            feature_components.*,
             greatest(
               0,
               coalesce(
@@ -561,13 +747,13 @@ async function main(): Promise<void> {
                 trailing_expected_points_per_game_3yr * 17,
                 trailing_points_per_game_3yr * 17,
                 greatest(0, 300 - coalesce(ecr_rank, sleeper_adp, dynastyprocess_current_ecr, 300)) * 0.72
-              )
+              ) + usage_efficiency_adjustment
             ) as base_ppr_projected_points,
             coalesce(trailing_rush_attempts_per_game_3yr, 0) * 17
               as projected_rush_attempts,
             coalesce(trailing_receptions_per_game_3yr, 0) * 17
               as projected_receptions
-          from model.current_prediction_features current_features
+          from feature_components
         ),
         risk_components as (
           select
@@ -599,6 +785,7 @@ async function main(): Promise<void> {
           position,
           team,
           base_ppr_projected_points as base_projected_points,
+          usage_efficiency_adjustment,
           projected_rush_attempts * ${RUSH_ATTEMPT_BONUS}
             + case
                 when position = 'TE' then projected_receptions * ${TE_RECEPTION_BONUS}
@@ -747,6 +934,7 @@ async function main(): Promise<void> {
         position,
         team,
         round(base_projected_points, 1) as base_projected_points,
+        round(usage_efficiency_adjustment, 1) as usage_efficiency_adjustment,
         round(custom_scoring_adjustment, 1) as custom_scoring_adjustment,
         round(projected_points, 1) as projected_points,
         round(value_over_replacement, 1) as value_over_replacement,
@@ -764,7 +952,7 @@ async function main(): Promise<void> {
       `${JSON.stringify(
         {
           generatedAt: new Date().toISOString(),
-          modelVersion: `historical-sources-v1-${seasons[0]}-${seasons[seasons.length - 1]}`,
+          modelVersion,
           sources: SOURCE_RESPONSIBILITIES,
           players: predictionRows.map((row) => ({
             playerId: String(row.player_id),
@@ -772,6 +960,7 @@ async function main(): Promise<void> {
             position: row.position,
             team: row.team,
             baseProjectedPoints: asNumber(row.base_projected_points),
+            usageEfficiencyAdjustment: asNumber(row.usage_efficiency_adjustment),
             customScoringAdjustment: asNumber(row.custom_scoring_adjustment),
             projectedPoints: asNumber(row.projected_points),
             customProjectedPoints: asNumber(row.projected_points),
@@ -781,7 +970,7 @@ async function main(): Promise<void> {
             uncertaintyScore: asNumber(row.uncertainty_score),
             injuryRiskScore: asNumber(row.injury_risk_score),
             source: 'model',
-            modelVersion: `historical-sources-v1-${seasons[0]}-${seasons[seasons.length - 1]}`,
+            modelVersion,
           })),
         },
         null,
@@ -795,6 +984,10 @@ async function main(): Promise<void> {
       union all select 'source.nflverse_schedules', count(*) from source.nflverse_schedules
       union all select 'source.nflverse_team_stats', count(*) from source.nflverse_team_stats
       union all select 'source.nflverse_player_ids', count(*) from source.nflverse_player_ids
+      union all select 'source.nflverse_snap_counts', count(*) from source.nflverse_snap_counts
+      union all select 'source.nflverse_nextgen_passing', count(*) from source.nflverse_nextgen_passing
+      union all select 'source.nflverse_nextgen_receiving', count(*) from source.nflverse_nextgen_receiving
+      union all select 'source.nflverse_nextgen_rushing', count(*) from source.nflverse_nextgen_rushing
       union all select 'source.ffopportunity_weekly', count(*) from source.ffopportunity_weekly
       union all select 'source.dynastyprocess_rankings', count(*) from source.dynastyprocess_rankings
       union all select 'source.dynastyprocess_player_ids', count(*) from source.dynastyprocess_player_ids
