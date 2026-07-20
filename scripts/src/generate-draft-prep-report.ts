@@ -99,12 +99,6 @@ async function readOptionalJson<T>(path: string): Promise<T | null> {
   }
 }
 
-function isoAgeHours(timestamp: string | null): number | null {
-  if (!timestamp) return null;
-  const parsed = Date.parse(timestamp);
-  return Number.isFinite(parsed) ? Number(((Date.now() - parsed) / 3_600_000).toFixed(1)) : null;
-}
-
 function markdownTable(headers: readonly string[], rows: readonly (readonly unknown[])[]): string {
   return [
     `| ${headers.join(' | ')} |`,
@@ -175,10 +169,10 @@ async function main(): Promise<void> {
       note: 'No current keeper file loaded. Add current keepers shortly before the draft.',
     },
     artifactFreshness: {
-      fantasyProsHours: isoAgeHours(fantasyPros.metadata.refreshedAt),
-      survivalModelHours: isoAgeHours(survival.generatedAt),
-      teamEnvironmentHours: isoAgeHours(teamEnvironment.generatedAt),
-      predictionsHours: isoAgeHours(predictions.generatedAt),
+      fantasyProsRefreshedAt: fantasyPros.metadata.refreshedAt,
+      survivalModelGeneratedAt: survival.generatedAt,
+      teamEnvironmentGeneratedAt: teamEnvironment.generatedAt,
+      predictionsGeneratedAt: predictions.generatedAt,
     },
     scoringNotes: [
       'Current projections add +0.20 points per rush attempt.',
@@ -226,12 +220,12 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 ## Artifact Freshness
 
 ${markdownTable(
-  ['Artifact', 'Age'],
+  ['Artifact', 'Source timestamp'],
   [
-    ['FantasyPros', `${String(report.artifactFreshness.fantasyProsHours)}h`],
-    ['League survival', `${String(report.artifactFreshness.survivalModelHours)}h`],
-    ['Team environment', `${String(report.artifactFreshness.teamEnvironmentHours)}h`],
-    ['Predictions', `${String(report.artifactFreshness.predictionsHours)}h`],
+    ['FantasyPros', report.artifactFreshness.fantasyProsRefreshedAt],
+    ['League survival', report.artifactFreshness.survivalModelGeneratedAt],
+    ['Team environment', report.artifactFreshness.teamEnvironmentGeneratedAt],
+    ['Predictions', report.artifactFreshness.predictionsGeneratedAt],
   ]
 )}
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:59:04.061Z",
+  "generatedAt": "2026-07-09T23:42:29.812Z",
   "season": 2025,
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_reg_2025.parquet",
   "method": "Derived from completed-season nflverse team TDs, yards, pass/rush volume, and EPA.",

@@ -78,7 +78,7 @@ function PositionFilters({
             'min-w-12 transition-colors',
             selected === pos && colors[pos]
           )}
-          onClick={() => onSelect(pos)}
+          onClick={() => { onSelect(pos); }}
         >
           {pos}
         </Button>
@@ -146,7 +146,7 @@ function DraftSimulationControls({ players }: { players: Player[] }) {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setIsOpen(true)}
+        onClick={() => { setIsOpen(true); }}
         className="text-xs"
       >
         Test Mode
@@ -174,7 +174,7 @@ function DraftSimulationControls({ players }: { players: Player[] }) {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setIsOpen(false)}
+        onClick={() => { setIsOpen(false); }}
         className="text-xs h-7 ml-auto"
       >
         Close
@@ -542,7 +542,7 @@ export function PlayerTable() {
               <Input
                 placeholder="Search players..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); }}
                 className="w-56"
               />
 

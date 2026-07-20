@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:59:31.650Z",
+  "generatedAt": "2026-07-09T23:42:54.834Z",
   "seasons": [
     2021,
     2022,
@@ -73,7 +73,7 @@
     },
     {
       "tableName": "source.nflverse_player_ids",
-      "rowCount": 25036
+      "rowCount": 25033
     },
     {
       "tableName": "source.ffopportunity_weekly",
@@ -81,11 +81,11 @@
     },
     {
       "tableName": "source.dynastyprocess_rankings",
-      "rowCount": 1740454
+      "rowCount": 1775338
     },
     {
       "tableName": "source.dynastyprocess_player_ids",
-      "rowCount": 12457
+      "rowCount": 12467
     },
     {
       "tableName": "model.prediction_training_dataset",
@@ -93,7 +93,7 @@
     },
     {
       "tableName": "model.prediction_outputs",
-      "rowCount": 975
+      "rowCount": 990
     },
     {
       "tableName": "model.league_history_survival_training_dataset",
@@ -101,7 +101,7 @@
     },
     {
       "tableName": "model.draft_pick_trade_grader_features",
-      "rowCount": 975
+      "rowCount": 990
     }
   ]
 }

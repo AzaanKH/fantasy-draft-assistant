@@ -117,7 +117,14 @@ export type {
 } from './fantasypros';
 
 // Sync types
-export { DraftSyncEngine, normalizeSleeperPick } from './sync';
+export {
+  DraftSyncEngine,
+  isDraftSyncUpdate,
+  isSleeperDraftMetadata,
+  isSleeperDraftPick,
+  isSleeperDraftPickList,
+  normalizeSleeperPick,
+} from './sync';
 
 export type {
   SleeperDraftPick,

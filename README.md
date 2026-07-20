@@ -98,6 +98,10 @@ Then set:
 FANTASYPROS_API_KEY=your_key_here
 ```
 
+The sync server permits only configured browser origins. The web app default is
+already included; add your unpacked extension's exact `chrome-extension://...`
+origin to `SYNC_ALLOWED_ORIGINS` when using the side panel.
+
 ## Local Development
 
 Run everything:

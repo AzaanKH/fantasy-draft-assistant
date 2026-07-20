@@ -6,11 +6,11 @@
  * updates to the app over SSE.
  */
 
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isDraftSyncUpdate } from '@fantasy-draft/shared';
 import type {
   DraftSyncSnapshot,
-  DraftSyncUpdate,
   DraftPickEvent,
   Player,
   Position,
@@ -59,16 +59,18 @@ export function useSleeperDraft(
   const queryClient = useQueryClient();
   const { players } = usePlayerDataQuery();
   const [liveSnapshot, setLiveSnapshot] = useState<DraftSyncSnapshot | null>(null);
-  const processedPicksRef = useRef<Set<string>>(new Set());
-
-  const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
-  const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
+  const reconcileSleeperPicks = useDraftStore((state) => state.reconcileSleeperPicks);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
   const setConfig = useDraftStore((state) => state.setConfig);
 
   const snapshotQuery = useQuery({
     queryKey: ['sleeper-sync-snapshot', draftId],
-    queryFn: () => fetchDraftSnapshot(draftId!),
+    queryFn: async () => {
+      if (!draftId) {
+        throw new Error('A draft ID is required to fetch a Sleeper snapshot');
+      }
+      return fetchDraftSnapshot(draftId);
+    },
     enabled: Boolean(draftId),
     staleTime: 1000,
   });
@@ -81,15 +83,24 @@ export function useSleeperDraft(
 
     const eventSource = new EventSource(`/api/sync/drafts/${draftId}/events`);
 
-    eventSource.onmessage = (event) => {
-      const update = JSON.parse(event.data) as DraftSyncUpdate;
-      setLiveSnapshot(update.snapshot);
-      queryClient.setQueryData(['sleeper-sync-snapshot', draftId], update.snapshot);
+    eventSource.onmessage = (event: MessageEvent<string>) => {
+      try {
+        const parsed: unknown = JSON.parse(event.data);
+        if (!isDraftSyncUpdate(parsed)) {
+          return;
+        }
+        const update = parsed;
+        setLiveSnapshot(update.snapshot);
+        queryClient.setQueryData(['sleeper-sync-snapshot', draftId], update.snapshot);
+      } catch {
+        // Ignore a malformed event; EventSource remains connected and can
+        // recover on the next canonical snapshot.
+      }
     };
 
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
+    // Do not close here: EventSource automatically reconnects after transient
+    // network/server failures.
+    eventSource.onerror = () => undefined;
 
     return () => {
       eventSource.close();
@@ -145,33 +156,23 @@ export function useSleeperDraft(
       return;
     }
 
-    for (const pick of snapshot.picks) {
-      const pickKey = `${pick.draftId}-${pick.pickNumber}`;
-      if (processedPicksRef.current.has(pickKey)) {
-        continue;
-      }
-
+    reconcileSleeperPicks(snapshot.picks.map((pick) => {
       const matchedPlayer = findMatchingPlayer(pick);
       const isMyPick = pick.draftSlot === myPickPosition;
       const position = matchedPlayer?.position ?? normalizePosition(pick.position);
       const playerName = matchedPlayer?.name ?? pick.playerName;
 
-      markPlayerDrafted(
-        matchedPlayer?.id ?? pick.playerId,
+      return {
+        pickNumber: pick.pickNumber,
+        playerId: matchedPlayer?.id ?? pick.playerId,
         playerName,
         position,
-        pick.teamIndex,
-        isMyPick ? 'My Team' : `Team ${pick.draftSlot}`,
-        pick.pickNumber
-      );
-
-      if (isMyPick && matchedPlayer) {
-        addToMyRoster(matchedPlayer);
-      }
-
-      processedPicksRef.current.add(pickKey);
-    }
-  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, markPlayerDrafted, addToMyRoster]);
+        teamIndex: pick.teamIndex,
+        teamName: isMyPick ? 'My Team' : `Team ${String(pick.draftSlot)}`,
+        isMyPick,
+      };
+    }));
+  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, reconcileSleeperPicks]);
 
   const refresh = useCallback(async () => {
     if (!draftId) {
@@ -182,10 +183,6 @@ export function useSleeperDraft(
     setLiveSnapshot(refreshedSnapshot);
     queryClient.setQueryData(['sleeper-sync-snapshot', draftId], refreshedSnapshot);
   }, [draftId, queryClient]);
-
-  useEffect(() => {
-    processedPicksRef.current = new Set();
-  }, [draftId]);
 
   const myPicksCount = useMemo(() => {
     if (!snapshot) {

@@ -1,9 +1,9 @@
 {
-  "fetchedAt": "2026-05-30T05:30:35.492Z",
+  "fetchedAt": "2026-07-09T23:42:26.682Z",
   "source": "https://api.sleeper.app/v1/players/nfl",
   "signalType": "search_rank_proxy",
   "caveat": "Sleeper search_rank is a platform ordering proxy, not observed draft ADP.",
-  "playerCount": 975,
+  "playerCount": 990,
   "players": [
     {
       "playerId": "4984",
@@ -71,7 +71,7 @@
       "position": "RB",
       "team": "SF",
       "sleeperAdp": 5,
-      "age": 29,
+      "age": 30,
       "yearsExp": 9,
       "status": "Active"
     },
@@ -181,7 +181,7 @@
       "position": "WR",
       "team": "MIN",
       "sleeperAdp": 12,
-      "age": 26,
+      "age": 27,
       "yearsExp": 6,
       "status": "Active"
     },
@@ -241,7 +241,7 @@
       "position": "RB",
       "team": "ARI",
       "sleeperAdp": 15,
-      "age": 20,
+      "age": 21,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -286,6 +286,16 @@
       "status": "Active"
     },
     {
+      "playerId": "5859",
+      "name": "A.J. Brown",
+      "position": "WR",
+      "team": "NE",
+      "sleeperAdp": 20,
+      "age": 29,
+      "yearsExp": 7,
+      "status": "Active"
+    },
+    {
       "playerId": "7569",
       "name": "Nico Collins",
       "position": "WR",
@@ -293,6 +303,16 @@
       "sleeperAdp": 21,
       "age": 27,
       "yearsExp": 5,
+      "status": "Active"
+    },
+    {
+      "playerId": "11604",
+      "name": "Brock Bowers",
+      "position": "TE",
+      "team": "LV",
+      "sleeperAdp": 21,
+      "age": 23,
+      "yearsExp": 2,
       "status": "Active"
     },
     {
@@ -371,7 +391,7 @@
       "position": "WR",
       "team": "NO",
       "sleeperAdp": 26,
-      "age": 25,
+      "age": 26,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -386,22 +406,12 @@
       "status": "Active"
     },
     {
-      "playerId": "11604",
-      "name": "Brock Bowers",
-      "position": "TE",
-      "team": "LV",
-      "sleeperAdp": 26,
-      "age": 23,
-      "yearsExp": 2,
-      "status": "Active"
-    },
-    {
       "playerId": "8155",
       "name": "Breece Hall",
       "position": "RB",
       "team": "NYJ",
       "sleeperAdp": 27,
-      "age": 24,
+      "age": 25,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -413,16 +423,6 @@
       "sleeperAdp": 30,
       "age": 27,
       "yearsExp": 5,
-      "status": "Active"
-    },
-    {
-      "playerId": "5859",
-      "name": "A.J. Brown",
-      "position": "WR",
-      "team": "PHI",
-      "sleeperAdp": 31,
-      "age": 28,
-      "yearsExp": 7,
       "status": "Active"
     },
     {
@@ -473,6 +473,16 @@
       "sleeperAdp": 36,
       "age": 27,
       "yearsExp": 6,
+      "status": "Active"
+    },
+    {
+      "playerId": "7525",
+      "name": "DeVonta Smith",
+      "position": "WR",
+      "team": "PHI",
+      "sleeperAdp": 37,
+      "age": 27,
+      "yearsExp": 5,
       "status": "Active"
     },
     {
@@ -546,6 +556,16 @@
       "status": "Active"
     },
     {
+      "playerId": "11635",
+      "name": "Ladd McConkey",
+      "position": "WR",
+      "team": "LAC",
+      "sleeperAdp": 41,
+      "age": 24,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
       "playerId": "12481",
       "name": "Cam Skattebo",
       "position": "RB",
@@ -563,6 +583,16 @@
       "sleeperAdp": 42,
       "age": 27,
       "yearsExp": 5,
+      "status": "Active"
+    },
+    {
+      "playerId": "12514",
+      "name": "Emeka Egbuka",
+      "position": "WR",
+      "team": "TB",
+      "sleeperAdp": 42,
+      "age": 23,
+      "yearsExp": 1,
       "status": "Active"
     },
     {
@@ -606,6 +636,16 @@
       "status": "Active"
     },
     {
+      "playerId": "2216",
+      "name": "Mike Evans",
+      "position": "WR",
+      "team": "SF",
+      "sleeperAdp": 47,
+      "age": 32,
+      "yearsExp": 12,
+      "status": "Active"
+    },
+    {
       "playerId": "6790",
       "name": "D'Andre Swift",
       "position": "RB",
@@ -616,23 +656,23 @@
       "status": "Active"
     },
     {
-      "playerId": "11635",
-      "name": "Ladd McConkey",
-      "position": "WR",
-      "team": "LAC",
-      "sleeperAdp": 47,
-      "age": 24,
-      "yearsExp": 2,
-      "status": "Active"
-    },
-    {
       "playerId": "5892",
       "name": "David Montgomery",
       "position": "RB",
       "team": "HOU",
       "sleeperAdp": 48,
-      "age": 28,
+      "age": 29,
       "yearsExp": 7,
+      "status": "Active"
+    },
+    {
+      "playerId": "11620",
+      "name": "Rome Odunze",
+      "position": "WR",
+      "team": "CHI",
+      "sleeperAdp": 48,
+      "age": 24,
+      "yearsExp": 2,
       "status": "Active"
     },
     {
@@ -686,26 +726,6 @@
       "status": "Active"
     },
     {
-      "playerId": "7525",
-      "name": "DeVonta Smith",
-      "position": "WR",
-      "team": "PHI",
-      "sleeperAdp": 53,
-      "age": 27,
-      "yearsExp": 5,
-      "status": "Active"
-    },
-    {
-      "playerId": "12514",
-      "name": "Emeka Egbuka",
-      "position": "WR",
-      "team": "TB",
-      "sleeperAdp": 54,
-      "age": 23,
-      "yearsExp": 1,
-      "status": "Active"
-    },
-    {
       "playerId": "5927",
       "name": "Terry McLaurin",
       "position": "WR",
@@ -746,22 +766,12 @@
       "status": "Active"
     },
     {
-      "playerId": "2216",
-      "name": "Mike Evans",
-      "position": "WR",
-      "team": "SF",
-      "sleeperAdp": 60,
-      "age": 32,
-      "yearsExp": 12,
-      "status": "Active"
-    },
-    {
       "playerId": "12534",
       "name": "Kyle Monangai",
       "position": "RB",
       "team": "CHI",
       "sleeperAdp": 61,
-      "age": 23,
+      "age": 24,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -786,6 +796,26 @@
       "status": "Active"
     },
     {
+      "playerId": "8167",
+      "name": "Christian Watson",
+      "position": "WR",
+      "team": "GB",
+      "sleeperAdp": 63,
+      "age": 27,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "9484",
+      "name": "Tucker Kraft",
+      "position": "TE",
+      "team": "GB",
+      "sleeperAdp": 63,
+      "age": 25,
+      "yearsExp": 3,
+      "status": "Active"
+    },
+    {
       "playerId": "12506",
       "name": "Harold Fannin",
       "position": "TE",
@@ -793,6 +823,16 @@
       "sleeperAdp": 63,
       "age": 21,
       "yearsExp": 1,
+      "status": "Active"
+    },
+    {
+      "playerId": "13286",
+      "name": "Jadarian Price",
+      "position": "RB",
+      "team": "SEA",
+      "sleeperAdp": 63,
+      "age": 22,
+      "yearsExp": 0,
       "status": "Active"
     },
     {
@@ -806,23 +846,23 @@
       "status": "Active"
     },
     {
-      "playerId": "8167",
-      "name": "Christian Watson",
-      "position": "WR",
-      "team": "GB",
-      "sleeperAdp": 64,
-      "age": 27,
-      "yearsExp": 4,
-      "status": "Active"
-    },
-    {
       "playerId": "7021",
       "name": "Rico Dowdle",
       "position": "RB",
       "team": "PIT",
       "sleeperAdp": 65,
-      "age": 27,
+      "age": 28,
       "yearsExp": 6,
+      "status": "Active"
+    },
+    {
+      "playerId": "13281",
+      "name": "Jordyn Tyson",
+      "position": "WR",
+      "team": "NO",
+      "sleeperAdp": 65,
+      "age": 21,
+      "yearsExp": 0,
       "status": "Active"
     },
     {
@@ -841,8 +881,28 @@
       "position": "RB",
       "team": "CAR",
       "sleeperAdp": 66,
-      "age": 26,
+      "age": 27,
       "yearsExp": 5,
+      "status": "Active"
+    },
+    {
+      "playerId": "11631",
+      "name": "Brian Thomas",
+      "position": "WR",
+      "team": "JAX",
+      "sleeperAdp": 66,
+      "age": 23,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
+      "playerId": "8142",
+      "name": "Alec Pierce",
+      "position": "WR",
+      "team": "IND",
+      "sleeperAdp": 67,
+      "age": 26,
+      "yearsExp": 4,
       "status": "Active"
     },
     {
@@ -856,32 +916,12 @@
       "status": "Active"
     },
     {
-      "playerId": "11620",
-      "name": "Rome Odunze",
+      "playerId": "9487",
+      "name": "Parker Washington",
       "position": "WR",
-      "team": "CHI",
-      "sleeperAdp": 68,
-      "age": 23,
-      "yearsExp": 2,
-      "status": "Active"
-    },
-    {
-      "playerId": "13281",
-      "name": "Jordyn Tyson",
-      "position": "WR",
-      "team": "NO",
-      "sleeperAdp": 70,
-      "age": 21,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "9484",
-      "name": "Tucker Kraft",
-      "position": "TE",
-      "team": "GB",
+      "team": "JAX",
       "sleeperAdp": 71,
-      "age": 25,
+      "age": 24,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -956,12 +996,22 @@
       "status": "Active"
     },
     {
+      "playerId": "11628",
+      "name": "Marvin Harrison",
+      "position": "WR",
+      "team": "ARI",
+      "sleeperAdp": 77,
+      "age": 23,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
       "playerId": "13294",
       "name": "Makai Lemon",
       "position": "WR",
       "team": "PHI",
       "sleeperAdp": 77,
-      "age": 21,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -973,16 +1023,6 @@
       "sleeperAdp": 79,
       "age": 25,
       "yearsExp": 3,
-      "status": "Active"
-    },
-    {
-      "playerId": "11631",
-      "name": "Brian Thomas",
-      "position": "WR",
-      "team": "JAX",
-      "sleeperAdp": 79,
-      "age": 23,
-      "yearsExp": 2,
       "status": "Active"
     },
     {
@@ -1026,13 +1066,13 @@
       "status": "Active"
     },
     {
-      "playerId": "11628",
-      "name": "Marvin Harrison",
-      "position": "WR",
-      "team": "ARI",
+      "playerId": "4217",
+      "name": "George Kittle",
+      "position": "TE",
+      "team": "SF",
       "sleeperAdp": 83,
-      "age": 23,
-      "yearsExp": 2,
+      "age": 32,
+      "yearsExp": 9,
       "status": "Active"
     },
     {
@@ -1041,7 +1081,7 @@
       "position": "TE",
       "team": "LAC",
       "sleeperAdp": 83,
-      "age": 22,
+      "age": 23,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -1051,7 +1091,7 @@
       "position": "QB",
       "team": "SEA",
       "sleeperAdp": 84,
-      "age": 28,
+      "age": 29,
       "yearsExp": 8,
       "status": "Active"
     },
@@ -1067,7 +1107,7 @@
     },
     {
       "playerId": "7567",
-      "name": "Kenneth Gainwell",
+      "name": "Kenny Gainwell",
       "position": "RB",
       "team": "TB",
       "sleeperAdp": 86,
@@ -1096,16 +1136,6 @@
       "status": "Active"
     },
     {
-      "playerId": "8142",
-      "name": "Alec Pierce",
-      "position": "WR",
-      "team": "IND",
-      "sleeperAdp": 88,
-      "age": 26,
-      "yearsExp": 4,
-      "status": "Active"
-    },
-    {
       "playerId": "8132",
       "name": "Tyler Allgeier",
       "position": "RB",
@@ -1113,16 +1143,6 @@
       "sleeperAdp": 89,
       "age": 26,
       "yearsExp": 4,
-      "status": "Active"
-    },
-    {
-      "playerId": "9487",
-      "name": "Parker Washington",
-      "position": "WR",
-      "team": "JAX",
-      "sleeperAdp": 90,
-      "age": 24,
-      "yearsExp": 3,
       "status": "Active"
     },
     {
@@ -1206,6 +1226,16 @@
       "status": "Active"
     },
     {
+      "playerId": "6819",
+      "name": "Michael Pittman",
+      "position": "WR",
+      "team": "PIT",
+      "sleeperAdp": 98,
+      "age": 28,
+      "yearsExp": 6,
+      "status": "Active"
+    },
+    {
       "playerId": "9228",
       "name": "Bryce Young",
       "position": "QB",
@@ -1213,16 +1243,6 @@
       "sleeperAdp": 98,
       "age": 24,
       "yearsExp": 3,
-      "status": "Active"
-    },
-    {
-      "playerId": "4217",
-      "name": "George Kittle",
-      "position": "TE",
-      "team": "SF",
-      "sleeperAdp": 99,
-      "age": 32,
-      "yearsExp": 9,
       "status": "Active"
     },
     {
@@ -1246,13 +1266,13 @@
       "status": "Active"
     },
     {
-      "playerId": "13286",
-      "name": "Jadarian Price",
-      "position": "RB",
-      "team": "SEA",
-      "sleeperAdp": 101,
-      "age": 22,
-      "yearsExp": 0,
+      "playerId": "8126",
+      "name": "Wan'Dale Robinson",
+      "position": "WR",
+      "team": "TEN",
+      "sleeperAdp": 102,
+      "age": 25,
+      "yearsExp": 4,
       "status": "Active"
     },
     {
@@ -1276,6 +1296,26 @@
       "status": "Active"
     },
     {
+      "playerId": "8121",
+      "name": "Romeo Doubs",
+      "position": "WR",
+      "team": "NE",
+      "sleeperAdp": 103,
+      "age": 26,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "9754",
+      "name": "Quentin Johnston",
+      "position": "WR",
+      "team": "LAC",
+      "sleeperAdp": 103,
+      "age": 24,
+      "yearsExp": 3,
+      "status": "Active"
+    },
+    {
       "playerId": "9480",
       "name": "Brenton Strange",
       "position": "TE",
@@ -1283,16 +1323,6 @@
       "sleeperAdp": 104,
       "age": 25,
       "yearsExp": 3,
-      "status": "Active"
-    },
-    {
-      "playerId": "8126",
-      "name": "Wan'Dale Robinson",
-      "position": "WR",
-      "team": "TEN",
-      "sleeperAdp": 105,
-      "age": 25,
-      "yearsExp": 4,
       "status": "Active"
     },
     {
@@ -1316,16 +1346,6 @@
       "status": "Active"
     },
     {
-      "playerId": "6819",
-      "name": "Michael Pittman",
-      "position": "WR",
-      "team": "PIT",
-      "sleeperAdp": 108,
-      "age": 28,
-      "yearsExp": 6,
-      "status": "Active"
-    },
-    {
       "playerId": "5870",
       "name": "Daniel Jones",
       "position": "QB",
@@ -1333,6 +1353,16 @@
       "sleeperAdp": 109,
       "age": 29,
       "yearsExp": 7,
+      "status": "Active"
+    },
+    {
+      "playerId": "8134",
+      "name": "Khalil Shakir",
+      "position": "WR",
+      "team": "BUF",
+      "sleeperAdp": 109,
+      "age": 26,
+      "yearsExp": 4,
       "status": "Active"
     },
     {
@@ -1356,16 +1386,6 @@
       "status": "Active"
     },
     {
-      "playerId": "9754",
-      "name": "Quentin Johnston",
-      "position": "WR",
-      "team": "LAC",
-      "sleeperAdp": 110,
-      "age": 24,
-      "yearsExp": 3,
-      "status": "Active"
-    },
-    {
       "playerId": "11655",
       "name": "Tyrone Tracy",
       "position": "RB",
@@ -1383,6 +1403,16 @@
       "sleeperAdp": 112,
       "age": 27,
       "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "11583",
+      "name": "Jonathon Brooks",
+      "position": "RB",
+      "team": "CAR",
+      "sleeperAdp": 112,
+      "age": 22,
+      "yearsExp": 2,
       "status": "Active"
     },
     {
@@ -1406,6 +1436,16 @@
       "status": "Active"
     },
     {
+      "playerId": "13345",
+      "name": "Jonah Coleman",
+      "position": "RB",
+      "team": "DEN",
+      "sleeperAdp": 113,
+      "age": 22,
+      "yearsExp": 0,
+      "status": "Active"
+    },
+    {
       "playerId": "11589",
       "name": "Trey Benson",
       "position": "RB",
@@ -1416,23 +1456,13 @@
       "status": "Active"
     },
     {
-      "playerId": "8121",
-      "name": "Romeo Doubs",
+      "playerId": "12530",
+      "name": "Travis Hunter",
       "position": "WR",
-      "team": "NE",
-      "sleeperAdp": 117,
-      "age": 26,
-      "yearsExp": 4,
-      "status": "Active"
-    },
-    {
-      "playerId": "13345",
-      "name": "Jonah Coleman",
-      "position": "RB",
-      "team": "DEN",
+      "team": "JAX",
       "sleeperAdp": 118,
-      "age": 22,
-      "yearsExp": 0,
+      "age": 23,
+      "yearsExp": 1,
       "status": "Active"
     },
     {
@@ -1446,6 +1476,16 @@
       "status": "Active"
     },
     {
+      "playerId": "8136",
+      "name": "Rachaad White",
+      "position": "RB",
+      "team": "WAS",
+      "sleeperAdp": 119,
+      "age": 27,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
       "playerId": "10222",
       "name": "Jayden Reed",
       "position": "WR",
@@ -1456,13 +1496,33 @@
       "status": "Active"
     },
     {
-      "playerId": "8134",
-      "name": "Khalil Shakir",
+      "playerId": "11646",
+      "name": "Jalen Coker",
       "position": "WR",
-      "team": "BUF",
+      "team": "CAR",
       "sleeperAdp": 120,
-      "age": 26,
-      "yearsExp": 4,
+      "age": 24,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
+      "playerId": "13298",
+      "name": "KC Concepcion",
+      "position": "WR",
+      "team": "CLE",
+      "sleeperAdp": 120,
+      "age": 21,
+      "yearsExp": 0,
+      "status": "Active"
+    },
+    {
+      "playerId": "9500",
+      "name": "Josh Downs",
+      "position": "WR",
+      "team": "IND",
+      "sleeperAdp": 121,
+      "age": 24,
+      "yearsExp": 3,
       "status": "Active"
     },
     {
@@ -1471,7 +1531,7 @@
       "position": "RB",
       "team": "TEN",
       "sleeperAdp": 122,
-      "age": 24,
+      "age": 25,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -1496,13 +1556,13 @@
       "status": "Active"
     },
     {
-      "playerId": "8136",
-      "name": "Rachaad White",
-      "position": "RB",
-      "team": "WAS",
+      "playerId": "12501",
+      "name": "Matthew Golden",
+      "position": "WR",
+      "team": "GB",
       "sleeperAdp": 125,
-      "age": 27,
-      "yearsExp": 4,
+      "age": 22,
+      "yearsExp": 1,
       "status": "Active"
     },
     {
@@ -1531,7 +1591,7 @@
       "position": "TE",
       "team": "MIN",
       "sleeperAdp": 128,
-      "age": 28,
+      "age": 29,
       "yearsExp": 7,
       "status": "Active"
     },
@@ -1546,16 +1606,6 @@
       "status": "Active"
     },
     {
-      "playerId": "13298",
-      "name": "KC Concepcion",
-      "position": "WR",
-      "team": "CLE",
-      "sleeperAdp": 129,
-      "age": 21,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
       "playerId": "4033",
       "name": "David Njoku",
       "position": "TE",
@@ -1566,23 +1616,23 @@
       "status": "Active"
     },
     {
-      "playerId": "11646",
-      "name": "Jalen Coker",
-      "position": "WR",
-      "team": "CAR",
+      "playerId": "8210",
+      "name": "Chig Okonkwo",
+      "position": "TE",
+      "team": "WAS",
       "sleeperAdp": 132,
-      "age": 24,
-      "yearsExp": 2,
+      "age": 26,
+      "yearsExp": 4,
       "status": "Active"
     },
     {
-      "playerId": "9500",
-      "name": "Josh Downs",
+      "playerId": "13346",
+      "name": "Denzel Boston",
       "position": "WR",
-      "team": "IND",
+      "team": "CLE",
       "sleeperAdp": 133,
-      "age": 24,
-      "yearsExp": 3,
+      "age": 22,
+      "yearsExp": 0,
       "status": "Active"
     },
     {
@@ -1606,16 +1656,6 @@
       "status": "Active"
     },
     {
-      "playerId": "8210",
-      "name": "Chig Okonkwo",
-      "position": "TE",
-      "team": "WAS",
-      "sleeperAdp": 137,
-      "age": 26,
-      "yearsExp": 4,
-      "status": "Active"
-    },
-    {
       "playerId": "12498",
       "name": "Mason Taylor",
       "position": "TE",
@@ -1631,7 +1671,7 @@
       "position": "RB",
       "team": "LV",
       "sleeperAdp": 139,
-      "age": 22,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -1686,16 +1726,6 @@
       "status": "Active"
     },
     {
-      "playerId": "11583",
-      "name": "Jonathon Brooks",
-      "position": "RB",
-      "team": "CAR",
-      "sleeperAdp": 144,
-      "age": 22,
-      "yearsExp": 2,
-      "status": "Active"
-    },
-    {
       "playerId": "11597",
       "name": "Theo Johnson",
       "position": "TE",
@@ -1703,6 +1733,16 @@
       "sleeperAdp": 144,
       "age": 25,
       "yearsExp": 2,
+      "status": "Active"
+    },
+    {
+      "playerId": "13276",
+      "name": "Omar Cooper",
+      "position": "WR",
+      "team": "NYJ",
+      "sleeperAdp": 146,
+      "age": 22,
+      "yearsExp": 0,
       "status": "Active"
     },
     {
@@ -1746,16 +1786,6 @@
       "status": "Active"
     },
     {
-      "playerId": "13276",
-      "name": "Omar Cooper",
-      "position": "WR",
-      "team": "NYJ",
-      "sleeperAdp": 151,
-      "age": 22,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
       "playerId": "12502",
       "name": "Gunnar Helm",
       "position": "TE",
@@ -1763,16 +1793,6 @@
       "sleeperAdp": 153,
       "age": 23,
       "yearsExp": 1,
-      "status": "Active"
-    },
-    {
-      "playerId": "13346",
-      "name": "Denzel Boston",
-      "position": "WR",
-      "team": "CLE",
-      "sleeperAdp": 153,
-      "age": 22,
-      "yearsExp": 0,
       "status": "Active"
     },
     {
@@ -1796,16 +1816,6 @@
       "status": "Active"
     },
     {
-      "playerId": "12530",
-      "name": "Travis Hunter",
-      "position": "WR",
-      "team": "JAX",
-      "sleeperAdp": 157,
-      "age": 23,
-      "yearsExp": 1,
-      "status": "Active"
-    },
-    {
       "playerId": "13405",
       "name": "Kaytron Allen",
       "position": "RB",
@@ -1813,16 +1823,6 @@
       "sleeperAdp": 157,
       "age": 23,
       "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "12501",
-      "name": "Matthew Golden",
-      "position": "WR",
-      "team": "GB",
-      "sleeperAdp": 158,
-      "age": 22,
-      "yearsExp": 1,
       "status": "Active"
     },
     {
@@ -2001,7 +2001,7 @@
       "position": "TE",
       "team": "SF",
       "sleeperAdp": 178,
-      "age": 26,
+      "age": 27,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -2031,7 +2031,7 @@
       "position": "RB",
       "team": "NO",
       "sleeperAdp": 180,
-      "age": 23,
+      "age": 24,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -2081,7 +2081,7 @@
       "position": "WR",
       "team": "TEN",
       "sleeperAdp": 185,
-      "age": 22,
+      "age": 23,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -2201,7 +2201,7 @@
       "position": "WR",
       "team": "TB",
       "sleeperAdp": 196,
-      "age": 21,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -2301,7 +2301,7 @@
       "position": "WR",
       "team": "MIA",
       "sleeperAdp": 203,
-      "age": 21,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -2311,7 +2311,7 @@
       "position": "WR",
       "team": "SEA",
       "sleeperAdp": 206,
-      "age": 32,
+      "age": 33,
       "yearsExp": 9,
       "status": "Active"
     },
@@ -2371,7 +2371,7 @@
       "position": "TE",
       "team": "LAR",
       "sleeperAdp": 212,
-      "age": 22,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -2381,7 +2381,7 @@
       "position": "TE",
       "team": "DAL",
       "sleeperAdp": 212,
-      "age": 23,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -2621,7 +2621,7 @@
       "position": "QB",
       "team": "CHI",
       "sleeperAdp": 412,
-      "age": 25,
+      "age": 26,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -2766,6 +2766,16 @@
       "status": "Active"
     },
     {
+      "playerId": "2078",
+      "name": "Odell Beckham",
+      "position": "WR",
+      "team": "NYG",
+      "sleeperAdp": 999,
+      "age": 33,
+      "yearsExp": 12,
+      "status": "Active"
+    },
+    {
       "playerId": "2152",
       "name": "Teddy Bridgewater",
       "position": "QB",
@@ -2811,7 +2821,7 @@
       "position": "WR",
       "team": "IND",
       "sleeperAdp": 999,
-      "age": 30,
+      "age": 31,
       "yearsExp": 10,
       "status": "Active"
     },
@@ -2891,7 +2901,7 @@
       "position": "K",
       "team": "DEN",
       "sleeperAdp": 999,
-      "age": 31,
+      "age": 32,
       "yearsExp": 10,
       "status": "Active"
     },
@@ -2902,6 +2912,16 @@
       "team": "TEN",
       "sleeperAdp": 999,
       "age": 31,
+      "yearsExp": 9,
+      "status": "Active"
+    },
+    {
+      "playerId": "4040",
+      "name": "JuJu Smith-Schuster",
+      "position": "WR",
+      "team": "NYG",
+      "sleeperAdp": 999,
+      "age": 29,
       "yearsExp": 9,
       "status": "Active"
     },
@@ -3006,12 +3026,12 @@
       "status": "Active"
     },
     {
-      "playerId": "4666",
-      "name": "Younghoe Koo",
-      "position": "K",
-      "team": "NYJ",
+      "playerId": "4602",
+      "name": "Robert Tonyan",
+      "position": "TE",
+      "team": "PIT",
       "sleeperAdp": 999,
-      "age": 31,
+      "age": 32,
       "yearsExp": 9,
       "status": "Active"
     },
@@ -3041,7 +3061,7 @@
       "position": "TE",
       "team": "LV",
       "sleeperAdp": 999,
-      "age": 29,
+      "age": 30,
       "yearsExp": 8,
       "status": "Active"
     },
@@ -3059,6 +3079,16 @@
       "playerId": "5119",
       "name": "Jason Sanders",
       "position": "K",
+      "team": "NYJ",
+      "sleeperAdp": 999,
+      "age": 30,
+      "yearsExp": 8,
+      "status": "Active"
+    },
+    {
+      "playerId": "5121",
+      "name": "Braxton Berrios",
+      "position": "WR",
       "team": "NYG",
       "sleeperAdp": 999,
       "age": 30,
@@ -3121,7 +3151,7 @@
       "position": "WR",
       "team": "PHI",
       "sleeperAdp": 999,
-      "age": 28,
+      "age": 29,
       "yearsExp": 7,
       "status": "Active"
     },
@@ -3142,6 +3172,16 @@
       "team": "NO",
       "sleeperAdp": 999,
       "age": 28,
+      "yearsExp": 7,
+      "status": "Active"
+    },
+    {
+      "playerId": "5886",
+      "name": "Hakeem Butler",
+      "position": "TE",
+      "team": "DEN",
+      "sleeperAdp": 999,
+      "age": 30,
       "yearsExp": 7,
       "status": "Active"
     },
@@ -3386,13 +3426,13 @@
       "status": "Active"
     },
     {
-      "playerId": "6699",
-      "name": "Gunner Olszewski",
+      "playerId": "6798",
+      "name": "Jalen Reagor",
       "position": "WR",
-      "team": "NYG",
+      "team": "MIA",
       "sleeperAdp": 999,
-      "age": 29,
-      "yearsExp": 7,
+      "age": 27,
+      "yearsExp": 6,
       "status": "Active"
     },
     {
@@ -3430,6 +3470,16 @@
       "name": "Devin Duvernay",
       "position": "WR",
       "team": "ARI",
+      "sleeperAdp": 999,
+      "age": 28,
+      "yearsExp": 6,
+      "status": "Active"
+    },
+    {
+      "playerId": "6849",
+      "name": "Denzel Mims",
+      "position": "WR",
+      "team": "DAL",
       "sleeperAdp": 999,
       "age": 28,
       "yearsExp": 6,
@@ -3556,6 +3606,16 @@
       "status": "Active"
     },
     {
+      "playerId": "7561",
+      "name": "Elijah Mitchell",
+      "position": "RB",
+      "team": "PHI",
+      "sleeperAdp": 999,
+      "age": 28,
+      "yearsExp": 5,
+      "status": "Active"
+    },
+    {
       "playerId": "7562",
       "name": "Tutu Atwell",
       "position": "WR",
@@ -3571,7 +3631,7 @@
       "position": "WR",
       "team": "MIA",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 5,
       "status": "Active"
     },
@@ -3636,12 +3696,12 @@
       "status": "Active"
     },
     {
-      "playerId": "7599",
-      "name": "Jermar Jefferson",
-      "position": "RB",
-      "team": "SF",
+      "playerId": "7597",
+      "name": "Kenny Yeboah",
+      "position": "TE",
+      "team": "ARI",
       "sleeperAdp": 999,
-      "age": 26,
+      "age": 27,
       "yearsExp": 5,
       "status": "Active"
     },
@@ -3701,7 +3761,7 @@
       "position": "TE",
       "team": "CAR",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 5,
       "status": "Active"
     },
@@ -3721,7 +3781,7 @@
       "position": "WR",
       "team": "PIT",
       "sleeperAdp": 999,
-      "age": 28,
+      "age": 29,
       "yearsExp": 5,
       "status": "Active"
     },
@@ -3786,6 +3846,16 @@
       "status": "Active"
     },
     {
+      "playerId": "8005",
+      "name": "Tarik Black",
+      "position": "WR",
+      "team": "DET",
+      "sleeperAdp": 999,
+      "age": 28,
+      "yearsExp": 5,
+      "status": "Active"
+    },
+    {
       "playerId": "8041",
       "name": "Shane Zylstra",
       "position": "TE",
@@ -3812,6 +3882,16 @@
       "team": "CHI",
       "sleeperAdp": 999,
       "age": 29,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "8114",
+      "name": "Erik Ezukanma",
+      "position": "WR",
+      "team": "PHI",
+      "sleeperAdp": 999,
+      "age": 26,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -3941,7 +4021,7 @@
       "position": "QB",
       "team": "CAR",
       "sleeperAdp": 999,
-      "age": 27,
+      "age": 28,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -4026,16 +4106,6 @@
       "status": "Active"
     },
     {
-      "playerId": "8202",
-      "name": "Michael Woods",
-      "position": "WR",
-      "team": "DEN",
-      "sleeperAdp": 999,
-      "age": 26,
-      "yearsExp": 4,
-      "status": "Active"
-    },
-    {
       "playerId": "8204",
       "name": "Bo Melton",
       "position": "WR",
@@ -4051,7 +4121,7 @@
       "position": "QB",
       "team": "BAL",
       "sleeperAdp": 999,
-      "age": 28,
+      "age": 29,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -4092,6 +4162,16 @@
       "team": "NYJ",
       "sleeperAdp": 999,
       "age": 27,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "8220",
+      "name": "Sincere McCormick",
+      "position": "RB",
+      "team": "SF",
+      "sleeperAdp": 999,
+      "age": 25,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -4201,7 +4281,7 @@
       "position": "WR",
       "team": "LV",
       "sleeperAdp": 999,
-      "age": 26,
+      "age": 27,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -4219,7 +4299,7 @@
       "playerId": "8756",
       "name": "Brandon Johnson",
       "position": "WR",
-      "team": "PIT",
+      "team": "LV",
       "sleeperAdp": 999,
       "age": 27,
       "yearsExp": 4,
@@ -4341,7 +4421,7 @@
       "position": "TE",
       "team": "LV",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -4351,7 +4431,7 @@
       "position": "WR",
       "team": "PHI",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -4411,7 +4491,7 @@
       "position": "QB",
       "team": "TEN",
       "sleeperAdp": 999,
-      "age": 26,
+      "age": 27,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -4461,7 +4541,7 @@
       "position": "WR",
       "team": "HOU",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -4521,7 +4601,7 @@
       "position": "TE",
       "team": "TB",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -4706,6 +4786,26 @@
       "status": "Active"
     },
     {
+      "playerId": "11092",
+      "name": "B.T. Potter",
+      "position": "K",
+      "team": "TB",
+      "sleeperAdp": 999,
+      "age": 26,
+      "yearsExp": 3,
+      "status": "Active"
+    },
+    {
+      "playerId": "11145",
+      "name": "Tanner Brown",
+      "position": "K",
+      "team": "NO",
+      "sleeperAdp": 999,
+      "age": 26,
+      "yearsExp": 3,
+      "status": "Active"
+    },
+    {
       "playerId": "11168",
       "name": "Xavier Smith",
       "position": "WR",
@@ -4816,30 +4916,10 @@
       "status": "Active"
     },
     {
-      "playerId": "11371",
-      "name": "Julian Hill",
-      "position": "TE",
-      "team": "NE",
-      "sleeperAdp": 999,
-      "age": 25,
-      "yearsExp": 3,
-      "status": "Active"
-    },
-    {
       "playerId": "11377",
       "name": "Tyrell Shavers",
       "position": "WR",
       "team": "BUF",
-      "sleeperAdp": 999,
-      "age": 26,
-      "yearsExp": 3,
-      "status": "Active"
-    },
-    {
-      "playerId": "11378",
-      "name": "Jordan Mims",
-      "position": "RB",
-      "team": "SF",
       "sleeperAdp": 999,
       "age": 26,
       "yearsExp": 3,
@@ -4852,6 +4932,16 @@
       "team": "DEN",
       "sleeperAdp": 999,
       "age": 25,
+      "yearsExp": 3,
+      "status": "Active"
+    },
+    {
+      "playerId": "11520",
+      "name": "Lucky Jackson",
+      "position": "WR",
+      "team": "DET",
+      "sleeperAdp": 999,
+      "age": 28,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -5001,7 +5091,7 @@
       "position": "TE",
       "team": "WAS",
       "sleeperAdp": 999,
-      "age": 23,
+      "age": 24,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5011,7 +5101,7 @@
       "position": "TE",
       "team": "HOU",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5051,7 +5141,7 @@
       "position": "WR",
       "team": "CAR",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5121,7 +5211,7 @@
       "position": "WR",
       "team": "BAL",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5131,7 +5221,7 @@
       "position": "WR",
       "team": "PIT",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5201,7 +5291,7 @@
       "position": "RB",
       "team": "SF",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5211,7 +5301,7 @@
       "position": "K",
       "team": "NO",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5246,16 +5336,6 @@
       "status": "Active"
     },
     {
-      "playerId": "11789",
-      "name": "Joshua Karty",
-      "position": "K",
-      "team": "ARI",
-      "sleeperAdp": 999,
-      "age": 24,
-      "yearsExp": 2,
-      "status": "Active"
-    },
-    {
       "playerId": "11792",
       "name": "Will Reichard",
       "position": "K",
@@ -5272,16 +5352,6 @@
       "team": "ARI",
       "sleeperAdp": 999,
       "age": 26,
-      "yearsExp": 2,
-      "status": "Active"
-    },
-    {
-      "playerId": "11806",
-      "name": "Casey Washington",
-      "position": "WR",
-      "team": "ATL",
-      "sleeperAdp": 999,
-      "age": 25,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5386,10 +5456,30 @@
       "status": "Active"
     },
     {
+      "playerId": "12001",
+      "name": "Lawrence Keys",
+      "position": "WR",
+      "team": "DET",
+      "sleeperAdp": 999,
+      "age": 26,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
       "playerId": "12015",
       "name": "Harrison Mevis",
       "position": "K",
       "team": "LAR",
+      "sleeperAdp": 999,
+      "age": 24,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
+      "playerId": "12036",
+      "name": "Ian Wheeler",
+      "position": "RB",
+      "team": "BUF",
       "sleeperAdp": 999,
       "age": 24,
       "yearsExp": 2,
@@ -5401,7 +5491,7 @@
       "position": "TE",
       "team": "NE",
       "sleeperAdp": 999,
-      "age": 26,
+      "age": 27,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -5496,6 +5586,16 @@
       "status": "Active"
     },
     {
+      "playerId": "12460",
+      "name": "Antwane Wells",
+      "position": "WR",
+      "team": "ATL",
+      "sleeperAdp": 999,
+      "age": 25,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
       "playerId": "12462",
       "name": "Damien Martinez",
       "position": "RB",
@@ -5531,7 +5631,7 @@
       "position": "RB",
       "team": "CLE",
       "sleeperAdp": 999,
-      "age": 23,
+      "age": 24,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -5731,17 +5831,7 @@
       "position": "RB",
       "team": "CAR",
       "sleeperAdp": 999,
-      "age": 21,
-      "yearsExp": 1,
-      "status": "Active"
-    },
-    {
-      "playerId": "12532",
-      "name": "Ja'Corey Brooks",
-      "position": "WR",
-      "team": "WAS",
-      "sleeperAdp": 999,
-      "age": 24,
+      "age": 22,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -5851,7 +5941,7 @@
       "position": "QB",
       "team": "MIA",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -5922,6 +6012,16 @@
       "team": "LAR",
       "sleeperAdp": 999,
       "age": 23,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
+      "playerId": "12725",
+      "name": "Luke Lachey",
+      "position": "TE",
+      "team": "GB",
+      "sleeperAdp": 999,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6019,7 +6119,7 @@
       "playerId": "12777",
       "name": "Joaquin Davis",
       "position": "WR",
-      "team": "MIN",
+      "team": "PIT",
       "sleeperAdp": 999,
       "age": 23,
       "yearsExp": 1,
@@ -6031,7 +6131,7 @@
       "position": "RB",
       "team": "TB",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6101,7 +6201,7 @@
       "position": "WR",
       "team": "HOU",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6111,7 +6211,7 @@
       "position": "WR",
       "team": "MIA",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6146,16 +6246,6 @@
       "status": "Active"
     },
     {
-      "playerId": "12898",
-      "name": "Seth Henigan",
-      "position": "QB",
-      "team": "IND",
-      "sleeperAdp": 999,
-      "age": 23,
-      "yearsExp": 1,
-      "status": "Active"
-    },
-    {
       "playerId": "12901",
       "name": "Patrick Herbert",
       "position": "TE",
@@ -6166,22 +6256,12 @@
       "status": "Active"
     },
     {
-      "playerId": "12907",
-      "name": "Quentin Skinner",
-      "position": "WR",
-      "team": "NYJ",
-      "sleeperAdp": 999,
-      "age": 24,
-      "yearsExp": 1,
-      "status": "Active"
-    },
-    {
       "playerId": "12909",
       "name": "Eli Pancol",
       "position": "WR",
       "team": "IND",
       "sleeperAdp": 999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6191,17 +6271,7 @@
       "position": "WR",
       "team": "NYJ",
       "sleeperAdp": 999,
-      "age": 22,
-      "yearsExp": 1,
-      "status": "Active"
-    },
-    {
-      "playerId": "12935",
-      "name": "Jakobie Keeney-James",
-      "position": "WR",
-      "team": "GB",
-      "sleeperAdp": 999,
-      "age": 25,
+      "age": 23,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6286,6 +6356,16 @@
       "status": "Active"
     },
     {
+      "playerId": "13032",
+      "name": "Marshall Lang",
+      "position": "TE",
+      "team": "MIN",
+      "sleeperAdp": 999,
+      "age": 24,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
       "playerId": "13042",
       "name": "Xavier Guillory",
       "position": "WR",
@@ -6321,7 +6401,7 @@
       "position": "WR",
       "team": "GB",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6341,7 +6421,7 @@
       "position": "WR",
       "team": "CHI",
       "sleeperAdp": 999,
-      "age": 23,
+      "age": 24,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -6426,6 +6506,16 @@
       "status": "Active"
     },
     {
+      "playerId": "13217",
+      "name": "Hunter Dekkers",
+      "position": "QB",
+      "team": "NO",
+      "sleeperAdp": 999,
+      "age": 25,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
       "playerId": "13249",
       "name": "Thomas Gordon",
       "position": "TE",
@@ -6461,17 +6551,7 @@
       "position": "RB",
       "team": "NO",
       "sleeperAdp": 999,
-      "age": 21,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "13280",
-      "name": "Chamon Metayer",
-      "position": "TE",
-      "team": "PIT",
-      "sleeperAdp": 999,
-      "age": null,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -6691,7 +6771,7 @@
       "position": "TE",
       "team": "LAR",
       "sleeperAdp": 999,
-      "age": 23,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -6732,16 +6812,6 @@
       "team": "NYJ",
       "sleeperAdp": 999,
       "age": 25,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "13327",
-      "name": "Desmond Reid",
-      "position": "RB",
-      "team": "BUF",
-      "sleeperAdp": 999,
-      "age": 21,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -6801,7 +6871,7 @@
       "position": "WR",
       "team": "DEN",
       "sleeperAdp": 999,
-      "age": 22,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -6871,7 +6941,7 @@
       "position": "RB",
       "team": "IND",
       "sleeperAdp": 999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -6941,7 +7011,7 @@
       "position": "TE",
       "team": "DEN",
       "sleeperAdp": 999,
-      "age": 21,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -6951,7 +7021,7 @@
       "position": "WR",
       "team": "BUF",
       "sleeperAdp": 999,
-      "age": 23,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -7041,7 +7111,7 @@
       "position": "RB",
       "team": "PIT",
       "sleeperAdp": 999,
-      "age": 22,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -7171,7 +7241,7 @@
       "position": "RB",
       "team": "JAX",
       "sleeperAdp": 9999999,
-      "age": 32,
+      "age": 33,
       "yearsExp": 11,
       "status": "Active"
     },
@@ -7260,6 +7330,16 @@
       "name": "Johnny Mundt",
       "position": "TE",
       "team": "PHI",
+      "sleeperAdp": 9999999,
+      "age": 31,
+      "yearsExp": 9,
+      "status": "Active"
+    },
+    {
+      "playerId": "4435",
+      "name": "Anthony Firkser",
+      "position": "TE",
+      "team": "WAS",
       "sleeperAdp": 9999999,
       "age": 31,
       "yearsExp": 9,
@@ -7436,6 +7516,16 @@
       "status": "Active"
     },
     {
+      "playerId": "6185",
+      "name": "Easton Stick",
+      "position": "QB",
+      "team": "IND",
+      "sleeperAdp": 9999999,
+      "age": 30,
+      "yearsExp": 7,
+      "status": "Active"
+    },
+    {
       "playerId": "6588",
       "name": "Tom Kennedy",
       "position": "WR",
@@ -7491,7 +7581,7 @@
       "position": "WR",
       "team": "PHI",
       "sleeperAdp": 9999999,
-      "age": 27,
+      "age": 28,
       "yearsExp": 6,
       "status": "Active"
     },
@@ -7531,7 +7621,7 @@
       "position": "WR",
       "team": "TEN",
       "sleeperAdp": 9999999,
-      "age": 28,
+      "age": 29,
       "yearsExp": 6,
       "status": "Active"
     },
@@ -7651,7 +7741,7 @@
       "position": "WR",
       "team": "JAX",
       "sleeperAdp": 9999999,
-      "age": 27,
+      "age": 28,
       "yearsExp": 5,
       "status": "Active"
     },
@@ -7726,12 +7816,42 @@
       "status": "Active"
     },
     {
+      "playerId": "8235",
+      "name": "Samori Toure",
+      "position": "WR",
+      "team": "PHI",
+      "sleeperAdp": 9999999,
+      "age": 28,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
       "playerId": "8249",
       "name": "Lucas Krull",
       "position": "TE",
       "team": "DEN",
       "sleeperAdp": 9999999,
       "age": 27,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "8250",
+      "name": "Tay Martin",
+      "position": "WR",
+      "team": "DET",
+      "sleeperAdp": 9999999,
+      "age": 28,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "8253",
+      "name": "Deven Thompkins",
+      "position": "WR",
+      "team": "BUF",
+      "sleeperAdp": 9999999,
+      "age": 26,
       "yearsExp": 4,
       "status": "Active"
     },
@@ -7760,6 +7880,16 @@
       "name": "Stone Smartt",
       "position": "TE",
       "team": "PHI",
+      "sleeperAdp": 9999999,
+      "age": 27,
+      "yearsExp": 4,
+      "status": "Active"
+    },
+    {
+      "playerId": "8755",
+      "name": "Kaden Davis",
+      "position": "WR",
+      "team": "CHI",
       "sleeperAdp": 9999999,
       "age": 27,
       "yearsExp": 4,
@@ -7811,7 +7941,7 @@
       "position": "TE",
       "team": "IND",
       "sleeperAdp": 9999999,
-      "age": 26,
+      "age": 27,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -7851,7 +7981,7 @@
       "position": "TE",
       "team": "TEN",
       "sleeperAdp": 9999999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -7941,7 +8071,7 @@
       "position": "TE",
       "team": "DEN",
       "sleeperAdp": 9999999,
-      "age": 26,
+      "age": 27,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -7952,6 +8082,16 @@
       "team": "ATL",
       "sleeperAdp": 9999999,
       "age": 26,
+      "yearsExp": 3,
+      "status": "Active"
+    },
+    {
+      "playerId": "11506",
+      "name": "Jalen Moreno-Cropper",
+      "position": "WR",
+      "team": "NO",
+      "sleeperAdp": 9999999,
+      "age": 25,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -7981,7 +8121,7 @@
       "position": "TE",
       "team": "PIT",
       "sleeperAdp": 9999999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 2,
       "status": "Active"
     },
@@ -8066,6 +8206,16 @@
       "status": "Active"
     },
     {
+      "playerId": "12068",
+      "name": "Mason Pline",
+      "position": "TE",
+      "team": "KC",
+      "sleeperAdp": 9999999,
+      "age": 26,
+      "yearsExp": 2,
+      "status": "Active"
+    },
+    {
       "playerId": "12079",
       "name": "Treyton Welch",
       "position": "TE",
@@ -8103,16 +8253,6 @@
       "sleeperAdp": 9999999,
       "age": 26,
       "yearsExp": 2,
-      "status": "Active"
-    },
-    {
-      "playerId": "12548",
-      "name": "Lenny Krieg",
-      "position": "K",
-      "team": "NYJ",
-      "sleeperAdp": 9999999,
-      "age": 23,
-      "yearsExp": 4,
       "status": "Active"
     },
     {
@@ -8176,6 +8316,16 @@
       "status": "Active"
     },
     {
+      "playerId": "12809",
+      "name": "Mac Dalena",
+      "position": "WR",
+      "team": "BUF",
+      "sleeperAdp": 9999999,
+      "age": 24,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
       "playerId": "12849",
       "name": "Traeshon Holden",
       "position": "WR",
@@ -8210,6 +8360,16 @@
       "name": "Joshua Simon",
       "position": "TE",
       "team": "ATL",
+      "sleeperAdp": 9999999,
+      "age": 25,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
+      "playerId": "12892",
+      "name": "Da'Quan Felton",
+      "position": "WR",
+      "team": "NYJ",
       "sleeperAdp": 9999999,
       "age": 25,
       "yearsExp": 1,
@@ -8266,6 +8426,16 @@
       "status": "Active"
     },
     {
+      "playerId": "12981",
+      "name": "Gee Scott",
+      "position": "TE",
+      "team": "NYJ",
+      "sleeperAdp": 9999999,
+      "age": 25,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
       "playerId": "12984",
       "name": "CJ Dippre",
       "position": "TE",
@@ -8291,7 +8461,7 @@
       "position": "WR",
       "team": "LAR",
       "sleeperAdp": 9999999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 1,
       "status": "Active"
     },
@@ -8396,6 +8566,16 @@
       "status": "Active"
     },
     {
+      "playerId": "13246",
+      "name": "Jaden Smith",
+      "position": "WR",
+      "team": "DAL",
+      "sleeperAdp": 9999999,
+      "age": 24,
+      "yearsExp": 1,
+      "status": "Active"
+    },
+    {
       "playerId": "13261",
       "name": "Layne Pryor",
       "position": "TE",
@@ -8411,7 +8591,7 @@
       "position": "WR",
       "team": "CIN",
       "sleeperAdp": 9999999,
-      "age": 25,
+      "age": 26,
       "yearsExp": 3,
       "status": "Active"
     },
@@ -8421,7 +8601,7 @@
       "position": "TE",
       "team": "IND",
       "sleeperAdp": 9999999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8450,16 +8630,6 @@
       "name": "Zavion Thomas",
       "position": "WR",
       "team": "CHI",
-      "sleeperAdp": 9999999,
-      "age": 22,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "13412",
-      "name": "Kendrick Law",
-      "position": "WR",
-      "team": "DET",
       "sleeperAdp": 9999999,
       "age": 22,
       "yearsExp": 0,
@@ -8521,7 +8691,7 @@
       "position": "QB",
       "team": "JAX",
       "sleeperAdp": 9999999,
-      "age": 24,
+      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8541,7 +8711,7 @@
       "position": "TE",
       "team": "GB",
       "sleeperAdp": 9999999,
-      "age": 21,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8571,7 +8741,7 @@
       "position": "TE",
       "team": "PIT",
       "sleeperAdp": 9999999,
-      "age": 23,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8622,16 +8792,6 @@
       "team": "NYJ",
       "sleeperAdp": 9999999,
       "age": 24,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "13440",
-      "name": "Damien Alford",
-      "position": "WR",
-      "team": "NO",
-      "sleeperAdp": 9999999,
-      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8691,7 +8851,7 @@
       "position": "K",
       "team": "GB",
       "sleeperAdp": 9999999,
-      "age": 22,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8791,7 +8951,7 @@
       "position": "QB",
       "team": "ATL",
       "sleeperAdp": 9999999,
-      "age": 21,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8831,7 +8991,7 @@
       "position": "WR",
       "team": "MIN",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8841,7 +9001,7 @@
       "position": "WR",
       "team": "MIN",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 21,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8876,16 +9036,6 @@
       "status": "Active"
     },
     {
-      "playerId": "13644",
-      "name": "Mason Shipley",
-      "position": "K",
-      "team": "NO",
-      "sleeperAdp": 9999999,
-      "age": null,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
       "playerId": "13645",
       "name": "Michael Wortham",
       "position": "WR",
@@ -8911,7 +9061,7 @@
       "position": "WR",
       "team": "JAX",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8941,7 +9091,7 @@
       "position": "WR",
       "team": "SF",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8976,12 +9126,22 @@
       "status": "Active"
     },
     {
+      "playerId": "13698",
+      "name": "Max Tomczak",
+      "position": "WR",
+      "team": "BUF",
+      "sleeperAdp": 9999999,
+      "age": null,
+      "yearsExp": 0,
+      "status": "Active"
+    },
+    {
       "playerId": "13705",
       "name": "Ty Pezza",
       "position": "TE",
       "team": "BAL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -8992,16 +9152,6 @@
       "team": "CAR",
       "sleeperAdp": 9999999,
       "age": 22,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "13710",
-      "name": "Gabriel Plascencia",
-      "position": "K",
-      "team": "CHI",
-      "sleeperAdp": 9999999,
-      "age": null,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9021,7 +9171,7 @@
       "position": "RB",
       "team": "DAL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9061,7 +9211,7 @@
       "position": "WR",
       "team": "CLE",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9141,7 +9291,7 @@
       "position": "QB",
       "team": "LV",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9191,7 +9341,7 @@
       "position": "QB",
       "team": "MIA",
       "sleeperAdp": 9999999,
-      "age": 0,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9221,7 +9371,7 @@
       "position": "TE",
       "team": "NE",
       "sleeperAdp": 9999999,
-      "age": 22,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9291,7 +9441,7 @@
       "position": "WR",
       "team": "BAL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 26,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9301,7 +9451,7 @@
       "position": "WR",
       "team": "BAL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9311,7 +9461,7 @@
       "position": "RB",
       "team": "BAL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9319,7 +9469,7 @@
       "playerId": "13859",
       "name": "Jalen Walthall",
       "position": "WR",
-      "team": "HOU",
+      "team": "NYJ",
       "sleeperAdp": 9999999,
       "age": 23,
       "yearsExp": 0,
@@ -9371,7 +9521,7 @@
       "position": "TE",
       "team": "ARI",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9379,19 +9529,19 @@
       "playerId": "13889",
       "name": "Levi Wentz",
       "position": "WR",
-      "team": "SEA",
+      "team": "PIT",
       "sleeperAdp": 9999999,
       "age": null,
       "yearsExp": 0,
       "status": "Active"
     },
     {
-      "playerId": "13898",
-      "name": "Corey Rucker",
+      "playerId": "13890",
+      "name": "Michael Briscoe",
       "position": "WR",
-      "team": "LV",
+      "team": "MIN",
       "sleeperAdp": 9999999,
-      "age": 23,
+      "age": null,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9411,7 +9561,7 @@
       "position": "WR",
       "team": "KC",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9431,7 +9581,7 @@
       "position": "RB",
       "team": "BAL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9496,16 +9646,6 @@
       "status": "Active"
     },
     {
-      "playerId": "13939",
-      "name": "Gabriel Benyard",
-      "position": "WR",
-      "team": "BUF",
-      "sleeperAdp": 9999999,
-      "age": null,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
       "playerId": "13941",
       "name": "Omari Kelly",
       "position": "WR",
@@ -9531,7 +9671,7 @@
       "position": "RB",
       "team": "NYG",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 23,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9601,7 +9741,7 @@
       "position": "WR",
       "team": "ATL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 26,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9611,7 +9751,7 @@
       "position": "WR",
       "team": "ATL",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9621,7 +9761,7 @@
       "position": "WR",
       "team": "DEN",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 24,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9696,6 +9836,16 @@
       "status": "Active"
     },
     {
+      "playerId": "14038",
+      "name": "Trayvon Rudolph",
+      "position": "WR",
+      "team": "MIN",
+      "sleeperAdp": 9999999,
+      "age": 24,
+      "yearsExp": 0,
+      "status": "Active"
+    },
+    {
       "playerId": "14039",
       "name": "Mante Morrow",
       "position": "WR",
@@ -9711,7 +9861,7 @@
       "position": "WR",
       "team": "MIN",
       "sleeperAdp": 9999999,
-      "age": null,
+      "age": 22,
       "yearsExp": 0,
       "status": "Active"
     },
@@ -9731,27 +9881,27 @@
       "position": "RB",
       "team": "CAR",
       "sleeperAdp": 9999999,
+      "age": 26,
+      "yearsExp": 0,
+      "status": "Active"
+    },
+    {
+      "playerId": "14055",
+      "name": "Louis Hansen",
+      "position": "TE",
+      "team": "HOU",
+      "sleeperAdp": 9999999,
       "age": null,
       "yearsExp": 0,
       "status": "Active"
     },
     {
-      "playerId": "14047",
-      "name": "Heinrich Haarberg",
-      "position": "TE",
+      "playerId": "14058",
+      "name": "Malick Meiga",
+      "position": "WR",
       "team": "CAR",
       "sleeperAdp": 9999999,
-      "age": 23,
-      "yearsExp": 0,
-      "status": "Active"
-    },
-    {
-      "playerId": "14049",
-      "name": "Brandon Hayes",
-      "position": "WR",
-      "team": "PHI",
-      "sleeperAdp": 9999999,
-      "age": null,
+      "age": 25,
       "yearsExp": 0,
       "status": "Active"
     }
