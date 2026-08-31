@@ -7,8 +7,13 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import type { NFLTeam, Position } from '@fantasy-draft/shared';
+import {
+  resolveSeasonHistoryColumn,
+  type ContractSourceColumn,
+} from './contract-source-schema.js';
 import { DATA_DIR } from './model/duckdb.js';
 
 const CONTRACTS_URL =
@@ -58,12 +63,21 @@ async function main(): Promise<void> {
   const connection = await database.connect();
 
   try {
+    const schemaReader = await connection.runAndReadAll(`
+      describe select * from read_parquet('${CONTRACTS_URL}')
+    `);
+    const sourceColumns = (
+      (schemaReader.getRowObjects() as unknown as ContractSourceColumn[])
+        .map((column) => column.column_name)
+    );
+    const seasonHistoryColumn = resolveSeasonHistoryColumn(sourceColumns);
+
     const reader = await connection.runAndReadAll(`
       with contracts as (
         select
           gsis_id::varchar as gsis_id,
           position::varchar as position,
-          list_max(list_transform(cols, item -> try_cast(item.year as integer)))
+          list_max(list_transform(${seasonHistoryColumn}, item -> try_cast(item.year as integer)))
             as contract_end_year
         from read_parquet('${CONTRACTS_URL}')
         where is_active
@@ -124,7 +138,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error('Contract refresh failed:', error);
-  process.exit(1);
-});
+const entryPoint = process.argv[1];
+if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
+  main().catch((error: unknown) => {
+    console.error('Contract refresh failed:', error);
+    process.exit(1);
+  });
+}

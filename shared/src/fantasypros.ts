@@ -15,6 +15,22 @@ export interface FantasyProsProjection {
   readonly position: Position;
   readonly team: NFLTeam;
   readonly projectedPoints: number;
+  /** FantasyPros PPR total before this league's scoring bonuses. */
+  readonly baseProjectedPoints?: number;
+  /** Projected rushing attempts used for the league's +0.20/attempt bonus. */
+  readonly projectedRushAttempts?: number;
+  /** Projected receptions used for the league's TE +0.50/reception premium. */
+  readonly projectedReceptions?: number;
+  readonly projectedPassingYards?: number;
+  readonly projectedPassingTouchdowns?: number;
+  readonly projectedRushingYards?: number;
+  readonly projectedRushingTouchdowns?: number;
+  readonly projectedReceivingYards?: number;
+  readonly projectedReceivingTouchdowns?: number;
+  /** @deprecated Legacy cached adjustment. League scoring is now calculated locally. */
+  readonly customScoringAdjustment?: number;
+  /** @deprecated Legacy cached total. Consumers should locally re-score projectedPoints. */
+  readonly leagueProjectedPoints?: number;
   readonly ceilingPoints?: number;
   readonly floorPoints?: number;
 }
@@ -26,7 +42,11 @@ export interface FantasyProsNewsItem {
   readonly team: NFLTeam;
   readonly status: NewsStatus;
   readonly headline: string;
-  readonly updatedAt: string;
+  readonly categories?: readonly string[];
+  readonly description?: string;
+  readonly impact?: string;
+  readonly link?: string;
+  readonly updatedAt?: string;
 }
 
 export interface FantasyProsAdpPlayer {

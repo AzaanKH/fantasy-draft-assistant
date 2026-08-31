@@ -48,6 +48,7 @@ interface SleeperDraft {
   readonly season: string;
   readonly status: string;
   readonly type: string;
+  readonly start_time: number;
   readonly settings: Record<string, number>;
   readonly metadata: {
     readonly name?: string;
@@ -129,6 +130,7 @@ interface LeagueSeasonHistory {
   readonly draftId: string;
   readonly draftStatus: string;
   readonly draftType: DraftType;
+  readonly draftStartTimestamp: string;
   readonly userSlot: number;
   readonly userRosterId: number;
   readonly teams: number | null;
@@ -259,6 +261,7 @@ function isSleeperDraft(value: unknown): value is SleeperDraft {
     typeof value.season === 'string' &&
     typeof value.status === 'string' &&
     typeof value.type === 'string' &&
+    typeof value.start_time === 'number' &&
     isNumberRecord(value.settings) &&
     (value.draft_order === null || isStringNumberRecord(value.draft_order))
   );
@@ -620,6 +623,7 @@ async function importSeason(config: LeagueDraftConfig): Promise<LeagueSeasonHist
     draftId: config.draftId,
     draftStatus: draft.status,
     draftType: normalizeDraftType(draft.type),
+    draftStartTimestamp: new Date(draft.start_time).toISOString(),
     userSlot: config.userSlot,
     userRosterId: config.userRosterId,
     teams: resolvedTeamCount,

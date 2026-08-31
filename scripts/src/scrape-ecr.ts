@@ -30,6 +30,7 @@ const ECR_URL = 'https://www.fantasypros.com/nfl/rankings/ppr-cheatsheets.php';
 
 interface RawRowData {
   rank: string;
+  fantasyProsTier?: number;
   playerCell: string;
   positionCell: string;
   best: string;
@@ -114,17 +115,21 @@ async function scrapeRawData(): Promise<RawRowData[]> {
     const rawData = await page.evaluate(() => {
       const rows = document.querySelectorAll('table.player-table tbody tr');
       const data: RawRowData[] = [];
+      let fantasyProsTier: number | undefined;
 
       rows.forEach((row) => {
         const cells = row.querySelectorAll('td');
-        if (cells.length < 7) return;
-
         const firstCell = cells[0]?.textContent?.trim() ?? '';
-        // Skip tier header rows
-        if (firstCell.startsWith('Tier')) return;
+        const tierMatch = firstCell.match(/^Tier\s+(\d+)/i);
+        if (tierMatch?.[1]) {
+          fantasyProsTier = parseInt(tierMatch[1], 10);
+          return;
+        }
+        if (cells.length < 7) return;
 
         data.push({
           rank: firstCell,
+          fantasyProsTier,
           playerCell: cells[2]?.textContent?.trim() ?? '',
           positionCell: cells[3]?.textContent?.trim() ?? '',
           best: cells[4]?.textContent?.trim() ?? '',
@@ -201,6 +206,7 @@ function parseECRData(rawData: RawRowData[]): ECRPlayer[] {
 
     players.push({
       rank,
+      fantasyProsTier: row.fantasyProsTier,
       name: nameTeam.name,
       position: normalizedPosition as Position,
       team: normalizedTeam as NFLTeam,

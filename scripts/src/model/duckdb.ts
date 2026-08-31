@@ -20,6 +20,9 @@ export interface ModelPaths {
   readonly teamEnvironmentJson: string;
   readonly contractsJson: string;
   readonly leagueDraftHistoryJson: string;
+  readonly leagueDraftRawDir: string;
+  readonly historicalSnapshotReportJson: string;
+  readonly historicalSnapshotsParquet: string;
   readonly predictionsJson: string;
   readonly modelReportJson: string;
   readonly normalizedPlayersParquet: string;
@@ -33,6 +36,9 @@ export const MODEL_PATHS: ModelPaths = {
   teamEnvironmentJson: join(DATA_DIR, 'team-environment.json'),
   contractsJson: join(DATA_DIR, 'contracts.json'),
   leagueDraftHistoryJson: join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'),
+  leagueDraftRawDir: join(DATA_DIR, 'league-history', 'raw'),
+  historicalSnapshotReportJson: join(DATA_DIR, 'historical-snapshot-report.json'),
+  historicalSnapshotsParquet: join(MODEL_DIR, 'historical-asof-snapshots.parquet'),
   predictionsJson: join(DATA_DIR, 'predictions.json'),
   modelReportJson: join(DATA_DIR, 'model-report.json'),
   normalizedPlayersParquet: join(NORMALIZED_MODEL_DIR, 'current-player-join.parquet'),

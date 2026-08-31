@@ -1,0 +1,2109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive architecture, implementation history, design decisions, and learnings for the Fantasy Draft Assistant.">
+  <title>Fantasy Draft Assistant - Architecture and Build Retrospective</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08110f;
+      --bg-soft: #0d1815;
+      --panel: rgba(18, 31, 27, 0.92);
+      --panel-strong: #14241f;
+      --panel-hover: #192e27;
+      --ink: #f3f7f4;
+      --muted: #9dafaa;
+      --line: #29433a;
+      --line-bright: #3d6657;
+      --mint: #76e2b3;
+      --mint-soft: rgba(118, 226, 179, 0.13);
+      --blue: #70b8ff;
+      --blue-soft: rgba(112, 184, 255, 0.13);
+      --gold: #efbf68;
+      --gold-soft: rgba(239, 191, 104, 0.13);
+      --violet: #b99aff;
+      --violet-soft: rgba(185, 154, 255, 0.13);
+      --red: #ff8f85;
+      --red-soft: rgba(255, 143, 133, 0.13);
+      --shadow: 0 20px 55px rgba(0, 0, 0, 0.28);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% -10%, rgba(118, 226, 179, 0.16), transparent 34rem),
+        radial-gradient(circle at 94% 8%, rgba(112, 184, 255, 0.12), transparent 32rem),
+        linear-gradient(180deg, #07100e 0%, #0a1411 45%, #07100e 100%);
+      font: 15px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    a {
+      color: var(--mint);
+      text-underline-offset: 4px;
+    }
+
+    code {
+      border: 1px solid rgba(118, 226, 179, 0.17);
+      border-radius: 6px;
+      padding: 0.08rem 0.36rem;
+      color: #c9f8e2;
+      background: rgba(118, 226, 179, 0.08);
+      font-size: 0.91em;
+    }
+
+    .shell {
+      width: min(1280px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid rgba(61, 102, 87, 0.5);
+      background: rgba(8, 17, 15, 0.86);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav-inner {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-height: 58px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .brand {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      margin-right: auto;
+      font-size: 0.76rem;
+      font-weight: 850;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      background: var(--mint);
+      box-shadow: 0 0 22px rgba(118, 226, 179, 0.65);
+      transform: rotate(45deg);
+    }
+
+    .nav-link,
+    .mode-button,
+    .filter-button {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 0.8rem;
+      font-weight: 750;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .nav-link:hover,
+    .nav-link.active,
+    .mode-button:hover,
+    .mode-button.active,
+    .filter-button:hover,
+    .filter-button.active {
+      border-color: var(--line);
+      color: var(--ink);
+      background: var(--mint-soft);
+    }
+
+    header {
+      padding: 82px 0 46px;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--mint);
+      font-size: 0.76rem;
+      font-weight: 850;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2 {
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    h1 {
+      max-width: 1040px;
+      margin: 0;
+      font-size: clamp(3.3rem, 8vw, 7rem);
+      font-weight: 700;
+      letter-spacing: -0.068em;
+      line-height: 0.88;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      letter-spacing: -0.05em;
+      line-height: 0.98;
+    }
+
+    h3,
+    h4,
+    p {
+      margin-top: 0;
+    }
+
+    h3 {
+      margin-bottom: 7px;
+      font-size: 1rem;
+    }
+
+    h4 {
+      margin-bottom: 5px;
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+    }
+
+    .lede {
+      max-width: 850px;
+      margin: 25px 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.22rem);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 18px;
+      margin-top: 34px;
+    }
+
+    .hero-card,
+    .card,
+    .detail-panel,
+    .decision-card,
+    .learning-card,
+    .timeline-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 22px;
+    }
+
+    .hero-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--mint);
+    }
+
+    .hero-card p {
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 17px;
+    }
+
+    .pill {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: #c3d3ce;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 0.76rem;
+      font-weight: 750;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--mint);
+    }
+
+    .dot.gold {
+      background: var(--gold);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .stat strong {
+      display: block;
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+
+    main {
+      padding-bottom: 80px;
+    }
+
+    section {
+      padding: 42px 0 20px;
+      scroll-margin-top: 70px;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 430px);
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    .section-copy {
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .architecture-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(290px, 0.55fr);
+      gap: 16px;
+    }
+
+    .diagram {
+      min-height: 560px;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .diagram-view {
+      display: none;
+    }
+
+    .diagram-view.active {
+      display: block;
+      animation: reveal 220ms ease-out;
+    }
+
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .flow-label {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.77rem;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .flow-row.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .flow-row.five {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .node {
+      position: relative;
+      min-height: 128px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      color: var(--ink);
+      text-align: left;
+      background: rgba(255, 255, 255, 0.025);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .node:hover,
+    .node.active {
+      border-color: var(--mint);
+      background: var(--mint-soft);
+      transform: translateY(-2px);
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -13px;
+      width: 13px;
+      border-top: 1px dashed var(--line-bright);
+    }
+
+    .flow-row .node:last-child::after {
+      display: none;
+    }
+
+    .node-kicker {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--mint);
+      font-size: 0.68rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.93rem;
+    }
+
+    .node span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.77rem;
+      line-height: 1.45;
+    }
+
+    .node.blue .node-kicker {
+      color: var(--blue);
+    }
+
+    .node.gold .node-kicker {
+      color: var(--gold);
+    }
+
+    .node.violet .node-kicker {
+      color: var(--violet);
+    }
+
+    .detail-panel {
+      position: sticky;
+      top: 78px;
+      min-height: 420px;
+      padding: 22px;
+      align-self: start;
+    }
+
+    .detail-kicker {
+      margin-bottom: 7px;
+      color: var(--mint);
+      font-size: 0.7rem;
+      font-weight: 850;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .detail-panel h3 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.8rem;
+      letter-spacing: -0.03em;
+    }
+
+    .detail-panel p,
+    .detail-panel li {
+      color: var(--muted);
+    }
+
+    .detail-panel ul {
+      padding-left: 18px;
+    }
+
+    .file-link {
+      display: block;
+      margin-top: 18px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      font-size: 0.8rem;
+      word-break: break-word;
+    }
+
+    .split-grid,
+    .decision-grid,
+    .learning-grid,
+    .verification-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card,
+    .decision-card,
+    .learning-card,
+    .timeline-card {
+      padding: 20px;
+    }
+
+    .card p,
+    .decision-card p,
+    .learning-card p,
+    .timeline-card p {
+      color: var(--muted);
+    }
+
+    .card p:last-child,
+    .decision-card p:last-child,
+    .learning-card p:last-child,
+    .timeline-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .label {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--mint);
+      background: var(--mint-soft);
+      font-size: 0.69rem;
+      font-weight: 850;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .label.blue {
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .label.gold {
+      color: var(--gold);
+      background: var(--gold-soft);
+    }
+
+    .label.violet {
+      color: var(--violet);
+      background: var(--violet-soft);
+    }
+
+    .label.red {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      background: var(--panel);
+    }
+
+    th,
+    td {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      color: #cbd8d4;
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 0.72rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    td {
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td strong {
+      color: var(--ink);
+    }
+
+    .decision-card {
+      min-height: 205px;
+      transition: border-color 160ms ease, transform 160ms ease;
+    }
+
+    .decision-card:hover {
+      border-color: var(--line-bright);
+      transform: translateY(-2px);
+    }
+
+    .decision-card[hidden] {
+      display: none;
+    }
+
+    .decision-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 13px;
+    }
+
+    .decision-number {
+      color: #577168;
+      font: 700 1.45rem/1 Georgia, "Times New Roman", serif;
+    }
+
+    .score-lab {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 16px;
+    }
+
+    .score-controls,
+    .score-output {
+      padding: 22px;
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr) 52px;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .slider-row label {
+      color: #d8e2df;
+      font-size: 0.83rem;
+      font-weight: 720;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--mint);
+    }
+
+    .slider-value {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 3px 7px;
+      color: var(--mint);
+      text-align: center;
+      background: rgba(255, 255, 255, 0.025);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-number {
+      margin: 8px 0 5px;
+      color: var(--mint);
+      font: 700 4.4rem/0.95 Georgia, "Times New Roman", serif;
+      letter-spacing: -0.05em;
+    }
+
+    .score-grade {
+      margin-bottom: 20px;
+      color: var(--muted);
+    }
+
+    .score-bars {
+      display: grid;
+      gap: 10px;
+    }
+
+    .score-bar {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr) 36px;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #24352f;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--mint);
+      transition: width 180ms ease;
+    }
+
+    .fill.red {
+      background: var(--red);
+    }
+
+    .formula {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px;
+      color: #b6c7c1;
+      background: #0a1311;
+      font: 0.78rem/1.7 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 13px;
+      padding-left: 24px;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 7px;
+      border-left: 1px dashed var(--line-bright);
+    }
+
+    .timeline-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: 125px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .timeline-card::before {
+      content: "";
+      position: absolute;
+      top: 26px;
+      left: -23px;
+      width: 11px;
+      height: 11px;
+      border: 3px solid var(--bg);
+      border-radius: 50%;
+      background: var(--mint);
+      box-shadow: 0 0 0 1px var(--line-bright);
+    }
+
+    .timeline-date {
+      color: var(--mint);
+      font-size: 0.75rem;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .learning-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .learning-card {
+      min-height: 220px;
+    }
+
+    .learning-card .lesson-number {
+      display: block;
+      margin-bottom: 14px;
+      color: #567168;
+      font: 700 2rem/1 Georgia, "Times New Roman", serif;
+    }
+
+    .verification-grid {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .check-list,
+    .risk-list {
+      margin: 13px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .check-list li,
+    .risk-list li {
+      position: relative;
+      margin-bottom: 9px;
+      padding-left: 21px;
+      color: var(--muted);
+    }
+
+    .check-list li::before {
+      content: "\2713";
+      position: absolute;
+      left: 0;
+      color: var(--mint);
+      font-weight: 850;
+    }
+
+    .risk-list li::before {
+      content: "!";
+      position: absolute;
+      left: 3px;
+      color: var(--gold);
+      font-weight: 900;
+    }
+
+    .backtest-callout {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      gap: 22px;
+      align-items: center;
+      margin-top: 16px;
+      border: 1px solid rgba(239, 191, 104, 0.35);
+      border-radius: var(--radius);
+      padding: 22px;
+      background: var(--gold-soft);
+    }
+
+    .backtest-number {
+      color: var(--gold);
+      font: 700 3.8rem/0.9 Georgia, "Times New Roman", serif;
+      letter-spacing: -0.05em;
+    }
+
+    .backtest-callout p {
+      margin-bottom: 0;
+      color: #d3c19e;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 26px 0 48px;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .footer-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 22px;
+      justify-content: space-between;
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .section-heading,
+      .architecture-layout,
+      .score-lab {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .detail-panel {
+        position: static;
+      }
+
+      .flow-row,
+      .flow-row.three,
+      .flow-row.five {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .flow-row .node::after {
+        display: none;
+      }
+
+      .learning-grid,
+      .verification-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .shell {
+        width: min(100% - 22px, 1280px);
+      }
+
+      header {
+        padding-top: 55px;
+      }
+
+      h1 {
+        font-size: clamp(3rem, 18vw, 5rem);
+      }
+
+      .stats,
+      .split-grid,
+      .decision-grid,
+      .learning-grid,
+      .verification-grid,
+      .flow-row,
+      .flow-row.three,
+      .flow-row.five {
+        grid-template-columns: 1fr;
+      }
+
+      .slider-row {
+        grid-template-columns: 1fr 52px;
+      }
+
+      .slider-row label {
+        grid-column: 1 / -1;
+      }
+
+      .timeline-card,
+      .backtest-callout {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-link {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="Page sections">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Build Retrospective
+      </a>
+      <a class="nav-link" href="#architecture">Architecture</a>
+      <a class="nav-link" href="#reality">Plan vs Reality</a>
+      <a class="nav-link" href="#decisions">Decisions</a>
+      <a class="nav-link" href="#scoring">Scoring</a>
+      <a class="nav-link" href="#timeline">Timeline</a>
+      <a class="nav-link" href="#learnings">Learnings</a>
+      <a class="nav-link" href="#verification">Verification</a>
+    </div>
+  </nav>
+
+  <header id="top">
+    <div class="shell">
+      <p class="eyebrow">Fantasy Draft Assistant / What Was Actually Built</p>
+      <h1>From draft-day idea to a local decision system.</h1>
+      <p class="lede">
+        This is the implementation record behind the project: the runtime architecture,
+        offline data pipeline, recommendation design, major tradeoffs, plan changes,
+        validation results, and lessons learned while turning <code>first-pass.html</code>
+        into a working application.
+      </p>
+
+      <div class="hero-grid">
+        <article class="hero-card">
+          <strong>The finished shape</strong>
+          <p>
+            One canonical Sleeper sync service feeds both clients. Cached current-season
+            data and offline model outputs are merged in the React app, where a transparent
+            recommendation layer adds roster need, scarcity, draft stage, and next-pick timing.
+          </p>
+          <div class="status-row">
+            <span class="pill"><span class="dot"></span> Implemented through June 1, 2026</span>
+            <span class="pill"><span class="dot"></span> Local-first runtime</span>
+            <span class="pill"><span class="dot gold"></span> Model baseline still provisional</span>
+          </div>
+        </article>
+
+        <article class="hero-card">
+          <strong>The core thesis</strong>
+          <p>
+            Prediction answers "how good is the player?" Recommendation answers
+            "how valuable is the player to this roster at this pick?" Keeping those
+            questions separate became the most important architectural decision.
+          </p>
+        </article>
+      </div>
+
+      <div class="stats" aria-label="Project statistics">
+        <div class="stat"><strong>5</strong><span>workspaces / system areas</span></div>
+        <div class="stat"><strong>94</strong><span>TypeScript source files</span></div>
+        <div class="stat"><strong>15</strong><span>focused test files</span></div>
+        <div class="stat"><strong>63</strong><span>commits in build history</span></div>
+        <div class="stat"><strong>550</strong><span>league-history model rows</span></div>
+        <div class="stat"><strong>1s</strong><span>Sleeper polling interval</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="architecture">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">System Map</p>
+          <h2>How the pieces work together</h2>
+        </div>
+        <p class="section-copy">
+          Switch between the live draft path and the offline modeling path. Select any
+          component to see its responsibility, why it exists, and where it is implemented.
+        </p>
+      </div>
+
+      <div class="toolbar" role="tablist" aria-label="Architecture view">
+        <button class="mode-button active" type="button" data-mode="runtime" role="tab" aria-selected="true">Live draft runtime</button>
+        <button class="mode-button" type="button" data-mode="modeling" role="tab" aria-selected="false">Offline data + modeling</button>
+      </div>
+
+      <div class="architecture-layout">
+        <div class="card diagram">
+          <div class="diagram-view active" data-view="runtime">
+            <p class="flow-label">Context discovery and canonical live state</p>
+            <div class="flow-row">
+              <button class="node blue" type="button" data-node="sleeper-room">
+                <span class="node-kicker">External</span>
+                <strong>Sleeper Draft Room</strong>
+                <span>Official draft metadata and picks, plus the active tab URL.</span>
+              </button>
+              <button class="node violet" type="button" data-node="extension">
+                <span class="node-kicker">Chrome MV3</span>
+                <strong>Extension</strong>
+                <span>Discovers the draft ID and provides side-panel context.</span>
+              </button>
+              <button class="node" type="button" data-node="sync-server">
+                <span class="node-kicker">System of record</span>
+                <strong>Local Sync Server</strong>
+                <span>Polls Sleeper, owns sessions, and fans out snapshots.</span>
+              </button>
+              <button class="node" type="button" data-node="sync-engine">
+                <span class="node-kicker">Shared core</span>
+                <strong>DraftSyncEngine</strong>
+                <span>Normalizes, deduplicates, orders, and timestamps picks.</span>
+              </button>
+            </div>
+
+            <p class="flow-label">Shared state enters both user interfaces</p>
+            <div class="flow-row three">
+              <button class="node blue" type="button" data-node="sse">
+                <span class="node-kicker">Transport</span>
+                <strong>HTTP + SSE</strong>
+                <span>Snapshot fetch, manual refresh, and one-way event stream.</span>
+              </button>
+              <button class="node" type="button" data-node="web-app">
+                <span class="node-kicker">Primary client</span>
+                <strong>React Web App</strong>
+                <span>Player board, watchlist, roster state, and recommendations.</span>
+              </button>
+              <button class="node violet" type="button" data-node="side-panel">
+                <span class="node-kicker">Companion client</span>
+                <strong>Extension Side Panel</strong>
+                <span>Live pick list and handoff into the full application.</span>
+              </button>
+            </div>
+
+            <p class="flow-label">Decision loop inside the web app</p>
+            <div class="flow-row five">
+              <button class="node gold" type="button" data-node="runtime-json">
+                <span class="node-kicker">Cached inputs</span>
+                <strong>Runtime JSON</strong>
+                <span>Rankings, projections, news, market, team, model outputs.</span>
+              </button>
+              <button class="node" type="button" data-node="player-merge">
+                <span class="node-kicker">Normalization</span>
+                <strong>Player Merge</strong>
+                <span>ID-first and guarded name/team matching across sources.</span>
+              </button>
+              <button class="node blue" type="button" data-node="zustand">
+                <span class="node-kicker">Interactive state</span>
+                <strong>Zustand Store</strong>
+                <span>Roster, picks, shortlist, filters, sorting, undo.</span>
+              </button>
+              <button class="node gold" type="button" data-node="recommendations">
+                <span class="node-kicker">Decision layer</span>
+                <strong>Recommendation Engine</strong>
+                <span>Quality + need + scarcity + timing - risk.</span>
+              </button>
+              <button class="node" type="button" data-node="draft-ui">
+                <span class="node-kicker">Output</span>
+                <strong>Draft Board UI</strong>
+                <span>On-the-clock panel, table, diagnostics, and confidence.</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="diagram-view" data-view="modeling">
+            <p class="flow-label">Current-season source ownership</p>
+            <div class="flow-row three">
+              <button class="node blue" type="button" data-node="fantasypros">
+                <span class="node-kicker">Current expert</span>
+                <strong>FantasyPros</strong>
+                <span>ECR, projections, and news cached as one snapshot.</span>
+              </button>
+              <button class="node violet" type="button" data-node="sleeper-market">
+                <span class="node-kicker">Platform market</span>
+                <strong>Sleeper search_rank</strong>
+                <span>A platform rank proxy, explicitly not called true ADP.</span>
+              </button>
+              <button class="node gold" type="button" data-node="league-history">
+                <span class="node-kicker">Local room</span>
+                <strong>League Draft History</strong>
+                <span>2022-2025 picks and keepers for timing behavior.</span>
+              </button>
+            </div>
+
+            <p class="flow-label">Historical feature foundation</p>
+            <div class="flow-row three">
+              <button class="node" type="button" data-node="nflverse">
+                <span class="node-kicker">Production history</span>
+                <strong>nflverse</strong>
+                <span>Stats, rosters, schedules, team metrics, and IDs.</span>
+              </button>
+              <button class="node blue" type="button" data-node="ffopportunity">
+                <span class="node-kicker">Opportunity</span>
+                <strong>ffopportunity</strong>
+                <span>Expected fantasy points and usage context.</span>
+              </button>
+              <button class="node violet" type="button" data-node="dynastyprocess">
+                <span class="node-kicker">Historical market</span>
+                <strong>DynastyProcess</strong>
+                <span>Historical ranks and cross-platform identifiers.</span>
+              </button>
+            </div>
+
+            <p class="flow-label">Local analytical build</p>
+            <div class="flow-row">
+              <button class="node" type="button" data-node="duckdb">
+                <span class="node-kicker">Embedded analytics</span>
+                <strong>DuckDB + Parquet</strong>
+                <span>Joins, source profiling, feature tables, and outputs.</span>
+              </button>
+              <button class="node gold" type="button" data-node="prediction-layer">
+                <span class="node-kicker">Player quality</span>
+                <strong>Prediction Layer</strong>
+                <span>Points, floor, ceiling, VOR, uncertainty, risk.</span>
+              </button>
+              <button class="node blue" type="button" data-node="survival-model">
+                <span class="node-kicker">Draft timing</span>
+                <strong>Survival Model</strong>
+                <span>Probability a player lasts until the next user pick.</span>
+              </button>
+              <button class="node violet" type="button" data-node="artifacts">
+                <span class="node-kicker">Runtime handoff</span>
+                <strong>Versioned JSON Artifacts</strong>
+                <span>Small, inspectable files consumed by the browser app.</span>
+              </button>
+            </div>
+
+            <p class="flow-label">Draft-week operating loop</p>
+            <div class="flow-row three">
+              <button class="node blue" type="button" data-node="refresh-policy">
+                <span class="node-kicker">Explicit refresh</span>
+                <strong>Data Freshness Check</strong>
+                <span>Reports stale artifacts without mutating them during dev.</span>
+              </button>
+              <button class="node gold" type="button" data-node="prepare-draft">
+                <span class="node-kicker">Orchestration</span>
+                <strong>prepare:draft</strong>
+                <span>Refresh, build, backtest, and report in sequence.</span>
+              </button>
+              <button class="node" type="button" data-node="prep-report">
+                <span class="node-kicker">Human review</span>
+                <strong>Draft Prep Report</strong>
+                <span>Freshness, room trends, tiers, keepers, checklist.</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="detail-panel" aria-live="polite">
+          <div class="detail-kicker" id="detail-kicker">System of record</div>
+          <h3 id="detail-title">Local Sync Server</h3>
+          <p id="detail-description">
+            A lightweight Node HTTP service owns the canonical Sleeper draft snapshot
+            instead of asking each client to interpret the draft independently.
+          </p>
+          <ul id="detail-points">
+            <li>Polls draft metadata and picks in parallel every second.</li>
+            <li>Stores one in-memory session per draft ID.</li>
+            <li>Streams the same normalized snapshot to the app and extension.</li>
+          </ul>
+          <a class="file-link" id="detail-file" href="../server/src/sync-server.ts">Implementation: server/src/sync-server.ts</a>
+        </aside>
+      </div>
+    </section>
+
+    <section id="reality">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Plan vs Reality</p>
+          <h2>What changed after the first pass</h2>
+        </div>
+        <p class="section-copy">
+          The original plan established the prediction direction. Implementation sharpened
+          source ownership, added a canonical sync boundary, and introduced guardrails where
+          real draft behavior exposed weaknesses in a pure score-first design.
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>First-pass direction</th>
+              <th>What was implemented</th>
+              <th>Why it changed or held</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Runtime storage</strong></td>
+              <td>JSON for the app, DuckDB for modeling.</td>
+              <td>Exactly that boundary: generated JSON enters the browser; DuckDB stays offline.</td>
+              <td>It preserved a zero-ops local runtime while allowing serious analytical joins.</td>
+              <td><span class="label">Held</span></td>
+            </tr>
+            <tr>
+              <td><strong>Prediction vs recommendation</strong></td>
+              <td>Train player-quality signals separately from roster decisions.</td>
+              <td><code>predictions.json</code> supplies quality; runtime calculations add need, scarcity, survival, and stage.</td>
+              <td>Roster context is transient and should not contaminate player-quality labels.</td>
+              <td><span class="label">Held</span></td>
+            </tr>
+            <tr>
+              <td><strong>Sleeper synchronization</strong></td>
+              <td>The initial product had direct app polling and extension DOM detection.</td>
+              <td>A local sync server and shared <code>DraftSyncEngine</code> became the canonical source.</td>
+              <td>Two overlapping clients could not reconcile independently or expose reliable sync health.</td>
+              <td><span class="label blue">Expanded</span></td>
+            </tr>
+            <tr>
+              <td><strong>Transport</strong></td>
+              <td>WebSocket-style shared event types were anticipated.</td>
+              <td>HTTP snapshots plus Server-Sent Events are used for server-to-client updates.</td>
+              <td>The data flow is mostly one-way; SSE is smaller and easier than full duplex sockets.</td>
+              <td><span class="label blue">Simplified</span></td>
+            </tr>
+            <tr>
+              <td><strong>Market data</strong></td>
+              <td>Compare FantasyPros ECR with Sleeper ADP.</td>
+              <td>Sleeper is labeled <code>search_rank</code> / market proxy, not observed-draft ADP.</td>
+              <td>The original label overstated precision and source semantics.</td>
+              <td><span class="label gold">Corrected</span></td>
+            </tr>
+            <tr>
+              <td><strong>Team environment</strong></td>
+              <td>Use offensive environment as a player feature.</td>
+              <td>Replaced hand-maintained ratings with a reproducible nflverse-derived generator.</td>
+              <td>Manual rankings drift, hide assumptions, and cannot be backtested cleanly.</td>
+              <td><span class="label blue">Upgraded</span></td>
+            </tr>
+            <tr>
+              <td><strong>League history</strong></td>
+              <td>Use historical drafts to improve recommendations.</td>
+              <td>League data is restricted to next-pick survival and room tendencies.</td>
+              <td>A small home-league sample can inform timing, but not general player quality.</td>
+              <td><span class="label gold">Narrowed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Recommendation score</strong></td>
+              <td>Weighted expert, market, projection, environment, need, urgency, and risk.</td>
+              <td>Transparent sub-scores plus stage-aware special-teams and duplicate-position guardrails.</td>
+              <td>Raw VOR and rank arithmetic produced plausible but strategically poor edge cases.</td>
+              <td><span class="label blue">Hardened</span></td>
+            </tr>
+            <tr>
+              <td><strong>Model validation</strong></td>
+              <td>Backtest before claiming improvement.</td>
+              <td>A transparent replay baseline was built; it underperformed ECR-only in its first form.</td>
+              <td>The result was kept as evidence, not hidden. It prevents unsupported product claims.</td>
+              <td><span class="label red">Provisional</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Design Record</p>
+          <h2>The decisions that shaped the project</h2>
+        </div>
+        <p class="section-copy">
+          Filter by concern. Each choice is tied to a concrete failure mode or operating
+          constraint discovered during implementation.
+        </p>
+      </div>
+
+      <div class="toolbar" aria-label="Decision filters">
+        <button class="filter-button active" type="button" data-decision-filter="all">All</button>
+        <button class="filter-button" type="button" data-decision-filter="sync">Sync</button>
+        <button class="filter-button" type="button" data-decision-filter="data">Data</button>
+        <button class="filter-button" type="button" data-decision-filter="model">Model</button>
+        <button class="filter-button" type="button" data-decision-filter="ui">UI</button>
+        <button class="filter-button" type="button" data-decision-filter="ops">Operations</button>
+      </div>
+
+      <div class="decision-grid">
+        <article class="decision-card" data-decision-kind="sync">
+          <div class="decision-meta"><span class="label blue">Sync</span><span class="decision-number">01</span></div>
+          <h3>Make one service the system of record</h3>
+          <p>Web app polling and extension scraping were useful prototypes, but they created two truths. The local server now owns reconciliation and health.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="sync">
+          <div class="decision-meta"><span class="label blue">Sync</span><span class="decision-number">02</span></div>
+          <h3>Prefer official API data over DOM observations</h3>
+          <p>Sleeper API picks are marked confirmed. DOM detection remains a context and fallback mechanism because page markup is less stable.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="sync">
+          <div class="decision-meta"><span class="label blue">Sync</span><span class="decision-number">03</span></div>
+          <h3>Use SSE for a one-way update problem</h3>
+          <p>The clients mainly receive state. HTTP plus SSE avoids extra protocol complexity while preserving live updates and straightforward testing.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="data">
+          <div class="decision-meta"><span class="label">Data</span><span class="decision-number">04</span></div>
+          <h3>Give every source one explicit job</h3>
+          <p>FantasyPros owns current expert context, Sleeper owns platform state, nflverse owns history, and league drafts own room timing.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="data">
+          <div class="decision-meta"><span class="label">Data</span><span class="decision-number">05</span></div>
+          <h3>Cache before draft time</h3>
+          <p>The live decision loop reads local artifacts. It does not depend on network-heavy ranking, projection, or model refreshes while the clock is running.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="data">
+          <div class="decision-meta"><span class="label">Data</span><span class="decision-number">06</span></div>
+          <h3>Treat matching as a data product</h3>
+          <p>ID maps are preferred; normalized name, position, and team fallbacks are guarded against duplicates to avoid confidently joining the wrong player.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="model">
+          <div class="decision-meta"><span class="label gold">Model</span><span class="decision-number">07</span></div>
+          <h3>Separate quality from choice</h3>
+          <p>Projected output and uncertainty belong to prediction. Roster gaps, scarcity, current pick, and survival belong to recommendation.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="model">
+          <div class="decision-meta"><span class="label gold">Model</span><span class="decision-number">08</span></div>
+          <h3>Use league history for timing, not truth</h3>
+          <p>Four seasons and 550 modeled rows are enough to describe room tendencies, but too small and biased to train universal player outcomes.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="model">
+          <div class="decision-meta"><span class="label gold">Model</span><span class="decision-number">09</span></div>
+          <h3>Keep the scorer inspectable</h3>
+          <p>Recommendation diagnostics expose expert, market, projection, VOR, urgency, risk, uncertainty, need, and scarcity contributions.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="ui">
+          <div class="decision-meta"><span class="label violet">UI</span><span class="decision-number">10</span></div>
+          <h3>Design around the current pick</h3>
+          <p>The on-the-clock panel answers the immediate question first. Full rankings, best value, needs, and diagnostics support that decision instead of competing with it.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="ui">
+          <div class="decision-meta"><span class="label violet">UI</span><span class="decision-number">11</span></div>
+          <h3>Show confidence and source freshness</h3>
+          <p>A recommendation without data age, source type, and model provenance looks more certain than it is. The interface now surfaces that context.</p>
+        </article>
+        <article class="decision-card" data-decision-kind="ops">
+          <div class="decision-meta"><span class="label red">Operations</span><span class="decision-number">12</span></div>
+          <h3>Never refresh data implicitly during dev</h3>
+          <p><code>pnpm dev</code> checks freshness but does not rewrite tracked artifacts or make hidden network requests. Refreshes are explicit and reproducible.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="scoring">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Interactive Explainer</p>
+          <h2>Why a recommendation moves</h2>
+        </div>
+        <p class="section-copy">
+          This simplified score lab mirrors the implemented signal families. Move the
+          controls to see why the same player can be a strong prospect but the wrong pick,
+          or an average prospect who becomes urgent because a tier is disappearing.
+        </p>
+      </div>
+
+      <div class="score-lab">
+        <div class="card score-controls">
+          <div class="slider-row">
+            <label for="quality">Player quality</label>
+            <input id="quality" type="range" min="0" max="100" value="78">
+            <output class="slider-value" for="quality">78</output>
+          </div>
+          <div class="slider-row">
+            <label for="market">Market discount</label>
+            <input id="market" type="range" min="-30" max="30" value="12">
+            <output class="slider-value" for="market">12</output>
+          </div>
+          <div class="slider-row">
+            <label for="need">Roster need</label>
+            <input id="need" type="range" min="-25" max="35" value="20">
+            <output class="slider-value" for="need">20</output>
+          </div>
+          <div class="slider-row">
+            <label for="scarcity">Scarcity + tier</label>
+            <input id="scarcity" type="range" min="0" max="30" value="16">
+            <output class="slider-value" for="scarcity">16</output>
+          </div>
+          <div class="slider-row">
+            <label for="urgency">Next-pick urgency</label>
+            <input id="urgency" type="range" min="0" max="25" value="14">
+            <output class="slider-value" for="urgency">14</output>
+          </div>
+          <div class="slider-row">
+            <label for="risk">Risk + uncertainty</label>
+            <input id="risk" type="range" min="0" max="35" value="9">
+            <output class="slider-value" for="risk">9</output>
+          </div>
+          <p class="section-copy">
+            In production, "quality" is itself decomposed into expert rank, projection,
+            value over replacement, upside, and model-source confidence.
+          </p>
+        </div>
+
+        <aside class="card score-output" aria-live="polite">
+          <span class="label">Draft-now score</span>
+          <div class="score-number" id="score-number">131</div>
+          <div class="score-grade" id="score-grade">Strong current-pick fit</div>
+          <div class="score-bars">
+            <div class="score-bar"><span>Quality</span><div class="track"><div class="fill" id="quality-bar"></div></div><span id="quality-text">78</span></div>
+            <div class="score-bar"><span>Market</span><div class="track"><div class="fill" id="market-bar"></div></div><span id="market-text">12</span></div>
+            <div class="score-bar"><span>Need</span><div class="track"><div class="fill" id="need-bar"></div></div><span id="need-text">20</span></div>
+            <div class="score-bar"><span>Scarcity</span><div class="track"><div class="fill" id="scarcity-bar"></div></div><span id="scarcity-text">16</span></div>
+            <div class="score-bar"><span>Urgency</span><div class="track"><div class="fill" id="urgency-bar"></div></div><span id="urgency-text">14</span></div>
+            <div class="score-bar"><span>Penalty</span><div class="track"><div class="fill red" id="risk-bar"></div></div><span id="risk-text">-9</span></div>
+          </div>
+          <div class="formula">score = quality + market + need + scarcity + urgency - risk</div>
+        </aside>
+      </div>
+
+      <div class="split-grid" style="margin-top: 14px;">
+        <article class="card">
+          <span class="label blue">Guardrail</span>
+          <h3 style="margin-top: 12px;">Draft stage can override a mathematically attractive score</h3>
+          <p>
+            Kicker and defense receive a large early-draft penalty. Second QB and TE VOR are
+            reduced when those positions are only depth. These rules were added after raw
+            replacement value produced strategically bad recommendations.
+          </p>
+        </article>
+        <article class="card">
+          <span class="label gold">Interpretation</span>
+          <h3 style="margin-top: 12px;">"Best player" and "best pick" remain separate lists</h3>
+          <p>
+            Best Available isolates composite player quality. Draft Now adds roster and timing.
+            Best Value only shows market discounts that are still above replacement, while
+            lower-value discounts are moved into a separate stash view.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section id="timeline">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Implementation History</p>
+          <h2>How the architecture emerged</h2>
+        </div>
+        <p class="section-copy">
+          The commit history shows a deliberate sequence: establish canonical state, improve
+          source quality, add historical context, then harden the decision experience around
+          actual draft-stage failure modes.
+        </p>
+      </div>
+
+      <div class="timeline">
+        <article class="timeline-card">
+          <div class="timeline-date">May 4, 2026</div>
+          <div>
+            <h3>Canonical live sync</h3>
+            <p>Added the local Sleeper sync server and <code>DraftSyncEngine</code>, then rewired the extension to consume the same stream as the web app.</p>
+          </div>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-date">May 12, 2026</div>
+          <div>
+            <h3>Current expert snapshot</h3>
+            <p>Introduced a cached FantasyPros provider, API-backed refresh, fallback behavior, and recommendation diagnostics.</p>
+          </div>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-date">May 28-29, 2026</div>
+          <div>
+            <h3>Historical data foundation</h3>
+            <p>Imported league history, created the DuckDB workspace, materialized prediction datasets, and built the room-specific survival model.</p>
+          </div>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-date">May 29, 2026</div>
+          <div>
+            <h3>Roster-aware recommendation system</h3>
+            <p>Added need, scarcity, VOR, tier urgency, survival, uncertainty, and availability-risk signals, followed by a major draft UI redesign.</p>
+          </div>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-date">May 30, 2026</div>
+          <div>
+            <h3>Operational and strategic guardrails</h3>
+            <p>Added <code>prepare:draft</code>, artifact freshness policy, transparent backtesting, special-teams deferral, improved onboarding, and actionable market-value filtering.</p>
+          </div>
+        </article>
+        <article class="timeline-card">
+          <div class="timeline-date">May 31-June 1, 2026</div>
+          <div>
+            <h3>Current-pick usability and trust</h3>
+            <p>Added the on-the-clock panel, draft-stage-aware needs, stable sync status, player watchlist, undo restoration, and visible data confidence.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="learnings">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Build Learnings</p>
+          <h2>What the project taught us</h2>
+        </div>
+        <p class="section-copy">
+          These are the durable engineering and product lessons that came from implementing
+          and testing the system, not assumptions copied from the original plan.
+        </p>
+      </div>
+
+      <div class="learning-grid">
+        <article class="learning-card">
+          <span class="lesson-number">01</span>
+          <h3>Canonical state is more valuable than another feature</h3>
+          <p>Once both clients consumed the same normalized snapshot, sync health, retries, confidence, and tests became tractable.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">02</span>
+          <h3>Source labels are part of correctness</h3>
+          <p>Calling <code>search_rank</code> "ADP" made the product sound more precise than the source. Naming the proxy accurately changed how it was weighted and explained.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">03</span>
+          <h3>Prediction quality does not decide a draft pick alone</h3>
+          <p>The current roster, remaining tiers, pick distance, and draft stage can rationally reverse the order of two similarly projected players.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">04</span>
+          <h3>Small personal datasets are useful when scoped tightly</h3>
+          <p>Four league seasons are informative for positional timing. They are not a defensible foundation for universal player-outcome prediction.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">05</span>
+          <h3>Transparent failure beats an impressive claim</h3>
+          <p>The first replay model lost to ECR-only. Keeping that result exposed missing roster, injury-date, keeper, and room-state features that need better validation.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">06</span>
+          <h3>Heuristic systems need explicit strategic guardrails</h3>
+          <p>A score can be internally consistent and still recommend an early kicker or redundant quarterback. Draft-stage rules encode constraints the base arithmetic misses.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">07</span>
+          <h3>Offline complexity can produce a simple runtime</h3>
+          <p>DuckDB performs the expensive joins and modeling, then emits compact JSON. The browser remains fast, inspectable, and independent of database availability.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">08</span>
+          <h3>Freshness is a product feature</h3>
+          <p>Cached data makes the draft resilient, but only if the user can see its age and knows when to refresh it. Hidden staleness is worse than an explicit fallback.</p>
+        </article>
+        <article class="learning-card">
+          <span class="lesson-number">09</span>
+          <h3>Browser extensions have lifecycle edge cases</h3>
+          <p>Reloading an extension does not reliably reinject content scripts into open Sleeper tabs. The operational workflow must explicitly include refreshing the draft page.</p>
+        </article>
+      </div>
+
+      <div class="backtest-callout">
+        <div class="backtest-number">-613.94</div>
+        <div>
+          <h3>Transparent Model V1 captured less VOR than the ECR-only replay</h3>
+          <p>
+            The baseline replay captured 863.66 VOR versus 1477.60 for ECR-only across
+            49 evaluated picks. This does not invalidate the architecture; it shows the
+            current historical replay is incomplete and should not be marketed as proven.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="verification">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Quality and Remaining Risk</p>
+          <h2>What is verified, and what is not</h2>
+        </div>
+        <p class="section-copy">
+          The system has focused unit and integration coverage around the highest-risk logic.
+          Browser-level extension behavior and model effectiveness remain the largest gaps.
+        </p>
+      </div>
+
+      <div class="verification-grid">
+        <article class="card">
+          <span class="label">Covered</span>
+          <h3 style="margin-top: 12px;">Sync and state</h3>
+          <ul class="check-list">
+            <li>DraftSyncEngine normalization and deduplication</li>
+            <li>Mock Sleeper server integration</li>
+            <li>Zustand draft and undo behavior</li>
+            <li>On-the-clock utility behavior</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="label blue">Covered</span>
+          <h3 style="margin-top: 12px;">Decision calculations</h3>
+          <ul class="check-list">
+            <li>Player merge and value scoring</li>
+            <li>Recommendations and market-value filtering</li>
+            <li>Scarcity and draft-stage team needs</li>
+            <li>League survival probability</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="label violet">Covered</span>
+          <h3 style="margin-top: 12px;">Data adapters</h3>
+          <ul class="check-list">
+            <li>FantasyPros API parsing and fallbacks</li>
+            <li>Cached provider behavior</li>
+            <li>League-history import sanitization</li>
+            <li>Custom league scoring adjustments</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="label gold">Known limit</span>
+          <h3 style="margin-top: 12px;">Runtime persistence</h3>
+          <ul class="risk-list">
+            <li>Server sessions are in memory only</li>
+            <li>No multi-user coordination</li>
+            <li>No multi-draft resource policy</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="label gold">Known limit</span>
+          <h3 style="margin-top: 12px;">Extension lifecycle</h3>
+          <ul class="risk-list">
+            <li>Draft ID still comes from the content script</li>
+            <li>Open Sleeper tabs need refresh after extension reload</li>
+            <li>No automated browser integration suite yet</li>
+          </ul>
+        </article>
+        <article class="card">
+          <span class="label red">Validation gap</span>
+          <h3 style="margin-top: 12px;">Model effectiveness</h3>
+          <ul class="risk-list">
+            <li>Replay does not fully reconstruct historical room state</li>
+            <li>Historical injury timing is incomplete</li>
+            <li>Keeper-aware tier removal needs stronger backtesting</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="split-grid" style="margin-top: 14px;">
+        <article class="card">
+          <h3>Primary implementation references</h3>
+          <p>
+            <a href="../server/src/sync-server.ts">Sync server</a> |
+            <a href="../shared/src/sync.ts">sync engine</a> |
+            <a href="../web-app/src/lib/calculations/recommendations.ts">recommendations</a> |
+            <a href="../web-app/src/lib/calculations/player-value.ts">player merge</a> |
+            <a href="../scripts/src/build-prediction-dataset.ts">prediction dataset</a>
+          </p>
+        </article>
+        <article class="card">
+          <h3>Primary design references</h3>
+          <p>
+            <a href="./first-pass.html">first-pass plan</a> |
+            <a href="../docs/data-strategy.md">data strategy</a> |
+            <a href="../docs/draft-approach.md">draft approach</a> |
+            <a href="../docs/modeling-duckdb.md">DuckDB workspace</a> |
+            <a href="../docs/recommendation-backtest.md">backtest report</a>
+          </p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-row">
+      <span>Fantasy Draft Assistant architecture and build retrospective</span>
+      <span>Generated from repository state on June 6, 2026</span>
+    </div>
+  </footer>
+
+  <script>
+    const nodeDetails = {
+      "sleeper-room": {
+        kicker: "External platform",
+        title: "Sleeper Draft Room",
+        description: "Sleeper is the authoritative source for live draft metadata and confirmed picks. The page URL also provides the draft ID used by the extension.",
+        points: [
+          "GET /v1/draft/:draftId returns teams, rounds, timer, order, and status.",
+          "GET /v1/draft/:draftId/picks returns the official pick history.",
+          "The active tab URL supplies context; DOM picks are not the primary truth."
+        ],
+        file: "../README.md",
+        label: "Design reference: README.md"
+      },
+      "extension": {
+        kicker: "Chrome Manifest V3",
+        title: "Extension Context Layer",
+        description: "The extension detects whether the current Sleeper tab is a draft room, extracts the draft ID, persists context, and opens the companion side panel.",
+        points: [
+          "Content script observes Sleeper SPA navigation.",
+          "Service worker stores draft status and extension preferences.",
+          "DOM-detected picks remain a fallback, while canonical picks come from the server."
+        ],
+        file: "../extension/src/content/sleeper-detector.ts",
+        label: "Implementation: extension/src/content/sleeper-detector.ts"
+      },
+      "sync-server": {
+        kicker: "System of record",
+        title: "Local Sync Server",
+        description: "A lightweight Node HTTP service owns the canonical Sleeper draft snapshot instead of asking each client to interpret the draft independently.",
+        points: [
+          "Polls draft metadata and picks in parallel every second.",
+          "Stores one in-memory session per draft ID.",
+          "Streams the same normalized snapshot to the app and extension."
+        ],
+        file: "../server/src/sync-server.ts",
+        label: "Implementation: server/src/sync-server.ts"
+      },
+      "sync-engine": {
+        kicker: "Shared domain core",
+        title: "DraftSyncEngine",
+        description: "The shared engine turns source-shaped Sleeper responses into one stable draft contract used across the repository.",
+        points: [
+          "Normalizes positions, names, source, confidence, and timestamps.",
+          "Deduplicates by pick number and keeps picks ordered.",
+          "Tracks sync state, last poll, last success, and last error."
+        ],
+        file: "../shared/src/sync.ts",
+        label: "Implementation: shared/src/sync.ts"
+      },
+      "sse": {
+        kicker: "Transport",
+        title: "HTTP Snapshots + SSE",
+        description: "The project chose simple request/response endpoints plus Server-Sent Events because live draft updates are predominantly server-to-client.",
+        points: [
+          "GET retrieves the current snapshot.",
+          "POST refresh triggers an immediate poll.",
+          "The events endpoint pushes status, pick, and snapshot updates."
+        ],
+        file: "../server/src/sync-server.ts",
+        label: "Implementation: server/src/sync-server.ts"
+      },
+      "web-app": {
+        kicker: "Primary client",
+        title: "React Web Application",
+        description: "The web app is the full decision surface: live picks, available players, current roster, watchlist, recommendations, diagnostics, and data confidence.",
+        points: [
+          "React 18 + TypeScript + Vite.",
+          "TanStack Query owns remote/cache lifecycles.",
+          "Feature modules keep the draft board, needs, and recommendations separate."
+        ],
+        file: "../web-app/src/App.tsx",
+        label: "Implementation: web-app/src/App.tsx"
+      },
+      "side-panel": {
+        kicker: "Companion client",
+        title: "Extension Side Panel",
+        description: "The side panel provides a lightweight view beside Sleeper and opens the full application with the draft ID and pick position.",
+        points: [
+          "Subscribes directly to the canonical SSE stream.",
+          "Shows official synced picks when a snapshot is available.",
+          "Keeps the extension useful without duplicating the full recommendation UI."
+        ],
+        file: "../extension/src/sidepanel/sidepanel.ts",
+        label: "Implementation: extension/src/sidepanel/sidepanel.ts"
+      },
+      "runtime-json": {
+        kicker: "Cached runtime inputs",
+        title: "Versioned JSON Artifacts",
+        description: "Current rankings, projections, news, platform rank, team environment, predictions, and league survival are materialized before draft time.",
+        points: [
+          "Removes external data-source latency from the live decision loop.",
+          "Makes every recommendation input inspectable.",
+          "Supports explicit freshness checks and manual fallbacks."
+        ],
+        file: "../data/",
+        label: "Artifacts: data/"
+      },
+      "player-merge": {
+        kicker: "Cross-source normalization",
+        title: "Player Merge Layer",
+        description: "The browser app joins the current expert snapshot, Sleeper market proxy, contracts, team environment, news, and model predictions into one Player contract.",
+        points: [
+          "Prefers stable player IDs when available.",
+          "Uses normalized name and team as an exact fallback.",
+          "Only uses name and position fallback when that identity is unique."
+        ],
+        file: "../web-app/src/lib/calculations/player-value.ts",
+        label: "Implementation: web-app/src/lib/calculations/player-value.ts"
+      },
+      "zustand": {
+        kicker: "Interactive UI state",
+        title: "Zustand Draft Store",
+        description: "The store owns user-interactive state, while the server owns the source snapshot. That boundary prevents UI concerns from becoming ingestion logic.",
+        points: [
+          "Tracks drafted IDs, roster, history, shortlist, filters, and sort.",
+          "Handles snake-draft turn calculation.",
+          "Restores watchlist position and roster state during undo."
+        ],
+        file: "../web-app/src/stores/draftStore.ts",
+        label: "Implementation: web-app/src/stores/draftStore.ts"
+      },
+      "recommendations": {
+        kicker: "Decision layer",
+        title: "Recommendation Engine",
+        description: "The scorer combines player quality with the current draft context and returns distinct views for Draft Now, Best Available, Best Value, stashes, and positional needs.",
+        points: [
+          "Quality: expert rank, projection, VOR, upside, and tier urgency.",
+          "Context: need, scarcity, turn state, and next-pick survival.",
+          "Penalties: availability risk, uncertainty, and draft-stage guardrails."
+        ],
+        file: "../web-app/src/lib/calculations/recommendations.ts",
+        label: "Implementation: web-app/src/lib/calculations/recommendations.ts"
+      },
+      "draft-ui": {
+        kicker: "Decision surface",
+        title: "Draft Board Experience",
+        description: "The interface is organized around the immediate decision rather than presenting a passive rankings spreadsheet.",
+        points: [
+          "On-the-clock panel surfaces the current recommendation.",
+          "Player table supports search, position filtering, sorting, and watchlist.",
+          "Diagnostics expose the reasons behind recommendation movement."
+        ],
+        file: "../web-app/src/features/draft-board/PlayerTable.tsx",
+        label: "Implementation: web-app/src/features/draft-board/PlayerTable.tsx"
+      },
+      "fantasypros": {
+        kicker: "Current expert source",
+        title: "FantasyPros Snapshot",
+        description: "FantasyPros supplies current consensus rank, projection, and news signals through one cached artifact.",
+        points: [
+          "API refresh is attempted when credentials are present.",
+          "A manual/local fallback keeps the runtime usable when the API fails.",
+          "The live app never needs repeated FantasyPros requests."
+        ],
+        file: "../scripts/src/refresh-fantasypros-snapshot.ts",
+        label: "Implementation: scripts/src/refresh-fantasypros-snapshot.ts"
+      },
+      "sleeper-market": {
+        kicker: "Platform market proxy",
+        title: "Sleeper search_rank",
+        description: "Sleeper player search_rank estimates platform ordering. The project deliberately labels it a proxy rather than claiming it is observed-draft ADP.",
+        points: [
+          "Useful for expert-versus-platform disagreement.",
+          "Falls back to ECR when rank is missing or placeholder-quality.",
+          "Freshness and source confidence are surfaced in the UI."
+        ],
+        file: "../scripts/src/fetch-sleeper-adp.ts",
+        label: "Implementation: scripts/src/fetch-sleeper-adp.ts"
+      },
+      "league-history": {
+        kicker: "Personal league context",
+        title: "Imported Sleeper Draft History",
+        description: "Drafts from 2022 through 2025 capture how this specific room behaves, including keeper-adjusted pick histories.",
+        points: [
+          "Raw API snapshots are retained under data/league-history/raw.",
+          "Sanitized normalized history feeds the survival model.",
+          "Room data influences timing, not base player quality."
+        ],
+        file: "../scripts/src/import-league-draft-history.ts",
+        label: "Implementation: scripts/src/import-league-draft-history.ts"
+      },
+      "nflverse": {
+        kicker: "Historical production",
+        title: "nflverse Foundation",
+        description: "Open nflverse datasets provide the historical structure needed for reproducible team and player features.",
+        points: [
+          "Player and team stats, schedules, rosters, and identifiers.",
+          "Five modeled seasons from 2021 through 2025.",
+          "Also powers the derived team-environment baseline."
+        ],
+        file: "../docs/data-strategy.md",
+        label: "Design reference: docs/data-strategy.md"
+      },
+      "ffopportunity": {
+        kicker: "Expected opportunity",
+        title: "ffopportunity Features",
+        description: "Opportunity-based features help distinguish repeatable usage from noisy realized scoring.",
+        points: [
+          "Expected fantasy points and expected yardage/touchdown context.",
+          "Team opportunity share metrics.",
+          "30,243 weekly source rows in the current local model report."
+        ],
+        file: "../docs/modeling-duckdb.md",
+        label: "Design reference: docs/modeling-duckdb.md"
+      },
+      "dynastyprocess": {
+        kicker: "Historical ranking context",
+        title: "DynastyProcess Data",
+        description: "Historical rankings and cross-platform IDs supply pre-draft market context and improve joins across source systems.",
+        points: [
+          "Historical redraft ranking context.",
+          "Cross-platform fantasy player identifiers.",
+          "1.74 million ranking rows materialized in the model workspace."
+        ],
+        file: "../data/model-report.json",
+        label: "Generated evidence: data/model-report.json"
+      },
+      "duckdb": {
+        kicker: "Embedded analytics",
+        title: "DuckDB + Parquet Workspace",
+        description: "DuckDB is an offline build tool, not an application dependency. It performs source profiling, joins, feature construction, and output generation locally.",
+        points: [
+          "No Docker container or database server.",
+          "Generated database and Parquet files are gitignored.",
+          "Write commands run sequentially because the embedded file is locked."
+        ],
+        file: "../docs/modeling-duckdb.md",
+        label: "Design reference: docs/modeling-duckdb.md"
+      },
+      "prediction-layer": {
+        kicker: "Player-quality layer",
+        title: "Prediction Outputs",
+        description: "The model handoff describes expected player performance before roster and draft-room context are applied.",
+        points: [
+          "Projected points, floor, ceiling, VOR, and upside.",
+          "Availability risk and model uncertainty remain separate.",
+          "Custom +0.20 rush-attempt and +0.50 TE reception bonuses are applied."
+        ],
+        file: "../data/predictions.json",
+        label: "Runtime artifact: data/predictions.json"
+      },
+      "survival-model": {
+        kicker: "Draft timing layer",
+        title: "League-History Survival Model",
+        description: "The timing model estimates whether an available player is likely to remain until the user's next snake-draft selection.",
+        points: [
+          "Uses position premiums and ADP-bucket pressure from this league.",
+          "Calculates league-adjusted market rank and conditional survival.",
+          "Falls back to a transparent heuristic when league context is unavailable."
+        ],
+        file: "../web-app/src/lib/calculations/survival.ts",
+        label: "Runtime calculation: web-app/src/lib/calculations/survival.ts"
+      },
+      "artifacts": {
+        kicker: "Runtime handoff",
+        title: "Generated Data Contracts",
+        description: "The offline pipeline ends at small JSON contracts so the live app can remain static, fast, and debuggable.",
+        points: [
+          "predictions.json for player-quality outputs.",
+          "survival-model.json for local room timing.",
+          "team-environment.json and FantasyPros/Sleeper snapshots for current context."
+        ],
+        file: "../data/",
+        label: "Artifacts: data/"
+      },
+      "refresh-policy": {
+        kicker: "Operational safety",
+        title: "Explicit Data Freshness",
+        description: "Normal development reports stale inputs but does not silently refresh data or rewrite tracked artifacts.",
+        points: [
+          "pnpm data:check runs before development.",
+          "Daily and draft-prep refreshes are explicit commands.",
+          "The UI can communicate source age and fallback state."
+        ],
+        file: "../docs/data-refresh.md",
+        label: "Policy: docs/data-refresh.md"
+      },
+      "prepare-draft": {
+        kicker: "Draft-week orchestration",
+        title: "prepare:draft Pipeline",
+        description: "One command assembles all draft-day inputs in a deliberate sequence.",
+        points: [
+          "Refreshes Sleeper, FantasyPros, and team environment.",
+          "Rebuilds DuckDB datasets, predictions, and league survival.",
+          "Runs the baseline backtest and writes the prep report."
+        ],
+        file: "../package.json",
+        label: "Command definition: package.json"
+      },
+      "prep-report": {
+        kicker: "Human review artifact",
+        title: "Draft Prep Report",
+        description: "The generated report translates machine artifacts into a pre-draft review of freshness, room tendencies, tiers, keepers, and operational steps.",
+        points: [
+          "Separates durable strategy from season-specific evidence.",
+          "Includes the current manual keeper state.",
+          "Can be regenerated without rebuilding every source."
+        ],
+        file: "../docs/draft-prep-report.md",
+        label: "Generated report: docs/draft-prep-report.md"
+      }
+    };
+
+    const modeButtons = document.querySelectorAll("[data-mode]");
+    const views = document.querySelectorAll("[data-view]");
+    const nodes = document.querySelectorAll("[data-node]");
+    const detailKicker = document.getElementById("detail-kicker");
+    const detailTitle = document.getElementById("detail-title");
+    const detailDescription = document.getElementById("detail-description");
+    const detailPoints = document.getElementById("detail-points");
+    const detailFile = document.getElementById("detail-file");
+
+    function setNode(key) {
+      const detail = nodeDetails[key];
+      if (!detail) return;
+      detailKicker.textContent = detail.kicker;
+      detailTitle.textContent = detail.title;
+      detailDescription.textContent = detail.description;
+      detailPoints.replaceChildren(...detail.points.map((point) => {
+        const item = document.createElement("li");
+        item.textContent = point;
+        return item;
+      }));
+      detailFile.href = detail.file;
+      detailFile.textContent = detail.label;
+      nodes.forEach((node) => node.classList.toggle("active", node.dataset.node === key));
+    }
+
+    nodes.forEach((node) => {
+      node.addEventListener("click", () => setNode(node.dataset.node));
+    });
+
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const mode = button.dataset.mode;
+        modeButtons.forEach((candidate) => {
+          const selected = candidate.dataset.mode === mode;
+          candidate.classList.toggle("active", selected);
+          candidate.setAttribute("aria-selected", String(selected));
+        });
+        views.forEach((view) => view.classList.toggle("active", view.dataset.view === mode));
+        setNode(mode === "runtime" ? "sync-server" : "duckdb");
+      });
+    });
+
+    const decisionButtons = document.querySelectorAll("[data-decision-filter]");
+    const decisionCards = document.querySelectorAll("[data-decision-kind]");
+    decisionButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const filter = button.dataset.decisionFilter;
+        decisionButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
+        decisionCards.forEach((card) => {
+          card.hidden = filter !== "all" && card.dataset.decisionKind !== filter;
+        });
+      });
+    });
+
+    const sliderConfig = {
+      quality: { maxMagnitude: 100, bar: "quality-bar", text: "quality-text" },
+      market: { maxMagnitude: 30, bar: "market-bar", text: "market-text" },
+      need: { maxMagnitude: 35, bar: "need-bar", text: "need-text" },
+      scarcity: { maxMagnitude: 30, bar: "scarcity-bar", text: "scarcity-text" },
+      urgency: { maxMagnitude: 25, bar: "urgency-bar", text: "urgency-text" },
+      risk: { maxMagnitude: 35, bar: "risk-bar", text: "risk-text" }
+    };
+
+    function updateScore() {
+      const values = {};
+      Object.keys(sliderConfig).forEach((id) => {
+        const input = document.getElementById(id);
+        const value = Number(input.value);
+        values[id] = value;
+        input.nextElementSibling.value = value;
+        const config = sliderConfig[id];
+        const width = Math.min(100, Math.abs(value) / config.maxMagnitude * 100);
+        document.getElementById(config.bar).style.width = `${width}%`;
+        document.getElementById(config.text).textContent = id === "risk" ? `-${value}` : String(value);
+      });
+
+      const score = values.quality + values.market + values.need + values.scarcity + values.urgency - values.risk;
+      document.getElementById("score-number").textContent = String(score);
+
+      let grade = "Pass unless alternatives are weak";
+      if (score >= 125) grade = "Strong current-pick fit";
+      else if (score >= 95) grade = "Solid draft-now option";
+      else if (score >= 70) grade = "Context-dependent choice";
+      document.getElementById("score-grade").textContent = grade;
+    }
+
+    Object.keys(sliderConfig).forEach((id) => {
+      document.getElementById(id).addEventListener("input", updateScore);
+    });
+    updateScore();
+
+    const navLinks = document.querySelectorAll(".nav-link");
+    const observedSections = [...navLinks]
+      .map((link) => document.querySelector(link.getAttribute("href")))
+      .filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        navLinks.forEach((link) => {
+          link.classList.toggle("active", link.getAttribute("href") === `#${entry.target.id}`);
+        });
+      });
+    }, { rootMargin: "-34% 0px -58% 0px" });
+
+    observedSections.forEach((section) => observer.observe(section));
+    setNode("sync-server");
+  </script>
+</body>
+</html>

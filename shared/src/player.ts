@@ -42,6 +42,14 @@ export const PREDICTION_SOURCES = ['model', 'fantasypros', 'heuristic'] as const
 
 export type PredictionSource = (typeof PREDICTION_SOURCES)[number];
 
+export const TIER_SOURCES = ['league-projection', 'ecr-fallback'] as const;
+
+export type TierSource = (typeof TIER_SOURCES)[number];
+
+export const SURVIVAL_MODEL_SOURCES = ['league-history', 'heuristic'] as const;
+
+export type SurvivalModelSource = (typeof SURVIVAL_MODEL_SOURCES)[number];
+
 export interface PlayerPrediction {
   readonly playerId?: string;
   readonly name: string;
@@ -49,13 +57,19 @@ export interface PlayerPrediction {
   readonly team: NFLTeam;
   /** Base PPR projection before league-specific bonuses */
   readonly baseProjectedPoints?: number;
-  /** Leakage-safe trailing snap-share and Next Gen Stats adjustment */
+  /** Leakage-safe position-specific opportunity and efficiency residual */
   readonly usageEfficiencyAdjustment?: number;
   /** Rush-attempt and TE-premium points added for this league */
   readonly customScoringAdjustment?: number;
   readonly projectedPoints: number;
   /** Projection after league-specific bonuses */
   readonly customProjectedPoints?: number;
+  /** Low outcome from the model's league-scored point distribution */
+  readonly floorProjectedPoints?: number;
+  /** High outcome from the model's league-scored point distribution */
+  readonly ceilingProjectedPoints?: number;
+  /** Percentile of projected points within the player's position (0-100) */
+  readonly positionPercentile?: number;
   readonly valueOverReplacement?: number;
   readonly ceilingScore?: number;
   readonly floorScore?: number;
@@ -63,6 +77,8 @@ export interface PlayerPrediction {
   readonly riskScore?: number;
   readonly injuryRiskScore?: number;
   readonly source: PredictionSource;
+  /** Position model that produced the common prediction outputs */
+  readonly modelFamily?: string;
   readonly modelVersion?: string;
 }
 
@@ -84,7 +100,7 @@ export interface Player {
   readonly sleeperAdp: number;
   /** Explicit alias for Sleeper's search-ordering signal. */
   readonly sleeperSearchRank?: number;
-  /** Consensus observed-draft ADP, currently sourced from FantasyPros. */
+  /** Observed-draft ADP from FFC, with FantasyPros/Sleeper fallbacks. */
   readonly consensusAdp?: number;
   /** Consensus ADP - ECR (positive = expert value versus observed market cost) */
   readonly valueScore: number;
@@ -103,14 +119,36 @@ export interface Player {
   readonly offensiveEnvironmentScore: number;
   /** Derived projection proxy until external projection source is added */
   readonly projectedPoints: number;
+  /** Difference from the published full-PPR projection after local league scoring. */
+  readonly leagueScoringAdjustment?: number;
+  /** Projection before the confidence-weighted sportsbook market overlay. */
+  readonly preMarketProjectedPoints?: number;
+  /** Fantasy-point delta contributed by sportsbook stat markets. */
+  readonly marketAdjustment?: number;
+  /** Average confidence across usable sportsbook stat markets (0-1). */
+  readonly marketConfidence?: number;
+  /** Number of stat markets included in the sportsbook overlay. */
+  readonly sportsbookMarketCount?: number;
   /** Derived value-over-replacement style score */
   readonly valueOverReplacement: number;
-  /** Position-specific draft tier */
+  /** League-adjusted, position-specific draft tier. */
   readonly tier: number;
-  /** Size of the dropoff after this player within the position */
+  /** Published FantasyPros tier when supplied by the rankings snapshot. */
+  readonly fantasyProsTier?: number;
+  /** Signal family used to generate the displayed draft tier. */
+  readonly tierSource?: TierSource;
+  /** Normalized strength (0-1) of the projection drop after this player. */
   readonly tierDropoffScore: number;
-  /** Heuristic probability that player survives to a later pick window */
+  /** League-scored projected-point drop to the next player at this position. */
+  readonly tierDropoffPoints?: number;
+  /** Estimated chance that the player remains available at the manager's next selection. */
   readonly nextPickSurvivalProbability: number;
+  /** Overall pick number for the manager's next selection. */
+  readonly nextPickNumber?: number;
+  /** Round.pick label for the manager's next selection. */
+  readonly nextPickLabel?: string;
+  /** Number of selections from the live cursor through the next manager selection. */
+  readonly picksUntilNextPick?: number;
   /** League-adjusted expected draft cost after applying historical room tendencies */
   readonly leagueAdjustedMarketRank?: number;
   /** Negative means this league tends to take this profile earlier than the Sleeper proxy */
@@ -118,7 +156,15 @@ export interface Player {
   /** Short explanation of the league-history tendency applied to this player */
   readonly leaguePositionTendency?: string;
   /** Source used for next-pick survival probability */
-  readonly survivalModelSource?: 'league-history' | 'heuristic';
+  readonly survivalModelSource?: SurvivalModelSource;
+  /** Pick estimate contributed by the Primary League's empirical position history. */
+  readonly historicalExpectedPick?: number;
+  /** Current observed-market ADP used to calibrate the historical estimate. */
+  readonly consensusMarketPick?: number;
+  /** Sleeper search rank used only as a secondary timing input. */
+  readonly sleeperTimingPick?: number;
+  /** Primary League pick sample behind the historical estimate. */
+  readonly survivalModelSampleSize?: number;
   /** Ceiling-oriented score */
   readonly ceilingScore: number;
   /** Floor-oriented score */
@@ -167,6 +213,10 @@ export function isPredictionSource(value: unknown): value is PredictionSource {
   return typeof value === 'string' && PREDICTION_SOURCES.includes(value as PredictionSource);
 }
 
+export function isTierSource(value: unknown): value is TierSource {
+  return typeof value === 'string' && TIER_SOURCES.includes(value as TierSource);
+}
+
 export function isNewsStatus(value: unknown): value is NewsStatus {
   return typeof value === 'string' && NEWS_STATUSES.includes(value as NewsStatus);
 }
@@ -176,7 +226,7 @@ function isOptionalNumber(value: unknown): value is number | undefined {
 }
 
 function isSurvivalModelSource(value: unknown): value is Player['survivalModelSource'] {
-  return value === undefined || value === 'league-history' || value === 'heuristic';
+  return value === undefined || SURVIVAL_MODEL_SOURCES.includes(value as SurvivalModelSource);
 }
 
 /**
@@ -207,15 +257,30 @@ export function isPlayer(obj: unknown): obj is Player {
     typeof candidate['isContractYear'] === 'boolean' &&
     typeof candidate['offensiveEnvironmentScore'] === 'number' &&
     typeof candidate['projectedPoints'] === 'number' &&
+    isOptionalNumber(candidate['leagueScoringAdjustment']) &&
+    isOptionalNumber(candidate['preMarketProjectedPoints']) &&
+    isOptionalNumber(candidate['marketAdjustment']) &&
+    isOptionalNumber(candidate['marketConfidence']) &&
+    isOptionalNumber(candidate['sportsbookMarketCount']) &&
     typeof candidate['valueOverReplacement'] === 'number' &&
     typeof candidate['tier'] === 'number' &&
+    isOptionalNumber(candidate['fantasyProsTier']) &&
+    (candidate['tierSource'] === undefined || isTierSource(candidate['tierSource'])) &&
     typeof candidate['tierDropoffScore'] === 'number' &&
+    isOptionalNumber(candidate['tierDropoffPoints']) &&
     typeof candidate['nextPickSurvivalProbability'] === 'number' &&
+    isOptionalNumber(candidate['nextPickNumber']) &&
+    (candidate['nextPickLabel'] === undefined || typeof candidate['nextPickLabel'] === 'string') &&
+    isOptionalNumber(candidate['picksUntilNextPick']) &&
     isOptionalNumber(candidate['leagueAdjustedMarketRank']) &&
     isOptionalNumber(candidate['leagueMarketDelta']) &&
     (candidate['leaguePositionTendency'] === undefined ||
       typeof candidate['leaguePositionTendency'] === 'string') &&
     isSurvivalModelSource(candidate['survivalModelSource']) &&
+    isOptionalNumber(candidate['historicalExpectedPick']) &&
+    isOptionalNumber(candidate['consensusMarketPick']) &&
+    isOptionalNumber(candidate['sleeperTimingPick']) &&
+    isOptionalNumber(candidate['survivalModelSampleSize']) &&
     typeof candidate['ceilingScore'] === 'number' &&
     typeof candidate['floorScore'] === 'number' &&
     typeof candidate['upsideScore'] === 'number' &&

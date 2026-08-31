@@ -255,6 +255,15 @@ async function main(): Promise<void> {
       ];
     })
   ) as Record<Position, PositionSummary>;
+  const historicalPickNumbers = Object.fromEntries(
+    POSITIONS.map((position) => [
+      position,
+      leaguePicks
+        .filter((pick) => pick.position === position)
+        .map((pick) => pick.pickNo)
+        .sort((left, right) => left - right),
+    ])
+  ) as Record<Position, number[]>;
   const leaguePositionRates = Object.fromEntries(
     POSITIONS.map((position) => [
       position,
@@ -333,13 +342,14 @@ async function main(): Promise<void> {
 
   const model = {
     generatedAt: new Date().toISOString(),
-    modelVersion: `league-history-survival-v1-${history.seasons[0]?.season ?? 'unknown'}-${history.seasons.at(-1)?.season ?? 'unknown'}`,
+    modelVersion: `league-history-survival-v2-${history.seasons[0]?.season ?? 'unknown'}-${history.seasons.at(-1)?.season ?? 'unknown'}`,
     leagueName: history.leagueName,
     seasons: history.seasons.map((season) => season.season),
     sampleSize: totalLeaguePicks,
     sourceResponsibilities: {
-      leagueHistory: 'Estimates draft-room position cost and pick survival from this league only.',
-      sleeperAdp: 'Provides a weak Sleeper search_rank platform-ordering proxy within the historical draftable pick range; it is not observed draft ADP.',
+      leagueHistory: 'Supplies the dominant empirical position-cost distribution for Return Probability.',
+      currentConsensusMarket: 'Maps current players into the historical distribution and calibrates its expected pick.',
+      sleeperAdp: 'Provides a five-percent secondary timing input from search_rank; it is not observed draft ADP or player quality.',
       predictionLayer: 'Not used for player quality; survival is applied after projected value is known.',
     },
     baseline: {
@@ -348,6 +358,7 @@ async function main(): Promise<void> {
       sleeperPlayerCount: totalMarketPlayers,
     },
     positions,
+    historicalPickNumbers,
     adpBuckets,
     managerTendencies,
     roundPositionRates,

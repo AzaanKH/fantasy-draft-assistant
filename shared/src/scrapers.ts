@@ -7,6 +7,8 @@ import type { NFLTeam, Position } from './player';
 export interface ECRPlayer {
   /** Stable FantasyPros player identifier when the API supplied it. */
   readonly fantasyProsId?: string;
+  /** Published FantasyPros tier when the rankings source exposes tier headers. */
+  readonly fantasyProsTier?: number;
   readonly rank: number;
   readonly name: string;
   readonly position: Position;
