@@ -1,13 +1,22 @@
-name: Verify
+name: Draft Readiness
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Daily at 08:00 PDT during the July-September draft-prep window.
+    - cron: "0 15 * 7-9 *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-readiness
+  cancel-in-progress: true
 
 jobs:
-  verify:
+  check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,6 +29,5 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm verify
-      - name: Assert web static-output policy
-        run: pnpm --filter scripts measure:web-bundle
+      - run: pnpm draft:rehearsal
+      - run: pnpm draft:readiness

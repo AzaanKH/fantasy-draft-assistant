@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T21:16:19.600Z",
+  "generatedAt": "2026-08-31T01:26:12.696Z",
   "season": 2026,
   "status": "warn",
   "summary": {
@@ -109,7 +109,7 @@
       "id": "fantasypros.projections.freshness",
       "status": "pass",
       "message": "FantasyPros projections are no more than 14 days old.",
-      "actual": 0,
+      "actual": 0.17,
       "expected": "<= 14 days"
     },
     {
@@ -299,7 +299,7 @@
       "id": "contracts.source-freshness",
       "status": "pass",
       "message": "The upstream nflverse contracts release is no more than 30 days old.",
-      "actual": 1.34,
+      "actual": 1.51,
       "expected": "<= 30 days"
     },
     {

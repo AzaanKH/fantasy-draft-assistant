@@ -1,38 +1,155 @@
 {
-  "generatedAt": "2026-07-20T22:22:14.805Z",
+  "generatedAt": "2026-08-13T05:39:17.131Z",
   "budgets": {
     "jsGzipBytes": 163840,
-    "cssGzipBytes": 20480
+    "cssGzipBytes": 20480,
+    "staticOutputBytes": 5242880
   },
   "totals": {
-    "jsGzipBytes": 139600,
-    "cssGzipBytes": 10530
+    "jsGzipBytes": 149608,
+    "cssGzipBytes": 15205,
+    "staticOutputBytes": 4100850
   },
+  "prohibitedPaths": [],
   "passed": true,
   "assets": [
     {
-      "file": "index-Doz3EDqE.css",
-      "type": "css",
-      "rawBytes": 62360,
-      "gzipBytes": 10530,
-      "brotliBytes": 8790
+      "file": "AssistantPage-DC9gfbPi.js",
+      "type": "js",
+      "rawBytes": 33970,
+      "gzipBytes": 9124,
+      "brotliBytes": 8068
     },
     {
-      "file": "index-DxfoFpMM.js",
+      "file": "DraftGlossary-DiwdbLE9.js",
       "type": "js",
-      "rawBytes": 454038,
-      "gzipBytes": 139600,
-      "brotliBytes": 120490
+      "rawBytes": 2781,
+      "gzipBytes": 1388,
+      "brotliBytes": 1108
+    },
+    {
+      "file": "DraftQueuePanel-Cpdzg-bF.js",
+      "type": "js",
+      "rawBytes": 2884,
+      "gzipBytes": 1258,
+      "brotliBytes": 1119
+    },
+    {
+      "file": "DraftRosterPanel-L6Ls_xry.js",
+      "type": "js",
+      "rawBytes": 1860,
+      "gzipBytes": 813,
+      "brotliBytes": 724
+    },
+    {
+      "file": "DraftSuggestions-PtRUUorD.js",
+      "type": "js",
+      "rawBytes": 2734,
+      "gzipBytes": 1153,
+      "brotliBytes": 1025
+    },
+    {
+      "file": "RosterSettings-D9-ixhO7.js",
+      "type": "js",
+      "rawBytes": 2730,
+      "gzipBytes": 1088,
+      "brotliBytes": 946
+    },
+    {
+      "file": "SidePanelPage-VIk-y8dX.js",
+      "type": "js",
+      "rawBytes": 24308,
+      "gzipBytes": 6481,
+      "brotliBytes": 5728
+    },
+    {
+      "file": "assistant-position-rankings-DkVVMgVf.js",
+      "type": "js",
+      "rawBytes": 568,
+      "gzipBytes": 365,
+      "brotliBytes": 298
+    },
+    {
+      "file": "index-18pD6P1i.js",
+      "type": "js",
+      "rawBytes": 413219,
+      "gzipBytes": 127938,
+      "brotliBytes": 110859
+    },
+    {
+      "file": "index-4a6bKpi3.css",
+      "type": "css",
+      "rawBytes": 94470,
+      "gzipBytes": 15205,
+      "brotliBytes": 11969
+    }
+  ],
+  "largestStaticFiles": [
+    {
+      "path": "assets/index-18pD6P1i.js.map",
+      "bytes": 1506062
+    },
+    {
+      "path": "data/predictions.json",
+      "bytes": 716845
+    },
+    {
+      "path": "data/fantasypros-snapshot.json",
+      "bytes": 483123
+    },
+    {
+      "path": "assets/index-18pD6P1i.js",
+      "bytes": 413219
+    },
+    {
+      "path": "data/player-identity.json",
+      "bytes": 265169
+    },
+    {
+      "path": "data/sleeper-adp.json",
+      "bytes": 265091
+    },
+    {
+      "path": "assets/index-4a6bKpi3.css",
+      "bytes": 94470
+    },
+    {
+      "path": "assets/AssistantPage-DC9gfbPi.js.map",
+      "bytes": 86883
+    },
+    {
+      "path": "data/contracts.json",
+      "bytes": 65628
+    },
+    {
+      "path": "assets/SidePanelPage-VIk-y8dX.js.map",
+      "bytes": 63200
+    },
+    {
+      "path": "assets/AssistantPage-DC9gfbPi.js",
+      "bytes": 33970
+    },
+    {
+      "path": "assets/SidePanelPage-VIk-y8dX.js",
+      "bytes": 24308
+    },
+    {
+      "path": "data/league-history/survival-model.json",
+      "bytes": 18371
+    },
+    {
+      "path": "assets/RosterSettings-D9-ixhO7.js.map",
+      "bytes": 9275
+    },
+    {
+      "path": "data/team-environment.json",
+      "bytes": 9213
     }
   ],
   "estimatedSourceComposition": [
     {
       "source": "application",
-      "sourceBytes": 225587
-    },
-    {
-      "source": "@tanstack/table-core",
-      "sourceBytes": 138845
+      "sourceBytes": 495657
     },
     {
       "source": "react-dom",
@@ -51,16 +168,8 @@
       "sourceBytes": 49821
     },
     {
-      "source": "@radix-ui/react-select",
-      "sourceBytes": 49584
-    },
-    {
-      "source": "@floating-ui/core",
-      "sourceBytes": 36167
-    },
-    {
-      "source": "@floating-ui/dom",
-      "sourceBytes": 27498
+      "source": "lucide-react",
+      "sourceBytes": 25807
     },
     {
       "source": "tslib",
@@ -79,16 +188,30 @@
       "sourceBytes": 12986
     },
     {
-      "source": "@radix-ui/react-popper",
-      "sourceBytes": 11613
+      "source": "@radix-ui/react-roving-focus",
+      "sourceBytes": 9311
     },
     {
-      "source": "lucide-react",
-      "sourceBytes": 10690
+      "source": "@radix-ui/react-dismissable-layer",
+      "sourceBytes": 9040
+    },
+    {
+      "source": "@tanstack/react-query",
+      "sourceBytes": 8796
+    },
+    {
+      "source": "@radix-ui/react-slot",
+      "sourceBytes": 8781
+    },
+    {
+      "source": "react",
+      "sourceBytes": 8193
     }
   ],
   "notes": [
     "Source composition is an unminified source-map estimate; use it for direction, not transfer-size accounting.",
-    "Source-map files are excluded from transfer budgets."
+    "Source-map files are excluded from transfer budgets.",
+    "Static-output size includes every file emitted under web-app/dist.",
+    "Only browser-required JSON files in the data allowlist may be published under dist/data."
   ]
 }
