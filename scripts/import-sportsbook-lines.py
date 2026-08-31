@@ -64,45 +64,80 @@ def extract_pages(path: Path) -> list[str]:
 def extract_draftkings_over_under(
     path: Path, market: str, warnings: list[str]
 ) -> list[dict[str, Any]]:
-    text = "\n".join(extract_pages(path))
-    headers = [
-        match.group(1).strip()
-        for match in re.finditer(r"^NFL 2026/27 - (.+)$", text, re.MULTILINE)
-        if "Regular Season" not in match.group(1)
-    ]
-    outcomes = [
-        (
-            float(over_line),
-            int(over_odds),
-            float(under_line),
-            int(under_odds),
-        )
-        for over_line, over_odds, under_line, under_odds in re.findall(
-            (
-                r"^Over ([0-9.]+)\n([+-][0-9]+)\n"
-                r"Under ([0-9.]+)\n([+-][0-9]+)$"
-            ),
-            text,
-            re.MULTILINE,
-        )
-    ]
+    text = "\n".join(
+        normalize_text(page.extract_text(extraction_mode="layout") or "")
+        for page in PdfReader(path).pages
+    )
+    lines = [line.strip() for line in text.splitlines()]
+    headers: list[str] = []
+    pairs: list[tuple[str, float, int, float, int]] = []
+    pending_heading: str | None = None
+    unpriced: list[str] = []
+    orphan_outcome_count = 0
+    outcome_count = 0
 
-    if len(headers) < len(outcomes):
+    for index, line in enumerate(lines):
+        heading = re.search(r"NFL 2026/27 - (.+)", line)
+        if heading is not None:
+            heading_text = heading.group(1).strip()
+            priced_heading = re.fullmatch(r"(.+) Regular Season .+", heading_text)
+            player_name = (
+                heading_text
+                if priced_heading is None
+                else priced_heading.group(1).strip()
+            )
+            if player_name == pending_heading:
+                continue
+            if pending_heading is not None:
+                unpriced.append(pending_heading)
+            headers.append(player_name)
+            pending_heading = player_name
+            continue
+
+        outcome = re.search(r"\bOver ([0-9.]+).*?Under ([0-9.]+)", line)
+        if outcome is None:
+            continue
+        outcome_count += 1
+        odds = re.findall(
+            r"[+-](?:[0-9]{3}(?=[0-9]{2}/[0-9]{2}/)|[0-9]{3,4}(?![0-9]))",
+            "\n".join(lines[index + 1 : index + 4]),
+        )
+        if pending_heading is None or len(odds) < 2:
+            orphan_outcome_count += 1
+            continue
+        pairs.append(
+            (
+                pending_heading,
+                float(outcome.group(1)),
+                int(odds[0]),
+                float(outcome.group(2)),
+                int(odds[1]),
+            )
+        )
+        pending_heading = None
+
+    if pending_heading is not None:
+        unpriced.append(pending_heading)
+
+    if len(headers) < outcome_count:
         raise ValueError(
             f"{path.name}: found {len(headers)} player headings for "
-            f"{len(outcomes)} over/under outcomes"
+            f"{outcome_count} over/under outcomes"
         )
 
-    if len(headers) > len(outcomes):
-        unpriced = headers[len(outcomes) :]
+    if orphan_outcome_count > 0:
+        raise ValueError(
+            f"{path.name}: found {orphan_outcome_count} over/under outcome blocks "
+            "without a preceding player heading"
+        )
+
+    if unpriced:
         warnings.append(
             f"DraftKings {market}: unpriced headings omitted: {', '.join(unpriced)}."
         )
 
     records: list[dict[str, Any]] = []
-    for player_name, (over_line, over_odds, under_line, under_odds) in zip(
-        headers, outcomes, strict=False
-    ):
+    for player_name, over_line, over_odds, under_line, under_odds in pairs:
         if over_line != under_line:
             warnings.append(
                 f"{path.name}: {player_name} has mismatched over/under thresholds "

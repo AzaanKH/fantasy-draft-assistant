@@ -255,11 +255,44 @@ describe('fantasyProsApiInternals', () => {
     ]);
   });
 
-  it('does not infer out status from unrelated substrings or standout phrasing', () => {
+  it('uses the newest structured injury when a player has duplicate records', () => {
+    const playerIndex = new Map([
+      ['789', { name: 'Player Three', team: 'KC' as const, position: 'WR' as const }],
+    ]);
+    const news = fantasyProsApiInternals.buildNews(
+      { items: [{ player_id: 789, title: 'Player Three uncertain for Week 1' }] },
+      playerIndex
+    );
+    const injuries = fantasyProsApiInternals.buildInjuryNews(
+      {
+        injuries: [
+          {
+            player_id: 789,
+            status: 'QUESTIONABLE',
+            injury_update_date: '2026-08-29 12:00:00',
+          },
+          {
+            player_id: 789,
+            status: 'OUT',
+            injury_update_date: '2026-08-28 12:00:00',
+          },
+        ],
+      },
+      playerIndex
+    );
+
+    expect(fantasyProsApiInternals.combineNewsWithInjuries(news, injuries)[0]?.status)
+      .toBe('questionable');
+  });
+
+  it('maps structured OUT, IR, PUP, and O status codes to out', () => {
     expect(fantasyProsApiInternals.deriveStructuredStatus({ status: 'OUT' })).toBe('out');
     expect(fantasyProsApiInternals.deriveStructuredStatus({ status: 'IR' })).toBe('out');
     expect(fantasyProsApiInternals.deriveStructuredStatus({ status: 'PUP' })).toBe('out');
     expect(fantasyProsApiInternals.deriveStructuredStatus({ status_short: 'O' })).toBe('out');
+  });
+
+  it('applies injury-news phrasing without substring false positives', () => {
     expect(fantasyProsApiInternals.deriveNewsStatus({
       title: 'Rookie stood out without limitations at practice',
     })).toBe('unknown');
@@ -279,6 +312,9 @@ describe('fantasyProsApiInternals', () => {
     expect(fantasyProsApiInternals.deriveNewsStatus({
       title: 'Christian McCaffrey uncertain for Week 1',
     })).toBe('questionable');
+  });
+
+  it('gives structured status precedence over injury-news phrasing', () => {
     expect(fantasyProsApiInternals.deriveNewsStatus({
       title: 'Christian McCaffrey uncertain for Week 1',
       status: 'IR',

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T21:16:17.814Z",
+  "generatedAt": "2026-08-31T04:13:30.804Z",
   "leagueName": "Ummati Official",
   "currentSeason": 2026,
   "canonicalApproach": "../docs/draft-approach.md",
@@ -72,7 +72,7 @@
   },
   "artifactFreshness": {
     "fantasyProsRefreshedAt": "2026-08-30T21:16:15.990Z",
-    "survivalModelGeneratedAt": "2026-08-29T20:51:40.623Z",
+    "survivalModelGeneratedAt": "2026-08-31T04:13:25.755Z",
     "teamEnvironmentGeneratedAt": "2026-08-29T20:50:51.441Z",
     "predictionsGeneratedAt": "2026-08-29T20:51:39.431Z"
   },
@@ -231,8 +231,8 @@
     "RB": {
       "position": "RB",
       "leagueMedianPick": 65.5,
-      "sleeperMedianPick": 58.5,
-      "pickPremium": 7,
+      "sleeperMedianPick": 58,
+      "pickPremium": 7.5,
       "top50RateDelta": -0.048,
       "top100RateDelta": 0.024,
       "sampleSize": 178
@@ -240,8 +240,8 @@
     "WR": {
       "position": "WR",
       "leagueMedianPick": 62.5,
-      "sleeperMedianPick": 62,
-      "pickPremium": 0.5,
+      "sleeperMedianPick": 63,
+      "pickPremium": -0.5,
       "top50RateDelta": 0.019,
       "top100RateDelta": 0.097,
       "sampleSize": 220

@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-08-30T21:16:17.814Z
+Generated: 2026-08-31T04:13:30.804Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -9,7 +9,7 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 | Artifact | Source timestamp |
 | --- | --- |
 | FantasyPros | 2026-08-30T21:16:15.990Z |
-| League survival | 2026-08-29T20:51:40.623Z |
+| League survival | 2026-08-31T04:13:25.755Z |
 | Team environment | 2026-08-29T20:50:51.441Z |
 | Predictions | 2026-08-29T20:51:39.431Z |
 

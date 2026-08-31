@@ -25,8 +25,8 @@ import {
   type SeasonComparison,
 } from './contract-year-backtest-core.js';
 import {
+  isContractSourceColumn,
   resolveSeasonHistoryColumn,
-  type ContractSourceColumn,
 } from './contract-source-schema.js';
 
 const CONTRACTS_URL =
@@ -38,6 +38,9 @@ const HISTORY_START = Number(process.env['CONTRACT_BACKTEST_START_SEASON'] ?? 20
 const HISTORY_END = Number(process.env['CONTRACT_BACKTEST_END_SEASON'] ?? 2025);
 const FIRST_TEST_SEASON = Number(process.env['CONTRACT_BACKTEST_FIRST_TEST_SEASON'] ?? 2015);
 const RIDGE_LAMBDA = Number(process.env['CONTRACT_BACKTEST_RIDGE_LAMBDA'] ?? 10);
+const MODEL_VERSION = 'contract-year-walk-forward-ridge-v1';
+const PROVENANCE_COMMAND = 'pnpm model:backtest:contracts';
+const CONTRACT_INPUT_IDENTIFIER = 'nflverse/contracts/historical_contracts.parquet';
 
 interface QueryRow {
   readonly season: number | bigint;
@@ -66,6 +69,24 @@ interface RecommendationPolicy {
   readonly fallback?: string;
   readonly reason?: string;
   readonly [key: string]: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isRecommendationPolicy(value: unknown): value is RecommendationPolicy {
+  if (!isRecord(value)) return false;
+  return (
+    (value['generatedAt'] === undefined || typeof value['generatedAt'] === 'string') &&
+    (value['modelVersion'] === undefined || typeof value['modelVersion'] === 'string') &&
+    (value['modelPredictionsEnabled'] === undefined ||
+      typeof value['modelPredictionsEnabled'] === 'boolean') &&
+    (value['contractSignalEnabled'] === undefined ||
+      typeof value['contractSignalEnabled'] === 'boolean') &&
+    (value['fallback'] === undefined || typeof value['fallback'] === 'string') &&
+    (value['reason'] === undefined || typeof value['reason'] === 'string')
+  );
 }
 
 function range(start: number, end: number): number[] {
@@ -133,9 +154,12 @@ async function loadPlayerSeasons(): Promise<PlayerSeasonRow[]> {
     const schemaReader = await connection.runAndReadAll(`
       describe select * from read_parquet(${sqlString(CONTRACTS_URL)})
     `);
-    const sourceColumns = (
-      schemaReader.getRowObjects() as unknown as ContractSourceColumn[]
-    ).map((column) => column.column_name);
+    const sourceColumns = schemaReader.getRowObjects().map((column) => {
+      if (!isContractSourceColumn(column)) {
+        throw new Error('DuckDB returned an invalid contract source schema row.');
+      }
+      return column.column_name;
+    });
     const seasonHistoryColumn = resolveSeasonHistoryColumn(sourceColumns);
 
     const reader = await connection.runAndReadAll(`
@@ -240,7 +264,13 @@ async function loadPlayerSeasons(): Promise<PlayerSeasonRow[]> {
           roster.position,
           coalesce(current.league_points, 0) as actual_points,
           case when roster.birth_date is null then null
-            else date_diff('year', roster.birth_date, make_date(roster.season, 9, 1)) end as age,
+            else roster.season - year(roster.birth_date) - case
+              when month(roster.birth_date) > 9
+                or (month(roster.birth_date) = 9 and day(roster.birth_date) > 1)
+                then 1
+              else 0
+            end
+          end as age,
           coalesce(roster.years_exp, roster.season - roster.entry_year, 0) as experience,
           coalesce(history.prior_points, 0) as prior_points,
           coalesce(history.prior_points_per_game_3yr, 0) as prior_points_per_game_3yr,
@@ -340,11 +370,19 @@ async function main(): Promise<void> {
     contractYearObservations
   );
   const decision = releaseGate.passed
-    ? 'The contract-year feature clears the multi-season promotion gate and may be enabled.'
+    ? 'The contract-year feature clears the multi-season promotion gate. It remains read-only until a separate live-policy approval.'
     : 'The contract-year feature does not clear the multi-season promotion gate; keep it disabled.';
+  const historicalInputIdentifier =
+    `nflverse-player-stats-and-season-rosters-${String(HISTORY_START)}-${String(HISTORY_END)}`;
   const report = {
     generatedAt: new Date().toISOString(),
-    modelVersion: 'contract-year-walk-forward-ridge-v1',
+    modelVersion: MODEL_VERSION,
+    provenance: {
+      command: PROVENANCE_COMMAND,
+      contractIdentifier: CONTRACT_INPUT_IDENTIFIER,
+      predictionIdentifier: MODEL_VERSION,
+      historicalInputIdentifier,
+    },
     evaluationDesign: {
       historicalSeasons: [HISTORY_START, HISTORY_END],
       testSeasons,
@@ -425,11 +463,16 @@ async function main(): Promise<void> {
   await mkdir(dirname(MARKDOWN_OUTPUT), { recursive: true });
   await writeFile(JSON_OUTPUT, `${JSON.stringify(report, null, 2)}\n`);
 
-  const currentPolicy = JSON.parse(await readFile(POLICY_OUTPUT, 'utf8')) as RecommendationPolicy;
+  const currentPolicyJson: unknown = JSON.parse(await readFile(POLICY_OUTPUT, 'utf8'));
+  if (!isRecommendationPolicy(currentPolicyJson)) {
+    throw new Error(`Recommendation policy is malformed: ${POLICY_OUTPUT}`);
+  }
+  const currentPolicy = currentPolicyJson;
   await writeFile(POLICY_OUTPUT, `${JSON.stringify({
     ...currentPolicy,
     generatedAt: report.generatedAt,
-    contractSignalEnabled: releaseGate.passed,
+    contractSignalEnabled: false,
+    contractSignalValidationPassed: releaseGate.passed,
     contractSignalModelVersion: report.modelVersion,
     contractSignalReason: decision,
   }, null, 2)}\n`);
@@ -456,6 +499,8 @@ async function main(): Promise<void> {
   await writeFile(MARKDOWN_OUTPUT, `# Contract-Year Backtest
 
 Generated: ${report.generatedAt}
+
+Provenance: command \`${report.provenance.command}\`; contract identifier \`${report.provenance.contractIdentifier}\`; prediction identifier \`${report.provenance.predictionIdentifier}\`; historical-input identifier \`${report.provenance.historicalInputIdentifier}\`.
 
 This walk-forward ablation tests incremental predictive value. It does not
 establish that motivation causes player performance.

@@ -25,6 +25,7 @@ import {
   POSITION_MODEL_VOLUME_THRESHOLD_CANDIDATES,
   fitPositionResidualModel,
   fitPositionResidualModelForSeason,
+  MIN_TRAINING_ROWS,
   predictPositionResidual,
   type OffensivePosition,
   type PositionResidualRow,
@@ -36,6 +37,18 @@ import {
   type CounterfactualSeason,
   type CounterfactualSimulationSummary,
 } from './counterfactual-draft-simulator.js';
+import {
+  calculateStarterPoints as calculateSharedStarterPoints,
+  createOffensiveRoster,
+  deriveRosterRules,
+  isLegalCandidate as isLegalOffensiveCandidate,
+  missingRequiredSlots,
+  OFFENSIVE_POSITIONS,
+  POSITION_MAXIMUMS,
+  rosterAdjustedValue,
+  type OffensiveRoster,
+  type RosterRules,
+} from './offensive-roster.js';
 
 const JSON_OUTPUT = join(BACKTESTS_MODEL_DIR, 'recommendation-backtest.json');
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'recommendation-backtest.md');
@@ -49,7 +62,6 @@ const COUNTERFACTUAL_MARKDOWN_OUTPUT = join(
   'counterfactual-recommendation-backtest.md'
 );
 const POLICY_OUTPUT = join(DATA_DIR, 'recommendation-policy.json');
-const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const satisfies readonly Position[];
 const OUTER_TEST_SEASONS = [2022, 2023, 2024, 2025] as const;
 const RELEASE_SEASONS_REQUIRED = 3;
 const DEFAULT_COUNTERFACTUAL_ITERATIONS = 1_000;
@@ -61,13 +73,6 @@ const REPLACEMENT_POSITION_RANKS: Record<OffensivePosition, number> = {
   WR: 30,
   TE: 14,
 };
-const POSITION_MAXIMUMS: Record<OffensivePosition, number> = {
-  QB: 4,
-  RB: 8,
-  WR: 8,
-  TE: 3,
-};
-
 interface LeaguePick {
   readonly pickNo: number;
   readonly round: number;
@@ -145,18 +150,7 @@ interface PlayerSeason extends TrainingRow {
   readonly transparentProjectedPoints?: number;
 }
 
-interface OffensiveRoster {
-  readonly QB: PlayerSeason[];
-  readonly RB: PlayerSeason[];
-  readonly WR: PlayerSeason[];
-  readonly TE: PlayerSeason[];
-}
-
-interface RosterRules {
-  readonly fixedStarters: Record<OffensivePosition, number>;
-  readonly flexStarters: number;
-  readonly totalOffensiveSlots: number;
-}
+type RecommendationRoster = OffensiveRoster<PlayerSeason>;
 
 interface StrategyMetrics {
   readonly evaluatedPicks: number;
@@ -180,6 +174,28 @@ interface PromotionStrategyMetrics {
   readonly rosterAwareModel: StrategyMetrics;
 }
 
+interface PromotionGateResult {
+  readonly featureGatePassed: boolean;
+  readonly featureGateChecks: {
+    readonly outOfSampleStarterPointsImprovePreviousModel: boolean;
+  };
+  readonly releaseGatePassed: boolean;
+  readonly releaseGateChecks: {
+    readonly seasonsWon: boolean;
+    readonly aggregateStarterPointsBeatEcr: boolean;
+    readonly aggregateVorBeatEcr: boolean;
+    readonly averageRegretBeatEcr: boolean;
+    readonly top24HitRateNonInferior: boolean;
+    readonly noSeasonStarterRegressionOver15Percent: boolean;
+  };
+  readonly promotionPassed: boolean;
+  readonly seasonsWon: number;
+  readonly seasonsRequired: number;
+  readonly seasonsExpected: number;
+  readonly hasAllReleaseSeasons: boolean;
+  readonly worstStarterRegression: number;
+}
+
 interface PickEvaluation {
   readonly season: number;
   readonly trainingSeasons: readonly number[];
@@ -196,7 +212,7 @@ interface PickEvaluation {
 interface StrategyAccumulator {
   readonly rows: PlayerSeason[];
   readonly regrets: number[];
-  readonly roster: OffensiveRoster;
+  readonly roster: RecommendationRoster;
 }
 
 interface PositionModelSelectionSummary {
@@ -220,32 +236,16 @@ function asNumber(value: number | bigint | null | undefined): number {
   return Number(value ?? 0);
 }
 
-function createRoster(): OffensiveRoster {
-  return { QB: [], RB: [], WR: [], TE: [] };
+function createRoster(): RecommendationRoster {
+  return createOffensiveRoster<PlayerSeason>();
 }
 
-function addToRoster(roster: OffensiveRoster, player: PlayerSeason): void {
+function addToRoster(roster: RecommendationRoster, player: PlayerSeason): void {
   roster[player.position].push(player);
 }
 
-function rosterLabel(roster: OffensiveRoster): string {
+function rosterLabel(roster: RecommendationRoster): string {
   return OFFENSIVE_POSITIONS.map((position) => `${position}${String(roster[position].length)}`).join(' ');
-}
-
-function deriveRosterRules(rosterPositions: readonly string[]): RosterRules {
-  const fixedStarters: Record<OffensivePosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
-  for (const position of OFFENSIVE_POSITIONS) {
-    fixedStarters[position] = rosterPositions.filter((slot) => slot === position).length;
-  }
-  const flexStarters = rosterPositions.filter((slot) => slot === 'FLEX').length;
-  return {
-    fixedStarters,
-    flexStarters,
-    totalOffensiveSlots:
-      Object.values(fixedStarters).reduce((sum, count) => sum + count, 0) +
-      flexStarters +
-      rosterPositions.filter((slot) => slot === 'BN').length,
-  };
 }
 
 function pickEvRequirements(rules: RosterRules): RosterRequirements {
@@ -262,67 +262,27 @@ function pickEvRequirements(rules: RosterRules): RosterRequirements {
   };
 }
 
-function missingRequiredSlots(roster: OffensiveRoster, rules: RosterRules): number {
-  const missingFixed = OFFENSIVE_POSITIONS.reduce(
-    (sum, position) => sum + Math.max(0, rules.fixedStarters[position] - roster[position].length),
-    0
-  );
-  const flexEligibleCount = roster.RB.length + roster.WR.length + roster.TE.length;
-  const fixedFlexBase = rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE;
-  const filledFlex = Math.min(rules.flexStarters, Math.max(0, flexEligibleCount - fixedFlexBase));
-  return missingFixed + Math.max(0, rules.flexStarters - filledFlex);
-}
-
-function cloneRosterWith(roster: OffensiveRoster, candidate: PlayerSeason): OffensiveRoster {
-  return {
-    QB: [...roster.QB, ...(candidate.position === 'QB' ? [candidate] : [])],
-    RB: [...roster.RB, ...(candidate.position === 'RB' ? [candidate] : [])],
-    WR: [...roster.WR, ...(candidate.position === 'WR' ? [candidate] : [])],
-    TE: [...roster.TE, ...(candidate.position === 'TE' ? [candidate] : [])],
-  };
-}
-
 function isLegalCandidate(
   candidate: PlayerSeason,
-  roster: OffensiveRoster,
+  roster: RecommendationRoster,
   rules: RosterRules,
   remainingPicksIncludingCurrent: number
 ): boolean {
-  const currentCount = OFFENSIVE_POSITIONS.reduce(
-    (sum, position) => sum + roster[position].length,
-    0
-  );
-  if (currentCount >= rules.totalOffensiveSlots) return false;
-  if (roster[candidate.position].length >= POSITION_MAXIMUMS[candidate.position]) return false;
-
-  const after = cloneRosterWith(roster, candidate);
-  return missingRequiredSlots(after, rules) <= Math.max(0, remainingPicksIncludingCurrent - 1);
+  return isLegalOffensiveCandidate(candidate, roster, rules, remainingPicksIncludingCurrent);
 }
 
 function rosterAdjustedModelScore(
   candidate: PlayerSeason,
   valueOverReplacement: number,
-  roster: OffensiveRoster,
+  roster: RecommendationRoster,
   rules: RosterRules
 ): number {
-  const fixedNeed = roster[candidate.position].length < rules.fixedStarters[candidate.position];
-  const flexEligible = candidate.position === 'RB' || candidate.position === 'WR' || candidate.position === 'TE';
-  const flexEligibleCount = roster.RB.length + roster.WR.length + roster.TE.length;
-  const flexTarget = rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE + rules.flexStarters;
-  const flexNeed = flexEligible && flexEligibleCount < flexTarget;
-  const redundantSingleStarter =
-    (candidate.position === 'QB' || candidate.position === 'TE') &&
-    roster[candidate.position].length >= Math.max(1, rules.fixedStarters[candidate.position]);
-
-  const rosterAdjustedVor = redundantSingleStarter
-    ? valueOverReplacement * (candidate.position === 'QB' ? 0.2 : 0.45)
-    : valueOverReplacement;
-  return rosterAdjustedVor + (fixedNeed ? 34 : 0) + (flexNeed ? 12 : 0);
+  return rosterAdjustedValue(candidate, valueOverReplacement, roster, rules);
 }
 
 function chooseEcr(
   available: readonly PlayerSeason[],
-  roster: OffensiveRoster,
+  roster: RecommendationRoster,
   rules: RosterRules,
   remainingPicks: number
 ): PlayerSeason | undefined {
@@ -333,7 +293,7 @@ function chooseEcr(
 
 function chooseModel(
   available: readonly PlayerSeason[],
-  roster: OffensiveRoster,
+  roster: RecommendationRoster,
   rules: RosterRules,
   remainingPicks: number
 ): PlayerSeason | undefined {
@@ -348,7 +308,7 @@ function chooseModel(
 
 function chooseBaselineModel(
   available: readonly PlayerSeason[],
-  roster: OffensiveRoster,
+  roster: RecommendationRoster,
   rules: RosterRules,
   remainingPicks: number
 ): PlayerSeason | undefined {
@@ -377,11 +337,11 @@ function estimateConditionalSurvival(
 
 function choosePickEv(
   available: readonly PlayerSeason[],
-  roster: OffensiveRoster,
+  roster: RecommendationRoster,
   rules: RosterRules,
   remainingPicks: number,
   currentPick: number,
-  nextPick: number,
+  nextPick: number | null,
   totalTeams: number,
   totalPicks: number,
   layers: PickEvLayers
@@ -396,11 +356,9 @@ function choosePickEv(
     projectedPoints:
       candidate.baselineProjectedPoints ?? Math.max(0, candidate.baselineModelScore),
     marketRank: asNumber(candidate.predraft_ecr),
-    nextPickSurvivalProbability: estimateConditionalSurvival(
-      asNumber(candidate.predraft_ecr),
-      currentPick,
-      nextPick
-    ),
+    nextPickSurvivalProbability: nextPick === null
+      ? 0
+      : estimateConditionalSurvival(asNumber(candidate.predraft_ecr), currentPick, nextPick),
     ceilingScore: Math.min(10, 5 + Math.max(0, 2 - candidate.history_seasons) * 1.5),
     uncertaintyScore: 3 + Math.max(0, 2 - candidate.history_seasons) * 0.8,
     injuryRiskScore: 2,
@@ -511,10 +469,14 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
   const getWalkForwardModel = (
     season: number,
     position: OffensivePosition
-  ): ReturnType<typeof fitPositionResidualModel> => {
+  ): ReturnType<typeof fitPositionResidualModel> | null => {
     const key = `${String(season)}|${position}`;
     const cached = modelCache.get(key);
     if (cached) return cached;
+    const trainingRowCount = residualRows.filter(
+      (row) => row.position === position && row.season < season
+    ).length;
+    if (trainingRowCount < MIN_TRAINING_ROWS) return null;
     const model = fitPositionResidualModelForSeason(residualRows, position, season);
     modelCache.set(key, model);
     return model;
@@ -525,6 +487,7 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
     const cached = residualCenterCache.get(key);
     if (cached !== undefined) return cached;
     const model = getWalkForwardModel(season, position);
+    if (model === null) return 0;
     const seasonRows = eligible.filter((row) => row.season === season && row.position === position);
     const center = seasonRows.reduce(
       (sum, row) => sum + predictPositionResidual(
@@ -543,6 +506,7 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
     const cached = clippedResidualCenterCache.get(key);
     if (cached !== undefined) return cached;
     const model = getWalkForwardModel(season, position);
+    if (model === null) return 0;
     const rawCenter = getResidualCenter(season, position);
     const seasonRows = eligible.filter((row) => row.season === season && row.position === position);
     const center = seasonRows.reduce((sum, row) => {
@@ -574,17 +538,20 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
     }, scoringRules);
     const sharedProjectedPoints = getSharedPprProjection(row) + estimatedCustomBonus;
     const positionModel = getWalkForwardModel(row.season, row.position);
-    const rawResidual = predictPositionResidual(
-      positionModel,
-      getResidualFeatures(row),
-      row.trailing_player_volume_3yr
-    );
-    const centeredResidual = rawResidual - getResidualCenter(row.season, row.position);
-    const clippedResidual = Math.max(
-      -positionModel.residualCap,
-      Math.min(positionModel.residualCap, centeredResidual)
-    );
-    const fittedResidual = clippedResidual - getClippedResidualCenter(row.season, row.position);
+    let fittedResidual = 0;
+    if (positionModel !== null) {
+      const rawResidual = predictPositionResidual(
+        positionModel,
+        getResidualFeatures(row),
+        row.trailing_player_volume_3yr
+      );
+      const centeredResidual = rawResidual - getResidualCenter(row.season, row.position);
+      const clippedResidual = Math.max(
+        -positionModel.residualCap,
+        Math.min(positionModel.residualCap, centeredResidual)
+      );
+      fittedResidual = clippedResidual - getClippedResidualCenter(row.season, row.position);
+    }
     return {
       ...row,
       sleeper_player_id: row.sleeper_player_id,
@@ -626,23 +593,13 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
   return { playerSeasons, modelCache };
 }
 
-function calculateStarterPoints(roster: OffensiveRoster, rules: RosterRules): number {
-  const used = new Set<string>();
-  let points = 0;
-  for (const position of OFFENSIVE_POSITIONS) {
-    const starters = [...roster[position]]
-      .sort((a, b) => b.leagueActualPoints - a.leagueActualPoints)
-      .slice(0, rules.fixedStarters[position]);
-    for (const player of starters) {
-      used.add(player.sleeper_player_id);
-      points += player.leagueActualPoints;
-    }
-  }
-  const flex = [...roster.RB, ...roster.WR, ...roster.TE]
-    .filter((player) => !used.has(player.sleeper_player_id))
-    .sort((a, b) => b.leagueActualPoints - a.leagueActualPoints)
-    .slice(0, rules.flexStarters);
-  return round(points + flex.reduce((sum, player) => sum + player.leagueActualPoints, 0));
+function calculateStarterPoints(roster: RecommendationRoster, rules: RosterRules): number {
+  return calculateSharedStarterPoints(
+    roster,
+    rules,
+    (player) => player.sleeper_player_id,
+    (player) => player.leagueActualPoints
+  );
 }
 
 function summarize(
@@ -683,7 +640,7 @@ function aggregate(metrics: readonly StrategyMetrics[]): StrategyMetrics {
 function evaluatePromotionGates(
   seasons: readonly PromotionSeasonMetrics[],
   strategies: PromotionStrategyMetrics
-) {
+): PromotionGateResult {
   const seasonsWon = seasons.filter(
     (season) =>
       season.strategies.rosterAwareModel.starterPoints >
@@ -804,10 +761,13 @@ async function main(): Promise<void> {
           trailing_rush_yards_over_expected_per_attempt_3yr::double
             as trailing_rush_yards_over_expected_per_attempt_3yr,
           trailing_rush_pct_over_expected_3yr::double as trailing_rush_pct_over_expected_3yr,
-          least(3, greatest(
-            0,
-            season - min(season) over (partition by gsis_id)
-          ))::integer as history_seasons,
+          case
+            when gsis_id is null then null
+            else least(3, greatest(
+              0,
+              season - min(season) over (partition by gsis_id)
+            ))::integer
+          end as history_seasons,
           row_number() over (
             partition by season, sleeper_player_id, position
             order by case when ranking_type = 'redraft-overall' then 0 else 1 end,
@@ -1012,7 +972,7 @@ async function main(): Promise<void> {
           const modelPick = chooseModel(modelAvailable, model.roster, rules, remainingPicks);
           const nextUserPick = sortedPicks.slice(index + 1).find((candidate) =>
             candidate.isUserPick && !candidate.isKeeper
-          )?.pickNo ?? pick.pickNo;
+          )?.pickNo ?? null;
           const totalTeams = Math.max(1, Object.keys(season.rosterIdToOwner).length);
           const totalPicks = sortedPicks.at(-1)?.pickNo ?? pick.pickNo;
           const ecrWaitingOnlyPick = choosePickEv(
@@ -1097,7 +1057,7 @@ async function main(): Promise<void> {
               lineupUtility: true,
               costOfWaiting: true,
               lateRoundOptionValue: true,
-              risk: false,
+              risk: true,
             }
           );
           const bestActual = [...actualAvailable].sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
@@ -1374,6 +1334,14 @@ async function main(): Promise<void> {
     const counterfactualReport = {
       generatedAt: new Date().toISOString(),
       modelVersion: 'counterfactual-opponent-room-v1',
+      provenance: {
+        command: 'pnpm model:backtest',
+        modelIdentifier: 'counterfactual-opponent-room-v1',
+        rankingIdentifier: 'historical-pre-draft-consensus-rank-proxy',
+        keeperIdentifier: 'historical-user-keepers-from-league-history',
+        historicalInputIdentifier:
+          `${String(OUTER_TEST_SEASONS[0])}-${String(OUTER_TEST_SEASONS.at(-1))}-league-history`,
+      },
       iterations: counterfactualIterations,
       randomSeed: counterfactualSeed,
       confidenceLevel: 0.95,
@@ -1390,6 +1358,8 @@ async function main(): Promise<void> {
           'ECR and model rooms use the same deterministic season/iteration random seeds to reduce comparison noise, while maintaining separate available-player boards.',
         releasePolicy:
           'This assumption-dependent report is diagnostic and does not replace the fixed-board release gate.',
+        aggregation:
+          'Starter points and VOR sum season results at each simulation index. Average regret is weighted by evaluated user picks across those season results.',
       },
       strategies: counterfactualStrategies,
       seasons: counterfactualSeasonReports,
@@ -1533,7 +1503,7 @@ async function main(): Promise<void> {
         },
         shadowLogging: {
           enabled: true,
-          season: 2026,
+          season: new Date().getFullYear(),
           endpoint: '/api/shadow-recommendations',
         },
         reason: report.promotion.decision,
@@ -1685,10 +1655,14 @@ This companion to the [fixed-board replay](./recommendation-backtest.md) gives
 each strategy its own draft room. Results are means with 95% Monte Carlo
 intervals across ${String(counterfactualReport.iterations)} simulations per season.
 
+Provenance: command \`${counterfactualReport.provenance.command}\`; model identifier \`${counterfactualReport.provenance.modelIdentifier}\`; ranking identifier \`${counterfactualReport.provenance.rankingIdentifier}\`; keeper identifier \`${counterfactualReport.provenance.keeperIdentifier}\`; historical-input identifier \`${counterfactualReport.provenance.historicalInputIdentifier}\`.
+
 This report is diagnostic. The fixed-board replay remains the release gate
 because the counterfactual result depends on the opponent model.
 
 ## Aggregate Strategy Comparison
+
+Starter points and VOR are summed season means across the four 1,000-simulation season runs. Regret is the pick-weighted mean across all evaluated user picks.
 
 | Strategy | Expected starter points | Expected VOR | Expected regret |
 | --- | ---: | ---: | ---: |

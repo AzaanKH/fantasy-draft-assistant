@@ -11,8 +11,8 @@ import { pathToFileURL } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import type { NFLTeam, Position } from '@fantasy-draft/shared';
 import {
+  isContractSourceColumn,
   resolveSeasonHistoryColumn,
-  type ContractSourceColumn,
 } from './contract-source-schema.js';
 import { DATA_DIR } from './model/duckdb.js';
 
@@ -66,10 +66,12 @@ async function main(): Promise<void> {
     const schemaReader = await connection.runAndReadAll(`
       describe select * from read_parquet('${CONTRACTS_URL}')
     `);
-    const sourceColumns = (
-      (schemaReader.getRowObjects() as unknown as ContractSourceColumn[])
-        .map((column) => column.column_name)
-    );
+    const sourceColumns = schemaReader.getRowObjects().map((column) => {
+      if (!isContractSourceColumn(column)) {
+        throw new Error('DuckDB returned an invalid contract source schema row.');
+      }
+      return column.column_name;
+    });
     const seasonHistoryColumn = resolveSeasonHistoryColumn(sourceColumns);
 
     const reader = await connection.runAndReadAll(`

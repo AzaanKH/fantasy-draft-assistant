@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-08-29T20:52:41.453Z
+Generated: 2026-08-31T04:10:02.302Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -74,22 +74,22 @@ unavailable historical FantasyPros or observed ADP data.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | ecrAnchor | 49 | 2015.9 | 8774.3 | 105.91 | 0.69 |
 | legacyProjectionVor | 49 | 1447.92 | 8412.06 | 133.49 | 0.61 |
-| ecrWaitingOnly | 49 | 1942.84 | 8462.32 | 103.3 | 0.72 |
+| ecrWaitingOnly | 49 | 2006.88 | 8447.9 | 101.99 | 0.72 |
 | pickEvProjection | 49 | 1887.58 | 8777.42 | 103.39 | 0.7 |
 | pickEvWaiting | 49 | 1774.68 | 8598.52 | 106.86 | 0.72 |
 | pickEvOption | 49 | 1774.68 | 8598.52 | 106.86 | 0.72 |
-| pickEvFull | 49 | 1774.68 | 8598.52 | 106.86 | 0.72 |
+| pickEvFull | 49 | 1831.18 | 8598.52 | 105.7 | 0.72 |
 
 ### Incremental layer deltas
 
 | Comparison | Starter points | VOR captured | Average regret | Top-24 hit rate |
 | --- | ---: | ---: | ---: | ---: |
-| ecrWaitingOnlyVsEcr | -311.98 | -73.06 | -2.61 | 0.03 |
+| ecrWaitingOnlyVsEcr | -326.4 | -9.02 | -3.92 | 0.03 |
 | projectionVsEcr | 3.12 | -128.32 | -2.52 | 0.01 |
 | waitingVsProjection | -178.9 | -112.9 | 3.47 | 0.02 |
 | optionVsWaiting | 0 | 0 | 0 | 0 |
-| fullVsLegacy | 186.46 | 326.76 | -26.63 | 0.11 |
-| fullVsEcr | -175.78 | -241.22 | 0.95 | 0.03 |
+| fullVsLegacy | 186.46 | 383.26 | -27.79 | 0.11 |
+| fullVsEcr | -175.78 | -184.72 | -0.21 | 0.03 |
 
 ## Position-model Ablation
 

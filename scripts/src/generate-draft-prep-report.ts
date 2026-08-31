@@ -146,11 +146,22 @@ async function main(): Promise<void> {
     };
   });
 
+  const rankingNames = new Set(
+    fantasyPros.rankings.map((ranking) =>
+      `${normalizePlayerName(ranking.name)}:${ranking.position}`
+    )
+  );
   const keeperNames = new Set(
     (currentKeepers?.keepers ?? []).map((keeper) =>
       `${normalizePlayerName(keeper.playerName)}:${keeper.position}`
     )
   );
+  for (const keeper of currentKeepers?.keepers ?? []) {
+    const keeperKey = `${normalizePlayerName(keeper.playerName)}:${keeper.position}`;
+    if (!rankingNames.has(keeperKey)) {
+      console.warn(`Current keeper has no ranking match: ${keeper.playerName} (${keeper.position}).`);
+    }
+  }
   const currentTiers = Object.fromEntries(
     POSITIONS.map((position) => [
       position,

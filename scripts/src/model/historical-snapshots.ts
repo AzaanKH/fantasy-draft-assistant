@@ -117,6 +117,61 @@ function normalizeCount(value: number | bigint): number {
   return Number(value);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isCount(value: unknown): value is number | bigint {
+  return typeof value === 'number' || typeof value === 'bigint';
+}
+
+function isValidationRow(value: unknown): value is ValidationRow {
+  return (
+    isRecord(value) &&
+    isCount(value['season']) &&
+    (value['sleeper_player_id'] === null || typeof value['sleeper_player_id'] === 'string') &&
+    (value['max_information_timestamp'] === null ||
+      typeof value['max_information_timestamp'] === 'string') &&
+    typeof value['draft_timestamp'] === 'string'
+  );
+}
+
+function isCoverageRow(value: unknown): value is CoverageRow {
+  return (
+    isRecord(value) &&
+    isCount(value['season']) &&
+    typeof value['draft_id'] === 'string' &&
+    typeof value['draft_timestamp'] === 'string' &&
+    isCount(value['players']) &&
+    isCount(value['with_team']) &&
+    isCount(value['with_roster_status']) &&
+    isCount(value['with_active_status']) &&
+    isCount(value['with_pup_status']) &&
+    isCount(value['with_ir_status']) &&
+    isCount(value['with_injury_designation']) &&
+    isCount(value['with_depth_chart']) &&
+    isCount(value['with_prior_season_missed_games']) &&
+    isCount(value['with_same_position_competition']) &&
+    isCount(value['with_recent_trade']) &&
+    isCount(value['cutoff_violations'])
+  );
+}
+
+function validateRows<Row>(
+  rows: readonly unknown[],
+  guard: (value: unknown) => value is Row,
+  label: string
+): Row[] {
+  const validRows: Row[] = [];
+  for (const [index, row] of rows.entries()) {
+    if (!guard(row)) {
+      throw new Error(`DuckDB returned an invalid ${label} row at index ${String(index)}.`);
+    }
+    validRows.push(row);
+  }
+  return validRows;
+}
+
 export async function buildHistoricalSnapshots(connection: DuckDBConnection): Promise<void> {
   const cutoffs = await loadDraftCutoffs();
   const seasons = cutoffs.map((cutoff) => cutoff.season);
@@ -152,8 +207,14 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
         report_secondary_injury::varchar as report_secondary_injury,
         report_status::varchar as report_status,
         practice_status::varchar as practice_status,
-        date_modified::timestamptz as information_timestamp
-      from read_parquet(${sqlList(seasonUrls('injuries', 'injuries', seasons))}, union_by_name = true)`,
+        date_modified::timestamptz as information_timestamp,
+        concat(filename, '#', file_row_number)::varchar as source_row_key
+      from read_parquet(
+        ${sqlList(seasonUrls('injuries', 'injuries', seasons))},
+        union_by_name = true,
+        filename = true,
+        file_row_number = true
+      )`,
     legacyDepthSeasons.length > 0
       ? `create or replace table source.historical_snapshot_depth_legacy as
           select
@@ -164,14 +225,15 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
             depth_position::varchar as depth_position,
             try_cast(depth_team as integer) as depth_rank,
             null::timestamptz as information_timestamp,
-            'legacy weekly depth chart has no per-record timestamp'::varchar as source_gap
+            'legacy weekly depth chart has no per-record timestamp'::varchar as source_gap,
+            null::varchar as source_row_key
           from read_parquet(${sqlList(
             seasonUrls('depth_charts', 'depth_charts', legacyDepthSeasons)
           )})`
       : `create or replace table source.historical_snapshot_depth_legacy (
           season integer, team varchar, gsis_id varchar, player_name varchar,
           depth_position varchar, depth_rank integer, information_timestamp timestamptz,
-          source_gap varchar
+          source_gap varchar, source_row_key varchar
         )`,
     timestampedDepthSeasons.length > 0
       ? `create or replace table source.historical_snapshot_depth_timestamped as
@@ -183,14 +245,15 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
             pos_abb::varchar as depth_position,
             pos_rank::integer as depth_rank,
             try_cast(dt as timestamptz) as information_timestamp,
-            null::varchar as source_gap
+            null::varchar as source_gap,
+            concat(filename, '#', file_row_number)::varchar as source_row_key
           from read_parquet(${sqlList(
             seasonUrls('depth_charts', 'depth_charts', timestampedDepthSeasons)
-          )}, union_by_name = true, filename = true)`
+          )}, union_by_name = true, filename = true, file_row_number = true)`
       : `create or replace table source.historical_snapshot_depth_timestamped (
           season integer, team varchar, gsis_id varchar, player_name varchar,
           depth_position varchar, depth_rank integer, information_timestamp timestamptz,
-          source_gap varchar
+          source_gap varchar, source_row_key varchar
         )`,
     `create or replace table source.historical_snapshot_depth as
       select * from source.historical_snapshot_depth_legacy
@@ -329,7 +392,7 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
           injuries.* exclude (season),
           row_number() over (
             partition by universe.season, universe.gsis_id
-            order by injuries.information_timestamp desc
+            order by injuries.information_timestamp desc, injuries.source_row_key desc
           ) as recency_rank
         from model.historical_asof_player_universe universe
         join source.historical_snapshot_injuries injuries
@@ -346,7 +409,7 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
           depth.* exclude (season),
           row_number() over (
             partition by universe.season, universe.gsis_id
-            order by depth.information_timestamp desc
+            order by depth.information_timestamp desc, depth.source_row_key desc
           ) as recency_rank
         from model.historical_asof_player_universe universe
         join source.historical_snapshot_depth depth
@@ -409,6 +472,11 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
           <= universe.draft_timestamp
       group by universe.season, universe.fantasypros_id`,
     `create or replace table model.historical_asof_snapshots as
+      select
+        snapshot.* exclude (latest_information_timestamp),
+        snapshot.latest_information_timestamp as max_information_timestamp,
+        snapshot.latest_information_timestamp > snapshot.draft_timestamp as cutoff_violation
+      from (
       select
         universe.season,
         universe.draft_id,
@@ -482,15 +550,7 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
           injuries.information_timestamp,
           depth.information_timestamp,
           trades.information_timestamp_upper_bound
-        ) as max_information_timestamp,
-        greatest(
-          universe.ranking_information_timestamp_upper_bound,
-          prior.information_timestamp_upper_bound,
-          rosters.information_timestamp,
-          injuries.information_timestamp,
-          depth.information_timestamp,
-          trades.information_timestamp_upper_bound
-        ) > universe.draft_timestamp as cutoff_violation
+        ) as latest_information_timestamp
       from model.historical_asof_player_universe universe
       left join model.historical_prior_season_availability prior
         on universe.season = prior.season and universe.gsis_id = prior.gsis_id
@@ -505,7 +565,8 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
         and universe.fantasypros_id = competition.fantasypros_id
       left join model.historical_asof_trades trades
         on universe.season = trades.season
-        and universe.fantasypros_id = trades.fantasypros_id`,
+        and universe.fantasypros_id = trades.fantasypros_id
+      ) snapshot`,
     `copy model.historical_asof_snapshots
       to ${sqlString(MODEL_PATHS.historicalSnapshotsParquet)}
       (format parquet, compression zstd)`,
@@ -520,7 +581,11 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
     from model.historical_asof_snapshots
     where cutoff_violation
   `);
-  const violations = validationReader.getRowObjects() as unknown as ValidationRow[];
+  const violations = validateRows(
+    validationReader.getRowObjects(),
+    isValidationRow,
+    'historical snapshot validation'
+  );
   for (const violation of violations) {
     assertInformationCutoff(
       violation.max_information_timestamp,
@@ -551,7 +616,11 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
     group by season
     order by season
   `);
-  const coverageRows = coverageReader.getRowObjects() as unknown as CoverageRow[];
+  const coverageRows = validateRows(
+    coverageReader.getRowObjects(),
+    isCoverageRow,
+    'historical snapshot coverage'
+  );
   const report = {
     generatedAt: new Date().toISOString(),
     rule: 'information_timestamp <= historical_draft_timestamp',

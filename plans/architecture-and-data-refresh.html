@@ -1002,7 +1002,7 @@
                 <small>Pushes status, pick, and snapshot updates.</small>
               </button>
             </div>
-            <div class="arrow-row">Sleeper API -> local normalization -> canonical snapshot -> clients</div>
+            <div class="arrow-row">Sleeper API -&gt; local normalization -&gt; canonical snapshot -&gt; clients</div>
             <div class="flow-grid runtime">
               <button class="node" type="button" data-node="json-runtime" data-tone="artifact">
                 <span class="node-kind">Runtime artifacts</span>
@@ -1049,7 +1049,7 @@
                 <small>2022-2025 league picks for timing behavior.</small>
               </button>
             </div>
-            <div class="arrow-row">source-specific refreshes -> embedded analytical workspace -> JSON boundary</div>
+            <div class="arrow-row">source-specific refreshes -&gt; embedded analytical workspace -&gt; JSON boundary</div>
             <div class="flow-grid offline">
               <button class="node" type="button" data-node="team-environment" data-tone="model">
                 <span class="node-kind">Derived baseline</span>
@@ -1067,7 +1067,7 @@
                 <small>Room-specific positional pressure, not base player quality.</small>
               </button>
             </div>
-            <div class="arrow-row">prediction layer + timing model -> recommendations and draft prep report</div>
+            <div class="arrow-row">prediction layer + timing model -&gt; recommendations and draft prep report</div>
             <div class="flow-grid offline">
               <button class="node" type="button" data-node="predictions" data-tone="artifact">
                 <span class="node-kind">Runtime JSON</span>
@@ -1128,13 +1128,13 @@
         <article class="card pipeline-step" data-pipeline-kind="current">
           <span class="step-number">1</span>
           <h3>Refresh Sleeper proxy</h3>
-          <p>Fetch `/v1/players/nfl`, keep fantasy-relevant players, and write platform `search_rank` values.</p>
+          <p>Fetch <code>/v1/players/nfl</code>, keep fantasy-relevant players, and write platform <code>search_rank</code> values.</p>
           <div class="step-meta"><span class="tag network">network</span><span class="tag">sleeper-adp.json</span></div>
         </article>
         <article class="card pipeline-step" data-pipeline-kind="current">
           <span class="step-number">2</span>
           <h3>Refresh FantasyPros</h3>
-          <p>Use the API when `FANTASYPROS_API_KEY` exists; fall back to the local ECR snapshot on failure.</p>
+          <p>Use the API when <code>FANTASYPROS_API_KEY</code> exists; fall back to the local ECR snapshot on failure.</p>
           <div class="step-meta"><span class="tag network">network or fallback</span><span class="tag">fantasypros-snapshot.json</span></div>
         </article>
         <article class="card pipeline-step" data-pipeline-kind="current">
@@ -1216,10 +1216,10 @@
             </tr>
             <tr class="artifact-row" data-artifact-kind="daily">
               <td><code>data/sleeper-adp.json</code></td>
-              <td>Sleeper `/v1/players/nfl`</td>
+              <td>Sleeper <code>/v1/players/nfl</code></td>
               <td class="threshold">24h</td>
               <td><code>pnpm refresh:sleeper</code></td>
-              <td>Platform `search_rank` proxy. It is not observed draft ADP.</td>
+              <td>Platform <code>search_rank</code> proxy. It is not observed draft ADP.</td>
             </tr>
             <tr class="artifact-row" data-artifact-kind="weekly">
               <td><code>data/team-environment.json</code></td>

@@ -1,15 +1,19 @@
 # Counterfactual Recommendation Backtest
 
-Generated: 2026-08-29T20:52:41.453Z
+Generated: 2026-08-31T04:10:02.302Z
 
 This companion to the [fixed-board replay](./recommendation-backtest.md) gives
 each strategy its own draft room. Results are means with 95% Monte Carlo
 intervals across 1000 simulations per season.
 
+Provenance: command `pnpm model:backtest`; model identifier `counterfactual-opponent-room-v1`; ranking identifier `historical-pre-draft-consensus-rank-proxy`; keeper identifier `historical-user-keepers-from-league-history`; historical-input identifier `2022-2025-league-history`.
+
 This report is diagnostic. The fixed-board replay remains the release gate
 because the counterfactual result depends on the opponent model.
 
 ## Aggregate Strategy Comparison
+
+Starter points and VOR are summed season means across the four 1,000-simulation season runs. Regret is the pick-weighted mean across all evaluated user picks.
 
 | Strategy | Expected starter points | Expected VOR | Expected regret |
 | --- | ---: | ---: | ---: |

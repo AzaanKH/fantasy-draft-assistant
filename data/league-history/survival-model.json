@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T20:51:40.623Z",
+  "generatedAt": "2026-08-31T04:13:25.755Z",
   "modelVersion": "league-history-survival-v2-2022-2025",
   "leagueName": "Ummati Official",
   "seasons": [
@@ -12,7 +12,7 @@
   "sourceResponsibilities": {
     "leagueHistory": "Supplies the dominant empirical position-cost distribution for Return Probability.",
     "currentConsensusMarket": "Maps current players into the historical distribution and calibrates its expected pick.",
-    "sleeperAdp": "Provides a five-percent secondary timing input from search_rank; it is not observed draft ADP or player quality.",
+    "sleeperAdp": "Supplies the SLEEPER_ADP_FILE comparison used for position medians and ADP-bucket pressure; search_rank is not observed draft ADP or player quality.",
     "predictionLayer": "Not used for player quality; survival is applied after projected value is known."
   },
   "baseline": {
@@ -33,8 +33,8 @@
     "RB": {
       "position": "RB",
       "leagueMedianPick": 65.5,
-      "sleeperMedianPick": 58.5,
-      "pickPremium": 7,
+      "sleeperMedianPick": 58,
+      "pickPremium": 7.5,
       "top50RateDelta": -0.048,
       "top100RateDelta": 0.024,
       "sampleSize": 178
@@ -42,8 +42,8 @@
     "WR": {
       "position": "WR",
       "leagueMedianPick": 62.5,
-      "sleeperMedianPick": 62,
-      "pickPremium": 0.5,
+      "sleeperMedianPick": 63,
+      "pickPremium": -0.5,
       "top50RateDelta": 0.019,
       "top100RateDelta": 0.097,
       "sampleSize": 220
@@ -646,27 +646,27 @@
       "minPick": 1,
       "maxPick": 24,
       "leagueSampleSize": 96,
-      "sleeperSampleSize": 32,
+      "sleeperSampleSize": 33,
       "positions": {
         "QB": {
           "leaguePickRate": 0.073,
-          "sleeperPickRate": 0.188,
-          "rateDelta": -0.115
+          "sleeperPickRate": 0.182,
+          "rateDelta": -0.109
         },
         "RB": {
           "leaguePickRate": 0.427,
-          "sleeperPickRate": 0.469,
-          "rateDelta": -0.042
+          "sleeperPickRate": 0.455,
+          "rateDelta": -0.027
         },
         "WR": {
           "leaguePickRate": 0.448,
-          "sleeperPickRate": 0.281,
-          "rateDelta": 0.167
+          "sleeperPickRate": 0.303,
+          "rateDelta": 0.145
         },
         "TE": {
           "leaguePickRate": 0.052,
-          "sleeperPickRate": 0.063,
-          "rateDelta": -0.01
+          "sleeperPickRate": 0.061,
+          "rateDelta": -0.009
         },
         "K": {
           "leaguePickRate": 0,
@@ -685,27 +685,27 @@
       "minPick": 25,
       "maxPick": 50,
       "leagueSampleSize": 104,
-      "sleeperSampleSize": 34,
+      "sleeperSampleSize": 33,
       "positions": {
         "QB": {
           "leaguePickRate": 0.154,
-          "sleeperPickRate": 0.235,
-          "rateDelta": -0.081
+          "sleeperPickRate": 0.242,
+          "rateDelta": -0.089
         },
         "RB": {
           "leaguePickRate": 0.288,
-          "sleeperPickRate": 0.294,
-          "rateDelta": -0.006
+          "sleeperPickRate": 0.303,
+          "rateDelta": -0.015
         },
         "WR": {
           "leaguePickRate": 0.452,
-          "sleeperPickRate": 0.412,
-          "rateDelta": 0.04
+          "sleeperPickRate": 0.394,
+          "rateDelta": 0.058
         },
         "TE": {
           "leaguePickRate": 0.106,
-          "sleeperPickRate": 0.059,
-          "rateDelta": 0.047
+          "sleeperPickRate": 0.061,
+          "rateDelta": 0.045
         },
         "K": {
           "leaguePickRate": 0,

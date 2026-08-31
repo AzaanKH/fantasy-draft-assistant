@@ -349,7 +349,7 @@ async function main(): Promise<void> {
     sourceResponsibilities: {
       leagueHistory: 'Supplies the dominant empirical position-cost distribution for Return Probability.',
       currentConsensusMarket: 'Maps current players into the historical distribution and calibrates its expected pick.',
-      sleeperAdp: 'Provides a five-percent secondary timing input from search_rank; it is not observed draft ADP or player quality.',
+      sleeperAdp: 'Supplies the SLEEPER_ADP_FILE comparison used for position medians and ADP-bucket pressure; search_rank is not observed draft ADP or player quality.',
       predictionLayer: 'Not used for player quality; survival is applied after projected value is known.',
     },
     baseline: {

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-30T21:16:19.600Z",
+  "generatedAt": "2026-08-31T04:22:58.089Z",
   "season": 2026,
   "status": "warn",
   "summary": {
-    "passed": 49,
+    "passed": 50,
     "warnings": 2,
     "failures": 0
   },
@@ -37,6 +37,11 @@
       "id": "json.predictions.json",
       "status": "pass",
       "message": "predictions.json is valid JSON."
+    },
+    {
+      "id": "json.model-report.json",
+      "status": "pass",
+      "message": "model-report.json is valid JSON."
     },
     {
       "id": "json.recommendation-policy.json",
@@ -109,7 +114,7 @@
       "id": "fantasypros.projections.freshness",
       "status": "pass",
       "message": "FantasyPros projections are no more than 14 days old.",
-      "actual": 0,
+      "actual": 0.3,
       "expected": "<= 14 days"
     },
     {
@@ -227,9 +232,9 @@
     {
       "id": "predictions.position-models",
       "status": "pass",
-      "message": "QB, RB, WR, and TE predictions come from distinct fitted ridge model families.",
-      "actual": 4,
-      "expected": "4 model families"
+      "message": "QB, RB, WR, and TE predictions come from distinct fitted ridge model families with enough training rows.",
+      "actual": 150,
+      "expected": "4 model families; each >= 12 training rows"
     },
     {
       "id": "predictions.snap-ngs.coverage",
@@ -286,7 +291,7 @@
     {
       "id": "experimental.contract-signal",
       "status": "warn",
-      "message": "Contract data is available for context, but its recommendation boost is disabled until backtested."
+      "message": "Contract-year validation passed, but the signal remains read-only pending separate live-policy approval."
     },
     {
       "id": "contracts.current-context",
@@ -299,7 +304,7 @@
       "id": "contracts.source-freshness",
       "status": "pass",
       "message": "The upstream nflverse contracts release is no more than 30 days old.",
-      "actual": 1.34,
+      "actual": 1.64,
       "expected": "<= 30 days"
     },
     {
