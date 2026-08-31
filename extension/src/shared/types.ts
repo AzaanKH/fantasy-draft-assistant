@@ -3,7 +3,11 @@
  * content script, background service worker, and side panel
  */
 
-import type { DraftSyncSnapshot, Position } from '@fantasy-draft/shared';
+import type {
+  DraftProvider,
+  DraftSyncSnapshot,
+  EspnDraftSnapshot,
+} from '@fantasy-draft/shared';
 
 /**
  * Draft pick detected from Sleeper DOM
@@ -11,7 +15,7 @@ import type { DraftSyncSnapshot, Position } from '@fantasy-draft/shared';
 export interface DetectedPick {
   playerName: string;
   teamName: string;
-  position?: Position | string;
+  position?: string;
   /** Pick number in format "round.pick" e.g. "1.5" for 5th pick of round 1 */
   pickNumber?: string;
   timestamp: number;
@@ -22,8 +26,10 @@ export interface DetectedPick {
  */
 export interface DraftRoomStatus {
   isInDraftRoom: boolean;
+  provider?: DraftProvider;
   draftId?: string;
-  status?: 'pre_draft' | 'drafting' | 'complete';
+  myDraftSlot?: number;
+  status?: 'pre_draft' | 'drafting' | 'paused' | 'complete';
 }
 
 /**
@@ -31,6 +37,7 @@ export interface DraftRoomStatus {
  */
 export type ExtensionMessage =
   | { type: 'PICK_DETECTED'; data: DetectedPick }
+  | { type: 'ESPN_DRAFT_SNAPSHOT'; data: EspnDraftSnapshot }
   | { type: 'DRAFT_ROOM_STATUS'; data: DraftRoomStatus }
   | { type: 'GET_DRAFT_STATUS' }
   | { type: 'OPEN_SIDE_PANEL' }

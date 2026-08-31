@@ -1,227 +1,43 @@
 /**
- * Background Service Worker
+ * Background service-worker entry point.
  *
- * Handles:
- * - Messages from content scripts
- * - Side panel management
- * - State persistence
- * - Communication with web app (if needed)
+ * Chrome I/O is wired here; state policy and orchestration live in testable
+ * modules that do not execute merely by being imported.
  */
 
-import type {
-  ExtensionMessage,
-  MessageResponse,
-  DetectedPick,
-  DraftRoomStatus,
-} from '../shared/types';
-import { DEFAULT_SYNC_SERVER_URL, STORAGE_KEYS } from '../shared/types';
-import type { DraftSyncSnapshot } from '@fantasy-draft/shared';
+import { createBackgroundController } from './background-controller';
+import { ChromeDraftStorage } from './draft-storage';
+import { createSyncSnapshotClient } from './sync-snapshot-client';
 
-// In-memory state
-let detectedPicks: DetectedPick[] = [];
-let draftStatus: DraftRoomStatus = { isInDraftRoom: false };
-let syncSnapshot: DraftSyncSnapshot | null = null;
-
-/**
- * Save picks to storage
- */
-async function savePicks(): Promise<void> {
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.DETECTED_PICKS]: detectedPicks,
-  });
-}
-
-/**
- * Save draft status to storage
- */
-async function saveDraftStatus(): Promise<void> {
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.DRAFT_STATUS]: draftStatus,
-  });
-}
-
-/**
- * Load state from storage
- */
-async function loadState(): Promise<void> {
-  const result = await chrome.storage.local.get([
-    STORAGE_KEYS.DETECTED_PICKS,
-    STORAGE_KEYS.DRAFT_STATUS,
-  ]);
-
-  detectedPicks = result[STORAGE_KEYS.DETECTED_PICKS] ?? [];
-  draftStatus = result[STORAGE_KEYS.DRAFT_STATUS] ?? { isInDraftRoom: false };
-}
-
-async function getSyncServerUrl(): Promise<string> {
-  const result = await chrome.storage.local.get([STORAGE_KEYS.SYNC_SERVER_URL]);
-  return result[STORAGE_KEYS.SYNC_SERVER_URL] ?? DEFAULT_SYNC_SERVER_URL;
-}
-
-async function refreshSnapshot(): Promise<void> {
-  if (!draftStatus.draftId) {
-    syncSnapshot = null;
-    return;
-  }
-
-  try {
-    syncSnapshot = null;
-    const syncServerUrl = await getSyncServerUrl();
-    const response = await fetch(
-      `${syncServerUrl}/api/sync/drafts/${draftStatus.draftId}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Snapshot request failed: ${response.status}`);
-    }
-
-    syncSnapshot = (await response.json()) as DraftSyncSnapshot;
-  } catch (error) {
-    syncSnapshot = null;
-    console.warn('[Fantasy Draft BG] Failed to refresh sync snapshot:', error);
-  }
-}
-
-/**
- * Handle incoming messages from content script or side panel
- */
-function handleMessage(
-  message: ExtensionMessage,
-  _sender: chrome.runtime.MessageSender,
-  sendResponse: (response: MessageResponse) => void
-): boolean {
-  console.log('[Fantasy Draft BG] Received message:', message.type);
-
-  switch (message.type) {
-    case 'PICK_DETECTED': {
-      const pick = message.data;
-
-      // Avoid duplicates (same player within 5 seconds)
-      const isDuplicate = detectedPicks.some(
-        (p) =>
-          p.playerName === pick.playerName &&
-          Math.abs(p.timestamp - pick.timestamp) < 5000
-      );
-
-      if (!isDuplicate) {
-        detectedPicks.push(pick);
-        savePicks();
-        console.log('[Fantasy Draft BG] Pick saved:', pick.playerName);
-
-        // Notify side panel of new pick
-        notifySidePanel();
-      }
-
-      sendResponse({ success: true });
-      break;
-    }
-
-    case 'DRAFT_ROOM_STATUS': {
-      const previousDraftId = draftStatus.draftId;
-      draftStatus = message.data;
-      if (previousDraftId !== draftStatus.draftId) {
-        syncSnapshot = null;
-      }
-      saveDraftStatus();
-      console.log('[Fantasy Draft BG] Draft status updated:', draftStatus);
-
-      void refreshSnapshot().then(() => {
-        notifySidePanel();
-      });
-
-      // If entering draft room, open side panel
-      if (draftStatus.isInDraftRoom) {
-        openSidePanelForCurrentTab();
-      }
-
-      sendResponse({ success: true });
-      break;
-    }
-
-    case 'GET_DRAFT_STATUS': {
-      sendResponse({
-        success: true,
-        data: { picks: detectedPicks, status: draftStatus, snapshot: syncSnapshot },
-      });
-      break;
-    }
-
-    case 'OPEN_SIDE_PANEL': {
-      openSidePanelForCurrentTab();
-      sendResponse({ success: true });
-      break;
-    }
-
-    default:
-      sendResponse({ success: false, error: 'Unknown message type' });
-  }
-
-  return true; // Keep channel open for async response
-}
-
-/**
- * Open side panel for the current active tab
- */
-async function openSidePanelForCurrentTab(): Promise<void> {
-  try {
+const storage = new ChromeDraftStorage(chrome.storage.local);
+const controller = createBackgroundController({
+  storage,
+  syncClient: createSyncSnapshotClient(() => storage.getSyncServerUrl()),
+  queryActiveTab: async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      await chrome.sidePanel.open({ tabId: tab.id });
-    }
-  } catch (error) {
-    console.warn('[Fantasy Draft BG] Failed to open side panel:', error);
-  }
-}
+    return tab?.id;
+  },
+  openSidePanel: (tabId) => chrome.sidePanel.open({ tabId }),
+  notifyRuntime: (message) => chrome.runtime.sendMessage(message),
+});
 
-/**
- * Notify side panel of state changes
- */
-function notifySidePanel(): void {
-  chrome.runtime
-    .sendMessage({
-      type: 'SYNC_STATE',
-      data: { picks: detectedPicks, status: draftStatus, snapshot: syncSnapshot },
-    })
-    .catch(() => {
-      // Side panel might not be open, ignore error
+chrome.action.onClicked.addListener((tab) => {
+  void controller.handleActionClick(tab.id);
+});
+
+chrome.runtime.onInstalled.addListener((details) => {
+  void chrome.sidePanel
+    .setOptions({ enabled: true })
+    .then(() => controller.handleInstalled(details.reason))
+    .catch((error: unknown) => {
+      console.warn('[Fantasy Draft BG] Failed to initialize extension:', error);
     });
-}
-
-/**
- * Handle extension icon click - open side panel
- */
-chrome.action.onClicked.addListener(async (tab) => {
-  if (tab.id) {
-    try {
-      await chrome.sidePanel.open({ tabId: tab.id });
-    } catch (error) {
-      console.error('[Fantasy Draft BG] Failed to open side panel:', error);
-    }
-  }
 });
 
-/**
- * Handle extension installation/update
- */
-chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('[Fantasy Draft BG] Extension installed/updated:', details.reason);
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
+  controller.handleMessage(message as Parameters<typeof controller.handleMessage>[0], sendResponse)
+);
 
-  // Set default side panel behavior
-  await chrome.sidePanel.setOptions({
-    enabled: true,
-  });
-
-  // Initialize storage with defaults
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.MY_PICK_POSITION]: 1,
-    [STORAGE_KEYS.SYNC_SERVER_URL]: DEFAULT_SYNC_SERVER_URL,
-  });
+void controller.initialize().catch((error: unknown) => {
+  console.warn('[Fantasy Draft BG] Failed to load persisted state:', error);
 });
-
-// Set up message listener
-chrome.runtime.onMessage.addListener(handleMessage);
-
-// Load state on startup
-loadState();
-
-console.log('[Fantasy Draft BG] Service worker initialized');

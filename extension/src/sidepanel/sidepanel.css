@@ -1,0 +1,114 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #ffffff;
+  color: #1c211f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+.sidepanel-shell {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: inherit;
+}
+
+#sidepanel-frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  border: 0;
+  background: inherit;
+}
+
+.panel-state {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  background: inherit;
+}
+
+.panel-state[hidden] {
+  display: none;
+}
+
+.panel-state strong {
+  font-size: 16px;
+}
+
+.panel-state span {
+  max-width: 280px;
+  color: #6b736f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 48px;
+  place-items: center;
+  border: 2px solid #25bd73;
+  border-radius: 12px 12px 16px 16px;
+  color: #25bd73;
+  font-weight: 800;
+}
+
+.brand-mark.error {
+  border-color: #ef5f59;
+  color: #ef5f59;
+}
+
+button {
+  width: min(280px, 100%);
+  min-height: 40px;
+  border: 1px solid #1a9b5d;
+  border-radius: 10px;
+  background: #25bd73;
+  color: #0c2418;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.secondary {
+  border-color: #d8dedb;
+  background: transparent;
+  color: inherit;
+}
+
+button:focus-visible {
+  outline: 2px solid #25bd73;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #0b0e0d;
+    color: #f2f5f3;
+  }
+
+  .panel-state span {
+    color: #9ca5a0;
+  }
+
+  button.secondary {
+    border-color: #333936;
+  }
+}
