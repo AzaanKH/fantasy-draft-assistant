@@ -126,6 +126,14 @@ describe('position residual ridge model', () => {
     expect(prediction).toBeCloseTo(0, 8);
   });
 
+  it('rejects a fitted model with too few position training rows', () => {
+    const rows = Array.from({ length: 11 }, (_, index) => row(2021, index, index));
+
+    expect(() => fitPositionResidualModel(rows, 'QB')).toThrow(
+      'Cannot fit QB position model expanded-efficiency-v1: 11 training rows; minimum 12.'
+    );
+  });
+
   it('shrinks observed metrics according to workload reliability', () => {
     expect(shrinkMetricToPositionAverage(10, 20, 2, 80)).toBeCloseTo(3.6, 8);
     expect(shrinkMetricToPositionAverage(10, 80, 2, 80)).toBeCloseTo(6, 8);

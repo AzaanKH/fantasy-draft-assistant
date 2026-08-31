@@ -137,7 +137,7 @@ const DEFAULT_VOLUME_THRESHOLDS: Record<OffensivePosition, number> = {
   WR: 80,
   TE: 200,
 };
-const MIN_TRAINING_ROWS = 12;
+export const MIN_TRAINING_ROWS = 12;
 
 function mean(values: readonly number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
@@ -219,6 +219,12 @@ function fitWithHyperparameters(
     readonly validationRows: number;
   }
 ): FittedPositionResidualModel {
+  if (rows.length < MIN_TRAINING_ROWS) {
+    throw new Error(
+      `Cannot fit ${position} position model ${specificationId}: ` +
+      `${String(rows.length)} training rows; minimum ${String(MIN_TRAINING_ROWS)}.`
+    );
+  }
   const featureMeans = featureNames.map((featureName) => {
     const observed = rows
       .map((row) => row.features[featureName])

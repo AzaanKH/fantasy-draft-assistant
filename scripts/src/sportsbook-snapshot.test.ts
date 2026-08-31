@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   isSportsbookSnapshot,
@@ -8,18 +8,21 @@ import {
   type SportsbookSnapshot,
 } from '@fantasy-draft/shared';
 
-const SNAPSHOT_PATH = resolve(
-  process.cwd(),
-  process.cwd().endsWith('/scripts') ? '..' : '.',
-  'data/sportsbook-snapshot.json'
+const SNAPSHOT_PATH = fileURLToPath(
+  new URL('../../data/sportsbook-snapshot.json', import.meta.url)
 );
+
+async function readSnapshot(): Promise<SportsbookSnapshot> {
+  const parsed: unknown = JSON.parse(await readFile(SNAPSHOT_PATH, 'utf8'));
+  if (!isSportsbookSnapshot(parsed)) {
+    throw new Error(`Invalid sportsbook snapshot: ${SNAPSHOT_PATH}`);
+  }
+  return parsed;
+}
 
 describe('sportsbook snapshot', () => {
   it('contains the complete normalized PDF import', async () => {
-    const parsed: unknown = JSON.parse(await readFile(SNAPSHOT_PATH, 'utf8'));
-    expect(isSportsbookSnapshot(parsed)).toBe(true);
-
-    const snapshot = parsed as SportsbookSnapshot;
+    const snapshot = await readSnapshot();
     expect(snapshot.overUnder).toHaveLength(428);
     expect(snapshot.milestones).toHaveLength(847);
     expect(
@@ -35,9 +38,7 @@ describe('sportsbook snapshot', () => {
   });
 
   it('retains the DraftKings 1,000-yard watchlist prices', async () => {
-    const snapshot = JSON.parse(
-      await readFile(SNAPSHOT_PATH, 'utf8')
-    ) as SportsbookSnapshot;
+    const snapshot = await readSnapshot();
     const oddsByPlayer = new Map(
       snapshot.milestones
         .filter(

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T20:51:13.398Z",
+  "generatedAt": "2026-08-31T04:08:02.062Z",
   "rule": "information_timestamp <= historical_draft_timestamp",
   "dateOnlyPolicy": "information timestamp upper bound is the following midnight UTC",
   "missingnessPolicy": "unknown timestamps and absent preseason rows remain null; no later rows are inferred",

@@ -178,6 +178,21 @@ async function main(): Promise<void> {
       : undefined;
     return identity?.sleeperId === undefined;
   });
+  const failures = [
+    records.length < MIN_IDENTITY_RECORDS
+      ? `${String(records.length)} identities is below ${String(MIN_IDENTITY_RECORDS)}`
+      : null,
+    rankingMatchRate < MIN_RANKING_MATCH_RATE
+      ? `${String(rankingMatchRate)} ranking coverage is below ${String(MIN_RANKING_MATCH_RATE)}`
+      : null,
+    matchedDefenses !== EXPECTED_DEFENSES
+      ? `${String(matchedDefenses)} defenses matched instead of ${String(EXPECTED_DEFENSES)}`
+      : null,
+  ].filter((failure): failure is string => failure !== null);
+  if (failures.length > 0) {
+    throw new Error(`Generated player identity map failed readiness: ${failures.join('; ')}.`);
+  }
+
   const output = {
     generatedAt: new Date().toISOString(),
     season: fantasyPros.metadata.season,
@@ -214,20 +229,6 @@ async function main(): Promise<void> {
     );
   }
 
-  const failures = [
-    records.length < MIN_IDENTITY_RECORDS
-      ? `${String(records.length)} identities is below ${String(MIN_IDENTITY_RECORDS)}`
-      : null,
-    rankingMatchRate < MIN_RANKING_MATCH_RATE
-      ? `${String(rankingMatchRate)} ranking coverage is below ${String(MIN_RANKING_MATCH_RATE)}`
-      : null,
-    matchedDefenses !== EXPECTED_DEFENSES
-      ? `${String(matchedDefenses)} defenses matched instead of ${String(EXPECTED_DEFENSES)}`
-      : null,
-  ].filter((failure): failure is string => failure !== null);
-  if (failures.length > 0) {
-    throw new Error(`Generated player identity map failed readiness: ${failures.join('; ')}.`);
-  }
 }
 
 export const playerIdentityInternals = {

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MIN_TRAINING_ROWS } from './model/position-residual-model.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DATA_DIR = join(REPO_ROOT, 'data');
@@ -71,6 +72,7 @@ async function main(): Promise<void> {
     'player-identity.json',
     'team-environment.json',
     'predictions.json',
+    'model-report.json',
     'recommendation-policy.json',
     'league-history/survival-model.json',
     'contracts.json',
@@ -266,10 +268,20 @@ async function main(): Promise<void> {
       .filter((family): family is string => typeof family === 'string')
   );
   const fittedPositionFamilies = [...offensiveModelFamilies].filter((family) => family.includes('ridge'));
+  const positionModelReport = nested(loaded.get('model-report.json'), 'positionResidualModels');
+  const positionModelTrainingRows = ['QB', 'RB', 'WR', 'TE'].map((position) =>
+    nested(positionModelReport, position, 'trainingRows')
+  );
+  const minimumPositionModelTrainingRows = positionModelTrainingRows.every(finiteNumber)
+    ? Math.min(...positionModelTrainingRows)
+    : null;
   add(checks, 'predictions.position-models',
-    offensiveModelFamilies.size === 4 && fittedPositionFamilies.length === 4 ? 'pass' : 'fail',
-    'QB, RB, WR, and TE predictions come from distinct fitted ridge model families.',
-    offensiveModelFamilies.size, '4 model families');
+    offensiveModelFamilies.size === 4 && fittedPositionFamilies.length === 4 &&
+      minimumPositionModelTrainingRows !== null &&
+      minimumPositionModelTrainingRows >= MIN_TRAINING_ROWS ? 'pass' : 'fail',
+    'QB, RB, WR, and TE predictions come from distinct fitted ridge model families with enough training rows.',
+    minimumPositionModelTrainingRows,
+    `4 model families; each >= ${String(MIN_TRAINING_ROWS)} training rows`);
   const featureAdjustedPredictions = predictionPlayers.filter((entry) =>
     isRecord(entry) && finiteNumber(entry['usageEfficiencyAdjustment']) &&
       entry['usageEfficiencyAdjustment'] !== 0
@@ -307,10 +319,10 @@ async function main(): Promise<void> {
     'Recommendation policy records both sequential promotion gates and the combined decision.');
   add(checks, 'recommendation-policy.shadow-logging',
     nested(policy, 'shadowLogging', 'enabled') === true &&
-      nested(policy, 'shadowLogging', 'season') === 2026 &&
+      nested(policy, 'shadowLogging', 'season') === CURRENT_SEASON &&
       nested(policy, 'shadowLogging', 'endpoint') === '/api/shadow-recommendations'
       ? 'pass' : 'fail',
-    'The 2026 experimental policy records the model only as Shadow Recommendation.');
+    `The ${String(CURRENT_SEASON)} experimental policy records the model only as Shadow Recommendation.`);
   add(checks, 'recommendation-policy.contract-signal',
     nested(policy, 'contractSignalEnabled') === false ? 'pass' : 'fail',
     'Contract context remains read-only and cannot alter live ordering.');
@@ -329,7 +341,9 @@ async function main(): Promise<void> {
     nested(policy, 'contractSignalEnabled') === true ? 'pass' : 'warn',
     nested(policy, 'contractSignalEnabled') === true
       ? 'Contract-year recommendation signal is validated and enabled.'
-      : 'Contract data is available for context, but its recommendation boost is disabled until backtested.');
+      : nested(policy, 'contractSignalValidationPassed') === true
+        ? 'Contract-year validation passed, but the signal remains read-only pending separate live-policy approval.'
+        : 'Contract data is available for context, but its recommendation boost is disabled until backtested.');
 
   const contracts = loaded.get('contracts.json');
   const contractPlayers = asArray(nested(contracts, 'players'));

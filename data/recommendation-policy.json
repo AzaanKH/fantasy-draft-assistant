@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T20:52:53.825Z",
+  "generatedAt": "2026-08-31T04:11:11.063Z",
   "modelVersion": "roster-aware-nested-walk-forward-v9-pick-ev",
   "modelPredictionsEnabled": false,
   "contractSignalEnabled": false,
@@ -10,7 +10,7 @@
     "checks": {
       "starterPointsImprove": false,
       "vorDoesNotRegress": false,
-      "regretDoesNotRegress": false,
+      "regretDoesNotRegress": true,
       "top24HitRateNonInferior": true
     },
     "passed": false
@@ -21,14 +21,14 @@
     "beatsEcrStarterPoints": false,
     "fullVsLegacy": {
       "starterPoints": 186.46,
-      "vorCaptured": 326.76,
-      "averageRegret": -26.63,
+      "vorCaptured": 383.26,
+      "averageRegret": -27.79,
       "top24PositionHitRate": 0.11
     },
     "fullVsEcr": {
       "starterPoints": -175.78,
-      "vorCaptured": -241.22,
-      "averageRegret": 0.95,
+      "vorCaptured": -184.72,
+      "averageRegret": -0.21,
       "top24PositionHitRate": 0.03
     },
     "dataStatus": {
@@ -73,5 +73,6 @@
   },
   "reason": "At least one promotion gate fails; keep the model in Shadow Recommendation and out of live ordering.",
   "contractSignalModelVersion": "contract-year-walk-forward-ridge-v1",
-  "contractSignalReason": "The contract-year feature does not clear the multi-season promotion gate; keep it disabled."
+  "contractSignalReason": "The contract-year feature clears the multi-season promotion gate. It remains read-only until a separate live-policy approval.",
+  "contractSignalValidationPassed": true
 }

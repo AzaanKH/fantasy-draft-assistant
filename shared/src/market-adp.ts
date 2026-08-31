@@ -1,6 +1,7 @@
 import { isNFLTeam, isPosition, type NFLTeam, type Position } from './player';
 
-export type MarketAdpFormat = 'standard' | 'half-ppr' | 'ppr';
+export const MARKET_ADP_FORMATS = ['standard', 'half-ppr', 'ppr'] as const;
+export type MarketAdpFormat = (typeof MARKET_ADP_FORMATS)[number];
 
 export interface MarketAdpPlayer {
   readonly externalId: string;
@@ -29,7 +30,7 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 export function isMarketAdpFormat(value: unknown): value is MarketAdpFormat {
-  return value === 'standard' || value === 'half-ppr' || value === 'ppr';
+  return typeof value === 'string' && MARKET_ADP_FORMATS.includes(value as MarketAdpFormat);
 }
 
 function isMarketAdpPlayer(value: unknown): value is MarketAdpPlayer {

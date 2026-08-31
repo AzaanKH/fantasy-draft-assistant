@@ -1,3 +1,13 @@
+import {
+  calculateStarterPoints as calculateSharedStarterPoints,
+  createOffensiveRoster,
+  deriveRosterRules,
+  isLegalCandidate as isLegalOffensiveCandidate,
+  rosterAdjustedValue,
+  type OffensiveRoster,
+  type RosterRules,
+} from './offensive-roster.js';
+
 export const SIMULATED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 
 export type SimulatedPosition = (typeof SIMULATED_POSITIONS)[number];
@@ -31,13 +41,7 @@ export interface CounterfactualSeason {
   readonly picks: readonly CounterfactualPick[];
 }
 
-interface RosterRules {
-  readonly fixedStarters: Readonly<Record<SimulatedPosition, number>>;
-  readonly flexStarters: number;
-  readonly totalOffensiveSlots: number;
-}
-
-type SimulatedRoster = Record<SimulatedPosition, CounterfactualPlayer[]>;
+type SimulatedRoster = OffensiveRoster<CounterfactualPlayer>;
 
 interface PositionCounts {
   QB: number;
@@ -82,13 +86,6 @@ export interface CounterfactualSimulationSummary {
   readonly expectedAverageRegret: MetricEstimate;
 }
 
-const POSITION_MAXIMUMS: Readonly<Record<SimulatedPosition, number>> = {
-  QB: 4,
-  RB: 8,
-  WR: 8,
-  TE: 3,
-};
-
 const TENDENCY_PRIOR_PICKS = 8;
 
 function round(value: number, digits: number = 2): number {
@@ -104,38 +101,7 @@ function emptyCounts(): PositionCounts {
 }
 
 function createRoster(): SimulatedRoster {
-  return { QB: [], RB: [], WR: [], TE: [] };
-}
-
-function deriveRules(rosterPositions: readonly string[]): RosterRules {
-  const fixedStarters: Record<SimulatedPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
-  for (const position of SIMULATED_POSITIONS) {
-    fixedStarters[position] = rosterPositions.filter((slot) => slot === position).length;
-  }
-  const flexStarters = rosterPositions.filter((slot) => slot === 'FLEX').length;
-  return {
-    fixedStarters,
-    flexStarters,
-    totalOffensiveSlots:
-      Object.values(fixedStarters).reduce((sum, count) => sum + count, 0) +
-      flexStarters +
-      rosterPositions.filter((slot) => slot === 'BN').length,
-  };
-}
-
-function rosterSize(roster: SimulatedRoster): number {
-  return SIMULATED_POSITIONS.reduce((sum, position) => sum + roster[position].length, 0);
-}
-
-function missingRequiredSlots(roster: SimulatedRoster, rules: RosterRules): number {
-  const missingFixed = SIMULATED_POSITIONS.reduce(
-    (sum, position) => sum + Math.max(0, rules.fixedStarters[position] - roster[position].length),
-    0
-  );
-  const flexCount = roster.RB.length + roster.WR.length + roster.TE.length;
-  const fixedFlexBase = rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE;
-  const filledFlex = Math.min(rules.flexStarters, Math.max(0, flexCount - fixedFlexBase));
-  return missingFixed + Math.max(0, rules.flexStarters - filledFlex);
+  return createOffensiveRoster<CounterfactualPlayer>();
 }
 
 function isLegalCandidate(
@@ -144,16 +110,7 @@ function isLegalCandidate(
   rules: RosterRules,
   remainingOffensivePicks: number
 ): boolean {
-  if (rosterSize(roster) >= rules.totalOffensiveSlots) return false;
-  if (roster[player.position].length >= POSITION_MAXIMUMS[player.position]) return false;
-  const after: SimulatedRoster = {
-    QB: [...roster.QB],
-    RB: [...roster.RB],
-    WR: [...roster.WR],
-    TE: [...roster.TE],
-  };
-  after[player.position].push(player);
-  return missingRequiredSlots(after, rules) <= Math.max(0, remainingOffensivePicks - 1);
+  return isLegalOffensiveCandidate(player, roster, rules, remainingOffensivePicks);
 }
 
 function phase(roundNumber: number): string {
@@ -277,18 +234,7 @@ function modelRosterScore(
   roster: SimulatedRoster,
   rules: RosterRules
 ): number {
-  const fixedNeed = roster[player.position].length < rules.fixedStarters[player.position];
-  const flexEligible = player.position !== 'QB';
-  const flexCount = roster.RB.length + roster.WR.length + roster.TE.length;
-  const flexTarget = rules.fixedStarters.RB + rules.fixedStarters.WR +
-    rules.fixedStarters.TE + rules.flexStarters;
-  const redundantSingleStarter =
-    (player.position === 'QB' || player.position === 'TE') &&
-    roster[player.position].length >= Math.max(1, rules.fixedStarters[player.position]);
-  const adjustedValue = redundantSingleStarter
-    ? player.modelValue * (player.position === 'QB' ? 0.2 : 0.45)
-    : player.modelValue;
-  return adjustedValue + (fixedNeed ? 34 : 0) + (flexEligible && flexCount < flexTarget ? 12 : 0);
+  return rosterAdjustedValue(player, player.modelValue, roster, rules);
 }
 
 function chooseUserPlayer(
@@ -309,22 +255,12 @@ function chooseUserPlayer(
 }
 
 function calculateStarterPoints(roster: SimulatedRoster, rules: RosterRules): number {
-  const used = new Set<string>();
-  let points = 0;
-  for (const position of SIMULATED_POSITIONS) {
-    const starters = [...roster[position]]
-      .sort((a, b) => b.actualPoints - a.actualPoints)
-      .slice(0, rules.fixedStarters[position]);
-    for (const player of starters) {
-      used.add(player.id);
-      points += player.actualPoints;
-    }
-  }
-  const flex = [...roster.RB, ...roster.WR, ...roster.TE]
-    .filter((player) => !used.has(player.id))
-    .sort((a, b) => b.actualPoints - a.actualPoints)
-    .slice(0, rules.flexStarters);
-  return round(points + flex.reduce((sum, player) => sum + player.actualPoints, 0));
+  return calculateSharedStarterPoints(
+    roster,
+    rules,
+    (player) => player.id,
+    (player) => player.actualPoints
+  );
 }
 
 function remainingOffensiveTurns(
@@ -344,7 +280,7 @@ export function runCounterfactualDraft(input: {
   readonly strategy: CounterfactualStrategy;
   readonly seed: number;
 }): CounterfactualDraftMetrics {
-  const rules = deriveRules(input.season.rosterPositions);
+  const rules = deriveRosterRules(input.season.rosterPositions);
   const tendencies = buildOpponentTendencies(input.priorSeasons);
   const random = mulberry32(input.seed);
   const playersById = new Map(input.players.map((player) => [player.id, player]));

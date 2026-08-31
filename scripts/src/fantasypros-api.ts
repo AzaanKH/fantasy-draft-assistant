@@ -567,9 +567,20 @@ function combineNewsWithInjuries(
   news: readonly FantasyProsNewsItem[],
   injuries: readonly FantasyProsNewsItem[]
 ): FantasyProsNewsItem[] {
-  const injuriesByPlayer = new Map(
-    injuries.map((injury) => [newsPlayerKey(injury), injury] as const)
-  );
+  const injuriesByPlayer = new Map<string, FantasyProsNewsItem>();
+  for (const injury of injuries) {
+    const key = newsPlayerKey(injury);
+    const existing = injuriesByPlayer.get(key);
+    const injuryUpdatedAt = Date.parse(injury.updatedAt ?? '');
+    const existingUpdatedAt = Date.parse(existing?.updatedAt ?? '');
+    if (
+      !existing ||
+      (Number.isFinite(injuryUpdatedAt) &&
+        (!Number.isFinite(existingUpdatedAt) || injuryUpdatedAt > existingUpdatedAt))
+    ) {
+      injuriesByPlayer.set(key, injury);
+    }
+  }
   const matchedInjuryKeys = new Set<string>();
   const combinedNews = news.map((item) => {
     const key = newsPlayerKey(item);
@@ -635,7 +646,11 @@ export async function fetchFantasyProsSnapshot(
         year: options.season,
         week: 0,
       }
-    ),
+    ).catch((error: unknown): FantasyProsInjuriesResponse => {
+      console.warn('FantasyPros injuries endpoint unavailable; continuing without injuries.');
+      console.warn(error);
+      return {};
+    }),
   ]);
 
   let projectionsResponse: FantasyProsProjectionResponse = {};
