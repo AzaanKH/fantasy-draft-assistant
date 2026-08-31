@@ -1,8 +1,77 @@
 {
-  "generatedAt": "2026-07-20T22:21:24.330Z",
-  "modelVersion": "roster-aware-walk-forward-v3-snaps-ngs",
+  "generatedAt": "2026-08-29T20:52:53.825Z",
+  "modelVersion": "roster-aware-nested-walk-forward-v9-pick-ev",
   "modelPredictionsEnabled": false,
   "contractSignalEnabled": false,
+  "pickEvOverrideEnabled": false,
+  "pickEvOverrideThreshold": 4,
+  "pickEvOverrideValidation": {
+    "threshold": 4,
+    "checks": {
+      "starterPointsImprove": false,
+      "vorDoesNotRegress": false,
+      "regretDoesNotRegress": false,
+      "top24HitRateNonInferior": true
+    },
+    "passed": false
+  },
+  "recommendationArchitecture": "pick-ev-v1",
+  "pickEvEvaluation": {
+    "improvesLegacyStarterPoints": true,
+    "beatsEcrStarterPoints": false,
+    "fullVsLegacy": {
+      "starterPoints": 186.46,
+      "vorCaptured": 326.76,
+      "averageRegret": -26.63,
+      "top24PositionHitRate": 0.11
+    },
+    "fullVsEcr": {
+      "starterPoints": -175.78,
+      "vorCaptured": -241.22,
+      "averageRegret": 0.95,
+      "top24PositionHitRate": 0.03
+    },
+    "dataStatus": {
+      "projections": "Historical leakage-safe shared projection proxy; historical FantasyPros snapshots are not available.",
+      "adp": "Historical pre-draft consensus rank proxy; observed historical player-level ADP is not available.",
+      "risk": "Informational only; dated injury replay is not yet available, so risk is excluded from selection.",
+      "optionValue": "History-length uncertainty is the leakage-safe late-round ceiling proxy."
+    }
+  },
   "fallback": "fantasypros-ecr-market",
-  "reason": "Model does not clear the ECR comparison gate; keep it experimental and do not claim an edge."
+  "promotionGates": {
+    "feature": {
+      "passed": false,
+      "checks": {
+        "outOfSampleStarterPointsImprovePreviousModel": false
+      },
+      "decision": "The new feature family does not improve aggregate out-of-sample starter points over the previous model."
+    },
+    "release": {
+      "passed": false,
+      "seasonsWon": 1,
+      "seasonsRequired": 3,
+      "seasonsExpected": 4,
+      "hasAllReleaseSeasons": true,
+      "worstStarterRegression": -0.1878,
+      "checks": {
+        "seasonsWon": false,
+        "aggregateStarterPointsBeatEcr": false,
+        "aggregateVorBeatEcr": false,
+        "averageRegretBeatEcr": false,
+        "top24HitRateNonInferior": false,
+        "noSeasonStarterRegressionOver15Percent": false
+      },
+      "decision": "Model does not clear the ECR comparison gate; keep it experimental and do not claim an edge."
+    },
+    "passed": false
+  },
+  "shadowLogging": {
+    "enabled": true,
+    "season": 2026,
+    "endpoint": "/api/shadow-recommendations"
+  },
+  "reason": "At least one promotion gate fails; keep the model in Shadow Recommendation and out of live ordering.",
+  "contractSignalModelVersion": "contract-year-walk-forward-ridge-v1",
+  "contractSignalReason": "The contract-year feature does not clear the multi-season promotion gate; keep it disabled."
 }

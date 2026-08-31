@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-07-20T21:28:58.421Z",
+  "generatedAt": "2026-08-29T20:50:49.377Z",
   "contractYear": 2026,
-  "playerCount": 324,
+  "playerCount": 342,
   "source": "https://github.com/nflverse/nflverse-data/releases/download/contracts/historical_contracts.parquet",
-  "sourceUpdatedAt": "2026-07-20T10:18:02Z",
+  "sourceUpdatedAt": "2026-08-29T13:07:18Z",
   "sourceDescription": "nflverse historical contracts sourced from OverTheCap",
   "signalPolicy": "context-only-until-backtested",
   "players": [
@@ -44,6 +44,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "11931",
+      "gsisId": "00-0039464",
+      "name": "Austin Reed",
+      "position": "QB",
+      "team": "BAL",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "8157",
       "gsisId": "00-0038108",
       "name": "Bailey Zappe",
@@ -67,6 +76,15 @@
       "name": "Brandon Allen",
       "position": "QB",
       "team": "NYG",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "6037",
+      "gsisId": "00-0034955",
+      "name": "Brett Rypien",
+      "position": "QB",
+      "team": "HOU",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -103,6 +121,15 @@
       "name": "Chris Oladokun",
       "position": "QB",
       "team": "KC",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "4574",
+      "gsisId": "00-0033662",
+      "name": "Cooper Rush",
+      "position": "QB",
+      "team": "ATL",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -170,20 +197,20 @@
       "isContractYear": true
     },
     {
-      "playerId": "3257",
-      "gsisId": "00-0033119",
-      "name": "Jacoby Brissett",
-      "position": "QB",
-      "team": "ARI",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "6111",
       "gsisId": "00-0035100",
       "name": "Jake Browning",
       "position": "QB",
       "team": "TB",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "10215",
+      "gsisId": "00-0038998",
+      "name": "Jake Haener",
+      "position": "QB",
+      "team": "NYG",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -215,6 +242,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "4179",
+      "gsisId": "00-0033949",
+      "name": "Joshua Dobbs",
+      "position": "QB",
+      "team": "DET",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "11648",
       "gsisId": "00-0039577",
       "name": "Kedon Slovis",
@@ -238,6 +274,15 @@
       "name": "Kyle McCord",
       "position": "QB",
       "team": "GB",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "7605",
+      "gsisId": "00-0036928",
+      "name": "Kyle Trask",
+      "position": "QB",
+      "team": "CAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -337,24 +382,6 @@
       "name": "Tanner McKee",
       "position": "QB",
       "team": "PHI",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "2152",
-      "gsisId": "00-0031237",
-      "name": "Teddy Bridgewater",
-      "position": "QB",
-      "team": "DET",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "2549",
-      "gsisId": "00-0032156",
-      "name": "Trevor Siemian",
-      "position": "QB",
-      "team": "ATL",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -534,7 +561,16 @@
       "gsisId": "00-0040556",
       "name": "Corey Kiner",
       "position": "RB",
-      "team": "ARI",
+      "team": "NE",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "6659",
+      "gsisId": "00-0035567",
+      "name": "Craig Reynolds",
+      "position": "RB",
+      "team": "WAS",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -544,6 +580,15 @@
       "name": "D'Andre Swift",
       "position": "RB",
       "team": "CHI",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "6694",
+      "gsisId": "00-0035628",
+      "name": "D'Ernest Johnson",
+      "position": "RB",
+      "team": "TEN",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -566,11 +611,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "11654",
-      "gsisId": "00-0039230",
-      "name": "Dante Miller",
+      "playerId": "4718",
+      "gsisId": "00-0033854",
+      "name": "Dare Ogunbowale",
       "position": "RB",
-      "team": "NYG",
+      "team": "LV",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -589,15 +634,6 @@
       "name": "Devin Singletary",
       "position": "RB",
       "team": "NYG",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "7561",
-      "gsisId": "00-0036567",
-      "name": "Elijah Mitchell",
-      "position": "RB",
-      "team": "PHI",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -633,7 +669,7 @@
       "gsisId": "00-0038397",
       "name": "Evan Hull",
       "position": "RB",
-      "team": "HOU",
+      "team": "ARI",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -656,6 +692,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "8123",
+      "gsisId": "00-0037617",
+      "name": "Hassan Haskins",
+      "position": "RB",
+      "team": "NE",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "12036",
       "gsisId": "00-0039466",
       "name": "Ian Wheeler",
@@ -674,11 +719,29 @@
       "isContractYear": true
     },
     {
+      "playerId": "12479",
+      "gsisId": "00-0040332",
+      "name": "Ja'Quinden Jackson",
+      "position": "RB",
+      "team": "PHI",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "12356",
       "gsisId": "00-0039652",
       "name": "Jabari Small",
       "position": "RB",
       "team": "DET",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "13047",
+      "gsisId": "00-0040067",
+      "name": "Jacardia Wright",
+      "position": "RB",
+      "team": "SEA",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -710,6 +773,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "6996",
+      "gsisId": "00-0035806",
+      "name": "JaMycal Hasty",
+      "position": "RB",
+      "team": "NE",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "7537",
       "gsisId": "00-0036755",
       "name": "Jaret Patterson",
@@ -737,20 +809,20 @@
       "isContractYear": true
     },
     {
-      "playerId": "8143",
-      "gsisId": "00-0037267",
-      "name": "Jerome Ford",
+      "playerId": "7599",
+      "gsisId": "00-0036670",
+      "name": "Jermar Jefferson",
       "position": "RB",
-      "team": "WAS",
+      "team": "MIN",
       "contractEndYear": 2026,
       "isContractYear": true
     },
     {
-      "playerId": "6813",
-      "gsisId": "00-0036223",
-      "name": "Jonathan Taylor",
+      "playerId": "7087",
+      "gsisId": "00-0035924",
+      "name": "Jonathan Ward",
       "position": "RB",
-      "team": "IND",
+      "team": "BAL",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -800,11 +872,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "10216",
-      "gsisId": "00-0038636",
-      "name": "Kenny McIntosh",
+      "playerId": "7608",
+      "gsisId": "00-0036906",
+      "name": "Khalil Herbert",
       "position": "RB",
-      "team": "SEA",
+      "team": "SF",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -845,11 +917,20 @@
       "isContractYear": true
     },
     {
-      "playerId": "6963",
-      "gsisId": "00-0035973",
-      "name": "Patrick Taylor",
+      "playerId": "7528",
+      "gsisId": "00-0036893",
+      "name": "Najee Harris",
       "position": "RB",
-      "team": "SF",
+      "team": "NYG",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "11384",
+      "gsisId": "00-0038458",
+      "name": "Owen Wright",
+      "position": "RB",
+      "team": "HOU",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -935,15 +1016,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "12412",
-      "gsisId": "00-0039757",
-      "name": "Terrell Jennings",
-      "position": "RB",
-      "team": "NE",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "5967",
       "gsisId": "00-0035261",
       "name": "Tony Pollard",
@@ -958,6 +1030,24 @@
       "name": "Travis Homer",
       "position": "RB",
       "team": "PIT",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "6144",
+      "gsisId": "00-0035291",
+      "name": "Trayveon Williams",
+      "position": "RB",
+      "team": "DET",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "7593",
+      "gsisId": "00-0036984",
+      "name": "Trey Sermon",
+      "position": "RB",
+      "team": "ATL",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1025,6 +1115,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "8139",
+      "gsisId": "00-0038040",
+      "name": "Zamir White",
+      "position": "RB",
+      "team": "NO",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "11299",
       "gsisId": "00-0038440",
       "name": "Zavier Scott",
@@ -1048,15 +1147,6 @@
       "name": "Albert Okwuegbunam",
       "position": "TE",
       "team": "LV",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "4435",
-      "gsisId": "00-0033455",
-      "name": "Anthony Firkser",
-      "position": "TE",
-      "team": "WAS",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1097,15 +1187,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "12374",
-      "gsisId": "00-0039458",
-      "name": "Brenden Bates",
-      "position": "TE",
-      "team": "CLE",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "7568",
       "gsisId": "00-0036556",
       "name": "Brevin Jordan",
@@ -1142,6 +1223,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "13122",
+      "gsisId": "00-0040488",
+      "name": "Carter Runyon",
+      "position": "TE",
+      "team": "LV",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "7075",
       "gsisId": "00-0036429",
       "name": "Charlie Woerner",
@@ -1160,11 +1250,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "12984",
-      "gsisId": "00-0040566",
-      "name": "CJ Dippre",
+      "playerId": "6529",
+      "gsisId": "00-0035345",
+      "name": "Chris Myarick",
       "position": "TE",
-      "team": "NE",
+      "team": "LV",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1192,6 +1282,15 @@
       "name": "Colson Yankoff",
       "position": "TE",
       "team": "WAS",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "2505",
+      "gsisId": "00-0031610",
+      "name": "Darren Waller",
+      "position": "TE",
+      "team": "CAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1277,15 +1376,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "12981",
-      "gsisId": "00-0040571",
-      "name": "Gee Scott",
-      "position": "TE",
-      "team": "NYJ",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "8177",
       "gsisId": "00-0037086",
       "name": "Grant Calcaterra",
@@ -1295,29 +1385,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "5886",
-      "gsisId": "00-0035529",
-      "name": "Hakeem Butler",
+      "playerId": "12389",
+      "gsisId": "00-0039489",
+      "name": "Hayden Rucci",
       "position": "TE",
-      "team": "DEN",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "6850",
-      "gsisId": "00-0036232",
-      "name": "Harrison Bryant",
-      "position": "TE",
-      "team": "SEA",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "3214",
-      "gsisId": "00-0033090",
-      "name": "Hunter Henry",
-      "position": "TE",
-      "team": "NE",
+      "team": "SF",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1340,29 +1412,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "7946",
-      "gsisId": "00-0036741",
-      "name": "Jack Stoll",
-      "position": "TE",
-      "team": "CLE",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "12045",
       "gsisId": "00-0039305",
       "name": "Jack Westover",
       "position": "TE",
       "team": "NE",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "11605",
-      "gsisId": "00-0039420",
-      "name": "Jaheim Bell",
-      "position": "TE",
-      "team": "PIT",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1403,11 +1457,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "7597",
-      "gsisId": "00-0036510",
-      "name": "Kenny Yeboah",
+      "playerId": "7050",
+      "gsisId": "00-0036332",
+      "name": "Josiah Deguara",
       "position": "TE",
-      "team": "ARI",
+      "team": "NYG",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1448,15 +1502,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "12725",
-      "gsisId": "00-0040250",
-      "name": "Luke Lachey",
-      "position": "TE",
-      "team": "GB",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "9481",
       "gsisId": "00-0039144",
       "name": "Luke Musgrave",
@@ -1480,6 +1525,15 @@
       "name": "Mason Pline",
       "position": "TE",
       "team": "KC",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "12070",
+      "gsisId": "00-0039263",
+      "name": "McCallan Castles",
+      "position": "TE",
+      "team": "GB",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1520,6 +1574,24 @@
       "isContractYear": true
     },
     {
+      "playerId": "8523",
+      "gsisId": "00-0037317",
+      "name": "Nick Muse",
+      "position": "TE",
+      "team": "ATL",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "3258",
+      "gsisId": "00-0032394",
+      "name": "Nick Vannett",
+      "position": "TE",
+      "team": "SEA",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "8107",
       "gsisId": "00-0037031",
       "name": "Nikola Kalinic",
@@ -1534,6 +1606,15 @@
       "name": "Payne Durham",
       "position": "TE",
       "team": "TB",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "4443",
+      "gsisId": "00-0033439",
+      "name": "Pharaoh Brown",
+      "position": "TE",
+      "team": "IND",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1561,15 +1642,6 @@
       "name": "Sam LaPorta",
       "position": "TE",
       "team": "DET",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "6964",
-      "gsisId": "00-0036032",
-      "name": "Sean McKeon",
-      "position": "TE",
-      "team": "IND",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1637,6 +1709,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "7554",
+      "gsisId": "00-0037011",
+      "name": "Tre' McKitty",
+      "position": "TE",
+      "team": "WAS",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "9484",
       "gsisId": "00-0038996",
       "name": "Tucker Kraft",
@@ -1664,20 +1745,20 @@
       "isContractYear": true
     },
     {
-      "playerId": "10863",
-      "gsisId": "00-0038612",
-      "name": "A.T. Perry",
-      "position": "WR",
-      "team": "PIT",
+      "playerId": "9483",
+      "gsisId": "00-0038406",
+      "name": "Zack Kuntz",
+      "position": "TE",
+      "team": "DAL",
       "contractEndYear": 2026,
       "isContractYear": true
     },
     {
-      "playerId": "11615",
-      "gsisId": "00-0039747",
-      "name": "Ainias Smith",
+      "playerId": "6386",
+      "gsisId": "00-0035602",
+      "name": "Alex Bachman",
       "position": "WR",
-      "team": "CAR",
+      "team": "LAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1754,15 +1835,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "11621",
-      "gsisId": "00-0039415",
-      "name": "Brenden Rice",
-      "position": "WR",
-      "team": "GB",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "8414",
       "gsisId": "00-0037132",
       "name": "Britain Covey",
@@ -1799,20 +1871,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "10444",
-      "gsisId": "00-0038979",
-      "name": "Cedric Tillman",
+      "playerId": "11806",
+      "gsisId": "00-0039394",
+      "name": "Casey Washington",
       "position": "WR",
-      "team": "CLE",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "5113",
-      "gsisId": "00-0034418",
-      "name": "Cedrick Wilson",
-      "position": "WR",
-      "team": "DET",
+      "team": "CAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1835,11 +1898,11 @@
       "isContractYear": true
     },
     {
-      "playerId": "8144",
-      "gsisId": "00-0037239",
-      "name": "Chris Olave",
+      "playerId": "3269",
+      "gsisId": "00-0032398",
+      "name": "Chris Moore",
       "position": "WR",
-      "team": "NO",
+      "team": "BAL",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1880,15 +1943,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "11046",
-      "gsisId": "00-0038632",
-      "name": "Colton Dowell",
-      "position": "WR",
-      "team": "SF",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "11815",
       "gsisId": "00-0039437",
       "name": "Cornelius Johnson",
@@ -1907,6 +1961,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "6453",
+      "gsisId": "00-0035045",
+      "name": "D.J. Montgomery",
+      "position": "WR",
+      "team": "IND",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "13202",
       "gsisId": "00-0040629",
       "name": "Dalevon Campbell",
@@ -1921,6 +1984,15 @@
       "name": "Dan Chisena",
       "position": "WR",
       "team": "CAR",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "4992",
+      "gsisId": "00-0034860",
+      "name": "Dante Pettis",
+      "position": "WR",
+      "team": "BUF",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -1970,6 +2042,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "5872",
+      "gsisId": "00-0035719",
+      "name": "Deebo Samuel",
+      "position": "WR",
+      "team": "SF",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "9501",
       "gsisId": "00-0038621",
       "name": "DeMario Douglas",
@@ -1993,6 +2074,15 @@
       "name": "Derius Davis",
       "position": "WR",
       "team": "LAC",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "8253",
+      "gsisId": "00-0037487",
+      "name": "Deven Thompkins",
+      "position": "WR",
+      "team": "LV",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2029,6 +2119,15 @@
       "name": "Eli Pancol",
       "position": "WR",
       "team": "IND",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "11139",
+      "gsisId": "00-0038667",
+      "name": "Elijah Cooks",
+      "position": "WR",
+      "team": "CAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2078,6 +2177,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "6699",
+      "gsisId": "00-0035645",
+      "name": "Gunner Olszewski",
+      "position": "WR",
+      "team": "NYG",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "7559",
       "gsisId": "00-0036635",
       "name": "Ihmir Smith-Marsette",
@@ -2119,6 +2227,15 @@
       "name": "Isaiah Williams",
       "position": "WR",
       "team": "NYJ",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "13179",
+      "gsisId": "00-0040265",
+      "name": "Ja'seem Reed",
+      "position": "WR",
+      "team": "CAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2177,15 +2294,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "8416",
-      "gsisId": "00-0037387",
-      "name": "Jalen Virgil",
-      "position": "WR",
-      "team": "BUF",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "9497",
       "gsisId": "00-0038938",
       "name": "Jalin Hyatt",
@@ -2235,16 +2343,7 @@
       "gsisId": "00-0039392",
       "name": "Jha'Quan Jackson",
       "position": "WR",
-      "team": "HOU",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "12777",
-      "gsisId": "00-0040443",
-      "name": "Joaquin Davis",
-      "position": "WR",
-      "team": "PIT",
+      "team": "TB",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2294,20 +2393,20 @@
       "isContractYear": true
     },
     {
-      "playerId": "4040",
-      "gsisId": "00-0033857",
-      "name": "JuJu Smith-Schuster",
-      "position": "WR",
-      "team": "NYG",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "12743",
       "gsisId": "00-0040247",
       "name": "Junior Bergen",
       "position": "WR",
-      "team": "SF",
+      "team": "NYJ",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "9489",
+      "gsisId": "00-0038590",
+      "name": "Justin Shorter",
+      "position": "WR",
+      "team": "LV",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2361,7 +2460,25 @@
       "gsisId": "00-0038608",
       "name": "Kayshon Boutte",
       "position": "WR",
-      "team": "NE",
+      "team": "HOU",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "12971",
+      "gsisId": "00-0040534",
+      "name": "Ke'Shawn Williams",
+      "position": "WR",
+      "team": "CIN",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "1479",
+      "gsisId": "00-0030279",
+      "name": "Keenan Allen",
+      "position": "WR",
+      "team": "IND",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2380,6 +2497,15 @@
       "name": "Kevin Austin",
       "position": "WR",
       "team": "NO",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "5773",
+      "gsisId": "00-0034854",
+      "name": "KhaDarel Hodge",
+      "position": "WR",
+      "team": "SF",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2416,15 +2542,6 @@
       "name": "Luke Floriea",
       "position": "WR",
       "team": "CLE",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
-      "playerId": "12803",
-      "gsisId": "00-0040461",
-      "name": "Luke Grimm",
-      "position": "WR",
-      "team": "LAC",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2510,15 +2627,6 @@
       "isContractYear": true
     },
     {
-      "playerId": "5917",
-      "gsisId": "00-0035140",
-      "name": "Mecole Hardman",
-      "position": "WR",
-      "team": "BUF",
-      "contractEndYear": 2026,
-      "isContractYear": true
-    },
-    {
       "playerId": "8076",
       "gsisId": "00-0036959",
       "name": "Michael Bandy",
@@ -2542,6 +2650,15 @@
       "name": "Mitch Tinsley",
       "position": "WR",
       "team": "CIN",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "13199",
+      "gsisId": "00-0040621",
+      "name": "Montorie Foster",
+      "position": "WR",
+      "team": "SEA",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2627,6 +2744,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "5096",
+      "gsisId": "00-0034407",
+      "name": "Ray-Ray McCloud",
+      "position": "WR",
+      "team": "CHI",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "12475",
       "gsisId": "00-0040653",
       "name": "Ricky White",
@@ -2658,7 +2784,7 @@
       "gsisId": "00-0038824",
       "name": "Ryan Miller",
       "position": "WR",
-      "team": "NYG",
+      "team": "MIA",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2708,6 +2834,24 @@
       "isContractYear": true
     },
     {
+      "playerId": "2449",
+      "gsisId": "00-0031588",
+      "name": "Stefon Diggs",
+      "position": "WR",
+      "team": "WAS",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "3200",
+      "gsisId": "00-0032385",
+      "name": "Sterling Shepard",
+      "position": "WR",
+      "team": "HOU",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "9502",
       "gsisId": "00-0038977",
       "name": "Tank Dell",
@@ -2739,7 +2883,7 @@
       "gsisId": "00-0039397",
       "name": "Tejhaun Palmer",
       "position": "WR",
-      "team": "ARI",
+      "team": "NE",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2807,6 +2951,15 @@
       "isContractYear": true
     },
     {
+      "playerId": "6598",
+      "gsisId": "00-0035341",
+      "name": "Trenton Irwin",
+      "position": "WR",
+      "team": "SF",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
       "playerId": "9492",
       "gsisId": "00-0039052",
       "name": "Trey Palmer",
@@ -2829,7 +2982,7 @@
       "gsisId": "00-0036849",
       "name": "Tutu Atwell",
       "position": "WR",
-      "team": "MIA",
+      "team": "LAR",
       "contractEndYear": 2026,
       "isContractYear": true
     },
@@ -2920,6 +3073,15 @@
       "name": "Xavier Weaver",
       "position": "WR",
       "team": "ARI",
+      "contractEndYear": 2026,
+      "isContractYear": true
+    },
+    {
+      "playerId": "4080",
+      "gsisId": "00-0033891",
+      "name": "Zay Jones",
+      "position": "WR",
+      "team": "HOU",
       "contractEndYear": 2026,
       "isContractYear": true
     }
