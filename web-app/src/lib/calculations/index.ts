@@ -1,6 +1,14 @@
 // Value calculation
 export { calculateValueScore } from './value';
 
+// League-adjusted positional tiers
+export {
+  applyPositionTiers,
+  calculateTierAvailability,
+  getTierKey,
+} from './tiers';
+export type { TierAvailability } from './tiers';
+
 // Highlight level determination
 export {
   determineHighlightLevel,
@@ -27,11 +35,35 @@ export {
   getTopRecommendation,
 } from './recommendations';
 
-export type { RecommendationContext, RecommendationResult } from './recommendations';
+export type {
+  RecommendationContext,
+  RecommendationResult,
+  RecommendationSelection,
+  RecommendationSelectionPolicy,
+} from './recommendations';
+
+export {
+  BEST_PICK_ECR_NEIGHBORHOOD,
+  BEST_PICK_LEAGUE_VALUE_MAX,
+  BEST_PICK_ROSTER_FIT_MAX,
+  BEST_PICK_TIER_SUPPLY_MAX,
+  evaluateBestPickPolicy,
+} from './best-pick-policy';
+export type {
+  BestPickPolicyContext,
+  BestPickPolicyEvaluation,
+  BestPickPolicyResult,
+} from './best-pick-policy';
 
 export { estimatePlayerPrediction } from './prediction-score';
 
 export type { PredictionLayerResult } from './prediction-score';
+
+export { calculateLeagueProjection } from './league-scoring';
+export type { LeagueProjectionResult } from './league-scoring';
+
+export { calculatePlayerRisk } from './risk';
+export type { PlayerRiskAssessment, RiskLevel } from './risk';
 
 export {
   applyLeagueSurvivalModel,
@@ -62,6 +94,14 @@ export type {
   SleeperADPPlayer,
   ContractPlayerData,
   PlayerIdentityData,
+  PlayerMergeLeagueContext,
   SortField,
   SortDirection,
 } from './player-value';
+
+export { buildRecommendationPlayerVariants } from './recommendation-player-variants';
+export type {
+  CorePlayerDataSources,
+  OptionalPlayerSignals,
+  RecommendationPlayerVariants,
+} from './recommendation-player-variants';

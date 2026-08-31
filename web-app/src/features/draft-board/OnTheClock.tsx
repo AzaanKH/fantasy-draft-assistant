@@ -2,10 +2,15 @@ import * as React from 'react';
 import type { Player, Position, Recommendation } from '@fantasy-draft/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useRecommendations } from '@/hooks/useRecommendations';
-import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
+import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
+import {
+  useDraftSessionMode,
+  useDraftStore,
+  useIsMyTurn,
+} from '@/stores/draftStore';
 import { cn, formatSignedNumber } from '@/lib/utils';
 import { getPicksUntilMyTurn } from './on-the-clock-utils';
+import { getKeeperAtPick } from '@/lib/mock-draft-engine';
 
 const positionColors: Record<Position, string> = {
   QB: 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30',
@@ -43,9 +48,13 @@ export function OnTheClock({
   onDraft: (player: Player) => void;
 }): React.ReactElement | null {
   const [showWhy, setShowWhy] = React.useState(false);
-  const { draftNow, topPick, isLoading } = useRecommendations(3);
+  const { overall, isLoading } = useDraftDecision();
+  const draftNow = overall.recommendations;
+  const topPick = overall.preferred;
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
+  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
+  const sessionMode = useDraftSessionMode();
   const isMyTurn = useIsMyTurn();
   const topPlayer = topPick
     ? players.find((player) => player.id === topPick.playerId)
@@ -62,13 +71,20 @@ export function OnTheClock({
     config.totalRounds
   );
 
-  if (isLoading || !topPick) {
+  if (sessionMode === 'setup' || isLoading || !topPick) {
+    return null;
+  }
+
+  if (
+    sessionMode === 'mock' &&
+    getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams)
+  ) {
     return null;
   }
 
   if (!isMyTurn) {
     return (
-      <section className="sticky top-0 z-20 -mx-px border-y border-border/80 bg-card/95 px-6 py-3 shadow-sm backdrop-blur xl:hidden">
+      <section className="sticky top-0 z-20 -mx-px border-y border-border/80 bg-card/95 px-6 py-3 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
             {picksUntilMyTurn === null
@@ -88,7 +104,7 @@ export function OnTheClock({
   const survivalProbability = diagnostics?.nextPickSurvivalProbability;
 
   return (
-    <section className="sticky top-0 z-20 -mx-px border-y border-emerald-500/30 bg-card/95 px-6 py-3 shadow-sm backdrop-blur xl:hidden">
+    <section className="sticky top-0 z-20 -mx-px border-y border-emerald-500/30 bg-card/95 px-6 py-3 shadow-sm backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -109,7 +125,7 @@ export function OnTheClock({
               <>
                 <span>·</span>
                 <span className="font-mono tabular-nums">
-                  VOR {formatSignedNumber(diagnostics.valueOverReplacement, 0)}
+                  {formatSignedNumber(diagnostics.valueOverReplacement, 0)} above replacement
                 </span>
               </>
             )}
@@ -149,7 +165,11 @@ export function OnTheClock({
 
       {(alternatives || showWhy) && (
         <div className="mt-2 border-t border-border/70 pt-2 text-xs text-muted-foreground">
-          {showWhy && <div className="mb-1">{topPick.reason}</div>}
+          {showWhy ? (
+            <div className="mb-1">
+              {overall.explanationByPlayerId.get(topPick.playerId) ?? topPick.reason}
+            </div>
+          ) : null}
           {alternatives && (
             <div>
               <span className="font-medium text-foreground">Alternatives:</span>{' '}
