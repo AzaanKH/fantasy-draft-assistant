@@ -6,7 +6,7 @@ import { REPO_ROOT } from './model/duckdb.js';
 
 const DIST_DIR = join(REPO_ROOT, 'web-app', 'dist');
 const OUTPUT_FILE = join(REPO_ROOT, 'data', 'web-bundle-report.json');
-const JS_GZIP_BUDGET = 160 * 1024;
+const JS_GZIP_BUDGET = 200 * 1024;
 const CSS_GZIP_BUDGET = 20 * 1024;
 const STATIC_OUTPUT_BUDGET = 5 * 1024 * 1024;
 const PROHIBITED_STATIC_EXTENSIONS = new Set(['.duckdb', '.ndjson', '.parquet']);

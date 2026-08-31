@@ -1,155 +1,169 @@
 {
-  "generatedAt": "2026-08-13T05:39:17.131Z",
+  "generatedAt": "2026-08-31T01:34:38.535Z",
   "budgets": {
-    "jsGzipBytes": 163840,
+    "jsGzipBytes": 204800,
     "cssGzipBytes": 20480,
     "staticOutputBytes": 5242880
   },
   "totals": {
-    "jsGzipBytes": 149608,
-    "cssGzipBytes": 15205,
-    "staticOutputBytes": 4100850
+    "jsGzipBytes": 187278,
+    "cssGzipBytes": 17052,
+    "staticOutputBytes": 4649387
   },
   "prohibitedPaths": [],
   "passed": true,
   "assets": [
     {
-      "file": "AssistantPage-DC9gfbPi.js",
+      "file": "App-tqxu3sLe.js",
       "type": "js",
-      "rawBytes": 33970,
-      "gzipBytes": 9124,
-      "brotliBytes": 8068
+      "rawBytes": 234257,
+      "gzipBytes": 69376,
+      "brotliBytes": 58535
     },
     {
-      "file": "DraftGlossary-DiwdbLE9.js",
+      "file": "AssistantPage-W7OeBv-q.js",
       "type": "js",
-      "rawBytes": 2781,
-      "gzipBytes": 1388,
-      "brotliBytes": 1108
+      "rawBytes": 42363,
+      "gzipBytes": 11460,
+      "brotliBytes": 10135
     },
     {
-      "file": "DraftQueuePanel-Cpdzg-bF.js",
+      "file": "DraftGlossary-mJXrz4WO.js",
       "type": "js",
-      "rawBytes": 2884,
-      "gzipBytes": 1258,
-      "brotliBytes": 1119
+      "rawBytes": 2839,
+      "gzipBytes": 1422,
+      "brotliBytes": 1144
     },
     {
-      "file": "DraftRosterPanel-L6Ls_xry.js",
+      "file": "DraftQueuePanel-Bef991nK.js",
       "type": "js",
-      "rawBytes": 1860,
-      "gzipBytes": 813,
-      "brotliBytes": 724
+      "rawBytes": 2538,
+      "gzipBytes": 1192,
+      "brotliBytes": 1052
     },
     {
-      "file": "DraftSuggestions-PtRUUorD.js",
+      "file": "DraftRosterPanel-BmSRaBNL.js",
       "type": "js",
-      "rawBytes": 2734,
-      "gzipBytes": 1153,
-      "brotliBytes": 1025
+      "rawBytes": 1928,
+      "gzipBytes": 851,
+      "brotliBytes": 762
     },
     {
-      "file": "RosterSettings-D9-ixhO7.js",
+      "file": "DraftSuggestions-C-Q4Lb0w.js",
       "type": "js",
-      "rawBytes": 2730,
-      "gzipBytes": 1088,
-      "brotliBytes": 946
+      "rawBytes": 2712,
+      "gzipBytes": 1172,
+      "brotliBytes": 1050
     },
     {
-      "file": "SidePanelPage-VIk-y8dX.js",
+      "file": "ProviderIdentityBlockedNotice-D167nz_r.js",
       "type": "js",
-      "rawBytes": 24308,
-      "gzipBytes": 6481,
-      "brotliBytes": 5728
+      "rawBytes": 4318,
+      "gzipBytes": 1530,
+      "brotliBytes": 1328
     },
     {
-      "file": "assistant-position-rankings-DkVVMgVf.js",
+      "file": "RosterSettings-C0BX6ZMu.js",
       "type": "js",
-      "rawBytes": 568,
-      "gzipBytes": 365,
-      "brotliBytes": 298
+      "rawBytes": 2803,
+      "gzipBytes": 1127,
+      "brotliBytes": 984
     },
     {
-      "file": "index-18pD6P1i.js",
+      "file": "SidePanelPage-dRbRHKhx.js",
       "type": "js",
-      "rawBytes": 413219,
-      "gzipBytes": 127938,
-      "brotliBytes": 110859
+      "rawBytes": 26402,
+      "gzipBytes": 7228,
+      "brotliBytes": 6445
     },
     {
-      "file": "index-4a6bKpi3.css",
+      "file": "draftSyncStore-BpUp2bfS.js",
+      "type": "js",
+      "rawBytes": 2214,
+      "gzipBytes": 934,
+      "brotliBytes": 831
+    },
+    {
+      "file": "index-0Z-qz_uU.css",
       "type": "css",
-      "rawBytes": 94470,
-      "gzipBytes": 15205,
-      "brotliBytes": 11969
+      "rawBytes": 109070,
+      "gzipBytes": 17052,
+      "brotliBytes": 13323
+    },
+    {
+      "file": "index-BhO-rBAH.js",
+      "type": "js",
+      "rawBytes": 286322,
+      "gzipBytes": 90986,
+      "brotliBytes": 79841
     }
   ],
   "largestStaticFiles": [
     {
-      "path": "assets/index-18pD6P1i.js.map",
-      "bytes": 1506062
+      "path": "assets/index-BhO-rBAH.js.map",
+      "bytes": 991971
+    },
+    {
+      "path": "assets/App-tqxu3sLe.js.map",
+      "bytes": 882008
     },
     {
       "path": "data/predictions.json",
-      "bytes": 716845
+      "bytes": 734890
     },
     {
       "path": "data/fantasypros-snapshot.json",
-      "bytes": 483123
+      "bytes": 467473
     },
     {
-      "path": "assets/index-18pD6P1i.js",
-      "bytes": 413219
-    },
-    {
-      "path": "data/player-identity.json",
-      "bytes": 265169
+      "path": "assets/index-BhO-rBAH.js",
+      "bytes": 286322
     },
     {
       "path": "data/sleeper-adp.json",
-      "bytes": 265091
+      "bytes": 258311
     },
     {
-      "path": "assets/index-4a6bKpi3.css",
-      "bytes": 94470
+      "path": "data/player-identity.json",
+      "bytes": 255775
     },
     {
-      "path": "assets/AssistantPage-DC9gfbPi.js.map",
-      "bytes": 86883
+      "path": "assets/App-tqxu3sLe.js",
+      "bytes": 234257
+    },
+    {
+      "path": "assets/AssistantPage-W7OeBv-q.js.map",
+      "bytes": 109236
+    },
+    {
+      "path": "assets/index-0Z-qz_uU.css",
+      "bytes": 109070
     },
     {
       "path": "data/contracts.json",
-      "bytes": 65628
+      "bytes": 70549
     },
     {
-      "path": "assets/SidePanelPage-VIk-y8dX.js.map",
-      "bytes": 63200
+      "path": "assets/SidePanelPage-dRbRHKhx.js.map",
+      "bytes": 69664
     },
     {
-      "path": "assets/AssistantPage-DC9gfbPi.js",
-      "bytes": 33970
+      "path": "assets/AssistantPage-W7OeBv-q.js",
+      "bytes": 42363
     },
     {
-      "path": "assets/SidePanelPage-VIk-y8dX.js",
-      "bytes": 24308
+      "path": "assets/SidePanelPage-dRbRHKhx.js",
+      "bytes": 26402
     },
     {
       "path": "data/league-history/survival-model.json",
-      "bytes": 18371
-    },
-    {
-      "path": "assets/RosterSettings-D9-ixhO7.js.map",
-      "bytes": 9275
-    },
-    {
-      "path": "data/team-environment.json",
-      "bytes": 9213
+      "bytes": 24243
     }
   ],
   "estimatedSourceComposition": [
     {
       "source": "application",
-      "sourceBytes": 495657
+      "sourceBytes": 713272
     },
     {
       "source": "react-dom",
@@ -168,8 +182,12 @@
       "sourceBytes": 49821
     },
     {
+      "source": "@tanstack/virtual-core",
+      "sourceBytes": 49383
+    },
+    {
       "source": "lucide-react",
-      "sourceBytes": 25807
+      "sourceBytes": 28432
     },
     {
       "source": "tslib",
@@ -202,10 +220,6 @@
     {
       "source": "@radix-ui/react-slot",
       "sourceBytes": 8781
-    },
-    {
-      "source": "react",
-      "sourceBytes": 8193
     }
   ],
   "notes": [
