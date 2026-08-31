@@ -35,6 +35,8 @@ export {
   createEmptyRoster,
   createInitialDraftState,
   isNeedPriority,
+  DECISION_LENSES,
+  DECISION_DIVERGENCE_FACTORS,
 } from './draft';
 
 export type {
@@ -46,7 +48,12 @@ export type {
   DraftPick,
   NeedPriority,
   PositionNeed,
+  RecommendationDecisionFactors,
+  ExpectedNextPickAlternative,
   Recommendation,
+  DecisionLens,
+  DecisionDivergenceFactor,
+  DecisionOutput,
 } from './draft';
 
 // Team environment types
@@ -93,6 +100,15 @@ export type {
   SleeperLeague,
 } from './league-settings';
 
+// Observed market ADP
+export { isMarketAdpFormat, isMarketAdpSnapshot } from './market-adp';
+
+export type {
+  MarketAdpFormat,
+  MarketAdpPlayer,
+  MarketAdpSnapshot,
+} from './market-adp';
+
 // WebSocket types
 export {
   WEBSOCKET_EVENT_TYPES,
@@ -138,14 +154,45 @@ export type {
   FantasyProsSnapshot,
 } from './fantasypros';
 
-// Observed market ADP
-export { isMarketAdpFormat, isMarketAdpSnapshot } from './market-adp';
+// Sync types
+export {
+  DraftSyncEngine,
+  isDraftMetadata,
+  isEspnDraftSnapshot,
+  isDraftSyncSnapshot,
+  isDraftSyncUpdate,
+  isSleeperDraftMetadata,
+  isSleeperDraftPick,
+  isSleeperDraftPickList,
+  normalizeSleeperDraftMetadata,
+  normalizeSleeperPick,
+  resolveSleeperDraftLeagueId,
+} from './sync';
 
 export type {
-  MarketAdpFormat,
-  MarketAdpPlayer,
-  MarketAdpSnapshot,
-} from './market-adp';
+  SleeperDraftPick,
+  SleeperDraftMetadata,
+  DraftProvider,
+  DraftStatus,
+  DraftType,
+  DraftMetadata,
+  DraftSyncSource,
+  DraftPickConfidence,
+  DraftPickEvent,
+  EspnDraftSnapshot,
+  DraftSyncState,
+  DraftSyncSnapshot,
+  DraftSyncUpdate,
+} from './sync';
+
+// Experimental model shadow-evaluation types
+export { isShadowRecommendationEvent } from './shadow';
+
+export type {
+  ShadowRecommendation,
+  ShadowPositionNeed,
+  ShadowRecommendationEvent,
+} from './shadow';
 
 // ECR-anchored pick expected-value scoring
 export {
@@ -190,42 +237,30 @@ export type {
   SportsbookProjectionAdjustment,
 } from './sportsbook';
 
-// Sync types
+// Product Draft Readiness: Core Draft Data blocks; Optional Signals degrade.
 export {
-  DraftSyncEngine,
-  isDraftMetadata,
-  isEspnDraftSnapshot,
-  isDraftSyncSnapshot,
-  isDraftSyncUpdate,
-  isSleeperDraftMetadata,
-  isSleeperDraftPick,
-  isSleeperDraftPickList,
-  normalizeSleeperDraftMetadata,
-  normalizeSleeperPick,
-  resolveSleeperDraftLeagueId,
-} from './sync';
+  CORE_DRAFT_DATA_KEYS,
+  OPTIONAL_SIGNAL_KEYS,
+  DRAFT_READINESS_DEFINITIONS,
+  evaluateDraftReadiness,
+  formatDraftReadinessAge,
+  formatDraftReadinessTimestamp,
+} from './draft-readiness';
 
 export type {
-  SleeperDraftPick,
-  SleeperDraftMetadata,
-  DraftProvider,
-  DraftStatus,
-  DraftType,
-  DraftMetadata,
-  DraftSyncSource,
-  DraftPickConfidence,
-  DraftPickEvent,
-  EspnDraftSnapshot,
-  DraftSyncState,
-  DraftSyncSnapshot,
-  DraftSyncUpdate,
-} from './sync';
-
-// Experimental model shadow-evaluation types
-export { isShadowRecommendationEvent } from './shadow';
-
-export type {
-  ShadowRecommendation,
-  ShadowPositionNeed,
-  ShadowRecommendationEvent,
-} from './shadow';
+  CoreDraftDataKey,
+  OptionalSignalKey,
+  DraftReadinessKey,
+  DraftReadinessClassification,
+  DraftReadinessAvailability,
+  DraftReadinessProblem,
+  DraftReadinessItemStatus,
+  DraftReadinessDefinition,
+  DraftReadinessDependencyObservation,
+  DraftReadinessSourceObservation,
+  DraftReadinessWarningInput,
+  DraftReadinessWarning,
+  DraftReadinessItem,
+  DraftReadinessReport,
+  EvaluateDraftReadinessInput,
+} from './draft-readiness';
