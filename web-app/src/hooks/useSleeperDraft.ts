@@ -8,12 +8,11 @@
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { isDraftSyncUpdate } from '@fantasy-draft/shared';
+import { isDraftSyncUpdate, normalizePosition } from '@fantasy-draft/shared';
 import type {
   DraftSyncSnapshot,
   DraftPickEvent,
   Player,
-  Position,
 } from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
@@ -36,20 +35,6 @@ async function requestRefresh(draftId: string): Promise<DraftSyncSnapshot> {
   }
 
   return response.json() as Promise<DraftSyncSnapshot>;
-}
-
-function normalizePosition(pos: string): Position {
-  const map: Record<string, Position> = {
-    QB: 'QB',
-    RB: 'RB',
-    WR: 'WR',
-    TE: 'TE',
-    K: 'K',
-    DEF: 'DEF',
-    DST: 'DEF',
-    'D/ST': 'DEF',
-  };
-  return map[pos] ?? 'RB';
 }
 
 export function useSleeperDraft(
@@ -156,13 +141,16 @@ export function useSleeperDraft(
       return;
     }
 
-    reconcileSleeperPicks(snapshot.picks.map((pick) => {
+    reconcileSleeperPicks(snapshot.picks.flatMap((pick) => {
       const matchedPlayer = findMatchingPlayer(pick);
       const isMyPick = pick.draftSlot === myPickPosition;
-      const position = matchedPlayer?.position ?? normalizePosition(pick.position ?? '');
+      const position = matchedPlayer?.position ?? normalizePosition(pick.position ?? undefined);
+      if (!position) {
+        return [];
+      }
       const playerName = matchedPlayer?.name ?? pick.playerName;
 
-      return {
+      return [{
         pickNumber: pick.pickNumber,
         playerId: matchedPlayer?.id ?? pick.playerId,
         playerName,
@@ -170,7 +158,7 @@ export function useSleeperDraft(
         teamIndex: pick.teamIndex,
         teamName: isMyPick ? 'My Team' : `Team ${String(pick.draftSlot)}`,
         isMyPick,
-      };
+      }];
     }));
   }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, reconcileSleeperPicks]);
 

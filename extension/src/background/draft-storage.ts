@@ -1,6 +1,8 @@
 import {
   DEFAULT_SYNC_SERVER_URL,
   STORAGE_KEYS,
+  isDetectedPick,
+  isDraftRoomStatus,
   type DetectedPick,
   type DraftRoomStatus,
 } from '../shared/types';
@@ -24,14 +26,16 @@ export class ChromeDraftStorage implements DraftStorage {
       STORAGE_KEYS.DETECTED_PICKS,
       STORAGE_KEYS.DRAFT_STATUS,
     ]);
+    const storedPicks: unknown = result[STORAGE_KEYS.DETECTED_PICKS];
+    const storedStatus: unknown = result[STORAGE_KEYS.DRAFT_STATUS];
 
     return {
-      picks:
-        (result[STORAGE_KEYS.DETECTED_PICKS] as DetectedPick[] | undefined) ??
-        EMPTY_DRAFT_STATE.picks,
-      status:
-        (result[STORAGE_KEYS.DRAFT_STATUS] as DraftRoomStatus | undefined) ??
-        EMPTY_DRAFT_STATE.status,
+      picks: Array.isArray(storedPicks) && storedPicks.every(isDetectedPick)
+        ? storedPicks
+        : EMPTY_DRAFT_STATE.picks,
+      status: isDraftRoomStatus(storedStatus)
+        ? storedStatus
+        : EMPTY_DRAFT_STATE.status,
     };
   }
 

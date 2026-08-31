@@ -6,12 +6,13 @@
  * logic, and theme preferences stay identical across both surfaces.
  */
 
-import { isDraftSyncSnapshot, type DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftSyncSnapshot } from '@fantasy-draft/shared';
 import {
   DEFAULT_WEB_APP_URL,
   STORAGE_KEYS,
+  isExtensionMessage,
+  isExtensionState,
   type DraftRoomStatus,
-  type ExtensionMessage,
 } from '../shared/types';
 
 const frame = document.getElementById('sidepanel-frame') as HTMLIFrameElement;
@@ -89,31 +90,44 @@ async function readExtensionState(): Promise<void> {
     STORAGE_KEYS.MY_PICK_POSITION,
   ]);
   const storedWebAppUrl: unknown = stored[STORAGE_KEYS.WEB_APP_URL];
-  if (typeof storedWebAppUrl === 'string') webAppUrl = storedWebAppUrl;
+  if (typeof storedWebAppUrl === 'string') {
+    try {
+      const parsedUrl = new URL(storedWebAppUrl);
+      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+        webAppUrl = parsedUrl.toString();
+      }
+    } catch {
+      // Keep the default URL when storage contains an invalid value.
+    }
+  }
 
   const storedPosition: unknown = stored[STORAGE_KEYS.MY_PICK_POSITION];
-  if (typeof storedPosition === 'number') {
+  if (
+    typeof storedPosition === 'number' &&
+    Number.isInteger(storedPosition) &&
+    storedPosition >= 1
+  ) {
     draftStatus = { ...draftStatus, myDraftSlot: storedPosition };
   }
 
   const response: unknown = await chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' });
-  const data = isRecord(response) && response['success'] === true && isRecord(response['data'])
+  const data = isRecord(response) &&
+    response['success'] === true &&
+    isExtensionState(response['data'])
     ? response['data']
     : null;
   if (!data) return;
 
-  draftStatus = isRecord(data['status'])
-    ? data['status'] as unknown as DraftRoomStatus
-    : draftStatus;
-  syncSnapshot = isDraftSyncSnapshot(data['snapshot'])
-    ? data['snapshot']
-    : syncSnapshot;
+  draftStatus = data.status;
+  if ('snapshot' in data) {
+    syncSnapshot = data.snapshot ?? null;
+  }
 }
 
-function handleMessage(message: ExtensionMessage): void {
-  if (message.type !== 'SYNC_STATE' || !message.data) return;
+function handleMessage(message: unknown): void {
+  if (!isExtensionMessage(message) || message.type !== 'SYNC_STATE') return;
 
-  draftStatus = message.data.status ?? draftStatus;
+  draftStatus = message.data.status;
   if ('snapshot' in message.data) {
     syncSnapshot = message.data.snapshot ?? null;
   }

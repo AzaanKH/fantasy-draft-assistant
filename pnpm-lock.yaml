@@ -27,6 +27,9 @@ importers:
       '@types/chrome':
         specifier: ^0.0.287
         version: 0.0.287
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.6
       eslint:
         specifier: ^9.16.0
         version: 9.39.2(jiti@2.6.1)

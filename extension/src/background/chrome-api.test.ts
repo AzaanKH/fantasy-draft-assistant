@@ -56,6 +56,22 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
 }
 
+function createDeferred<T>(): {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+} {
+  let resolvePromise: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return {
+    promise,
+    resolve: (value) => {
+      resolvePromise?.(value);
+    },
+  };
+}
+
 describe('background controller with mocked Chrome APIs', () => {
   let storage: DraftStorage;
   let syncClient: SyncSnapshotClient;
@@ -133,7 +149,7 @@ describe('background controller with mocked Chrome APIs', () => {
     });
     dispatch({
       type: 'PICK_DETECTED',
-      data: { ...pick, timestamp: 4000 },
+      data: { ...pick, timestamp: 10_000 },
     });
 
     expect(savePicks).toHaveBeenCalledTimes(1);
@@ -236,6 +252,53 @@ describe('background controller with mocked Chrome APIs', () => {
       source: 'espn',
       totalTeams: 14,
       keepersEnabled: false,
+    });
+  });
+
+  it('does not let an older request overwrite a newer snapshot', async () => {
+    const olderFetch = createDeferred<DraftSyncSnapshot | null>();
+    const newerPublish = createDeferred<DraftSyncSnapshot>();
+    fetchSnapshot.mockImplementationOnce(() => olderFetch.promise);
+    publishEspnSnapshot.mockImplementationOnce(() => newerPublish.promise);
+    const snapshot: EspnDraftSnapshot = {
+      draft: {
+        provider: 'espn',
+        draftId: '4242',
+        providerKey: '2026:4242',
+        status: 'drafting',
+        type: 'snake',
+        settings: { teams: 10, rounds: 16, pickTimer: 30 },
+        draftOrder: null,
+      },
+      picks: [],
+      observedAt: 2000,
+    };
+
+    dispatch({
+      type: 'DRAFT_ROOM_STATUS',
+      data: { isInDraftRoom: true, provider: 'espn', draftId: '4242' },
+    });
+    dispatch({ type: 'ESPN_DRAFT_SNAPSHOT', data: snapshot });
+    newerPublish.resolve({
+      ...createSnapshot('espn', '4242'),
+      draft: snapshot.draft,
+      lastSuccessfulSyncAt: 2000,
+    });
+    await flushPromises();
+    olderFetch.resolve({
+      ...createSnapshot('espn', '4242'),
+      lastSuccessfulSyncAt: 1000,
+    });
+    await flushPromises();
+
+    expect(notifyRuntime.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: 'SYNC_STATE',
+      data: {
+        snapshot: {
+          draft: { providerKey: '2026:4242' },
+          lastSuccessfulSyncAt: 2000,
+        },
+      },
     });
   });
 });

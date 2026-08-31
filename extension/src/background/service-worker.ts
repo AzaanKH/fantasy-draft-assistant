@@ -8,6 +8,7 @@
 import { createBackgroundController } from './background-controller';
 import { ChromeDraftStorage } from './draft-storage';
 import { createSyncSnapshotClient } from './sync-snapshot-client';
+import { isExtensionMessage } from '../shared/types';
 
 const storage = new ChromeDraftStorage(chrome.storage.local);
 const controller = createBackgroundController({
@@ -34,8 +35,14 @@ chrome.runtime.onInstalled.addListener((details) => {
     });
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
-  controller.handleMessage(message as Parameters<typeof controller.handleMessage>[0], sendResponse)
+chrome.runtime.onMessage.addListener(
+  (message: unknown, _sender, sendResponse) => {
+    if (!isExtensionMessage(message)) {
+      sendResponse({ success: false, error: 'Invalid extension message' });
+      return false;
+    }
+    return controller.handleMessage(message, sendResponse);
+  }
 );
 
 void controller.initialize().catch((error: unknown) => {

@@ -192,7 +192,7 @@ export function resolveSleeperDraftLeagueId(
   ) ?? null;
 }
 
-function isDraftProvider(value: unknown): value is DraftProvider {
+export function isDraftProvider(value: unknown): value is DraftProvider {
   return value === 'sleeper' || value === 'yahoo' || value === 'espn';
 }
 
@@ -346,7 +346,7 @@ export function isDraftSyncUpdate(value: unknown): value is DraftSyncUpdate {
   );
 }
 
-function normalizePosition(value: string | undefined): Position | null {
+export function normalizePosition(value: string | undefined): Position | null {
   switch (value?.toUpperCase()) {
     case 'QB':
       return 'QB';

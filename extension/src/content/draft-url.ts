@@ -45,7 +45,10 @@ function parseYahooRoute(url: URL): DraftRoute | null {
 }
 
 function parseEspnRoute(url: URL): DraftRoute | null {
-  if (!ESPN_HOSTS.has(url.hostname) || url.pathname !== '/football/draft') {
+  if (
+    !ESPN_HOSTS.has(url.hostname) ||
+    url.pathname.replace(/\/$/, '') !== '/football/draft'
+  ) {
     return null;
   }
 

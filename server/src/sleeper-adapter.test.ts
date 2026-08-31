@@ -50,4 +50,28 @@ describe('SleeperSyncAdapter', () => {
       },
     });
   });
+
+  it('keeps draft metadata and picks when league settings fail', async () => {
+    const adapter = new SleeperSyncAdapter(
+      draftFixture.draft_id,
+      async <T>(url: string): Promise<T> => {
+        if (url === `${SLEEPER_API_BASE}/draft/${draftFixture.draft_id}`) {
+          return draftFixture as T;
+        }
+        if (url === `${SLEEPER_API_BASE}/draft/${draftFixture.draft_id}/picks`) {
+          return picksFixture as T;
+        }
+        if (url === `${SLEEPER_API_BASE}/league/${leagueFixture.league_id}`) {
+          throw new Error('League settings unavailable');
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      }
+    );
+
+    const snapshot = await adapter.poll(new AbortController().signal);
+
+    expect(snapshot.draft.leagueId).toBe(leagueFixture.league_id);
+    expect(snapshot.draft.leagueSettings).toBeUndefined();
+    expect(snapshot.picks).toHaveLength(picksFixture.length);
+  });
 });

@@ -333,16 +333,19 @@ export function parseYahooLeagueId(input: string): string | null {
 
 export class YahooSyncAdapter implements DraftSyncAdapter {
   public readonly provider = 'yahoo' as const;
+  public readonly draftId: string;
   private initialization: Promise<YahooInitialization> | null = null;
   private draftResultsRequestSequence = 0;
 
   public constructor(
-    public readonly draftId: string,
+    draftId: string,
     private readonly fetchJson: FetchJson
   ) {
-    if (!parseYahooLeagueId(draftId)) {
-      throw new Error('Yahoo league ID must be numeric');
+    const parsedDraftId = parseYahooLeagueId(draftId);
+    if (!parsedDraftId) {
+      throw new Error('Yahoo league must be a numeric ID or supported URL');
     }
+    this.draftId = parsedDraftId;
   }
 
   public async poll(signal: AbortSignal): Promise<DraftAdapterSnapshot> {

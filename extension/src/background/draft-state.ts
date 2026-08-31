@@ -17,6 +17,7 @@ export function isDuplicatePick(
   return picks.some(
     (pick) =>
       pick.playerName === candidate.playerName &&
-      Math.abs(pick.timestamp - candidate.timestamp) < 5000
+      pick.pickNumber === candidate.pickNumber &&
+      pick.position === candidate.position
   );
 }

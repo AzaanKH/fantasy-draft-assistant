@@ -10,6 +10,8 @@ export interface SyncSnapshotClient {
   publishEspnSnapshot(snapshot: EspnDraftSnapshot): Promise<DraftSyncSnapshot>;
 }
 
+export const DEFAULT_SYNC_REQUEST_TIMEOUT_MS = 10_000;
+
 export function buildSyncSnapshotUrl(
   serverUrl: string,
   status: DraftRoomStatus
@@ -24,7 +26,8 @@ export function buildSyncSnapshotUrl(
 
 export function createSyncSnapshotClient(
   getServerUrl: () => Promise<string>,
-  fetchImplementation: typeof fetch = fetch
+  fetchImplementation: typeof fetch = fetch,
+  requestTimeoutMs: number = DEFAULT_SYNC_REQUEST_TIMEOUT_MS
 ): SyncSnapshotClient {
   const readSnapshot = async (response: Response): Promise<DraftSyncSnapshot> => {
     if (!response.ok) {
@@ -37,6 +40,25 @@ export function createSyncSnapshotClient(
     return parsed;
   };
 
+  const requestSnapshot = async (
+    url: string,
+    init?: RequestInit
+  ): Promise<DraftSyncSnapshot> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, requestTimeoutMs);
+    try {
+      const response = await fetchImplementation(url, {
+        ...init,
+        signal: controller.signal,
+      });
+      return await readSnapshot(response);
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
   return {
     async fetch(status) {
       const url = buildSyncSnapshotUrl(await getServerUrl(), status);
@@ -44,19 +66,17 @@ export function createSyncSnapshotClient(
         return null;
       }
 
-      const response = await fetchImplementation(url);
-      return readSnapshot(response);
+      return requestSnapshot(url);
     },
 
     async publishEspnSnapshot(snapshot) {
       const serverUrl = (await getServerUrl()).replace(/\/$/, '');
       const url = `${serverUrl}/api/sync/espn/drafts/${encodeURIComponent(snapshot.draft.draftId)}/snapshot`;
-      const response = await fetchImplementation(url, {
+      return requestSnapshot(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshot),
       });
-      return readSnapshot(response);
     },
   };
 }

@@ -101,7 +101,22 @@ describe('YahooSyncAdapter', () => {
       teamIndex: 1,
     });
     expect(requests.at(-1)).toContain('/league/999.l.7428778/draftresults');
-    expect(requests.join('\n')).not.toContain('/league/470.l.');
+    expect(requests.join('\n')).not.toContain('/league/7428778/draftresults');
+  });
+
+  it('normalizes a Yahoo draft room URL before constructing requests', async () => {
+    const requests: string[] = [];
+    const adapter = new YahooSyncAdapter(
+      'https://football.fantasysports.yahoo.com/draftclient/f1/7428778/3',
+      createYahooFetch(requests)
+    );
+
+    await adapter.poll(new AbortController().signal);
+
+    expect(adapter.draftId).toBe('7428778');
+    expect(requests[0]).toBe(
+      `${YAHOO_PUBLIC_API_BASE}/settings/nfl/7428778?format=rawjson`
+    );
   });
 
   it('loads Yahoo settings and players once while polling results repeatedly', async () => {

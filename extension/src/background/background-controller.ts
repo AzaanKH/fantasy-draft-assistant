@@ -41,6 +41,11 @@ function sameDraft(
   );
 }
 
+interface SnapshotRequestToken {
+  readonly key: string;
+  readonly value: number;
+}
+
 /**
  * Keep the page-world bridge dependency-free so Chrome can execute it as a
  * classic MAIN-world content script. League-specific configuration is safe to
@@ -73,6 +78,23 @@ export function createBackgroundController(
   let detectedPicks = [...EMPTY_DRAFT_STATE.picks];
   let draftStatus: DraftRoomStatus = EMPTY_DRAFT_STATE.status;
   let syncSnapshot: DraftSyncSnapshot | null = null;
+  const latestSnapshotRequestByDraft = new Map<string, number>();
+
+  const beginSnapshotRequest = (
+    status: DraftRoomStatus
+  ): SnapshotRequestToken => {
+    const key = `${status.provider ?? 'sleeper'}:${status.draftId ?? ''}`;
+    const value = (latestSnapshotRequestByDraft.get(key) ?? 0) + 1;
+    latestSnapshotRequestByDraft.set(key, value);
+    return { key, value };
+  };
+
+  const isCurrentSnapshotRequest = (
+    token: SnapshotRequestToken,
+    requestedStatus: DraftRoomStatus
+  ): boolean =>
+    latestSnapshotRequestByDraft.get(token.key) === token.value &&
+    sameDraft(requestedStatus, draftStatus);
 
   const reportFailure = (operation: string, error: unknown) => {
     logger.warn(`[Fantasy Draft BG] ${operation}:`, error);
@@ -110,20 +132,21 @@ export function createBackgroundController(
       notifySidePanel();
       return;
     }
+    const requestToken = beginSnapshotRequest(requestedStatus);
 
     try {
       const snapshot = await dependencies.syncClient.fetch(requestedStatus);
-      if (sameDraft(requestedStatus, draftStatus)) {
+      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
         syncSnapshot = snapshot;
       }
     } catch (error) {
-      if (sameDraft(requestedStatus, draftStatus)) {
+      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
         syncSnapshot = null;
       }
       reportFailure('Failed to refresh sync snapshot', error);
     }
 
-    if (sameDraft(requestedStatus, draftStatus)) {
+    if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
       notifySidePanel();
     }
   };
@@ -132,19 +155,20 @@ export function createBackgroundController(
     snapshot: EspnDraftSnapshot,
     requestedStatus: DraftRoomStatus
   ) => {
+    const requestToken = beginSnapshotRequest(requestedStatus);
     try {
       const published = await dependencies.syncClient.publishEspnSnapshot(snapshot);
-      if (sameDraft(requestedStatus, draftStatus)) {
+      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
         syncSnapshot = published;
       }
     } catch (error) {
-      if (sameDraft(requestedStatus, draftStatus)) {
+      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
         syncSnapshot = null;
       }
       reportFailure('Failed to publish ESPN draft snapshot', error);
     }
 
-    if (sameDraft(requestedStatus, draftStatus)) {
+    if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
       notifySidePanel();
     }
   };

@@ -31,6 +31,7 @@ export type { FetchJson };
 
 export const DEFAULT_POLL_INTERVAL_MS = 1000;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_SESSION_STALE_AFTER_MS = 5 * 60_000;
 export const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
   new URL('../../data/shadow-logs/2026-recommendations.ndjson', import.meta.url)
 );
@@ -50,6 +51,7 @@ interface ClientConnection {
 interface SyncServerOptions {
   readonly pollIntervalMs?: number;
   readonly requestTimeoutMs?: number;
+  readonly sessionStaleAfterMs?: number;
   readonly fetchJson?: FetchJson;
   readonly allowedOrigins?: readonly string[];
   readonly requestToken?: string;
@@ -60,15 +62,11 @@ interface SyncServerOptions {
   };
 }
 
-function isChromeExtensionOrigin(origin: string): boolean {
-  return /^chrome-extension:\/\/[a-p]{32}$/.test(origin);
-}
-
 function isAllowedOrigin(
   origin: string,
   allowedOrigins: readonly string[]
 ): boolean {
-  return allowedOrigins.includes(origin) || isChromeExtensionOrigin(origin);
+  return allowedOrigins.includes(origin);
 }
 
 export interface SyncServer extends Server {
@@ -86,13 +84,15 @@ class DraftSession {
   private pollInFlight: Promise<boolean> | null = null;
   private consecutiveFailures = 0;
   private lastIngestedAt: number | null = null;
+  private lastActivityAt = Date.now();
 
   public constructor(
     provider: DraftProvider,
     draftId: string,
     adapter: DraftSyncAdapter | null,
     pollIntervalMs: number,
-    requestTimeoutMs: number
+    requestTimeoutMs: number,
+    private readonly onIdle: () => void
   ) {
     this.adapter = adapter;
     this.engine = new DraftSyncEngine(provider, draftId);
@@ -122,7 +122,13 @@ class DraftSession {
     this.clients.delete(id);
     if (this.clients.size === 0) {
       this.stopPolling();
+      this.onIdle();
     }
+  }
+
+  public isStale(staleAfterMs: number, now: number = Date.now()): boolean {
+    if (this.clients.size > 0) return false;
+    return now - this.lastActivityAt >= staleAfterMs;
   }
 
   public dispose(): void {
@@ -141,6 +147,7 @@ class DraftSession {
 
   public async refresh(): Promise<DraftSyncSnapshot> {
     if (this.adapter) await this.pollOnce();
+    this.lastActivityAt = Date.now();
     return this.engine.getSnapshot();
   }
 
@@ -153,6 +160,7 @@ class DraftSession {
       return this.engine.getSnapshot();
     }
     this.lastIngestedAt = now;
+    this.lastActivityAt = Date.now();
     const { snapshot, newPicks } = this.engine.reconcile(draft, picks, now);
 
     for (const pick of newPicks) {
@@ -182,17 +190,14 @@ class DraftSession {
       return;
     }
 
-    const failureBackoffMs =
-      this.adapter.provider === 'yahoo'
-        ? this.pollIntervalMs
-        : Math.min(
-          this.pollIntervalMs * 2 ** this.consecutiveFailures,
-          30_000
-        );
+    const nextDelayMs = Math.min(
+      this.pollIntervalMs * 2 ** this.consecutiveFailures,
+      30_000
+    );
     this.pollTimer = setTimeout(() => {
       this.pollTimer = null;
       void this.pollOnce().then(() => this.scheduleNextPoll());
-    }, failureBackoffMs);
+    }, nextDelayMs);
   }
 
   private pollOnce(): Promise<boolean> {
@@ -249,6 +254,7 @@ class DraftSession {
       return false;
     } finally {
       clearTimeout(timeout);
+      this.lastActivityAt = Date.now();
     }
   }
 
@@ -342,9 +348,16 @@ function parseDraftRoute(pathname: string): {
   const action = providerMatch?.[3] ?? legacyMatch?.[2];
   if (!encodedDraftId) return null;
 
+  let draftId: string;
+  try {
+    draftId = decodeURIComponent(encodedDraftId);
+  } catch {
+    draftId = '';
+  }
+
   return {
     provider,
-    draftId: decodeURIComponent(encodedDraftId),
+    draftId,
     isStream: action === 'events',
     isRefresh: action === 'refresh',
     isSnapshot: action === 'snapshot',
@@ -393,6 +406,8 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const sessions = new Map<string, DraftSession>();
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  const sessionStaleAfterMs =
+    options.sessionStaleAfterMs ?? DEFAULT_SESSION_STALE_AFTER_MS;
   const fetchJson = options.fetchJson ?? defaultFetchJson;
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
@@ -413,10 +428,20 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     return JSON.parse(await readFile(filePath, 'utf8')) as unknown;
   }
 
+  function evictStaleSessions(now: number = Date.now()): void {
+    for (const [sessionKey, session] of sessions) {
+      if (session.isStale(sessionStaleAfterMs, now)) {
+        session.dispose();
+        sessions.delete(sessionKey);
+      }
+    }
+  }
+
   function getSession(
     provider: DraftProvider,
     draftId: string
   ): DraftSession {
+    evictStaleSessions();
     const sessionKey = `${provider}:${draftId}`;
     let session = sessions.get(sessionKey);
     if (!session) {
@@ -431,7 +456,8 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         draftId,
         adapter,
         pollIntervalMs,
-        requestTimeoutMs
+        requestTimeoutMs,
+        evictStaleSessions
       );
       sessions.set(sessionKey, session);
     }
@@ -572,14 +598,21 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       return;
     }
 
+    const hasValidAction = route.isSnapshot
+      ? route.provider === 'espn' && request.method === 'POST'
+      : route.isStream
+        ? request.method === 'GET'
+        : route.isRefresh
+          ? request.method === 'POST'
+          : request.method === 'GET';
+    if (!hasValidAction) {
+      sendNotFound(request, response, allowedOrigins);
+      return;
+    }
+
     const session = getSession(route.provider, route.draftId);
 
     if (route.isSnapshot && request.method === 'POST') {
-      if (route.provider !== 'espn') {
-        sendNotFound(request, response, allowedOrigins);
-        return;
-      }
-
       let payload: unknown;
       try {
         payload = await readJsonBody(request);

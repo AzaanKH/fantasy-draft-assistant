@@ -47,7 +47,7 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
 
     const leagueId = resolveSleeperDraftLeagueId(draftResponse);
     const leagueSettings = leagueId
-      ? await this.fetchLeagueSettings(leagueId, signal)
+      ? await this.fetchLeagueSettings(leagueId, signal).catch(() => undefined)
       : undefined;
 
     return {
