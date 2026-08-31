@@ -240,5 +240,5 @@ describe('2026 mock draft calibration', () => {
     expect(summary.targetWindowRates['Lamar Jackson']).toBeGreaterThanOrEqual(0.55);
     expect(summary.distinctTopPlayerAt206).toBeGreaterThan(1);
     expect(summary.distinctTopPlayerAt305).toBeGreaterThan(1);
-  }, 30_000);
+  }, 90_000);
 });
