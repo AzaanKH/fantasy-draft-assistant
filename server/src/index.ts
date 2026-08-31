@@ -2,7 +2,9 @@ import { createSyncServer, DEFAULT_POLL_INTERVAL_MS } from './sync-server.js';
 
 const PORT = Number.parseInt(process.env.PORT ?? '3001', 10);
 const POLL_INTERVAL_MS = Number.parseInt(
-  process.env.SLEEPER_POLL_INTERVAL_MS ?? `${DEFAULT_POLL_INTERVAL_MS}`,
+  process.env.DRAFT_SYNC_POLL_INTERVAL_MS ??
+    process.env.SLEEPER_POLL_INTERVAL_MS ??
+    `${DEFAULT_POLL_INTERVAL_MS}`,
   10
 );
 const ALLOWED_ORIGINS = (process.env.SYNC_ALLOWED_ORIGINS ?? 'http://localhost:3000')

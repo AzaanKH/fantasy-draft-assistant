@@ -159,7 +159,7 @@ export function useSleeperDraft(
     reconcileSleeperPicks(snapshot.picks.map((pick) => {
       const matchedPlayer = findMatchingPlayer(pick);
       const isMyPick = pick.draftSlot === myPickPosition;
-      const position = matchedPlayer?.position ?? normalizePosition(pick.position);
+      const position = matchedPlayer?.position ?? normalizePosition(pick.position ?? '');
       const playerName = matchedPlayer?.name ?? pick.playerName;
 
       return {
