@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { resolve } from 'path';
 import { copyFileSync, mkdirSync, existsSync } from 'fs';
 
 // Plugin to copy static files after build
-function copyStaticFiles() {
+function copyStaticFiles(): Plugin {
   return {
     name: 'copy-static-files',
     closeBundle() {
@@ -26,6 +26,11 @@ function copyStaticFiles() {
         resolve(distDir, 'sidepanel.html')
       );
 
+      copyFileSync(
+        resolve(__dirname, 'src/sidepanel/sidepanel.css'),
+        resolve(distDir, 'sidepanel.css')
+      );
+
       // Copy icons if they exist
       const iconSizes = ['16', '32', '48', '128'];
       for (const size of iconSizes) {
@@ -40,8 +45,32 @@ function copyStaticFiles() {
   };
 }
 
+function validateClassicContentScripts(): Plugin {
+  return {
+    name: 'validate-classic-content-scripts',
+    generateBundle(_options, bundle) {
+      for (const fileName of ['content.js', 'espn-page.js']) {
+        const output = bundle[fileName] as {
+          type?: string;
+          imports?: readonly string[];
+          dynamicImports?: readonly string[];
+        } | undefined;
+        if (
+          output?.type === 'chunk' &&
+          ((output.imports?.length ?? 0) > 0 ||
+            (output.dynamicImports?.length ?? 0) > 0)
+        ) {
+          throw new Error(
+            `${fileName} must be self-contained because Chrome content scripts are not ES modules`
+          );
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [copyStaticFiles()],
+  plugins: [validateClassicContentScripts(), copyStaticFiles()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -49,6 +78,7 @@ export default defineConfig({
       input: {
         background: resolve(__dirname, 'src/background/service-worker.ts'),
         content: resolve(__dirname, 'src/content/sleeper-detector.ts'),
+        'espn-page': resolve(__dirname, 'src/content/espn-page-bridge.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.ts'),
       },
       output: {

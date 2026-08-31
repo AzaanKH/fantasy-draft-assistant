@@ -77,6 +77,22 @@ export type {
   ScoringRules,
 } from './scoring';
 
+// Normalized league scoring and roster configuration
+export {
+  createDefaultLeagueSettings,
+  createLeagueSettings,
+  isLeagueSettings,
+  isSleeperLeague,
+  normalizeSleeperLeagueSettings,
+} from './league-settings';
+
+export type {
+  LeagueSettings,
+  LeagueSettingsInput,
+  LeagueSettingsSource,
+  SleeperLeague,
+} from './league-settings';
+
 // WebSocket types
 export {
   WEBSOCKET_EVENT_TYPES,
@@ -177,20 +193,41 @@ export type {
 // Sync types
 export {
   DraftSyncEngine,
+  isDraftProvider,
+  isDraftMetadata,
+  isEspnDraftSnapshot,
+  isDraftSyncSnapshot,
   isDraftSyncUpdate,
   isSleeperDraftMetadata,
   isSleeperDraftPick,
   isSleeperDraftPickList,
+  normalizeSleeperDraftMetadata,
   normalizeSleeperPick,
+  normalizePosition,
+  resolveSleeperDraftLeagueId,
 } from './sync';
 
 export type {
   SleeperDraftPick,
   SleeperDraftMetadata,
+  DraftProvider,
+  DraftStatus,
+  DraftType,
+  DraftMetadata,
   DraftSyncSource,
   DraftPickConfidence,
   DraftPickEvent,
+  EspnDraftSnapshot,
   DraftSyncState,
   DraftSyncSnapshot,
   DraftSyncUpdate,
 } from './sync';
+
+// Experimental model shadow-evaluation types
+export { isShadowRecommendationEvent } from './shadow';
+
+export type {
+  ShadowRecommendation,
+  ShadowPositionNeed,
+  ShadowRecommendationEvent,
+} from './shadow';

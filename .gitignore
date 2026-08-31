@@ -56,6 +56,7 @@ data/model/*.duckdb.*
 data/model/**/*.parquet
 data/model/profile-report.json
 data/model/backtests/*.json
+data/shadow-logs/*.ndjson
 
 # TypeScript
 *.tsbuildinfo

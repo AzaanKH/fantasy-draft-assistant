@@ -5,12 +5,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "outDir": "./dist",
-    "types": ["chrome"],
+    "types": ["chrome", "node"],
     "paths": {
       "@fantasy-draft/shared": ["../shared/src"]
     },
     "noEmit": true
   },
-  "include": ["src/**/*", "../shared/src/**/*"],
+  "include": ["**/*.ts", "**/*.tsx", "../shared/src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -6,14 +6,25 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist node_modules/.vite"
   },
   "dependencies": {
     "@fantasy-draft/shared": "workspace:*"
   },
   "devDependencies": {
+    "@eslint/js": "^9.16.0",
     "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.16.0",
+    "globals": "^15.13.0",
+    "jsdom": "^26.0.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^4.0.17",
     "vite": "^6.0.0"
   }
 }
