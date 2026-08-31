@@ -1,19 +1,26 @@
 # Fantasy Draft Assistant
 
-Fantasy football draft assistant for Sleeper with:
+Fantasy football draft assistant for ESPN, Yahoo, and Sleeper with:
 
 - a React web app for rankings, recommendations, and roster tracking
 - a Chrome extension side panel for draft-room awareness
-- a local sync server that polls Sleeper, stores a canonical draft snapshot, and streams updates to clients
+- a local sync server that stores a canonical draft snapshot and streams updates to clients
 
-## Reference Docs
+## Reference docs
 
+- Canonical product language and the Primary League definition: [CONTEXT.md](CONTEXT.md)
+- Architecture decision, Sleeper remains authoritative after Manual Continuity: [docs/adr/0001-sleeper-authority-after-manual-continuity.md](docs/adr/0001-sleeper-authority-after-manual-continuity.md)
+- Architecture decision, Core Draft Data blocks live use while Optional Signals degrade: [docs/adr/0002-core-data-blocks-optional-signals-degrade.md](docs/adr/0002-core-data-blocks-optional-signals-degrade.md)
+- Primary League rehearsal runbook: [docs/primary-league-rehearsal.md](docs/primary-league-rehearsal.md)
+- Provider-confirmed Primary League settings: [data/primary-league-settings.json](data/primary-league-settings.json)
+- Recorded real-provider rehearsal operation and status: [data/primary-league-rehearsal.json](data/primary-league-rehearsal.json)
+- Latest deterministic rehearsal report: [data/primary-league-deterministic-rehearsal-report.json](data/primary-league-deterministic-rehearsal-report.json)
+- Latest release-gate report: [data/primary-league-release-gate-report.json](data/primary-league-release-gate-report.json)
 - Data strategy and source decisions: [docs/data-strategy.md](docs/data-strategy.md)
 - Draft approach: [docs/draft-approach.md](docs/draft-approach.md)
 - Data refresh policy: [docs/data-refresh.md](docs/data-refresh.md)
 - Generated draft prep report: [docs/draft-prep-report.md](docs/draft-prep-report.md)
 - Local DuckDB modeling workspace: [docs/modeling-duckdb.md](docs/modeling-duckdb.md)
-- Original technical spec: [fantasy-draft-assistant-spec.md](fantasy-draft-assistant-spec.md)
 
 Use `docs/data-strategy.md` as the current source of truth for:
 
@@ -23,13 +30,27 @@ Use `docs/data-strategy.md` as the current source of truth for:
 - why team environment should be derived data
 - why prediction and recommendation should stay separate
 
+## Current Primary League
+
+The current acceptance profile is the 2026 `Ummati Official` league on Sleeper.
+Sleeper settings confirmed on August 25, 2026 define a 10-team, 14-round keeper
+draft with 140 total slots, including 10 confirmed keepers. Each roster has 14
+players: 1 QB, 2 RB, 2 WR, 1 TE, 2 FLEX, 1 K, and 5 bench spots. There is no
+defense slot. Scoring is full PPR with a 0.5-point tight-end reception premium
+and 0.2 points per rushing attempt.
+
+The deterministic Primary League rehearsal passed on August 25, 2026. The
+real-provider rehearsal is still scheduled, so the release gate and feature
+freeze remain pending. The linked settings, operation record, and reports above
+are the status sources when this summary becomes stale.
+
 ## Current Architecture
 
 ### Web app
 
 - Path: `web-app/`
 - Stack: React, TypeScript, TanStack Query, Zustand, Vite
-- Purpose: show available players, value signals, roster state, and Sleeper sync status
+- Purpose: show available players, value signals, roster state, and live draft sync status
 
 ### Shared package
 
@@ -38,14 +59,18 @@ Use `docs/data-strategy.md` as the current source of truth for:
 - Includes:
   - player/draft/team environment types
   - `DraftSyncEngine`
-  - normalized Sleeper draft pick types
+  - provider-neutral draft metadata and pick events
+  - provider response and browser-snapshot validators and normalizers
 
 ### Server
 
 - Path: `server/`
-- Purpose: canonical Sleeper sync service
+- Purpose: provider-neutral canonical draft sync service
 - Behavior:
-  - polls Sleeper draft endpoints
+  - routes a draft session to the appropriate provider adapter or browser feed
+  - initializes Yahoo from public settings/player data and polls the complete draft-results snapshot
+  - polls Sleeper draft metadata and picks
+  - accepts sanitized, event-driven ESPN snapshots from the extension
   - stores last known draft snapshot in memory
   - normalizes picks into canonical events
   - serves snapshot and streams updates over SSE
@@ -55,17 +80,19 @@ Use `docs/data-strategy.md` as the current source of truth for:
 - Path: `extension/`
 - Purpose: side panel UX and draft-room context
 - Behavior:
-  - detects whether the current Sleeper tab is a draft room
-  - extracts `draftId` from the page URL
+  - detects whether the current ESPN, Yahoo, or Sleeper tab is a draft room
+  - extracts the provider and league/draft ID from the page URL
+  - observes ESPN's existing WebSocket/SSE connection without opening another one
+  - strips account identifiers and authentication data before publishing ESPN state
   - side panel connects to the local sync server for canonical snapshot data
 
 ## Sync Flow
 
-1. Open a Sleeper draft tab.
-2. The extension content script detects the draft room and extracts the `draftId`.
-3. The extension background stores that `draftId`.
-4. The side panel connects to the local sync server using that `draftId`.
-5. The local server polls Sleeper and emits canonical snapshot updates.
+1. Open an ESPN, Yahoo, or Sleeper draft tab.
+2. The extension content script detects the provider and extracts the league/draft ID.
+3. The extension background stores that connection descriptor.
+4. The side panel connects to the provider-qualified local sync route.
+5. Yahoo/Sleeper are polled by the server; ESPN pushes sanitized snapshots from the extension.
 6. The web app and extension render the same draft state from the same sync source.
 
 ## Requirements
@@ -98,9 +125,8 @@ Then set:
 FANTASYPROS_API_KEY=your_key_here
 ```
 
-The sync server permits only configured browser origins. The web app default is
-already included; add your unpacked extension's exact `chrome-extension://...`
-origin to `SYNC_ALLOWED_ORIGINS` when using the side panel.
+The sync server permits configured web origins and unpacked Chrome-extension
+origins. It listens only on `127.0.0.1` by default.
 
 ## Local Development
 
@@ -130,11 +156,33 @@ pnpm dev:server
 pnpm dev:extension
 ```
 
+On draft day, start through the live preflight:
+
+```bash
+pnpm dev:live
+```
+
+This refreshes the Sleeper player directory and FantasyPros rankings, rebuilds
+the canonical player identities, validates the local Core Draft Data, and then
+updates the draft prep report before starting the app. Report generation is
+non-blocking because it also reads Optional Signals. Connect the Primary League
+draft after startup so the app can verify its live scoring and roster settings.
+
 Refresh the cached FantasyPros snapshot manually:
 
 ```bash
 pnpm refresh:fantasypros
 ```
+
+Import the FanDuel and DraftKings PDF snapshots:
+
+```bash
+pnpm import:sportsbook
+```
+
+The sportsbook importer writes `data/sportsbook-snapshot.json`. Over/under
+markets feed a confidence-weighted adjustment to the FantasyPros component-stat
+projection; milestone prices remain separate raw implied-probability signals.
 
 Refresh the daily draft-week inputs:
 
@@ -170,6 +218,18 @@ The current live API integration uses the public FantasyPros endpoints under:
 https://api.fantasypros.com/public/v2/json/nfl/...
 ```
 
+Before live drafting, run `pnpm draft:readiness`. It writes
+`data/draft-readiness-report.json`, blocks only on invalid Core Draft Data
+(trusted rankings, canonical player identities, Primary League settings, or
+confirmed keeper supply), and reports experimental predictions, contract
+context, and sportsbook context as non-blocking Optional Signal degradation.
+
+Run `pnpm draft:rehearsal` for the deterministic 140-pick Primary League
+outage and reconciliation scenario. Run `pnpm draft:release-gate` to record
+build, type-check, lint, unit, integration, data-quality, and product-rehearsal
+results separately. The real-provider steps and feature-freeze rule are in
+[`docs/primary-league-rehearsal.md`](docs/primary-league-rehearsal.md).
+
 Force the old scrape/manual path:
 
 ```bash
@@ -200,19 +260,40 @@ extension/dist
 
 4. After code changes, click `Reload` on the unpacked extension
 
-## Important Sleeper Extension Caveat
+### Historical ESPN 14-team profile
 
-After reloading the extension, you must also refresh the active Sleeper draft tab.
+The extension retains a fixed profile from the completed 2026 ESPN integration
+work for the `Brosindifferentareacodes` league (`1652783544`). This 14-team,
+snake, full-PPR, no-keeper profile is historical. It is not the Sleeper Primary
+League and does not define current acceptance, rehearsal, or release-gate
+criteria. Its rosters had 17 spots: 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1
+D/ST, and 8 bench.
+
+Historical signed-in draft-room URL:
+
+```text
+https://fantasy.espn.com/football/draft?leagueId=1652783544&seasonId=2026&teamId=12
+```
+
+ESPN randomizes the draft order one hour before the draft. The extension reads
+the assigned draft slot from the live room; do not treat ESPN team ID `12` as
+draft slot 12.
+
+## Important Extension Caveat
+
+After reloading the extension, refresh the active provider draft tab. This is
+required for ESPN because its observer must run before ESPN opens the live draft
+connection.
 
 Why:
 
 - Chrome often does not reinject the updated content script into tabs that were already open
-- the extension learns the current `draftId` from the content script running in the Sleeper page
+- the extension learns the current provider and draft ID from the content script
 - if the Sleeper tab is not refreshed, the side panel/background may still show the previous draft state
 
-### When to refresh the Sleeper page
+### When to refresh the provider page
 
-Refresh the Sleeper draft page when:
+Refresh the ESPN, Yahoo, or Sleeper draft page when:
 
 - you reloaded the extension in `chrome://extensions`
 - you started a brand-new draft
@@ -227,10 +308,23 @@ If the extension appears stuck on an old draft:
 ## Using the Web App
 
 1. Open `http://localhost:3000`
-2. Click `Connect Sleeper`
+2. Click `Connect draft`
 3. Paste the draft URL or draft ID
 4. Set your draft position
 5. The app will connect to the local sync server and track the live draft
+
+### Using ESPN
+
+1. Start the local server and web app with `pnpm dev`.
+2. Reload `extension/dist` from `chrome://extensions` after rebuilding.
+3. Log into ESPN normally and enter the live draft application.
+4. Refresh the ESPN draft tab once so the page-world observer starts before the
+   draft connection.
+5. Open the extension side panel and confirm the detected draft position.
+6. Click **Open Full Draft Board**.
+
+The extension never asks for or publishes ESPN passwords, cookies, draft
+security tokens, member IDs, or raw socket initialization payloads.
 
 ## API Endpoints
 
@@ -243,13 +337,26 @@ http://localhost:3001
 Endpoints:
 
 - `GET /api/health`
+- `GET /api/sync/:provider/drafts/:draftId`
+- `POST /api/sync/:provider/drafts/:draftId/refresh`
+- `GET /api/sync/:provider/drafts/:draftId/events`
+- `POST /api/sync/espn/drafts/:draftId/snapshot` (extension only)
 - `GET /api/sync/drafts/:draftId`
 - `POST /api/sync/drafts/:draftId/refresh`
 - `GET /api/sync/drafts/:draftId/events`
 
+`provider` is `espn`, `yahoo`, or `sleeper`. The unqualified routes remain as
+backward-compatible Sleeper aliases.
+
 ## Polling Behavior
 
-The local sync server currently polls Sleeper every `1000ms` during live sync.
+The local sync server polls active provider sessions every `1000ms`. Sleeper
+uses two requests per poll. Yahoo loads settings and the player list once, then
+uses one draft-results request per poll.
+
+ESPN is event-driven and is not polled. Its authenticated draft connection stays
+inside the ESPN tab; the extension publishes only normalized draft metadata and
+picks to the local server.
 
 This was chosen because Sleeper’s public guidance says, as a general rule, stay under `1000 API calls per minute`. One local draft session currently makes about:
 
@@ -282,20 +389,21 @@ pnpm --filter server test
 This covers:
 
 - sync engine unit tests
-- mock Sleeper server integration tests
+  - mock ESPN, Yahoo, and Sleeper server integration tests
 
 ### Manual server checks
 
 ```bash
 curl http://localhost:3001/api/health
 curl http://localhost:3001/api/sync/drafts/YOUR_DRAFT_ID
+curl http://localhost:3001/api/sync/yahoo/drafts/YOUR_YAHOO_LEAGUE_ID
 ```
 
 ### Manual end-to-end test
 
 1. Run `pnpm dev`
 2. Reload the unpacked extension in Chrome
-3. Refresh the actual Sleeper draft page
+3. Refresh the actual ESPN, Yahoo, or Sleeper draft page
 4. Open the side panel
 5. Open `http://localhost:3000`
 6. Connect the same draft ID in the web app
@@ -305,7 +413,10 @@ curl http://localhost:3001/api/sync/drafts/YOUR_DRAFT_ID
 
 Implemented:
 
-- local Sleeper sync server
+- provider-neutral local sync server
+- unauthenticated Yahoo public-read adapter
+- Sleeper public API adapter
+- ESPN page-world WebSocket/SSE observer and sanitized browser-ingest route
 - canonical `DraftSyncEngine`
 - SSE streaming to clients
 - web app consuming server sync instead of polling Sleeper directly
@@ -327,6 +438,8 @@ Not yet implemented:
 ## Known Limitations
 
 - server snapshot storage is currently in-memory only
-- extension still depends on the Sleeper tab content script to provide the current `draftId`
-- after reloading the extension, the Sleeper page usually must be refreshed
+- extension URL detection still requires the provider draft tab to load its content script
+- Yahoo public-read endpoints are undocumented and may change; private leagues may require a later OAuth adapter
+- ESPN's draft protocol and React store are private implementation details and may require maintenance after ESPN site updates
+- after reloading the extension, the provider draft page usually must be refreshed
 - multi-draft or multi-user coordination is not implemented
