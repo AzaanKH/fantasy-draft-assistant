@@ -71,4 +71,25 @@ describe('Primary League release gate report', () => {
     expect(report.actionableWarnings).toHaveLength(1);
     expect(report.optionalSignalDegradations).toHaveLength(1);
   });
+
+  it.each([null, 'not-a-timestamp', '2026-09-05T20:00:01.000Z'])(
+    'rejects passed rehearsal evidence without a valid completion time: %s',
+    (completedAt) => {
+      const report = buildPrimaryLeagueReleaseGateReport({
+        now: Date.parse('2026-09-05T20:00:00.000Z'),
+        outcomes: passingOutcomes(),
+        readiness: { productBlockingFailures: [] },
+        rehearsal: { status: 'passed', failures: [] },
+        operational: {
+          realProviderRehearsal: { status: 'passed', completedAt },
+        },
+      });
+
+      expect(report.status).toBe('blocked');
+      expect(report.featureFreeze.status).toBe('pending');
+      expect(report.productBlockingFailures).toEqual([
+        expect.objectContaining({ key: 'real-provider-rehearsal' }),
+      ]);
+    }
+  );
 });

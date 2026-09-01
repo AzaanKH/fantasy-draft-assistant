@@ -21,6 +21,7 @@ const skillRoot = path.resolve(path.dirname(scriptPath), '..');
 const repoRoot = path.resolve(skillRoot, '../../..');
 const artifactsRoot = path.join(skillRoot, 'artifacts');
 const runtimeBase = path.join('/tmp', 'fantasy-draft-assistant-verification');
+const readinessTimeoutMs = 5_000;
 const scenarios = new Set([
   'workspace-queue',
   'connection-dialog',
@@ -304,6 +305,24 @@ function processCommand(pid) {
   return capture('ps', ['-o', 'command=', '-p', String(pid)]);
 }
 
+function processIdentity(pid) {
+  return {
+    pid,
+    pgid: processGroupId(pid),
+    startedAt: capture('ps', ['-o', 'lstart=', '-p', String(pid)]),
+  };
+}
+
+function matchesProcessGroupLeader(pgid, expected) {
+  if (!expected || expected.pid !== pgid || expected.pgid !== pgid) return false;
+  try {
+    const actual = processIdentity(pgid);
+    return actual.pgid === pgid && actual.startedAt === expected.startedAt;
+  } catch {
+    return false;
+  }
+}
+
 function processAlive(pid) {
   try {
     process.kill(pid, 0);
@@ -327,16 +346,27 @@ async function wait(ms) {
 }
 
 async function readiness(webUrl, apiUrl) {
+  const signal = AbortSignal.timeout(readinessTimeoutMs);
   const [web, api] = await Promise.all([
-    fetch(`${webUrl}/draft`),
-    fetch(`${apiUrl}/api/health`),
+    fetch(`${webUrl}/draft`, { signal }),
+    fetch(`${apiUrl}/api/health`, { signal }),
   ]);
-  const body = await api.json();
-  return web.status === 200 && api.status === 200 && body?.ok === true;
+  const health = await api.json();
+  return {
+    passed: web.status === 200 && api.status === 200 && health?.ok === true,
+    web,
+    api,
+    health,
+  };
 }
 
-async function terminateGroup(pgid) {
-  if (!Number.isInteger(pgid) || pgid <= 1 || !groupAlive(pgid)) return;
+async function terminateGroup(pgid, leaderIdentity) {
+  if (
+    !Number.isInteger(pgid) ||
+    pgid <= 1 ||
+    !groupAlive(pgid) ||
+    !matchesProcessGroupLeader(pgid, leaderIdentity)
+  ) return;
   process.kill(-pgid, 'SIGTERM');
   for (let attempt = 0; attempt < 50 && groupAlive(pgid); attempt += 1) {
     await wait(100);
@@ -383,6 +413,7 @@ async function launch(runId) {
 
   let pid = null;
   let pgid = null;
+  let processGroupLeader = null;
   try {
     await copyCheckout(runId);
     await configureDisposablePorts(runId, webPort, apiPort);
@@ -420,7 +451,18 @@ async function launch(runId) {
     });
     pid = child.pid;
     pgid = child.pid;
-    state = { ...state, status: 'starting', pid, pgid, command: 'pnpm dev:live' };
+    processGroupLeader = processIdentity(pid);
+    if (processGroupLeader.pgid !== pgid) {
+      throw new Error(`Spawned process ${String(pid)} did not lead process group ${String(pgid)}.`);
+    }
+    state = {
+      ...state,
+      status: 'starting',
+      pid,
+      pgid,
+      processGroupLeader,
+      command: 'pnpm dev:live',
+    };
     await writeJson(statePath(runId), state);
 
     const deadline = Date.now() + 180_000;
@@ -428,7 +470,7 @@ async function launch(runId) {
     while (Date.now() < deadline) {
       if (!processAlive(pid)) break;
       try {
-        ready = await readiness(state.webUrl, state.apiUrl);
+        ready = (await readiness(state.webUrl, state.apiUrl)).passed;
       } catch {
         ready = false;
       }
@@ -452,7 +494,7 @@ async function launch(runId) {
       artifacts: evidence,
     }, null, 2)}\n`);
   } catch (error) {
-    if (pgid) await terminateGroup(pgid);
+    if (pgid) await terminateGroup(pgid, processGroupLeader);
     await rm(runtime, { recursive: true, force: true });
     state = {
       ...state,
@@ -516,12 +558,8 @@ async function doctorReport(runId) {
     throw new Error('Canonical identity data does not contain all 32 matched defenses.');
   }
 
-  const [web, api] = await Promise.all([
-    fetch(`${state.webUrl}/draft`),
-    fetch(`${state.apiUrl}/api/health`),
-  ]);
-  const health = await api.json();
-  if (web.status !== 200 || api.status !== 200 || health?.ok !== true) {
+  const { passed, web, api, health } = await readiness(state.webUrl, state.apiUrl);
+  if (!passed) {
     throw new Error('Readiness endpoints failed doctor.');
   }
 
@@ -917,9 +955,7 @@ async function cleanup(runId) {
     throw new Error(`Refusing unsafe cleanup target: ${target}`);
   }
   const state = await readJson(statePath(runId));
-  if (state.pgid && groupAlive(state.pgid)) {
-    await terminateGroup(state.pgid);
-  }
+  await terminateGroup(state.pgid, state.processGroupLeader);
   await rm(target, { recursive: true, force: true });
 
   const remaining = {};
