@@ -1,4 +1,14 @@
 reviews:
+  # Keep this oversized PR within CodeRabbit's 100-file review limit.
+  # Remove these temporary filters after PR #26 is merged or split.
+  path_filters:
+    - "!.scratch/**"
+    - "!docs/**"
+    - "!data/**"
+    - "!web-app/public/data"
+    - "!web-app/public/data/**"
+    - "!**/*.test.ts"
+    - "!**/*.test.tsx"
   auto_review:
     enabled: true
     drafts: true
