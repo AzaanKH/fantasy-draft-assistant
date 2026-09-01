@@ -10,7 +10,7 @@
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   type NFLTeam,
   type Position,
@@ -66,6 +66,21 @@ function isValidPosition(value: string): value is Position {
   return POSITIONS.includes(value as Position);
 }
 
+function normalizeSleeperPosition(value: string): Position | null {
+  // FantasyPros and the rest of the application treat fullbacks as running
+  // backs. Sleeper exposes them as FB, which otherwise drops ranked players
+  // such as Kyle Juszczyk and Hunter Luepke from the identity directory.
+  if (value === 'FB') return 'RB';
+  return isValidPosition(value) ? value : null;
+}
+
+function isExcludedSleeperStatus(status: string): boolean {
+  // Sleeper also uses "Inactive" for current, team-assigned players during the
+  // offseason. Keep those directory entries so fresh FantasyPros rankings can
+  // still resolve them; explicit retired/reserve records remain excluded.
+  return status === 'Reserve/Retired';
+}
+
 /**
  * Validates that a string is a valid NFLTeam
  */
@@ -99,7 +114,10 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
   const errors: string[] = [];
 
   for (const [playerId, player] of Object.entries(rawData)) {
-    const isTeamDefense = player.position === 'DEF' && isValidTeam(playerId);
+    const position = normalizeSleeperPosition(player.position);
+    if (!position) continue;
+
+    const isTeamDefense = position === 'DEF' && isValidTeam(playerId);
     const canonicalTeam = isTeamDefense ? playerId : player.team;
 
     // Skip players without a team (free agents, retired, etc.). Sleeper team
@@ -112,22 +130,18 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
       (player.search_rank === null || player.search_rank === undefined)
     ) continue;
 
-    // Skip non-fantasy positions
-    if (!isValidPosition(player.position)) continue;
-
     // Validate team
     if (!isValidTeam(canonicalTeam)) {
       errors.push(`Invalid team: ${String(canonicalTeam)} for ${player.full_name}`);
       continue;
     }
 
-    // Skip inactive players
-    if (player.status === 'Inactive' || player.status === 'Reserve/Retired') continue;
+    if (isExcludedSleeperStatus(player.status)) continue;
 
     players.push({
       playerId,
       name: player.full_name || `${canonicalTeam} Defense`,
-      position: player.position as Position,
+      position,
       team: canonicalTeam,
       sleeperAdp: player.search_rank ?? 999,
       age: player.age,
@@ -211,4 +225,12 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+export const sleeperDataInternals = {
+  normalizeSleeperPosition,
+  isExcludedSleeperStatus,
+};
+
+const entryPoint = process.argv[1];
+if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
+  void main();
+}

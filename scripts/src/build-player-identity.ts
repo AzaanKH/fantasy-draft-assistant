@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
@@ -29,6 +29,16 @@ interface SleeperFile {
 type FantasyProsPlayer = ECRPlayer | FantasyProsAdpPlayer;
 type MatchMethod = 'exact-name-team' | 'unique-name-position' | 'team-defense' | 'unmatched';
 
+const MIN_IDENTITY_RECORDS = 800;
+const MIN_RANKING_MATCH_RATE = 0.98;
+const EXPECTED_DEFENSES = 32;
+
+const PLAYER_NAME_ALIASES: Readonly<Record<string, string>> = {
+  hollywoodbrown: 'marquisebrown',
+  bamknight: 'zonovanknight',
+  juicewells: 'antwanewells',
+};
+
 interface IdentityRecord {
   readonly canonicalId: string;
   readonly sleeperId?: string;
@@ -41,11 +51,12 @@ interface IdentityRecord {
 }
 
 function normalizeName(name: string): string {
-  return name
+  const normalized = name
     .toLowerCase()
     .replace(/[’'`]/g, '')
-    .replace(/\b(jr|sr|ii|iii|iv)\.?$/i, '')
+    .replace(/\b(jr|sr|ii|iii|iv|v)\.?$/i, '')
     .replace(/[^a-z0-9]/g, '');
+  return PLAYER_NAME_ALIASES[normalized] ?? normalized;
 }
 
 function exactKey(player: { name: string; team: NFLTeam }): string {
@@ -145,18 +156,43 @@ async function main(): Promise<void> {
     });
   }
 
-  const fantasyProsRankingIds = new Set(
-    fantasyPros.rankings.map((player: ECRPlayer) => player.fantasyProsId).filter(Boolean)
+  const identityByFantasyProsId = new Map(
+    records.flatMap((record) =>
+      record.fantasyProsId ? [[record.fantasyProsId, record] as const] : []
+    )
   );
-  const matchedRankings = records.filter(
-    (record) =>
-      record.sleeperId !== undefined &&
-      record.fantasyProsId !== undefined &&
-      fantasyProsRankingIds.has(record.fantasyProsId)
+  const matchedRankings = fantasyPros.rankings.filter(
+    (player: ECRPlayer) =>
+      player.fantasyProsId !== undefined &&
+      identityByFantasyProsId.get(player.fantasyProsId)?.sleeperId !== undefined
   ).length;
   const matchedDefenses = records.filter(
     (record) => record.position === 'DEF' && record.matchMethod === 'team-defense'
   ).length;
+  const rankingMatchRate = Number(
+    (matchedRankings / Math.max(1, fantasyPros.rankings.length)).toFixed(4)
+  );
+  const unmatchedRankings = fantasyPros.rankings.filter((player: ECRPlayer) => {
+    const identity = player.fantasyProsId
+      ? identityByFantasyProsId.get(player.fantasyProsId)
+      : undefined;
+    return identity?.sleeperId === undefined;
+  });
+  const failures = [
+    records.length < MIN_IDENTITY_RECORDS
+      ? `${String(records.length)} identities is below ${String(MIN_IDENTITY_RECORDS)}`
+      : null,
+    rankingMatchRate < MIN_RANKING_MATCH_RATE
+      ? `${String(rankingMatchRate)} ranking coverage is below ${String(MIN_RANKING_MATCH_RATE)}`
+      : null,
+    matchedDefenses !== EXPECTED_DEFENSES
+      ? `${String(matchedDefenses)} defenses matched instead of ${String(EXPECTED_DEFENSES)}`
+      : null,
+  ].filter((failure): failure is string => failure !== null);
+  if (failures.length > 0) {
+    throw new Error(`Generated player identity map failed readiness: ${failures.join('; ')}.`);
+  }
+
   const output = {
     generatedAt: new Date().toISOString(),
     season: fantasyPros.metadata.season,
@@ -167,9 +203,7 @@ async function main(): Promise<void> {
     coverage: {
       fantasyProsRankings: fantasyPros.rankings.length,
       matchedFantasyProsRankings: matchedRankings,
-      fantasyProsRankingMatchRate: Number(
-        (matchedRankings / Math.max(1, fantasyPros.rankings.length)).toFixed(4)
-      ),
+      fantasyProsRankingMatchRate: rankingMatchRate,
       matchedDefenses,
       sleeperPlayers: sleeper.players.length,
       identityRecords: records.length,
@@ -183,11 +217,28 @@ async function main(): Promise<void> {
   await writeFile(OUTPUT_FILE, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
   console.log(
     `Player identity written: ${String(matchedRankings)}/${String(fantasyPros.rankings.length)} ` +
-    `FantasyPros rankings matched; ${String(matchedDefenses)}/32 defenses matched.`
+    `FantasyPros rankings matched; ${String(matchedDefenses)}/${String(EXPECTED_DEFENSES)} defenses matched.`
   );
+
+  if (unmatchedRankings.length > 0) {
+    console.warn(
+      `Unmatched FantasyPros rankings (${String(unmatchedRankings.length)}): ` +
+      unmatchedRankings
+        .map((player: ECRPlayer) => `${player.name} (${player.position}, ${player.team})`)
+        .join(', ')
+    );
+  }
+
 }
 
-main().catch((error: unknown) => {
-  console.error('Player identity build failed:', error);
-  process.exit(1);
-});
+export const playerIdentityInternals = {
+  normalizeName,
+};
+
+const entryPoint = process.argv[1];
+if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
+  main().catch((error: unknown) => {
+    console.error('Player identity build failed:', error);
+    process.exit(1);
+  });
+}

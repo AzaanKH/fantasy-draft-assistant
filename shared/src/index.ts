@@ -5,10 +5,13 @@ export {
   NEWS_STATUSES,
   HIGHLIGHT_LEVELS,
   PREDICTION_SOURCES,
+  TIER_SOURCES,
+  SURVIVAL_MODEL_SOURCES,
   isPosition,
   isNFLTeam,
   isHighlightLevel,
   isPredictionSource,
+  isTierSource,
   isNewsStatus,
   isPlayer,
 } from './player';
@@ -19,6 +22,8 @@ export type {
   NewsStatus,
   HighlightLevel,
   PredictionSource,
+  TierSource,
+  SurvivalModelSource,
   PlayerPrediction,
   Player,
 } from './player';
@@ -72,6 +77,22 @@ export type {
   ScoringRules,
 } from './scoring';
 
+// Normalized league scoring and roster configuration
+export {
+  createDefaultLeagueSettings,
+  createLeagueSettings,
+  isLeagueSettings,
+  isSleeperLeague,
+  normalizeSleeperLeagueSettings,
+} from './league-settings';
+
+export type {
+  LeagueSettings,
+  LeagueSettingsInput,
+  LeagueSettingsSource,
+  SleeperLeague,
+} from './league-settings';
+
 // WebSocket types
 export {
   WEBSOCKET_EVENT_TYPES,
@@ -117,23 +138,96 @@ export type {
   FantasyProsSnapshot,
 } from './fantasypros';
 
+// Observed market ADP
+export { isMarketAdpFormat, isMarketAdpSnapshot } from './market-adp';
+
+export type {
+  MarketAdpFormat,
+  MarketAdpPlayer,
+  MarketAdpSnapshot,
+} from './market-adp';
+
+// ECR-anchored pick expected-value scoring
+export {
+  DEFAULT_PICK_EV_LAYERS,
+  PICK_EV_ECR_GUARDRAIL,
+  PICK_EV_OVERRIDE_THRESHOLD,
+  optimizeLineupUtility,
+  scorePickEvBoard,
+  selectPickEvRecommendation,
+} from './pick-ev';
+
+export type {
+  PickEvPlayer,
+  PickEvRosterPlayer,
+  PickEvNeed,
+  PickEvContext,
+  PickEvLayers,
+  PickEvScore,
+  PickEvSelection,
+} from './pick-ev';
+
+// Sportsbook market snapshots and projection adjustments
+export {
+  SPORTSBOOKS,
+  SPORTSBOOK_MARKETS,
+  americanOddsToImpliedProbability,
+  calculateSportsbookProjectionAdjustment,
+  getLeagueScoringValue,
+  isSportsbookSnapshot,
+  normalizeSportsbookPlayerName,
+} from './sportsbook';
+
+export type {
+  Sportsbook,
+  SportsbookMarket,
+  SportsbookOverUnderLine,
+  SportsbookMilestoneLine,
+  SportsbookSnapshotMetadata,
+  SportsbookSnapshot,
+  FantasyProsMarketStats,
+  SportsbookMarketConsensus,
+  SportsbookProjectionAdjustment,
+} from './sportsbook';
+
 // Sync types
 export {
   DraftSyncEngine,
+  isDraftProvider,
+  isDraftMetadata,
+  isEspnDraftSnapshot,
+  isDraftSyncSnapshot,
   isDraftSyncUpdate,
   isSleeperDraftMetadata,
   isSleeperDraftPick,
   isSleeperDraftPickList,
+  normalizeSleeperDraftMetadata,
   normalizeSleeperPick,
+  normalizePosition,
+  resolveSleeperDraftLeagueId,
 } from './sync';
 
 export type {
   SleeperDraftPick,
   SleeperDraftMetadata,
+  DraftProvider,
+  DraftStatus,
+  DraftType,
+  DraftMetadata,
   DraftSyncSource,
   DraftPickConfidence,
   DraftPickEvent,
+  EspnDraftSnapshot,
   DraftSyncState,
   DraftSyncSnapshot,
   DraftSyncUpdate,
 } from './sync';
+
+// Experimental model shadow-evaluation types
+export { isShadowRecommendationEvent } from './shadow';
+
+export type {
+  ShadowRecommendation,
+  ShadowPositionNeed,
+  ShadowRecommendationEvent,
+} from './shadow';

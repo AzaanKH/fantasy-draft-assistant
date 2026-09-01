@@ -1,5 +1,67 @@
 {
-  "updatedAt": null,
+  "updatedAt": "2026-08-25T17:28:41Z",
   "season": 2026,
-  "keepers": []
+  "keepers": [
+    {
+      "playerName": "Jaxon Smith-Njigba",
+      "position": "WR",
+      "team": 1,
+      "round": 2
+    },
+    {
+      "playerName": "Emeka Egbuka",
+      "position": "WR",
+      "team": 2,
+      "round": 8
+    },
+    {
+      "playerName": "Quinshon Judkins",
+      "position": "RB",
+      "team": 3,
+      "round": 7
+    },
+    {
+      "playerName": "Rico Dowdle",
+      "position": "RB",
+      "team": 4,
+      "round": 14
+    },
+    {
+      "playerName": "Javonte Williams",
+      "position": "RB",
+      "team": 5,
+      "round": 10,
+      "isMyKeeper": true
+    },
+    {
+      "playerName": "Omarion Hampton",
+      "position": "RB",
+      "team": 8,
+      "round": 3
+    },
+    {
+      "playerName": "Jonathan Taylor",
+      "position": "RB",
+      "team": 7,
+      "round": 1
+    },
+    {
+      "playerName": "Travis Etienne Jr.",
+      "position": "RB",
+      "team": 6,
+      "round": 9
+    },
+    {
+      "playerName": "Puka Nacua",
+      "position": "WR",
+      "team": 9,
+      "round": 1
+    },
+    {
+      "playerName": "James Cook III",
+      "position": "RB",
+      "team": 10,
+      "round": 3
+    }
+  ]
 }

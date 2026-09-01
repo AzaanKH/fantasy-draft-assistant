@@ -9,14 +9,14 @@ interface ArtifactRule {
   readonly label: string;
   readonly path: string;
   readonly timestampPath: readonly string[];
-  readonly maxAgeHours: number;
+  readonly maxAgeHours: number | null;
   readonly required: boolean;
   readonly refreshCommand: string;
 }
 
 const ARTIFACTS: readonly ArtifactRule[] = [
   {
-    label: 'FantasyPros snapshot',
+    label: 'Trusted rankings',
     path: 'data/fantasypros-snapshot.json',
     timestampPath: ['metadata', 'refreshedAt'],
     maxAgeHours: 24,
@@ -24,15 +24,23 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     refreshCommand: 'pnpm refresh:fantasypros',
   },
   {
+    label: 'Sportsbook context',
+    path: 'data/sportsbook-snapshot.json',
+    timestampPath: ['metadata', 'capturedAt'],
+    maxAgeHours: 48,
+    required: false,
+    refreshCommand: 'pnpm import:sportsbook',
+  },
+  {
     label: 'Sleeper platform proxy',
     path: 'data/sleeper-adp.json',
     timestampPath: ['fetchedAt'],
     maxAgeHours: 24,
-    required: true,
+    required: false,
     refreshCommand: 'pnpm refresh:sleeper',
   },
   {
-    label: 'Player identity map',
+    label: 'Canonical player identities',
     path: 'data/player-identity.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24,
@@ -44,7 +52,7 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     path: 'data/team-environment.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 14,
-    required: true,
+    required: false,
     refreshCommand: 'pnpm refresh:team-env',
   },
   {
@@ -52,15 +60,15 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     path: 'data/contracts.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
-    required: true,
+    required: false,
     refreshCommand: 'pnpm refresh:contracts',
   },
   {
-    label: 'Prediction artifact',
+    label: 'Experimental predictions',
     path: 'data/predictions.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
-    required: true,
+    required: false,
     refreshCommand: 'pnpm prepare:draft',
   },
   {
@@ -68,7 +76,7 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     path: 'data/recommendation-policy.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
-    required: true,
+    required: false,
     refreshCommand: 'pnpm model:backtest',
   },
   {
@@ -76,8 +84,24 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     path: 'data/league-history/survival-model.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 30,
-    required: true,
+    required: false,
     refreshCommand: 'pnpm model:league-survival',
+  },
+  {
+    label: 'Primary League settings',
+    path: 'data/primary-league-settings.json',
+    timestampPath: ['confirmedAt'],
+    maxAgeHours: null,
+    required: true,
+    refreshCommand: 'Confirm the live provider settings',
+  },
+  {
+    label: 'Confirmed keeper supply',
+    path: 'data/league-history/current-keepers.json',
+    timestampPath: ['updatedAt'],
+    maxAgeHours: null,
+    required: true,
+    refreshCommand: 'Confirm the complete keeper list',
   },
 ];
 
@@ -104,8 +128,14 @@ async function main(): Promise<void> {
       const timestamp = getNestedValue(parsed, artifact.timestampPath);
       const timestampMs = typeof timestamp === 'string' ? Date.parse(timestamp) : Number.NaN;
       const ageHours = (Date.now() - timestampMs) / (60 * 60 * 1000);
-      const stale = !Number.isFinite(ageHours) || ageHours > artifact.maxAgeHours;
-      const status = stale ? 'STALE' : 'fresh';
+      const stale = !Number.isFinite(ageHours) || (
+        artifact.maxAgeHours !== null && ageHours > artifact.maxAgeHours
+      );
+      const status = stale
+        ? 'STALE'
+        : artifact.maxAgeHours === null
+          ? 'valid'
+          : 'fresh';
 
       console.log(
         `${status.padEnd(5)} ${artifact.label.padEnd(26)} ${formatAge(ageHours)} ` +
@@ -119,7 +149,7 @@ async function main(): Promise<void> {
   }
 
   if (staleRequiredArtifacts > 0) {
-    console.log(`\n${String(staleRequiredArtifacts)} required artifact(s) need refresh.`);
+    console.log(`\n${String(staleRequiredArtifacts)} Core Draft Data timestamp(s) need refresh.`);
     if (strict) process.exitCode = 1;
   }
 }

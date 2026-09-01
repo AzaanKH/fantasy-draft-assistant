@@ -1,7 +1,12 @@
-import type { SleeperDraftMetadata, SleeperDraftPick } from '@fantasy-draft/shared';
+import type {
+  SleeperDraftMetadata,
+  SleeperDraftPick,
+  SleeperLeague,
+} from '@fantasy-draft/shared';
 
 export const draftFixture: SleeperDraftMetadata = {
   draft_id: 'fixture-draft',
+  league_id: 'fixture-league',
   status: 'drafting',
   type: 'snake',
   settings: {
@@ -10,6 +15,31 @@ export const draftFixture: SleeperDraftMetadata = {
     pick_timer: 30,
   },
   draft_order: null,
+};
+
+export const leagueFixture: SleeperLeague = {
+  league_id: 'fixture-league',
+  total_rosters: 10,
+  roster_positions: [
+    'QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'FLEX', 'K',
+    'BN', 'BN', 'BN', 'BN', 'BN', 'BN',
+  ],
+  scoring_settings: {
+    pass_yd: 0.04,
+    pass_td: 4,
+    pass_int: -2,
+    pass_2pt: 2,
+    rush_yd: 0.1,
+    rush_td: 6,
+    rush_att: 0.2,
+    rush_2pt: 2,
+    rec: 1,
+    rec_yd: 0.1,
+    rec_td: 6,
+    rec_2pt: 2,
+    bonus_rec_te: 0.5,
+  },
+  settings: {},
 };
 
 export const picksFixture: SleeperDraftPick[] = [

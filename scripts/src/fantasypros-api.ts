@@ -40,6 +40,10 @@ interface FantasyProsNewsResponse {
   readonly news?: readonly FantasyProsNewsRecord[];
 }
 
+interface FantasyProsInjuriesResponse {
+  readonly injuries?: readonly FantasyProsInjuryRecord[];
+}
+
 interface FantasyProsPlayerRecord {
   readonly player_id?: number | string | null;
   readonly player_name?: string;
@@ -70,18 +74,51 @@ interface FantasyProsProjectionPlayer {
     readonly points?: number;
     readonly points_ppr?: number;
     readonly points_half?: number;
+    readonly rush_att?: number;
+    readonly rushing_attempts?: number;
+    readonly pass_yds?: number;
+    readonly pass_tds?: number;
+    readonly rush_yds?: number;
+    readonly rush_tds?: number;
+    readonly rec_rec?: number;
+    readonly rec?: number;
+    readonly receptions?: number;
+    readonly rec_yds?: number;
+    readonly rec_tds?: number;
   };
 }
 
 interface FantasyProsNewsRecord {
   readonly player_id?: number | string | null;
   readonly player_name?: string;
+  readonly team_id?: string;
   readonly title?: string;
   readonly category?: string;
+  readonly categories?: readonly string[];
   readonly status?: string;
+  readonly status_short?: string;
+  readonly created?: string;
   readonly date?: string;
   readonly updated?: string;
   readonly published?: string;
+  readonly desc?: string;
+  readonly impact?: string;
+  readonly link?: string;
+}
+
+interface FantasyProsInjuryRecord {
+  readonly player_id?: number | string | null;
+  readonly name?: string;
+  readonly team_id?: string;
+  readonly position_id?: string;
+  readonly status?: string;
+  readonly status_short?: string;
+  readonly injury_type?: string;
+  readonly comment?: string;
+  readonly injury_update_date?: string | null;
+  readonly practice_1?: string | null;
+  readonly practice_2?: string | null;
+  readonly practice_3?: string | null;
 }
 
 interface FantasyProsPlayerIndexEntry {
@@ -136,30 +173,92 @@ function parsePositionalRank(posRank: string | undefined, fallbackRank: number):
   return parseInt(match[0], 10);
 }
 
-function deriveNewsStatus(record: FantasyProsNewsRecord): NewsStatus {
-  const normalized = [
-    record.status,
-    record.category,
-    record.title,
-  ]
+function deriveStructuredStatus(
+  record: { readonly status?: string; readonly status_short?: string }
+): NewsStatus {
+  const structuredValues = [record.status, record.status_short]
     .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  const tokens: readonly string[] = normalized.match(/[a-z]+/g) ?? [];
-  const hasToken = (term: string): boolean => tokens.includes(term);
-  const hasOutToken = tokens.some((term, index) =>
-    term === 'out' &&
-    !['stand', 'stands', 'stood', 'standing'].includes(tokens[index - 1] ?? '')
-  );
+    .map((value) => value?.toLowerCase().trim() ?? '');
+  const structuredStatus = structuredValues.join(' ');
+  const structuredTokens: readonly string[] = structuredStatus.match(/[a-z]+/g) ?? [];
 
   if (
-    hasOutToken ||
-    hasToken('inactive') ||
-    /\binjured\s+reserve\b/.test(normalized)
+    structuredTokens.includes('out') ||
+    structuredTokens.includes('inactive') ||
+    structuredValues.includes('o') ||
+    /\binjured\s+reserve\b/.test(structuredStatus) ||
+    /\b(ir|pup|reserve|res)\b/.test(structuredStatus) ||
+    /\bphysically\s+unable\s+to\s+perform\b/.test(structuredStatus)
   ) {
     return 'out';
   }
-  if (hasToken('questionable') || hasToken('doubtful')) {
+  if (
+    structuredTokens.includes('questionable') ||
+    structuredTokens.includes('doubtful') ||
+    structuredValues.some((value) => ['q', 'd'].includes(value))
+  ) {
+    return 'questionable';
+  }
+  if (
+    structuredTokens.includes('limited') ||
+    structuredValues.includes('l')
+  ) {
+    return 'limited';
+  }
+  if (
+    structuredTokens.includes('healthy') ||
+    structuredTokens.includes('active') ||
+    structuredTokens.includes('full')
+  ) {
+    return 'healthy';
+  }
+
+  return 'unknown';
+}
+
+function deriveNewsStatus(record: FantasyProsNewsRecord): NewsStatus {
+  const structuredStatus = deriveStructuredStatus(record);
+  if (structuredStatus !== 'unknown') {
+    return structuredStatus;
+  }
+
+  const headline = record.title?.toLowerCase() ?? '';
+  const tokens: readonly string[] = headline.match(/[a-z]+/g) ?? [];
+  const hasToken = (term: string): boolean => tokens.includes(term);
+  const isPracticeAbsence =
+    /\b(sat|sits|sitting|held|missed|misses|missing|absent)\b[^.]*\bpractice\b/.test(headline) ||
+    /\bpractice\b[^.]*\b(sat|sits|sitting|held|missed|misses|missing|absent)\b/.test(headline) ||
+    /\b(not|isn['’]?t|wasn['’]?t|won['’]?t|didn['’]?t)\s+(practice|practicing)\b/.test(headline) ||
+    /\bdid\s+not\s+practice\b/.test(headline) ||
+    /\bdnp\b/.test(headline);
+
+  if (isPracticeAbsence) {
+    return 'limited';
+  }
+  const isExplicitlyOut =
+    /\bruled\s+out\b/.test(headline) ||
+    /\bwill\s+miss\b/.test(headline) ||
+    /\binactive\b/.test(headline) ||
+    /\binjured\s+reserve\b/.test(headline);
+
+  if (isExplicitlyOut) {
+    return 'out';
+  }
+  const hasStandaloneOut = tokens.some((term, index) =>
+    term === 'out' &&
+    !['stand', 'stands', 'stood', 'standing'].includes(tokens[index - 1] ?? '') &&
+    tokens[index + 1] !== 'practice'
+  );
+
+  if (hasStandaloneOut) {
+    return 'out';
+  }
+  if (
+    hasToken('questionable') ||
+    hasToken('doubtful') ||
+    hasToken('uncertain') ||
+    hasToken('unclear')
+  ) {
     return 'questionable';
   }
   if (hasToken('limited')) {
@@ -170,6 +269,19 @@ function deriveNewsStatus(record: FantasyProsNewsRecord): NewsStatus {
   }
 
   return 'unknown';
+}
+
+function normalizeFantasyProsTimestamp(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+
+  const utcTimestamp = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/
+  );
+  if (utcTimestamp) {
+    return `${utcTimestamp[1]}-${utcTimestamp[2]}-${utcTimestamp[3]}T${utcTimestamp[4]}:${utcTimestamp[5]}:${utcTimestamp[6]}Z`;
+  }
+
+  return value;
 }
 
 async function fetchFantasyProsJson<T>(
@@ -323,15 +435,40 @@ function buildProjections(
         ? player.stats?.points_half
         : player.stats?.points;
 
-    return typeof points === 'number'
-      ? [{
+    if (typeof points !== 'number') return [];
+
+    const rushAttempts = player.stats?.rush_att ?? player.stats?.rushing_attempts;
+    const receptions = player.stats?.rec_rec ?? player.stats?.rec ?? player.stats?.receptions;
+    const passingYards = player.stats?.pass_yds;
+    const passingTouchdowns = player.stats?.pass_tds;
+    const rushingYards = player.stats?.rush_yds;
+    const rushingTouchdowns = player.stats?.rush_tds;
+    const receivingYards = player.stats?.rec_yds;
+    const receivingTouchdowns = player.stats?.rec_tds;
+    return [{
           fantasyProsId: player.fpid != null ? String(player.fpid) : undefined,
           name: player.name,
           position,
           team,
           projectedPoints: points,
-        }]
-      : [];
+          baseProjectedPoints: points,
+          ...(typeof rushAttempts === 'number' ? { projectedRushAttempts: rushAttempts } : {}),
+          ...(typeof receptions === 'number' ? { projectedReceptions: receptions } : {}),
+          ...(typeof passingYards === 'number' ? { projectedPassingYards: passingYards } : {}),
+          ...(typeof passingTouchdowns === 'number'
+            ? { projectedPassingTouchdowns: passingTouchdowns }
+            : {}),
+          ...(typeof rushingYards === 'number' ? { projectedRushingYards: rushingYards } : {}),
+          ...(typeof rushingTouchdowns === 'number'
+            ? { projectedRushingTouchdowns: rushingTouchdowns }
+            : {}),
+          ...(typeof receivingYards === 'number'
+            ? { projectedReceivingYards: receivingYards }
+            : {}),
+          ...(typeof receivingTouchdowns === 'number'
+            ? { projectedReceivingTouchdowns: receivingTouchdowns }
+            : {}),
+        }];
   });
 }
 
@@ -343,13 +480,18 @@ function buildNews(
 
   return records.flatMap((record) => {
     const indexedPlayer = playerIndex.get(String(record.player_id ?? ''));
-    const team = indexedPlayer?.team;
+    const team = normalizeFantasyProsTeam(record.team_id) ?? indexedPlayer?.team;
     const position = indexedPlayer?.position;
     const name = record.player_name ?? indexedPlayer?.name;
 
     if (!team || !position || !name) {
       return [];
     }
+
+    const categories = record.categories ?? (record.category ? [record.category] : undefined);
+    const updatedAt = normalizeFantasyProsTimestamp(
+      record.updated ?? record.created ?? record.date ?? record.published
+    );
 
     return [{
       fantasyProsId: record.player_id != null ? String(record.player_id) : undefined,
@@ -358,16 +500,116 @@ function buildNews(
       team,
       status: deriveNewsStatus(record),
       headline: record.title ?? 'FantasyPros news item',
-      updatedAt: record.updated ?? record.date ?? record.published ?? new Date().toISOString(),
+      ...(categories && categories.length > 0 ? { categories } : {}),
+      ...(record.desc ? { description: record.desc } : {}),
+      ...(record.impact ? { impact: record.impact } : {}),
+      ...(record.link ? { link: record.link } : {}),
+      ...(updatedAt ? { updatedAt } : {}),
     }];
   });
+}
+
+function buildInjuryNews(
+  payload: FantasyProsInjuriesResponse,
+  playerIndex: ReadonlyMap<string, FantasyProsPlayerIndexEntry>
+): FantasyProsNewsItem[] {
+  return (payload.injuries ?? []).flatMap((record) => {
+    const indexedPlayer = playerIndex.get(String(record.player_id ?? ''));
+    const team = normalizeFantasyProsTeam(record.team_id) ?? indexedPlayer?.team;
+    const position = normalizeFantasyProsPosition(record.position_id) ?? indexedPlayer?.position;
+    const name = record.name ?? indexedPlayer?.name;
+    const practiceStatuses = [record.practice_1, record.practice_2, record.practice_3]
+      .filter((status): status is string => Boolean(status));
+    const hasAvailabilitySignal = Boolean(
+      record.status ||
+      record.status_short ||
+      record.injury_type ||
+      record.comment ||
+      record.injury_update_date ||
+      practiceStatuses.length > 0
+    );
+
+    if (!team || !position || !name || !hasAvailabilitySignal) {
+      return [];
+    }
+
+    const status = deriveStructuredStatus(record);
+    const softPracticeStatus = practiceStatuses.some((practice) =>
+      /\b(limit|limited|dnp|did\s+not\s+practice)\b/i.test(practice)
+    )
+      ? 'limited'
+      : 'unknown';
+    const headlineDetails = [record.status, record.injury_type]
+      .filter(Boolean)
+      .join(' - ');
+    const updatedAt = normalizeFantasyProsTimestamp(record.injury_update_date);
+
+    return [{
+      fantasyProsId: record.player_id != null ? String(record.player_id) : undefined,
+      name,
+      position,
+      team,
+      status: status === 'unknown' ? softPracticeStatus : status,
+      headline:
+        record.comment || `${name}${headlineDetails ? `: ${headlineDetails}` : ' injury update'}`,
+      categories: ['injury'],
+      ...(record.comment ? { description: record.comment } : {}),
+      ...(updatedAt ? { updatedAt } : {}),
+    }];
+  });
+}
+
+function newsPlayerKey(item: FantasyProsNewsItem): string {
+  return item.fantasyProsId ?? `${item.name.toLowerCase()}|${item.position}|${item.team}`;
+}
+
+function combineNewsWithInjuries(
+  news: readonly FantasyProsNewsItem[],
+  injuries: readonly FantasyProsNewsItem[]
+): FantasyProsNewsItem[] {
+  const injuriesByPlayer = new Map<string, FantasyProsNewsItem>();
+  for (const injury of injuries) {
+    const key = newsPlayerKey(injury);
+    const existing = injuriesByPlayer.get(key);
+    const injuryUpdatedAt = Date.parse(injury.updatedAt ?? '');
+    const existingUpdatedAt = Date.parse(existing?.updatedAt ?? '');
+    if (
+      !existing ||
+      (Number.isFinite(injuryUpdatedAt) &&
+        (!Number.isFinite(existingUpdatedAt) || injuryUpdatedAt > existingUpdatedAt))
+    ) {
+      injuriesByPlayer.set(key, injury);
+    }
+  }
+  const matchedInjuryKeys = new Set<string>();
+  const combinedNews = news.map((item) => {
+    const key = newsPlayerKey(item);
+    const injury = injuriesByPlayer.get(key);
+    if (!injury) return item;
+
+    matchedInjuryKeys.add(key);
+    return injury.status === 'unknown'
+      ? item
+      : { ...item, status: injury.status };
+  });
+
+  return [
+    ...combinedNews,
+    ...injuries.filter((injury) => !matchedInjuryKeys.has(newsPlayerKey(injury))),
+  ];
 }
 
 export async function fetchFantasyProsSnapshot(
   options: FantasyProsApiOptions
 ): Promise<FantasyProsSnapshot> {
   const scoring = options.scoring ?? 'PPR';
-  const [playerIndex, rankingsResponse, adpResponse, newsResponse] = await Promise.all([
+  const [
+    playerIndex,
+    rankingsResponse,
+    adpResponse,
+    newsResponse,
+    injuriesResponse,
+  ] = await Promise.all([
     fetchFantasyProsPlayerIndex(options.apiKey),
     fetchFantasyProsJson<FantasyProsConsensusResponse>(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
@@ -391,8 +633,24 @@ export async function fetchFantasyProsSnapshot(
     fetchFantasyProsJson<FantasyProsNewsResponse>(
       `/${FANTASYPROS_SPORT_PATH}/news`,
       options.apiKey,
-      { limit: 100 }
+      {
+        limit: 100,
+        category: 'injury',
+        order_by: 'updated',
+      }
     ),
+    fetchFantasyProsJson<FantasyProsInjuriesResponse>(
+      `/${FANTASYPROS_SPORT_PATH}/injuries`,
+      options.apiKey,
+      {
+        year: options.season,
+        week: 0,
+      }
+    ).catch((error: unknown): FantasyProsInjuriesResponse => {
+      console.warn('FantasyPros injuries endpoint unavailable; continuing without injuries.');
+      console.warn(error);
+      return {};
+    }),
   ]);
 
   let projectionsResponse: FantasyProsProjectionResponse = {};
@@ -414,7 +672,10 @@ export async function fetchFantasyProsSnapshot(
   const rankings = buildRankings(rankingsResponse.players ?? []);
   const adp = buildAdp(adpResponse.players ?? []);
   const projections = buildProjections(projectionsResponse.players ?? [], scoring);
-  const news = buildNews(newsResponse, playerIndex);
+  const news = combineNewsWithInjuries(
+    buildNews(newsResponse, playerIndex),
+    buildInjuryNews(injuriesResponse, playerIndex)
+  );
   const refreshedAt = new Date().toISOString();
 
   return {
@@ -441,9 +702,13 @@ export const fantasyProsApiInternals = {
   normalizeFantasyProsPosition,
   normalizeFantasyProsTeam,
   parsePositionalRank,
+  deriveStructuredStatus,
   deriveNewsStatus,
+  normalizeFantasyProsTimestamp,
   buildRankings,
   buildAdp,
   buildProjections,
   buildNews,
+  buildInjuryNews,
+  combineNewsWithInjuries,
 };

@@ -2,22 +2,21 @@
 
 This directory is the canonical place for design and implementation plans.
 
-## Current Plan
+## Current reference
 
-- Canonical editable plan: `first-pass.hmtl`
-- Browser copy: `first-pass.html`
+- [Project architecture retrospective](project-architecture-retrospective.html)
+- [Interactive maintainer guide](architecture-and-data-refresh.html)
 
-The `.hmtl` file exists because the original requested filename used that extension. Browsers and static servers detect `.html` more reliably, so keep both files in sync when editing.
+## Historical plan
 
-## Update Workflow
+The [first-pass plan](first-pass.html) is a historical record, not the current plan. Its editable source is `first-pass.hmtl`.
 
-1. Edit `first-pass.hmtl`.
-2. Copy it to `first-pass.html`.
-3. Open `http://127.0.0.1:4173/first-pass.html` if the local server is running.
+The `.hmtl` file exists because the original requested filename used that extension. The `.html` copy is retained for browsers and static servers.
 
-```bash
-cp plans/first-pass.hmtl plans/first-pass.html
-python3 -m http.server 4173 --bind 127.0.0.1 --directory plans
+The interactive architecture and data-refresh guide is available at:
+
+```text
+http://127.0.0.1:4173/architecture-and-data-refresh.html
 ```
 
 ## Design Decisions Captured

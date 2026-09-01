@@ -1,8 +1,9 @@
 import { isPosition, type Position } from './player';
+import { isLeagueSettings, type LeagueSettings } from './league-settings';
 
 export interface SleeperDraftPick {
   readonly round: number;
-  readonly roster_id: number;
+  readonly roster_id: number | null;
   readonly player_id: string;
   readonly picked_by: string;
   readonly pick_no: number;
@@ -20,7 +21,13 @@ export interface SleeperDraftPick {
 
 export interface SleeperDraftMetadata {
   readonly draft_id: string;
-  readonly status: 'pre_draft' | 'drafting' | 'complete';
+  readonly league_id?: string | null;
+  /** Sleeper league mocks put the source league ID here instead of at the top level. */
+  readonly metadata?: {
+    readonly league_id?: string | null;
+    readonly [key: string]: unknown;
+  };
+  readonly status: 'pre_draft' | 'drafting' | 'paused' | 'complete';
   readonly type: 'snake' | 'linear' | 'auction';
   readonly settings: {
     readonly teams: number;
@@ -30,7 +37,36 @@ export interface SleeperDraftMetadata {
   readonly draft_order: Record<string, number> | null;
 }
 
-export type DraftSyncSource = 'sleeper-api' | 'extension-dom' | 'manual';
+export type DraftProvider = 'sleeper' | 'yahoo' | 'espn';
+
+export type DraftStatus = 'pre_draft' | 'drafting' | 'paused' | 'complete';
+
+export type DraftType = 'snake' | 'linear' | 'auction';
+
+/** Provider-neutral draft metadata exposed to every sync consumer. */
+export interface DraftMetadata {
+  readonly provider: DraftProvider;
+  readonly draftId: string;
+  /** The provider's fully-qualified key when it differs from the user-facing ID. */
+  readonly providerKey: string;
+  readonly leagueId?: string;
+  readonly leagueSettings?: LeagueSettings;
+  readonly status: DraftStatus;
+  readonly type: DraftType;
+  readonly settings: {
+    readonly teams: number;
+    readonly rounds: number;
+    readonly pickTimer: number;
+  };
+  readonly draftOrder: Record<string, number> | null;
+}
+
+export type DraftSyncSource =
+  | 'sleeper-api'
+  | 'yahoo-public'
+  | 'espn-extension'
+  | 'extension-dom'
+  | 'manual';
 
 export type DraftPickConfidence = 'confirmed' | 'probable';
 
@@ -38,12 +74,17 @@ export interface DraftPickEvent {
   readonly draftId: string;
   readonly pickNumber: number;
   readonly round: number;
-  readonly rosterId: number;
+  readonly rosterId: number | null;
   readonly draftSlot: number;
   readonly teamIndex: number;
   readonly playerId: string;
   readonly playerName: string;
-  readonly position: Position;
+  /**
+   * Null when the provider omitted the position or supplied a value this
+   * version does not recognize. Consumers must resolve it from player identity
+   * data or reject the pick rather than guessing a roster position.
+   */
+  readonly position: Position | null;
   readonly nflTeam: string | null;
   readonly isKeeper: boolean;
   readonly source: DraftSyncSource;
@@ -51,11 +92,24 @@ export interface DraftPickEvent {
   readonly observedAt: number;
 }
 
+/**
+ * Sanitized ESPN state emitted by the extension's page-world bridge.
+ * Authentication data, member IDs, and raw socket payloads must never cross
+ * this boundary.
+ */
+export interface EspnDraftSnapshot {
+  readonly draft: DraftMetadata;
+  readonly picks: readonly DraftPickEvent[];
+  readonly observedAt: number;
+  readonly myDraftSlot?: number;
+}
+
 export type DraftSyncState = 'idle' | 'syncing' | 'synced' | 'error';
 
 export interface DraftSyncSnapshot {
+  readonly provider: DraftProvider;
   readonly draftId: string;
-  readonly draft: SleeperDraftMetadata | null;
+  readonly draft: DraftMetadata | null;
   readonly picks: readonly DraftPickEvent[];
   readonly status: DraftSyncState;
   readonly lastPolledAt: number | null;
@@ -85,11 +139,16 @@ function isFiniteNumberRecord(value: unknown): value is Record<string, number> {
   );
 }
 
-function isDraftStatus(value: unknown): value is SleeperDraftMetadata['status'] {
-  return value === 'pre_draft' || value === 'drafting' || value === 'complete';
+function isSleeperDraftStatus(value: unknown): value is SleeperDraftMetadata['status'] {
+  return (
+    value === 'pre_draft' ||
+    value === 'drafting' ||
+    value === 'paused' ||
+    value === 'complete'
+  );
 }
 
-function isDraftType(value: unknown): value is SleeperDraftMetadata['type'] {
+function isDraftType(value: unknown): value is DraftType {
   return value === 'snake' || value === 'linear' || value === 'auction';
 }
 
@@ -99,14 +158,70 @@ export function isSleeperDraftMetadata(value: unknown): value is SleeperDraftMet
     return false;
   }
 
+  const metadata = value.metadata;
+  const validMetadata = metadata === undefined || (
+    isRecord(metadata) &&
+    (metadata.league_id === undefined ||
+      metadata.league_id === null ||
+      typeof metadata.league_id === 'string')
+  );
+
   return (
     typeof value.draft_id === 'string' &&
-    isDraftStatus(value.status) &&
+    (value.league_id === undefined ||
+      value.league_id === null ||
+      typeof value.league_id === 'string') &&
+    validMetadata &&
+    isSleeperDraftStatus(value.status) &&
     isDraftType(value.type) &&
     isFiniteNumber(value.settings.teams) &&
     isFiniteNumber(value.settings.rounds) &&
     isFiniteNumber(value.settings.pick_timer) &&
     (value.draft_order === null || isFiniteNumberRecord(value.draft_order))
+  );
+}
+
+/** Resolves the source league for regular Sleeper drafts and league mocks. */
+export function resolveSleeperDraftLeagueId(
+  draft: SleeperDraftMetadata
+): string | null {
+  const candidates = [draft.league_id, draft.metadata?.league_id];
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === 'string' && candidate.trim().length > 0
+  ) ?? null;
+}
+
+export function isDraftProvider(value: unknown): value is DraftProvider {
+  return value === 'sleeper' || value === 'yahoo' || value === 'espn';
+}
+
+function isDraftStatus(value: unknown): value is DraftStatus {
+  return (
+    value === 'pre_draft' ||
+    value === 'drafting' ||
+    value === 'paused' ||
+    value === 'complete'
+  );
+}
+
+export function isDraftMetadata(value: unknown): value is DraftMetadata {
+  if (!isRecord(value) || !isRecord(value.settings)) {
+    return false;
+  }
+
+  return (
+    isDraftProvider(value.provider) &&
+    typeof value.draftId === 'string' &&
+    typeof value.providerKey === 'string' &&
+    (value.leagueId === undefined || typeof value.leagueId === 'string') &&
+    (value.leagueSettings === undefined || isLeagueSettings(value.leagueSettings)) &&
+    isDraftStatus(value.status) &&
+    isDraftType(value.type) &&
+    isFiniteNumber(value.settings.teams) &&
+    isFiniteNumber(value.settings.rounds) &&
+    isFiniteNumber(value.settings.pickTimer) &&
+    (value.draftOrder === null || isFiniteNumberRecord(value.draftOrder))
   );
 }
 
@@ -128,7 +243,7 @@ export function isSleeperDraftPick(value: unknown): value is SleeperDraftPick {
 
   return (
     isFiniteNumber(value.round) &&
-    isFiniteNumber(value.roster_id) &&
+    (value.roster_id === null || isFiniteNumber(value.roster_id)) &&
     typeof value.player_id === 'string' &&
     typeof value.picked_by === 'string' &&
     isFiniteNumber(value.pick_no) &&
@@ -152,28 +267,64 @@ function isDraftPickEvent(value: unknown): value is DraftPickEvent {
     typeof value.draftId === 'string' &&
     isFiniteNumber(value.pickNumber) &&
     isFiniteNumber(value.round) &&
-    isFiniteNumber(value.rosterId) &&
+    (value.rosterId === null || isFiniteNumber(value.rosterId)) &&
     isFiniteNumber(value.draftSlot) &&
     isFiniteNumber(value.teamIndex) &&
     typeof value.playerId === 'string' &&
     typeof value.playerName === 'string' &&
-    isPosition(value.position) &&
+    (value.position === null || isPosition(value.position)) &&
     (value.nflTeam === null || typeof value.nflTeam === 'string') &&
     typeof value.isKeeper === 'boolean' &&
-    (value.source === 'sleeper-api' || value.source === 'extension-dom' || value.source === 'manual') &&
+    (
+      value.source === 'sleeper-api' ||
+      value.source === 'yahoo-public' ||
+      value.source === 'espn-extension' ||
+      value.source === 'extension-dom' ||
+      value.source === 'manual'
+    ) &&
     (value.confidence === 'confirmed' || value.confidence === 'probable') &&
     isFiniteNumber(value.observedAt)
   );
 }
 
-function isDraftSyncSnapshot(value: unknown): value is DraftSyncSnapshot {
+/** Runtime validation for snapshots received from an ESPN page bridge. */
+export function isEspnDraftSnapshot(value: unknown): value is EspnDraftSnapshot {
+  if (!isRecord(value)) return false;
+  const draft = value.draft;
+  const picks = value.picks;
+  if (
+    !isDraftMetadata(draft) ||
+    draft.provider !== 'espn' ||
+    !Array.isArray(picks) ||
+    !picks.every(isDraftPickEvent) ||
+    !isFiniteNumber(value.observedAt)
+  ) {
+    return false;
+  }
+
+  if (
+    value.myDraftSlot !== undefined &&
+    (!isFiniteNumber(value.myDraftSlot) || value.myDraftSlot < 1)
+  ) {
+    return false;
+  }
+
+  return picks.every(
+    (pick) =>
+      pick.draftId === draft.draftId &&
+      pick.source === 'espn-extension'
+  );
+}
+
+export function isDraftSyncSnapshot(value: unknown): value is DraftSyncSnapshot {
   if (!isRecord(value)) {
     return false;
   }
 
   return (
+    isDraftProvider(value.provider) &&
     typeof value.draftId === 'string' &&
-    (value.draft === null || isSleeperDraftMetadata(value.draft)) &&
+    (value.draft === null || isDraftMetadata(value.draft)) &&
     Array.isArray(value.picks) &&
     value.picks.every(isDraftPickEvent) &&
     (value.status === 'idle' || value.status === 'syncing' || value.status === 'synced' || value.status === 'error') &&
@@ -195,7 +346,7 @@ export function isDraftSyncUpdate(value: unknown): value is DraftSyncUpdate {
   );
 }
 
-function normalizePosition(value: string | undefined): Position {
+export function normalizePosition(value: string | undefined): Position | null {
   switch (value?.toUpperCase()) {
     case 'QB':
       return 'QB';
@@ -212,7 +363,7 @@ function normalizePosition(value: string | undefined): Position {
     case 'D/ST':
       return 'DEF';
     default:
-      return 'RB';
+      return null;
   }
 }
 
@@ -243,14 +394,39 @@ export function normalizeSleeperPick(pick: SleeperDraftPick): DraftPickEvent {
   };
 }
 
+export function normalizeSleeperDraftMetadata(
+  draft: SleeperDraftMetadata,
+  leagueSettings?: LeagueSettings
+): DraftMetadata {
+  const leagueId = resolveSleeperDraftLeagueId(draft);
+  return {
+    provider: 'sleeper',
+    draftId: draft.draft_id,
+    providerKey: draft.draft_id,
+    ...(leagueId ? { leagueId } : {}),
+    ...(leagueSettings ? { leagueSettings } : {}),
+    status: draft.status,
+    type: draft.type,
+    settings: {
+      teams: draft.settings.teams,
+      rounds: draft.settings.rounds,
+      pickTimer: draft.settings.pick_timer,
+    },
+    draftOrder: draft.draft_order,
+  };
+}
+
 export class DraftSyncEngine {
+  private readonly provider: DraftProvider;
   private readonly draftId: string;
   private snapshot: DraftSyncSnapshot;
   private readonly picksByNumber = new Map<number, DraftPickEvent>();
 
-  public constructor(draftId: string) {
+  public constructor(provider: DraftProvider, draftId: string) {
+    this.provider = provider;
     this.draftId = draftId;
     this.snapshot = {
+      provider,
       draftId,
       draft: null,
       picks: [],
@@ -286,21 +462,28 @@ export class DraftSyncEngine {
   }
 
   public reconcile(
-    draft: SleeperDraftMetadata,
-    rawPicks: readonly SleeperDraftPick[],
+    draft: DraftMetadata,
+    normalizedPicks: readonly DraftPickEvent[],
     now: number = Date.now()
   ): {
     readonly snapshot: DraftSyncSnapshot;
     readonly newPicks: readonly DraftPickEvent[];
   } {
-    const normalizedPicks = rawPicks
-      .map((pick) => normalizeSleeperPick(pick))
-      .sort((a, b) => a.pickNumber - b.pickNumber);
+    if (draft.provider !== this.provider || draft.draftId !== this.draftId) {
+      throw new Error('Draft metadata does not match this sync session');
+    }
+    if (normalizedPicks.some((pick) => pick.draftId !== this.draftId)) {
+      throw new Error('Draft picks do not match this sync session');
+    }
+
+    const sortedPicks = [...normalizedPicks].sort(
+      (a, b) => a.pickNumber - b.pickNumber
+    );
 
     const nextPicksByNumber = new Map<number, DraftPickEvent>();
     const newPicks: DraftPickEvent[] = [];
 
-    for (const pick of normalizedPicks) {
+    for (const pick of sortedPicks) {
       const previousPick = this.picksByNumber.get(pick.pickNumber);
       if (!previousPick || previousPick.playerId !== pick.playerId) {
         newPicks.push(pick);
@@ -308,7 +491,7 @@ export class DraftSyncEngine {
       nextPicksByNumber.set(pick.pickNumber, pick);
     }
 
-    // Sleeper can correct a completed pick. Rebuild from the latest complete
+    // Providers can correct a completed pick. Rebuild from the latest complete
     // response so that removed or replaced picks do not linger locally.
     this.picksByNumber.clear();
     for (const [pickNumber, pick] of nextPicksByNumber) {
@@ -320,6 +503,7 @@ export class DraftSyncEngine {
     );
 
     this.snapshot = {
+      provider: this.provider,
       draftId: this.draftId,
       draft,
       picks,

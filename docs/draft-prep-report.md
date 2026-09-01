@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-07-20T22:21:25.388Z
+Generated: 2026-08-31T04:13:30.804Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,10 +8,10 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Source timestamp |
 | --- | --- |
-| FantasyPros | 2026-07-20T22:20:58.076Z |
-| League survival | 2026-07-20T21:25:43.678Z |
-| Team environment | 2026-07-20T21:23:17.928Z |
-| Predictions | 2026-07-20T22:21:22.776Z |
+| FantasyPros | 2026-08-30T21:16:15.990Z |
+| League survival | 2026-08-31T04:13:25.755Z |
+| Team environment | 2026-08-29T20:50:51.441Z |
+| Predictions | 2026-08-29T20:51:39.431Z |
 
 ## Historical Room Trends
 
@@ -26,41 +26,52 @@ Fresh picks exclude keepers.
 
 ## Current Keepers
 
-- No current keepers loaded yet.
+- Jaxon Smith-Njigba (WR)
+- Emeka Egbuka (WR)
+- Quinshon Judkins (RB)
+- Rico Dowdle (RB)
+- Javonte Williams (RB) [MY KEEPER]
+- Omarion Hampton (RB)
+- Jonathan Taylor (RB)
+- Travis Etienne Jr. (RB)
+- Puka Nacua (WR)
+- James Cook III (RB)
 
 ## Current FantasyPros QB Tier
 
+Listed current keepers are excluded from the available-player tier snapshots.
+
 | Overall | QB | Player |
 | --- | --- | --- |
-| 25 | 1 | Josh Allen |
-| 32 | 2 | Lamar Jackson |
-| 34 | 3 | Drake Maye |
+| 27 | 1 | Josh Allen |
+| 31 | 2 | Lamar Jackson |
+| 37 | 3 | Drake Maye |
 | 44 | 4 | Joe Burrow |
-| 54 | 5 | Jayden Daniels |
-| 56 | 6 | Jalen Hurts |
-| 66 | 7 | Caleb Williams |
-| 67 | 8 | Justin Herbert |
-| 75 | 9 | Trevor Lawrence |
-| 77 | 10 | Dak Prescott |
-| 92 | 11 | Jaxson Dart |
-| 94 | 12 | Brock Purdy |
+| 50 | 5 | Jayden Daniels |
+| 55 | 6 | Jalen Hurts |
+| 64 | 7 | Caleb Williams |
+| 69 | 8 | Justin Herbert |
+| 74 | 9 | Dak Prescott |
+| 76 | 10 | Trevor Lawrence |
+| 91 | 11 | Brock Purdy |
+| 92 | 12 | Jaxson Dart |
 
 ## Current FantasyPros TE Tier
 
 | Overall | TE | Player |
 | --- | --- | --- |
-| 15 | 1 | Trey McBride |
-| 21 | 2 | Brock Bowers |
-| 36 | 3 | Colston Loveland |
+| 17 | 1 | Brock Bowers |
+| 19 | 2 | Trey McBride |
+| 34 | 3 | Colston Loveland |
 | 52 | 4 | Tyler Warren |
-| 70 | 5 | Tucker Kraft |
-| 72 | 6 | Harold Fannin Jr. |
-| 78 | 7 | Kyle Pitts Sr. |
-| 86 | 8 | Sam LaPorta |
-| 97 | 9 | Travis Kelce |
-| 106 | 10 | Jake Ferguson |
-| 110 | 11 | George Kittle |
-| 115 | 12 | Dalton Kincaid |
+| 70 | 5 | Harold Fannin Jr. |
+| 75 | 6 | Kyle Pitts Sr. |
+| 80 | 7 | Tucker Kraft |
+| 83 | 8 | Sam LaPorta |
+| 93 | 9 | Travis Kelce |
+| 96 | 10 | George Kittle |
+| 110 | 11 | Dalton Kincaid |
+| 116 | 12 | Jake Ferguson |
 
 ## Draft-Week Checklist
 

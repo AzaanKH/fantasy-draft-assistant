@@ -73,7 +73,14 @@ interface CurrentKeepers {
     readonly playerId?: string;
     readonly playerName: string;
     readonly position: Position;
+    readonly team: number;
+    readonly round: number;
+    readonly isMyKeeper?: boolean;
   }[];
+}
+
+function normalizePlayerName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function countAtOrBefore(picks: readonly Pick[], position: Position, maxPick: number): number {
@@ -139,11 +146,30 @@ async function main(): Promise<void> {
     };
   });
 
+  const rankingNames = new Set(
+    fantasyPros.rankings.map((ranking) =>
+      `${normalizePlayerName(ranking.name)}:${ranking.position}`
+    )
+  );
+  const keeperNames = new Set(
+    (currentKeepers?.keepers ?? []).map((keeper) =>
+      `${normalizePlayerName(keeper.playerName)}:${keeper.position}`
+    )
+  );
+  for (const keeper of currentKeepers?.keepers ?? []) {
+    const keeperKey = `${normalizePlayerName(keeper.playerName)}:${keeper.position}`;
+    if (!rankingNames.has(keeperKey)) {
+      console.warn(`Current keeper has no ranking match: ${keeper.playerName} (${keeper.position}).`);
+    }
+  }
   const currentTiers = Object.fromEntries(
     POSITIONS.map((position) => [
       position,
       fantasyPros.rankings
-        .filter((ranking) => ranking.position === position)
+        .filter((ranking) =>
+          ranking.position === position &&
+          !keeperNames.has(`${normalizePlayerName(ranking.name)}:${ranking.position}`)
+        )
         .slice(0, position === 'QB' || position === 'TE' ? 12 : 18)
         .map((ranking) => ({
           rank: ranking.rank,
@@ -205,7 +231,8 @@ async function main(): Promise<void> {
   ]);
   const keeperLines = report.keeperStatus.keepers.length > 0
     ? report.keeperStatus.keepers.map(
-        (keeper) => `- ${keeper.playerName} (${keeper.position})`
+        (keeper) =>
+          `- ${keeper.playerName} (${keeper.position})${keeper.isMyKeeper ? ' [MY KEEPER]' : ''}`
       ).join('\n')
     : '- No current keepers loaded yet.';
 
@@ -243,6 +270,8 @@ ${markdownTable(
 ${keeperLines}
 
 ## Current FantasyPros QB Tier
+
+Listed current keepers are excluded from the available-player tier snapshots.
 
 ${markdownTable(
   ['Overall', 'QB', 'Player'],

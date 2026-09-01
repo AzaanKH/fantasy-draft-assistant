@@ -1,5 +1,6 @@
 {
-  "generatedAt": "2026-07-20T22:21:22.784Z",
+  "generatedAt": "2026-08-29T20:51:39.438Z",
+  "modelVersion": "position-ridge-v4-nested-selection-2021-2025",
   "seasons": [
     2021,
     2022,
@@ -12,8 +13,12 @@
     "nflverse": [
       "historical NFL player stats",
       "historical offensive snap share",
+      "play-level pressure, participation, and charted primary-receiver routes",
+      "play-by-play inside-the-five carries and targets",
       "historical Next Gen Stats efficiency",
       "historical rosters",
+      "timestamp-gated historical injury, roster, and depth-chart snapshots",
+      "prior-season missed games and dated trades as of each historical draft",
       "historical schedules",
       "historical team stats",
       "player ID mapping"
@@ -30,9 +35,12 @@
     ],
     "predictionLayer": [
       "uses nflverse production/history",
-      "uses leakage-safe trailing snap share and Next Gen Stats",
+      "uses walk-forward fitted, centered position residuals",
+      "shrinks efficiency features by position workload using training-only baselines and thresholds",
+      "uses leakage-safe trailing pressure, route, goal-line, snap, and Next Gen Stats features",
       "uses ffopportunity expected points/opportunity",
-      "uses DynastyProcess pre-draft ranking context"
+      "uses DynastyProcess pre-draft ranking context",
+      "uses as-of-draft availability and role context only as model inputs, never as point awards"
     ],
     "rosterAwareRecommendation": [
       "uses prediction outputs",
@@ -57,6 +65,109 @@
     "leagueHistorySurvivalTable": "model.league_history_survival_training_dataset",
     "draftPickTradeGraderTable": "model.draft_pick_trade_grader_features"
   },
+  "positionResidualModels": {
+    "QB": {
+      "modelFamily": "qb-ridge-expanded-efficiency-v1",
+      "candidateSetVersion": "2026-predeclared-v1",
+      "specificationId": "expanded-efficiency-v1",
+      "featureNames": [
+        "trailing_pass_attempts_per_game_3yr",
+        "trailing_completion_percentage_above_expectation_3yr",
+        "trailing_pressure_rate_3yr",
+        "trailing_pressure_time_to_throw_3yr",
+        "trailing_number_pass_rushers_3yr",
+        "trailing_avg_intended_air_yards_3yr",
+        "trailing_rush_attempts_per_game_3yr"
+      ],
+      "volumeThreshold": 50,
+      "ridgeLambda": 100,
+      "selectedWithTrainingSeasons": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "innerValidationSeason": 2025,
+      "trainingRows": 150,
+      "trainedThroughSeason": 2025
+    },
+    "RB": {
+      "modelFamily": "rb-ridge-expanded-efficiency-v1",
+      "candidateSetVersion": "2026-predeclared-v1",
+      "specificationId": "expanded-efficiency-v1",
+      "featureNames": [
+        "trailing_offense_snap_share_3yr",
+        "trailing_rush_attempts_per_game_3yr",
+        "trailing_targets_per_game_3yr",
+        "trailing_goal_line_carries_per_game_3yr",
+        "trailing_goal_line_targets_per_game_3yr",
+        "trailing_expected_rush_points_per_game_3yr",
+        "trailing_rush_yards_over_expected_per_attempt_3yr",
+        "trailing_rush_pct_over_expected_3yr"
+      ],
+      "volumeThreshold": 320,
+      "ridgeLambda": 10,
+      "selectedWithTrainingSeasons": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "innerValidationSeason": 2025,
+      "trainingRows": 352,
+      "trainedThroughSeason": 2025
+    },
+    "WR": {
+      "modelFamily": "wr-ridge-expanded-efficiency-v1",
+      "candidateSetVersion": "2026-predeclared-v1",
+      "specificationId": "expanded-efficiency-v1",
+      "featureNames": [
+        "trailing_dropback_participation_per_game_3yr",
+        "trailing_charted_route_targets_per_game_3yr",
+        "trailing_targets_per_game_3yr",
+        "trailing_target_share_3yr",
+        "trailing_air_yards_share_3yr",
+        "trailing_deep_route_target_share_3yr",
+        "trailing_screen_route_target_share_3yr",
+        "trailing_avg_separation_3yr",
+        "trailing_avg_yac_above_expectation_3yr"
+      ],
+      "volumeThreshold": 320,
+      "ridgeLambda": 10,
+      "selectedWithTrainingSeasons": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "innerValidationSeason": 2025,
+      "trainingRows": 451,
+      "trainedThroughSeason": 2025
+    },
+    "TE": {
+      "modelFamily": "te-ridge-role-opportunity-v1",
+      "candidateSetVersion": "2026-predeclared-v1",
+      "specificationId": "role-opportunity-v1",
+      "featureNames": [
+        "trailing_dropback_participation_per_game_3yr",
+        "trailing_charted_route_targets_per_game_3yr",
+        "trailing_targets_per_dropback_participation_3yr",
+        "trailing_target_share_3yr",
+        "trailing_offense_snap_share_3yr"
+      ],
+      "volumeThreshold": 800,
+      "ridgeLambda": 1,
+      "selectedWithTrainingSeasons": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "innerValidationSeason": 2025,
+      "trainingRows": 151,
+      "trainedThroughSeason": 2025
+    }
+  },
   "counts": [
     {
       "tableName": "source.nflverse_player_stats",
@@ -76,11 +187,19 @@
     },
     {
       "tableName": "source.nflverse_player_ids",
-      "rowCount": 25032
+      "rowCount": 25066
     },
     {
       "tableName": "source.nflverse_snap_counts",
       "rowCount": 132616
+    },
+    {
+      "tableName": "source.nflverse_participation",
+      "rowCount": 238135
+    },
+    {
+      "tableName": "source.nflverse_pbp",
+      "rowCount": 235933
     },
     {
       "tableName": "source.nflverse_nextgen_passing",
@@ -100,19 +219,43 @@
     },
     {
       "tableName": "source.dynastyprocess_rankings",
-      "rowCount": 1789032
+      "rowCount": 1824172
     },
     {
       "tableName": "source.dynastyprocess_player_ids",
-      "rowCount": 12467
+      "rowCount": 12484
     },
     {
       "tableName": "model.prediction_training_dataset",
-      "rowCount": 3228
+      "rowCount": 3232
+    },
+    {
+      "tableName": "model.position_model_coefficients",
+      "rowCount": 29
+    },
+    {
+      "tableName": "model.qb_prediction_features",
+      "rowCount": 130
+    },
+    {
+      "tableName": "model.rb_prediction_features",
+      "rowCount": 222
+    },
+    {
+      "tableName": "model.wr_prediction_features",
+      "rowCount": 405
+    },
+    {
+      "tableName": "model.te_prediction_features",
+      "rowCount": 225
+    },
+    {
+      "tableName": "model.position_model_components",
+      "rowCount": 1053
     },
     {
       "tableName": "model.prediction_outputs",
-      "rowCount": 1021
+      "rowCount": 1053
     },
     {
       "tableName": "model.league_history_survival_training_dataset",
@@ -120,7 +263,7 @@
     },
     {
       "tableName": "model.draft_pick_trade_grader_features",
-      "rowCount": 1021
+      "rowCount": 1053
     }
   ]
 }
