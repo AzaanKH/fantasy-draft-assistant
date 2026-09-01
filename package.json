@@ -28,6 +28,8 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "draft:preflight": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts prepare:live-draft",
     "draft:readiness": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts check:draft-readiness",
+    "draft:rehearsal": "pnpm --filter web-app rehearse:primary-league",
+    "draft:release-gate": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts primary-league:release-gate",
     "scrape:ecr": "pnpm --filter scripts scrape:ecr",
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:fantasypros:manual": "pnpm scrape:ecr && FANTASYPROS_SNAPSHOT_MODE=manual pnpm --filter scripts refresh:fantasypros-snapshot",

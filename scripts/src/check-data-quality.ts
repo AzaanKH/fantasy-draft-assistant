@@ -278,11 +278,16 @@ async function main(): Promise<void> {
     'Snap-share and Next Gen Stats adjust a usable set of current predictions.',
     featureAdjustedPredictions, '>= 100');
 
-  const inputTime = Math.max(
-    timestamp(nested(fantasyPros, 'metadata', 'refreshedAt')),
-    timestamp(nested(sleeper, 'fetchedAt')),
-    timestamp(nested(teamEnvironment, 'generatedAt'))
-  );
+  const predictionInputs = [
+    {
+      label: 'Trusted rankings',
+      time: timestamp(nested(fantasyPros, 'metadata', 'refreshedAt')),
+    },
+    { label: 'Sleeper player directory', time: timestamp(nested(sleeper, 'fetchedAt')) },
+    { label: 'Team environment', time: timestamp(nested(teamEnvironment, 'generatedAt')) },
+  ];
+  const inputTime = Math.max(...predictionInputs.map((input) => input.time));
+  const newestPredictionInput = predictionInputs.find((input) => input.time === inputTime);
   const identityTime = timestamp(nested(identity, 'generatedAt'));
   const predictionTime = timestamp(nested(predictions, 'generatedAt'));
   const policy = loaded.get('recommendation-policy.json');
@@ -291,8 +296,13 @@ async function main(): Promise<void> {
     timestamp(nested(fantasyPros, 'metadata', 'refreshedAt')),
     timestamp(nested(sleeper, 'fetchedAt'))
   ) ? 'pass' : 'fail', 'Player identity is newer than its source snapshots.');
-  add(checks, 'dependencies.predictions', predictionTime >= inputTime ? 'pass' : 'warn',
-    'Predictions are newer than all current input snapshots.');
+  const predictionsCurrent = predictionTime >= inputTime;
+  add(checks, 'dependencies.predictions', predictionsCurrent ? 'pass' : 'warn',
+    predictionsCurrent
+      ? 'Predictions are newer than all current input snapshots.'
+      : Number.isFinite(predictionTime) && newestPredictionInput
+        ? `The prediction artifact (${new Date(predictionTime).toISOString()}) is older than ${newestPredictionInput.label} (${new Date(inputTime).toISOString()}).`
+        : 'Prediction artifact or input timestamps are invalid.');
   add(checks, 'dependencies.recommendation-policy', policyTime >= predictionTime ? 'pass' : 'fail',
     'Recommendation policy is newer than the prediction artifact.');
   add(checks, 'recommendation-policy.decision',
