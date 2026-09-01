@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useDraftStore } from './draftStore';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
+  DEFAULT_SCORING_RULES,
+  createLeagueSettings,
+} from '@fantasy-draft/shared';
+import { createDraftStore, useDraftStore } from './draftStore';
 
 describe('draftStore shortlist', () => {
   beforeEach(() => {
@@ -22,6 +27,34 @@ describe('draftStore shortlist', () => {
 
     useDraftStore.getState().setSessionMode('live');
     expect(useDraftStore.getState().sessionMode).toBe('live');
+  });
+
+  it('invalidates provider readiness until provider roster settings return', () => {
+    const store = createDraftStore();
+    const providerSettings = createLeagueSettings({
+      source: 'sleeper',
+      leagueId: 'primary-league',
+      totalTeams: 10,
+      scoringRules: DEFAULT_SCORING_RULES,
+      rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
+      keepersEnabled: true,
+    });
+    store.getState().applyLeagueSettings(providerSettings);
+
+    store.getState().setRosterRequirements({
+      ...DEFAULT_ROSTER_REQUIREMENTS,
+      BENCH: { spots: DEFAULT_ROSTER_REQUIREMENTS.BENCH.spots + 1 },
+    });
+
+    expect(store.getState().leagueSettings).toMatchObject({
+      source: 'default',
+      leagueId: null,
+    });
+    expect(store.getState().config.rosterRequirements.BENCH.spots).toBe(6);
+
+    store.getState().applyLeagueSettings(providerSettings);
+    expect(store.getState().leagueSettings.source).toBe('sleeper');
+    expect(store.getState().config.rosterRequirements.BENCH.spots).toBe(5);
   });
 
   it('records a Provisional Pick in the canonical sequence and every affected roster', () => {

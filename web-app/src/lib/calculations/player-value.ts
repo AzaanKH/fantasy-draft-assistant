@@ -502,11 +502,20 @@ export function filterDrafted(
   draftedPlayers: readonly {
     readonly playerName: string;
     readonly position: Position;
+    readonly nflTeam?: NFLTeam;
   }[] = []
 ): Player[] {
   const draftedIdentityKeys = new Set(
-    draftedPlayers.map(
-      (player) => `${normalizePlayerName(player.playerName)}|${player.position}`
+    draftedPlayers.flatMap(
+      (player) => player.nflTeam
+        ? [`${normalizePlayerName(player.playerName)}|${player.position}|${player.nflTeam}`]
+        : []
+    )
+  );
+  const legacyDraftedIdentityKeys = new Set(
+    draftedPlayers.flatMap((player) => player.nflTeam
+      ? []
+      : [`${normalizePlayerName(player.playerName)}|${player.position}`]
     )
   );
 
@@ -514,6 +523,9 @@ export function filterDrafted(
     (player) =>
       !draftedIds.has(player.id) &&
       !draftedIdentityKeys.has(
+        `${normalizePlayerName(player.name)}|${player.position}|${player.team}`
+      ) &&
+      !legacyDraftedIdentityKeys.has(
         `${normalizePlayerName(player.name)}|${player.position}`
       )
   );

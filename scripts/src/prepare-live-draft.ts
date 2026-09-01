@@ -10,6 +10,7 @@ import { buildDraftReadinessReport } from './check-draft-readiness.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const SLEEPER_REFRESH_TIMEOUT_MS = 60_000;
 
 interface RefreshStep {
   readonly label: string;
@@ -33,21 +34,61 @@ function runRefreshStep(step: RefreshStep): Promise<void> {
   console.log(`\n[Live preflight] Refreshing ${step.label}...`);
 
   return new Promise((resolveStep, rejectStep) => {
+    const timeoutMs = step.script === 'refresh:sleeper'
+      ? SLEEPER_REFRESH_TIMEOUT_MS
+      : null;
     const child = spawn(PNPM_COMMAND, [step.script], {
       cwd: REPO_ROOT,
       env: process.env,
       stdio: 'inherit',
+      detached: timeoutMs !== null && process.platform !== 'win32',
     });
+    let settled = false;
+    let timeout: NodeJS.Timeout | undefined;
 
-    child.once('error', rejectStep);
+    const settle = (result: 'resolve' | 'reject', error?: Error): void => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      if (result === 'resolve') {
+        resolveStep();
+      } else {
+        rejectStep(error);
+      }
+    };
+
+    if (timeoutMs !== null) {
+      timeout = setTimeout(() => {
+        if (child.pid !== undefined) {
+          if (process.platform === 'win32') {
+            const terminator = spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+              stdio: 'ignore',
+            });
+            terminator.once('error', () => { child.kill('SIGTERM'); });
+          } else {
+            try {
+              process.kill(-child.pid, 'SIGTERM');
+            } catch {
+              child.kill('SIGTERM');
+            }
+          }
+        }
+        settle(
+          'reject',
+          new Error(`${step.label} refresh timed out after ${String(timeoutMs / 1000)} seconds.`)
+        );
+      }, timeoutMs);
+    }
+
+    child.once('error', (error) => { settle('reject', error); });
     child.once('exit', (code, signal) => {
       if (code === 0) {
-        resolveStep();
+        settle('resolve');
         return;
       }
 
       const outcome = signal ? `signal ${signal}` : `exit code ${String(code)}`;
-      rejectStep(new Error(`${step.label} refresh failed with ${outcome}.`));
+      settle('reject', new Error(`${step.label} refresh failed with ${outcome}.`));
     });
   });
 }

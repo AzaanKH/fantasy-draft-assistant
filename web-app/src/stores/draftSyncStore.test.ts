@@ -68,4 +68,21 @@ describe('draft sync connection persistence', () => {
       draftPosition: 5,
     });
   });
+
+  it('requires position confirmation when reconnecting to the same draft', () => {
+    const store = useDraftSyncConnectionStore.getState();
+    store.restoreConnection({
+      provider: 'sleeper',
+      draftId: 'draft-1',
+      draftPosition: 5,
+    });
+
+    store.startConnection('sleeper', 'draft-1');
+
+    expect(useDraftSyncConnectionStore.getState().connection).toEqual({
+      provider: 'sleeper',
+      draftId: 'draft-1',
+      draftPosition: null,
+    });
+  });
 });

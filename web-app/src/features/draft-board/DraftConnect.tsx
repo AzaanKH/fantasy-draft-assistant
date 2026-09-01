@@ -41,7 +41,10 @@ import { useDraftStore } from '@/stores/draftStore';
 import { cn } from '@/lib/utils';
 import type { DataFreshnessItem } from '@/lib/data-freshness';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
-import { useLiveDraftSync } from '@/features/draft-room/LiveDraftSyncProvider';
+import {
+  useLiveDraftSyncActions,
+  useLiveDraftSyncState,
+} from '@/features/draft-room/LiveDraftSyncProvider';
 
 interface DraftConnectProps {
   fantasyProsRefreshedAt?: string;
@@ -195,10 +198,12 @@ export function DraftConnect({
     sync,
     synchronizationState,
     viewState: syncViewState,
+  } = useLiveDraftSyncState();
+  const {
     startConnection,
     confirmDraftPosition,
     disconnect,
-  } = useLiveDraftSync();
+  } = useLiveDraftSyncActions();
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [provider, setProvider] = React.useState<DraftProvider>(
     connection?.provider ?? 'sleeper'

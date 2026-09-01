@@ -180,7 +180,7 @@ function MarketDeltaDisplay({ player }: { player: Player }) {
     <div className="flex flex-col">
       <ValueDisplay value={delta} />
       <span className="text-[11px] text-muted-foreground">
-        ECR {player.ecrRank} · ADP {player.marketRank}
+        ECR {player.ecrRank} · ADP {player.consensusAdp ?? player.marketAdp}
       </span>
       <span className="text-[11px] text-muted-foreground">{label}</span>
     </div>
@@ -210,7 +210,7 @@ function renderMarketDisplay(player: Player) {
     <div className="flex min-w-[104px] flex-col leading-tight">
       <ValueDisplay value={delta} />
       <span className="text-[11px] text-muted-foreground">
-        ECR {player.ecrRank} · ADP {player.marketRank}
+        ECR {player.ecrRank} · ADP {player.consensusAdp ?? player.marketAdp}
       </span>
       <span className="text-[11px] text-muted-foreground">{label}</span>
     </div>
@@ -342,7 +342,10 @@ function SortableHeader({ column, children, className }: SortableHeaderProps) {
 /**
  * Column definitions for Player table
  */
-export const columns: ColumnDef<Player>[] = [
+function getAdvancedColumns(
+  getTierAvailability?: (player: Player) => TierAvailability | undefined
+): ColumnDef<Player>[] {
+  return [
   {
     accessorKey: 'ecrRank',
     header: ({ column }) => (
@@ -384,7 +387,12 @@ export const columns: ColumnDef<Player>[] = [
     header: ({ column }) => (
       <SortableHeader column={column}>Position tier</SortableHeader>
     ),
-    cell: ({ row }) => <TierDisplay player={row.original} />,
+    cell: ({ row }) => (
+      <TierDisplay
+        player={row.original}
+        availability={getTierAvailability?.(row.original)}
+      />
+    ),
   },
   {
     accessorKey: 'team',
@@ -458,7 +466,10 @@ export const columns: ColumnDef<Player>[] = [
     cell: ({ row }) => <HighlightBadge level={row.getValue('highlightLevel')} />,
     enableSorting: false,
   },
-];
+  ];
+}
+
+export const columns: ColumnDef<Player>[] = getAdvancedColumns();
 
 /**
  * Column definitions with draft action button
@@ -567,7 +578,9 @@ export function getColumnsWithActions(
     },
   ];
 
-  const baseColumns = options.advanced ? columns : compactColumns;
+  const baseColumns = options.advanced
+    ? getAdvancedColumns(options.getTierAvailability)
+    : compactColumns;
 
   return [
     ...baseColumns,

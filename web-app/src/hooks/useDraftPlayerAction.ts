@@ -37,7 +37,7 @@ export function useDraftPlayerAction(): {
     sessionMode,
     isMyTurn,
     keeperAtCurrentPick !== undefined
-  );
+  ) && currentPick <= config.totalTeams * config.totalRounds;
 
   const draftPlayer = React.useCallback((player: Player) => {
     if (!canDraft) return;
@@ -47,7 +47,10 @@ export function useDraftPlayerAction(): {
       player.name,
       player.position,
       teamIndex,
-      'My Team'
+      'My Team',
+      undefined,
+      'manual',
+      player.team
     );
     addToMyRoster(player);
   }, [addToMyRoster, canDraft, config.totalTeams, currentPick, markPlayerDrafted]);

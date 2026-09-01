@@ -6,8 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { BROWSER_DATA_FILES } from '../scripts/src/browser-data';
 
-const repoRoot = path.resolve(__dirname, '..');
-const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
+const REPO_ROOT = path.resolve(__dirname, '..');
+const BROWSER_DATA_PATHS = new Set<string>(BROWSER_DATA_FILES);
 
 function browserDataPlugins(): Plugin[] {
   return [{
@@ -24,12 +24,12 @@ function browserDataPlugins(): Plugin[] {
           request.url ?? '/',
           'http://vite.local'
         ).pathname.slice(1);
-        if (!browserDataPaths.has(pathname)) {
+        if (!BROWSER_DATA_PATHS.has(pathname)) {
           next();
           return;
         }
 
-        void readFile(path.join(repoRoot, pathname)).then((content) => {
+        void readFile(path.join(REPO_ROOT, pathname)).then((content) => {
           response.statusCode = 200;
           response.setHeader('Content-Type', 'application/json; charset=utf-8');
           response.setHeader('Cache-Control', 'no-store');
@@ -48,7 +48,7 @@ function browserDataPlugins(): Plugin[] {
         this.emitFile({
           type: 'asset',
           fileName,
-          source: await readFile(path.join(repoRoot, fileName)),
+          source: await readFile(path.join(REPO_ROOT, fileName)),
         });
       }
     },

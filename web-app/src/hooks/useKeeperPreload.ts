@@ -117,7 +117,8 @@ function getAssignmentLabel(keeper: PreloadedKeeper): string {
 
 export function useKeeperPreload(
   players: readonly Player[],
-  playersLoading: boolean
+  playersLoading: boolean,
+  expectedSeason: number
 ): KeeperPreloadStatus {
   const keepersInitialized = useDraftStore((state) => state.keepersInitialized);
   const keepersEnabled = useDraftStore(
@@ -169,6 +170,7 @@ export function useKeeperPreload(
         playerId: player.id,
         playerName: player.name,
         position: player.position,
+        nflTeam: player.team,
         teamIndex: keeper.team - 1,
         round: keeper.round,
         isMyKeeper: keeper.isMyKeeper ?? false,
@@ -199,7 +201,6 @@ export function useKeeperPreload(
   const isConfirmed = keepersEnabled === false || (
     query.data?.updatedAt !== null && query.data?.updatedAt !== undefined
   );
-  const expectedSeason = new Date().getUTCFullYear();
   const expectedCount = keepersEnabled === false ? 0 : totalTeams;
   const supplyIsComplete = isKeeperSupplyComplete({
     keepersEnabled,

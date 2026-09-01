@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useShadowRecommendationLogging } from '@/hooks/useShadowRecommendationLogging';
-import { useLiveDraftSync } from './LiveDraftSyncProvider';
+import { useLiveDraftSyncState } from './LiveDraftSyncProvider';
 
 export function ShadowRecommendationObserver(): React.ReactElement | null {
-  const { connection, sync } = useLiveDraftSync();
+  const { connection, sync } = useLiveDraftSyncState();
   const { output, recommendationsBlocked } = useDraftDecision();
 
   useShadowRecommendationLogging({

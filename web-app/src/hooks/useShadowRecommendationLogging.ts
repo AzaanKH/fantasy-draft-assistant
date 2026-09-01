@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import type { DraftProvider, Recommendation } from '@fantasy-draft/shared';
 import {
   applyLeagueSurvivalModel,
+  getRosterCapacity,
   getRecommendations,
+  isLeagueSurvivalModel,
   type LeagueSurvivalModel,
 } from '@/lib/calculations';
 import {
@@ -14,13 +16,16 @@ import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 
+const MAX_SHADOW_POST_ATTEMPTS = 3;
+
 async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
   const response = await fetch('/data/league-history/survival-model.json');
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`Failed to load league survival model: ${String(response.status)}`);
   }
-  return response.json() as Promise<LeagueSurvivalModel>;
+  const parsed: unknown = await response.json();
+  return isLeagueSurvivalModel(parsed) ? parsed : null;
 }
 
 export interface ShadowRecommendationLoggingInput {
@@ -56,6 +61,7 @@ export function useShadowRecommendationLogging(
   const currentPick = useDraftStore((state) => state.currentPick);
   const isMyTurn = useIsMyTurn();
   const attemptedEventIds = useRef(new Set<string>());
+  const failedPostCounts = useRef(new Map<string, number>());
   const survivalModelQuery = useQuery({
     queryKey: ['league-survival-model'],
     queryFn: fetchLeagueSurvivalModel,
@@ -71,6 +77,7 @@ export function useShadowRecommendationLogging(
 
   useEffect(() => {
     const attemptedIds = attemptedEventIds.current;
+    const failureCounts = failedPostCounts.current;
     const endpoint = dataInfo.shadowLoggingEndpoint;
     const season = dataInfo.shadowLoggingSeason;
     const modelVersion = dataInfo.predictionModelVersion;
@@ -94,7 +101,12 @@ export function useShadowRecommendationLogging(
     }
 
     const eventId = `${String(season)}:${draftProvider}:${draftId}:${String(currentPick)}`;
-    if (attemptedIds.has(eventId)) return;
+    if (
+      attemptedIds.has(eventId) ||
+      (failureCounts.get(eventId) ?? 0) >= MAX_SHADOW_POST_ATTEMPTS
+    ) {
+      return;
+    }
     attemptedIds.add(eventId);
 
     // Run the experiment after the core decision has committed. Shadow scoring
@@ -136,7 +148,10 @@ export function useShadowRecommendationLogging(
             architecture: 'best-pick-policy',
             requirements: config.rosterRequirements,
             rosterPlayers,
-            selectionsRemaining: Math.max(0, config.totalRounds - rosterPlayers.length),
+            selectionsRemaining: Math.max(
+              0,
+              getRosterCapacity(config.rosterRequirements) - rosterPlayers.length
+            ),
             rosterCounts: {
               QB: myRoster.QB.length,
               RB: myRoster.RB.length,
@@ -150,6 +165,7 @@ export function useShadowRecommendationLogging(
 
         if (shadowRecommendations.length === 0) {
           attemptedIds.delete(eventId);
+          failureCounts.delete(eventId);
           return;
         }
 
@@ -176,10 +192,22 @@ export function useShadowRecommendationLogging(
         });
 
         void postShadowRecommendation(endpoint, event).then((recorded) => {
-          if (!recorded) attemptedIds.delete(eventId);
+          if (recorded) {
+            failureCounts.delete(eventId);
+            return;
+          }
+
+          const failures = (failureCounts.get(eventId) ?? 0) + 1;
+          if (failures >= MAX_SHADOW_POST_ATTEMPTS) {
+            failureCounts.delete(eventId);
+            return;
+          }
+          failureCounts.set(eventId, failures);
+          attemptedIds.delete(eventId);
         });
       } catch {
         attemptedIds.delete(eventId);
+        failureCounts.delete(eventId);
       }
     }, 0);
 
@@ -187,6 +215,7 @@ export function useShadowRecommendationLogging(
       if (!started) {
         window.clearTimeout(timeout);
         attemptedIds.delete(eventId);
+        failureCounts.delete(eventId);
       }
     };
   }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, survivalModelQuery.data]);

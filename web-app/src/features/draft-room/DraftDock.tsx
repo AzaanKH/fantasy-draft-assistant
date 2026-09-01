@@ -22,6 +22,9 @@ const DraftRosterPanel = React.lazy(() =>
   import('./DraftRosterPanel').then((module) => ({ default: module.DraftRosterPanel }))
 );
 
+const TAB_TRIGGER_CLASS =
+  'h-full flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-emerald-300';
+
 function WorkspacePanelLoading(): React.ReactElement {
   return <WorkspacePanelSkeleton />;
 }
@@ -63,22 +66,22 @@ export function DraftDock({
       <MotionExpandable open={isExpanded}>
         <Tabs defaultValue="players" className="gap-0">
         <TabsList className="h-11 w-full justify-start overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0">
-          <TabsTrigger value="players" className="h-full min-w-28 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-emerald-300">
+          <TabsTrigger value="players" className={`${TAB_TRIGGER_CLASS} min-w-28`}>
             <Search className="size-4" /> Players
           </TabsTrigger>
-          <TabsTrigger value="suggestions" className="h-full min-w-32 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-emerald-300">
+          <TabsTrigger value="suggestions" className={`${TAB_TRIGGER_CLASS} min-w-32`}>
             <Lightbulb className="size-4" /> Suggestions
             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
               {String(Math.min(3, overall.recommendations.length))}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="queue" className="h-full min-w-28 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-emerald-300">
+          <TabsTrigger value="queue" className={`${TAB_TRIGGER_CLASS} min-w-28`}>
             <ListOrdered className="size-4" /> Queue
             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
               <MotionCount value={queuedCount} />
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="roster" className="h-full min-w-28 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-emerald-300">
+          <TabsTrigger value="roster" className={`${TAB_TRIGGER_CLASS} min-w-28`}>
             <Users className="size-4" /> Roster
             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
               {String(rosterCount)}

@@ -66,6 +66,7 @@ export function buildShadowRecommendationEvent(
     },
     shadowRecommendations: shadowRecommendations.map(compactRecommendation),
     disagreement:
+      shadowRecommendations.length > 0 &&
       input.coreBestPick.playerId !== shadowRecommendations[0]?.playerId,
     context: {
       draftProvider: input.draftProvider,

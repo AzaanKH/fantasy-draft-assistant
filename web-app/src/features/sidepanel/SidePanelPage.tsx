@@ -773,11 +773,16 @@ export function SidePanelPage(): React.ReactElement {
     view !== 'roster' && decision.recommendationsBlockedByProviderIdentity;
   const showRecommendationBlock =
     showReadinessBlock || showProviderIdentityBlock;
+  const recommendationSelectionKey = [
+    recommendations[0]?.playerId ?? '',
+    recommendations[1]?.playerId ?? '',
+  ].join('\0');
 
   React.useEffect(() => {
-    const defaultIds = recommendations.slice(0, 2).map((recommendation) => recommendation.playerId);
-    setSelectedPlayerIds(defaultIds);
-  }, [recommendations]);
+    setSelectedPlayerIds(
+      recommendationSelectionKey.split('\0').filter((playerId) => playerId.length > 0)
+    );
+  }, [recommendationSelectionKey]);
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });

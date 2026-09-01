@@ -54,7 +54,11 @@ export function App(): React.ReactElement {
         : DEFAULT_ASSISTANT_NAVIGATION_TARGET
     );
   const { players, isLoading, dataInfo } = usePlayerDataQuery();
-  const keeperStatus = useKeeperPreload(players, isLoading);
+  const keeperStatus = useKeeperPreload(
+    players,
+    isLoading,
+    dataInfo.fantasyProsSeason
+  );
   const leagueSettings = useDraftStore((state) => state.leagueSettings);
   const totalRounds = useDraftStore((state) => state.config.totalRounds);
   const [readinessNow, setReadinessNow] = React.useState(() => Date.now());

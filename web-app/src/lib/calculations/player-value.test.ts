@@ -405,4 +405,25 @@ describe('filterDrafted', () => {
       [{ playerName: 'Matthew Stafford', position: 'QB' }]
     )).toEqual([]);
   });
+
+  it('uses the NFL team to distinguish same-name players at one position', () => {
+    const detroitPlayer = {
+      id: 'detroit-id',
+      name: 'Same Name',
+      position: 'WR',
+      team: 'DET',
+    } as Player;
+    const ramsPlayer = {
+      id: 'rams-id',
+      name: 'Same Name',
+      position: 'WR',
+      team: 'LAR',
+    } as Player;
+
+    expect(filterDrafted(
+      [detroitPlayer, ramsPlayer],
+      new Set(['old-detroit-id']),
+      [{ playerName: 'Same Name', position: 'WR', nflTeam: 'DET' }]
+    )).toEqual([ramsPlayer]);
+  });
 });

@@ -132,7 +132,7 @@ function areKeepersValid(value: unknown, season: number): boolean {
       !Number.isInteger(keeper['round']) ||
       !isFiniteNumber(keeper['round']) ||
       keeper['round'] < 1 ||
-      keeper['round'] > 15
+      keeper['round'] > 14
     ) {
       return false;
     }

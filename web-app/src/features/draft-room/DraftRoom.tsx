@@ -15,27 +15,32 @@ import { useDraftSessionMode, useDraftStore } from '@/stores/draftStore';
 import { DraftBoard } from './DraftBoard';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { DraftDock } from './DraftDock';
-import { useLiveDraftSync } from './LiveDraftSyncProvider';
+import { useLiveDraftSyncState } from './LiveDraftSyncProvider';
 import { ManualContinuityControl } from './ManualContinuityControl';
 import { ReconciliationSummary } from './ReconciliationSummary';
 
+function getKeeperStatusMessage(status: KeeperPreloadStatus): string {
+  if (status.isLoading) return 'Loading keeper assignments…';
+  if (status.isError) return 'Keeper assignments could not be loaded.';
+  if (status.duplicateNames.length > 0) {
+    return `${String(status.duplicateNames.length)} duplicate keeper entries need fixing.`;
+  }
+  if (status.invalidAssignments.length > 0) {
+    return `${String(status.invalidAssignments.length)} keeper slots are invalid or duplicated.`;
+  }
+  if (status.unresolvedNames.length > 0) {
+    return `${String(status.unresolvedNames.length)} keeper names still need resolution.`;
+  }
+  if (!status.isConfirmed) return 'Confirm the keeper file before starting a mock.';
+  if (!status.isInitialized) {
+    return 'Waiting for the complete keeper list to load into the draft.';
+  }
+  return `${String(status.canonicalCount)} keepers are reserved on the board.`;
+}
+
 function KeeperStatus({ status }: { readonly status: KeeperPreloadStatus }): React.ReactElement {
   const isReady = status.isMockReady;
-  const message = status.isLoading
-    ? 'Loading keeper assignments…'
-    : status.isError
-      ? 'Keeper assignments could not be loaded.'
-      : status.duplicateNames.length > 0
-        ? `${String(status.duplicateNames.length)} duplicate keeper entries need fixing.`
-        : status.invalidAssignments.length > 0
-          ? `${String(status.invalidAssignments.length)} keeper slots are invalid or duplicated.`
-          : status.unresolvedNames.length > 0
-            ? `${String(status.unresolvedNames.length)} keeper names still need resolution.`
-      : !status.isConfirmed
-        ? 'Confirm the keeper file before starting a mock.'
-        : !status.isInitialized
-          ? 'Waiting for the complete keeper list to load into the draft.'
-          : `${String(status.canonicalCount)} keepers are reserved on the board.`;
+  const message = getKeeperStatusMessage(status);
 
   return (
     <div
@@ -82,7 +87,7 @@ export function DraftRoom({
 }): React.ReactElement {
   const { players, isLoading, dataInfo } = usePlayerDataQuery();
   const sessionMode = useDraftSessionMode();
-  const { sync, synchronizationState } = useLiveDraftSync();
+  const { sync, synchronizationState } = useLiveDraftSyncState();
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
   const totalPicks = config.totalTeams * config.totalRounds;

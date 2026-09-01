@@ -1,4 +1,9 @@
-import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
+import type {
+  NFLTeam,
+  Player,
+  Position,
+  RosterRequirements,
+} from '@fantasy-draft/shared';
 
 export type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
 
@@ -15,6 +20,7 @@ export interface MockKeeperAssignment {
   readonly playerId: string;
   readonly playerName: string;
   readonly position: Position;
+  readonly nflTeam?: NFLTeam;
   readonly teamIndex: number;
   readonly round: number;
 }

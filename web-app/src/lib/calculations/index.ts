@@ -48,6 +48,7 @@ export {
   BEST_PICK_ROSTER_FIT_MAX,
   BEST_PICK_TIER_SUPPLY_MAX,
   evaluateBestPickPolicy,
+  getRosterCapacity,
 } from './best-pick-policy';
 export type {
   BestPickPolicyContext,
@@ -69,6 +70,7 @@ export {
   applyLeagueSurvivalModel,
   estimateLeagueSurvivalProbability,
   getNextUserPick,
+  isLeagueSurvivalModel,
 } from './survival';
 
 export type {

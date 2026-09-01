@@ -12,9 +12,15 @@ import {
   createContext,
   createElement,
   useContext,
+  type ReactElement,
   type ReactNode,
 } from 'react';
-import { create, useStore } from 'zustand';
+import {
+  create,
+  useStore,
+  type StoreApi,
+  type UseBoundStore,
+} from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 
@@ -22,6 +28,7 @@ import { enableMapSet } from 'immer';
 enableMapSet();
 import type {
   DecisionLens,
+  NFLTeam,
   Player,
   Position,
   DraftPick,
@@ -108,6 +115,7 @@ export interface MockDraftSettings {
 export type DraftSessionMode = 'setup' | 'mock' | 'live';
 
 export interface RecordedDraftPick extends DraftPick {
+  readonly nflTeam?: NFLTeam;
   readonly shortlistIndex?: number;
   readonly source: 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
   /** Number of local corrections made before Provider Truth returns. */
@@ -121,6 +129,7 @@ export interface ProvisionalPickInput {
   readonly playerId: string;
   readonly playerName: string;
   readonly position: Position;
+  readonly nflTeam?: NFLTeam;
   readonly teamIndex: number;
   readonly teamName: string;
 }
@@ -130,6 +139,7 @@ export interface SyncedImportedPick {
   readonly playerId: string;
   readonly playerName: string;
   readonly position: Position;
+  readonly nflTeam?: NFLTeam;
   readonly teamIndex: number;
   readonly teamName: string;
   readonly isMyPick: boolean;
@@ -180,6 +190,7 @@ export interface PreloadedKeeper {
   readonly playerId: string;
   readonly playerName: string;
   readonly position: Position;
+  readonly nflTeam?: NFLTeam;
   readonly teamIndex: number;
   readonly round: number;
   readonly isMyKeeper: boolean;
@@ -279,7 +290,8 @@ interface DraftActions {
     teamIndex: number,
     teamName: string,
     pickNumber?: number,
-    source?: RecordedDraftPick['source']
+    source?: RecordedDraftPick['source'],
+    nflTeam?: NFLTeam
   ) => void;
   recordProvisionalPick: (pick: ProvisionalPickInput) => boolean;
   correctProvisionalPick: (
@@ -315,6 +327,7 @@ interface DraftActions {
 }
 
 export type DraftStore = DraftState & DraftActions;
+export type DraftStoreApi = UseBoundStore<StoreApi<DraftStore>>;
 
 function createEmptyTeamRosters(totalTeams: number): MutableRoster[] {
   return Array.from(
@@ -438,6 +451,7 @@ function hasSameCanonicalPick(
     left.playerId === right.playerId &&
     left.playerName === right.playerName &&
     left.position === right.position &&
+    left.nflTeam === right.nflTeam &&
     left.teamIndex === right.teamIndex &&
     left.teamName === right.teamName &&
     left.timestamp === right.timestamp &&
@@ -563,7 +577,7 @@ const defaultMockSettings: MockDraftSettings = {
 /**
  * Create the draft store with Zustand + immer for immutable updates
  */
-export function createDraftStore() {
+export function createDraftStore(): DraftStoreApi {
   return create<DraftStore>()(
   immer((set, get) => ({
     // Initial state
@@ -704,6 +718,11 @@ export function createDraftStore() {
       }); },
     setRosterRequirements: (requirements) =>
       { set((state) => {
+        if (state.leagueSettings.source !== 'default') {
+          state.leagueSettings.source = 'default';
+          state.leagueSettings.leagueId = null;
+          state.leagueSettings.updatedAt = Date.now();
+        }
         state.config.rosterRequirements.QB = { ...requirements.QB };
         state.config.rosterRequirements.RB = { ...requirements.RB };
         state.config.rosterRequirements.WR = { ...requirements.WR };
@@ -731,7 +750,7 @@ export function createDraftStore() {
       }); },
 
     // Draft actions
-    markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual') =>
+    markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual', nflTeam) =>
       { set((state) => {
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
         const pickNumberToUse = pickNumber ?? state.currentPick;
@@ -767,6 +786,7 @@ export function createDraftStore() {
           position,
           teamIndex,
           teamName,
+          ...(nflTeam ? { nflTeam } : {}),
           timestamp: Date.now(),
           source,
           ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
@@ -1011,6 +1031,7 @@ export function createDraftStore() {
             existing.playerId === pick.playerId &&
             existing.playerName === pick.playerName &&
             existing.position === pick.position &&
+            existing.nflTeam === pick.nflTeam &&
             existing.teamIndex === pick.teamIndex &&
             existing.teamName === pick.teamName;
           if (canReuseConfirmedPick) return existing;
@@ -1020,6 +1041,7 @@ export function createDraftStore() {
             playerId: pick.playerId,
             playerName: pick.playerName,
             position: pick.position,
+            ...(pick.nflTeam ? { nflTeam: pick.nflTeam } : {}),
             teamIndex: pick.teamIndex,
             teamName: pick.teamName,
             timestamp: reconciledAt,
@@ -1157,6 +1179,7 @@ export function createDraftStore() {
           playerId: keeper.playerId,
           playerName: keeper.playerName,
           position: keeper.position,
+          ...(keeper.nflTeam ? { nflTeam: keeper.nflTeam } : {}),
           teamIndex: keeper.teamIndex,
           teamName: isMyKeeper ? 'My Team' : `Team ${String(keeper.teamIndex + 1)}`,
           timestamp: Date.now(),
@@ -1309,8 +1332,6 @@ export function createDraftStore() {
   );
 }
 
-export type DraftStoreApi = ReturnType<typeof createDraftStore>;
-
 const defaultDraftStore = createDraftStore();
 const DraftStoreContext = createContext<DraftStoreApi | null>(null);
 
@@ -1320,7 +1341,7 @@ export function DraftStoreProvider({
 }: {
   readonly children: ReactNode;
   readonly store: DraftStoreApi;
-}) {
+}): ReactElement {
   return createElement(DraftStoreContext.Provider, { value: store }, children);
 }
 

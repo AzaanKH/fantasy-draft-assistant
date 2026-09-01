@@ -33,7 +33,7 @@ function cloneDefaults(): RosterRequirements {
   };
 }
 
-export function RosterSettings() {
+export function RosterSettings(): React.ReactElement {
   const requirements = useDraftStore((state) => state.config.rosterRequirements);
   const setRosterRequirements = useDraftStore((state) => state.setRosterRequirements);
 

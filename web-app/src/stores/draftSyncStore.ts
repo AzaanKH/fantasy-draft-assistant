@@ -126,14 +126,10 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
       const normalizedDraftId = draftId.trim();
       if (!normalizedDraftId) return;
 
-      const current = get().connection;
       const connection: PersistedDraftSyncConnection = {
         provider,
         draftId: normalizedDraftId,
-        draftPosition:
-          current?.provider === provider && current.draftId === normalizedDraftId
-            ? current.draftPosition
-            : null,
+        draftPosition: null,
       };
       persistConnection(connection);
       set({ connection });

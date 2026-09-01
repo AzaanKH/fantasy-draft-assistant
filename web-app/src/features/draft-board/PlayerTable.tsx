@@ -449,7 +449,7 @@ function MobilePlayerCards({
                 <div className="rounded-md bg-muted/35 px-2 py-1.5">
                   <span className="text-muted-foreground">ECR / ADP</span>{' '}
                   <span className="font-mono font-semibold tabular-nums">
-                    {String(player.ecrRank)} / {String(player.marketRank)}
+                    {String(player.ecrRank)} / {String(player.consensusAdp ?? player.marketAdp)}
                   </span>
                 </div>
               </div>
@@ -529,7 +529,11 @@ function MobilePlayerCards({
 export function PlayerTable() {
   const { players: basePlayers, isLoading, isError, error, dataInfo } =
     usePlayerDataQuery();
-  const keeperStatus = useKeeperPreload(basePlayers, isLoading);
+  const keeperStatus = useKeeperPreload(
+    basePlayers,
+    isLoading,
+    dataInfo.fantasyProsSeason
+  );
   const { readiness } = useDraftDecision();
 
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
@@ -638,7 +642,10 @@ export function PlayerTable() {
         player.name,
         player.position,
         teamIndex,
-        teamName
+        teamName,
+        undefined,
+        'manual',
+        player.team
       );
 
       if (isActiveUserTurn) {

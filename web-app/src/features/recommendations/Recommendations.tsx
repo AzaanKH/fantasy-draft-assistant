@@ -405,7 +405,10 @@ export function Recommendations(): React.ReactElement {
         player.name,
         player.position,
         teamIndex,
-        teamName
+        teamName,
+        undefined,
+        'manual',
+        player.team
       );
 
       if (isActiveUserTurn) {
@@ -438,7 +441,7 @@ export function Recommendations(): React.ReactElement {
 
         {/* Tabbed Recommendations */}
         <Tabs defaultValue="draft-now" className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-5 gap-1 p-1">
             <TabsTrigger value="draft-now" className="min-h-8 px-1.5 text-[11px]">
               Draft Now
             </TabsTrigger>

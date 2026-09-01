@@ -6,6 +6,7 @@ import {
 import {
   getDraftSynchronizationState,
   useDraftSync,
+  type DraftSyncController,
   type DraftSynchronizationState,
   type DraftSyncViewState,
 } from '@/hooks/useDraftSync';
@@ -15,8 +16,6 @@ import {
   useDraftSyncConnectionStore,
   type PersistedDraftSyncConnection,
 } from '@/stores/draftSyncStore';
-
-type DraftSyncController = ReturnType<typeof useDraftSync>;
 
 interface StartDraftConnectionInput {
   readonly provider: DraftProvider;
@@ -55,7 +54,7 @@ export function getRestoredProviderTruthSnapshotAt({
   return lastSuccessfulSyncAt;
 }
 
-interface LiveDraftSyncContextValue {
+export interface LiveDraftSyncState {
   readonly connection: PersistedDraftSyncConnection | null;
   readonly sync: DraftSyncController;
   readonly viewState: DraftSyncViewState;
@@ -63,13 +62,21 @@ interface LiveDraftSyncContextValue {
   readonly canEnterManualContinuity: boolean;
   readonly lastConfirmedPickNumber: number;
   readonly provisionalPickCount: number;
+}
+
+export interface LiveDraftSyncActions {
   startConnection: (connection: StartDraftConnectionInput) => void;
   confirmDraftPosition: (draftPosition: number) => void;
   enterManualContinuity: () => void;
   disconnect: () => void;
 }
 
-const LiveDraftSyncContext = React.createContext<LiveDraftSyncContextValue | null>(
+export type LiveDraftSyncContextValue = LiveDraftSyncState & LiveDraftSyncActions;
+
+const LiveDraftSyncStateContext = React.createContext<LiveDraftSyncState | null>(
+  null
+);
+const LiveDraftSyncActionsContext = React.createContext<LiveDraftSyncActions | null>(
   null
 );
 
@@ -130,6 +137,10 @@ export function LiveDraftSyncProvider({
       sync.connectionState === 'stale' ||
       sync.connectionState === 'error'
     );
+  const canEnterManualContinuityRef = React.useRef(canEnterManualContinuity);
+  const lastSuccessfulSyncAtRef = React.useRef(sync.lastSuccessfulSyncAt);
+  canEnterManualContinuityRef.current = canEnterManualContinuity;
+  lastSuccessfulSyncAtRef.current = sync.lastSuccessfulSyncAt;
 
   React.useEffect(() => {
     syncConnectionToUrl(connection);
@@ -201,10 +212,10 @@ export function LiveDraftSyncProvider({
   }, [persistDraftPosition, setConfig, setSessionMode]);
 
   const enterManualContinuity = React.useCallback(() => {
-    if (!canEnterManualContinuity) return;
-    setManualContinuityBaselineAt(sync.lastSuccessfulSyncAt);
+    if (!canEnterManualContinuityRef.current) return;
+    setManualContinuityBaselineAt(lastSuccessfulSyncAtRef.current);
     setIsManualContinuity(true);
-  }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt]);
+  }, []);
 
   const disconnect = React.useCallback(() => {
     setIsManualContinuity(false);
@@ -230,7 +241,7 @@ export function LiveDraftSyncProvider({
     synchronizationState,
   ]);
 
-  const value = React.useMemo<LiveDraftSyncContextValue>(() => ({
+  const stateValue = React.useMemo<LiveDraftSyncState>(() => ({
     connection,
     sync,
     viewState,
@@ -238,34 +249,54 @@ export function LiveDraftSyncProvider({
     canEnterManualContinuity,
     lastConfirmedPickNumber: sync.lastSyncedPick,
     provisionalPickCount,
-    startConnection,
-    confirmDraftPosition,
-    enterManualContinuity,
-    disconnect,
   }), [
     connection,
     canEnterManualContinuity,
-    confirmDraftPosition,
-    disconnect,
-    enterManualContinuity,
     provisionalPickCount,
-    startConnection,
     sync,
     synchronizationState,
     viewState,
   ]);
 
+  const actionsValue = React.useMemo<LiveDraftSyncActions>(() => ({
+    startConnection,
+    confirmDraftPosition,
+    enterManualContinuity,
+    disconnect,
+  }), [
+    confirmDraftPosition,
+    disconnect,
+    enterManualContinuity,
+    startConnection,
+  ]);
+
   return (
-    <LiveDraftSyncContext.Provider value={value}>
-      {children}
-    </LiveDraftSyncContext.Provider>
+    <LiveDraftSyncActionsContext.Provider value={actionsValue}>
+      <LiveDraftSyncStateContext.Provider value={stateValue}>
+        {children}
+      </LiveDraftSyncStateContext.Provider>
+    </LiveDraftSyncActionsContext.Provider>
   );
 }
 
-export function useLiveDraftSync(): LiveDraftSyncContextValue {
-  const context = React.useContext(LiveDraftSyncContext);
+export function useLiveDraftSyncState(): LiveDraftSyncState {
+  const context = React.useContext(LiveDraftSyncStateContext);
   if (!context) {
-    throw new Error('useLiveDraftSync must be used inside LiveDraftSyncProvider');
+    throw new Error('useLiveDraftSyncState must be used inside LiveDraftSyncProvider');
   }
   return context;
+}
+
+export function useLiveDraftSyncActions(): LiveDraftSyncActions {
+  const context = React.useContext(LiveDraftSyncActionsContext);
+  if (!context) {
+    throw new Error('useLiveDraftSyncActions must be used inside LiveDraftSyncProvider');
+  }
+  return context;
+}
+
+export function useLiveDraftSync(): LiveDraftSyncContextValue {
+  const state = useLiveDraftSyncState();
+  const actions = useLiveDraftSyncActions();
+  return React.useMemo(() => ({ ...state, ...actions }), [actions, state]);
 }

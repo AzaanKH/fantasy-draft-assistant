@@ -108,7 +108,7 @@ export function DecisionLensSwitcher({
             <span>
               <strong className="text-foreground">Decision Divergence.</strong>{' '}
               {output.decisionDivergenceExplanation ??
-                `Best Pick is ${output.bestPick?.playerName}; Best Player is ${output.bestPlayer?.playerName}.`}
+                `Best Pick is ${output.bestPick?.playerName ?? 'unavailable'}; Best Player is ${output.bestPlayer?.playerName ?? 'unavailable'}.`}
             </span>
           </>
         ) : (

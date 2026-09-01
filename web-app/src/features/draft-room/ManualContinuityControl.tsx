@@ -21,7 +21,10 @@ import {
   useDraftStore,
   type RecordedDraftPick,
 } from '@/stores/draftStore';
-import { useLiveDraftSync } from './LiveDraftSyncProvider';
+import {
+  useLiveDraftSyncActions,
+  useLiveDraftSyncState,
+} from './LiveDraftSyncProvider';
 
 function getTeamName(
   teamIndex: number,
@@ -45,12 +48,12 @@ function getTeamName(
 export function ManualContinuityControl(): React.ReactElement | null {
   const {
     canEnterManualContinuity,
-    enterManualContinuity,
     lastConfirmedPickNumber,
     provisionalPickCount,
     synchronizationState,
     viewState,
-  } = useLiveDraftSync();
+  } = useLiveDraftSyncState();
+  const { enterManualContinuity } = useLiveDraftSyncActions();
   const { players } = usePlayerDataQuery();
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
@@ -192,6 +195,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
       playerId: player.id,
       playerName: player.name,
       position: player.position,
+      nflTeam: player.team,
       teamIndex,
       teamName: getTeamName(
         teamIndex,

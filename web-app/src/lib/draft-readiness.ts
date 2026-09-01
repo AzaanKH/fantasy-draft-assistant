@@ -46,7 +46,6 @@ export function evaluateWorkspaceDraftReadiness(
   input: WorkspaceDraftReadinessInput,
   now: number = Date.now()
 ): DraftReadinessReport {
-  const currentSeason = new Date(now).getUTCFullYear();
   const settingsConnected =
     input.leagueSettings.source !== 'default' &&
     input.leagueSettings.leagueId !== null;
@@ -64,7 +63,6 @@ export function evaluateWorkspaceDraftReadiness(
       : 'Connect the Primary League draft to load provider-confirmed settings.',
   };
   const keeperSupplyIsInvalid =
-    input.keeperStatus.season !== currentSeason ||
     input.keeperStatus.configuredCount !== 10 ||
     input.keeperStatus.resolvedCount !== 10 ||
     input.keeperStatus.canonicalCount !== 10 ||

@@ -86,6 +86,34 @@ export interface DraftReconciliationSummary {
   readonly unresolvedIdentities: readonly UnresolvedProviderPick[];
 }
 
+export interface DraftSyncController {
+  readonly provider: DraftProvider;
+  readonly draft: DraftSyncSnapshot['draft'];
+  readonly picks: DraftSyncSnapshot['picks'];
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly error: Error | null;
+  readonly lastError: string | null;
+  readonly connectionState: DraftSyncConnectionState;
+  readonly synchronizationState: DraftSynchronizationState;
+  readonly transportState: DraftSyncTransportState;
+  readonly lastSuccessfulSyncAt: number | null;
+  readonly lastSyncAgeMs: number | null;
+  readonly syncStatus: DraftSyncState;
+  readonly lastSyncedPick: number;
+  readonly totalPicks: number;
+  readonly myPicksCount: number;
+  readonly importWarning: string | null;
+  readonly rejectedPickCount: number;
+  readonly lastReconciledSnapshotAt: number | null;
+  readonly reconciliationSummary: DraftReconciliationSummary | null;
+  readonly dismissReconciliationSummary: () => void;
+  readonly refresh: () => Promise<void>;
+  readonly isDrafting: boolean;
+  readonly isPaused: boolean;
+  readonly isComplete: boolean;
+}
+
 export function getDraftSynchronizationState(
   connectionState: DraftSyncConnectionState,
   isManualContinuity: boolean = false
@@ -338,7 +366,11 @@ export function resolveDraftPickImports(
       ? playersById.get(pick.playerId)
       : undefined;
     const matchedPlayer =
-      matchedByNameTeam ?? matchedByUniqueName ?? matchedByCanonicalId;
+      matchedByNameTeam ?? (
+        usesCanonicalPlayerIds(pick)
+          ? matchedByCanonicalId ?? matchedByUniqueName
+          : matchedByUniqueName
+      );
 
     if (!matchedPlayer) {
       rejectedPicks.push({
@@ -365,6 +397,7 @@ export function resolveDraftPickImports(
       playerId: matchedPlayer.id,
       playerName: matchedPlayer.name,
       position: matchedPlayer.position,
+      nflTeam: matchedPlayer.team,
       teamIndex: pick.teamIndex,
       teamName: isMyPick ? 'My Team' : `Team ${String(pick.draftSlot)}`,
       isMyPick,
@@ -406,7 +439,7 @@ export function useDraftSync(
   provider: DraftProvider,
   draftId: string | null,
   shouldImportPicks: boolean = true
-) {
+): DraftSyncController {
   const queryClient = useQueryClient();
   const {
     players,

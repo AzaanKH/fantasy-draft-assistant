@@ -15,6 +15,7 @@ import {
   createElement,
   useContext,
   useMemo,
+  type ReactElement,
   type ReactNode,
 } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -179,7 +180,24 @@ function isPlayerIdentityFile(value: unknown): value is PlayerIdentityFile {
     Number.isFinite(value['coverage']['fantasyProsRankingMatchRate']) &&
     typeof value['coverage']['matchedDefenses'] === 'number' &&
     Number.isFinite(value['coverage']['matchedDefenses']) &&
-    Array.isArray(value['players'])
+    Array.isArray(value['players']) &&
+    value['players'].every((player) =>
+      isRecord(player) &&
+      typeof player['canonicalId'] === 'string' &&
+      (
+        player['sleeperId'] === undefined ||
+        typeof player['sleeperId'] === 'string'
+      ) &&
+      (
+        player['fantasyProsId'] === undefined ||
+        typeof player['fantasyProsId'] === 'string'
+      ) &&
+      typeof player['name'] === 'string' &&
+      Array.isArray(player['aliases']) &&
+      player['aliases'].every((alias) => typeof alias === 'string') &&
+      isPosition(player['position']) &&
+      isNFLTeam(player['team'])
+    )
   );
 }
 
@@ -423,7 +441,7 @@ function useLivePlayerDataQuery() {
   const identityTimestamp = identityQuery.data?.generatedAt;
   const sleeperTimestamp = sleeperQuery.data?.fetchedAt;
   const teamEnvironmentTimestamp = teamEnvQuery.data?.generatedAt;
-  const readinessSources = {
+  const readinessSources = useMemo(() => ({
     'trusted-rankings': {
       availability: fantasyProsQuery.isError
         ? 'missing'
@@ -508,44 +526,75 @@ function useLivePlayerDataQuery() {
     'contract-context' |
     'sportsbook-context',
     DraftReadinessSourceObservation
-  >>>;
+  >>>), [
+    contractQuery.data,
+    contractQuery.error,
+    contractQuery.isError,
+    currentSeason,
+    fantasyProsQuery.data,
+    fantasyProsQuery.error,
+    fantasyProsQuery.isError,
+    identityQuery.data,
+    identityQuery.error,
+    identityQuery.isError,
+    identityTimestamp,
+    predictionQuery.data,
+    predictionQuery.error,
+    predictionQuery.isError,
+    rankingsTimestamp,
+    sleeperTimestamp,
+    sportsbookQuery.data,
+    sportsbookQuery.error,
+    sportsbookQuery.isError,
+    teamEnvironmentTimestamp,
+  ]);
 
-  const readinessWarnings: DraftReadinessWarningInput[] = [];
-  if (sleeperQuery.isError) {
-    readinessWarnings.push({
-      key: 'sleeper-player-directory',
-      label: 'Sleeper player directory',
-      sourceLabel: 'Sleeper player directory',
-      message: sleeperQuery.error.message,
-      correctiveAction: 'Run `pnpm refresh:sleeper`.',
-    });
-  }
-  if (teamEnvQuery.isError) {
-    readinessWarnings.push({
-      key: 'team-environment',
-      label: 'Team environment',
-      sourceLabel: 'Derived team environment',
-      message: teamEnvQuery.error.message,
-      correctiveAction: 'Run `pnpm refresh:team-env`.',
-    });
-  }
-  if (recommendationPolicyQuery.isError) {
-    readinessWarnings.push({
-      key: 'recommendation-policy',
-      label: 'Recommendation policy',
-      sourceLabel: 'ECR-anchored recommendation policy',
-      message: recommendationPolicyQuery.error.message,
-      correctiveAction: 'Run `pnpm model:backtest`.',
-    });
-  }
+  const readinessWarnings = useMemo<readonly DraftReadinessWarningInput[]>(() => {
+    const warnings: DraftReadinessWarningInput[] = [];
+    if (sleeperQuery.isError) {
+      warnings.push({
+        key: 'sleeper-player-directory',
+        label: 'Sleeper player directory',
+        sourceLabel: 'Sleeper player directory',
+        message: sleeperQuery.error.message,
+        correctiveAction: 'Run `pnpm refresh:sleeper`.',
+      });
+    }
+    if (teamEnvQuery.isError) {
+      warnings.push({
+        key: 'team-environment',
+        label: 'Team environment',
+        sourceLabel: 'Derived team environment',
+        message: teamEnvQuery.error.message,
+        correctiveAction: 'Run `pnpm refresh:team-env`.',
+      });
+    }
+    if (recommendationPolicyQuery.isError) {
+      warnings.push({
+        key: 'recommendation-policy',
+        label: 'Recommendation policy',
+        sourceLabel: 'ECR-anchored recommendation policy',
+        message: recommendationPolicyQuery.error.message,
+        correctiveAction: 'Run `pnpm model:backtest`.',
+      });
+    }
+    return warnings;
+  }, [
+    recommendationPolicyQuery.error,
+    recommendationPolicyQuery.isError,
+    sleeperQuery.error,
+    sleeperQuery.isError,
+    teamEnvQuery.error,
+    teamEnvQuery.isError,
+  ]);
 
-  const optionalReadiness = evaluateDraftReadiness({
+  const optionalReadiness = useMemo(() => evaluateDraftReadiness({
     sources: {
       ...readinessSources,
       'primary-league-settings': { availability: 'available', timestamp: new Date().toISOString() },
       'confirmed-keeper-supply': { availability: 'available', timestamp: new Date().toISOString() },
     },
-  });
+  }), [readinessSources]);
   const predictionsReady = optionalReadiness.optionalSignals.find(
     (item) => item.key === 'experimental-predictions'
   )?.status === 'ready';
@@ -696,51 +745,73 @@ function useLivePlayerDataQuery() {
     });
   }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, contractsReady, predictionQuery.data, predictionsReady, identityQuery.data, effectiveRecommendationPolicy.shadowLogging.enabled, leagueSettings.scoringRules, marketAdpQuery.data?.players, rosterRequirements, sportsbookQuery.data, sportsbookReady, totalTeams]);
 
-  return {
+  const dataInfo = useMemo(() => ({
+    fantasyProsSeason: fantasyProsQuery.data?.metadata.season ?? currentSeason,
+    fantasyProsRefreshedAt: fantasyProsQuery.data?.metadata.refreshedAt,
+    fantasyProsSource: fantasyProsQuery.data?.metadata.source,
+    fantasyProsSourceType: fantasyProsQuery.data?.metadata.sourceType,
+    sleeperFetchedAt: sleeperQuery.data?.fetchedAt,
+    marketAdpRefreshedAt: marketAdpQuery.data?.refreshedAt,
+    marketAdpSource: marketAdpQuery.data?.source ?? 'fantasypros-fallback',
+    marketAdpFormat,
+    marketAdpCount: marketAdpQuery.data?.players.length ?? 0,
+    marketAdpError: marketAdpQuery.error ?? null,
+    leagueSettingsFingerprint: leagueSettings.fingerprint,
+    fantasyProsCount: fantasyProsQuery.data?.metadata.rankingCount ?? 0,
+    sleeperCount: sleeperQuery.data?.playerCount ?? 0,
+    sportsbookCapturedAt: sportsbookQuery.data?.metadata.capturedAt,
+    sportsbookIsFresh,
+    sportsbookOverUnderCount: sportsbookQuery.data?.metadata.overUnderCount ?? 0,
+    sportsbookMilestoneCount: sportsbookQuery.data?.metadata.milestoneCount ?? 0,
+    contractsError: contractQuery.error ?? null,
+    sportsbookError: sportsbookQuery.error ?? null,
+    predictionModelVersion: predictionQuery.data?.modelVersion,
+    predictionGeneratedAt: predictionQuery.data?.generatedAt,
+    shadowRecommendationAvailable:
+      predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled,
+    pickEvOverrideEnabled: effectiveRecommendationPolicy.pickEvOverrideEnabled,
+    pickEvOverrideThreshold: effectiveRecommendationPolicy.pickEvOverrideThreshold,
+    recommendationFallback: effectiveRecommendationPolicy.fallback,
+    recommendationPolicyReason: effectiveRecommendationPolicy.reason,
+    shadowLoggingEnabled:
+      effectiveRecommendationPolicy.shadowLogging.enabled &&
+      predictionsReady,
+    shadowLoggingSeason: effectiveRecommendationPolicy.shadowLogging.season,
+    shadowLoggingEndpoint: effectiveRecommendationPolicy.shadowLogging.endpoint,
+    predictionsError: predictionQuery.error ?? null,
+    dataFreshness,
+    readinessSources,
+    readinessWarnings,
+  }), [
+    contractQuery.error,
+    currentSeason,
+    dataFreshness,
+    effectiveRecommendationPolicy,
+    fantasyProsQuery.data,
+    leagueSettings.fingerprint,
+    marketAdpFormat,
+    marketAdpQuery.data,
+    marketAdpQuery.error,
+    predictionQuery.data,
+    predictionQuery.error,
+    predictionsReady,
+    readinessSources,
+    readinessWarnings,
+    sleeperQuery.data,
+    sportsbookIsFresh,
+    sportsbookQuery.data,
+    sportsbookQuery.error,
+  ]);
+
+  return useMemo(() => ({
     players: playerVariants.players,
     shadowPlayers: playerVariants.shadowPlayers,
     sportsbookSnapshot: playerVariants.sportsbookSnapshot,
     isLoading,
     isError,
     error,
-    dataInfo: {
-      fantasyProsRefreshedAt: fantasyProsQuery.data?.metadata.refreshedAt,
-      fantasyProsSource: fantasyProsQuery.data?.metadata.source,
-      fantasyProsSourceType: fantasyProsQuery.data?.metadata.sourceType,
-      sleeperFetchedAt: sleeperQuery.data?.fetchedAt,
-      marketAdpRefreshedAt: marketAdpQuery.data?.refreshedAt,
-      marketAdpSource: marketAdpQuery.data?.source ?? 'fantasypros-fallback',
-      marketAdpFormat,
-      marketAdpCount: marketAdpQuery.data?.players.length ?? 0,
-      marketAdpError: marketAdpQuery.error ?? null,
-      leagueSettingsFingerprint: leagueSettings.fingerprint,
-      fantasyProsCount: fantasyProsQuery.data?.metadata.rankingCount ?? 0,
-      sleeperCount: sleeperQuery.data?.playerCount ?? 0,
-      sportsbookCapturedAt: sportsbookQuery.data?.metadata.capturedAt,
-      sportsbookIsFresh,
-      sportsbookOverUnderCount: sportsbookQuery.data?.metadata.overUnderCount ?? 0,
-      sportsbookMilestoneCount: sportsbookQuery.data?.metadata.milestoneCount ?? 0,
-      contractsError: contractQuery.error ?? null,
-      sportsbookError: sportsbookQuery.error ?? null,
-      predictionModelVersion: predictionQuery.data?.modelVersion,
-      predictionGeneratedAt: predictionQuery.data?.generatedAt,
-      shadowRecommendationAvailable:
-        predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled,
-      pickEvOverrideEnabled: effectiveRecommendationPolicy.pickEvOverrideEnabled,
-      pickEvOverrideThreshold: effectiveRecommendationPolicy.pickEvOverrideThreshold,
-      recommendationFallback: effectiveRecommendationPolicy.fallback,
-      recommendationPolicyReason: effectiveRecommendationPolicy.reason,
-      shadowLoggingEnabled:
-        effectiveRecommendationPolicy.shadowLogging.enabled &&
-        predictionsReady,
-      shadowLoggingSeason: effectiveRecommendationPolicy.shadowLogging.season,
-      shadowLoggingEndpoint: effectiveRecommendationPolicy.shadowLogging.endpoint,
-      predictionsError: predictionQuery.error ?? null,
-      dataFreshness,
-      readinessSources,
-      readinessWarnings,
-    },
-  };
+    dataInfo,
+  }), [dataInfo, error, isError, isLoading, playerVariants]);
 }
 
 export type PlayerDataQueryResult = ReturnType<typeof useLivePlayerDataQuery>;
@@ -751,7 +822,7 @@ export function LivePlayerDataProvider({
   children,
 }: {
   readonly children: ReactNode;
-}) {
+}): ReactElement {
   const value = useLivePlayerDataQuery();
   return createElement(PlayerDataContext.Provider, { value }, children);
 }
@@ -762,7 +833,7 @@ export function PlayerDataFixtureProvider({
 }: {
   readonly children: ReactNode;
   readonly value: PlayerDataQueryResult;
-}) {
+}): ReactElement {
   return createElement(PlayerDataContext.Provider, { value }, children);
 }
 
@@ -772,6 +843,20 @@ export function usePlayerDataQuery(): PlayerDataQueryResult {
     throw new Error('usePlayerDataQuery must be used inside a player data provider');
   }
   return context;
+}
+
+function useDraftedPlayers() {
+  const draftHistory = useDraftStore((state) => state.draftHistory);
+  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
+  const totalTeams = useDraftStore((state) => state.config.totalTeams);
+  const effectiveKeepers = useMemo(
+    () => getEffectiveKeeperAssignments(preloadedKeepers, draftHistory, totalTeams),
+    [draftHistory, preloadedKeepers, totalTeams]
+  );
+  return useMemo(
+    () => [...draftHistory, ...effectiveKeepers],
+    [draftHistory, effectiveKeepers]
+  );
 }
 
 /**
@@ -784,17 +869,7 @@ export function useFilteredPlayers() {
   const filter = useDraftStore((state) => state.filter);
   const sort = useDraftStore((state) => state.sort);
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const effectiveKeepers = useMemo(
-    () => getEffectiveKeeperAssignments(preloadedKeepers, draftHistory, totalTeams),
-    [draftHistory, preloadedKeepers, totalTeams]
-  );
-  const draftedPlayers = useMemo(
-    () => [...draftHistory, ...effectiveKeepers],
-    [draftHistory, effectiveKeepers]
-  );
+  const draftedPlayers = useDraftedPlayers();
 
   const filteredPlayers = useMemo(() => {
     let result = players;
@@ -838,17 +913,7 @@ export function useFilteredPlayers() {
 export function usePositionStats() {
   const { players } = usePlayerDataQuery();
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const effectiveKeepers = useMemo(
-    () => getEffectiveKeeperAssignments(preloadedKeepers, draftHistory, totalTeams),
-    [draftHistory, preloadedKeepers, totalTeams]
-  );
-  const draftedPlayers = useMemo(
-    () => [...draftHistory, ...effectiveKeepers],
-    [draftHistory, effectiveKeepers]
-  );
+  const draftedPlayers = useDraftedPlayers();
   const availablePlayerIds = useMemo(
     () => new Set(
       filterDrafted(players, draftedPlayerIds, draftedPlayers)

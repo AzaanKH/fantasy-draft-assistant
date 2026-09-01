@@ -194,6 +194,7 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
   isError: false,
   error: null,
   dataInfo: {
+    fantasyProsSeason: 2026,
     fantasyProsRefreshedAt: VISUAL_SOURCE_TIMESTAMP,
     fantasyProsSource: 'visual-fixture',
     fantasyProsSourceType: 'api',

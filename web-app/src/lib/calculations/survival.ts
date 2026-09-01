@@ -1,4 +1,4 @@
-import type { Player, Position } from '@fantasy-draft/shared';
+import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared';
 
 const POSITION_LABELS: Record<Position, string> = {
   QB: 'QBs',
@@ -69,6 +69,59 @@ export interface SurvivalContext {
   readonly totalRounds: number;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isLeagueSurvivalPositionSummary(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value['position'] === 'string' &&
+    isFiniteNumber(value['leagueMedianPick']) &&
+    isFiniteNumber(value['sleeperMedianPick']) &&
+    isFiniteNumber(value['pickPremium']) &&
+    isFiniteNumber(value['top50RateDelta']) &&
+    isFiniteNumber(value['top100RateDelta']) &&
+    isFiniteNumber(value['sampleSize'])
+  );
+}
+
+export function isLeagueSurvivalModel(
+  value: unknown
+): value is LeagueSurvivalModel {
+  if (
+    !isRecord(value) ||
+    typeof value['generatedAt'] !== 'string' ||
+    typeof value['modelVersion'] !== 'string' ||
+    typeof value['leagueName'] !== 'string' ||
+    !Array.isArray(value['seasons']) ||
+    !value['seasons'].every(isFiniteNumber) ||
+    !isFiniteNumber(value['sampleSize']) ||
+    !isRecord(value['positions'])
+  ) {
+    return false;
+  }
+
+  const positions = value['positions'];
+  const historicalPickNumbers = value['historicalPickNumbers'];
+  return POSITIONS.every((position) =>
+    isLeagueSurvivalPositionSummary(positions[position])
+  ) && (
+    historicalPickNumbers === undefined ||
+    (
+      isRecord(historicalPickNumbers) &&
+      POSITIONS.every((position) =>
+        Array.isArray(historicalPickNumbers[position]) &&
+        historicalPickNumbers[position].every(isFiniteNumber)
+      )
+    )
+  );
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -85,14 +138,13 @@ function round(value: number, digits: number = 1): number {
   return Number(value.toFixed(digits));
 }
 
-function quantile(values: readonly number[], percentile: number): number {
+function sortedQuantile(values: readonly number[], percentile: number): number {
   if (values.length === 0) return 0;
-  const sorted = [...values].sort((left, right) => left - right);
-  const index = clamp(percentile, 0, 1) * (sorted.length - 1);
+  const index = clamp(percentile, 0, 1) * (values.length - 1);
   const lowerIndex = Math.floor(index);
   const upperIndex = Math.ceil(index);
-  const lower = sorted[lowerIndex] ?? sorted[0] ?? 0;
-  const upper = sorted[upperIndex] ?? lower;
+  const lower = values[lowerIndex] ?? values[0] ?? 0;
+  const upper = values[upperIndex] ?? lower;
   return lower + (upper - lower) * (index - lowerIndex);
 }
 
@@ -174,31 +226,79 @@ function compareCurrentMarket(left: Player, right: Player): number {
     left.id.localeCompare(right.id);
 }
 
-function getCurrentPositionPercentile(
-  player: Player,
-  playerPool: readonly Player[]
-): number {
-  const positionPlayers = playerPool
-    .filter((candidate) => candidate.position === player.position)
-    .sort(compareCurrentMarket);
-  const index = positionPlayers.findIndex((candidate) => candidate.id === player.id);
-  if (index < 0 || positionPlayers.length <= 1) return 0.5;
-  return index / (positionPlayers.length - 1);
+interface PositionSurvivalData {
+  readonly percentileByPlayerId: ReadonlyMap<string, number>;
+  readonly empiricalPicks?: readonly number[];
+  readonly historicalExpectedPickByPlayerId?: ReadonlyMap<string, number>;
+  readonly empiricalSurvivalScale?: number;
+}
+
+function getEmpiricalPicks(
+  model: LeagueSurvivalModel,
+  position: Position
+): readonly number[] | undefined {
+  const picks = model.historicalPickNumbers?.[position]
+    ?.filter((pick) => isPositiveFinite(pick))
+    .sort((left, right) => left - right);
+  return picks && picks.length >= 8 ? picks : undefined;
+}
+
+function buildPositionSurvivalData(
+  playerPool: readonly Player[],
+  model: LeagueSurvivalModel
+): ReadonlyMap<Position, PositionSurvivalData> {
+  const result = new Map<Position, PositionSurvivalData>();
+  for (const position of POSITIONS) {
+    const orderedPlayers = playerPool
+      .filter((player) => player.position === position)
+      .sort(compareCurrentMarket);
+    const denominator = orderedPlayers.length - 1;
+    const percentileByPlayerId = new Map(
+      orderedPlayers.map((player, index) => [
+        player.id,
+        denominator > 0 ? index / denominator : 0.5,
+      ])
+    );
+    const empiricalPicks = getEmpiricalPicks(model, position);
+    const historicalExpectedPickByPlayerId = empiricalPicks
+      ? new Map(orderedPlayers.map((player) => [
+          player.id,
+          sortedQuantile(
+            empiricalPicks,
+            percentileByPlayerId.get(player.id) ?? 0.5
+          ),
+        ]))
+      : undefined;
+    const empiricalSurvivalScale = empiricalPicks
+      ? clamp(
+          (
+            sortedQuantile(empiricalPicks, 0.75) -
+            sortedQuantile(empiricalPicks, 0.25)
+          ) / 6,
+          5,
+          12
+        )
+      : undefined;
+    result.set(position, {
+      percentileByPlayerId,
+      empiricalPicks,
+      historicalExpectedPickByPlayerId,
+      empiricalSurvivalScale,
+    });
+  }
+  return result;
 }
 
 function getHistoricalExpectedPick(
   player: Player,
-  playerPool: readonly Player[],
   model: LeagueSurvivalModel,
-  consensusMarketPick: number
+  consensusMarketPick: number,
+  positionData: PositionSurvivalData
 ): number {
-  const empiricalPicks = model.historicalPickNumbers?.[player.position]
-    ?.filter((pick) => isPositiveFinite(pick));
-  if (empiricalPicks && empiricalPicks.length >= 8) {
-    return quantile(
-      empiricalPicks,
-      getCurrentPositionPercentile(player, playerPool)
-    );
+  const empiricalExpectedPick = positionData.historicalExpectedPickByPlayerId
+    ?.get(player.id);
+  if (empiricalExpectedPick !== undefined) {
+    return empiricalExpectedPick;
   }
 
   // Version-one artifacts do not contain empirical samples. Preserve a
@@ -220,18 +320,10 @@ function getHistoricalExpectedPick(
 }
 
 function getSurvivalScale(
-  player: Player,
-  model: LeagueSurvivalModel,
+  empiricalSurvivalScale: number | undefined,
   leagueAdjustedMarketRank: number
 ): number {
-  const empiricalPicks = model.historicalPickNumbers?.[player.position]
-    ?.filter((pick) => isPositiveFinite(pick));
-  if (empiricalPicks && empiricalPicks.length >= 8) {
-    const interquartileRange = quantile(empiricalPicks, 0.75) -
-      quantile(empiricalPicks, 0.25);
-    return clamp(interquartileRange / 6, 5, 12);
-  }
-  return leagueAdjustedMarketRank <= 60 ? 7 : 11;
+  return empiricalSurvivalScale ?? (leagueAdjustedMarketRank <= 60 ? 7 : 11);
 }
 
 function withHeuristicSurvivalSource(
@@ -259,11 +351,11 @@ function withHeuristicSurvivalSource(
   };
 }
 
-export function estimateLeagueSurvivalProbability(
+function estimateLeagueSurvivalProbabilityWithData(
   player: Player,
   model: LeagueSurvivalModel | null | undefined,
   context: SurvivalContext,
-  playerPool: readonly Player[] = [player]
+  positionData: PositionSurvivalData | undefined
 ): Player {
   const nextPick = getNextUserPick(context);
   if (!model || nextPick === null) {
@@ -272,11 +364,20 @@ export function estimateLeagueSurvivalProbability(
 
   const summary = model.positions[player.position];
   if (!summary) return withHeuristicSurvivalSource(player, context);
+  const effectivePositionData = positionData ?? {
+    percentileByPlayerId: new Map([[player.id, 0.5]]),
+    empiricalPicks: undefined,
+  };
 
   const consensusMarketPick = getConsensusMarketPick(player);
   const sleeperTimingPick = getSleeperTimingPick(player);
   const historicalExpectedPick = clamp(
-    getHistoricalExpectedPick(player, playerPool, model, consensusMarketPick),
+    getHistoricalExpectedPick(
+      player,
+      model,
+      consensusMarketPick,
+      effectivePositionData
+    ),
     1,
     context.totalTeams * context.totalRounds
   );
@@ -293,7 +394,10 @@ export function estimateLeagueSurvivalProbability(
     context.totalTeams * context.totalRounds
   );
 
-  const scale = getSurvivalScale(player, model, leagueAdjustedMarketRank);
+  const scale = getSurvivalScale(
+    effectivePositionData.empiricalSurvivalScale,
+    leagueAdjustedMarketRank
+  );
   const draftedByCurrentPick = logistic(
     (context.currentPick - leagueAdjustedMarketRank) / scale
   );
@@ -328,12 +432,37 @@ export function estimateLeagueSurvivalProbability(
   };
 }
 
+export function estimateLeagueSurvivalProbability(
+  player: Player,
+  model: LeagueSurvivalModel | null | undefined,
+  context: SurvivalContext,
+  playerPool: readonly Player[] = [player]
+): Player {
+  const positionData = model
+    ? buildPositionSurvivalData(playerPool, model).get(player.position)
+    : undefined;
+  return estimateLeagueSurvivalProbabilityWithData(
+    player,
+    model,
+    context,
+    positionData
+  );
+}
+
 export function applyLeagueSurvivalModel(
   players: readonly Player[],
   model: LeagueSurvivalModel | null | undefined,
   context: SurvivalContext
 ): Player[] {
+  const positionData = model
+    ? buildPositionSurvivalData(players, model)
+    : undefined;
   return players.map((player) =>
-    estimateLeagueSurvivalProbability(player, model, context, players)
+    estimateLeagueSurvivalProbabilityWithData(
+      player,
+      model,
+      context,
+      positionData?.get(player.position)
+    )
   );
 }

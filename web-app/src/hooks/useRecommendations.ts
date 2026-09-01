@@ -18,7 +18,9 @@ import {
 import {
   applyLeagueSurvivalModel,
   filterDrafted,
+  getRosterCapacity,
   getRecommendations,
+  isLeagueSurvivalModel,
   type LeagueSurvivalModel,
   type RecommendationContext,
   type RecommendationResult,
@@ -48,60 +50,9 @@ export function hasRemainingDraftDecision(
   currentPick: number,
   totalPicks: number,
   rosterSize: number,
-  totalRounds: number
+  rosterCapacity: number
 ): boolean {
-  return currentPick <= totalPicks && rosterSize < totalRounds;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isLeagueSurvivalPositionSummary(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof value['position'] === 'string' &&
-    isNumber(value['leagueMedianPick']) &&
-    isNumber(value['sleeperMedianPick']) &&
-    isNumber(value['pickPremium']) &&
-    isNumber(value['top50RateDelta']) &&
-    isNumber(value['top100RateDelta']) &&
-    isNumber(value['sampleSize'])
-  );
-}
-
-function isLeagueSurvivalModel(value: unknown): value is LeagueSurvivalModel {
-  if (
-    !isRecord(value) ||
-    typeof value['generatedAt'] !== 'string' ||
-    typeof value['modelVersion'] !== 'string' ||
-    typeof value['leagueName'] !== 'string' ||
-    !Array.isArray(value['seasons']) ||
-    !value['seasons'].every(isNumber) ||
-    !isNumber(value['sampleSize']) ||
-    !isRecord(value['positions'])
-  ) {
-    return false;
-  }
-
-  const positions = value['positions'];
-  const historicalPickNumbers = value['historicalPickNumbers'];
-  return POSITIONS.every((position) =>
-    isLeagueSurvivalPositionSummary(positions[position])
-  ) && (
-    historicalPickNumbers === undefined ||
-    (
-      isRecord(historicalPickNumbers) &&
-      POSITIONS.every((position) =>
-        Array.isArray(historicalPickNumbers[position]) &&
-        historicalPickNumbers[position].every(isNumber)
-      )
-    )
-  );
+  return currentPick <= totalPicks && rosterSize < rosterCapacity;
 }
 
 async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
@@ -175,6 +126,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     ),
     [myRoster]
   );
+  const rosterCapacity = getRosterCapacity(config.rosterRequirements);
   const rosterPlayers = useMemo(() => {
     const playersById = new Map(players.map((player) => [player.id, player]));
     return (Object.values(myRoster) as string[][]).flatMap((ids) =>
@@ -231,7 +183,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       architecture: 'best-pick-policy',
       requirements: config.rosterRequirements,
       rosterPlayers,
-      selectionsRemaining: Math.max(0, config.totalRounds - rosterSize),
+      selectionsRemaining: Math.max(0, rosterCapacity - rosterSize),
       allowPickEvOverrides: dataInfo.pickEvOverrideEnabled,
       pickEvOverrideThreshold: dataInfo.pickEvOverrideThreshold,
       rosterCounts: {
@@ -242,13 +194,13 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
         K: myRoster.K.length,
         DEF: myRoster.DEF.length,
       },
-  }), [currentPick, config.totalTeams, config.totalRounds, config.rosterRequirements, isMyTurn, myRoster, rosterPlayers, rosterSize, dataInfo.pickEvOverrideEnabled, dataInfo.pickEvOverrideThreshold]);
+  }), [currentPick, config.totalTeams, config.totalRounds, config.rosterRequirements, isMyTurn, myRoster, rosterCapacity, rosterPlayers, rosterSize, dataInfo.pickEvOverrideEnabled, dataInfo.pickEvOverrideThreshold]);
 
   const recommendationsEnabled = enabled && hasRemainingDraftDecision(
     currentPick,
     config.totalTeams * config.totalRounds,
     rosterSize,
-    config.totalRounds
+    rosterCapacity
   );
 
   const recommendations = useMemo(

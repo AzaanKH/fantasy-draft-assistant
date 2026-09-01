@@ -32,16 +32,22 @@ import { cn } from '@/lib/utils';
 const DEFAULT_SORTING: SortingState = [{ id: 'ecrRank', desc: false }];
 
 function getStickyColumnClass(columnId: string, isHeader: boolean): string {
+  const bodyBackground = [
+    'bg-card',
+    'group-hover/row:bg-inherit',
+    'group-data-[state=selected]/row:bg-inherit',
+    'group-data-[custom-background=true]/row:bg-inherit',
+  ];
   if (columnId === 'name') {
     return cn(
       'sticky left-0 shadow-[6px_0_8px_-8px_rgba(0,0,0,0.35)]',
-      isHeader ? 'z-30 bg-muted' : 'z-10 bg-card'
+      isHeader ? 'z-30 bg-muted' : ['z-10', bodyBackground]
     );
   }
   if (columnId === 'actions') {
     return cn(
       'sticky right-0 shadow-[-6px_0_8px_-8px_rgba(0,0,0,0.35)]',
-      isHeader ? 'z-30 bg-muted' : 'z-10 bg-card'
+      isHeader ? 'z-30 bg-muted' : ['z-10', bodyBackground]
     );
   }
   return '';
@@ -69,7 +75,7 @@ export function DataTable<TData, TValue>({
   columnFilters: externalFilters,
   pageSize = 50,
   initialSorting = DEFAULT_SORTING,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData, TValue>): React.ReactElement {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     externalFilters ?? []
@@ -140,6 +146,7 @@ export function DataTable<TData, TValue>({
                   row.original,
                   previousRow?.original
                 );
+                const rowClassName = getRowClassName?.(row.original);
 
                 return (
                   <React.Fragment key={row.id}>
@@ -155,9 +162,11 @@ export function DataTable<TData, TValue>({
                     )}
                     <TableRow
                       data-state={row.getIsSelected() && 'selected'}
+                      data-custom-background={rowClassName ? 'true' : undefined}
                       className={cn(
+                        'group/row bg-card',
                         onRowClick && 'cursor-pointer',
-                        getRowClassName?.(row.original)
+                        rowClassName
                       )}
                       onClick={() => onRowClick?.(row.original)}
                     >

@@ -41,6 +41,27 @@ function renderNormalApp(app: ReactElement): void {
   );
 }
 
+function renderStartupError(error: unknown): void {
+  console.error('Failed to start the Fantasy Draft Assistant', error);
+  root.render(
+    <main className="grid min-h-screen place-items-center bg-background p-6 text-foreground">
+      <section className="max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-sm">
+        <h1 className="text-lg font-semibold">The app could not start</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Reload to try loading the application again.
+        </p>
+        <button
+          type="button"
+          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          onClick={() => { window.location.reload(); }}
+        >
+          Reload
+        </button>
+      </section>
+    </main>
+  );
+}
+
 if (import.meta.env.DEV && visualRouteRequested) {
   document.documentElement.setAttribute('data-visual-test', '');
   document.documentElement.removeAttribute('data-visual-ready');
@@ -51,7 +72,7 @@ if (import.meta.env.DEV && visualRouteRequested) {
         <VisualApp />
       </StrictMode>
     );
-  });
+  }).catch(renderStartupError);
 } else if (visualRouteRequested) {
   root.render(<main>Not found</main>);
 } else {
@@ -62,5 +83,5 @@ if (import.meta.env.DEV && visualRouteRequested) {
     applyTheme(readStoredTheme());
     initializeDraftSyncConnection(window.location.search);
     renderNormalApp(<App />);
-  });
+  }).catch(renderStartupError);
 }
