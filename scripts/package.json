@@ -15,7 +15,6 @@
     "check:data-quality": "tsx src/check-data-quality.ts",
     "check:draft-readiness": "tsx src/check-draft-readiness.ts",
     "prepare:live-draft": "tsx src/prepare-live-draft.ts",
-    "primary-league:release-gate": "tsx src/primary-league-release-gate.ts",
     "check:dev-ports": "tsx src/check-dev-ports.ts",
     "measure:web-bundle": "tsx src/measure-web-bundle.ts",
     "import:league-history": "tsx src/import-league-draft-history.ts",

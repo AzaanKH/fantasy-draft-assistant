@@ -99,12 +99,25 @@ function EmptySlot({ label }: { label: string }) {
 function RosterContent() {
   const myRoster = useDraftStore((state) => state.myRoster);
   const config = useDraftStore((state) => state.config);
+  const requirements = config.rosterRequirements;
 
   // Calculate total players on roster
   const totalPlayers = React.useMemo(() => {
     const rosterGroups = Object.values(myRoster) as string[][];
     return rosterGroups.reduce((sum, players) => sum + players.length, 0);
   }, [myRoster]);
+  const flexPlayers = requirements.FLEX.eligiblePositions.flatMap((position) =>
+    myRoster[position]
+      .slice(requirements[position].starters)
+      .map((id) => ({ id, position }))
+  ).slice(0, requirements.FLEX.starters);
+  const assignedFlexIds = new Set(flexPlayers.map((player) => player.id));
+  const benchPlayers = POSITIONS.flatMap((position) =>
+    myRoster[position]
+      .slice(requirements[position].starters)
+      .filter((id) => !assignedFlexIds.has(id))
+      .map((id) => ({ id, position }))
+  );
 
   if (totalPlayers === 0) {
     return (
@@ -130,101 +143,34 @@ function RosterContent() {
           Starters
         </h4>
 
-        {/* QB */}
-        {myRoster.QB[0] ? (
-          <PlayerSlot playerId={myRoster.QB[0]} position="QB" />
-        ) : (
-          <EmptySlot label="QB" />
+        {POSITIONS.flatMap((position) =>
+          Array.from({ length: requirements[position].starters }, (_, index) => {
+            const playerId = myRoster[position][index];
+            return playerId
+              ? <PlayerSlot key={`${position}-${String(index)}`} playerId={playerId} position={position} />
+              : <EmptySlot key={`${position}-${String(index)}`} label={position} />;
+          })
         )}
 
-        {/* RB1, RB2 */}
-        {[0, 1].map((i) => (
-          myRoster.RB[i] ? (
-            <PlayerSlot key={`rb-${i}`} playerId={myRoster.RB[i]} position="RB" />
-          ) : (
-            <EmptySlot key={`rb-${i}`} label="RB" />
-          )
-        ))}
-
-        {/* WR1, WR2 */}
-        {[0, 1].map((i) => (
-          myRoster.WR[i] ? (
-            <PlayerSlot key={`wr-${i}`} playerId={myRoster.WR[i]} position="WR" />
-          ) : (
-            <EmptySlot key={`wr-${i}`} label="WR" />
-          )
-        ))}
-
-        {/* TE */}
-        {myRoster.TE[0] ? (
-          <PlayerSlot playerId={myRoster.TE[0]} position="TE" />
-        ) : (
-          <EmptySlot label="TE" />
-        )}
-
-        {/* FLEX (show RB/WR/TE overflow) */}
-        {(() => {
-          const flexPlayers = [
-            ...myRoster.RB.slice(2),
-            ...myRoster.WR.slice(2),
-            ...myRoster.TE.slice(1),
-          ].slice(0, 2);
-
-          return [0, 1].map((i) => {
-            const playerId = flexPlayers[i];
-            if (playerId) {
-              const pos = myRoster.RB.includes(playerId) ? 'RB'
-                : myRoster.WR.includes(playerId) ? 'WR'
-                : 'TE';
-              return <PlayerSlot key={`flex-${i}`} playerId={playerId} position={pos as Position} />;
-            }
-            return <EmptySlot key={`flex-${i}`} label="FLEX" />;
-          });
-        })()}
-
-        {/* K */}
-        {myRoster.K[0] ? (
-          <PlayerSlot playerId={myRoster.K[0]} position="K" />
-        ) : (
-          <EmptySlot label="K" />
-        )}
-
-        {/* DEF */}
-        {myRoster.DEF[0] ? (
-          <PlayerSlot playerId={myRoster.DEF[0]} position="DEF" />
-        ) : (
-          <EmptySlot label="DEF" />
-        )}
+        {Array.from({ length: requirements.FLEX.starters }, (_, index) => {
+          const player = flexPlayers[index];
+          return player
+            ? <PlayerSlot key={`flex-${player.id}`} playerId={player.id} position={player.position} />
+            : <EmptySlot key={`flex-empty-${String(index)}`} label="FLEX" />;
+        })}
       </div>
 
       {/* Bench */}
-      {(() => {
-        // Calculate bench players (beyond starters)
-        const starterCounts: Record<Position, number> = {
-          QB: 1, RB: 4, WR: 4, TE: 2, K: 1, DEF: 1,
-        };
-        const benchPlayers: { id: string; position: Position }[] = [];
-
-        for (const pos of POSITIONS) {
-          const excess = myRoster[pos].slice(starterCounts[pos] ?? 0);
-          for (const id of excess) {
-            benchPlayers.push({ id, position: pos });
-          }
-        }
-
-        if (benchPlayers.length === 0) return null;
-
-        return (
-          <div className="space-y-2 pt-4 border-t">
-            <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-              Bench
-            </h4>
-            {benchPlayers.map(({ id, position }) => (
-              <PlayerSlot key={id} playerId={id} position={position} />
-            ))}
-          </div>
-        );
-      })()}
+      {benchPlayers.length > 0 && (
+        <div className="space-y-2 pt-4 border-t">
+          <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+            Bench
+          </h4>
+          {benchPlayers.map(({ id, position }) => (
+            <PlayerSlot key={id} playerId={id} position={position} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

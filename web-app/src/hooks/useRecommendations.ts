@@ -9,56 +9,50 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Recommendation } from '@fantasy-draft/shared';
+import {
+  POSITIONS,
+  type Player,
+  type Position,
+  type Recommendation,
+} from '@fantasy-draft/shared';
 import {
   applyLeagueSurvivalModel,
+  filterDrafted,
+  getRosterCapacity,
   getRecommendations,
-  getTopRecommendation,
+  isLeagueSurvivalModel,
   type LeagueSurvivalModel,
+  type RecommendationContext,
+  type RecommendationResult,
+  type RecommendationSelection,
 } from '@/lib/calculations';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
+import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
+const EMPTY_SELECTION: RecommendationSelection = {
+  policy: 'league-aware-score',
+};
 
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
+const EMPTY_RECOMMENDATIONS: RecommendationResult = {
+  draftNow: [],
+  rbIntentionalReaches: [],
+  bestAvailable: [],
+  marketValues: [],
+  marketStashes: [],
+  byNeed: [],
+  selection: EMPTY_SELECTION,
+};
 
-function isLeagueSurvivalPositionSummary(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof value['position'] === 'string' &&
-    isNumber(value['leagueMedianPick']) &&
-    isNumber(value['sleeperMedianPick']) &&
-    isNumber(value['pickPremium']) &&
-    isNumber(value['top50RateDelta']) &&
-    isNumber(value['top100RateDelta']) &&
-    isNumber(value['sampleSize'])
-  );
-}
-
-function isLeagueSurvivalModel(value: unknown): value is LeagueSurvivalModel {
-  if (
-    !isRecord(value) ||
-    typeof value['generatedAt'] !== 'string' ||
-    typeof value['modelVersion'] !== 'string' ||
-    typeof value['leagueName'] !== 'string' ||
-    !Array.isArray(value['seasons']) ||
-    !value['seasons'].every(isNumber) ||
-    !isNumber(value['sampleSize']) ||
-    !isRecord(value['positions'])
-  ) {
-    return false;
-  }
-
-  const positions = value['positions'];
-  return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].every((position) =>
-    isLeagueSurvivalPositionSummary(positions[position])
-  );
+/** Recommendations stop once the manager has no selection left to make. */
+export function hasRemainingDraftDecision(
+  currentPick: number,
+  totalPicks: number,
+  rosterSize: number,
+  rosterCapacity: number
+): boolean {
+  return currentPick <= totalPicks && rosterSize < rosterCapacity;
 }
 
 async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
@@ -82,21 +76,73 @@ async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
  * @param limit - Maximum number of recommendations per list (default: 5)
  * @returns Object with bestAvailable and byNeed recommendation arrays
  */
-export function useRecommendations(limit: number = 5): {
+export interface PositionRecommendationDecision {
+  readonly recommendations: readonly Recommendation[];
+  readonly bestAvailable: readonly Recommendation[];
+  readonly selection: RecommendationSelection;
+}
+
+export function useRecommendations(limit: number = 5, enabled: boolean = true): {
   draftNow: readonly Recommendation[];
+  rbIntentionalReaches: readonly Recommendation[];
   bestAvailable: readonly Recommendation[];
   marketValues: readonly Recommendation[];
   marketStashes: readonly Recommendation[];
   byNeed: readonly Recommendation[];
+  selection: RecommendationSelection;
+  positionRecommendationStates: Readonly<Record<Position, PositionRecommendationDecision>>;
   topPick: Recommendation | null;
   isLoading: boolean;
 } {
-  const { players, isLoading: playersLoading } = usePlayerDataQuery();
+  const { players, isLoading: playersLoading, dataInfo } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const draftHistory = useDraftStore((state) => state.draftHistory);
+  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const config = useDraftStore((state) => state.config);
+  const effectiveKeepers = useMemo(
+    () => getEffectiveKeeperAssignments(
+      preloadedKeepers,
+      draftHistory,
+      config.totalTeams
+    ),
+    [config.totalTeams, draftHistory, preloadedKeepers]
+  );
+  const draftedPlayers = useMemo(
+    () => [...draftHistory, ...effectiveKeepers],
+    [draftHistory, effectiveKeepers]
+  );
   const currentPick = useDraftStore((state) => state.currentPick);
+  const myRoster = useDraftStore((state) => state.myRoster);
+  const sessionMode = useDraftStore((state) => state.sessionMode);
+  const mockSurvivalProbabilities = useDraftStore(
+    (state) => state.mockSurvivalProbabilities
+  );
   const isMyTurn = useIsMyTurn();
+  const rosterSize = useMemo(
+    () => (Object.values(myRoster) as string[][]).reduce(
+      (total, playerIds) => total + playerIds.length,
+      0
+    ),
+    [myRoster]
+  );
+  const rosterCapacity = getRosterCapacity(config.rosterRequirements);
+  const rosterPlayers = useMemo(() => {
+    const playersById = new Map(players.map((player) => [player.id, player]));
+    return (Object.values(myRoster) as string[][]).flatMap((ids) =>
+      ids.flatMap((id: string) => {
+        const player = playersById.get(id);
+        return player
+          ? [{
+              id: player.id,
+              position: player.position,
+              projectedPoints: player.projectedPoints,
+              ceilingScore: player.ceilingScore,
+            }]
+          : [];
+      })
+    );
+  }, [myRoster, players]);
   const survivalModelQuery = useQuery({
     queryKey: ['league-survival-model'],
     queryFn: fetchLeagueSurvivalModel,
@@ -104,41 +150,104 @@ export function useRecommendations(limit: number = 5): {
   });
 
   const availablePlayers = useMemo(() => {
-    const available = players.filter((p) => !draftedPlayerIds.has(p.id));
-    return applyLeagueSurvivalModel(available, survivalModelQuery.data, {
+    if (!enabled) return [];
+    const leagueAdjustedPool = applyLeagueSurvivalModel(players, survivalModelQuery.data, {
       currentPick,
       myPickPosition: config.myPickPosition,
       totalTeams: config.totalTeams,
       totalRounds: config.totalRounds,
     });
-  }, [players, draftedPlayerIds, survivalModelQuery.data, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds]);
+    const leagueAdjusted = filterDrafted(
+      leagueAdjustedPool,
+      draftedPlayerIds,
+      draftedPlayers
+    );
+    if (sessionMode !== 'mock') return leagueAdjusted;
+    return leagueAdjusted.map((player) => {
+      const mockProbability = mockSurvivalProbabilities[player.id];
+      return mockProbability === undefined
+        ? player
+        : {
+            ...player,
+            nextPickSurvivalProbability: mockProbability,
+            survivalModelSource: 'league-history' as const,
+          };
+    });
+  }, [enabled, players, draftedPlayerIds, draftedPlayers, survivalModelQuery.data, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, mockSurvivalProbabilities, sessionMode]);
 
-  const recommendations = useMemo(() => {
-    if (availablePlayers.length === 0) {
-      return { draftNow: [], bestAvailable: [], marketValues: [], marketStashes: [], byNeed: [] };
-    }
-    return getRecommendations(availablePlayers, needs, limit, {
+  const recommendationContext = useMemo<RecommendationContext>(() => ({
       currentPick,
       totalPicks: config.totalTeams * config.totalRounds,
+      totalTeams: config.totalTeams,
       isMyTurn,
-    });
-  }, [availablePlayers, needs, limit, currentPick, config.totalTeams, config.totalRounds, isMyTurn]);
+      architecture: 'best-pick-policy',
+      requirements: config.rosterRequirements,
+      rosterPlayers,
+      selectionsRemaining: Math.max(0, rosterCapacity - rosterSize),
+      allowPickEvOverrides: dataInfo.pickEvOverrideEnabled,
+      pickEvOverrideThreshold: dataInfo.pickEvOverrideThreshold,
+      rosterCounts: {
+        QB: myRoster.QB.length,
+        RB: myRoster.RB.length,
+        WR: myRoster.WR.length,
+        TE: myRoster.TE.length,
+        K: myRoster.K.length,
+        DEF: myRoster.DEF.length,
+      },
+  }), [currentPick, config.totalTeams, config.totalRounds, config.rosterRequirements, isMyTurn, myRoster, rosterCapacity, rosterPlayers, rosterSize, dataInfo.pickEvOverrideEnabled, dataInfo.pickEvOverrideThreshold]);
 
-  const topPick = useMemo(() => {
-    if (availablePlayers.length === 0) {
-      return null;
-    }
-    return getTopRecommendation(availablePlayers, needs, {
-      currentPick,
-      totalPicks: config.totalTeams * config.totalRounds,
-      isMyTurn,
+  const recommendationsEnabled = enabled && hasRemainingDraftDecision(
+    currentPick,
+    config.totalTeams * config.totalRounds,
+    rosterSize,
+    rosterCapacity
+  );
+
+  const recommendations = useMemo(
+    () => recommendationsEnabled
+      ? getRecommendations(availablePlayers, needs, limit, recommendationContext)
+      : EMPTY_RECOMMENDATIONS,
+    [availablePlayers, recommendationsEnabled, needs, limit, recommendationContext]
+  );
+
+  const positionRecommendationStates = useMemo(() => {
+    const decisions = {} as Record<Position, PositionRecommendationDecision>;
+    POSITIONS.forEach((position) => {
+      if (!recommendationsEnabled) {
+        decisions[position] = {
+          recommendations: [],
+          bestAvailable: [],
+          selection: EMPTY_SELECTION,
+        };
+        return;
+      }
+      const result = getRecommendations(
+        availablePlayers.filter((player: Player) => player.position === position),
+        needs,
+        limit,
+        recommendationContext
+      );
+      decisions[position] = {
+        recommendations: result.draftNow,
+        bestAvailable: result.bestAvailable,
+        selection: result.selection,
+      };
     });
-  }, [availablePlayers, needs, currentPick, config.totalTeams, config.totalRounds, isMyTurn]);
+    return decisions;
+  }, [availablePlayers, recommendationsEnabled, needs, limit, recommendationContext]);
+
+  const topPick = recommendations.draftNow[0]
+    ?? recommendations.byNeed[0]
+    ?? recommendations.bestAvailable[0]
+    ?? null;
 
   return {
     ...recommendations,
+    positionRecommendationStates,
     topPick,
-    isLoading: playersLoading || needsLoading,
+    isLoading: enabled && (
+      playersLoading || needsLoading || survivalModelQuery.isLoading
+    ),
   };
 }
 
@@ -166,29 +275,13 @@ export function usePositionRecommendations(
   position: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF',
   limit: number = 5
 ): {
-  recommendations: Recommendation[];
+  recommendations: readonly Recommendation[];
   isLoading: boolean;
 } {
-  const { players, isLoading } = usePlayerDataQuery();
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-
-  const recommendations = useMemo(() => {
-    const available = players
-      .filter((p) => p.position === position && !draftedPlayerIds.has(p.id))
-      .sort((a, b) => a.ecrRank - b.ecrRank)
-      .slice(0, limit);
-
-    return available.map((player) => ({
-      playerId: player.id,
-      playerName: player.name,
-      position: player.position,
-      reason: `ECR #${String(player.ecrRank)}`,
-      score: 100 - player.ecrRank,
-    }));
-  }, [players, position, draftedPlayerIds, limit]);
+  const { positionRecommendationStates, isLoading } = useRecommendations(limit);
 
   return {
-    recommendations,
+    recommendations: positionRecommendationStates[position].recommendations,
     isLoading,
   };
 }

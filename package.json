@@ -12,6 +12,7 @@
   "scripts": {
     "predev": "pnpm data:check && pnpm --filter scripts check:dev-ports",
     "dev": "pnpm dev:shared & pnpm dev:web & pnpm dev:server & pnpm dev:extension & wait",
+    "dev:live": "pnpm draft:preflight && pnpm dev",
     "dev:shared": "pnpm --filter @fantasy-draft/shared build --watch",
     "dev:web": "pnpm --filter web-app dev",
     "dev:server": "pnpm --filter server dev",
@@ -25,6 +26,8 @@
     "lint": "pnpm run -r lint",
     "test": "pnpm --filter extension test && pnpm --filter web-app test && pnpm --filter server test && pnpm --filter scripts test",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "draft:preflight": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts prepare:live-draft",
+    "draft:readiness": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts check:draft-readiness",
     "scrape:ecr": "pnpm --filter scripts scrape:ecr",
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:fantasypros:manual": "pnpm scrape:ecr && FANTASYPROS_SNAPSHOT_MODE=manual pnpm --filter scripts refresh:fantasypros-snapshot",

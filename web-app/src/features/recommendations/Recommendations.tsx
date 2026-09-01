@@ -10,6 +10,7 @@
 
 import * as React from 'react';
 import type { Position, Recommendation } from '@fantasy-draft/shared';
+import { CardListSkeleton } from '@/components/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,8 +18,14 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
+import {
+  useDraftSessionMode,
+  useDraftStore,
+  useIsMyTurn,
+} from '@/stores/draftStore';
 import { cn, formatSignedNumber } from '@/lib/utils';
+import { getKeeperAtPick } from '@/lib/mock-draft-engine';
+import { getRecommendationExplanation } from './recommendation-explanation';
 
 /**
  * Position colors for badges
@@ -39,6 +46,16 @@ function formatDelta(value: number | undefined): string {
 
 function getPrimaryReason(reason: string): string {
   return reason.split(' · ')[0] ?? reason;
+}
+
+function formatTier(
+  tier: number | undefined,
+  remaining: number | undefined
+): string {
+  if (tier === undefined) return '-';
+  return remaining === undefined
+    ? `T${String(tier)}`
+    : `T${String(tier)} · ${String(remaining)} left`;
 }
 
 function MetricPill({
@@ -100,10 +117,12 @@ function RecommendationRow({
   recommendation,
   rank,
   onDraft,
+  intentionalReach = false,
 }: {
   recommendation: Recommendation;
   rank: number;
   onDraft?: (playerId: string) => void;
+  intentionalReach?: boolean;
 }) {
   const handleClick = () => {
     if (onDraft) {
@@ -112,8 +131,12 @@ function RecommendationRow({
   };
   const projectedPoints = recommendation.diagnostics?.projectedPoints;
   const marketDelta = recommendation.diagnostics?.marketDelta;
+  const marketReachCost = recommendation.diagnostics?.marketReachCost;
   const survivalProbability = recommendation.diagnostics?.nextPickSurvivalProbability;
   const vor = recommendation.diagnostics?.valueOverReplacement;
+  const tier = recommendation.diagnostics?.tier;
+  const tierRemaining = recommendation.diagnostics?.tierRemaining;
+  const isLastInTier = recommendation.diagnostics?.isLastInTier ?? false;
   const marketTone = typeof marketDelta === 'number' && marketDelta > 0
     ? 'good'
     : typeof marketDelta === 'number' && marketDelta < -5
@@ -160,25 +183,34 @@ function RecommendationRow({
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <MetricPill
-              label="VOR"
+              label={intentionalReach ? 'Custom value' : 'Above repl.'}
               value={typeof vor === 'number' ? formatSignedNumber(vor, 0) : '-'}
               tone="good"
             />
             <MetricPill
-              label="Market"
-              value={formatDelta(marketDelta)}
-              tone={marketTone}
+              label={intentionalReach ? 'Reach cost' : 'ECR vs ADP'}
+              value={intentionalReach && typeof marketReachCost === 'number'
+                ? `${marketReachCost.toFixed(1)} picks`
+                : formatDelta(marketDelta)}
+              tone={intentionalReach && typeof marketReachCost === 'number' && marketReachCost > 0
+                ? 'warn'
+                : marketTone}
             />
             <MetricPill
-              label="Wait"
+              label="Next pick"
               value={typeof survivalProbability === 'number'
                 ? `${String(Math.round(survivalProbability * 100))}%`
                 : '-'}
               tone={typeof survivalProbability === 'number' && survivalProbability < 0.4 ? 'warn' : 'neutral'}
             />
             <MetricPill
-              label="Proj"
+              label="Projected"
               value={typeof projectedPoints === 'number' ? projectedPoints.toFixed(0) : '-'}
+            />
+            <MetricPill
+              label="Tier"
+              value={`${intentionalReach ? 'RB ' : ''}${formatTier(tier, tierRemaining)}`}
+              tone={isLastInTier ? 'warn' : 'neutral'}
             />
           </div>
         </div>
@@ -194,10 +226,12 @@ function RecommendationList({
   recommendations,
   emptyMessage,
   onDraft,
+  intentionalReach = false,
 }: {
   recommendations: readonly Recommendation[];
   emptyMessage: string;
   onDraft?: (playerId: string) => void;
+  intentionalReach?: boolean;
 }) {
   if (recommendations.length === 0) {
     return (
@@ -215,6 +249,7 @@ function RecommendationList({
           recommendation={rec}
           rank={index + 1}
           onDraft={onDraft}
+          intentionalReach={intentionalReach}
         />
       ))}
     </div>
@@ -246,13 +281,7 @@ function TopPickHighlight({
       : 'neutral';
 
   return (
-    <div
-      className={cn(
-        'rounded-lg border border-emerald-500/30 bg-emerald-500/[0.09] p-4 dark:border-emerald-500/40 dark:bg-emerald-500/[0.14]',
-        onDraft && 'cursor-pointer hover:bg-emerald-500/[0.13] dark:hover:bg-emerald-500/[0.18]'
-      )}
-      onClick={() => onDraft?.(recommendation.playerId)}
-    >
+    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.09] p-4 dark:border-emerald-500/40 dark:bg-emerald-500/[0.14]">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-300">
           Top Pick
@@ -265,39 +294,63 @@ function TopPickHighlight({
         </Badge>
       </div>
       <div className="text-xl font-bold leading-tight">{recommendation.playerName}</div>
-      <div className="mt-1 text-xs text-muted-foreground">
-        {getPrimaryReason(recommendation.reason)}
-      </div>
+      <p className="mt-2 text-sm leading-relaxed text-foreground/85">
+        {getRecommendationExplanation(recommendation)}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Primary signal: {getPrimaryReason(recommendation.reason)}
+      </p>
       {diagnostics && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           <MetricPill
-            label="VOR"
+            label="Above repl."
             value={formatSignedNumber(diagnostics.valueOverReplacement, 0)}
             tone="good"
           />
           <MetricPill
-            label="Proj"
+            label="Projected"
             value={typeof projectedPoints === 'number' ? projectedPoints.toFixed(0) : '-'}
           />
           <MetricPill
-            label="Market"
+            label="ECR vs ADP"
             value={formatDelta(marketDelta)}
             tone={marketTone}
           />
           <MetricPill
-            label="Wait"
+            label="Next pick"
             value={typeof survivalProbability === 'number'
               ? `${String(Math.round(survivalProbability * 100))}%`
               : '-'}
             tone={typeof survivalProbability === 'number' && survivalProbability < 0.4 ? 'warn' : 'neutral'}
           />
-          <MetricPill label="Tier" value={String(diagnostics.tier)} />
+          <MetricPill
+            label="Tier"
+            value={formatTier(diagnostics.tier, diagnostics.tierRemaining)}
+            tone={diagnostics.isLastInTier ? 'warn' : 'neutral'}
+          />
+          {diagnostics.isLastInTier && diagnostics.tierDropoffPoints !== undefined && (
+            <MetricPill
+              label="Cliff"
+              value={`${diagnostics.tierDropoffPoints.toFixed(1)} pts`}
+              tone="warn"
+            />
+          )}
           {diagnostics.leaguePositionTendency && (
             <span className="w-full pt-1 text-[11px] text-muted-foreground">
               {diagnostics.leaguePositionTendency}
             </span>
           )}
         </div>
+      )}
+      {onDraft && (
+        <Button
+          className="mt-4 w-full"
+          onClick={() => {
+            onDraft(recommendation.playerId);
+          }}
+        >
+          Draft {recommendation.playerName}
+        </Button>
       )}
     </div>
   );
@@ -309,6 +362,7 @@ function TopPickHighlight({
 export function Recommendations(): React.ReactElement {
   const {
     draftNow,
+    rbIntentionalReaches,
     bestAvailable,
     marketValues,
     marketStashes,
@@ -322,11 +376,18 @@ export function Recommendations(): React.ReactElement {
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
+  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
+  const sessionMode = useDraftSessionMode();
   const isMyTurn = useIsMyTurn();
+  const keeperAtCurrentPick = sessionMode === 'mock'
+    ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams)
+    : undefined;
+  const isActiveUserTurn = sessionMode !== 'setup' && isMyTurn && !keeperAtCurrentPick;
 
   // Handle drafting a player from recommendations
   const handleDraft = React.useCallback(
     (playerId: string) => {
+      if (sessionMode === 'setup') return;
       const player = players.find((p) => p.id === playerId);
       if (!player) return;
 
@@ -337,34 +398,28 @@ export function Recommendations(): React.ReactElement {
         return isOddRound ? pickInRound - 1 : config.totalTeams - pickInRound;
       })();
 
-      const teamName = isMyTurn ? 'My Team' : `Team ${String(teamIndex + 1)}`;
+      const teamName = isActiveUserTurn ? 'My Team' : `Team ${String(teamIndex + 1)}`;
 
       markPlayerDrafted(
         player.id,
         player.name,
         player.position,
         teamIndex,
-        teamName
+        teamName,
+        undefined,
+        'manual',
+        player.team
       );
 
-      if (isMyTurn) {
+      if (isActiveUserTurn) {
         addToMyRoster(player);
       }
     },
-    [players, currentPick, config, isMyTurn, markPlayerDrafted, addToMyRoster]
+    [players, currentPick, config, sessionMode, isActiveUserTurn, markPlayerDrafted, addToMyRoster]
   );
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recommendations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">Loading...</div>
-        </CardContent>
-      </Card>
-    );
+    return <CardListSkeleton label="Loading recommendations" />;
   }
 
   return (
@@ -372,7 +427,7 @@ export function Recommendations(): React.ReactElement {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Recommendations</CardTitle>
-          {isMyTurn && (
+          {isActiveUserTurn && (
             <Badge className="bg-green-500 text-white text-xs">Your Pick</Badge>
           )}
         </div>
@@ -381,22 +436,25 @@ export function Recommendations(): React.ReactElement {
         {/* Top Pick Highlight */}
         <TopPickHighlight
           recommendation={topPick}
-          onDraft={isMyTurn ? handleDraft : undefined}
+          onDraft={isActiveUserTurn ? handleDraft : undefined}
         />
 
         {/* Tabbed Recommendations */}
         <Tabs defaultValue="draft-now" className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-4 p-1">
-            <TabsTrigger value="draft-now" className="px-1.5 text-[11px]">
+          <TabsList className="grid h-auto w-full grid-cols-5 gap-1 p-1">
+            <TabsTrigger value="draft-now" className="min-h-8 px-1.5 text-[11px]">
               Draft Now
             </TabsTrigger>
-            <TabsTrigger value="by-need" className="px-1.5 text-[11px]">
+            <TabsTrigger value="by-need" className="min-h-8 px-1.5 text-[11px]">
               By Need
             </TabsTrigger>
-            <TabsTrigger value="best-available" className="px-1.5 text-[11px]">
+            <TabsTrigger value="rb-reach" className="min-h-8 px-1 text-[10px] leading-tight">
+              Best RB / Reach
+            </TabsTrigger>
+            <TabsTrigger value="best-available" className="min-h-8 px-1.5 text-[11px]">
               Best Avail.
             </TabsTrigger>
-            <TabsTrigger value="best-value" className="px-1.5 text-[11px]">
+            <TabsTrigger value="best-value" className="min-h-8 px-1.5 text-[11px]">
               Best Value
             </TabsTrigger>
           </TabsList>
@@ -405,7 +463,7 @@ export function Recommendations(): React.ReactElement {
             <RecommendationList
               recommendations={draftNow.slice(1)}
               emptyMessage="No alternate draft recommendations"
-              onDraft={isMyTurn ? handleDraft : undefined}
+              onDraft={isActiveUserTurn ? handleDraft : undefined}
             />
           </TabsContent>
 
@@ -416,7 +474,19 @@ export function Recommendations(): React.ReactElement {
             <RecommendationList
               recommendations={byNeed}
               emptyMessage="No need-based recommendations"
-              onDraft={isMyTurn ? handleDraft : undefined}
+              onDraft={isActiveUserTurn ? handleDraft : undefined}
+            />
+          </TabsContent>
+
+          <TabsContent value="rb-reach" className="mt-2">
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              Custom value above replacement, live RB tier supply, next-pick chance, and the picks paid ahead of ADP.
+            </div>
+            <RecommendationList
+              recommendations={rbIntentionalReaches}
+              emptyMessage="No legal running backs available"
+              onDraft={isActiveUserTurn ? handleDraft : undefined}
+              intentionalReach
             />
           </TabsContent>
 
@@ -424,7 +494,7 @@ export function Recommendations(): React.ReactElement {
             <RecommendationList
               recommendations={bestAvailable}
               emptyMessage="No players available"
-              onDraft={isMyTurn ? handleDraft : undefined}
+              onDraft={isActiveUserTurn ? handleDraft : undefined}
             />
           </TabsContent>
 
@@ -435,7 +505,7 @@ export function Recommendations(): React.ReactElement {
             <RecommendationList
               recommendations={marketValues}
               emptyMessage="No actionable market values available"
-              onDraft={isMyTurn ? handleDraft : undefined}
+              onDraft={isActiveUserTurn ? handleDraft : undefined}
             />
             {marketStashes.length > 0 && (
               <div className="mt-3 border-t pt-3">
@@ -452,7 +522,7 @@ export function Recommendations(): React.ReactElement {
                     <RecommendationList
                       recommendations={marketStashes}
                       emptyMessage="No late-round stashes available"
-                      onDraft={isMyTurn ? handleDraft : undefined}
+                      onDraft={isActiveUserTurn ? handleDraft : undefined}
                     />
                   </div>
                 )}
@@ -461,9 +531,13 @@ export function Recommendations(): React.ReactElement {
           </TabsContent>
         </Tabs>
 
-        {!isMyTurn && (
+        {sessionMode === 'setup' ? (
+          <div className="rounded-md border border-dashed px-3 py-2 text-center text-xs text-muted-foreground">
+            Preview only · connect a live draft or start a mock to enable draft actions.
+          </div>
+        ) : !isMyTurn && (
           <div className="text-xs text-muted-foreground text-center">
-            Click to mark as drafted when it's your pick
+            Recommendations will update as the board moves. Draft actions unlock on your turn.
           </div>
         )}
       </CardContent>

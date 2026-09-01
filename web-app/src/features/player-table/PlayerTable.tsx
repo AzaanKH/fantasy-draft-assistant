@@ -262,7 +262,10 @@ export function PlayerTable() {
       player.name,
       player.position,
       currentTeamIndex,
-      teamName
+      teamName,
+      undefined,
+      'manual',
+      player.team
     );
 
     if (isMyTurn) {

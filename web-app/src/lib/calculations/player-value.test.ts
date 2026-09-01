@@ -1,6 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ECRPlayer, NFLTeam, TeamEnvironment } from '@fantasy-draft/shared';
-import { mergePlayerData, type SleeperADPPlayer } from './player-value';
+import type {
+  ECRPlayer,
+  FantasyProsProjection,
+  NFLTeam,
+  Player,
+  TeamEnvironment,
+} from '@fantasy-draft/shared';
+import {
+  filterDrafted,
+  mergePlayerData,
+  type SleeperADPPlayer,
+} from './player-value';
 
 const teamEnvironment = {
   DET: {
@@ -57,6 +67,28 @@ function createSleeperPlayer(overrides: Partial<SleeperADPPlayer> = {}): Sleeper
 }
 
 describe('mergePlayerData', () => {
+  it('carries the Primary League scoring delta into the live player record', () => {
+    const projection: FantasyProsProjection = {
+      name: 'Test Player',
+      position: 'TE',
+      team: 'DET',
+      projectedPoints: 200,
+      baseProjectedPoints: 200,
+      projectedRushAttempts: 10,
+      projectedReceptions: 80,
+    };
+    const players = mergePlayerData(
+      [createEcrPlayer({ position: 'TE' })],
+      [projection],
+      [],
+      [createSleeperPlayer({ position: 'TE' })],
+      teamEnvironment
+    );
+
+    expect(players[0]?.projectedPoints).toBe(242);
+    expect(players[0]?.leagueScoringAdjustment).toBe(42);
+  });
+
   it('treats inactive sleeper statuses as out instead of healthy', () => {
     const players = mergePlayerData(
       [createEcrPlayer()],
@@ -89,17 +121,18 @@ describe('mergePlayerData', () => {
     expect(players[0]?.injuryRiskScore).toBe(9);
   });
 
-  it('clamps tier dropoff scores for players beyond the last threshold', () => {
+  it('keeps the published FantasyPros tier separate from the local tier source', () => {
     const players = mergePlayerData(
-      [createEcrPlayer({ positionalRank: 60 })],
+      [createEcrPlayer({ fantasyProsTier: 3 })],
       [],
       [],
       [createSleeperPlayer()],
       teamEnvironment
     );
 
-    expect(players[0]?.tierDropoffScore).toBeGreaterThanOrEqual(0);
-    expect(players[0]?.tierDropoffScore).toBeLessThanOrEqual(1);
+    expect(players[0]?.fantasyProsTier).toBe(3);
+    expect(players[0]?.tierSource).toBe('ecr-fallback');
+    expect(players[0]?.tier).toBe(1);
   });
 
   it('falls back to name-plus-position matching when offseason team data drifts', () => {
@@ -162,7 +195,7 @@ describe('mergePlayerData', () => {
     expect(players[0]?.team).toBe('SEA');
     expect(players[0]?.isContractYear).toBe(true);
     expect(players[0]?.newsStatus).toBe('out');
-    expect(players[0]?.projectedPoints).toBe(99);
+    expect(players[0]?.projectedPoints).toBe(180);
     expect(players[0]?.predictionSource).toBe('model');
   });
 
@@ -197,6 +230,36 @@ describe('mergePlayerData', () => {
     expect(players[0]?.uncertaintyScore).toBe(4.8);
     expect(players[0]?.injuryRiskScore).toBe(2.5);
     expect(players[0]?.predictionSource).toBe('model');
+  });
+
+  it('uses model risk as information without enabling model point projections', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer()],
+      [],
+      [],
+      [createSleeperPlayer({ playerId: '123', status: 'Active' })],
+      teamEnvironment,
+      [],
+      [],
+      [],
+      [],
+      undefined,
+      [{
+        playerId: '123',
+        name: 'Test Player',
+        position: 'WR',
+        team: 'DET',
+        projectedPoints: 999,
+        uncertaintyScore: 6,
+        injuryRiskScore: 7,
+        source: 'model',
+      }]
+    );
+
+    expect(players[0]?.projectedPoints).not.toBe(999);
+    expect(players[0]?.predictionSource).toBe('heuristic');
+    expect(players[0]?.uncertaintyScore).toBe(6);
+    expect(players[0]?.injuryRiskScore).toBe(7);
   });
 
   it('raises uncertainty for rookies without treating them as injured', () => {
@@ -287,5 +350,80 @@ describe('mergePlayerData', () => {
     expect(players[0]?.sleeperAdp).toBe(186);
     expect(players[0]?.marketRank).toBe(186);
     expect(players[0]?.valueScore).toBe(0);
+  });
+
+  it('uses Fantasy Football Calculator ADP ahead of static ADP fallbacks', () => {
+    const players = mergePlayerData(
+      [createEcrPlayer({ rank: 20 })],
+      [],
+      [],
+      [createSleeperPlayer({ sleeperAdp: 30 })],
+      teamEnvironment,
+      [],
+      [],
+      [{
+        rank: 25,
+        name: 'Test Player',
+        position: 'WR',
+        team: 'DET',
+        positionalRank: 10,
+        bestRank: 20,
+        worstRank: 30,
+        averageRank: 25,
+      }],
+      [],
+      undefined,
+      [],
+      {
+        marketAdp: [{
+          externalId: 'ffc-1',
+          name: 'Test Player',
+          position: 'WR',
+          team: 'DET',
+          adp: 42.5,
+        }],
+      }
+    );
+
+    expect(players[0]?.marketAdp).toBe(42.5);
+    expect(players[0]?.marketRank).toBe(42.5);
+    expect(players[0]?.valueScore).toBe(22.5);
+  });
+});
+
+describe('filterDrafted', () => {
+  it('excludes a drafted player by name and position when provider IDs differ', () => {
+    const matthewStafford = {
+      id: '421',
+      name: 'Matthew Stafford',
+      position: 'QB',
+    } as Player;
+
+    expect(filterDrafted(
+      [matthewStafford],
+      new Set(['12483']),
+      [{ playerName: 'Matthew Stafford', position: 'QB' }]
+    )).toEqual([]);
+  });
+
+  it('uses the NFL team to distinguish same-name players at one position', () => {
+    const detroitPlayer = {
+      id: 'detroit-id',
+      name: 'Same Name',
+      position: 'WR',
+      team: 'DET',
+    } as Player;
+    const ramsPlayer = {
+      id: 'rams-id',
+      name: 'Same Name',
+      position: 'WR',
+      team: 'LAR',
+    } as Player;
+
+    expect(filterDrafted(
+      [detroitPlayer, ramsPlayer],
+      new Set(['old-detroit-id']),
+      [{ playerName: 'Same Name', position: 'WR', nflTeam: 'DET' }]
+    )).toEqual([ramsPlayer]);
   });
 });

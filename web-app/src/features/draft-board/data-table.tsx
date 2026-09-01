@@ -29,15 +29,41 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+const DEFAULT_SORTING: SortingState = [{ id: 'ecrRank', desc: false }];
+
+function getStickyColumnClass(columnId: string, isHeader: boolean): string {
+  const bodyBackground = [
+    'bg-card',
+    'group-hover/row:bg-inherit',
+    'group-data-[state=selected]/row:bg-inherit',
+    'group-data-[custom-background=true]/row:bg-inherit',
+  ];
+  if (columnId === 'name') {
+    return cn(
+      'sticky left-0 shadow-[6px_0_8px_-8px_rgba(0,0,0,0.35)]',
+      isHeader ? 'z-30 bg-muted' : ['z-10', bodyBackground]
+    );
+  }
+  if (columnId === 'actions') {
+    return cn(
+      'sticky right-0 shadow-[-6px_0_8px_-8px_rgba(0,0,0,0.35)]',
+      isHeader ? 'z-30 bg-muted' : ['z-10', bodyBackground]
+    );
+  }
+  return '';
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onRowClick?: (row: TData) => void;
   getRowClassName?: (row: TData) => string;
+  getRowGroupLabel?: (row: TData, previousRow: TData | undefined) => React.ReactNode;
   filterColumn?: string;
   filterValue?: string;
   columnFilters?: ColumnFiltersState;
   pageSize?: number;
+  initialSorting?: SortingState;
 }
 
 export function DataTable<TData, TValue>({
@@ -45,12 +71,12 @@ export function DataTable<TData, TValue>({
   data,
   onRowClick,
   getRowClassName,
+  getRowGroupLabel,
   columnFilters: externalFilters,
   pageSize = 50,
-}: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: 'ecrRank', desc: false },
-  ]);
+  initialSorting = DEFAULT_SORTING,
+}: DataTableProps<TData, TValue>): React.ReactElement {
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     externalFilters ?? []
   );
@@ -93,7 +119,14 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="h-9 whitespace-nowrap px-3 text-xs">
+                  <TableHead
+                    key={header.id}
+                    scope="col"
+                    className={cn(
+                      'h-9 whitespace-nowrap px-3 text-xs',
+                      getStickyColumnClass(header.column.id, true)
+                    )}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -107,26 +140,54 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className={cn(
-                    onRowClick && 'cursor-pointer',
-                    getRowClassName?.(row.original)
-                  )}
-                  onClick={() => onRowClick?.(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-3 py-3">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+              table.getRowModel().rows.map((row, index, rows) => {
+                const previousRow = rows[index - 1];
+                const groupLabel = getRowGroupLabel?.(
+                  row.original,
+                  previousRow?.original
+                );
+                const rowClassName = getRowClassName?.(row.original);
+
+                return (
+                  <React.Fragment key={row.id}>
+                    {groupLabel && (
+                      <TableRow className="border-y border-border/70 bg-muted/40 hover:bg-muted/40">
+                        <TableCell
+                          colSpan={row.getVisibleCells().length}
+                          className="px-3 py-2"
+                        >
+                          {groupLabel}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow
+                      data-state={row.getIsSelected() && 'selected'}
+                      data-custom-background={rowClassName ? 'true' : undefined}
+                      className={cn(
+                        'group/row bg-card',
+                        onRowClick && 'cursor-pointer',
+                        rowClassName
                       )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      onClick={() => onRowClick?.(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'px-3 py-3',
+                            getStickyColumnClass(cell.column.id, false)
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </React.Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

@@ -9,7 +9,6 @@
 
 import { useMemo } from 'react';
 import type { Position, PositionNeed } from '@fantasy-draft/shared';
-import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
 import {
   calculateAllScarcityScores,
   calculateTeamNeeds,
@@ -54,12 +53,12 @@ export function useTeamNeeds(): {
   }, [players, draftedPlayerIds]);
 
   const needs = useMemo(() => {
-    return calculateTeamNeeds(myRoster, DEFAULT_ROSTER_REQUIREMENTS, scarcityScores, {
+    return calculateTeamNeeds(myRoster, config.rosterRequirements, scarcityScores, {
       currentPick,
       totalPicks: config.totalTeams * config.totalRounds,
       totalRounds: config.totalRounds,
     });
-  }, [myRoster, scarcityScores, currentPick, config.totalTeams, config.totalRounds]);
+  }, [myRoster, scarcityScores, currentPick, config.totalTeams, config.totalRounds, config.rosterRequirements]);
 
   const criticalPositions = useMemo(() => {
     return getCriticalPositions(needs);
