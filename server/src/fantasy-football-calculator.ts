@@ -33,7 +33,12 @@ function finiteNumber(value: unknown): number | null {
 
 function normalizePosition(value: unknown): Position | null {
   if (typeof value !== 'string') return null;
-  const normalized = value.toUpperCase() === 'DST' ? 'DEF' : value.toUpperCase();
+  const uppercase = value.toUpperCase();
+  const normalized = uppercase === 'DST'
+    ? 'DEF'
+    : uppercase === 'PK'
+      ? 'K'
+      : uppercase;
   return isPosition(normalized) ? normalized : null;
 }
 

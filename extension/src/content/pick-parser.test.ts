@@ -44,4 +44,20 @@ describe('Sleeper pick parsing', () => {
     const pick = parsePickFromText('Amon-Ra St. Brown 3.2 WR - DET', 1);
     expect(pick && getPickKey(pick)).toBe('Amon-Ra St. Brown-3.2-WR');
   });
+
+  it('does not combine drafted announcements from a matching container', () => {
+    document.body.innerHTML = `
+      <div class="pick-list">
+        <div class="drafted-message">Team Alpha drafted Breece Hall</div>
+        <div class="drafted-message">Team Beta drafted CeeDee Lamb</div>
+      </div>
+    `;
+
+    const picks = extractPicksFromDocument(document, 99);
+
+    expect(picks).toEqual([
+      { playerName: 'Breece Hall', teamName: 'Team Alpha', timestamp: 99 },
+      { playerName: 'CeeDee Lamb', teamName: 'Team Beta', timestamp: 99 },
+    ]);
+  });
 });

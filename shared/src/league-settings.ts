@@ -464,25 +464,20 @@ export function normalizeSleeperLeagueSettings(
   const scoringRules = normalizeScoringRules(league.scoring_settings);
   const { requirements: rosterRequirements, unsupportedSlots } =
     normalizeRosterRequirements(league);
-  const totalTeams = Math.max(2, Math.round(league.total_rosters));
   const unsupportedScoringKeys = Object.entries(league.scoring_settings)
     .filter(([key, value]) => isUnsupportedScoringEntry(key, value))
     .map(([key]) => key)
     .sort();
 
-  return {
+  return createLeagueSettings({
     source: 'sleeper',
     leagueId: league.league_id,
-    totalTeams,
+    totalTeams: league.total_rosters,
     scoringRules,
     rosterRequirements,
-    rawScoringSettings: { ...league.scoring_settings },
+    rawScoringSettings: league.scoring_settings,
     unsupportedScoringKeys,
     unsupportedRosterSlots: unsupportedSlots,
     keepersEnabled: null,
-    fingerprint: hashSettings(
-      createFingerprintInput(totalTeams, scoringRules, rosterRequirements)
-    ),
-    updatedAt: now,
-  };
+  }, now);
 }

@@ -27,6 +27,10 @@ describe('parseDraftRoomUrl', () => {
       'https://fantasy.espn.com/football/draft?leagueId=123456789&seasonId=2026&teamId=7',
       { isInDraftRoom: true, provider: 'espn', draftId: '123456789' },
     ],
+    [
+      'https://fantasy.espn.com/football/draft/?leagueId=123456789',
+      { isInDraftRoom: true, provider: 'espn', draftId: '123456789' },
+    ],
   ])('parses %s', (url, expected) => {
     expect(parseDraftRoomUrl(url)).toEqual(expected);
   });

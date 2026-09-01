@@ -1,6 +1,6 @@
 import { isNeedPriority, type NeedPriority } from './draft';
 import { isPosition, type Position } from './player';
-import type { DraftProvider } from './sync';
+import { isDraftProvider, type DraftProvider } from './sync';
 
 export interface ShadowRecommendation {
   readonly playerId: string;
@@ -93,10 +93,6 @@ function isShadowPositionNeed(value: unknown): value is ShadowPositionNeed {
   );
 }
 
-function isDraftProvider(value: unknown): value is DraftProvider {
-  return value === 'sleeper' || value === 'yahoo' || value === 'espn';
-}
-
 export function isShadowRecommendationEvent(value: unknown): value is ShadowRecommendationEvent {
   if (
     !isRecord(value) ||
@@ -114,7 +110,8 @@ export function isShadowRecommendationEvent(value: unknown): value is ShadowReco
 
   return (
     isBoundedString(value['eventId'], 256) &&
-    value['season'] === 2026 &&
+    Number.isInteger(value['season']) &&
+    isFiniteNumber(value['season']) &&
     isBoundedString(value['draftId'], 128) &&
     Number.isInteger(value['pickNumber']) &&
     isFiniteNumber(value['pickNumber']) &&

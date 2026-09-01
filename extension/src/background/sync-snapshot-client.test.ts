@@ -33,6 +33,37 @@ describe('sync snapshot I/O', () => {
     ).rejects.toThrow('Snapshot request failed: 503');
   });
 
+  it('aborts a snapshot request that never responds', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      (_url: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new Error('Request aborted'));
+          });
+        })
+    );
+    const client = createSyncSnapshotClient(
+      async () => 'http://localhost:3001',
+      fetchMock,
+      50
+    );
+
+    try {
+      const request = client.fetch({
+        isInDraftRoom: true,
+        provider: 'sleeper',
+        draftId: '123',
+      });
+      const rejection = expect(request).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(50);
+      await rejection;
+      expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('publishes ESPN snapshots to the browser-ingest route', async () => {
     const responseSnapshot = {
       provider: 'espn',

@@ -14,6 +14,7 @@ interface FakeObserver {
 function createHarness(initialUrl: string) {
   let url = initialUrl;
   const observers: FakeObserver[] = [];
+  const intervalCallbacks: Array<() => void> = [];
   const messages: ExtensionMessage[] = [];
   const environment: DraftRoomLifecycleEnvironment = {
     document,
@@ -31,7 +32,10 @@ function createHarness(initialUrl: string) {
     clearTimeout: (timer) => {
       window.clearTimeout(timer);
     },
-    setInterval: (callback, delay) => window.setInterval(callback, delay),
+    setInterval: (callback, delay) => {
+      intervalCallbacks.push(callback);
+      return window.setInterval(callback, delay);
+    },
     clearInterval: (timer) => {
       window.clearInterval(timer);
     },
@@ -44,6 +48,7 @@ function createHarness(initialUrl: string) {
     }),
     messages,
     observers,
+    intervalCallbacks,
     setUrl: (nextUrl: string) => {
       url = nextUrl;
     },
@@ -125,5 +130,24 @@ describe('draft room lifecycle', () => {
         },
       },
     ]);
+  });
+
+  it('keeps a scheduled scan cancellable when interval polling runs', () => {
+    const harness = createHarness('https://sleeper.com/draft/nfl/123');
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    harness.lifecycle.start();
+    const pickObserver = harness.observers[0];
+    const addedNode = document.createElement('div');
+    addedNode.textContent = 'Team Alpha drafted Breece Hall';
+    pickObserver?.callback(
+      [{ addedNodes: [addedNode] } as unknown as MutationRecord],
+      pickObserver as unknown as MutationObserver
+    );
+    const callsBeforePoll = clearTimeoutSpy.mock.calls.length;
+
+    harness.intervalCallbacks[0]?.();
+    harness.lifecycle.stop();
+
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(callsBeforePoll + 1);
   });
 });

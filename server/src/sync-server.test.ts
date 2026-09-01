@@ -152,10 +152,13 @@ describe('createSyncServer', () => {
   });
 
   it('accepts sanitized ESPN extension snapshots and reconciles undo state', async () => {
-    const server = createSyncServer({ pollIntervalMs: 60_000 });
+    const extensionOrigin = `chrome-extension://${'a'.repeat(32)}`;
+    const server = createSyncServer({
+      pollIntervalMs: 60_000,
+      allowedOrigins: [extensionOrigin, 'http://localhost:3000'],
+    });
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const { port } = server.address() as AddressInfo;
-    const extensionOrigin = `chrome-extension://${'a'.repeat(32)}`;
     const draft: EspnDraftSnapshot['draft'] = {
       provider: 'espn',
       draftId: '4242',
@@ -299,7 +302,7 @@ describe('createSyncServer', () => {
     }
   });
 
-  it('rejects unauthorized draft requests before fetching Sleeper', async () => {
+  it('rejects unconfigured extension origins before fetching Sleeper', async () => {
     let fetchCalls = 0;
     const server = createSyncServer({
       fetchJson: async <T>(): Promise<T> => {
@@ -313,7 +316,7 @@ describe('createSyncServer', () => {
 
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
-        headers: { Origin: 'https://untrusted.example' },
+        headers: { Origin: `chrome-extension://${'a'.repeat(32)}` },
       });
 
       expect(response.status).toBe(403);
@@ -326,6 +329,91 @@ describe('createSyncServer', () => {
             return;
           }
           resolve();
+        });
+      });
+    }
+  });
+
+  it('returns a client error for a malformed encoded draft ID', async () => {
+    const server = createSyncServer({ fetchJson: createMockFetchJson() });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/sync/sleeper/drafts/%E0%A4%A`,
+        { headers: { Origin: 'http://localhost:3000' } }
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: 'Invalid draft ID' });
+      expect(
+        await fetch(`http://127.0.0.1:${port}/api/health`).then((result) => result.ok)
+      ).toBe(true);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.shutdown((error?: Error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+  });
+
+  it('reuses fresh sessions and evicts stale sessions without clients', async () => {
+    const baseFetch = createMockFetchJson();
+    let freshFetchCalls = 0;
+    const freshServer = createSyncServer({
+      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+        freshFetchCalls += 1;
+        return baseFetch<T>(url, signal);
+      },
+      sessionStaleAfterMs: 60_000,
+    });
+    await new Promise<void>((resolve) => freshServer.listen(0, resolve));
+    const freshPort = (freshServer.address() as AddressInfo).port;
+    const requestFresh = () => fetch(
+      `http://127.0.0.1:${freshPort}/api/sync/drafts/fixture-draft`,
+      { headers: { Origin: 'http://localhost:3000' } }
+    );
+
+    try {
+      expect((await requestFresh()).ok).toBe(true);
+      expect((await requestFresh()).ok).toBe(true);
+      expect(freshFetchCalls).toBe(3);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        freshServer.shutdown((error?: Error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+
+    let staleFetchCalls = 0;
+    const staleServer = createSyncServer({
+      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+        staleFetchCalls += 1;
+        return baseFetch<T>(url, signal);
+      },
+      sessionStaleAfterMs: 0,
+    });
+    await new Promise<void>((resolve) => staleServer.listen(0, resolve));
+    const stalePort = (staleServer.address() as AddressInfo).port;
+    const requestStale = () => fetch(
+      `http://127.0.0.1:${stalePort}/api/sync/drafts/fixture-draft`,
+      { headers: { Origin: 'http://localhost:3000' } }
+    );
+
+    try {
+      expect((await requestStale()).ok).toBe(true);
+      expect((await requestStale()).ok).toBe(true);
+      expect(staleFetchCalls).toBe(6);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        staleServer.shutdown((error?: Error) => {
+          if (error) reject(error);
+          else resolve();
         });
       });
     }
@@ -363,7 +451,7 @@ describe('createSyncServer', () => {
     }
   });
 
-  it('records each 2026 shadow recommendation decision once', async () => {
+  it('records each valid shadow recommendation decision once', async () => {
     const temporaryDirectory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-log-'));
     const shadowLogPath = join(temporaryDirectory, 'recommendations.ndjson');
     const server = createSyncServer({
@@ -372,7 +460,7 @@ describe('createSyncServer', () => {
     });
     const event = {
       eventId: '2026:sleeper:fixture-draft:1',
-      season: 2026,
+      season: 2027,
       draftId: 'fixture-draft',
       pickNumber: 1,
       observedAt: '2026-08-20T18:00:00.000Z',

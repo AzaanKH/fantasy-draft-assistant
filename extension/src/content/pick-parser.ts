@@ -10,6 +10,7 @@ const PICK_SELECTORS = [
   '[data-player]',
   '[data-pick]',
 ] as const;
+const PICK_SELECTOR = PICK_SELECTORS.join(',');
 
 /**
  * Parse a Sleeper pick announcement such as
@@ -59,7 +60,11 @@ export function extractPicksFromDocument(
         continue;
       }
 
-      const draftedMatch = text.match(/(.+?)\s+drafted\s+(.+)/i);
+      if (element.querySelector(PICK_SELECTOR)) {
+        continue;
+      }
+
+      const draftedMatch = text.match(/^(.+?)\s+drafted\s+(.+)$/i);
       const teamName = draftedMatch?.[1];
       const playerName = draftedMatch?.[2];
       if (teamName && playerName) {

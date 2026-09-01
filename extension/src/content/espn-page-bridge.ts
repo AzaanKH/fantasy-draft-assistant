@@ -3,7 +3,9 @@ import {
   getEspnDraftFrameCommand,
 } from './espn-draft-snapshot';
 
-type UnknownRecord = Record<string, unknown>;
+interface UnknownRecord {
+  [key: string]: unknown;
+}
 
 const ESPN_BRIDGE_SOURCE = 'fantasy-draft-assistant:espn';
 const ESPN_BRIDGE_VERSION = 1;

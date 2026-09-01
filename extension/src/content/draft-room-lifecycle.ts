@@ -66,7 +66,6 @@ export function createDraftRoomLifecycle(
   };
 
   const scanForPicks = () => {
-    scanTimer = null;
     const status = parseDraftRoomUrl(environment.getUrl());
     if (status.provider !== 'sleeper') {
       return;
@@ -88,7 +87,10 @@ export function createDraftRoomLifecycle(
 
   const scheduleScan = (delay: number) => {
     clearScanTimer();
-    scanTimer = environment.setTimeout(scanForPicks, delay);
+    scanTimer = environment.setTimeout(() => {
+      scanTimer = null;
+      scanForPicks();
+    }, delay);
   };
 
   const startSleeperDetection = () => {

@@ -17,6 +17,7 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
         players: [
           { player_id: 1, name: 'Test Runner', position: 'RB', team: 'DET', adp: 12.4 },
           { player_id: 2, name: 'Test Defense', position: 'DST', team: 'BUF', adp: '150.5' },
+          { player_id: 3, name: 'Test Kicker', position: 'PK', team: 'KC', adp: 160 },
         ],
       } as T;
     };
@@ -35,6 +36,7 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
       players: [
         { externalId: '1', position: 'RB', team: 'DET', adp: 12.4 },
         { externalId: '2', position: 'DEF', team: 'BUF', adp: 150.5 },
+        { externalId: '3', position: 'K', team: 'KC', adp: 160 },
       ],
     });
     expect(cached).toBe(first);

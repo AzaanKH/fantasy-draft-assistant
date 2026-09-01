@@ -157,6 +157,7 @@ export type {
 // Sync types
 export {
   DraftSyncEngine,
+  isDraftProvider,
   isDraftMetadata,
   isEspnDraftSnapshot,
   isDraftSyncSnapshot,
@@ -166,6 +167,7 @@ export {
   isSleeperDraftPickList,
   normalizeSleeperDraftMetadata,
   normalizeSleeperPick,
+  normalizePosition,
   resolveSleeperDraftLeagueId,
 } from './sync';
 

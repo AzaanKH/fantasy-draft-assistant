@@ -7,7 +7,9 @@ import type {
   Position,
 } from '@fantasy-draft/shared';
 
-type UnknownRecord = Record<string, unknown>;
+interface UnknownRecord {
+  readonly [key: string]: unknown;
+}
 
 export type EspnDraftFrameCommand =
   | 'INIT'
