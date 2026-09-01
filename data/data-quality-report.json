@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T01:26:12.696Z",
+  "generatedAt": "2026-09-01T18:23:44.955Z",
   "season": 2026,
   "status": "warn",
   "summary": {
@@ -109,7 +109,7 @@
       "id": "fantasypros.projections.freshness",
       "status": "pass",
       "message": "FantasyPros projections are no more than 14 days old.",
-      "actual": 0.17,
+      "actual": 1.88,
       "expected": "<= 14 days"
     },
     {
@@ -246,7 +246,7 @@
     {
       "id": "dependencies.predictions",
       "status": "warn",
-      "message": "Predictions are newer than all current input snapshots."
+      "message": "The prediction artifact (2026-08-29T20:51:39.431Z) is older than Trusted rankings (2026-08-30T21:16:15.990Z)."
     },
     {
       "id": "dependencies.recommendation-policy",
@@ -299,7 +299,7 @@
       "id": "contracts.source-freshness",
       "status": "pass",
       "message": "The upstream nflverse contracts release is no more than 30 days old.",
-      "actual": 1.51,
+      "actual": 3.22,
       "expected": "<= 30 days"
     },
     {

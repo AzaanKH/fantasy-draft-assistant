@@ -259,6 +259,12 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
         unavailableOutcome(definition.key, definition.label),
     ])
   ) as Record<ReleaseCheckKey, ReleaseCheckOutcome>;
+  const completedAt = input.operational?.realProviderRehearsal?.completedAt;
+  const completionTime = typeof completedAt === 'string' ? Date.parse(completedAt) : Number.NaN;
+  const realProviderRehearsalPassed =
+    input.operational?.realProviderRehearsal?.status === 'passed' &&
+    Number.isFinite(completionTime) &&
+    completionTime <= input.now;
   const productBlockingFailures = [
     ...(input.readiness?.productBlockingFailures ?? []),
     ...(input.rehearsal?.status === 'passed'
@@ -268,7 +274,7 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
           label: 'Deterministic product rehearsal',
           message: 'The complete deterministic Primary League rehearsal has not passed.',
         }]),
-    ...(input.operational?.realProviderRehearsal?.status === 'passed'
+    ...(realProviderRehearsalPassed
       ? []
       : [{
           key: 'real-provider-rehearsal',

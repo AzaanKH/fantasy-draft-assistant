@@ -289,7 +289,7 @@ Why:
 
 - Chrome often does not reinject the updated content script into tabs that were already open
 - the extension learns the current provider and draft ID from the content script
-- if the Sleeper tab is not refreshed, the side panel/background may still show the previous draft state
+- if the active provider draft tab is not refreshed, the side panel/background may still show the previous draft state
 
 ### When to refresh the provider page
 
@@ -302,7 +302,7 @@ Refresh the ESPN, Yahoo, or Sleeper draft page when:
 If the extension appears stuck on an old draft:
 
 1. reload the extension
-2. refresh the actual Sleeper draft tab
+2. refresh the active provider draft tab
 3. close and reopen the side panel
 
 ## Using the Web App
