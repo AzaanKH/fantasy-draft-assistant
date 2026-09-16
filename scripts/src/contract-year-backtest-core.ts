@@ -2,19 +2,6 @@ export const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 export type OffensivePosition = (typeof OFFENSIVE_POSITIONS)[number];
 export type ExpectedRole = 'high' | 'medium' | 'low' | 'rookie-unknown';
 
-export interface HistoricalContract {
-  readonly yearSigned: number;
-  readonly contractEndYear: number;
-}
-
-export interface ContractState {
-  readonly contractKnown: boolean;
-  readonly isContractYear: boolean;
-  readonly yearSigned: number | null;
-  readonly contractEndYear: number | null;
-  readonly exclusionReason: 'none' | 'no-prior-contract' | 'ambiguous-latest-contract';
-}
-
 export interface PlayerSeasonRow {
   readonly season: number;
   readonly gsisId: string;
@@ -115,51 +102,6 @@ const STARTER_COUNTS: Record<OffensivePosition, number> = {
 
 function round(value: number, digits: number = 4): number {
   return Number(value.toFixed(digits));
-}
-
-export function reconstructContractState(
-  season: number,
-  contracts: readonly HistoricalContract[]
-): ContractState {
-  const priorContracts = contracts.filter(
-    (contract) =>
-      Number.isInteger(contract.yearSigned) &&
-      Number.isInteger(contract.contractEndYear) &&
-      contract.yearSigned < season
-  );
-  if (priorContracts.length === 0) {
-    return {
-      contractKnown: false,
-      isContractYear: false,
-      yearSigned: null,
-      contractEndYear: null,
-      exclusionReason: 'no-prior-contract',
-    };
-  }
-
-  const latestYearSigned = Math.max(...priorContracts.map((contract) => contract.yearSigned));
-  const latestContracts = priorContracts.filter(
-    (contract) => contract.yearSigned === latestYearSigned
-  );
-  const endYears = [...new Set(latestContracts.map((contract) => contract.contractEndYear))];
-  if (endYears.length !== 1) {
-    return {
-      contractKnown: false,
-      isContractYear: false,
-      yearSigned: latestYearSigned,
-      contractEndYear: null,
-      exclusionReason: 'ambiguous-latest-contract',
-    };
-  }
-
-  const contractEndYear = endYears[0] ?? null;
-  return {
-    contractKnown: contractEndYear !== null,
-    isContractYear: contractEndYear === season,
-    yearSigned: latestYearSigned,
-    contractEndYear,
-    exclusionReason: 'none',
-  };
 }
 
 function baselineFeatures(row: PlayerSeasonRow): number[] {

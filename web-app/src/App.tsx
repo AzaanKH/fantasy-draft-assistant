@@ -16,6 +16,8 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
 import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
 import { useDraftStore } from '@/stores/draftStore';
+import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
 
 const DraftGlossary = React.lazy(() =>
   import('@/features/help/DraftGlossary').then((module) => ({
@@ -56,6 +58,9 @@ export function App(): React.ReactElement {
   const { players, isLoading, dataInfo } = usePlayerDataQuery();
   const keeperStatus = useKeeperPreload(players, isLoading);
   const leagueSettings = useDraftStore((state) => state.leagueSettings);
+  const usePrimaryLeagueSettings = useDraftSyncConnectionStore((state) =>
+    state.connection?.provider === 'sleeper' && state.connection.usePrimaryLeagueSettings === true
+  );
   const totalRounds = useDraftStore((state) => state.config.totalRounds);
   const [readinessNow, setReadinessNow] = React.useState(() => Date.now());
   const readiness = React.useMemo(() => evaluateWorkspaceDraftReadiness({
@@ -64,6 +69,7 @@ export function App(): React.ReactElement {
     leagueSettings,
     totalRounds,
     keeperStatus,
+    usePrimaryLeagueSettings,
   }, readinessNow), [
     dataInfo.readinessSources,
     dataInfo.readinessWarnings,
@@ -71,6 +77,7 @@ export function App(): React.ReactElement {
     leagueSettings,
     readinessNow,
     totalRounds,
+    usePrimaryLeagueSettings,
   ]);
 
   React.useEffect(() => {
@@ -142,6 +149,7 @@ export function App(): React.ReactElement {
         <DraftHeader
           route={route}
           onNavigate={navigate}
+          connectionControl={<DraftConnectionControl readiness={readiness} />}
           secondaryControls={(
             <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
               <DraftGlossary />

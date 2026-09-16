@@ -54,6 +54,18 @@ function policyFactors(
       legalCompletionPossible: true,
       materiallyChangedOrdering: preferred && factor === 'roster-fit',
     },
+    depthValue: {
+      score: preferred ? 4 : 0,
+      minScore: 0,
+      maxScore: 4,
+      positionCount: preferred ? 2 : 5,
+      startersAtPosition: 2,
+      reserveCount: preferred ? 0 : 3,
+      targetReserveCount: 2,
+      reserveDeficit: preferred ? 2 : 0,
+      contingencyPoints: preferred ? 20 : 0,
+      materiallyChangedOrdering: preferred && factor === 'depth-value',
+    },
     tierSupply: {
       score: preferred ? 4 : 0,
       minScore: 0,
@@ -136,6 +148,10 @@ describe('createDraftDecisionOutput', () => {
     {
       factor: 'roster-fit' as const,
       expected: "Roster Builder's RB roster fit matters with 2 starting spots open and 3 selections left",
+    },
+    {
+      factor: 'depth-value' as const,
+      expected: 'Roster Builder adds RB depth with 0 current reserves against a target of 2',
     },
     {
       factor: 'tier-supply' as const,

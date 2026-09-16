@@ -26,6 +26,9 @@ export function getRecommendationExplanation(
     const rosterSentence = factors.rosterFit.score > 1
       ? `Roster fit adds ${factors.rosterFit.score.toFixed(1)} policy points with ${String(factors.rosterFit.fixedStartersOpen)} ${fixedStarterLabel} and ${String(factors.rosterFit.flexSlotsOpen)} ${flexLabel} open.`
       : `Roster fit adds ${factors.rosterFit.score.toFixed(1)} policy point for bench depth.`;
+    const depthSentence = factors.depthValue.score > 0
+      ? `Depth Value adds ${factors.depthValue.score.toFixed(1)} policy points because the roster has ${String(factors.depthValue.reserveCount)} ${recommendation.position} reserves against a target of ${String(factors.depthValue.targetReserveCount)} and recovers ${factors.depthValue.contingencyPoints.toFixed(1)} projected points on average when a starter is unavailable.${factors.depthValue.materiallyChangedOrdering ? ' That bench protection changed Best Pick.' : ''}`
+      : '';
     const tierSupplySentence = factors.tierSupply.score > 0
       ? `Tier supply adds ${factors.tierSupply.costOfWaiting.toFixed(1)} cost-of-waiting points with ${String(factors.tierSupply.remainingInTier)} left in ${recommendation.position} Tier ${String(factors.tierSupply.currentTier)} and a ${factors.tierSupply.dropoffPoints.toFixed(1)} point drop to the next tier.${factors.tierSupply.materiallyChangedOrdering ? ' That tier cliff changed Best Pick.' : ''}`
       : '';
@@ -44,7 +47,7 @@ export function getRecommendationExplanation(
       ? `The normal ECR window had no pick that could still complete a legal roster, so the policy used its roster-feasibility exception. `
       : '';
 
-    return `${recommendation.playerName} is anchored at ECR #${String(factors.playerQuality.ecrRank)}. ${valueSentence} ${rosterSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
+    return `${recommendation.playerName} is anchored at ECR #${String(factors.playerQuality.ecrRank)}. ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
       .replace(/\s+/g, ' ')
       .trim();
   }

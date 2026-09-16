@@ -8,13 +8,15 @@ export function DraftHeader({
   route,
   onNavigate,
   secondaryControls,
+  connectionControl,
 }: {
   readonly route: AppRoute;
   readonly onNavigate: (route: AppRoute) => void;
   readonly secondaryControls?: React.ReactNode;
+  readonly connectionControl?: React.ReactNode;
 }): React.ReactElement {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+    <header className="draft-app-header sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="flex h-16 w-full items-center justify-between gap-2 px-2 sm:gap-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-1 sm:gap-5">
           <div className="hidden items-center gap-2 text-sm font-bold sm:flex sm:text-base">
@@ -33,7 +35,7 @@ export function DraftHeader({
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <LayoutGrid className="size-4" /> Draft
+              <LayoutGrid className="size-4" /> Draft workspace
             </button>
             <button
               type="button"
@@ -50,13 +52,14 @@ export function DraftHeader({
             </button>
           </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+          {connectionControl}
           {secondaryControls ? (
-            <div className="hidden items-center gap-2 md:flex">
+            <div className="hidden items-center gap-2 xl:flex">
               {secondaryControls}
             </div>
           ) : null}
-          <ThemeMenu compact />
+          <ThemeMenu />
         </div>
       </div>
     </header>

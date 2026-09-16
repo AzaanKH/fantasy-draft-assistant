@@ -1,345 +1,30 @@
-/**
- * Player Data Hook
- *
- * Loads and transforms player data from multiple sources:
- * - ECR rankings from FantasyPros
- * - ADP from Sleeper
- * - Team environment data
- * - Contract year data
- *
- * Applies filtering, sorting, and drafted player exclusion.
- */
-
-import {
-  createContext,
-  createElement,
-  useContext,
-  useMemo,
-  type ReactNode,
-} from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { mergeCoreSources, type CorePlayerDataSources } from '@/lib/calculations/recommendation-player-variants';
+import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
+import { useDraftStore } from '@/stores/draftStore';
 import type {
   DraftReadinessSourceObservation,
   DraftReadinessWarningInput,
-  FantasyProsSnapshot,
-  MarketAdpFormat,
-  MarketAdpSnapshot,
-  Player,
-  PlayerPrediction,
-  Position,
   NFLTeam,
-  SportsbookSnapshot,
   TeamEnvironment,
 } from '@fantasy-draft/shared';
+import { evaluateDraftReadiness } from '@fantasy-draft/shared';
+import { useQuery } from '@tanstack/react-query';
+import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
+
+import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import {
-  evaluateDraftReadiness,
-  isNFLTeam,
-  isMarketAdpSnapshot,
-  isPosition,
-  isPredictionSource,
-  isSportsbookSnapshot,
-} from '@fantasy-draft/shared';
-import {
-  buildRecommendationPlayerVariants,
-  filterByPosition,
-  filterDrafted,
-  sortPlayers,
-  type SleeperADPPlayer,
-  type ContractPlayerData,
-  type PlayerIdentityData,
-} from '@/lib/calculations';
-import { useDraftStore } from '@/stores/draftStore';
-import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
-import { fantasyProsProvider } from '@/lib/providers/fantasypros';
-import {
-  createDataFreshnessItem,
-  type DataFreshnessItem,
-} from '@/lib/data-freshness';
-
-/**
- * Sleeper ADP JSON file structure
- */
-interface SleeperDataFile {
-  fetchedAt: string;
-  source: string;
-  playerCount: number;
-  players: SleeperADPPlayer[];
-}
-
-/**
- * Team environment JSON file structure
- */
-interface TeamEnvDataFile {
-  generatedAt: string;
-  season: number;
-  teamCount: number;
-  teams: Record<NFLTeam, TeamEnvironment>;
-}
-
-/**
- * Contract data JSON file structure
- */
-interface ContractDataFile {
-  generatedAt?: string | null;
-  scrapedAt?: string | null;
-  contractYear: number;
-  playerCount: number;
-  players: ContractPlayerData[];
-}
-
-interface PredictionsDataFile {
-  generatedAt: string | null;
-  modelVersion: string;
-  players: PlayerPrediction[];
-}
-
-interface PlayerIdentityFile {
-  generatedAt: string;
-  season: number;
-  coverage: {
-    fantasyProsRankingMatchRate: number;
-    matchedDefenses: number;
-  };
-  players: PlayerIdentityData[];
-}
-
-interface RecommendationPolicyFile {
-  generatedAt: string;
-  modelVersion: string;
-  modelPredictionsEnabled: boolean;
-  contractSignalEnabled: boolean;
-  pickEvOverrideEnabled: boolean;
-  pickEvOverrideThreshold: number;
-  fallback: 'model' | 'fantasypros-ecr-market';
-  shadowLogging: {
-    enabled: boolean;
-    season: number;
-    endpoint: string;
-  };
-  reason: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isContractDataFile(value: unknown): value is ContractDataFile {
-  return (
-    isRecord(value) &&
-    (value['generatedAt'] === undefined ||
-      value['generatedAt'] === null ||
-      typeof value['generatedAt'] === 'string') &&
-    (value['scrapedAt'] === undefined ||
-      value['scrapedAt'] === null ||
-      typeof value['scrapedAt'] === 'string') &&
-    typeof value['contractYear'] === 'number' &&
-    Number.isFinite(value['contractYear']) &&
-    typeof value['playerCount'] === 'number' &&
-    Number.isFinite(value['playerCount']) &&
-    Array.isArray(value['players']) &&
-    value['players'].every((player) =>
-      isRecord(player) &&
-      typeof player['name'] === 'string' &&
-      isPosition(player['position']) &&
-      isNFLTeam(player['team']) &&
-      typeof player['contractEndYear'] === 'number' &&
-      Number.isFinite(player['contractEndYear']) &&
-      typeof player['isContractYear'] === 'boolean'
-    )
-  );
-}
-
-function isPredictionsDataFile(value: unknown): value is PredictionsDataFile {
-  return (
-    isRecord(value) &&
-    (value['generatedAt'] === null || typeof value['generatedAt'] === 'string') &&
-    typeof value['modelVersion'] === 'string' &&
-    value['modelVersion'].length > 0 &&
-    Array.isArray(value['players']) &&
-    value['players'].every((player) =>
-      isRecord(player) &&
-      typeof player['name'] === 'string' &&
-      isPosition(player['position']) &&
-      isNFLTeam(player['team']) &&
-      typeof player['projectedPoints'] === 'number' &&
-      Number.isFinite(player['projectedPoints']) &&
-      isPredictionSource(player['source'])
-    )
-  );
-}
-
-function isPlayerIdentityFile(value: unknown): value is PlayerIdentityFile {
-  return (
-    isRecord(value) &&
-    typeof value['generatedAt'] === 'string' &&
-    typeof value['season'] === 'number' &&
-    Number.isFinite(value['season']) &&
-    isRecord(value['coverage']) &&
-    typeof value['coverage']['fantasyProsRankingMatchRate'] === 'number' &&
-    Number.isFinite(value['coverage']['fantasyProsRankingMatchRate']) &&
-    typeof value['coverage']['matchedDefenses'] === 'number' &&
-    Number.isFinite(value['coverage']['matchedDefenses']) &&
-    Array.isArray(value['players'])
-  );
-}
-
-const SAFE_RECOMMENDATION_POLICY: RecommendationPolicyFile = {
-  generatedAt: '1970-01-01T00:00:00.000Z',
-  modelVersion: 'safe-ecr-fallback',
-  modelPredictionsEnabled: false,
-  contractSignalEnabled: false,
-  pickEvOverrideEnabled: false,
-  pickEvOverrideThreshold: 0,
-  fallback: 'fantasypros-ecr-market',
-  shadowLogging: {
-    enabled: false,
-    season: 2026,
-    endpoint: '/api/shadow-recommendations',
-  },
-  reason: 'Recommendation policy unavailable; using the safe ECR fallback.',
-};
-
-function isRecommendationPolicyFile(value: unknown): value is RecommendationPolicyFile {
-  return (
-    isRecord(value) &&
-    typeof value['generatedAt'] === 'string' &&
-    typeof value['modelVersion'] === 'string' &&
-    typeof value['modelPredictionsEnabled'] === 'boolean' &&
-    typeof value['contractSignalEnabled'] === 'boolean' &&
-    typeof value['pickEvOverrideEnabled'] === 'boolean' &&
-    typeof value['pickEvOverrideThreshold'] === 'number' &&
-    Number.isFinite(value['pickEvOverrideThreshold']) &&
-    (value['fallback'] === 'model' || value['fallback'] === 'fantasypros-ecr-market') &&
-    isRecord(value['shadowLogging']) &&
-    typeof value['shadowLogging']['enabled'] === 'boolean' &&
-    typeof value['shadowLogging']['season'] === 'number' &&
-    Number.isFinite(value['shadowLogging']['season']) &&
-    typeof value['shadowLogging']['endpoint'] === 'string' &&
-    typeof value['reason'] === 'string'
-  );
-}
-
-/**
- * Fetch FantasyPros snapshot data
- */
-async function fetchFantasyProsSnapshot(): Promise<FantasyProsSnapshot> {
-  return fantasyProsProvider.getSnapshot();
-}
-
-/**
- * Fetch Sleeper ADP data
- */
-async function fetchSleeperData(): Promise<SleeperDataFile> {
-  const response = await fetch('/data/sleeper-adp.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load Sleeper data: ${String(response.status)}`);
-  }
-  return response.json() as Promise<SleeperDataFile>;
-}
-
-/**
- * Fetch team environment data
- */
-async function fetchTeamEnvData(): Promise<TeamEnvDataFile> {
-  const response = await fetch('/data/team-environment.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load team environment data: ${String(response.status)}`);
-  }
-  return response.json() as Promise<TeamEnvDataFile>;
-}
-
-/**
- * Fetch contract year data
- */
-async function fetchContractData(): Promise<ContractDataFile> {
-  const response = await fetch('/data/contracts.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load contract data: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isContractDataFile(parsed)) {
-    throw new Error('Invalid contract data format');
-  }
-  return parsed;
-}
-
-async function fetchPredictionData(): Promise<PredictionsDataFile> {
-  const response = await fetch('/data/predictions.json');
-  if (response.status === 404) {
-    return { generatedAt: null, modelVersion: 'none', players: [] };
-  }
-  if (!response.ok) {
-    throw new Error(`Failed to load prediction data: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isPredictionsDataFile(parsed)) {
-    throw new Error('Invalid prediction data format');
-  }
-  return parsed;
-}
-
-async function fetchPlayerIdentityData(): Promise<PlayerIdentityFile> {
-  const response = await fetch('/data/player-identity.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load player identity data: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isPlayerIdentityFile(parsed)) {
-    throw new Error('Invalid player identity data format');
-  }
-  return parsed;
-}
-
-async function fetchRecommendationPolicy(): Promise<RecommendationPolicyFile> {
-  const response = await fetch('/data/recommendation-policy.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load recommendation policy: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isRecommendationPolicyFile(parsed)) {
-    throw new Error('Invalid recommendation policy format');
-  }
-  return parsed;
-}
-
-async function fetchSportsbookSnapshot(): Promise<SportsbookSnapshot> {
-  const response = await fetch('/api/draft-data/sportsbook');
-  if (!response.ok) {
-    throw new Error(`Failed to load sportsbook data: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isSportsbookSnapshot(parsed)) {
-    throw new Error('Invalid sportsbook data format');
-  }
-  return parsed;
-}
-
-function getMarketAdpFormat(receptions: number): MarketAdpFormat {
-  if (receptions >= 0.75) return 'ppr';
-  if (receptions >= 0.25) return 'half-ppr';
-  return 'standard';
-}
-
-async function fetchMarketAdp(
-  format: MarketAdpFormat,
-  teams: number,
-  season: number
-): Promise<MarketAdpSnapshot> {
-  const params = new URLSearchParams({
-    format,
-    teams: String(teams),
-    season: String(season),
-  });
-  const response = await fetch(`/api/market-adp?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Failed to load Fantasy Football Calculator ADP: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isMarketAdpSnapshot(parsed)) {
-    throw new Error('Invalid Fantasy Football Calculator ADP format');
-  }
-  return parsed;
-}
+  fetchContractData,
+  fetchFantasyProsSnapshot,
+  fetchMarketAdp,
+  fetchPlayerIdentityData,
+  fetchPredictionData,
+  fetchRecommendationPolicy,
+  fetchSleeperData,
+  fetchSportsbookSnapshot,
+  fetchTeamEnvData,
+  getMarketAdpFormat,
+} from '@/lib/player-data/queries';
 
 /**
  * Hook to load and merge all player data sources
@@ -368,17 +53,13 @@ function useLivePlayerDataQuery() {
     staleTime: Infinity,
   });
 
+  const connection = useDraftSyncConnectionStore((state) => state.connection);
   const contractQuery = useQuery({
     queryKey: ['contracts'],
     queryFn: fetchContractData,
     staleTime: Infinity,
   });
 
-  const predictionQuery = useQuery({
-    queryKey: ['predictions'],
-    queryFn: fetchPredictionData,
-    staleTime: Infinity,
-  });
   const identityQuery = useQuery({
     queryKey: ['player-identity'],
     queryFn: fetchPlayerIdentityData,
@@ -388,6 +69,14 @@ function useLivePlayerDataQuery() {
     queryKey: ['recommendation-policy'],
     queryFn: fetchRecommendationPolicy,
     staleTime: Infinity,
+  });
+  const predictionQuery = useQuery({
+    queryKey: ['predictions'],
+    queryFn: fetchPredictionData,
+    staleTime: Infinity,
+    enabled: recommendationPolicyQuery.data?.shadowLogging.enabled === true &&
+      connection?.draftPosition != null &&
+      fantasyProsQuery.isSuccess && identityQuery.isSuccess,
   });
   const sportsbookQuery = useQuery({
     queryKey: ['sportsbook-snapshot'],
@@ -549,9 +238,6 @@ function useLivePlayerDataQuery() {
   const predictionsReady = optionalReadiness.optionalSignals.find(
     (item) => item.key === 'experimental-predictions'
   )?.status === 'ready';
-  const contractsReady = optionalReadiness.optionalSignals.find(
-    (item) => item.key === 'contract-context'
-  )?.status === 'ready';
   const sportsbookReady = optionalReadiness.optionalSignals.find(
     (item) => item.key === 'sportsbook-context'
   )?.status === 'ready';
@@ -643,11 +329,7 @@ function useLivePlayerDataQuery() {
   ]);
   const sportsbookIsFresh = sportsbookReady;
   const isLoading =
-    fantasyProsQuery.isLoading ||
-    sleeperQuery.isLoading ||
-    teamEnvQuery.isLoading ||
-    identityQuery.isLoading ||
-    recommendationPolicyQuery.isLoading;
+    fantasyProsQuery.isLoading || identityQuery.isLoading;
 
   const isError =
     fantasyProsQuery.isError ||
@@ -656,27 +338,15 @@ function useLivePlayerDataQuery() {
   const error =
     fantasyProsQuery.error ?? identityQuery.error;
 
-  // Merge all data sources into Player objects
-  const playerVariants = useMemo(() => {
-    if (
-      !fantasyProsQuery.data ||
-      !identityQuery.data
-    ) {
-      return {
-        players: [],
-        shadowPlayers: [],
-        contractContext: [],
-        sportsbookSnapshot: undefined,
-      };
-    }
-
-    return buildRecommendationPlayerVariants({
+  // Optional evidence must not change the core player array's identity.
+  const coreSources = useMemo<CorePlayerDataSources | null>(() => {
+    if (!fantasyProsQuery.data || !identityQuery.data) return null;
+    return {
       rankings: fantasyProsQuery.data.rankings,
       projections: fantasyProsQuery.data.projections,
       news: fantasyProsQuery.data.news,
       sleeperPlayers: sleeperQuery.data?.players ?? [],
-      teamEnvironments:
-        teamEnvQuery.data?.teams ?? {} as Record<NFLTeam, TeamEnvironment>,
+      teamEnvironments: teamEnvQuery.data?.teams ?? {} as Record<NFLTeam, TeamEnvironment>,
       fantasyProsAdp: fantasyProsQuery.data.adp ?? [],
       identities: identityQuery.data.players,
       leagueContext: {
@@ -685,21 +355,20 @@ function useLivePlayerDataQuery() {
         totalTeams,
         rosterRequirements,
       },
-    }, {
-      experimentalPredictions: predictionQuery.data?.players ?? [],
-      experimentalPredictionsReady: predictionsReady,
-      shadowLoggingEnabled: effectiveRecommendationPolicy.shadowLogging.enabled,
-      contractContext: contractQuery.data?.players ?? [],
-      contractContextReady: contractsReady,
-      sportsbookSnapshot: sportsbookQuery.data,
-      sportsbookContextReady: sportsbookReady,
-    });
-  }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, contractsReady, predictionQuery.data, predictionsReady, identityQuery.data, effectiveRecommendationPolicy.shadowLogging.enabled, leagueSettings.scoringRules, marketAdpQuery.data?.players, rosterRequirements, sportsbookQuery.data, sportsbookReady, totalTeams]);
+    };
+  }, [fantasyProsQuery.data, identityQuery.data, sleeperQuery.data, teamEnvQuery.data,
+    marketAdpQuery.data?.players, leagueSettings.scoringRules, totalTeams, rosterRequirements]);
+  const players = useMemo(() => coreSources ? mergeCoreSources(coreSources, []) : [], [coreSources]);
+  const shadowPlayers = useMemo(() =>
+    coreSources && predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled
+      ? mergeCoreSources(coreSources, predictionQuery.data?.players ?? [])
+      : [],
+  [coreSources, predictionsReady, effectiveRecommendationPolicy.shadowLogging.enabled, predictionQuery.data?.players]);
 
   return {
-    players: playerVariants.players,
-    shadowPlayers: playerVariants.shadowPlayers,
-    sportsbookSnapshot: playerVariants.sportsbookSnapshot,
+    players,
+    shadowPlayers,
+    sportsbookSnapshot: sportsbookReady ? sportsbookQuery.data : undefined,
     isLoading,
     isError,
     error,
@@ -772,123 +441,4 @@ export function usePlayerDataQuery(): PlayerDataQueryResult {
     throw new Error('usePlayerDataQuery must be used inside a player data provider');
   }
   return context;
-}
-
-/**
- * Hook to get filtered and sorted player data
- * Combines data loading with draft store state
- */
-export function useFilteredPlayers() {
-  const { players, isLoading, isError, error, dataInfo } = usePlayerDataQuery();
-
-  const filter = useDraftStore((state) => state.filter);
-  const sort = useDraftStore((state) => state.sort);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const effectiveKeepers = useMemo(
-    () => getEffectiveKeeperAssignments(preloadedKeepers, draftHistory, totalTeams),
-    [draftHistory, preloadedKeepers, totalTeams]
-  );
-  const draftedPlayers = useMemo(
-    () => [...draftHistory, ...effectiveKeepers],
-    [draftHistory, effectiveKeepers]
-  );
-
-  const filteredPlayers = useMemo(() => {
-    let result = players;
-
-    // Filter by position
-    result = filterByPosition(result, filter.position);
-
-    // Filter out drafted players
-    result = filterDrafted(result, draftedPlayerIds, draftedPlayers);
-
-    // Filter by search query
-    if (filter.searchQuery.trim()) {
-      const query = filter.searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.team.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort
-    result = sortPlayers(result, sort.field, sort.direction);
-
-    return result;
-  }, [players, filter, sort, draftedPlayerIds, draftedPlayers]);
-
-  return {
-    players: filteredPlayers,
-    totalCount: players.length,
-    filteredCount: filteredPlayers.length,
-    isLoading,
-    isError,
-    error,
-    dataInfo,
-  };
-}
-
-/**
- * Hook to get position-specific statistics
- */
-export function usePositionStats() {
-  const { players } = usePlayerDataQuery();
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const effectiveKeepers = useMemo(
-    () => getEffectiveKeeperAssignments(preloadedKeepers, draftHistory, totalTeams),
-    [draftHistory, preloadedKeepers, totalTeams]
-  );
-  const draftedPlayers = useMemo(
-    () => [...draftHistory, ...effectiveKeepers],
-    [draftHistory, effectiveKeepers]
-  );
-  const availablePlayerIds = useMemo(
-    () => new Set(
-      filterDrafted(players, draftedPlayerIds, draftedPlayers)
-        .map((player) => player.id)
-    ),
-    [draftedPlayerIds, draftedPlayers, players]
-  );
-
-  return useMemo(() => {
-    const positions: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-    const stats: Record<Position, { total: number; available: number }> = {
-      QB: { total: 0, available: 0 },
-      RB: { total: 0, available: 0 },
-      WR: { total: 0, available: 0 },
-      TE: { total: 0, available: 0 },
-      K: { total: 0, available: 0 },
-      DEF: { total: 0, available: 0 },
-    };
-
-    for (const player of players) {
-      const pos = player.position;
-      if (positions.includes(pos)) {
-        stats[pos].total += 1;
-        if (availablePlayerIds.has(player.id)) {
-          stats[pos].available += 1;
-        }
-      }
-    }
-
-    return stats;
-  }, [availablePlayerIds, players]);
-}
-
-/**
- * Hook to get a specific player by ID
- */
-export function usePlayer(playerId: string): Player | undefined {
-  const { players } = usePlayerDataQuery();
-  return useMemo(
-    () => players.find((p) => p.id === playerId),
-    [players, playerId]
-  );
 }

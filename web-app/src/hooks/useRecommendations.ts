@@ -298,38 +298,3 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     ),
   };
 }
-
-/**
- * Hook to get the single best recommendation for the current situation
- */
-export function useTopRecommendation(): {
-  recommendation: Recommendation | null;
-  isLoading: boolean;
-} {
-  const { topPick, isLoading } = useRecommendations(1);
-  return {
-    recommendation: topPick,
-    isLoading,
-  };
-}
-
-/**
- * Hook to get best available players at a specific position
- *
- * @param position - Position to filter by
- * @param limit - Maximum number of recommendations (default: 5)
- */
-export function usePositionRecommendations(
-  position: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF',
-  limit: number = 5
-): {
-  recommendations: readonly Recommendation[];
-  isLoading: boolean;
-} {
-  const { positionRecommendationStates, isLoading } = useRecommendations(limit);
-
-  return {
-    recommendations: positionRecommendationStates[position].recommendations,
-    isLoading,
-  };
-}

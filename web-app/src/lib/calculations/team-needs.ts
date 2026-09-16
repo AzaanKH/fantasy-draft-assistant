@@ -171,23 +171,3 @@ export function getCriticalPositions(needs: readonly PositionNeed[]): Position[]
     .filter((n) => n.priority === 'critical' || n.priority === 'high')
     .map((n) => n.position);
 }
-
-/**
- * Check if a specific position is a need
- *
- * @param needs - Array of position needs
- * @param position - Position to check
- * @returns True if position has critical, high, or medium priority
- */
-export function isPositionNeed(
-  needs: readonly PositionNeed[],
-  position: Position
-): boolean {
-  const need = needs.find((n) => n.position === position);
-  return (
-    need !== undefined &&
-    need.priority !== 'low' &&
-    need.priority !== 'defer' &&
-    need.priority !== 'filled'
-  );
-}

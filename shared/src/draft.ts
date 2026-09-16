@@ -72,24 +72,6 @@ export const DEFAULT_ROSTER_REQUIREMENTS: RosterRequirements = {
 } as const;
 
 /**
- * Current state of the draft
- */
-export interface DraftState {
-  /** Set of player IDs that have been drafted */
-  readonly draftedPlayerIds: ReadonlySet<string>;
-  /** Current user's roster */
-  readonly myRoster: Roster;
-  /** Current pick number (1-indexed) */
-  readonly currentPick: number;
-  /** Total picks in the draft */
-  readonly totalPicks: number;
-  /** User's position in snake draft (1-10) */
-  readonly myPickPosition: number;
-  /** Whether it's currently the user's turn to pick */
-  readonly isMyTurn: boolean;
-}
-
-/**
  * Individual draft pick record
  */
 export interface DraftPick {
@@ -165,6 +147,21 @@ export interface RecommendationDecisionFactors {
     readonly selectionsRemaining: number;
     readonly legalCompletionPossible: boolean;
     readonly materiallyChangedOrdering?: boolean;
+  };
+  readonly depthValue: {
+    readonly score: number;
+    readonly minScore: number;
+    readonly maxScore: number;
+    /** Current players at the candidate's position. */
+    readonly positionCount: number;
+    /** Players at the candidate's position in the current optimal lineup. */
+    readonly startersAtPosition: number;
+    readonly reserveCount: number;
+    readonly targetReserveCount: number;
+    readonly reserveDeficit: number;
+    /** Average projected points recovered when a current starter is unavailable. */
+    readonly contingencyPoints: number;
+    readonly materiallyChangedOrdering: boolean;
   };
   readonly tierSupply: {
     readonly score: number;
@@ -287,6 +284,7 @@ export type DecisionLens = (typeof DECISION_LENSES)[number];
 export const DECISION_DIVERGENCE_FACTORS = [
   'league-value',
   'roster-fit',
+  'depth-value',
   'tier-supply',
   'draft-timing',
 ] as const;
@@ -305,23 +303,6 @@ export interface DecisionOutput {
   readonly decisionDivergence: boolean;
   readonly decisionDivergenceFactor: DecisionDivergenceFactor | null;
   readonly decisionDivergenceExplanation: string | null;
-}
-
-/**
- * Creates the initial draft state
- */
-export function createInitialDraftState(
-  totalPicks: number,
-  myPickPosition: number
-): DraftState {
-  return {
-    draftedPlayerIds: new Set<string>(),
-    myRoster: createEmptyRoster(),
-    currentPick: 1,
-    totalPicks,
-    myPickPosition,
-    isMyTurn: myPickPosition === 1,
-  };
 }
 
 /**

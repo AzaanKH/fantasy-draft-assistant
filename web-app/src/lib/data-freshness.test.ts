@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDataFreshnessItem, formatDataAge } from './data-freshness';
+import { createDataFreshnessItem } from './data-freshness';
 
 const NOW = Date.parse('2026-08-08T12:00:00Z');
 
@@ -39,13 +39,5 @@ describe('createDataFreshnessItem', () => {
     expect(expired.isFresh).toBe(false);
     expect(missing.isFresh).toBe(false);
     expect(missing.ageHours).toBeNull();
-  });
-});
-
-describe('formatDataAge', () => {
-  it('formats unknown, hourly, and daily ages', () => {
-    expect(formatDataAge(null)).toBe('unknown age');
-    expect(formatDataAge(4.9)).toBe('4h old');
-    expect(formatDataAge(73)).toBe('3d old');
   });
 });

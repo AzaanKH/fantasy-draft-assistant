@@ -49,7 +49,7 @@ export interface RecommendationPlayerVariants {
   readonly sportsbookSnapshot?: SportsbookSnapshot;
 }
 
-function mergeCoreSources(
+export function mergeCoreSources(
   sources: CorePlayerDataSources,
   modelPredictions: readonly PlayerPrediction[]
 ): Player[] {

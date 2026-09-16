@@ -12,7 +12,6 @@ import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
 import { blocksProviderIdentityRecommendations } from '@/features/recommendations/DraftDecisionContext';
-import { DecisionLensSwitcher } from './DecisionLensSwitcher';
 import { ProviderIdentityBlockedNotice } from './ProviderIdentityBlockedNotice';
 import { ReconciliationSummary } from './ReconciliationSummary';
 
@@ -157,7 +156,7 @@ describe('Draft Workspace decision integration', () => {
     useDraftSyncConnectionStore.getState().disconnect();
   });
 
-  it('flows confirmed draft state through Recommendations and the rendered Decision Lens interface', () => {
+  it('updates recommendations when the decision lens or confirmed picks change', () => {
     const initial = calculateFromDraftState();
     expect(initial).toMatchObject({
       bestPick: { playerId: 'roster-rb' },
@@ -171,43 +170,14 @@ describe('Draft Workspace decision integration', () => {
       'Prefer Roster Builder over ECR Leader because Roster Builder is +45 points above replacement, 43 more than ECR Leader in this league, while ECR Leader remains Best Player at ECR #1.'
     );
 
-    const initialMarkup = renderToStaticMarkup(
-      React.createElement(DecisionLensSwitcher, {
-        output: initial,
-        onChange: () => undefined,
-      })
-    );
-    expect(initialMarkup).toContain('Best Pick');
-    expect(initialMarkup).toContain('Roster Builder');
-    expect(initialMarkup).toContain('Best Player');
-    expect(initialMarkup).toContain('ECR Leader');
-    expect(initialMarkup).toContain('Decision Divergence');
-    expect(initialMarkup).toContain('Preferred');
-    expect(initialMarkup).toContain('43 more than ECR Leader in this league');
-    expect(initialMarkup).toContain('ECR Leader remains Best Player at ECR #1');
-    expect(initialMarkup).toContain('preparation, mock rehearsal, and the live Primary League draft');
-    expect(initialMarkup).toContain('never submits, queues, or confirms a provider pick');
-
     const stateBeforeSwitch = useDraftStore.getState();
     const connectedBeforeSwitch = useDraftSyncConnectionStore.getState().connection;
     stateBeforeSwitch.setDecisionLens('best-player');
     const stateAfterSwitch = useDraftStore.getState();
     const switched = calculateFromDraftState();
-    const switchedMarkup = renderToStaticMarkup(
-      React.createElement(DecisionLensSwitcher, {
-        output: switched,
-        onChange: () => undefined,
-      })
-    );
-
     expect(switched.selected?.playerId).toBe('ecr-leader');
     expect(switched.bestPick?.playerId).toBe('roster-rb');
     expect(switched.bestPlayer?.playerId).toBe('ecr-leader');
-    expect(switchedMarkup).toContain('Roster Builder');
-    expect(switchedMarkup).toContain('ECR Leader');
-    expect(switchedMarkup).toContain('Preferred');
-    expect(switchedMarkup).toContain('Viewing');
-    expect(switchedMarkup).toContain('43 more than ECR Leader in this league');
     expect(stateAfterSwitch.currentPick).toBe(stateBeforeSwitch.currentPick);
     expect(stateAfterSwitch.myRoster).toEqual(stateBeforeSwitch.myRoster);
     expect([...stateAfterSwitch.draftedPlayerIds]).toEqual([

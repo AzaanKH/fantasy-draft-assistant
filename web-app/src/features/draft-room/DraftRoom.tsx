@@ -1,15 +1,12 @@
 import * as React from 'react';
 import { CheckCircle2, CircleAlert } from 'lucide-react';
-import { StatePulseDot } from '@/components/motion';
 import { RouteSkeleton } from '@/components/skeletons';
 import type { DraftReadinessReport } from '@fantasy-draft/shared';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { DraftConnect } from '@/features/draft-board/DraftConnect';
 import { MockDraftControls } from '@/features/draft-board/MockDraftControls';
-import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn } from '@/lib/utils';
 import { useDraftSessionMode, useDraftStore } from '@/stores/draftStore';
 import { DraftBoard } from './DraftBoard';
@@ -82,94 +79,19 @@ export function DraftRoom({
 }): React.ReactElement {
   const { players, isLoading, dataInfo } = usePlayerDataQuery();
   const sessionMode = useDraftSessionMode();
-  const { sync, synchronizationState } = useLiveDraftSync();
+  const { sync } = useLiveDraftSync();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const totalPicks = config.totalTeams * config.totalRounds;
-  const picksUntilMyTurn = getPicksUntilMyTurn(
-    currentPick,
-    config.myPickPosition,
-    config.totalTeams,
-    config.totalRounds
-  );
-  const liveModeDotClass = {
-    confirmed: 'text-emerald-500',
-    complete: 'text-emerald-500',
-    reconciling: 'text-sky-500',
-    delayed: 'text-amber-500',
-    'manual-continuity': 'text-amber-500',
-    disconnected: 'text-muted-foreground/50',
-  }[synchronizationState];
-
   if (isLoading) {
     return <RouteSkeleton route="draft" />;
   }
 
-  const sessionLabel = sessionMode === 'mock'
-    ? 'Mock draft'
-    : sessionMode === 'live'
-      ? synchronizationState === 'manual-continuity'
-        ? 'Manual Continuity'
-        : 'Live draft'
-      : 'Draft room preview';
-
   return (
-    <main className="w-full space-y-4 px-3 py-4 sm:px-4">
-      <section className="flex min-h-12 flex-col gap-3 border-y border-border/65 bg-muted/20 px-4 py-2.5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="flex items-center gap-2">
-            <StatePulseDot
-              motionKey={`${sessionMode}:${synchronizationState}`}
-              className={sessionMode === 'live' ? liveModeDotClass : 'text-muted-foreground/50'}
-            />
-            <span className="text-xs font-semibold text-muted-foreground">{sessionLabel}</span>
-          </div>
-          <div className="h-5 w-px bg-border" />
-          <div className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300">
-            {currentPick > totalPicks
-              ? 'Draft complete'
-              : `Pick ${formatRoundPick(currentPick, config.totalTeams)} · #${String(currentPick)}`}
-          </div>
-          <div className="hidden h-5 w-px bg-border md:block" />
-          <div className="text-xs text-muted-foreground">
-            {String(config.totalTeams)} teams · {String(config.totalRounds)} rounds · Snake
-          </div>
+    <main className="draft-workspace w-full space-y-4 px-3 py-4 sm:px-4">
+      {sessionMode !== 'live' ? (
+        <div className="flex justify-end">
+          <MockDraftControls players={players} isMockReady={keeperStatus.isMockReady} sessionMode={sessionMode} />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="hidden text-xs font-bold text-emerald-700 md:inline-flex dark:text-emerald-300">
-            {picksUntilMyTurn === 0
-              ? 'Your pick now'
-              : picksUntilMyTurn === null
-                ? 'Draft complete'
-                : `Your pick in ${String(picksUntilMyTurn)}`}
-          </span>
-          <div className="hidden h-5 w-px bg-border md:block" />
-          {sessionMode === 'live' ? (
-            <DraftConnect
-              fantasyProsRefreshedAt={dataInfo.fantasyProsRefreshedAt}
-              sleeperFetchedAt={dataInfo.sleeperFetchedAt}
-              fantasyProsSourceType={dataInfo.fantasyProsSourceType}
-              predictionModelVersion={dataInfo.predictionModelVersion}
-              predictionGeneratedAt={dataInfo.predictionGeneratedAt}
-              shadowRecommendationAvailable={dataInfo.shadowRecommendationAvailable}
-              recommendationPolicyReason={dataInfo.recommendationPolicyReason}
-              dataFreshness={dataInfo.dataFreshness}
-              readiness={readiness}
-              variant="status-control"
-            />
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="size-3.5" />
-              {sessionMode === 'mock' ? 'Mock active' : 'Preview ready'}
-            </span>
-          )}
-          <MockDraftControls
-            players={players}
-            isMockReady={keeperStatus.isMockReady}
-            sessionMode={sessionMode}
-          />
-        </div>
-      </section>
+      ) : null}
 
       {sessionMode === 'live' && sync.reconciliationSummary ? (
         <ReconciliationSummary
@@ -204,10 +126,8 @@ export function DraftRoom({
       ) : null}
 
       <div className="min-w-0 space-y-4">
-        <div className="sticky top-[4.5rem] z-[35]">
-          <DraftDecisionBar onOpenAssistant={onOpenAssistant} />
-        </div>
         <DraftBoard />
+        <DraftDecisionBar compact onOpenAssistant={onOpenAssistant} />
         <DraftDock onOpenAssistant={onOpenAssistant} />
       </div>
     </main>

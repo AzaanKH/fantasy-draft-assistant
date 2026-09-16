@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Recommendation } from '@fantasy-draft/shared';
-import { getAssistantPlayerCopy } from './AssistantPage';
+import { getAssistantPlayerCopy } from './assistant-analysis';
 
 function recommendation(playerId: string, playerName: string): Recommendation {
   return {

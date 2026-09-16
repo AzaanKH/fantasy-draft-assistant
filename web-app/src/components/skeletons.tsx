@@ -105,19 +105,6 @@ export function RecommendationPanelSkeleton(): React.ReactElement {
   );
 }
 
-export function CardListSkeleton({ label }: { readonly label: string }): React.ReactElement {
-  return (
-    <LoadingShell label={label} className="rounded-lg border border-border/75 bg-card p-4">
-      <SkeletonBlock className="h-4 w-32" />
-      <div className="mt-4 space-y-2">
-        {Array.from({ length: 4 }, (_, index) => (
-          <SkeletonBlock key={index} className="h-12 w-full" />
-        ))}
-      </div>
-    </LoadingShell>
-  );
-}
-
 function DraftRouteSkeleton(): React.ReactElement {
   return (
     <main className="w-full space-y-4 px-3 py-4 sm:px-4">

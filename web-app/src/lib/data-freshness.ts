@@ -34,10 +34,3 @@ export function createDataFreshnessItem(
     isFresh: ageHours !== null && ageHours <= input.maxAgeHours,
   };
 }
-
-export function formatDataAge(ageHours: number | null): string {
-  if (ageHours === null) return 'unknown age';
-  if (ageHours < 1) return 'less than an hour old';
-  if (ageHours < 48) return `${String(Math.floor(ageHours))}h old`;
-  return `${String(Math.floor(ageHours / 24))}d old`;
-}

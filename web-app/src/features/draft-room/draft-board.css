@@ -1,0 +1,85 @@
+/* The board keeps its stadium-night palette in either application theme. */
+.draft-board {
+  --color-background: #070b20;
+  --color-foreground: #f4f6ff;
+  --color-card: #141b36;
+  --color-card-foreground: #f4f6ff;
+  --color-muted: #18213d;
+  --color-muted-foreground: #a0abc7;
+  --color-border: #28334f;
+  --color-ring: #00d9d5;
+  --board-accent: #00d9d5;
+  background: #070b20;
+  color: #f4f6ff;
+  color-scheme: dark;
+  overflow: hidden;
+  border: 1px solid #252d48;
+  border-radius: 14px;
+}
+.board-toolbar { background: #070b20; }
+.board-toolbar h2 { font-size: 18px; letter-spacing: -.025em; }
+.board-toolbar button { font-size: 12px; }
+.board-toolbar button[aria-pressed=true] { background: #2b3653; color: #fff; }
+.board-current-pick { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 0; color: #c6d1e8; background: transparent; border: 0; border-right: 1px solid #34405b; border-radius: 0; font-size: 12px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.board-current-pick.is-your-turn { color: #ffe34d; }
+.board-summary { background: #0d132a; border-block: 1px solid #202a45; }
+.board-summary > div + div { border-left: 1px solid #202a45; }
+.board-summary [class*='text-sky-'] { color: #49c9ed; }
+.board-summary [class*='text-emerald-'] { color: #43e4c3; }
+.board-summary [class*='uppercase'] { text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 500; }
+.board-scroll { padding: 0 10px 10px 0; scrollbar-color: #394663 #070b20; scrollbar-width: thin; }
+.board-grid { gap: 4px; background: #070b20; isolation: isolate; }
+.board-corner, .board-team-header { height: 76px; background: #070b20; }
+.board-corner { display: flex; align-items: center; justify-content: center; color: #8995b2; font-size: 10px; }
+.board-team-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 6px; }
+.board-team-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--team-color); color: #07152c; font-size: 12px; font-weight: 800; border: 2px solid #ffffff60; }
+.board-team-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b0b9ce; font-size: 11px; font-weight: 500; }
+.board-team-dot { display: inline-block; margin-left: 5px; height: 7px; width: 7px; border-radius: 50%; background: #68fa94; }
+.board-team-header.is-active-team .board-team-avatar { outline: 2px solid #ffe34d; outline-offset: 3px; }
+.board-team-header.is-my-team { border: 1.5px solid var(--board-accent); border-bottom: 0; border-radius: 13px 13px 0 0; background: #0b3446; }
+.board-team-header.is-my-team .board-team-name { color: #eefaff; }
+.board-team-header.is-my-team::after { content: ''; position: absolute; inset: 100% -1.5px -4px; background: #0b3446; border-inline: 1.5px solid var(--board-accent); }
+.board-round { height: 64px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #070b20; color: #8491ae; font-size: 11px; font-variant-numeric: tabular-nums; }
+.board-round.is-active-round { color: #ffe34d; }
+.board-slot { position: relative; min-width: 0; height: 64px; border-radius: 8px; background: #141b36; }
+.board-slot.is-my-team::after { content: ''; position: absolute; z-index: 12; pointer-events: none; top: -4px; bottom: 0; left: -1.5px; right: -1.5px; border-inline: 1.5px solid var(--board-accent); }
+.board-slot.is-my-team.is-last-round::after { bottom: -2px; border-bottom: 1.5px solid var(--board-accent); border-radius: 0 0 10px 10px; }
+.board-slot.is-my-team { background: #132740; }
+.board-slot.is-on-clock { background: #ffe34d; color: #10233c; }
+.board-empty-pick, .board-filled-pick { position: relative; height: 100%; border-radius: inherit; overflow: hidden; padding: 7px 8px; }
+.board-pick-number { position: absolute; top: 5px; right: 7px; font-size: 10px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: #8693b1; }
+.board-pick-direction { position: absolute; bottom: 5px; left: 8px; color: #60718e; }
+.board-next-pick { position: absolute; left: 8px; right: 8px; top: 25px; color: #64e7df; font-size: 10px; font-weight: 600; }
+.board-clock-label { display: flex; align-items: end; justify-content: space-between; gap: 5px; padding-top: 15px; padding-bottom: 8px; }
+.board-clock-label strong { max-width: 82px; font-size: 14px; line-height: 1; font-weight: 800; }
+.board-clock-label svg { flex-shrink: 0; }
+.is-on-clock .board-pick-number, .is-on-clock .board-pick-direction { color: #354866; }
+.board-filled-pick { color: #09213a; }
+.board-position-qb { background: #ff7eb5; }
+.board-position-rb { background: #42dfc5; }
+.board-position-wr { background: #42c8e9; }
+.board-position-te { background: #ffb812; }
+.board-position-k { background: #b19aff; }
+.board-position-def { background: #a6b8d3; }
+.board-filled-pick .board-pick-number, .board-filled-pick .board-pick-direction { color: #234a63; }
+.board-player-identity { position: relative; z-index: 1; padding-right: 24px; }
+.board-player-name { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; font-weight: 800; line-height: 1.05; letter-spacing: -.015em; }
+.board-player-meta { margin-top: 2px; font-size: 10px; line-height: 1.1; color: #234a63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-player-photo { position: absolute; right: 0; bottom: -2px; width: 33px; height: 33px; }
+.board-player-photo > span { background: #ffffff24; color: #123248; font-size: 10px; }
+.board-filled-pick.is-provisional { box-shadow: inset 0 0 0 2px #fff0b3; }
+.board-provisional-label { display: inline-block; padding: 1px 3px; background: #15233f; color: #ffe5a0; border-radius: 3px; font-size: 7px; font-weight: 700; line-height: 1.1; }
+.is-provisional .board-player-name { -webkit-line-clamp: 1; }
+.is-compact .board-player-identity { padding-right: 17px; }
+.is-compact .board-player-name { font-size: 11px; }
+.is-compact .board-player-meta { font-size: 9px; }
+@media (max-width: 639px) {
+  .board-toolbar { gap: 10px; }
+  .board-toolbar h2 { font-size: 16px; }
+  .board-summary > div + div { border-left: 0; }
+  .board-summary > div { padding-block: 5px; }
+  .board-scroll { padding-right: 6px; }
+  .board-clock-label strong { font-size: 12px; }
+  .board-clock-label svg { width: 16px; }
+  .board-next-pick { font-size: 9px; }
+}

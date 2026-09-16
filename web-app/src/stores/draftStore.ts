@@ -30,9 +30,11 @@ import type {
 } from '@fantasy-draft/shared';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
+  isDraftSize,
+  isLeagueSettings,
+  isRosterRequirements,
   createDefaultLeagueSettings,
 } from '@fantasy-draft/shared';
-import type { SortField, SortDirection } from '@/lib/calculations';
 import {
   canonicalizeKeeperSupply,
   getEffectiveKeeperAssignments,
@@ -76,16 +78,7 @@ function createEmptyMutableRoster(): MutableRoster {
  */
 interface FilterState {
   position: Position | 'ALL';
-  hideNonStarters: boolean;
   searchQuery: string;
-}
-
-/**
- * UI sort state
- */
-interface SortState {
-  field: SortField;
-  direction: SortDirection;
 }
 
 /**
@@ -252,7 +245,6 @@ interface DraftState {
   // UI state
   decisionLens: DecisionLens;
   filter: FilterState;
-  sort: SortState;
 
   // Computed
   isMyTurn: boolean;
@@ -308,10 +300,7 @@ interface DraftActions {
   // UI actions
   setDecisionLens: (lens: DecisionLens) => void;
   setPositionFilter: (position: Position | 'ALL') => void;
-  setHideNonStarters: (hide: boolean) => void;
   setSearchQuery: (query: string) => void;
-  setSort: (field: SortField, direction?: SortDirection) => void;
-  toggleSortDirection: () => void;
 }
 
 export type DraftStore = DraftState & DraftActions;
@@ -532,16 +521,7 @@ export function calculateIsMyTurn(
  */
 const defaultFilter: FilterState = {
   position: 'ALL',
-  hideNonStarters: false,
   searchQuery: '',
-};
-
-/**
- * Default sort state
- */
-const defaultSort: SortState = {
-  field: 'ecrRank',
-  direction: 'asc',
 };
 
 /**
@@ -583,7 +563,6 @@ export function createDraftStore() {
     teamRosters: createEmptyTeamRosters(defaultConfig.totalTeams),
     decisionLens: 'best-pick',
     filter: defaultFilter,
-    sort: defaultSort,
 
     // Computed getters
     get isMyTurn() {
@@ -606,6 +585,8 @@ export function createDraftStore() {
       }); },
     setConfig: (newConfig) =>
       { set((state) => {
+        if (!isDraftSize(newConfig.totalTeams ?? state.config.totalTeams, newConfig.totalRounds ?? state.config.totalRounds) ||
+            (newConfig.rosterRequirements !== undefined && !isRosterRequirements(newConfig.rosterRequirements))) return;
         const nextTotalTeams = Math.max(
           2,
           Math.round(newConfig.totalTeams ?? state.config.totalTeams)
@@ -638,6 +619,7 @@ export function createDraftStore() {
       }); },
     applyLeagueSettings: (settings) =>
       { set((state) => {
+        if (!isLeagueSettings(settings)) return;
         if (
           state.leagueSettings.fingerprint === settings.fingerprint &&
           state.leagueSettings.source === settings.source &&
@@ -1280,31 +1262,11 @@ export function createDraftStore() {
         state.filter.position = position;
       }); },
 
-    setHideNonStarters: (hide) =>
-      { set((state) => {
-        state.filter.hideNonStarters = hide;
-      }); },
-
     setSearchQuery: (query) =>
       { set((state) => {
         state.filter.searchQuery = query;
       }); },
 
-    setSort: (field, direction) =>
-      { set((state) => {
-        if (state.sort.field === field && !direction) {
-          // Toggle direction if same field clicked
-          state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-          state.sort.field = field;
-          state.sort.direction = direction ?? 'asc';
-        }
-      }); },
-
-    toggleSortDirection: () =>
-      { set((state) => {
-        state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
-      }); },
     }))
   );
 }
@@ -1353,18 +1315,8 @@ export const useDraftStore: UseDraftStore = Object.assign(
 /**
  * Selector hooks for common state slices
  */
-export const useCurrentPick = () => useDraftStore((state) => state.currentPick);
-export const useDraftedIds = () => useDraftStore((state) => state.draftedPlayerIds);
-export const useShortlistedIds = (): DraftState['shortlistedPlayerIds'] =>
-  useDraftStore((state) => state.shortlistedPlayerIds);
-export const useMyRoster = () => useDraftStore((state) => state.myRoster);
-export const useFilter = () => useDraftStore((state) => state.filter);
-export const useSort = () => useDraftStore((state) => state.sort);
-export const useDraftConfig = () => useDraftStore((state) => state.config);
 export const useDraftSessionMode = (): DraftSessionMode =>
   useDraftStore((state) => state.sessionMode);
-export const useDecisionLens = (): DecisionLens =>
-  useDraftStore((state) => state.decisionLens);
 export const useIsMyTurn = () =>
   useDraftStore((state) =>
     calculateIsMyTurn(

@@ -143,7 +143,7 @@ export function DraftPlayerPool(): React.ReactElement {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+      <div className="player-pool-toolbar">
         <div className="flex gap-1 overflow-x-auto pb-1">
           {(['ALL', 'FLEX', ...POSITIONS] as const).map((position) => (
             <Button
@@ -160,7 +160,7 @@ export function DraftPlayerPool(): React.ReactElement {
             </Button>
           ))}
         </div>
-        <label className="relative block lg:w-72">
+        <label className="draft-player-search relative block">
           <span className="sr-only">Search available players</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input

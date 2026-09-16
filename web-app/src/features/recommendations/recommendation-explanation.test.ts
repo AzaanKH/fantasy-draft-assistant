@@ -3,6 +3,88 @@ import type { Recommendation } from '@fantasy-draft/shared';
 import { getRecommendationExplanation } from './recommendation-explanation';
 
 describe('getRecommendationExplanation', () => {
+  it('explains when thin positional coverage adds Depth Value', () => {
+    const recommendation: Recommendation = {
+      playerId: 'depth-rb',
+      playerName: 'Useful RB',
+      position: 'RB',
+      reason: 'Depth Value',
+      score: 4,
+      diagnostics: {
+        expertRank: 102,
+        marketRank: 102,
+        projectedPoints: 200,
+        valueOverReplacement: 0,
+        marketDelta: 0,
+        tier: 6,
+      },
+      decisionFactors: {
+        playerQuality: { ecrRank: 102, score: -102 },
+        leagueValue: {
+          score: 0,
+          minScore: 0,
+          maxScore: 6,
+          projectedPoints: 200,
+          replacementPoints: 200,
+          valueOverReplacement: 0,
+        },
+        rosterFit: {
+          score: 1,
+          minScore: 0,
+          maxScore: 8,
+          fixedStartersOpen: 0,
+          flexSlotsOpen: 0,
+          benchSlotsOpen: 4,
+          selectionsRemaining: 4,
+          legalCompletionPossible: true,
+        },
+        depthValue: {
+          score: 4,
+          minScore: 0,
+          maxScore: 4,
+          positionCount: 2,
+          startersAtPosition: 2,
+          reserveCount: 0,
+          targetReserveCount: 2,
+          reserveDeficit: 2,
+          contingencyPoints: 50,
+          materiallyChangedOrdering: true,
+        },
+        tierSupply: {
+          score: 0,
+          minScore: 0,
+          maxScore: 4,
+          currentTier: 6,
+          remainingInTier: 1,
+          dropoffPoints: 0,
+          meaningfulCliff: false,
+          costOfWaiting: 0,
+          materiallyChangedOrdering: false,
+        },
+        draftTiming: {
+          score: 0,
+          minScore: 0,
+          maxScore: 4,
+          candidateValue: 0,
+          costOfWaiting: 0,
+          materiallyChangedOrdering: false,
+        },
+        conservativeBoundary: {
+          ecrRankLimit: 108,
+          samePositionTier: false,
+          withinBoundary: true,
+          feasibilityException: false,
+        },
+      },
+    };
+
+    const explanation = getRecommendationExplanation(recommendation);
+
+    expect(explanation).toContain('Depth Value adds 4.0 policy points');
+    expect(explanation).toContain('0 RB reserves against a target of 2');
+    expect(explanation).toContain('That bench protection changed Best Pick.');
+  });
+
   it('names the policy factors and the legal-roster exception from the decision output', () => {
     const recommendation: Recommendation = {
       playerId: 'player-k',
@@ -37,6 +119,18 @@ describe('getRecommendationExplanation', () => {
           benchSlotsOpen: 0,
           selectionsRemaining: 1,
           legalCompletionPossible: true,
+        },
+        depthValue: {
+          score: 0,
+          minScore: 0,
+          maxScore: 4,
+          positionCount: 0,
+          startersAtPosition: 0,
+          reserveCount: 0,
+          targetReserveCount: 0,
+          reserveDeficit: 0,
+          contingencyPoints: 0,
+          materiallyChangedOrdering: false,
         },
         tierSupply: {
           score: 0,
@@ -111,6 +205,18 @@ describe('getRecommendationExplanation', () => {
           benchSlotsOpen: 5,
           selectionsRemaining: 14,
           legalCompletionPossible: true,
+        },
+        depthValue: {
+          score: 0,
+          minScore: 0,
+          maxScore: 4,
+          positionCount: 0,
+          startersAtPosition: 0,
+          reserveCount: 0,
+          targetReserveCount: 0,
+          reserveDeficit: 0,
+          contingencyPoints: 0,
+          materiallyChangedOrdering: false,
         },
         tierSupply: {
           score: 4,
@@ -188,6 +294,18 @@ describe('getRecommendationExplanation', () => {
           benchSlotsOpen: 5,
           selectionsRemaining: 14,
           legalCompletionPossible: true,
+        },
+        depthValue: {
+          score: 0,
+          minScore: 0,
+          maxScore: 4,
+          positionCount: 0,
+          startersAtPosition: 0,
+          reserveCount: 0,
+          targetReserveCount: 0,
+          reserveDeficit: 0,
+          contingencyPoints: 0,
+          materiallyChangedOrdering: false,
         },
         tierSupply: {
           score: 0,

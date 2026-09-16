@@ -28,6 +28,18 @@ function decisionFactors(): RecommendationDecisionFactors {
       legalCompletionPossible: true,
       materiallyChangedOrdering: false,
     },
+    depthValue: {
+      score: 0,
+      minScore: 0,
+      maxScore: 4,
+      positionCount: 0,
+      startersAtPosition: 0,
+      reserveCount: 0,
+      targetReserveCount: 2,
+      reserveDeficit: 2,
+      contingencyPoints: 0,
+      materiallyChangedOrdering: false,
+    },
     tierSupply: {
       score: 3,
       minScore: 0,
@@ -82,6 +94,20 @@ describe('getDraftDecisionBarReason', () => {
     );
     expect(getDraftDecisionBarReason(recommendation(), 'tier-supply')).toBe(
       '1 RB option remains in Tier 2 before a 20.0 point drop.'
+    );
+    expect(getDraftDecisionBarReason(recommendation({
+      ...decisionFactors(),
+      depthValue: {
+        ...decisionFactors().depthValue,
+        score: 4,
+        reserveCount: 0,
+        targetReserveCount: 2,
+        reserveDeficit: 2,
+        contingencyPoints: 20,
+        materiallyChangedOrdering: true,
+      },
+    }), 'depth-value')).toBe(
+      'Depth Value moves RB first with 0 reserves against a target of 2.'
     );
   });
 

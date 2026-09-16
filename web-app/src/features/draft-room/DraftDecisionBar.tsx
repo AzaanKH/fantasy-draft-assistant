@@ -71,9 +71,11 @@ function EmptyDecisionBar({
 
 export function DraftDecisionBar({
   onOpenAssistant,
+  compact = false,
 }: {
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
-}): React.ReactElement {
+  readonly compact?: boolean;
+}): React.ReactElement | null {
   const { output, isLoading } = useDraftDecision();
   const bestPick = useBoardSequencedRecommendation(output.bestPick);
   const sessionMode = useDraftSessionMode();
@@ -89,7 +91,7 @@ export function DraftDecisionBar({
   const { togglePlayerQueued } = useQueueActions(queuePlayerIdentity);
 
   if (isLoading || !bestPick) {
-    return <EmptyDecisionBar isLoading={isLoading} />;
+    return compact ? null : <EmptyDecisionBar isLoading={isLoading} />;
   }
 
   const diagnostics = bestPick.diagnostics;
@@ -114,6 +116,30 @@ export function DraftDecisionBar({
     bestPick,
     output.decisionDivergenceFactor
   );
+
+  if (compact) {
+    return (
+      <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-xs font-semibold text-primary">Best Pick</span>
+            <strong className="text-sm">{bestPick.playerName}</strong>
+            <span className="text-xs text-muted-foreground">{bestPick.position}</span>
+          </div>
+          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground" title={reason}>{reason}</p>
+        </div>
+        <Button variant="ghost" size="sm" aria-pressed={isQueued}
+          aria-label={isQueued ? `Remove ${bestPick.playerName} from the local queue` : `Add ${bestPick.playerName} to the local queue`}
+          onClick={() => { togglePlayerQueued(bestPick.playerId); }}>
+          {isQueued ? <Check className="size-4" /> : <ListPlus className="size-4" />}
+          {isQueued ? 'Queued' : 'Queue'}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => { onOpenAssistant({ lens: 'why', selectedPlayerId: bestPick.playerId }); }}>
+          Why this pick <ArrowRight className="size-3.5" />
+        </Button>
+      </section>
+    );
+  }
 
   return (
     <section

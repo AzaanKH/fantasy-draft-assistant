@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRecommendations, getTopRecommendation } from './recommendations';
+import { getRecommendations } from './recommendations';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
@@ -198,6 +198,61 @@ describe('getRecommendations', () => {
           benchSlotsOpen: 5,
           materiallyChangedOrdering: true,
       });
+    });
+
+    it('prefers useful RB depth over a redundant late-round WR', () => {
+      const rosterPlayers = [
+        { id: 'qb-1', position: 'QB' as const, projectedPoints: 270, ceilingScore: 8 },
+        { id: 'rb-1', position: 'RB' as const, projectedPoints: 220, ceilingScore: 8 },
+        { id: 'rb-2', position: 'RB' as const, projectedPoints: 210, ceilingScore: 8 },
+        { id: 'wr-1', position: 'WR' as const, projectedPoints: 260, ceilingScore: 8 },
+        { id: 'wr-2', position: 'WR' as const, projectedPoints: 250, ceilingScore: 8 },
+        { id: 'wr-3', position: 'WR' as const, projectedPoints: 240, ceilingScore: 8 },
+        { id: 'wr-4', position: 'WR' as const, projectedPoints: 230, ceilingScore: 8 },
+        { id: 'wr-5', position: 'WR' as const, projectedPoints: 220, ceilingScore: 8 },
+        { id: 'te-1', position: 'TE' as const, projectedPoints: 200, ceilingScore: 8 },
+      ];
+      const bestPlayer = {
+        ...createPlayer('late-wr', 'WR', 100, 'Another WR'),
+        projectedPoints: 200,
+        valueOverReplacement: 0,
+      };
+      const depthRunningBack = {
+        ...createPlayer('depth-rb', 'RB', 102, 'Useful RB'),
+        projectedPoints: 200,
+        valueOverReplacement: 0,
+      };
+
+      const result = getRecommendations(
+        [bestPlayer, depthRunningBack],
+        [],
+        10,
+        {
+          architecture: 'best-pick-policy',
+          requirements: DEFAULT_ROSTER_REQUIREMENTS,
+          rosterCounts: { QB: 1, RB: 2, WR: 5, TE: 1, K: 0, DEF: 0 },
+          rosterPlayers,
+          selectionsRemaining: 5,
+        }
+      );
+
+      expect(result.bestAvailable[0]?.playerId).toBe('late-wr');
+      expect(result.draftNow[0]?.playerId).toBe('depth-rb');
+      expect(result.draftNow[0]?.decisionFactors?.depthValue).toMatchObject({
+        score: 4,
+        positionCount: 2,
+        startersAtPosition: 2,
+        reserveCount: 0,
+        targetReserveCount: 2,
+        reserveDeficit: 2,
+        materiallyChangedOrdering: true,
+      });
+      expect(result.draftNow.find((pick) => pick.playerId === 'late-wr')
+        ?.decisionFactors?.depthValue).toMatchObject({
+          score: 1,
+          reserveCount: 1,
+          reserveDeficit: 1,
+        });
     });
 
     it('uses a meaningful tier cliff as bounded cost of waiting without changing Best Player', () => {
@@ -1297,41 +1352,5 @@ describe('getRecommendations', () => {
     expect(byNeed[0]?.subScores?.needMultiplier).toBe(2);
     expect(byNeed[0]?.subScores?.scarcityMultiplier).toBe(1.45);
     expect(byNeed[0]?.subScores?.tePremiumBoost).toBe(1.15);
-  });
-});
-
-describe('getTopRecommendation', () => {
-  it('returns the top combined draft-now recommendation when available', () => {
-    const players = [
-      createPlayer('p1', 'QB', 10, 'Patrick Mahomes'),
-      createPlayer('p2', 'RB', 5, 'Christian McCaffrey'),
-    ];
-    const needs = createNeeds([
-      { position: 'QB', priority: 'critical' },
-      { position: 'RB', priority: 'low' },
-    ]);
-
-    const result = getTopRecommendation(players, needs);
-
-    expect(result?.playerName).toBe('Patrick Mahomes');
-    expect(result?.position).toBe('QB');
-    expect(result?.reason).toContain('critical roster need');
-  });
-
-  it('falls back to bestAvailable when no need-based recommendations', () => {
-    const players = [createPlayer('p1', 'QB', 10, 'Patrick Mahomes')];
-    const needs = createNeeds([{ position: 'RB', priority: 'critical' }]);
-
-    const result = getTopRecommendation(players, needs);
-
-    expect(result?.playerName).toBe('Patrick Mahomes');
-  });
-
-  it('returns null when no players available', () => {
-    const needs = createNeeds([{ position: 'QB', priority: 'critical' }]);
-
-    const result = getTopRecommendation([], needs);
-
-    expect(result).toBeNull();
   });
 });

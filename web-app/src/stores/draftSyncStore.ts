@@ -7,6 +7,7 @@ export interface PersistedDraftSyncConnection {
   readonly provider: DraftProvider;
   readonly draftId: string;
   readonly draftPosition: number | null;
+  readonly usePrimaryLeagueSettings?: boolean;
 }
 
 interface DraftSyncConnectionStore {
@@ -14,6 +15,7 @@ interface DraftSyncConnectionStore {
   startConnection: (provider: DraftProvider, draftId: string) => void;
   confirmDraftPosition: (draftPosition: number) => void;
   restoreConnection: (connection: PersistedDraftSyncConnection) => void;
+  setPrimaryLeagueSettings: (enabled: boolean) => void;
   disconnect: () => void;
 }
 
@@ -35,7 +37,10 @@ export function isPersistedDraftSyncConnection(
     isDraftProvider(candidate.provider) &&
     typeof candidate.draftId === 'string' &&
     candidate.draftId.length > 0 &&
-    (candidate.draftPosition === null || isDraftPosition(candidate.draftPosition))
+    (candidate.draftPosition === null || isDraftPosition(candidate.draftPosition)) &&
+    (candidate.usePrimaryLeagueSettings === undefined ||
+      (typeof candidate.usePrimaryLeagueSettings === 'boolean' &&
+       (candidate.provider === 'sleeper' || !candidate.usePrimaryLeagueSettings)))
   );
 }
 
@@ -64,6 +69,8 @@ export function getDraftSyncConnectionFromSearch(
   return {
     provider,
     draftId,
+    ...(provider === 'sleeper' && params.get('settings') === 'primary-league-mock'
+      ? { usePrimaryLeagueSettings: true } : {}),
     draftPosition: isDraftPosition(parsedPosition) ? parsedPosition : null,
   };
 }
@@ -77,10 +84,14 @@ export function getDraftSyncSearch(
   params.delete('draftId');
   params.delete('leagueId');
   params.delete('position');
+  params.delete('settings');
 
   if (connection) {
     params.set('provider', connection.provider);
     params.set('draftId', connection.draftId);
+    if (connection.provider === 'sleeper' && connection.usePrimaryLeagueSettings) {
+      params.set('settings', 'primary-league-mock');
+    }
     if (connection.draftPosition !== null) {
       params.set('position', String(connection.draftPosition));
     }
@@ -130,6 +141,8 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
       const connection: PersistedDraftSyncConnection = {
         provider,
         draftId: normalizedDraftId,
+        ...(current?.provider === provider && current.draftId === normalizedDraftId && current.usePrimaryLeagueSettings
+          ? { usePrimaryLeagueSettings: true } : {}),
         draftPosition:
           current?.provider === provider && current.draftId === normalizedDraftId
             ? current.draftPosition
@@ -151,6 +164,15 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
       persistConnection(connection);
       set({ connection });
     },
+    setPrimaryLeagueSettings: (enabled) => {
+      const current = get().connection;
+      if (!current || current.provider !== 'sleeper') return;
+      const connection = { ...current };
+      if (enabled) connection.usePrimaryLeagueSettings = true;
+      else delete connection.usePrimaryLeagueSettings;
+      persistConnection(connection);
+      set({ connection });
+    },
     disconnect: () => {
       persistConnection(null);
       set({ connection: null });
@@ -164,14 +186,13 @@ export function initializeDraftSyncConnection(search: string): void {
 
   const store = useDraftSyncConnectionStore.getState();
   const storedConnection = store.connection;
-  const connection =
-    urlConnection.draftPosition === null &&
-    storedConnection?.provider === urlConnection.provider &&
-    storedConnection.draftId === urlConnection.draftId
-      ? {
-          ...urlConnection,
-          draftPosition: storedConnection.draftPosition,
-        }
-      : urlConnection;
+  const sameDraft = storedConnection?.provider === urlConnection.provider &&
+    storedConnection.draftId === urlConnection.draftId;
+  const connection = sameDraft ? {
+    ...urlConnection,
+    draftPosition: urlConnection.draftPosition ?? storedConnection.draftPosition,
+    ...(urlConnection.usePrimaryLeagueSettings || storedConnection.usePrimaryLeagueSettings
+      ? { usePrimaryLeagueSettings: true } : {}),
+  } : urlConnection;
   store.restoreConnection(connection);
 }

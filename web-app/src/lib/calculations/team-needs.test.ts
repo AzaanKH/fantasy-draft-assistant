@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateTeamNeeds,
   getCriticalPositions,
-  isPositionNeed,
 } from './team-needs';
 import type { Roster } from '@fantasy-draft/shared';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
@@ -310,53 +309,5 @@ describe('getCriticalPositions', () => {
     const criticalPositions = getCriticalPositions(needs);
 
     expect(criticalPositions).toHaveLength(0);
-  });
-});
-
-describe('isPositionNeed', () => {
-  it('returns true for critical, high, or medium priority positions', () => {
-    const roster = createRoster({
-      QB: [], // critical
-      RB: ['rb1'], // medium (scarcity 4)
-      WR: ['wr1', 'wr2'], // medium while FLEX starters remain open
-    });
-    const scarcity = createScarcityScores({ RB: 4 });
-
-    const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity);
-
-    expect(isPositionNeed(needs, 'QB')).toBe(true);
-    expect(isPositionNeed(needs, 'RB')).toBe(true);
-    expect(isPositionNeed(needs, 'WR')).toBe(true);
-  });
-
-  it('returns false for low or filled positions', () => {
-    const roster = createRoster({
-      QB: ['qb1', 'qb2', 'qb3', 'qb4'], // filled
-      RB: ['rb1', 'rb2', 'rb3'],
-      WR: ['wr1', 'wr2', 'wr3'],
-      TE: ['te1'], // low
-    });
-    const scarcity = createScarcityScores({});
-
-    const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity);
-
-    expect(isPositionNeed(needs, 'QB')).toBe(false);
-    expect(isPositionNeed(needs, 'TE')).toBe(false);
-  });
-
-  it('returns false for deferred positions', () => {
-    const needs = calculateTeamNeeds(
-      createRoster({}),
-      DEFAULT_ROSTER_REQUIREMENTS,
-      createScarcityScores({}),
-      {
-        currentPick: 1,
-        totalPicks: 150,
-        totalRounds: 15,
-      }
-    );
-
-    expect(isPositionNeed(needs, 'K')).toBe(false);
-    expect(isPositionNeed(needs, 'DEF')).toBe(false);
   });
 });

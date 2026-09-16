@@ -451,6 +451,11 @@ function buildBestPickPolicyRecommendation(
       `ECR #${String(player.ecrRank)}`,
       `league value +${factors.leagueValue.score.toFixed(1)}/${factors.leagueValue.maxScore.toFixed(0)}`,
       `roster fit +${factors.rosterFit.score.toFixed(1)}/${factors.rosterFit.maxScore.toFixed(0)}`,
+      ...(factors.depthValue.score > 0
+        ? [
+            `depth value +${factors.depthValue.score.toFixed(1)}/${factors.depthValue.maxScore.toFixed(0)}`,
+          ]
+        : []),
       ...(factors.tierSupply.score > 0
         ? [
             `tier wait cost +${factors.tierSupply.costOfWaiting.toFixed(1)}/${factors.tierSupply.maxScore.toFixed(0)}`,
@@ -650,6 +655,7 @@ export function getRecommendations(
     ? evaluateBestPickPolicy(availablePlayers, bestPickCandidatePool, {
         requirements: context.requirements,
         rosterCounts: context.rosterCounts,
+        rosterPlayers: context.rosterPlayers,
         selectionsRemaining: context.selectionsRemaining,
       })
     : undefined;
@@ -823,26 +829,4 @@ export function getRecommendations(
       feasibilityException: bestPickPolicy?.feasibilityException,
     },
   };
-}
-
-/**
- * Get a single top recommendation based on team needs
- *
- * @param availablePlayers - Players not yet drafted
- * @param teamNeeds - Current team positional needs
- * @returns The top recommended player or null if none available
- */
-export function getTopRecommendation(
-  availablePlayers: readonly Player[],
-  teamNeeds: readonly PositionNeed[],
-  context?: RecommendationContext
-): Recommendation | null {
-  const { draftNow, byNeed, bestAvailable } = getRecommendations(
-    availablePlayers,
-    teamNeeds,
-    1,
-    context
-  );
-
-  return draftNow[0] ?? byNeed[0] ?? bestAvailable[0] ?? null;
 }
