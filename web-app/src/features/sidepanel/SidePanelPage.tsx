@@ -46,6 +46,7 @@ import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn, formatSignedNumber } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
+import { reconcileComparisonSelection } from './comparison-selection';
 
 type SidePanelView = 'draft' | 'compare' | 'assistant' | 'roster';
 type PositionFilter = 'ALL' | Position;
@@ -746,7 +747,7 @@ export function SidePanelPage(): React.ReactElement {
   const [connection] = React.useState(readConnection);
   const [view, setView] = React.useState<SidePanelView>('draft');
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
-  const [selectedPlayerIds, setSelectedPlayerIds] = React.useState<readonly string[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = React.useState<readonly string[] | null>(null);
   const sync = useSidePanelSync(connection);
   const decision = useDraftDecision();
   const { players, isLoading, isError } = usePlayerDataQuery();
@@ -760,9 +761,9 @@ export function SidePanelPage(): React.ReactElement {
   const activeDecision = positionFilter === 'ALL'
     ? decision.overall
     : decision.byPosition[positionFilter];
-  const recommendations = positionFilter === 'ALL'
+  const recommendations = React.useMemo(() => positionFilter === 'ALL'
     ? activeDecision.recommendations
-    : getPositionRecommendations(activeDecision);
+    : getPositionRecommendations(activeDecision), [activeDecision, positionFilter]);
   const topRecommendation = activeDecision.preferred ?? undefined;
   const showReadinessBlock =
     view !== 'roster' &&
@@ -775,15 +776,15 @@ export function SidePanelPage(): React.ReactElement {
     showReadinessBlock || showProviderIdentityBlock;
 
   React.useEffect(() => {
-    const defaultIds = recommendations.slice(0, 2).map((recommendation) => recommendation.playerId);
-    setSelectedPlayerIds(defaultIds);
+    const recommendationIds = recommendations.map((recommendation) => recommendation.playerId);
+    setSelectedPlayerIds((current) => reconcileComparisonSelection(current, recommendationIds));
   }, [recommendations]);
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [view]);
 
-  const selectedRecommendations = selectedPlayerIds.flatMap((playerId) => {
+  const selectedRecommendations = (selectedPlayerIds ?? []).flatMap((playerId) => {
     const recommendation = recommendations.find((item) => item.playerId === playerId);
     return recommendation ? [recommendation] : [];
   });
@@ -792,7 +793,8 @@ export function SidePanelPage(): React.ReactElement {
   ) ?? recommendations.find((recommendation) => recommendation.playerId !== topRecommendation?.playerId);
 
   const toggleSelectedPlayer = React.useCallback((playerId: string): void => {
-    setSelectedPlayerIds((current) => {
+    setSelectedPlayerIds((selection) => {
+      const current = selection ?? [];
       if (current.includes(playerId)) return current.filter((id) => id !== playerId);
       if (current.length >= 2) return [current[1] ?? playerId, playerId];
       return [...current, playerId];

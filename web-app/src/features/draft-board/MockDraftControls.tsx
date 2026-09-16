@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
 import type { Player } from '@fantasy-draft/shared';
 import { Pause, Play, RotateCcw, Settings2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,17 +25,7 @@ import {
   getTeamIndexForPick,
   selectCpuPlayer,
   type MockDraftEngineConfig,
-  type MockLeagueHistoryModel,
 } from '@/lib/mock-draft-engine';
-
-async function fetchMockHistoryModel(): Promise<MockLeagueHistoryModel | null> {
-  const response = await fetch('/data/league-history/survival-model.json');
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`Failed to load league draft history: ${String(response.status)}`);
-  }
-  return response.json() as Promise<MockLeagueHistoryModel>;
-}
 
 function numericValue(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -80,7 +71,7 @@ export function MockDraftControls({
   );
   const historyQuery = useQuery({
     queryKey: ['league-survival-model'],
-    queryFn: fetchMockHistoryModel,
+    queryFn: fetchLeagueSurvivalModel,
     staleTime: Infinity,
   });
 

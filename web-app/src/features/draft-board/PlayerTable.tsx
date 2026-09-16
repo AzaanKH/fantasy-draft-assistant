@@ -565,7 +565,7 @@ export function PlayerTable() {
   const keeperAtCurrentPick = sessionMode === 'mock'
     ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams)
     : undefined;
-  const canRecordPicks = sessionMode !== 'setup' && keeperAtCurrentPick === undefined;
+  const canRecordPicks = sessionMode === 'mock' && keeperAtCurrentPick === undefined;
   const isActiveUserTurn = canRecordPicks && isMyTurn;
 
   // Filter players based on UI state

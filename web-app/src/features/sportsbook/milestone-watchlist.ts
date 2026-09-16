@@ -47,11 +47,10 @@ export function buildMilestoneWatchlist(
     );
     if (!player || draftedPlayerIds.has(player.id)) continue;
 
-    const row = {
-      player,
-      line,
-      probability: americanOddsToImpliedProbability(line.americanOdds),
-    };
+    const probability = americanOddsToImpliedProbability(line.americanOdds);
+    if (probability <= 0) continue;
+
+    const row = { player, line, probability };
     const existing = rowsByPlayerId.get(player.id);
     if (!existing || row.probability > existing.probability) {
       rowsByPlayerId.set(player.id, row);

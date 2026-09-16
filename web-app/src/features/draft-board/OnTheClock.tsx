@@ -125,7 +125,7 @@ export function OnTheClock({
               <>
                 <span>·</span>
                 <span className="font-mono tabular-nums">
-                  {formatSignedNumber(diagnostics.valueOverReplacement, 0)} above replacement
+                  {formatSignedNumber(diagnostics.valueOverReplacement, 0)} versus replacement
                 </span>
               </>
             )}

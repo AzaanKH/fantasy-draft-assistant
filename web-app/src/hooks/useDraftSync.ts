@@ -86,6 +86,29 @@ export interface DraftReconciliationSummary {
   readonly unresolvedIdentities: readonly UnresolvedProviderPick[];
 }
 
+export interface DraftSyncController extends DraftSyncViewState {
+  readonly provider: DraftProvider;
+  readonly draft: DraftSyncSnapshot['draft'];
+  readonly picks: DraftSyncSnapshot['picks'];
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly error: Error | null;
+  readonly transportState: DraftSyncTransportState;
+  readonly syncStatus: DraftSyncState;
+  readonly lastSyncedPick: number;
+  readonly totalPicks: number;
+  readonly myPicksCount: number;
+  readonly importWarning: string | null;
+  readonly rejectedPickCount: number;
+  readonly lastReconciledSnapshotAt: number | null;
+  readonly reconciliationSummary: DraftReconciliationSummary | null;
+  readonly dismissReconciliationSummary: () => void;
+  readonly refresh: () => Promise<void>;
+  readonly isDrafting: boolean;
+  readonly isPaused: boolean;
+  readonly isComplete: boolean;
+}
+
 export function getDraftSynchronizationState(
   connectionState: DraftSyncConnectionState,
   isManualContinuity: boolean = false
@@ -180,17 +203,22 @@ function getSyncPath(provider: DraftProvider, draftId: string): string {
   return `/api/sync/${provider}/drafts/${encodeURIComponent(draftId)}`;
 }
 
+export function isRequestedDraftSnapshot(
+  snapshot: unknown,
+  provider: DraftProvider,
+  draftId: string
+): snapshot is DraftSyncSnapshot {
+  return isDraftSyncSnapshot(snapshot) &&
+    snapshot.provider === provider && snapshot.draftId === draftId;
+}
+
 async function readDraftSnapshot(
   response: Response,
   provider: DraftProvider,
   draftId: string
 ): Promise<DraftSyncSnapshot> {
   const parsed: unknown = await response.json();
-  if (
-    !isDraftSyncSnapshot(parsed) ||
-    parsed.provider !== provider ||
-    parsed.draftId !== draftId
-  ) {
+  if (!isRequestedDraftSnapshot(parsed, provider, draftId)) {
     throw new Error('Sync server returned an invalid draft snapshot');
   }
   return parsed;
@@ -406,7 +434,7 @@ export function useDraftSync(
   provider: DraftProvider,
   draftId: string | null,
   shouldImportPicks: boolean = true
-) {
+): DraftSyncController {
   const queryClient = useQueryClient();
   const {
     players,
@@ -465,6 +493,9 @@ export function useDraftSync(
           return;
         }
         const update = parsed;
+        if (!isRequestedDraftSnapshot(update.snapshot, provider, draftId)) {
+          return;
+        }
         setTransportState('connected');
         setLiveSnapshot(update.snapshot);
         queryClient.setQueryData(
