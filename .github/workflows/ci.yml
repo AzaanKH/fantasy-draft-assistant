@@ -21,3 +21,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+      - name: Assert web static-output policy
+        run: pnpm --filter scripts measure:web-bundle

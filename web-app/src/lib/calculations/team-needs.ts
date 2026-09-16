@@ -39,9 +39,9 @@ const MID_DRAFT_PROGRESS = 0.5;
  *
  * Priority levels:
  * - critical: Empty position under starter-slot, scarcity, or draft-stage pressure
- * - high: Below starter count with elevated scarcity or draft-stage pressure
- * - medium: Below starter count with lower scarcity
- * - low: Have starters but below max roster
+ * - high: Open fixed/FLEX starter slot with elevated scarcity or draft-stage pressure
+ * - medium: Open fixed/FLEX starter slot with lower scarcity
+ * - low: Fixed and FLEX starters are covered, but there is room for bench depth
  * - defer: Kicker or defense before the late rounds
  * - filled: At max roster for position
  *
@@ -68,27 +68,28 @@ export function calculateTeamNeeds(
 ): PositionNeed[] {
   const needs: PositionNeed[] = [];
   const positions: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+  const isOpeningBoard = context?.currentPick === 1;
   const draftProgress = getDraftProgress(context);
   const isMidDraft = draftProgress >= MID_DRAFT_PROGRESS;
+  const flexEligiblePositions = new Set(requirements.FLEX.eligiblePositions);
+  const flexSlotsNeeded = Math.max(0, requirements.FLEX.starters);
   const fixedStarterSlotsRemaining = positions.reduce(
     (total, position) =>
       total + Math.max(0, requirements[position].starters - roster[position].length),
     0
   );
-  const flexEligiblePlayers = requirements.FLEX.eligiblePositions.reduce(
-    (total, position) => total + roster[position].length,
-    0
-  );
-  const flexBaseStarterSlots = requirements.FLEX.eligiblePositions.reduce(
-    (total, position) => total + requirements[position].starters,
+  const flexEligibleSurplus = [...flexEligiblePositions].reduce(
+    (total, position) =>
+      total + Math.max(0, roster[position].length - requirements[position].starters),
     0
   );
   const flexSlotsFilled = Math.min(
-    requirements.FLEX.starters,
-    Math.max(0, flexEligiblePlayers - flexBaseStarterSlots)
+    flexSlotsNeeded,
+    flexEligibleSurplus
   );
+  const flexSlotsRemaining = flexSlotsNeeded - flexSlotsFilled;
   const totalStarterSlotsRemaining =
-    fixedStarterSlotsRemaining + requirements.FLEX.starters - flexSlotsFilled;
+    fixedStarterSlotsRemaining + flexSlotsRemaining;
   const estimatedRosterPicksRemaining = context?.totalRounds
     ? Math.max(0, Math.ceil((1 - draftProgress) * context.totalRounds))
     : Number.POSITIVE_INFINITY;
@@ -99,16 +100,30 @@ export function calculateTeamNeeds(
     const needed = requirements[position].starters;
     const max = requirements[position].max;
     const scarcity = scarcityScores.get(position) ?? 5;
-    const starterSlotsRemaining = Math.max(0, needed - filled);
+    const fixedStarterSlotsRemainingForPosition = Math.max(0, needed - filled);
+    const isFlexEligible = flexEligiblePositions.has(position);
+    const openFlexSlotsForPosition = isFlexEligible && filled < max
+      ? flexSlotsRemaining
+      : 0;
+    const starterSlotsRemaining =
+      fixedStarterSlotsRemainingForPosition + openFlexSlotsForPosition;
 
     let priority: NeedPriority;
 
-    if (
+    if (filled >= max) {
+      priority = 'filled';
+    } else if (
       starterSlotsRemaining > 0 &&
       isSpecialTeamsPosition(position) &&
       shouldDeferSpecialTeams(context)
     ) {
       priority = 'defer';
+    } else if (
+      isOpeningBoard &&
+      starterSlotsRemaining > 0 &&
+      !isSpecialTeamsPosition(position)
+    ) {
+      priority = 'critical';
     } else if (
       filled === 0 &&
       starterSlotsRemaining > 0 &&
@@ -120,16 +135,13 @@ export function calculateTeamNeeds(
       )
     ) {
       priority = 'critical';
-    } else if (filled < needed) {
+    } else if (starterSlotsRemaining > 0) {
       priority = scarcity >= HIGH_SCARCITY_SCORE || isMidDraft || isStarterSlotCrunch
         ? 'high'
         : 'medium';
-    } else if (filled < max) {
-      // Have starters but room for bench depth
-      priority = 'low';
     } else {
-      // At max roster for position
-      priority = 'filled';
+      // Fixed and FLEX starters are covered, with room for bench depth.
+      priority = 'low';
     }
 
     needs.push({
@@ -137,6 +149,9 @@ export function calculateTeamNeeds(
       priority,
       startersFilled: Math.min(filled, needed),
       startersNeeded: needed,
+      flexSlotsFilled,
+      flexSlotsNeeded,
+      isFlexEligible,
       scarcityScore: scarcity,
     });
   }

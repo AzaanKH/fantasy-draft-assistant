@@ -1,0 +1,26 @@
+{
+  "season": 2026,
+  "leagueName": "Ummati Official",
+  "source": "sleeper",
+  "draftId": "1313053610426269696",
+  "leagueId": "1313053610417872896",
+  "confirmedAt": "2026-08-25T15:57:03.000Z",
+  "totalTeams": 10,
+  "totalRounds": 14,
+  "scoring": {
+    "passingTouchdown": 4,
+    "reception": 1,
+    "tightEndReceptionPremium": 0.5,
+    "rushAttemptBonus": 0.2
+  },
+  "roster": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2,
+    "K": 1,
+    "DEF": 0,
+    "BENCH": 5
+  }
+}

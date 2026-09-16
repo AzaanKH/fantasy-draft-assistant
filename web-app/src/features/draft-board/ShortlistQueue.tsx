@@ -18,9 +18,11 @@ const positionColors: Record<Position, string> = {
 export function ShortlistQueue({
   players,
   onDraft,
+  canDraft,
 }: {
   players: readonly Player[];
   onDraft: (player: Player) => void;
+  canDraft: boolean;
 }): React.ReactElement {
   const shortlistedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
   const removePlayerFromShortlist = useDraftStore((state) => state.removePlayerFromShortlist);
@@ -39,18 +41,18 @@ export function ShortlistQueue({
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
-        <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
           Watchlist
-        </span>
+        </h3>
         <Badge variant="outline" className="h-5 px-1.5 font-mono text-[10px]">
           {shortlistedPlayers.length}
         </Badge>
-        <span className="text-xs text-muted-foreground">Sleeper pick notes</span>
+        <span className="text-xs text-muted-foreground">Draft queue</span>
       </div>
 
       {shortlistedPlayers.length === 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Star players in the table to keep your Sleeper options close.
+          Watch players to keep your next options close.
         </p>
       ) : (
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1" role="list">
@@ -74,6 +76,12 @@ export function ShortlistQueue({
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-xs"
+                disabled={!canDraft}
+                title={
+                  !canDraft
+                    ? 'Connect a live draft or start a mock draft to record picks.'
+                    : undefined
+                }
                 onClick={() => {
                   onDraft(player);
                 }}

@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-08-31T01:26:14.947Z",
+  "status": "passed",
+  "configuration": {
+    "totalTeams": 10,
+    "totalRounds": 14,
+    "totalPicks": 140,
+    "keeperCount": 10,
+    "scoring": {
+      "reception": 1,
+      "tightEndPremium": 0.5,
+      "rushAttemptBonus": 0.2
+    }
+  },
+  "transitions": {
+    "observed": 132,
+    "recommendationChecks": 128,
+    "waitingRecommendationChecks": 115,
+    "noDecisionChecks": 4,
+    "synchronizationStates": [
+      "confirmed",
+      "delayed",
+      "manual-continuity",
+      "reconciling",
+      "confirmed",
+      "complete"
+    ]
+  },
+  "reconciliation": {
+    "confirmations": 1,
+    "corrections": 1,
+    "removals": 1,
+    "visibleOutcomes": [
+      "Confirmed",
+      "Corrected",
+      "Removed"
+    ]
+  },
+  "completion": {
+    "canonicalPicks": 140,
+    "providerPicks": 130,
+    "keeperPicks": 10,
+    "missedPickNumbers": [],
+    "duplicatePickNumbers": [],
+    "duplicatePlayerIds": [],
+    "rosterMismatches": [],
+    "remainingAvailablePlayerIds": [
+      "provisional-conflict",
+      "provisional-extra"
+    ],
+    "currentPick": 141
+  },
+  "failures": []
+}

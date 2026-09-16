@@ -1,0 +1,38 @@
+{
+  "season": 2026,
+  "provider": "sleeper",
+  "draftId": "1313053610426269696",
+  "leagueId": "1313053610417872896",
+  "recordedAt": "2026-08-25T15:57:03.000Z",
+  "scheduledStartAt": "2026-09-05T18:00:40.000Z",
+  "timezone": "America/Los_Angeles",
+  "pickTimerSeconds": 60,
+  "providerStatus": "pre_draft",
+  "expectedConfiguration": {
+    "totalTeams": 10,
+    "totalRounds": 14,
+    "totalPicks": 140,
+    "keeperCount": 10,
+    "scoring": {
+      "passingTouchdown": 4,
+      "reception": 1,
+      "tightEndReceptionPremium": 0.5,
+      "rushAttemptBonus": 0.2
+    },
+    "roster": {
+      "QB": 1,
+      "RB": 2,
+      "WR": 2,
+      "TE": 1,
+      "FLEX": 2,
+      "K": 1,
+      "DEF": 0,
+      "BENCH": 5
+    }
+  },
+  "realProviderRehearsal": {
+    "status": "scheduled",
+    "completedAt": null,
+    "notes": "Sleeper currently contains the 10 confirmed keeper picks. Run the real-provider rehearsal before activating feature freeze."
+  }
+}

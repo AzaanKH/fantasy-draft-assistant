@@ -1,0 +1,267 @@
+{
+  "generatedAt": "2026-08-31T01:26:15.205Z",
+  "status": "blocked",
+  "outcomes": {
+    "build": {
+      "key": "build",
+      "label": "Build",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm build",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 4378
+        }
+      ]
+    },
+    "type-check": {
+      "key": "type-check",
+      "label": "Type-check",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm typecheck",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 2892
+        }
+      ]
+    },
+    "lint": {
+      "key": "lint",
+      "label": "Lint",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm lint",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 8317
+        }
+      ]
+    },
+    "unit": {
+      "key": "unit",
+      "label": "Unit tests",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm --filter extension test",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 1605
+        },
+        {
+          "command": "pnpm --filter web-app test -- --exclude src/**/*.integration.test.ts --exclude src/**/primary-league-rehearsal.test.ts",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 17368
+        },
+        {
+          "command": "pnpm --filter server test -- --exclude src/sync-engine.test.ts --exclude src/sync-server.test.ts",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 857
+        },
+        {
+          "command": "pnpm --filter scripts test",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 1093
+        }
+      ]
+    },
+    "integration": {
+      "key": "integration",
+      "label": "Integration tests",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm --filter web-app test -- src/features/draft-room/draft-workspace-decision.integration.test.ts",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 1142
+        },
+        {
+          "command": "pnpm --filter server test -- src/sync-engine.test.ts src/sync-server.test.ts",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 867
+        }
+      ]
+    },
+    "data-quality": {
+      "key": "data-quality",
+      "label": "Data quality",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm data:check:strict",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 1485
+        },
+        {
+          "command": "pnpm draft:readiness",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 1512
+        }
+      ]
+    },
+    "product-rehearsal": {
+      "key": "product-rehearsal",
+      "label": "Product rehearsal",
+      "status": "passed",
+      "commands": [
+        {
+          "command": "pnpm --filter web-app rehearse:primary-league",
+          "status": "passed",
+          "exitCode": 0,
+          "durationMs": 978
+        }
+      ]
+    }
+  },
+  "operational": {
+    "season": 2026,
+    "provider": "sleeper",
+    "draftId": "1313053610426269696",
+    "leagueId": "1313053610417872896",
+    "recordedAt": "2026-08-25T15:57:03.000Z",
+    "scheduledStartAt": "2026-09-05T18:00:40.000Z",
+    "timezone": "America/Los_Angeles",
+    "pickTimerSeconds": 60,
+    "providerStatus": "pre_draft",
+    "expectedConfiguration": {
+      "totalTeams": 10,
+      "totalRounds": 14,
+      "totalPicks": 140,
+      "keeperCount": 10,
+      "scoring": {
+        "passingTouchdown": 4,
+        "reception": 1,
+        "tightEndReceptionPremium": 0.5,
+        "rushAttemptBonus": 0.2
+      },
+      "roster": {
+        "QB": 1,
+        "RB": 2,
+        "WR": 2,
+        "TE": 1,
+        "FLEX": 2,
+        "K": 1,
+        "DEF": 0,
+        "BENCH": 5
+      }
+    },
+    "realProviderRehearsal": {
+      "status": "scheduled",
+      "completedAt": null,
+      "notes": "Sleeper currently contains the 10 confirmed keeper picks. Run the real-provider rehearsal before activating feature freeze."
+    }
+  },
+  "deterministicRehearsal": {
+    "generatedAt": "2026-08-31T01:26:14.947Z",
+    "status": "passed",
+    "configuration": {
+      "totalTeams": 10,
+      "totalRounds": 14,
+      "totalPicks": 140,
+      "keeperCount": 10,
+      "scoring": {
+        "reception": 1,
+        "tightEndPremium": 0.5,
+        "rushAttemptBonus": 0.2
+      }
+    },
+    "transitions": {
+      "observed": 132,
+      "recommendationChecks": 128,
+      "waitingRecommendationChecks": 115,
+      "noDecisionChecks": 4,
+      "synchronizationStates": [
+        "confirmed",
+        "delayed",
+        "manual-continuity",
+        "reconciling",
+        "confirmed",
+        "complete"
+      ]
+    },
+    "reconciliation": {
+      "confirmations": 1,
+      "corrections": 1,
+      "removals": 1,
+      "visibleOutcomes": [
+        "Confirmed",
+        "Corrected",
+        "Removed"
+      ]
+    },
+    "completion": {
+      "canonicalPicks": 140,
+      "providerPicks": 130,
+      "keeperPicks": 10,
+      "missedPickNumbers": [],
+      "duplicatePickNumbers": [],
+      "duplicatePlayerIds": [],
+      "rosterMismatches": [],
+      "remainingAvailablePlayerIds": [
+        "provisional-conflict",
+        "provisional-extra"
+      ],
+      "currentPick": 141
+    },
+    "failures": []
+  },
+  "productBlockingFailures": [
+    {
+      "key": "real-provider-rehearsal",
+      "label": "Real-provider rehearsal",
+      "message": "The scheduled Sleeper rehearsal has not completed successfully."
+    }
+  ],
+  "releaseBlockingFailures": [],
+  "actionableWarnings": [],
+  "optionalSignalDegradations": [
+    {
+      "key": "experimental-predictions",
+      "label": "Experimental predictions",
+      "classification": "optional-signal",
+      "sourceLabel": "Experimental prediction artifact",
+      "timestampLabel": "generated at",
+      "maxAgeHours": 168,
+      "correctiveAction": "Run `pnpm model:dataset` to rebuild the experimental prediction artifact.",
+      "status": "degraded",
+      "problem": "older-than-dependency",
+      "timestamp": "2026-08-29T20:51:39.431Z",
+      "ageHours": 28.576325,
+      "message": "The experimental predictions artifact (2026-08-29T20:51:39.431Z) is older than Trusted rankings (2026-08-30T21:16:15.990Z); the trusted rankings dependency is newer and Experimental predictions must be refreshed."
+    },
+    {
+      "key": "sportsbook-context",
+      "label": "Sportsbook context",
+      "classification": "optional-signal",
+      "sourceLabel": "Imported sportsbook snapshot",
+      "timestampLabel": "captured at",
+      "maxAgeHours": 48,
+      "correctiveAction": "Run `pnpm import:sportsbook` after replacing the source exports.",
+      "status": "degraded",
+      "problem": "stale",
+      "timestamp": "2026-07-30T21:39:00.000Z",
+      "ageHours": 747.7872780555556,
+      "message": "Imported sportsbook snapshot is stale: 31 days old exceeds the 48-hour live limit (captured at 2026-07-30T21:39:00.000Z), so Sportsbook context is unavailable."
+    }
+  ],
+  "featureFreeze": {
+    "status": "pending",
+    "allowedChanges": [
+      "data refreshes",
+      "rehearsal fixes",
+      "defects that threaten Draft Readiness"
+    ],
+    "message": "Feature freeze remains pending until every release check and the real-provider rehearsal pass."
+  }
+}

@@ -8,6 +8,7 @@
  */
 
 import type { Position, NeedPriority } from '@fantasy-draft/shared';
+import { CardListSkeleton } from '@/components/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
@@ -77,12 +78,18 @@ function NeedRow({
   priority,
   startersFilled,
   startersNeeded,
+  flexSlotsFilled,
+  flexSlotsNeeded,
+  isFlexEligible,
   scarcityScore,
 }: {
   position: Position;
   priority: NeedPriority;
   startersFilled: number;
   startersNeeded: number;
+  flexSlotsFilled: number;
+  flexSlotsNeeded: number;
+  isFlexEligible: boolean;
   scarcityScore: number;
 }) {
   return (
@@ -101,7 +108,10 @@ function NeedRow({
           </Badge>
         </div>
         <span className="text-[11px] text-muted-foreground">
-          {startersFilled}/{startersNeeded}
+          {startersFilled}/{startersNeeded} fixed
+          {isFlexEligible && flexSlotsNeeded > 0
+            ? ` · ${String(flexSlotsFilled)}/${String(flexSlotsNeeded)} FLEX`
+            : ''}
         </span>
       </div>
 
@@ -121,16 +131,7 @@ export function TeamNeeds() {
   const { needs, criticalPositions, isLoading } = useTeamNeeds();
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Team Needs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">Loading...</div>
-        </CardContent>
-      </Card>
-    );
+    return <CardListSkeleton label="Loading team needs" />;
   }
 
   return (
@@ -153,6 +154,9 @@ export function TeamNeeds() {
             priority={need.priority}
             startersFilled={need.startersFilled}
             startersNeeded={need.startersNeeded}
+            flexSlotsFilled={need.flexSlotsFilled}
+            flexSlotsNeeded={need.flexSlotsNeeded}
+            isFlexEligible={need.isFlexEligible}
             scarcityScore={need.scarcityScore}
           />
         ))}
