@@ -781,7 +781,7 @@ export function PlayerTable() {
           </div>
         </CardHeader>
 
-        <OnTheClock players={players} onDraft={handleDraft} />
+        <OnTheClock players={players} onDraft={handleDraft} canDraft={canRecordPicks} />
         <ShortlistQueue
           players={players}
           onDraft={handleDraft}
