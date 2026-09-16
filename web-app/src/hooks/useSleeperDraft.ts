@@ -14,11 +14,12 @@ import type {
   DraftPickEvent,
   Player,
 } from '@fantasy-draft/shared';
-import { useDraftStore } from '@/stores/draftStore';
+import { isValidDraftSyncId } from '@/stores/draftSyncStore';
+import { useDraftStore, type UnresolvedProviderPick } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
 
 async function fetchDraftSnapshot(draftId: string): Promise<DraftSyncSnapshot> {
-  const response = await fetch(`/api/sync/drafts/${draftId}`);
+  const response = await fetch(`/api/sync/drafts/${encodeURIComponent(draftId)}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch draft snapshot: ${response.status}`);
   }
@@ -27,7 +28,7 @@ async function fetchDraftSnapshot(draftId: string): Promise<DraftSyncSnapshot> {
 }
 
 async function requestRefresh(draftId: string): Promise<DraftSyncSnapshot> {
-  const response = await fetch(`/api/sync/drafts/${draftId}/refresh`, {
+  const response = await fetch(`/api/sync/drafts/${encodeURIComponent(draftId)}/refresh`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -38,13 +39,14 @@ async function requestRefresh(draftId: string): Promise<DraftSyncSnapshot> {
 }
 
 export function useSleeperDraft(
-  draftId: string | null,
+  requestedDraftId: string | null,
   shouldImportPicks: boolean = true
 ) {
+  const draftId = isValidDraftSyncId('sleeper', requestedDraftId) ? requestedDraftId : null;
   const queryClient = useQueryClient();
   const { players } = usePlayerDataQuery();
   const [liveSnapshot, setLiveSnapshot] = useState<DraftSyncSnapshot | null>(null);
-  const reconcileSleeperPicks = useDraftStore((state) => state.reconcileSleeperPicks);
+  const reconcileSyncedPicks = useDraftStore((state) => state.reconcileSyncedPicks);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
   const setConfig = useDraftStore((state) => state.setConfig);
 
@@ -66,7 +68,7 @@ export function useSleeperDraft(
       return;
     }
 
-    const eventSource = new EventSource(`/api/sync/drafts/${draftId}/events`);
+    const eventSource = new EventSource(`/api/sync/drafts/${encodeURIComponent(draftId)}/events`);
 
     eventSource.onmessage = (event: MessageEvent<string>) => {
       try {
@@ -141,11 +143,18 @@ export function useSleeperDraft(
       return;
     }
 
-    reconcileSleeperPicks(snapshot.picks.flatMap((pick) => {
+    const unresolvedPicks: UnresolvedProviderPick[] = [];
+    const syncedPicks = snapshot.picks.flatMap((pick) => {
       const matchedPlayer = findMatchingPlayer(pick);
       const isMyPick = pick.draftSlot === myPickPosition;
       const position = matchedPlayer?.position ?? normalizePosition(pick.position ?? undefined);
       if (!position) {
+        unresolvedPicks.push({
+          pickNumber: pick.pickNumber,
+          playerId: pick.playerId,
+          playerName: pick.playerName,
+          nflTeam: pick.nflTeam,
+        });
         return [];
       }
       const playerName = matchedPlayer?.name ?? pick.playerName;
@@ -159,8 +168,13 @@ export function useSleeperDraft(
         teamName: isMyPick ? 'My Team' : `Team ${String(pick.draftSlot)}`,
         isMyPick,
       }];
-    }));
-  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, reconcileSleeperPicks]);
+    });
+    reconcileSyncedPicks(
+      syncedPicks,
+      snapshot.picks.reduce((nextPick, pick) => Math.max(nextPick, pick.pickNumber + 1), 1),
+      unresolvedPicks
+    );
+  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, reconcileSyncedPicks]);
 
   const refresh = useCallback(async () => {
     if (!draftId) {

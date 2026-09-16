@@ -271,14 +271,16 @@ export function usePlayerDataQuery() {
       fantasyProsQuery.data.news,
       sleeperQuery.data.players,
       teamEnvQuery.data.teams,
-      recommendationPolicyQuery.data.contractSignalEnabled
-        ? contractQuery.data?.players ?? []
-        : [],
-      recommendationPolicyQuery.data.modelPredictionsEnabled
-        ? predictionQuery.data?.players ?? []
-        : [],
-      fantasyProsQuery.data.adp ?? [],
-      identityQuery.data.players
+      {
+        contractPlayers: recommendationPolicyQuery.data.contractSignalEnabled
+          ? contractQuery.data?.players ?? []
+          : [],
+        modelPredictions: recommendationPolicyQuery.data.modelPredictionsEnabled
+          ? predictionQuery.data?.players ?? []
+          : [],
+        fantasyProsAdp: fantasyProsQuery.data.adp ?? [],
+        identities: identityQuery.data.players,
+      }
     );
   }, [fantasyProsQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, predictionQuery.data, identityQuery.data, recommendationPolicyQuery.data]);
 

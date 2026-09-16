@@ -2,9 +2,12 @@ import type {
   FantasyProsProjection,
   NewsStatus,
   PlayerPrediction,
+  Player,
   Position,
   PredictionSource,
+  RosterRequirements,
 } from '@fantasy-draft/shared';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
 
 const REPLACEMENT_POSITIONAL_RANKS: Record<Position, number> = {
   QB: 12,
@@ -28,7 +31,11 @@ interface PredictionInput {
   readonly sleeperStatus: string | undefined;
   readonly newsStatus: NewsStatus;
   readonly fantasyProsProjection?: FantasyProsProjection;
+  /** FantasyPros PPR baseline after applying the active local league rules. */
+  readonly localLeagueProjectedPoints?: number;
   readonly modelPrediction?: PlayerPrediction;
+  /** Risk-only model output that must not promote experimental point projections. */
+  readonly informationalRiskPrediction?: PlayerPrediction;
 }
 
 export interface PredictionLayerResult {
@@ -80,19 +87,13 @@ function getInjuryRisk(newsStatus: NewsStatus, sleeperStatus: string | undefined
   return 2;
 }
 
-function getAvailabilityMultiplier(newsStatus: NewsStatus): number {
-  if (newsStatus === 'out') return 0.55;
-  if (newsStatus === 'questionable') return 0.9;
-  if (newsStatus === 'limited') return 0.95;
-  return 1;
-}
-
 function scoreFromPoints(points: number, basePoints: number, sensitivity: number): number {
   return clamp(5 + (points - basePoints) / sensitivity, 1, 10);
 }
 
 export function estimatePlayerPrediction(input: PredictionInput): PredictionLayerResult {
   const model = input.modelPrediction;
+  const riskModel = model ?? input.informationalRiskPrediction;
   const source: PredictionSource = model
     ? 'model'
     : input.fantasyProsProjection
@@ -100,18 +101,22 @@ export function estimatePlayerPrediction(input: PredictionInput): PredictionLaye
       : 'heuristic';
 
   const baseProjectedPoints =
+    model?.customProjectedPoints ??
     model?.projectedPoints ??
+    input.localLeagueProjectedPoints ??
     input.fantasyProsProjection?.projectedPoints ??
     rankProjection(input.ecrRank, input.sleeperAdp, input.offenseScore);
 
   const injuryRiskScore = clamp(
-    model?.injuryRiskScore ?? model?.riskScore ?? getInjuryRisk(input.newsStatus, input.sleeperStatus),
+    riskModel?.injuryRiskScore ??
+      riskModel?.riskScore ??
+      getInjuryRisk(input.newsStatus, input.sleeperStatus),
     1,
     10
   );
   const experienceUncertainty = getExperienceUncertainty(input.age, input.yearsExp);
   const uncertaintyScore = clamp(
-    model?.uncertaintyScore ??
+    riskModel?.uncertaintyScore ??
       2.4 +
         experienceUncertainty +
         Math.abs(input.valueScore) / 18 +
@@ -120,7 +125,9 @@ export function estimatePlayerPrediction(input: PredictionInput): PredictionLaye
     10
   );
 
-  const projectedPoints = round(baseProjectedPoints * getAvailabilityMultiplier(input.newsStatus));
+  // A current injury report affects risk, not a full-season projection. This
+  // prevents an offseason/practice status from erasing months of expected value.
+  const projectedPoints = round(baseProjectedPoints);
   const replacementPoints = replacementProjection(input.position, input.offenseScore);
   const valueOverReplacement = round(
     model?.valueOverReplacement ?? Math.max(0, projectedPoints - replacementPoints),
@@ -160,4 +167,70 @@ export function estimatePlayerPrediction(input: PredictionInput): PredictionLaye
     injuryRiskScore: round(injuryRiskScore),
     predictionSource: source,
   };
+}
+
+/**
+ * Recalculate VOR from the actual league-scored projection pool. Small fixture
+ * pools retain their supplied VOR because they cannot contain a replacement
+ * player at the configured league rank.
+ */
+export function applyDynamicValueOverReplacement(
+  players: readonly Player[],
+  totalTeams: number = 10,
+  requirements: RosterRequirements = DEFAULT_ROSTER_REQUIREMENTS
+): Player[] {
+  const normalizedTeams = Math.max(2, Math.round(totalTeams));
+  const starterDemand = new Map<Position, number>();
+  const fixedStarterIds = new Set<string>();
+
+  for (const position of ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const) {
+    const demand = normalizedTeams * requirements[position].starters;
+    starterDemand.set(position, demand);
+    const positionPlayers = players
+      .filter((player) => player.position === position)
+      .sort((a, b) => b.projectedPoints - a.projectedPoints || a.ecrRank - b.ecrRank);
+    for (const player of positionPlayers.slice(0, demand)) {
+      fixedStarterIds.add(player.id);
+    }
+  }
+
+  const flexDemand = normalizedTeams * requirements.FLEX.starters;
+  const flexCandidates = players
+    .filter(
+      (player) =>
+        requirements.FLEX.eligiblePositions.includes(player.position) &&
+        !fixedStarterIds.has(player.id)
+    )
+    .sort((a, b) => b.projectedPoints - a.projectedPoints || a.ecrRank - b.ecrRank)
+    .slice(0, flexDemand);
+  for (const player of flexCandidates) {
+    starterDemand.set(
+      player.position,
+      (starterDemand.get(player.position) ?? 0) + 1
+    );
+  }
+
+  const replacementPoints = new Map<Position, number>();
+  for (const position of ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const) {
+    const positionPlayers = players
+      .filter((player) => player.position === position)
+      .sort((a, b) => b.projectedPoints - a.projectedPoints);
+    const replacementIndex = starterDemand.get(position) ?? 0;
+    if (replacementIndex > 0 && positionPlayers.length > replacementIndex) {
+      replacementPoints.set(
+        position,
+        positionPlayers[replacementIndex]?.projectedPoints ?? 0
+      );
+    }
+  }
+
+  return players.map((player) => {
+    const replacement = replacementPoints.get(player.position);
+    return replacement === undefined
+      ? player
+      : {
+          ...player,
+          valueOverReplacement: round(Math.max(0, player.projectedPoints - replacement)),
+        };
+  });
 }

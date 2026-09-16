@@ -33,7 +33,7 @@ import { OnTheClock } from './OnTheClock';
 import { ShortlistQueue } from './ShortlistQueue';
 import { MyRoster } from '@/features/my-roster';
 import { useFilteredPlayers, usePositionStats } from '@/hooks/usePlayerData';
-import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
+import { useDraftStore, useDraftStoreApi, useIsMyTurn } from '@/stores/draftStore';
 import { cn, formatSignedNumber } from '@/lib/utils';
 
 /** Position filter type including FLEX */
@@ -92,12 +92,13 @@ function PositionFilters({
  * Uses getState() to ensure fresh state on each action
  */
 function DraftSimulationControls({ players }: { players: Player[] }) {
+  const draftStore = useDraftStoreApi();
   const [isOpen, setIsOpen] = React.useState(false);
   const draftedCount = useDraftStore((state) => state.draftedPlayerIds.size);
 
   // Simulate picking the top available player - uses fresh state each call
   const simulateNextPick = () => {
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     const { draftedPlayerIds, currentPick, config, markPlayerDrafted } = state;
 
     // Find top available player
@@ -125,7 +126,7 @@ function DraftSimulationControls({ players }: { players: Player[] }) {
 
   // Simulate a full round of picks
   const simulateRound = () => {
-    const { config } = useDraftStore.getState();
+    const { config } = draftStore.getState();
     for (let i = 0; i < config.totalTeams; i++) {
       simulateNextPick();
     }
@@ -133,12 +134,12 @@ function DraftSimulationControls({ players }: { players: Player[] }) {
 
   const handleUndo = () => {
     console.log('Undoing last pick');
-    useDraftStore.getState().undoLastPick();
+    draftStore.getState().undoLastPick();
   };
 
   const handleReset = () => {
     console.log('Resetting draft');
-    useDraftStore.getState().resetDraft();
+    draftStore.getState().resetDraft();
   };
 
   if (!isOpen) {
