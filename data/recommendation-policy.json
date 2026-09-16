@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T04:11:11.063Z",
+  "generatedAt": "2026-09-05T15:18:41.777Z",
   "modelVersion": "roster-aware-nested-walk-forward-v9-pick-ev",
   "modelPredictionsEnabled": false,
   "contractSignalEnabled": false,
@@ -72,7 +72,7 @@
     "endpoint": "/api/shadow-recommendations"
   },
   "reason": "At least one promotion gate fails; keep the model in Shadow Recommendation and out of live ordering.",
+  "contractSignalValidationPassed": true,
   "contractSignalModelVersion": "contract-year-walk-forward-ridge-v1",
-  "contractSignalReason": "The contract-year feature clears the multi-season promotion gate. It remains read-only until a separate live-policy approval.",
-  "contractSignalValidationPassed": true
+  "contractSignalReason": "The contract-year feature clears the multi-season promotion gate. It remains read-only until a separate live-policy approval."
 }

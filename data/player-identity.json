@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-08-30T21:16:16.901Z",
+  "generatedAt": "2026-09-16T15:39:58.266Z",
   "season": 2026,
   "sources": {
-    "fantasyProsRefreshedAt": "2026-08-30T21:16:15.990Z",
-    "sleeperFetchedAt": "2026-08-30T21:16:11.999Z"
+    "fantasyProsRefreshedAt": "2026-09-16T15:39:57.333Z",
+    "sleeperFetchedAt": "2026-09-16T15:39:53.179Z"
   },
   "coverage": {
-    "fantasyProsRankings": 497,
-    "matchedFantasyProsRankings": 495,
-    "fantasyProsRankingMatchRate": 0.996,
+    "fantasyProsRankings": 530,
+    "matchedFantasyProsRankings": 526,
+    "fantasyProsRankingMatchRate": 0.9925,
     "matchedDefenses": 32,
-    "sleeperPlayers": 999,
-    "identityRecords": 1002
+    "sleeperPlayers": 894,
+    "identityRecords": 900
   },
   "players": [
     {
@@ -466,29 +466,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "11092",
-      "sleeperId": "11092",
-      "name": "B.T. Potter",
-      "aliases": [
-        "B.T. Potter"
-      ],
-      "position": "K",
-      "team": "TB",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13066",
-      "sleeperId": "13066",
-      "fantasyProsId": "27798",
-      "name": "Ben Sauls",
-      "aliases": [
-        "Ben Sauls"
-      ],
-      "position": "K",
-      "team": "NYG",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "11058",
       "sleeperId": "11058",
       "fantasyProsId": "25533",
@@ -497,7 +474,7 @@
         "Blake Grupe"
       ],
       "position": "K",
-      "team": "IND",
+      "team": "NYJ",
       "matchMethod": "exact-name-team"
     },
     {
@@ -705,6 +682,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "10937",
+      "sleeperId": "10937",
+      "name": "Jake Moody",
+      "aliases": [
+        "Jake Moody"
+      ],
+      "position": "K",
+      "team": "BAL",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "2747",
       "sleeperId": "2747",
       "fantasyProsId": "14003",
@@ -761,6 +749,17 @@
       ],
       "position": "K",
       "team": "LV",
+      "matchMethod": "unmatched"
+    },
+    {
+      "canonicalId": "12548",
+      "sleeperId": "12548",
+      "name": "Lenny Krieg",
+      "aliases": [
+        "Lenny Krieg"
+      ],
+      "position": "K",
+      "team": "GB",
       "matchMethod": "unmatched"
     },
     {
@@ -821,18 +820,6 @@
       ],
       "position": "K",
       "team": "IND",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "11145",
-      "sleeperId": "11145",
-      "fantasyProsId": "25616",
-      "name": "Tanner Brown",
-      "aliases": [
-        "Tanner Brown"
-      ],
-      "position": "K",
-      "team": "NO",
       "matchMethod": "exact-name-team"
     },
     {
@@ -957,14 +944,24 @@
     {
       "canonicalId": "13557",
       "sleeperId": "13557",
-      "fantasyProsId": "28098",
       "name": "Athan Kaliakmanis",
       "aliases": [
         "Athan Kaliakmanis"
       ],
       "position": "QB",
       "team": "WAS",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
+    },
+    {
+      "canonicalId": "8157",
+      "sleeperId": "8157",
+      "name": "Bailey Zappe",
+      "aliases": [
+        "Bailey Zappe"
+      ],
+      "position": "QB",
+      "team": "NYJ",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4892",
@@ -1032,19 +1029,7 @@
         "Brady Cook"
       ],
       "position": "QB",
-      "team": "NYJ",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "3357",
-      "sleeperId": "3357",
-      "fantasyProsId": "15745",
-      "name": "Brandon Allen",
-      "aliases": [
-        "Brandon Allen"
-      ],
-      "position": "QB",
-      "team": "NYG",
+      "team": "MIA",
       "matchMethod": "exact-name-team"
     },
     {
@@ -1108,17 +1093,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "12688",
-      "sleeperId": "12688",
-      "name": "Cam Miller",
-      "aliases": [
-        "Cam Miller"
-      ],
-      "position": "QB",
-      "team": "MIA",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "12522",
       "sleeperId": "12522",
       "fantasyProsId": "24755",
@@ -1155,18 +1129,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "11851",
-      "sleeperId": "11851",
-      "fantasyProsId": "26384",
-      "name": "Carter Bradley",
-      "aliases": [
-        "Carter Bradley"
-      ],
-      "position": "QB",
-      "team": "JAX",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "1737",
       "sleeperId": "1737",
       "name": "Case Keenum",
@@ -1175,17 +1137,6 @@
       ],
       "position": "QB",
       "team": "CHI",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "8413",
-      "sleeperId": "8413",
-      "name": "Chris Oladokun",
-      "aliases": [
-        "Chris Oladokun"
-      ],
-      "position": "QB",
-      "team": "KC",
       "matchMethod": "unmatched"
     },
     {
@@ -1347,7 +1298,7 @@
         "Easton Stick"
       ],
       "position": "QB",
-      "team": "IND",
+      "team": "TB",
       "matchMethod": "unmatched"
     },
     {
@@ -1423,13 +1374,14 @@
     {
       "canonicalId": "13415",
       "sleeperId": "13415",
+      "fantasyProsId": "23141",
       "name": "Haynes King",
       "aliases": [
         "Haynes King"
       ],
       "position": "QB",
       "team": "CAR",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "9998",
@@ -1527,13 +1479,14 @@
     {
       "canonicalId": "13425",
       "sleeperId": "13425",
+      "fantasyProsId": "26060",
       "name": "Jalon Daniels",
       "aliases": [
         "Jalon Daniels"
       ],
       "position": "QB",
       "team": "TB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "2306",
@@ -1655,6 +1608,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "13428",
+      "sleeperId": "13428",
+      "name": "Joey Aguilar",
+      "aliases": [
+        "Joey Aguilar"
+      ],
+      "position": "QB",
+      "team": "JAX",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "6804",
       "sleeperId": "6804",
       "fantasyProsId": "19246",
@@ -1677,6 +1641,17 @@
       "position": "QB",
       "team": "BUF",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "260",
+      "sleeperId": "260",
+      "name": "Josh Johnson",
+      "aliases": [
+        "Josh Johnson"
+      ],
+      "position": "QB",
+      "team": "CIN",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4179",
@@ -1717,13 +1692,14 @@
     {
       "canonicalId": "11648",
       "sleeperId": "11648",
+      "fantasyProsId": "23166",
       "name": "Kedon Slovis",
       "aliases": [
         "Kedon Slovis"
       ],
       "position": "QB",
-      "team": "ARI",
-      "matchMethod": "unmatched"
+      "team": "GB",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "8160",
@@ -1775,13 +1751,14 @@
     {
       "canonicalId": "12494",
       "sleeperId": "12494",
+      "fantasyProsId": "23066",
       "name": "Kyle McCord",
       "aliases": [
         "Kyle McCord"
       ],
       "position": "QB",
       "team": "MIA",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5849",
@@ -1855,6 +1832,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "13816",
+      "sleeperId": "13816",
+      "name": "Mark Gronowski",
+      "aliases": [
+        "Mark Gronowski"
+      ],
+      "position": "QB",
+      "team": "HOU",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "4972",
       "sleeperId": "4972",
       "fantasyProsId": "17234",
@@ -1892,13 +1880,14 @@
     {
       "canonicalId": "12775",
       "sleeperId": "12775",
+      "fantasyProsId": "27580",
       "name": "Max Brosmer",
       "aliases": [
         "Max Brosmer"
       ],
       "position": "QB",
       "team": "MIN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11559",
@@ -1935,6 +1924,17 @@
       "position": "QB",
       "team": "TEN",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "4464",
+      "sleeperId": "4464",
+      "name": "Nick Mullens",
+      "aliases": [
+        "Nick Mullens"
+      ],
+      "position": "QB",
+      "team": "JAX",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4926",
@@ -2042,6 +2042,17 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "8002",
+      "sleeperId": "8002",
+      "name": "Shane Buechele",
+      "aliases": [
+        "Shane Buechele"
+      ],
+      "position": "QB",
+      "team": "BUF",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "12524",
       "sleeperId": "12524",
       "fantasyProsId": "25968",
@@ -2115,13 +2126,14 @@
     {
       "canonicalId": "13306",
       "sleeperId": "13306",
+      "fantasyProsId": "28094",
       "name": "Taylen Green",
       "aliases": [
         "Taylen Green"
       ],
       "position": "QB",
       "team": "CLE",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11292",
@@ -2244,17 +2256,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "9999",
-      "sleeperId": "9999",
-      "name": "Will Levis",
-      "aliases": [
-        "Will Levis"
-      ],
-      "position": "QB",
-      "team": "TEN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "4924",
       "sleeperId": "4924",
       "name": "Zach Terrell",
@@ -2333,7 +2334,7 @@
         "Ahmani Marshall"
       ],
       "position": "RB",
-      "team": "CLE",
+      "team": "CAR",
       "matchMethod": "unmatched"
     },
     {
@@ -2347,6 +2348,17 @@
       "position": "RB",
       "team": "CAR",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "13779",
+      "sleeperId": "13779",
+      "name": "Al-Jay Henderson",
+      "aliases": [
+        "Al-Jay Henderson"
+      ],
+      "position": "RB",
+      "team": "NYJ",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "6109",
@@ -2375,24 +2387,26 @@
     {
       "canonicalId": "12928",
       "sleeperId": "12928",
+      "fantasyProsId": "27696",
       "name": "Amar Johnson",
       "aliases": [
         "Amar Johnson"
       ],
       "position": "RB",
       "team": "LAC",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "2359",
       "sleeperId": "2359",
+      "fantasyProsId": "13924",
       "name": "Ameer Abdullah",
       "aliases": [
         "Ameer Abdullah"
       ],
       "position": "RB",
       "team": "JAX",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "14041",
@@ -2404,6 +2418,18 @@
       "position": "RB",
       "team": "IND",
       "matchMethod": "unmatched"
+    },
+    {
+      "canonicalId": "6323",
+      "sleeperId": "6323",
+      "fantasyProsId": "18748",
+      "name": "Andrew Beck",
+      "aliases": [
+        "Andrew Beck"
+      ],
+      "position": "RB",
+      "team": "NYJ",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "12939",
@@ -2452,6 +2478,17 @@
       "position": "RB",
       "team": "ARI",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "11273",
+      "sleeperId": "11273",
+      "name": "Ben VanSumeren",
+      "aliases": [
+        "Ben VanSumeren"
+      ],
+      "position": "RB",
+      "team": "KC",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "7048",
@@ -2581,7 +2618,7 @@
         "Brock Lampe"
       ],
       "position": "RB",
-      "team": "SEA",
+      "team": "BUF",
       "matchMethod": "unmatched"
     },
     {
@@ -2620,6 +2657,17 @@
       "position": "RB",
       "team": "MIA",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "11582",
+      "sleeperId": "11582",
+      "name": "Carson Steele",
+      "aliases": [
+        "Carson Steele"
+      ],
+      "position": "RB",
+      "team": "PHI",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13595",
@@ -2730,12 +2778,24 @@
     {
       "canonicalId": "12491",
       "sleeperId": "12491",
+      "fantasyProsId": "22997",
       "name": "Corey Kiner",
       "aliases": [
         "Corey Kiner"
       ],
       "position": "RB",
       "team": "NE",
+      "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "6659",
+      "sleeperId": "6659",
+      "name": "Craig Reynolds",
+      "aliases": [
+        "Craig Reynolds"
+      ],
+      "position": "RB",
+      "team": "WAS",
       "matchMethod": "unmatched"
     },
     {
@@ -2751,38 +2811,27 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "6694",
-      "sleeperId": "6694",
-      "name": "D'Ernest Johnson",
-      "aliases": [
-        "D'Ernest Johnson"
-      ],
-      "position": "RB",
-      "team": "TEN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "8129",
       "sleeperId": "8129",
+      "fantasyProsId": "22947",
       "name": "Dameon Pierce",
       "aliases": [
         "Dameon Pierce"
       ],
       "position": "RB",
       "team": "PHI",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "12462",
-      "sleeperId": "12462",
-      "fantasyProsId": "25976",
-      "name": "Damien Martinez",
+      "canonicalId": "13949",
+      "sleeperId": "13949",
+      "name": "Damon Bankston",
       "aliases": [
-        "Damien Martinez"
+        "Damon Bankston"
       ],
       "position": "RB",
       "team": "GB",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4718",
@@ -2815,7 +2864,7 @@
         "Davon Booth"
       ],
       "position": "RB",
-      "team": "CLE",
+      "team": "IND",
       "matchMethod": "unmatched"
     },
     {
@@ -2844,13 +2893,14 @@
     {
       "canonicalId": "13315",
       "sleeperId": "13315",
+      "fantasyProsId": "28113",
       "name": "Dean Connors",
       "aliases": [
         "Dean Connors"
       ],
       "position": "RB",
       "team": "LAR",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "6931",
@@ -2860,7 +2910,7 @@
         "DeeJay Dallas"
       ],
       "position": "RB",
-      "team": "JAX",
+      "team": "MIN",
       "matchMethod": "unmatched"
     },
     {
@@ -2888,18 +2938,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "12476",
-      "sleeperId": "12476",
-      "fantasyProsId": "23682",
-      "name": "Devin Neal",
-      "aliases": [
-        "Devin Neal"
-      ],
-      "position": "RB",
-      "team": "NO",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "6130",
       "sleeperId": "6130",
       "fantasyProsId": "18280",
@@ -2922,28 +2960,6 @@
       "position": "RB",
       "team": "IND",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13725",
-      "sleeperId": "13725",
-      "name": "Dominic Richardson",
-      "aliases": [
-        "Dominic Richardson"
-      ],
-      "position": "RB",
-      "team": "NYJ",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13852",
-      "sleeperId": "13852",
-      "name": "Dontae McMillan",
-      "aliases": [
-        "Dontae McMillan"
-      ],
-      "position": "RB",
-      "team": "BAL",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11574",
@@ -2970,17 +2986,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13778",
-      "sleeperId": "13778",
-      "name": "EJ Smith",
-      "aliases": [
-        "EJ Smith"
-      ],
-      "position": "RB",
-      "team": "KC",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13423",
       "sleeperId": "13423",
       "fantasyProsId": "28297",
@@ -3004,17 +3009,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13909",
-      "sleeperId": "13909",
-      "name": "Elijah Tau-Tolliver",
-      "aliases": [
-        "Elijah Tau-Tolliver"
-      ],
-      "position": "RB",
-      "team": "BAL",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11435",
       "sleeperId": "11435",
       "fantasyProsId": "25885",
@@ -3035,7 +3029,7 @@
         "Emari Demercado"
       ],
       "position": "RB",
-      "team": "KC",
+      "team": "DAL",
       "matchMethod": "exact-name-team"
     },
     {
@@ -3058,7 +3052,7 @@
         "Eric Gray"
       ],
       "position": "RB",
-      "team": "NYG",
+      "team": "CLE",
       "matchMethod": "unmatched"
     },
     {
@@ -3086,17 +3080,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "7529",
-      "sleeperId": "7529",
-      "name": "Gary Brightwell",
-      "aliases": [
-        "Gary Brightwell"
-      ],
-      "position": "RB",
-      "team": "CIN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "12048",
       "sleeperId": "12048",
       "fantasyProsId": "22915",
@@ -3117,6 +3100,17 @@
       ],
       "position": "RB",
       "team": "SF",
+      "matchMethod": "unmatched"
+    },
+    {
+      "canonicalId": "14071",
+      "sleeperId": "14071",
+      "name": "Grant Finley",
+      "aliases": [
+        "Grant Finley"
+      ],
+      "position": "RB",
+      "team": "NYG",
       "matchMethod": "unmatched"
     },
     {
@@ -3141,17 +3135,6 @@
       "position": "RB",
       "team": "DAL",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12036",
-      "sleeperId": "12036",
-      "name": "Ian Wheeler",
-      "aliases": [
-        "Ian Wheeler"
-      ],
-      "position": "RB",
-      "team": "BUF",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11651",
@@ -3192,14 +3175,13 @@
     {
       "canonicalId": "9227",
       "sleeperId": "9227",
-      "fantasyProsId": "24352",
       "name": "Israel Abanikanda",
       "aliases": [
         "Israel Abanikanda"
       ],
       "position": "RB",
       "team": "DAL",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "5004",
@@ -3235,17 +3217,6 @@
       "position": "RB",
       "team": "JAX",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12479",
-      "sleeperId": "12479",
-      "name": "Ja'Quinden Jackson",
-      "aliases": [
-        "Ja'Quinden Jackson"
-      ],
-      "position": "RB",
-      "team": "PHI",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12356",
@@ -3307,17 +3278,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13906",
-      "sleeperId": "13906",
-      "name": "Jaden Nixon",
-      "aliases": [
-        "Jaden Nixon"
-      ],
-      "position": "RB",
-      "team": "GB",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "9221",
       "sleeperId": "9221",
       "fantasyProsId": "22968",
@@ -3338,7 +3298,7 @@
         "Jaleel McLaughlin"
       ],
       "position": "RB",
-      "team": "DEN",
+      "team": "CLE",
       "matchMethod": "exact-name-team"
     },
     {
@@ -3350,17 +3310,6 @@
       ],
       "position": "RB",
       "team": "LV",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13946",
-      "sleeperId": "13946",
-      "name": "Jamal Haynes",
-      "aliases": [
-        "Jamal Haynes"
-      ],
-      "position": "RB",
-      "team": "CIN",
       "matchMethod": "unmatched"
     },
     {
@@ -3389,29 +3338,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "6996",
-      "sleeperId": "6996",
-      "name": "JaMycal Hasty",
-      "aliases": [
-        "JaMycal Hasty"
-      ],
-      "position": "RB",
-      "team": "NE",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "7537",
-      "sleeperId": "7537",
-      "fantasyProsId": "20155",
-      "name": "Jaret Patterson",
-      "aliases": [
-        "Jaret Patterson"
-      ],
-      "position": "RB",
-      "team": "LAC",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "11569",
       "sleeperId": "11569",
       "fantasyProsId": "24335",
@@ -3422,17 +3348,6 @@
       "position": "RB",
       "team": "MIA",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "8194",
-      "sleeperId": "8194",
-      "name": "Jashaun Corbin",
-      "aliases": [
-        "Jashaun Corbin"
-      ],
-      "position": "RB",
-      "team": "DAL",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "7588",
@@ -3473,13 +3388,14 @@
     {
       "canonicalId": "12457",
       "sleeperId": "12457",
+      "fantasyProsId": "24344",
       "name": "Jaydon Blue",
       "aliases": [
         "Jaydon Blue"
       ],
       "position": "RB",
-      "team": "DAL",
-      "matchMethod": "unmatched"
+      "team": "PHI",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "8228",
@@ -3530,30 +3446,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "7599",
-      "sleeperId": "7599",
-      "fantasyProsId": "20088",
-      "name": "Jermar Jefferson",
-      "aliases": [
-        "Jermar Jefferson"
-      ],
-      "position": "RB",
-      "team": "MIN",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "8143",
-      "sleeperId": "8143",
-      "fantasyProsId": "22921",
-      "name": "Jerome Ford",
-      "aliases": [
-        "Jerome Ford"
-      ],
-      "position": "RB",
-      "team": "WAS",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "13345",
       "sleeperId": "13345",
       "fantasyProsId": "27320",
@@ -3576,6 +3468,17 @@
       "position": "RB",
       "team": "IND",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "7087",
+      "sleeperId": "7087",
+      "name": "Jonathan Ward",
+      "aliases": [
+        "Jonathan Ward"
+      ],
+      "position": "RB",
+      "team": "BAL",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11583",
@@ -3612,17 +3515,6 @@
       "position": "RB",
       "team": "MIN",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "11378",
-      "sleeperId": "11378",
-      "name": "Jordan Mims",
-      "aliases": [
-        "Jordan Mims"
-      ],
-      "position": "RB",
-      "team": "PHI",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "6167",
@@ -3673,13 +3565,14 @@
     {
       "canonicalId": "8254",
       "sleeperId": "8254",
+      "fantasyProsId": "24689",
       "name": "Julius Chestnut",
       "aliases": [
         "Julius Chestnut"
       ],
       "position": "RB",
       "team": "TEN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5995",
@@ -3692,17 +3585,6 @@
       "position": "RB",
       "team": "BAL",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "14076",
-      "sleeperId": "14076",
-      "name": "Justin Jones",
-      "aliases": [
-        "Justin Jones"
-      ],
-      "position": "RB",
-      "team": "SEA",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13414",
@@ -3731,13 +3613,14 @@
     {
       "canonicalId": "12516",
       "sleeperId": "12516",
+      "fantasyProsId": "27045",
       "name": "Kalel Mullings",
       "aliases": [
         "Kalel Mullings"
       ],
       "position": "RB",
       "team": "TEN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13405",
@@ -3846,18 +3729,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "7608",
-      "sleeperId": "7608",
-      "fantasyProsId": "22763",
-      "name": "Khalil Herbert",
-      "aliases": [
-        "Khalil Herbert"
-      ],
-      "position": "RB",
-      "team": "SF",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "11647",
       "sleeperId": "11647",
       "fantasyProsId": "26355",
@@ -3908,13 +3779,14 @@
     {
       "canonicalId": "12969",
       "sleeperId": "12969",
+      "fantasyProsId": "27498",
       "name": "Lan Larison",
       "aliases": [
         "Lan Larison"
       ],
       "position": "RB",
       "team": "NE",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "12544",
@@ -3941,17 +3813,6 @@
       "position": "RB",
       "team": "PIT",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13213",
-      "sleeperId": "13213",
-      "name": "Lucas Scott",
-      "aliases": [
-        "Lucas Scott"
-      ],
-      "position": "RB",
-      "team": "BAL",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "8800",
@@ -4038,6 +3899,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "13964",
+      "sleeperId": "13964",
+      "name": "Myles Montgomery",
+      "aliases": [
+        "Myles Montgomery"
+      ],
+      "position": "RB",
+      "team": "NE",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "7528",
       "sleeperId": "7528",
       "fantasyProsId": "19302",
@@ -4052,14 +3924,13 @@
     {
       "canonicalId": "12897",
       "sleeperId": "12897",
-      "fantasyProsId": "27667",
-      "name": "Nathan Carter",
+      "name": "Nate Carter",
       "aliases": [
-        "Nathan Carter"
+        "Nate Carter"
       ],
       "position": "RB",
-      "team": "ATL",
-      "matchMethod": "exact-name-team"
+      "team": "KC",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13288",
@@ -4076,14 +3947,13 @@
     {
       "canonicalId": "13437",
       "sleeperId": "13437",
-      "fantasyProsId": "28115",
       "name": "Noah Whittington",
       "aliases": [
         "Noah Whittington"
       ],
       "position": "RB",
       "team": "HOU",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12495",
@@ -4125,24 +3995,27 @@
     {
       "canonicalId": "12738",
       "sleeperId": "12738",
+      "fantasyProsId": "22928",
       "name": "Phil Mafah",
       "aliases": [
         "Phil Mafah"
       ],
       "position": "RB",
-      "team": "DAL",
-      "matchMethod": "unmatched"
+      "team": "NYG",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "8116",
       "sleeperId": "8116",
-      "name": "Pierre Strong",
+      "fantasyProsId": "24173",
+      "name": "Pierre Strong Jr.",
       "aliases": [
+        "Pierre Strong Jr.",
         "Pierre Strong"
       ],
       "position": "RB",
       "team": "GB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "12512",
@@ -4167,6 +4040,17 @@
       "position": "RB",
       "team": "WAS",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "fantasypros-14338",
+      "fantasyProsId": "14338",
+      "name": "Raheem Mostert",
+      "aliases": [
+        "Raheem Mostert"
+      ],
+      "position": "RB",
+      "team": "LV",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12472",
@@ -4277,24 +4161,15 @@
     {
       "canonicalId": "13418",
       "sleeperId": "13418",
-      "name": "Robert Henry",
+      "fantasyProsId": "28404",
+      "name": "Robert Henry Jr.",
       "aliases": [
+        "Robert Henry Jr.",
         "Robert Henry"
       ],
       "position": "RB",
       "team": "WAS",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "14008",
-      "sleeperId": "14008",
-      "name": "Rodney Hammond",
-      "aliases": [
-        "Rodney Hammond"
-      ],
-      "position": "RB",
-      "team": "DEN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13416",
@@ -4331,17 +4206,6 @@
       "position": "RB",
       "team": "CHI",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "14064",
-      "sleeperId": "14064",
-      "name": "Roydell Williams",
-      "aliases": [
-        "Roydell Williams"
-      ],
-      "position": "RB",
-      "team": "DET",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "6918",
@@ -4406,13 +4270,14 @@
     {
       "canonicalId": "8220",
       "sleeperId": "8220",
+      "fantasyProsId": "23172",
       "name": "Sincere McCormick",
       "aliases": [
         "Sincere McCormick"
       ],
       "position": "RB",
       "team": "SF",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11729",
@@ -4473,17 +4338,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13780",
-      "sleeperId": "13780",
-      "name": "Terion Stewart",
-      "aliases": [
-        "Terion Stewart"
-      ],
-      "position": "RB",
-      "team": "KC",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "5967",
       "sleeperId": "5967",
       "fantasyProsId": "18705",
@@ -4519,29 +4373,6 @@
       "position": "RB",
       "team": "PIT",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "6144",
-      "sleeperId": "6144",
-      "fantasyProsId": "18607",
-      "name": "Trayveon Williams",
-      "aliases": [
-        "Trayveon Williams"
-      ],
-      "position": "RB",
-      "team": "DET",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12940",
-      "sleeperId": "12940",
-      "name": "Tre Stewart",
-      "aliases": [
-        "Tre Stewart"
-      ],
-      "position": "RB",
-      "team": "ARI",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12529",
@@ -4658,7 +4489,7 @@
         "Tyler Goodson"
       ],
       "position": "RB",
-      "team": "ATL",
+      "team": "DAL",
       "matchMethod": "exact-name-team"
     },
     {
@@ -4673,17 +4504,6 @@
       "position": "RB",
       "team": "NYG",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12826",
-      "sleeperId": "12826",
-      "name": "Ulysses Bentley",
-      "aliases": [
-        "Ulysses Bentley"
-      ],
-      "position": "RB",
-      "team": "IND",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "3309",
@@ -4735,13 +4555,14 @@
     {
       "canonicalId": "8139",
       "sleeperId": "8139",
+      "fantasyProsId": "20095",
       "name": "Zamir White",
       "aliases": [
         "Zamir White"
       ],
       "position": "RB",
       "team": "NO",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11299",
@@ -4752,7 +4573,7 @@
         "Zavier Scott"
       ],
       "position": "RB",
-      "team": "MIN",
+      "team": "CHI",
       "matchMethod": "exact-name-team"
     },
     {
@@ -4777,29 +4598,6 @@
       ],
       "position": "TE",
       "team": "SEA",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "6843",
-      "sleeperId": "6843",
-      "name": "Albert Okwuegbunam",
-      "aliases": [
-        "Albert Okwuegbunam"
-      ],
-      "position": "TE",
-      "team": "LV",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "6323",
-      "sleeperId": "6323",
-      "fantasyProsId": "18748",
-      "name": "Andrew Beck",
-      "aliases": [
-        "Andrew Beck"
-      ],
-      "position": "TE",
-      "team": "NYJ",
       "matchMethod": "exact-name-team"
     },
     {
@@ -4837,17 +4635,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "11082",
-      "sleeperId": "11082",
-      "name": "Ben Sims",
-      "aliases": [
-        "Ben Sims"
-      ],
-      "position": "TE",
-      "team": "MIA",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11596",
       "sleeperId": "11596",
       "fantasyProsId": "26310",
@@ -4873,24 +4660,26 @@
     {
       "canonicalId": "11201",
       "sleeperId": "11201",
+      "fantasyProsId": "25657",
       "name": "Blake Whiteheart",
       "aliases": [
         "Blake Whiteheart"
       ],
       "position": "TE",
       "team": "CLE",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11280",
       "sleeperId": "11280",
+      "fantasyProsId": "25731",
       "name": "Brady Russell",
       "aliases": [
         "Brady Russell"
       ],
       "position": "TE",
       "team": "SEA",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "10224",
@@ -4974,17 +4763,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "12941",
-      "sleeperId": "12941",
-      "name": "Bryson Nesbit",
-      "aliases": [
-        "Bryson Nesbit"
-      ],
-      "position": "TE",
-      "team": "MIN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "8111",
       "sleeperId": "8111",
       "fantasyProsId": "23181",
@@ -5027,7 +4805,7 @@
         "Cam Grandy"
       ],
       "position": "TE",
-      "team": "CIN",
+      "team": "MIN",
       "matchMethod": "unmatched"
     },
     {
@@ -5038,19 +4816,20 @@
         "Cameron Latu"
       ],
       "position": "TE",
-      "team": "PHI",
+      "team": "NE",
       "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13580",
       "sleeperId": "13580",
+      "fantasyProsId": "28399",
       "name": "Carsen Ryan",
       "aliases": [
         "Carsen Ryan"
       ],
       "position": "TE",
       "team": "CLE",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13407",
@@ -5089,24 +4868,14 @@
     {
       "canonicalId": "7075",
       "sleeperId": "7075",
+      "fantasyProsId": "19665",
       "name": "Charlie Woerner",
       "aliases": [
         "Charlie Woerner"
       ],
       "position": "TE",
       "team": "ATL",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13839",
-      "sleeperId": "13839",
-      "name": "Chase Curtis",
-      "aliases": [
-        "Chase Curtis"
-      ],
-      "position": "TE",
-      "team": "NYJ",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "8210",
@@ -5144,16 +4913,15 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13834",
-      "sleeperId": "13834",
-      "fantasyProsId": "28695",
-      "name": "Cody Hardy",
+      "canonicalId": "12984",
+      "sleeperId": "12984",
+      "name": "CJ Dippre",
       "aliases": [
-        "Cody Hardy"
+        "CJ Dippre"
       ],
       "position": "TE",
-      "team": "NO",
-      "matchMethod": "exact-name-team"
+      "team": "TB",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "6865",
@@ -5227,17 +4995,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "14069",
-      "sleeperId": "14069",
-      "name": "Connor Hulstein",
-      "aliases": [
-        "Connor Hulstein"
-      ],
-      "position": "TE",
-      "team": "NYJ",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "5022",
       "sleeperId": "5022",
       "fantasyProsId": "17270",
@@ -5283,6 +5040,17 @@
       "position": "TE",
       "team": "HOU",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "13321",
+      "sleeperId": "13321",
+      "name": "Dan Villari",
+      "aliases": [
+        "Dan Villari"
+      ],
+      "position": "TE",
+      "team": "LAR",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "8225",
@@ -5425,24 +5193,26 @@
     {
       "canonicalId": "13210",
       "sleeperId": "13210",
+      "fantasyProsId": "27916",
       "name": "Drake Dabney",
       "aliases": [
         "Drake Dabney"
       ],
       "position": "TE",
       "team": "GB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "8489",
       "sleeperId": "8489",
+      "fantasyProsId": "24561",
       "name": "Drew Ogletree",
       "aliases": [
         "Drew Ogletree"
       ],
       "position": "TE",
       "team": "IND",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "6001",
@@ -5600,13 +5370,14 @@
     {
       "canonicalId": "5985",
       "sleeperId": "5985",
+      "fantasyProsId": "18397",
       "name": "Foster Moreau",
       "aliases": [
         "Foster Moreau"
       ],
       "position": "TE",
       "team": "HOU",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "4930",
@@ -5622,14 +5393,13 @@
     {
       "canonicalId": "12700",
       "sleeperId": "12700",
-      "fantasyProsId": "26002",
       "name": "Gavin Bartholomew",
       "aliases": [
         "Gavin Bartholomew"
       ],
       "position": "TE",
       "team": "MIN",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4217",
@@ -5710,7 +5480,7 @@
         "Hayden Rucci"
       ],
       "position": "TE",
-      "team": "SF",
+      "team": "JAX",
       "matchMethod": "unmatched"
     },
     {
@@ -5728,24 +5498,26 @@
     {
       "canonicalId": "7535",
       "sleeperId": "7535",
+      "fantasyProsId": "22783",
       "name": "Hunter Long",
       "aliases": [
         "Hunter Long"
       ],
       "position": "TE",
       "team": "ARI",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "4995",
       "sleeperId": "4995",
+      "fantasyProsId": "17387",
       "name": "Ian Thomas",
       "aliases": [
         "Ian Thomas"
       ],
       "position": "TE",
       "team": "LV",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5957",
@@ -5805,6 +5577,17 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "7946",
+      "sleeperId": "7946",
+      "name": "Jack Stoll",
+      "aliases": [
+        "Jack Stoll"
+      ],
+      "position": "TE",
+      "team": "SF",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "13846",
       "sleeperId": "13846",
       "name": "Jack Velling",
@@ -5823,7 +5606,7 @@
         "Jack Westover"
       ],
       "position": "TE",
-      "team": "NE",
+      "team": "WAS",
       "matchMethod": "unmatched"
     },
     {
@@ -5881,7 +5664,7 @@
         "James Mitchell"
       ],
       "position": "TE",
-      "team": "CAR",
+      "team": "DAL",
       "matchMethod": "unmatched"
     },
     {
@@ -5930,17 +5713,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "14061",
-      "sleeperId": "14061",
-      "name": "Jeremiah Franklin",
-      "aliases": [
-        "Jeremiah Franklin"
-      ],
-      "position": "TE",
-      "team": "MIA",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "8145",
       "sleeperId": "8145",
       "fantasyProsId": "23742",
@@ -5951,17 +5723,6 @@
       "position": "TE",
       "team": "NYJ",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12975",
-      "sleeperId": "12975",
-      "name": "JJ Galbreath",
-      "aliases": [
-        "JJ Galbreath"
-      ],
-      "position": "TE",
-      "team": "IND",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13435",
@@ -6021,17 +5782,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "14029",
-      "sleeperId": "14029",
-      "name": "Johnny Pascuzzi",
-      "aliases": [
-        "Johnny Pascuzzi"
-      ],
-      "position": "TE",
-      "team": "LAC",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "4144",
       "sleeperId": "4144",
       "fantasyProsId": "16460",
@@ -6046,24 +5796,14 @@
     {
       "canonicalId": "13273",
       "sleeperId": "13273",
+      "fantasyProsId": "28155",
       "name": "Josh Cuevas",
       "aliases": [
         "Josh Cuevas"
       ],
       "position": "TE",
       "team": "BAL",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13312",
-      "sleeperId": "13312",
-      "name": "Josh Kattus",
-      "aliases": [
-        "Josh Kattus"
-      ],
-      "position": "TE",
-      "team": "CIN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5973",
@@ -6101,6 +5841,17 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "7050",
+      "sleeperId": "7050",
+      "name": "Josiah Deguara",
+      "aliases": [
+        "Josiah Deguara"
+      ],
+      "position": "TE",
+      "team": "PHI",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "11371",
       "sleeperId": "11371",
       "name": "Julian Hill",
@@ -6114,13 +5865,14 @@
     {
       "canonicalId": "13400",
       "sleeperId": "13400",
+      "fantasyProsId": "28079",
       "name": "Justin Joly",
       "aliases": [
         "Justin Joly"
       ],
       "position": "TE",
-      "team": "DEN",
-      "matchMethod": "unmatched"
+      "team": "MIA",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "7002",
@@ -6153,7 +5905,7 @@
         "Kenny Fletcher"
       ],
       "position": "TE",
-      "team": "TB",
+      "team": "IND",
       "matchMethod": "unmatched"
     },
     {
@@ -6182,13 +5934,14 @@
     {
       "canonicalId": "8484",
       "sleeperId": "8484",
+      "fantasyProsId": "24568",
       "name": "Ko Kieft",
       "aliases": [
         "Ko Kieft"
       ],
       "position": "TE",
       "team": "TB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "7553",
@@ -6223,28 +5976,6 @@
       ],
       "position": "TE",
       "team": "PIT",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13357",
-      "sleeperId": "13357",
-      "name": "Lance Mason",
-      "aliases": [
-        "Lance Mason"
-      ],
-      "position": "TE",
-      "team": "PIT",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "7106",
-      "sleeperId": "7106",
-      "name": "Lawrence Cager",
-      "aliases": [
-        "Lawrence Cager"
-      ],
-      "position": "TE",
-      "team": "WAS",
       "matchMethod": "unmatched"
     },
     {
@@ -6363,18 +6094,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "12068",
-      "sleeperId": "12068",
-      "fantasyProsId": "26674",
-      "name": "Mason Pline",
-      "aliases": [
-        "Mason Pline"
-      ],
-      "position": "TE",
-      "team": "KC",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "12498",
       "sleeperId": "12498",
       "fantasyProsId": "26005",
@@ -6410,17 +6129,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13806",
-      "sleeperId": "13806",
-      "name": "Matt Lauter",
-      "aliases": [
-        "Matt Lauter"
-      ],
-      "position": "TE",
-      "team": "MIN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13278",
       "sleeperId": "13278",
       "fantasyProsId": "27993",
@@ -6433,17 +6141,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "12070",
-      "sleeperId": "12070",
-      "name": "McCallan Castles",
-      "aliases": [
-        "McCallan Castles"
-      ],
-      "position": "TE",
-      "team": "GB",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "12154",
       "sleeperId": "12154",
       "name": "Messiah Swinson",
@@ -6451,7 +6148,7 @@
         "Messiah Swinson"
       ],
       "position": "TE",
-      "team": "GB",
+      "team": "CLE",
       "matchMethod": "unmatched"
     },
     {
@@ -6517,25 +6214,25 @@
     {
       "canonicalId": "12480",
       "sleeperId": "12480",
-      "fantasyProsId": "23093",
       "name": "Moliki Matavao",
       "aliases": [
         "Moliki Matavao"
       ],
       "position": "TE",
       "team": "NO",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11433",
       "sleeperId": "11433",
+      "fantasyProsId": "25881",
       "name": "Nate Adkins",
       "aliases": [
         "Nate Adkins"
       ],
       "position": "TE",
       "team": "DEN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13299",
@@ -6579,7 +6276,7 @@
         "Nick Vannett"
       ],
       "position": "TE",
-      "team": "SEA",
+      "team": "BAL",
       "matchMethod": "unmatched"
     },
     {
@@ -6655,6 +6352,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "13913",
+      "sleeperId": "13913",
+      "name": "Patrick Gurd",
+      "aliases": [
+        "Patrick Gurd"
+      ],
+      "position": "TE",
+      "team": "LV",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "12901",
       "sleeperId": "12901",
       "name": "Patrick Herbert",
@@ -6662,19 +6370,20 @@
         "Patrick Herbert"
       ],
       "position": "TE",
-      "team": "JAX",
+      "team": "LAC",
       "matchMethod": "unmatched"
     },
     {
       "canonicalId": "10227",
       "sleeperId": "10227",
+      "fantasyProsId": "25346",
       "name": "Payne Durham",
       "aliases": [
         "Payne Durham"
       ],
       "position": "TE",
       "team": "TB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "4443",
@@ -6699,17 +6408,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13870",
-      "sleeperId": "13870",
-      "name": "Quentin Moore",
-      "aliases": [
-        "Quentin Moore"
-      ],
-      "position": "TE",
-      "team": "WAS",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "7536",
       "sleeperId": "7536",
       "name": "Quintin Morris",
@@ -6723,35 +6421,12 @@
     {
       "canonicalId": "13433",
       "sleeperId": "13433",
-      "fantasyProsId": "28437",
       "name": "Riley Nowakowski",
       "aliases": [
         "Riley Nowakowski"
       ],
       "position": "TE",
       "team": "PIT",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12851",
-      "sleeperId": "12851",
-      "name": "Rivaldo Fairweather",
-      "aliases": [
-        "Rivaldo Fairweather"
-      ],
-      "position": "TE",
-      "team": "ARI",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13430",
-      "sleeperId": "13430",
-      "name": "RJ Maryland",
-      "aliases": [
-        "RJ Maryland"
-      ],
-      "position": "TE",
-      "team": "GB",
       "matchMethod": "unmatched"
     },
     {
@@ -6791,25 +6466,26 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "6964",
-      "sleeperId": "6964",
-      "name": "Sean McKeon",
-      "aliases": [
-        "Sean McKeon"
-      ],
-      "position": "TE",
-      "team": "IND",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13429",
       "sleeperId": "13429",
+      "fantasyProsId": "28163",
       "name": "Seydou Traore",
       "aliases": [
         "Seydou Traore"
       ],
       "position": "TE",
       "team": "MIA",
+      "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "8041",
+      "sleeperId": "8041",
+      "name": "Shane Zylstra",
+      "aliases": [
+        "Shane Zylstra"
+      ],
+      "position": "TE",
+      "team": "NE",
       "matchMethod": "unmatched"
     },
     {
@@ -6842,7 +6518,7 @@
         "Stone Smartt"
       ],
       "position": "TE",
-      "team": "PHI",
+      "team": "NO",
       "matchMethod": "unmatched"
     },
     {
@@ -6860,24 +6536,12 @@
     {
       "canonicalId": "13827",
       "sleeperId": "13827",
-      "fantasyProsId": "28166",
       "name": "Tanner Arkin",
       "aliases": [
         "Tanner Arkin"
       ],
       "position": "TE",
       "team": "NE",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "8849",
-      "sleeperId": "8849",
-      "name": "Tanner Conner",
-      "aliases": [
-        "Tanner Conner"
-      ],
-      "position": "TE",
-      "team": "NYG",
       "matchMethod": "unmatched"
     },
     {
@@ -6973,6 +6637,17 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "8924",
+      "sleeperId": "8924",
+      "name": "Thomas Odukoya",
+      "aliases": [
+        "Thomas Odukoya"
+      ],
+      "position": "TE",
+      "team": "KC",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "12113",
       "sleeperId": "12113",
       "name": "Thomas Yassmin",
@@ -7048,18 +6723,7 @@
         "Tre Watson"
       ],
       "position": "TE",
-      "team": "KC",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "7554",
-      "sleeperId": "7554",
-      "name": "Tre' McKitty",
-      "aliases": [
-        "Tre' McKitty"
-      ],
-      "position": "TE",
-      "team": "WAS",
+      "team": "MIA",
       "matchMethod": "unmatched"
     },
     {
@@ -7133,17 +6797,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "14062",
-      "sleeperId": "14062",
-      "name": "Tyler Moore",
-      "aliases": [
-        "Tyler Moore"
-      ],
-      "position": "TE",
-      "team": "IND",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "12518",
       "sleeperId": "12518",
       "fantasyProsId": "26434",
@@ -7190,25 +6843,14 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13110",
-      "sleeperId": "13110",
-      "name": "Zach Horton",
+      "canonicalId": "8799",
+      "sleeperId": "8799",
+      "name": "Zaire Mitchell-Paden",
       "aliases": [
-        "Zach Horton"
+        "Zaire Mitchell-Paden"
       ],
       "position": "TE",
-      "team": "DET",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "9483",
-      "sleeperId": "9483",
-      "name": "Zack Kuntz",
-      "aliases": [
-        "Zack Kuntz"
-      ],
-      "position": "TE",
-      "team": "DAL",
+      "team": "HOU",
       "matchMethod": "unmatched"
     },
     {
@@ -7234,17 +6876,6 @@
       "position": "WR",
       "team": "NYJ",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12865",
-      "sleeperId": "12865",
-      "name": "AJ Henning",
-      "aliases": [
-        "AJ Henning"
-      ],
-      "position": "WR",
-      "team": "MIA",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4937",
@@ -7351,13 +6982,14 @@
     {
       "canonicalId": "13582",
       "sleeperId": "13582",
+      "fantasyProsId": "28500",
       "name": "Anthony Smith",
       "aliases": [
         "Anthony Smith"
       ],
       "position": "WR",
       "team": "DAL",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13301",
@@ -7370,17 +7002,6 @@
       "position": "WR",
       "team": "WAS",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12460",
-      "sleeperId": "12460",
-      "name": "Antwane Wells",
-      "aliases": [
-        "Antwane Wells"
-      ],
-      "position": "WR",
-      "team": "ATL",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12539",
@@ -7432,13 +7053,14 @@
     {
       "canonicalId": "12889",
       "sleeperId": "12889",
+      "fantasyProsId": "22925",
       "name": "Beaux Collins",
       "aliases": [
         "Beaux Collins"
       ],
       "position": "WR",
       "team": "ATL",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "7757",
@@ -7465,17 +7087,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13658",
-      "sleeperId": "13658",
-      "name": "Brady Boyd",
-      "aliases": [
-        "Brady Boyd"
-      ],
-      "position": "WR",
-      "team": "JAX",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "6803",
       "sleeperId": "6803",
       "fantasyProsId": "19252",
@@ -7495,7 +7106,7 @@
         "Brandon Johnson"
       ],
       "position": "WR",
-      "team": "LV",
+      "team": "PIT",
       "matchMethod": "unmatched"
     },
     {
@@ -7512,13 +7123,14 @@
     {
       "canonicalId": "5121",
       "sleeperId": "5121",
+      "fantasyProsId": "17289",
       "name": "Braxton Berrios",
       "aliases": [
         "Braxton Berrios"
       ],
       "position": "WR",
       "team": "NYG",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13380",
@@ -7535,13 +7147,14 @@
     {
       "canonicalId": "13011",
       "sleeperId": "13011",
+      "fantasyProsId": "27769",
       "name": "Brennan Presley",
       "aliases": [
         "Brennan Presley"
       ],
       "position": "WR",
       "team": "LAR",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11631",
@@ -7559,24 +7172,12 @@
     {
       "canonicalId": "8414",
       "sleeperId": "8414",
-      "fantasyProsId": "24234",
       "name": "Britain Covey",
       "aliases": [
         "Britain Covey"
       ],
       "position": "WR",
       "team": "PHI",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "14034",
-      "sleeperId": "14034",
-      "name": "Brock Rechsteiner",
-      "aliases": [
-        "Brock Rechsteiner"
-      ],
-      "position": "WR",
-      "team": "NO",
       "matchMethod": "unmatched"
     },
     {
@@ -7592,25 +7193,26 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "11959",
-      "sleeperId": "11959",
-      "name": "Bryce Oliver",
-      "aliases": [
-        "Bryce Oliver"
-      ],
-      "position": "WR",
-      "team": "TEN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11157",
       "sleeperId": "11157",
+      "fantasyProsId": "25631",
       "name": "Brycen Tremayne",
       "aliases": [
         "Brycen Tremayne"
       ],
       "position": "WR",
       "team": "CAR",
+      "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "11748",
+      "sleeperId": "11748",
+      "name": "Bub Means",
+      "aliases": [
+        "Bub Means"
+      ],
+      "position": "WR",
+      "team": "CLE",
       "matchMethod": "unmatched"
     },
     {
@@ -7660,17 +7262,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "12906",
-      "sleeperId": "12906",
-      "name": "Cam Camper",
-      "aliases": [
-        "Cam Camper"
-      ],
-      "position": "WR",
-      "team": "NYJ",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13726",
       "sleeperId": "13726",
       "fantasyProsId": "26025",
@@ -7691,17 +7282,6 @@
       ],
       "position": "WR",
       "team": "NE",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13744",
-      "sleeperId": "13744",
-      "name": "Cameron Ross",
-      "aliases": [
-        "Cameron Ross"
-      ],
-      "position": "WR",
-      "team": "DEN",
       "matchMethod": "unmatched"
     },
     {
@@ -7728,6 +7308,18 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "10444",
+      "sleeperId": "10444",
+      "fantasyProsId": "25287",
+      "name": "Cedric Tillman",
+      "aliases": [
+        "Cedric Tillman"
+      ],
+      "position": "WR",
+      "team": "NO",
+      "matchMethod": "exact-name-team"
+    },
+    {
       "canonicalId": "6786",
       "sleeperId": "6786",
       "fantasyProsId": "19202",
@@ -7747,7 +7339,7 @@
         "Chandler Brayboy"
       ],
       "position": "WR",
-      "team": "JAX",
+      "team": "NE",
       "matchMethod": "unmatched"
     },
     {
@@ -7758,18 +7350,7 @@
         "Charlie Jones"
       ],
       "position": "WR",
-      "team": "CIN",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13410",
-      "sleeperId": "13410",
-      "name": "Chase Roberts",
-      "aliases": [
-        "Chase Roberts"
-      ],
-      "position": "WR",
-      "team": "LV",
+      "team": "NYG",
       "matchMethod": "unmatched"
     },
     {
@@ -7846,6 +7427,17 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "3269",
+      "sleeperId": "3269",
+      "name": "Chris Moore",
+      "aliases": [
+        "Chris Moore"
+      ],
+      "position": "WR",
+      "team": "BAL",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "8144",
       "sleeperId": "8144",
       "fantasyProsId": "20111",
@@ -7856,6 +7448,17 @@
       "position": "WR",
       "team": "NO",
       "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "fantasypros-23058",
+      "fantasyProsId": "23058",
+      "name": "Chris Tyree",
+      "aliases": [
+        "Chris Tyree"
+      ],
+      "position": "WR",
+      "team": "NO",
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "4950",
@@ -7912,7 +7515,7 @@
         "Cody White"
       ],
       "position": "WR",
-      "team": "SEA",
+      "team": "LV",
       "matchMethod": "unmatched"
     },
     {
@@ -7925,29 +7528,6 @@
       ],
       "position": "WR",
       "team": "CIN",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12210",
-      "sleeperId": "12210",
-      "name": "Cole Burgess",
-      "aliases": [
-        "Cole Burgess"
-      ],
-      "position": "WR",
-      "team": "PIT",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12829",
-      "sleeperId": "12829",
-      "fantasyProsId": "27621",
-      "name": "Coleman Owen",
-      "aliases": [
-        "Coleman Owen"
-      ],
-      "position": "WR",
-      "team": "IND",
       "matchMethod": "exact-name-team"
     },
     {
@@ -7974,29 +7554,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "11815",
-      "sleeperId": "11815",
-      "fantasyProsId": "23017",
-      "name": "Cornelius Johnson",
-      "aliases": [
-        "Cornelius Johnson"
-      ],
-      "position": "WR",
-      "team": "BAL",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13849",
-      "sleeperId": "13849",
-      "name": "Cortez Braham",
-      "aliases": [
-        "Cortez Braham"
-      ],
-      "position": "WR",
-      "team": "BAL",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "5045",
       "sleeperId": "5045",
       "fantasyProsId": "17253",
@@ -8007,17 +7564,6 @@
       "position": "WR",
       "team": "DEN",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12772",
-      "sleeperId": "12772",
-      "name": "Courtney Jackson",
-      "aliases": [
-        "Courtney Jackson"
-      ],
-      "position": "WR",
-      "team": "TEN",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13413",
@@ -8042,39 +7588,6 @@
       "position": "WR",
       "team": "IND",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "12892",
-      "sleeperId": "12892",
-      "name": "Da'Quan Felton",
-      "aliases": [
-        "Da'Quan Felton"
-      ],
-      "position": "WR",
-      "team": "NYJ",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12888",
-      "sleeperId": "12888",
-      "name": "Dalen Cambre",
-      "aliases": [
-        "Dalen Cambre"
-      ],
-      "position": "WR",
-      "team": "NYG",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13202",
-      "sleeperId": "13202",
-      "name": "Dalevon Campbell",
-      "aliases": [
-        "Dalevon Campbell"
-      ],
-      "position": "WR",
-      "team": "LAC",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13336",
@@ -8112,13 +7625,14 @@
     {
       "canonicalId": "8527",
       "sleeperId": "8527",
+      "fantasyProsId": "24570",
       "name": "Dareke Young",
       "aliases": [
         "Dareke Young"
       ],
       "position": "WR",
       "team": "LV",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13150",
@@ -8130,18 +7644,6 @@
       ],
       "position": "WR",
       "team": "PHI",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "6149",
-      "sleeperId": "6149",
-      "fantasyProsId": "18706",
-      "name": "Darius Slayton",
-      "aliases": [
-        "Darius Slayton"
-      ],
-      "position": "WR",
-      "team": "NYG",
       "matchMethod": "exact-name-team"
     },
     {
@@ -8171,14 +7673,13 @@
     {
       "canonicalId": "4274",
       "sleeperId": "4274",
-      "fantasyProsId": "16757",
       "name": "David Moore",
       "aliases": [
         "David Moore"
       ],
       "position": "WR",
       "team": "CAR",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "6154",
@@ -8189,17 +7690,6 @@
       ],
       "position": "WR",
       "team": "TB",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "11964",
-      "sleeperId": "11964",
-      "name": "Dayton Wade",
-      "aliases": [
-        "Dayton Wade"
-      ],
-      "position": "WR",
-      "team": "BAL",
       "matchMethod": "unmatched"
     },
     {
@@ -8297,17 +7787,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "8801",
-      "sleeperId": "8801",
-      "name": "Dennis Houston",
-      "aliases": [
-        "Dennis Houston"
-      ],
-      "position": "WR",
-      "team": "TB",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13346",
       "sleeperId": "13346",
       "fantasyProsId": "27339",
@@ -8322,13 +7801,14 @@
     {
       "canonicalId": "10234",
       "sleeperId": "10234",
+      "fantasyProsId": "25334",
       "name": "Derius Davis",
       "aliases": [
         "Derius Davis"
       ],
       "position": "WR",
       "team": "LAC",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11834",
@@ -8356,13 +7836,14 @@
     {
       "canonicalId": "6847",
       "sleeperId": "6847",
+      "fantasyProsId": "19270",
       "name": "Devin Duvernay",
       "aliases": [
         "Devin Duvernay"
       ],
       "position": "WR",
       "team": "ARI",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "7525",
@@ -8375,17 +7856,6 @@
       "position": "WR",
       "team": "PHI",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13632",
-      "sleeperId": "13632",
-      "name": "Devonte Ross",
-      "aliases": [
-        "Devonte Ross"
-      ],
-      "position": "WR",
-      "team": "LAC",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11629",
@@ -8449,24 +7919,12 @@
     {
       "canonicalId": "12732",
       "sleeperId": "12732",
-      "fantasyProsId": "26013",
       "name": "Dominic Lovett",
       "aliases": [
         "Dominic Lovett"
       ],
       "position": "WR",
       "team": "DET",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13409",
-      "sleeperId": "13409",
-      "name": "Donaven McCulley",
-      "aliases": [
-        "Donaven McCulley"
-      ],
-      "position": "WR",
-      "team": "MIA",
       "matchMethod": "unmatched"
     },
     {
@@ -8553,17 +8011,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13805",
-      "sleeperId": "13805",
-      "name": "E.J. Williams",
-      "aliases": [
-        "E.J. Williams"
-      ],
-      "position": "WR",
-      "team": "LV",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "12542",
       "sleeperId": "12542",
       "fantasyProsId": "27445",
@@ -8585,17 +8032,6 @@
       ],
       "position": "WR",
       "team": "NO",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12909",
-      "sleeperId": "12909",
-      "name": "Eli Pancol",
-      "aliases": [
-        "Eli Pancol"
-      ],
-      "position": "WR",
-      "team": "IND",
       "matchMethod": "unmatched"
     },
     {
@@ -8649,13 +8085,15 @@
     {
       "canonicalId": "13313",
       "sleeperId": "13313",
-      "name": "Emmanuel Henderson",
+      "fantasyProsId": "24379",
+      "name": "Emmanuel Henderson Jr.",
       "aliases": [
+        "Emmanuel Henderson Jr.",
         "Emmanuel Henderson"
       ],
       "position": "WR",
       "team": "SEA",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13316",
@@ -8669,17 +8107,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "8114",
-      "sleeperId": "8114",
-      "name": "Erik Ezukanma",
-      "aliases": [
-        "Erik Ezukanma"
-      ],
-      "position": "WR",
-      "team": "PHI",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13101",
       "sleeperId": "13101",
       "name": "Gage Larvadain",
@@ -8687,7 +8114,7 @@
         "Gage Larvadain"
       ],
       "position": "WR",
-      "team": "CLE",
+      "team": "BAL",
       "matchMethod": "unmatched"
     },
     {
@@ -8757,30 +8184,18 @@
         "Greg Dortch"
       ],
       "position": "WR",
-      "team": "DET",
+      "team": "BUF",
       "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "6699",
       "sleeperId": "6699",
-      "fantasyProsId": "19093",
       "name": "Gunner Olszewski",
       "aliases": [
         "Gunner Olszewski"
       ],
       "position": "WR",
       "team": "NYG",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13776",
-      "sleeperId": "13776",
-      "name": "Hank Beatty",
-      "aliases": [
-        "Hank Beatty"
-      ],
-      "position": "WR",
-      "team": "TEN",
       "matchMethod": "unmatched"
     },
     {
@@ -8865,6 +8280,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "13074",
+      "sleeperId": "13074",
+      "name": "Isaiah Neyor",
+      "aliases": [
+        "Isaiah Neyor"
+      ],
+      "position": "WR",
+      "team": "GB",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "11608",
       "sleeperId": "11608",
       "fantasyProsId": "26379",
@@ -8879,13 +8305,14 @@
     {
       "canonicalId": "13770",
       "sleeperId": "13770",
+      "fantasyProsId": "26139",
       "name": "J. Michael Sturdivant",
       "aliases": [
         "J. Michael Sturdivant"
       ],
       "position": "WR",
       "team": "GB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13293",
@@ -8948,13 +8375,14 @@
     {
       "canonicalId": "12938",
       "sleeperId": "12938",
+      "fantasyProsId": "27697",
       "name": "Jackson Meeks",
       "aliases": [
         "Jackson Meeks"
       ],
       "position": "WR",
       "team": "DET",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11616",
@@ -8969,28 +8397,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13904",
-      "sleeperId": "13904",
-      "name": "Jacob De Jesus",
-      "aliases": [
-        "Jacob De Jesus"
-      ],
-      "position": "WR",
-      "team": "KC",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13120",
-      "sleeperId": "13120",
-      "name": "Jacoby Jones",
-      "aliases": [
-        "Jacoby Jones"
-      ],
-      "position": "WR",
-      "team": "WAS",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13760",
       "sleeperId": "13760",
       "name": "Jaden Bradley",
@@ -8999,17 +8405,6 @@
       ],
       "position": "WR",
       "team": "WAS",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13246",
-      "sleeperId": "13246",
-      "name": "Jaden Smith",
-      "aliases": [
-        "Jaden Smith"
-      ],
-      "position": "WR",
-      "team": "DAL",
       "matchMethod": "unmatched"
     },
     {
@@ -9178,17 +8573,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "11633",
-      "sleeperId": "11633",
-      "name": "Jamari Thrash",
-      "aliases": [
-        "Jamari Thrash"
-      ],
-      "position": "WR",
-      "team": "CLE",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "8148",
       "sleeperId": "8148",
       "fantasyProsId": "23677",
@@ -9201,17 +8585,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "11940",
-      "sleeperId": "11940",
-      "name": "JaQuae Jackson",
-      "aliases": [
-        "JaQuae Jackson"
-      ],
-      "position": "WR",
-      "team": "LAC",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11056",
       "sleeperId": "11056",
       "name": "Jared Wayne",
@@ -9220,17 +8593,6 @@
       ],
       "position": "WR",
       "team": "HOU",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "11311",
-      "sleeperId": "11311",
-      "name": "Jason Brownlee",
-      "aliases": [
-        "Jason Brownlee"
-      ],
-      "position": "WR",
-      "team": "KC",
       "matchMethod": "unmatched"
     },
     {
@@ -9328,28 +8690,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "14067",
-      "sleeperId": "14067",
-      "name": "Jeff Weimer",
-      "aliases": [
-        "Jeff Weimer"
-      ],
-      "position": "WR",
-      "team": "KC",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13608",
-      "sleeperId": "13608",
-      "name": "Jerand Bradley",
-      "aliases": [
-        "Jerand Bradley"
-      ],
-      "position": "WR",
-      "team": "LAC",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13124",
       "sleeperId": "13124",
       "name": "Jeremiah Webb",
@@ -9375,59 +8715,35 @@
     {
       "canonicalId": "11911",
       "sleeperId": "11911",
-      "fantasyProsId": "26423",
       "name": "Jeshaun Jones",
       "aliases": [
         "Jeshaun Jones"
       ],
       "position": "WR",
       "team": "MIN",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "11808",
-      "sleeperId": "11808",
-      "name": "Jha'Quan Jackson",
-      "aliases": [
-        "Jha'Quan Jackson"
-      ],
-      "position": "WR",
-      "team": "TB",
       "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13173",
       "sleeperId": "13173",
+      "fantasyProsId": "27889",
       "name": "Jimmy Holiday",
       "aliases": [
         "Jimmy Holiday"
       ],
       "position": "WR",
       "team": "KC",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "12523",
       "sleeperId": "12523",
-      "fantasyProsId": "27294",
-      "name": "Jimmy Horn Jr.",
+      "name": "Jimmy Horn",
       "aliases": [
-        "Jimmy Horn Jr.",
         "Jimmy Horn"
       ],
       "position": "WR",
       "team": "CAR",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13967",
-      "sleeperId": "13967",
-      "name": "Jimmy Kibble",
-      "aliases": [
-        "Jimmy Kibble"
-      ],
-      "position": "WR",
-      "team": "NE",
       "matchMethod": "unmatched"
     },
     {
@@ -9548,17 +8864,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13743",
-      "sleeperId": "13743",
-      "name": "Joseph Manjack",
-      "aliases": [
-        "Joseph Manjack"
-      ],
-      "position": "WR",
-      "team": "DEN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "13394",
       "sleeperId": "13394",
       "fantasyProsId": "28137",
@@ -9617,6 +8922,19 @@
       "matchMethod": "unmatched"
     },
     {
+      "canonicalId": "12460",
+      "sleeperId": "12460",
+      "fantasyProsId": "27218",
+      "name": "Juice Wells Jr.",
+      "aliases": [
+        "Juice Wells Jr.",
+        "Antwane Wells"
+      ],
+      "position": "WR",
+      "team": "ATL",
+      "matchMethod": "exact-name-team"
+    },
+    {
       "canonicalId": "12151",
       "sleeperId": "12151",
       "name": "Julian Hicks",
@@ -9626,18 +8944,6 @@
       "position": "WR",
       "team": "SEA",
       "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12743",
-      "sleeperId": "12743",
-      "fantasyProsId": "27552",
-      "name": "Junior Bergen",
-      "aliases": [
-        "Junior Bergen"
-      ],
-      "position": "WR",
-      "team": "NYJ",
-      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "6794",
@@ -9663,17 +8969,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "5374",
-      "sleeperId": "5374",
-      "name": "Justin Watson",
-      "aliases": [
-        "Justin Watson"
-      ],
-      "position": "WR",
-      "team": "HOU",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "7066",
       "sleeperId": "7066",
       "name": "K.J. Osborn",
@@ -9693,17 +8988,6 @@
       ],
       "position": "WR",
       "team": "CHI",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12721",
-      "sleeperId": "12721",
-      "name": "Kaden Prather",
-      "aliases": [
-        "Kaden Prather"
-      ],
-      "position": "WR",
-      "team": "GB",
       "matchMethod": "unmatched"
     },
     {
@@ -9733,13 +9017,14 @@
     {
       "canonicalId": "11994",
       "sleeperId": "11994",
+      "fantasyProsId": "26626",
       "name": "Kameron Johnson",
       "aliases": [
         "Kameron Johnson"
       ],
       "position": "WR",
       "team": "TB",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "8917",
@@ -9769,8 +9054,9 @@
       "canonicalId": "13298",
       "sleeperId": "13298",
       "fantasyProsId": "27331",
-      "name": "KC Concepcion",
+      "name": "KC Concepcion Jr.",
       "aliases": [
+        "KC Concepcion Jr.",
         "KC Concepcion"
       ],
       "position": "WR",
@@ -9780,13 +9066,14 @@
     {
       "canonicalId": "12971",
       "sleeperId": "12971",
+      "fantasyProsId": "27724",
       "name": "Ke'Shawn Williams",
       "aliases": [
         "Ke'Shawn Williams"
       ],
       "position": "WR",
       "team": "CIN",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "12670",
@@ -9813,17 +9100,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "8783",
-      "sleeperId": "8783",
-      "name": "Kendric Pryor",
-      "aliases": [
-        "Kendric Pryor"
-      ],
-      "position": "WR",
-      "team": "CIN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "4454",
       "sleeperId": "4454",
       "fantasyProsId": "17066",
@@ -9838,13 +9114,14 @@
     {
       "canonicalId": "13412",
       "sleeperId": "13412",
+      "fantasyProsId": "26044",
       "name": "Kendrick Law",
       "aliases": [
         "Kendrick Law"
       ],
       "position": "WR",
       "team": "DET",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11637",
@@ -9861,13 +9138,15 @@
     {
       "canonicalId": "8200",
       "sleeperId": "8200",
-      "name": "Kevin Austin",
+      "fantasyProsId": "23049",
+      "name": "Kevin Austin Jr.",
       "aliases": [
+        "Kevin Austin Jr.",
         "Kevin Austin"
       ],
       "position": "WR",
       "team": "NO",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13338",
@@ -9904,17 +9183,6 @@
       "position": "WR",
       "team": "BUF",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13166",
-      "sleeperId": "13166",
-      "name": "Kisean Johnson",
-      "aliases": [
-        "Kisean Johnson"
-      ],
-      "position": "WR",
-      "team": "GB",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "6866",
@@ -9992,7 +9260,7 @@
         "Kyrese Rowan"
       ],
       "position": "WR",
-      "team": "DEN",
+      "team": "NO",
       "matchMethod": "unmatched"
     },
     {
@@ -10020,48 +9288,28 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "8745",
-      "sleeperId": "8745",
-      "name": "Lance McCutcheon",
-      "aliases": [
-        "Lance McCutcheon"
-      ],
-      "position": "WR",
-      "team": "TEN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "3155",
       "sleeperId": "3155",
+      "fantasyProsId": "15495",
       "name": "Laquon Treadwell",
       "aliases": [
         "Laquon Treadwell"
       ],
       "position": "WR",
       "team": "IND",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13541",
       "sleeperId": "13541",
+      "fantasyProsId": "28144",
       "name": "Lewis Bond",
       "aliases": [
         "Lewis Bond"
       ],
       "position": "WR",
       "team": "HOU",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "14063",
-      "sleeperId": "14063",
-      "name": "Liam Clifford",
-      "aliases": [
-        "Liam Clifford"
-      ],
-      "position": "WR",
-      "team": "LAC",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5938",
@@ -10084,17 +9332,6 @@
       ],
       "position": "WR",
       "team": "DET",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13189",
-      "sleeperId": "13189",
-      "name": "Luke Floriea",
-      "aliases": [
-        "Luke Floriea"
-      ],
-      "position": "WR",
-      "team": "CLE",
       "matchMethod": "unmatched"
     },
     {
@@ -10183,17 +9420,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "10860",
-      "sleeperId": "10860",
-      "name": "Malik Cunningham",
-      "aliases": [
-        "Malik Cunningham"
-      ],
-      "position": "WR",
-      "team": "DET",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11210",
       "sleeperId": "11210",
       "name": "Malik Heath",
@@ -10228,17 +9454,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "5781",
-      "sleeperId": "5781",
-      "name": "Malik Turner",
-      "aliases": [
-        "Malik Turner"
-      ],
-      "position": "WR",
-      "team": "SF",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11610",
       "sleeperId": "11610",
       "fantasyProsId": "26314",
@@ -10251,26 +9466,16 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13619",
-      "sleeperId": "13619",
-      "name": "Marcus Sanders",
-      "aliases": [
-        "Marcus Sanders"
-      ],
-      "position": "WR",
-      "team": "MIN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "5086",
       "sleeperId": "5086",
+      "fantasyProsId": "17528",
       "name": "Marquez Valdes-Scantling",
       "aliases": [
         "Marquez Valdes-Scantling"
       ],
       "position": "WR",
-      "team": "DAL",
-      "matchMethod": "unmatched"
+      "team": "LAC",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "11628",
@@ -10299,17 +9504,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "7436",
-      "sleeperId": "7436",
-      "name": "Mason Kinsey",
-      "aliases": [
-        "Mason Kinsey"
-      ],
-      "position": "WR",
-      "team": "TEN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11895",
       "sleeperId": "11895",
       "name": "Mason Tipton",
@@ -10331,39 +9525,6 @@
       "position": "WR",
       "team": "GB",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "14085",
-      "sleeperId": "14085",
-      "name": "Matthew Henry",
-      "aliases": [
-        "Matthew Henry"
-      ],
-      "position": "WR",
-      "team": "TB",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "8921",
-      "sleeperId": "8921",
-      "name": "Maurice Alexander",
-      "aliases": [
-        "Maurice Alexander"
-      ],
-      "position": "WR",
-      "team": "CHI",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13698",
-      "sleeperId": "13698",
-      "name": "Max Tomczak",
-      "aliases": [
-        "Max Tomczak"
-      ],
-      "position": "WR",
-      "team": "BUF",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "8076",
@@ -10413,19 +9574,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "8202",
-      "sleeperId": "8202",
-      "fantasyProsId": "23893",
-      "name": "Michael Woods II",
-      "aliases": [
-        "Michael Woods II",
-        "Michael Woods"
-      ],
-      "position": "WR",
-      "team": "DEN",
-      "matchMethod": "exact-name-team"
-    },
-    {
       "canonicalId": "13645",
       "sleeperId": "13645",
       "name": "Michael Wortham",
@@ -10449,26 +9597,29 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "13227",
-      "sleeperId": "13227",
-      "name": "Mitch Van Vooren",
+      "canonicalId": "11068",
+      "sleeperId": "11068",
+      "fantasyProsId": "24370",
+      "name": "Mitchell Tinsley",
       "aliases": [
-        "Mitch Van Vooren"
+        "Mitchell Tinsley"
       ],
       "position": "WR",
-      "team": "DAL",
-      "matchMethod": "unmatched"
+      "team": "HOU",
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13199",
       "sleeperId": "13199",
-      "name": "Montorie Foster",
+      "fantasyProsId": "27910",
+      "name": "Montorie Foster Jr.",
       "aliases": [
+        "Montorie Foster Jr.",
         "Montorie Foster"
       ],
       "position": "WR",
       "team": "SEA",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13075",
@@ -10491,28 +9642,6 @@
       ],
       "position": "WR",
       "team": "NYJ",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13963",
-      "sleeperId": "13963",
-      "name": "Nick DeGennaro",
-      "aliases": [
-        "Nick DeGennaro"
-      ],
-      "position": "WR",
-      "team": "NE",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12478",
-      "sleeperId": "12478",
-      "name": "Nick Nash",
-      "aliases": [
-        "Nick Nash"
-      ],
-      "position": "WR",
-      "team": "WAS",
       "matchMethod": "unmatched"
     },
     {
@@ -10553,13 +9682,14 @@
     {
       "canonicalId": "11320",
       "sleeperId": "11320",
+      "fantasyProsId": "25772",
       "name": "Nikko Remigio",
       "aliases": [
         "Nikko Remigio"
       ],
       "position": "WR",
       "team": "KC",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13318",
@@ -10570,17 +9700,6 @@
       ],
       "position": "WR",
       "team": "CIN",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13850",
-      "sleeperId": "13850",
-      "name": "Octavian Smith",
-      "aliases": [
-        "Octavian Smith"
-      ],
-      "position": "WR",
-      "team": "BAL",
       "matchMethod": "unmatched"
     },
     {
@@ -10633,17 +9752,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13941",
-      "sleeperId": "13941",
-      "name": "Omari Kelly",
-      "aliases": [
-        "Omari Kelly"
-      ],
-      "position": "WR",
-      "team": "CHI",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "9487",
       "sleeperId": "9487",
       "fantasyProsId": "23106",
@@ -10666,17 +9774,6 @@
       "position": "WR",
       "team": "DEN",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "2334",
-      "sleeperId": "2334",
-      "name": "Phillip Dorsett",
-      "aliases": [
-        "Phillip Dorsett"
-      ],
-      "position": "WR",
-      "team": "LV",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "9493",
@@ -10714,39 +9811,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "6927",
-      "sleeperId": "6927",
-      "name": "Quez Watkins",
-      "aliases": [
-        "Quez Watkins"
-      ],
-      "position": "WR",
-      "team": "PHI",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "12884",
-      "sleeperId": "12884",
-      "name": "Quincy Skinner",
-      "aliases": [
-        "Quincy Skinner"
-      ],
-      "position": "WR",
-      "team": "NYJ",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "14037",
-      "sleeperId": "14037",
-      "name": "Rashad Rochelle",
-      "aliases": [
-        "Rashad Rochelle"
-      ],
-      "position": "WR",
-      "team": "SEA",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "10229",
       "sleeperId": "10229",
       "fantasyProsId": "23113",
@@ -10781,30 +9845,6 @@
       "position": "WR",
       "team": "BAL",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "5096",
-      "sleeperId": "5096",
-      "fantasyProsId": "17530",
-      "name": "Ray-Ray McCloud III",
-      "aliases": [
-        "Ray-Ray McCloud III",
-        "Ray-Ray McCloud"
-      ],
-      "position": "WR",
-      "team": "CHI",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13783",
-      "sleeperId": "13783",
-      "name": "Raylen Sharpe",
-      "aliases": [
-        "Raylen Sharpe"
-      ],
-      "position": "WR",
-      "team": "IND",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13297",
@@ -10877,6 +9917,17 @@
       "matchMethod": "exact-name-team"
     },
     {
+      "canonicalId": "10221",
+      "sleeperId": "10221",
+      "name": "Ronnie Bell",
+      "aliases": [
+        "Ronnie Bell"
+      ],
+      "position": "WR",
+      "team": "LV",
+      "matchMethod": "unmatched"
+    },
+    {
       "canonicalId": "11783",
       "sleeperId": "11783",
       "fantasyProsId": "26398",
@@ -10900,17 +9951,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "13929",
-      "sleeperId": "13929",
-      "name": "Sahmir Hagans",
-      "aliases": [
-        "Sahmir Hagans"
-      ],
-      "position": "WR",
-      "team": "IND",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "12482",
       "sleeperId": "12482",
       "fantasyProsId": "27144",
@@ -10925,13 +9965,14 @@
     {
       "canonicalId": "6290",
       "sleeperId": "6290",
+      "fantasyProsId": "18714",
       "name": "Scotty Miller",
       "aliases": [
         "Scotty Miller"
       ],
       "position": "WR",
       "team": "CHI",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "5638",
@@ -10945,17 +9986,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "11257",
-      "sleeperId": "11257",
-      "name": "Shedrick Jackson",
-      "aliases": [
-        "Shedrick Jackson"
-      ],
-      "position": "WR",
-      "team": "LV",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "7812",
       "sleeperId": "7812",
       "name": "Simi Fehoko",
@@ -10964,17 +9994,6 @@
       ],
       "position": "WR",
       "team": "ARI",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "13604",
-      "sleeperId": "13604",
-      "name": "Sincere Brown",
-      "aliases": [
-        "Sincere Brown"
-      ],
-      "position": "WR",
-      "team": "LAC",
       "matchMethod": "unmatched"
     },
     {
@@ -11033,19 +10052,8 @@
         "Sterling Shepard"
       ],
       "position": "WR",
-      "team": "HOU",
+      "team": "NYJ",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "11821",
-      "sleeperId": "11821",
-      "name": "Tahj Washington",
-      "aliases": [
-        "Tahj Washington"
-      ],
-      "position": "WR",
-      "team": "PHI",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12496",
@@ -11072,26 +10080,16 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "8005",
-      "sleeperId": "8005",
-      "name": "Tarik Black",
-      "aliases": [
-        "Tarik Black"
-      ],
-      "position": "WR",
-      "team": "DET",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "8250",
       "sleeperId": "8250",
+      "fantasyProsId": "24029",
       "name": "Tay Martin",
       "aliases": [
         "Tay Martin"
       ],
       "position": "WR",
       "team": "DET",
-      "matchMethod": "unmatched"
+      "matchMethod": "exact-name-team"
     },
     {
       "canonicalId": "13317",
@@ -11117,28 +10115,6 @@
       "position": "WR",
       "team": "CIN",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "11802",
-      "sleeperId": "11802",
-      "name": "Tejhaun Palmer",
-      "aliases": [
-        "Tejhaun Palmer"
-      ],
-      "position": "WR",
-      "team": "NE",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "14040",
-      "sleeperId": "14040",
-      "name": "Terrill Davis",
-      "aliases": [
-        "Terrill Davis"
-      ],
-      "position": "WR",
-      "team": "MIN",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "5927",
@@ -11174,6 +10150,19 @@
       ],
       "position": "WR",
       "team": "TB",
+      "matchMethod": "exact-name-team"
+    },
+    {
+      "canonicalId": "12860",
+      "sleeperId": "12860",
+      "fantasyProsId": "27222",
+      "name": "Theo Wease Jr.",
+      "aliases": [
+        "Theo Wease Jr.",
+        "Theo Wease"
+      ],
+      "position": "WR",
+      "team": "LAC",
       "matchMethod": "exact-name-team"
     },
     {
@@ -11213,14 +10202,13 @@
     {
       "canonicalId": "6588",
       "sleeperId": "6588",
-      "fantasyProsId": "19052",
       "name": "Tom Kennedy",
       "aliases": [
         "Tom Kennedy"
       ],
       "position": "WR",
       "team": "DET",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12497",
@@ -11235,8 +10223,7 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "12530",
-      "sleeperId": "12530",
+      "canonicalId": "fantasypros-26034",
       "fantasyProsId": "26034",
       "name": "Travis Hunter",
       "aliases": [
@@ -11244,7 +10231,7 @@
       ],
       "position": "WR",
       "team": "JAX",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "14038",
@@ -11304,17 +10291,6 @@
       "matchMethod": "unmatched"
     },
     {
-      "canonicalId": "6598",
-      "sleeperId": "6598",
-      "name": "Trenton Irwin",
-      "aliases": [
-        "Trenton Irwin"
-      ],
-      "position": "WR",
-      "team": "SF",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "9492",
       "sleeperId": "9492",
       "name": "Trey Palmer",
@@ -11336,17 +10312,6 @@
       "position": "WR",
       "team": "WAS",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13862",
-      "sleeperId": "13862",
-      "name": "Treyvhon Saunders",
-      "aliases": [
-        "Treyvhon Saunders"
-      ],
-      "position": "WR",
-      "team": "HOU",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11627",
@@ -11391,7 +10356,7 @@
         "Tyler Johnson"
       ],
       "position": "WR",
-      "team": "DAL",
+      "team": "NYJ",
       "matchMethod": "unmatched"
     },
     {
@@ -11403,17 +10368,6 @@
       ],
       "position": "WR",
       "team": "LV",
-      "matchMethod": "unmatched"
-    },
-    {
-      "canonicalId": "9490",
-      "sleeperId": "9490",
-      "name": "Tyler Scott",
-      "aliases": [
-        "Tyler Scott"
-      ],
-      "position": "WR",
-      "team": "LAR",
       "matchMethod": "unmatched"
     },
     {
@@ -11453,27 +10407,24 @@
     {
       "canonicalId": "6853",
       "sleeperId": "6853",
-      "fantasyProsId": "19483",
       "name": "Van Jefferson",
       "aliases": [
         "Van Jefferson"
       ],
       "position": "WR",
       "team": "WAS",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "8223",
       "sleeperId": "8223",
-      "fantasyProsId": "24214",
-      "name": "Velus Jones Jr.",
+      "name": "Velus Jones",
       "aliases": [
-        "Velus Jones Jr.",
         "Velus Jones"
       ],
       "position": "WR",
       "team": "SEA",
-      "matchMethod": "exact-name-team"
+      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "13343",
@@ -11528,7 +10479,7 @@
         "Will Sheppard"
       ],
       "position": "WR",
-      "team": "GB",
+      "team": "MIA",
       "matchMethod": "unmatched"
     },
     {
@@ -11539,7 +10490,7 @@
         "Xavier Gipson"
       ],
       "position": "WR",
-      "team": "NYG",
+      "team": "PHI",
       "matchMethod": "unmatched"
     },
     {
@@ -11566,17 +10517,6 @@
       "matchMethod": "exact-name-team"
     },
     {
-      "canonicalId": "11969",
-      "sleeperId": "11969",
-      "name": "Xavier Johnson",
-      "aliases": [
-        "Xavier Johnson"
-      ],
-      "position": "WR",
-      "team": "CIN",
-      "matchMethod": "unmatched"
-    },
-    {
       "canonicalId": "11626",
       "sleeperId": "11626",
       "fantasyProsId": "26136",
@@ -11587,17 +10527,6 @@
       "position": "WR",
       "team": "CAR",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "13916",
-      "sleeperId": "13916",
-      "name": "Xavier Loyd",
-      "aliases": [
-        "Xavier Loyd"
-      ],
-      "position": "WR",
-      "team": "KC",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "12520",
@@ -11622,17 +10551,6 @@
       "position": "WR",
       "team": "LAR",
       "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "11921",
-      "sleeperId": "11921",
-      "name": "Xavier Weaver",
-      "aliases": [
-        "Xavier Weaver"
-      ],
-      "position": "WR",
-      "team": "ARI",
-      "matchMethod": "unmatched"
     },
     {
       "canonicalId": "11624",
@@ -11680,18 +10598,6 @@
       ],
       "position": "WR",
       "team": "BAL",
-      "matchMethod": "exact-name-team"
-    },
-    {
-      "canonicalId": "4080",
-      "sleeperId": "4080",
-      "fantasyProsId": "16431",
-      "name": "Zay Jones",
-      "aliases": [
-        "Zay Jones"
-      ],
-      "position": "WR",
-      "team": "HOU",
       "matchMethod": "exact-name-team"
     }
   ]

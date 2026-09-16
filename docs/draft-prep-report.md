@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-08-31T04:13:30.804Z
+Generated: 2026-09-16T15:39:59.179Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,10 +8,10 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Source timestamp |
 | --- | --- |
-| FantasyPros | 2026-08-30T21:16:15.990Z |
-| League survival | 2026-08-31T04:13:25.755Z |
-| Team environment | 2026-08-29T20:50:51.441Z |
-| Predictions | 2026-08-29T20:51:39.431Z |
+| FantasyPros | 2026-09-16T15:39:57.333Z |
+| League survival | 2026-09-05T15:17:25.870Z |
+| Team environment | 2026-09-05T15:16:38.617Z |
+| Predictions | 2026-09-05T15:17:24.662Z |
 
 ## Historical Room Trends
 
@@ -43,35 +43,35 @@ Listed current keepers are excluded from the available-player tier snapshots.
 
 | Overall | QB | Player |
 | --- | --- | --- |
-| 27 | 1 | Josh Allen |
-| 31 | 2 | Lamar Jackson |
-| 37 | 3 | Drake Maye |
+| 24 | 1 | Josh Allen |
+| 30 | 2 | Lamar Jackson |
+| 36 | 3 | Drake Maye |
 | 44 | 4 | Joe Burrow |
-| 50 | 5 | Jayden Daniels |
-| 55 | 6 | Jalen Hurts |
-| 64 | 7 | Caleb Williams |
+| 53 | 5 | Jalen Hurts |
+| 58 | 6 | Jayden Daniels |
+| 63 | 7 | Caleb Williams |
 | 69 | 8 | Justin Herbert |
-| 74 | 9 | Dak Prescott |
-| 76 | 10 | Trevor Lawrence |
-| 91 | 11 | Brock Purdy |
-| 92 | 12 | Jaxson Dart |
+| 70 | 9 | Trevor Lawrence |
+| 76 | 10 | Dak Prescott |
+| 94 | 11 | Brock Purdy |
+| 96 | 12 | Bo Nix |
 
 ## Current FantasyPros TE Tier
 
 | Overall | TE | Player |
 | --- | --- | --- |
-| 17 | 1 | Brock Bowers |
-| 19 | 2 | Trey McBride |
-| 34 | 3 | Colston Loveland |
-| 52 | 4 | Tyler Warren |
-| 70 | 5 | Harold Fannin Jr. |
+| 17 | 1 | Trey McBride |
+| 31 | 2 | Colston Loveland |
+| 35 | 3 | Brock Bowers |
+| 50 | 4 | Tyler Warren |
+| 73 | 5 | Harold Fannin Jr. |
 | 75 | 6 | Kyle Pitts Sr. |
-| 80 | 7 | Tucker Kraft |
-| 83 | 8 | Sam LaPorta |
-| 93 | 9 | Travis Kelce |
-| 96 | 10 | George Kittle |
-| 110 | 11 | Dalton Kincaid |
-| 116 | 12 | Jake Ferguson |
+| 79 | 7 | Tucker Kraft |
+| 82 | 8 | Sam LaPorta |
+| 93 | 9 | George Kittle |
+| 98 | 10 | Travis Kelce |
+| 109 | 11 | Dalton Kincaid |
+| 117 | 12 | Dallas Goedert |
 
 ## Draft-Week Checklist
 

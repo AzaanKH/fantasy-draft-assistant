@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T18:20:10.194Z",
+  "generatedAt": "2026-09-16T15:48:36.419Z",
   "season": 2026,
   "status": "warn",
   "summary": {
@@ -79,28 +79,28 @@
       "id": "fantasypros.rankings.count",
       "status": "pass",
       "message": "FantasyPros rankings meets the minimum usable count.",
-      "actual": 497,
+      "actual": 530,
       "expected": ">= 350"
     },
     {
       "id": "fantasypros.adp.count",
       "status": "pass",
       "message": "FantasyPros adp meets the minimum usable count.",
-      "actual": 547,
+      "actual": 577,
       "expected": ">= 300"
     },
     {
       "id": "fantasypros.projections.count",
       "status": "pass",
       "message": "FantasyPros projections meets the minimum usable count.",
-      "actual": 564,
+      "actual": 589,
       "expected": ">= 400"
     },
     {
       "id": "fantasypros.news.count",
       "status": "pass",
       "message": "FantasyPros news is present.",
-      "actual": 5,
+      "actual": 59,
       "expected": "> 0"
     },
     {
@@ -114,14 +114,14 @@
       "id": "fantasypros.projections.freshness",
       "status": "pass",
       "message": "FantasyPros projections are no more than 14 days old.",
-      "actual": 1.88,
+      "actual": 0.01,
       "expected": "<= 14 days"
     },
     {
       "id": "fantasypros.projections.component-stats",
       "status": "pass",
       "message": "FantasyPros projections retain component stats used by sportsbook markets.",
-      "actual": 0.8794,
+      "actual": 0.8879,
       "expected": ">= 0.8"
     },
     {
@@ -156,7 +156,7 @@
       "id": "sleeper.count",
       "status": "pass",
       "message": "Sleeper player map meets the minimum usable count.",
-      "actual": 999,
+      "actual": 894,
       "expected": ">= 800"
     },
     {
@@ -170,7 +170,7 @@
       "id": "identity.top250.match-rate",
       "status": "pass",
       "message": "Top-250 FantasyPros rankings map to a Sleeper identity.",
-      "actual": 1,
+      "actual": 0.996,
       "expected": ">= 0.98"
     },
     {
@@ -212,7 +212,7 @@
       "id": "predictions.count",
       "status": "pass",
       "message": "Prediction output meets the minimum usable count.",
-      "actual": 1053,
+      "actual": 893,
       "expected": ">= 800"
     },
     {
@@ -240,7 +240,7 @@
       "id": "predictions.snap-ngs.coverage",
       "status": "pass",
       "message": "Snap-share and Next Gen Stats adjust a usable set of current predictions.",
-      "actual": 981,
+      "actual": 820,
       "expected": ">= 100"
     },
     {
@@ -251,7 +251,7 @@
     {
       "id": "dependencies.predictions",
       "status": "warn",
-      "message": "The prediction artifact (2026-08-29T20:51:39.431Z) is older than Trusted rankings (2026-08-30T21:16:15.990Z)."
+      "message": "The prediction artifact (2026-09-05T15:17:24.662Z) is older than Trusted rankings (2026-09-16T15:39:57.333Z)."
     },
     {
       "id": "dependencies.recommendation-policy",
@@ -297,14 +297,14 @@
       "id": "contracts.current-context",
       "status": "pass",
       "message": "Contract-year context is populated from nflverse.",
-      "actual": 342,
+      "actual": 262,
       "expected": ">= 50"
     },
     {
       "id": "contracts.source-freshness",
       "status": "pass",
       "message": "The upstream nflverse contracts release is no more than 30 days old.",
-      "actual": 3.22,
+      "actual": 11.19,
       "expected": "<= 30 days"
     },
     {

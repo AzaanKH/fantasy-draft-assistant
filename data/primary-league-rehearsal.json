@@ -3,7 +3,7 @@
   "provider": "sleeper",
   "draftId": "1313053610426269696",
   "leagueId": "1313053610417872896",
-  "recordedAt": "2026-08-25T15:57:03.000Z",
+  "recordedAt": "2026-09-05T16:09:38.796Z",
   "scheduledStartAt": "2026-09-05T18:00:40.000Z",
   "timezone": "America/Los_Angeles",
   "pickTimerSeconds": 60,
@@ -31,8 +31,10 @@
     }
   },
   "realProviderRehearsal": {
-    "status": "scheduled",
+    "status": "incomplete",
     "completedAt": null,
-    "notes": "Sleeper currently contains the 10 confirmed keeper picks. Run the real-provider rehearsal before activating feature freeze."
+    "notes": "Connected Sleeper pre-draft checks passed for user-confirmed slot 5. Verified settings and all 10 keepers, simulated a local server outage, recorded a temporary local pick, and observed automatic removal with restored roster and recommendations. Full live-pick confirmation/correction and completion remain unverified because the provider is still pre_draft. See data/rehearsal-evidence/2026-09-05/report.json.",
+    "lastAttemptAt": "2026-09-05T16:09:38.796Z",
+    "evidencePath": "data/rehearsal-evidence/2026-09-05/report.json"
   }
 }
