@@ -9,16 +9,29 @@ import type {
   Player,
   HighlightLevel,
   FantasyProsProjection,
+  FantasyProsMarketStats,
   FantasyProsAdpPlayer,
   FantasyProsNewsItem,
+  MarketAdpPlayer,
   NFLTeam,
   PlayerPrediction,
   Position,
   TeamEnvironment,
   ECRPlayer,
+  SportsbookSnapshot,
+  RosterRequirements,
+  ScoringRules,
 } from '@fantasy-draft/shared';
-import { isTopOffense, isDecentOffense } from '@fantasy-draft/shared';
-import { estimatePlayerPrediction } from './prediction-score';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
+  DEFAULT_SCORING_RULES,
+  calculateSportsbookProjectionAdjustment,
+  isTopOffense,
+  isDecentOffense,
+} from '@fantasy-draft/shared';
+import { applyDynamicValueOverReplacement, estimatePlayerPrediction } from './prediction-score';
+import { applyPositionTiers } from './tiers';
+import { calculateLeagueProjection } from './league-scoring';
 
 /**
  * Sleeper search_rank platform proxy data structure
@@ -55,14 +68,12 @@ export interface PlayerIdentityData {
   readonly team: NFLTeam;
 }
 
-const TIER_THRESHOLDS: Record<Position, readonly number[]> = {
-  QB: [4, 8, 12, 18],
-  RB: [8, 16, 24, 36],
-  WR: [8, 16, 24, 36],
-  TE: [3, 6, 10, 16],
-  K: [8, 16, 24],
-  DEF: [8, 16, 24],
-};
+export interface PlayerMergeLeagueContext {
+  readonly marketAdp?: readonly MarketAdpPlayer[];
+  readonly scoringRules?: ScoringRules;
+  readonly totalTeams?: number;
+  readonly rosterRequirements?: RosterRequirements;
+}
 
 const SLEEPER_PLACEHOLDER_RANK = 999;
 const reportedUnmatchedEcrSignatures = new Set<string>();
@@ -191,26 +202,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function getTier(position: Position, positionalRank: number): number {
-  const thresholds = TIER_THRESHOLDS[position];
-  const thresholdIndex = thresholds.findIndex((threshold) => positionalRank <= threshold);
-  return thresholdIndex >= 0 ? thresholdIndex + 1 : thresholds.length + 1;
-}
-
-function getTierDropoffScore(position: Position, positionalRank: number): number {
-  const thresholds = TIER_THRESHOLDS[position];
-  const tier = getTier(position, positionalRank);
-  const tierStart = tier === 1 ? 1 : (thresholds[tier - 2] ?? 0) + 1;
-  const tierEnd = thresholds[tier - 1] ?? (thresholds[thresholds.length - 1] ?? positionalRank);
-  const progress = clamp(
-    (positionalRank - tierStart) / Math.max(1, tierEnd - tierStart + 1),
-    0,
-    1
-  );
-  const dropoff = clamp(1 - progress, 0, 1);
-  return Number(dropoff.toFixed(2));
-}
-
 function getNextPickSurvivalProbability(valueScore: number): number {
   return Number(clamp(0.5 + valueScore / 50, 0.05, 0.95).toFixed(2));
 }
@@ -237,9 +228,16 @@ export function mergePlayerData(
   contractPlayers: readonly ContractPlayerData[] = [],
   modelPredictions: readonly PlayerPrediction[] = [],
   fantasyProsAdp: readonly FantasyProsAdpPlayer[] = [],
-  identities: readonly PlayerIdentityData[] = []
+  identities: readonly PlayerIdentityData[] = [],
+  sportsbookSnapshot?: SportsbookSnapshot,
+  informationalRiskPredictions: readonly PlayerPrediction[] = [],
+  leagueContext: PlayerMergeLeagueContext = {}
 ): Player[] {
   const teamEnvironmentLookup: Partial<Record<NFLTeam, TeamEnvironment>> = teamEnvironments;
+  const scoringRules = leagueContext.scoringRules ?? DEFAULT_SCORING_RULES;
+  const rosterRequirements =
+    leagueContext.rosterRequirements ?? DEFAULT_ROSTER_REQUIREMENTS;
+  const totalTeams = leagueContext.totalTeams ?? 10;
 
   // Build lookup maps for the Sleeper platform proxy and contracts
   const sleeperMap = new Map<string, SleeperADPPlayer>();
@@ -263,6 +261,14 @@ export function mergePlayerData(
   const adpMap = new Map<string, FantasyProsAdpPlayer>();
   for (const player of fantasyProsAdp) adpMap.set(createPlayerKey(player.name, player.team), player);
   const adpFallbackMap = buildUniqueNamePositionMap(fantasyProsAdp);
+
+  const marketAdpMap = new Map<string, MarketAdpPlayer>();
+  for (const player of leagueContext.marketAdp ?? []) {
+    if (player.team) marketAdpMap.set(createPlayerKey(player.name, player.team), player);
+  }
+  const marketAdpFallbackMap = buildUniqueNamePositionMap(
+    leagueContext.marketAdp ?? []
+  );
 
   const contractMap = new Map<string, ContractPlayerData>();
   for (const player of contractPlayers) {
@@ -296,6 +302,19 @@ export function mergePlayerData(
   }
   const predictionFallbackMap = buildUniqueNamePositionMap(modelPredictions);
 
+  const riskPredictionIdMap = new Map<string, PlayerPrediction>();
+  const riskPredictionMap = new Map<string, PlayerPrediction>();
+  for (const prediction of informationalRiskPredictions) {
+    if (prediction.playerId) {
+      riskPredictionIdMap.set(prediction.playerId, prediction);
+    }
+    const key = createPlayerKey(prediction.name, prediction.team);
+    riskPredictionMap.set(key, prediction);
+  }
+  const riskPredictionFallbackMap = buildUniqueNamePositionMap(
+    informationalRiskPredictions
+  );
+
   const players: Player[] = [];
   const unmatchedEcrKeys: string[] = [];
 
@@ -319,7 +338,14 @@ export function mergePlayerData(
     const adp =
       (ecr.fantasyProsId ? adpIdMap.get(ecr.fantasyProsId) : undefined) ??
       resolvePlayerMatch(canonicalPlayer, adpMap, adpFallbackMap);
-    const consensusAdp = adp?.rank ?? sleeperSearchRank;
+    const observedMarketAdp =
+      (canonicalPlayer.team
+        ? marketAdpMap.get(createPlayerKey(canonicalPlayer.name, canonicalPlayer.team))
+        : undefined) ??
+      marketAdpFallbackMap.get(
+        createPlayerNamePositionKey(canonicalPlayer.name, canonicalPlayer.position)
+      );
+    const consensusAdp = observedMarketAdp?.adp ?? adp?.rank ?? sleeperSearchRank;
 
     if (!sleeper) {
       unmatchedEcrKeys.push(
@@ -331,8 +357,6 @@ export function mergePlayerData(
     const isContractYear = contract?.isContractYear ?? false;
     const highlightLevel = calculateHighlightLevel(valueScore, isContractYear, teamEnv);
     const offenseScore = teamEnv?.offenseScore ?? 5;
-    const tier = getTier(ecr.position, ecr.positionalRank);
-    const tierDropoffScore = getTierDropoffScore(ecr.position, ecr.positionalRank);
     const nextPickSurvivalProbability = getNextPickSurvivalProbability(valueScore);
     const newsStatus = newsItem?.status ?? getNewsStatus(sleeper?.status);
     const modelPrediction = sleeper
@@ -340,6 +364,17 @@ export function mergePlayerData(
       : undefined;
     const resolvedModelPrediction =
       modelPrediction ?? resolvePlayerMatch(canonicalPlayer, predictionMap, predictionFallbackMap);
+    const informationalRiskPrediction =
+      (sleeper ? riskPredictionIdMap.get(sleeper.playerId) : undefined) ??
+      resolvePlayerMatch(
+        canonicalPlayer,
+        riskPredictionMap,
+        riskPredictionFallbackMap
+      );
+    const leagueProjection = projection
+      ? calculateLeagueProjection(projection, ecr.position, scoringRules)
+      : undefined;
+    const leagueProjectedPoints = leagueProjection?.projectedPoints;
     const prediction = estimatePlayerPrediction(
       {
         position: ecr.position,
@@ -354,9 +389,31 @@ export function mergePlayerData(
         sleeperStatus: sleeper?.status,
         newsStatus,
         fantasyProsProjection: projection,
+        localLeagueProjectedPoints: leagueProjectedPoints,
         modelPrediction: resolvedModelPrediction,
+        informationalRiskPrediction,
       }
     );
+    const fantasyProsStats: FantasyProsMarketStats = projection
+      ? {
+          passingYards: projection.projectedPassingYards,
+          passingTouchdowns: projection.projectedPassingTouchdowns,
+          rushingYards: projection.projectedRushingYards,
+          rushingTouchdowns: projection.projectedRushingTouchdowns,
+          receivingYards: projection.projectedReceivingYards,
+          receivingTouchdowns: projection.projectedReceivingTouchdowns,
+          receptions: projection.projectedReceptions,
+        }
+      : {};
+    const marketProjection = calculateSportsbookProjectionAdjustment({
+      playerName: ecr.name,
+      position: ecr.position,
+      existingProjection: prediction.projectedPoints,
+      fantasyProsStats,
+      overUnderLines: sportsbookSnapshot?.overUnder ?? [],
+      scoringRules,
+    });
+    const hasSportsbookAdjustment = marketProjection.markets.length > 0;
 
     players.push({
       id: identity?.canonicalId ?? sleeper?.playerId ?? `ecr-${String(ecr.rank)}`,
@@ -376,11 +433,28 @@ export function mergePlayerData(
       isContractYear,
       contractEndYear: contract?.contractEndYear,
       offensiveEnvironmentScore: offenseScore,
-      projectedPoints: prediction.projectedPoints,
+      projectedPoints: marketProjection.adjustedProjection,
+      ...(leagueProjection === undefined
+        ? {}
+        : {
+            leagueScoringAdjustment:
+              resolvedModelPrediction?.customScoringAdjustment ??
+              leagueProjection.adjustment,
+          }),
+      ...(hasSportsbookAdjustment
+        ? {
+            preMarketProjectedPoints: prediction.projectedPoints,
+            marketAdjustment: marketProjection.marketAdjustment,
+            marketConfidence: marketProjection.confidence,
+            sportsbookMarketCount: marketProjection.markets.length,
+          }
+        : {}),
       customProjectedPoints: resolvedModelPrediction?.customProjectedPoints,
       valueOverReplacement: prediction.valueOverReplacement,
-      tier,
-      tierDropoffScore,
+      tier: 1,
+      fantasyProsTier: ecr.fantasyProsTier,
+      tierDropoffScore: 0,
+      tierDropoffPoints: 0,
       nextPickSurvivalProbability,
       ceilingScore: prediction.ceilingScore,
       floorScore: prediction.floorScore,
@@ -404,7 +478,9 @@ export function mergePlayerData(
     }
   }
 
-  return players;
+  return applyPositionTiers(
+    applyDynamicValueOverReplacement(players, totalTeams, rosterRequirements)
+  );
 }
 
 /**
@@ -422,9 +498,25 @@ export function filterByPosition(players: Player[], position: Position | 'ALL'):
  */
 export function filterDrafted(
   players: Player[],
-  draftedIds: ReadonlySet<string>
+  draftedIds: ReadonlySet<string>,
+  draftedPlayers: readonly {
+    readonly playerName: string;
+    readonly position: Position;
+  }[] = []
 ): Player[] {
-  return players.filter((p) => !draftedIds.has(p.id));
+  const draftedIdentityKeys = new Set(
+    draftedPlayers.map(
+      (player) => `${normalizePlayerName(player.playerName)}|${player.position}`
+    )
+  );
+
+  return players.filter(
+    (player) =>
+      !draftedIds.has(player.id) &&
+      !draftedIdentityKeys.has(
+        `${normalizePlayerName(player.name)}|${player.position}`
+      )
+  );
 }
 
 /**

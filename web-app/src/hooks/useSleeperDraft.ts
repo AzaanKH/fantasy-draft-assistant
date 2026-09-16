@@ -44,7 +44,7 @@ export function useSleeperDraft(
   const queryClient = useQueryClient();
   const { players } = usePlayerDataQuery();
   const [liveSnapshot, setLiveSnapshot] = useState<DraftSyncSnapshot | null>(null);
-  const reconcileSleeperPicks = useDraftStore((state) => state.reconcileSleeperPicks);
+  const reconcileSyncedPicks = useDraftStore((state) => state.reconcileSyncedPicks);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
   const setConfig = useDraftStore((state) => state.setConfig);
 
@@ -141,7 +141,7 @@ export function useSleeperDraft(
       return;
     }
 
-    reconcileSleeperPicks(snapshot.picks.flatMap((pick) => {
+    reconcileSyncedPicks(snapshot.picks.flatMap((pick) => {
       const matchedPlayer = findMatchingPlayer(pick);
       const isMyPick = pick.draftSlot === myPickPosition;
       const position = matchedPlayer?.position ?? normalizePosition(pick.position ?? undefined);
@@ -159,8 +159,8 @@ export function useSleeperDraft(
         teamName: isMyPick ? 'My Team' : `Team ${String(pick.draftSlot)}`,
         isMyPick,
       }];
-    }));
-  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, reconcileSleeperPicks]);
+    }), snapshot.picks.reduce((nextPick, pick) => Math.max(nextPick, pick.pickNumber + 1), 1));
+  }, [snapshot, players, shouldImportPicks, findMatchingPlayer, myPickPosition, reconcileSyncedPicks]);
 
   const refresh = useCallback(async () => {
     if (!draftId) {
