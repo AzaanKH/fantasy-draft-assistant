@@ -157,6 +157,8 @@ export type {
 // Sync types
 export {
   DraftSyncEngine,
+  isDraftProvider,
+  normalizePosition,
   isDraftMetadata,
   isEspnDraftSnapshot,
   isDraftSyncSnapshot,
