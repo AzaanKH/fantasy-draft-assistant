@@ -78,6 +78,24 @@ describe('applyPositionTiers', () => {
     ]);
   });
 
+  it.each([false, true])('maps noncontiguous positive-VOR boundaries to sorted indexes, tail %s', (tail) => {
+    const input = [
+      createPlayer('wr1', 305, { valueOverReplacement: 0 }),
+      createPlayer('wr2', 300),
+      createPlayer('wr3', 298),
+      createPlayer('wr4', 296),
+      createPlayer('wr5', 270),
+      createPlayer('wr6', 268),
+      ...(tail ? [createPlayer('wr7', 250)] : []),
+    ];
+    const players = applyPositionTiers([...input].reverse()).reverse();
+
+    expect(players.map((player) => player.tier)).toEqual(
+      [1, 1, 1, 1, 2, 2, ...(tail ? [3] : [])]
+    );
+    expect(players[3]?.tierDropoffPoints).toBe(26);
+  });
+
   it('labels ECR-derived projection proxies as a fallback', () => {
     const [player] = applyPositionTiers([
       createPlayer('wr1', 300, { predictionSource: 'heuristic' }),
