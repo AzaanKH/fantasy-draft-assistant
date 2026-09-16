@@ -5,6 +5,24 @@ import {
 } from './sync-snapshot-client';
 
 describe('sync snapshot I/O', () => {
+  it('never sends a pairing token to a non-local server', async () => {
+    const getToken = vi.fn(async () => 'private-test-token');
+    const fetchMock = vi.fn();
+    const client = createSyncSnapshotClient(async () => 'https://attacker.invalid', getToken, fetchMock);
+    await expect(client.fetch({ isInDraftRoom: true, draftId: '123', provider: 'sleeper' })).rejects.toThrow('must be localhost');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getToken).not.toHaveBeenCalled();
+  });
+
+  it('does not make requests until the extension is paired', async () => {
+    const fetchMock = vi.fn();
+    const client = createSyncSnapshotClient(async () => 'http://localhost:3001', async () => {
+      throw new Error('Pair the extension');
+    }, fetchMock);
+    await expect(client.fetch({ isInDraftRoom: true, draftId: '123' })).rejects.toThrow('Pair the extension');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('builds provider-aware encoded URLs', () => {
     expect(
       buildSyncSnapshotUrl('http://localhost:3001/', {
@@ -21,6 +39,7 @@ describe('sync snapshot I/O', () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 503 }));
     const client = createSyncSnapshotClient(
       async () => 'http://localhost:3001',
+      async () => 'test-token',
       fetchMock
     );
 
@@ -45,6 +64,7 @@ describe('sync snapshot I/O', () => {
     );
     const client = createSyncSnapshotClient(
       async () => 'http://localhost:3001',
+      async () => 'test-token',
       fetchMock,
       50
     );
@@ -83,6 +103,7 @@ describe('sync snapshot I/O', () => {
     );
     const client = createSyncSnapshotClient(
       async () => 'http://localhost:3001/',
+      async () => 'test-token',
       fetchMock
     );
 
@@ -104,6 +125,8 @@ describe('sync snapshot I/O', () => {
       'http://localhost:3001/api/sync/espn/drafts/4242/snapshot',
       expect.objectContaining({
         method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Sync-Token': 'test-token' },
+        redirect: 'error',
         body: expect.stringContaining('"provider":"espn"') as string,
       })
     );

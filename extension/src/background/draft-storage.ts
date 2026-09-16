@@ -15,6 +15,7 @@ export interface DraftStorage {
   savePicks(picks: readonly DetectedPick[]): Promise<void>;
   saveStatus(status: DraftRoomStatus): Promise<void>;
   getSyncServerUrl(): Promise<string>;
+  getSyncToken(): Promise<string>;
   setInstallationDefaults(): Promise<void>;
 }
 
@@ -57,6 +58,15 @@ export class ChromeDraftStorage implements DraftStorage {
       (result[STORAGE_KEYS.SYNC_SERVER_URL] as string | undefined) ??
       DEFAULT_SYNC_SERVER_URL
     );
+  }
+
+  public async getSyncToken(): Promise<string> {
+    const result = await this.storage.get([STORAGE_KEYS.SYNC_TOKEN]);
+    const token: unknown = result[STORAGE_KEYS.SYNC_TOKEN];
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43,128}$/.test(token)) {
+      throw new Error('Pair the extension in its options before connecting a draft');
+    }
+    return token;
   }
 
   public async setInstallationDefaults(): Promise<void> {

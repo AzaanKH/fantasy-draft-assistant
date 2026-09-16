@@ -21,3 +21,18 @@ describe('ChromeDraftStorage', () => {
     );
   });
 });
+
+describe('pairing token storage', () => {
+  it('requires a saved valid token and preserves pairing through install defaults', async () => {
+    const contents: Record<string, unknown> = {};
+    const area = {
+      get: vi.fn(async () => contents),
+      set: vi.fn(async (values: Record<string, unknown>) => { Object.assign(contents, values); }),
+    } as unknown as ConstructorParameters<typeof ChromeDraftStorage>[0];
+    const storage = new ChromeDraftStorage(area);
+    await expect(storage.getSyncToken()).rejects.toThrow('Pair the extension');
+    contents['syncToken'] = 'x'.repeat(43);
+    await storage.setInstallationDefaults();
+    await expect(storage.getSyncToken()).resolves.toBe('x'.repeat(43));
+  });
+});

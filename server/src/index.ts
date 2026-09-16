@@ -1,4 +1,5 @@
 import { createSyncServer, DEFAULT_POLL_INTERVAL_MS } from './sync-server.js';
+import { getLocalSyncToken } from './local-auth.js';
 
 const PORT = Number.parseInt(process.env.PORT ?? '3001', 10);
 const POLL_INTERVAL_MS = Number.parseInt(
@@ -15,7 +16,7 @@ const ALLOWED_ORIGINS = (process.env.SYNC_ALLOWED_ORIGINS ?? 'http://localhost:3
 const server = createSyncServer({
   pollIntervalMs: POLL_INTERVAL_MS,
   allowedOrigins: ALLOWED_ORIGINS,
-  requestToken: process.env.SYNC_REQUEST_TOKEN,
+  requestToken: getLocalSyncToken(),
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {

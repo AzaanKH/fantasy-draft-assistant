@@ -5,7 +5,7 @@
   "description": "Fantasy football draft assistant with a React web app and Chrome extension for ESPN, Yahoo, and Sleeper",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.12.0",
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.15.0",
@@ -51,10 +51,27 @@
     "model:backtest:contracts": "pnpm --filter scripts backtest:contracts",
     "report:draft-prep": "pnpm --filter scripts generate:draft-prep",
     "prepare:draft": "pnpm refresh:daily && pnpm model:dataset && pnpm model:league-survival && pnpm model:backtest && pnpm model:backtest:contracts && pnpm report:draft-prep && pnpm data:check:strict",
-    "clean": "pnpm run -r clean && rm -rf node_modules"
+    "clean": "pnpm run -r clean && rm -rf node_modules",
+    "sync:pair": "pnpm --filter server exec tsx src/pair-extension.ts",
+    "audit:security": "pnpm audit --audit-level=moderate"
   },
   "devDependencies": {
-    "shadcn": "^3.6.3",
     "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "minimatch@3": "^3.1.4",
+      "minimatch@9": "^9.0.7",
+      "brace-expansion@1": "^1.1.18",
+      "brace-expansion@2": "^2.1.4",
+      "rollup@4": "^4.59.0",
+      "postcss@8": "^8.5.23",
+      "flatted@3": "^3.4.2",
+      "js-yaml@4": "^4.3.1",
+      "nanoid@3": "^3.3.18",
+      "ajv@6": "^6.14.0",
+      "picomatch@4": "^4.0.4",
+      "@humanfs/node@0.16": "^0.16.8"
+    }
   }
 }

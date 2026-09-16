@@ -1,0 +1,11 @@
+:root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+body { margin: 0; padding: 32px 20px; }
+main { max-width: 480px; margin: auto; }
+h1 { font-size: 24px; }
+p { line-height: 1.6; }
+form { display: grid; gap: 12px; margin-top: 24px; }
+input, button { font: inherit; padding: 10px 12px; border-radius: 6px; }
+input { border: 1px solid #888; min-width: 0; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .6; }
+#pair-status { min-height: 24px; }

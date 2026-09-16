@@ -1,3 +1,4 @@
+import { isBoundedInteger, isDraftSize, MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from './limits';
 import { isPosition, type Position } from './player';
 import { isLeagueSettings, type LeagueSettings } from './league-settings';
 
@@ -131,11 +132,11 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function isFiniteNumberRecord(value: unknown): value is Record<string, number> {
+function isDraftOrder(value: unknown): value is Record<string, number> {
   return (
     isRecord(value) &&
     !Array.isArray(value) &&
-    Object.values(value).every(isFiniteNumber)
+    Object.keys(value).length <= MAX_DRAFT_TEAMS && Object.values(value).every((slot) => isBoundedInteger(slot, 1, MAX_DRAFT_TEAMS))
   );
 }
 
@@ -174,10 +175,9 @@ export function isSleeperDraftMetadata(value: unknown): value is SleeperDraftMet
     validMetadata &&
     isSleeperDraftStatus(value.status) &&
     isDraftType(value.type) &&
-    isFiniteNumber(value.settings.teams) &&
-    isFiniteNumber(value.settings.rounds) &&
-    isFiniteNumber(value.settings.pick_timer) &&
-    (value.draft_order === null || isFiniteNumberRecord(value.draft_order))
+    isDraftSize(value.settings.teams, value.settings.rounds) &&
+    isBoundedInteger(value.settings.pick_timer, 0, 86_400) &&
+    (value.draft_order === null || isDraftOrder(value.draft_order))
   );
 }
 
@@ -212,16 +212,15 @@ export function isDraftMetadata(value: unknown): value is DraftMetadata {
 
   return (
     isDraftProvider(value.provider) &&
-    typeof value.draftId === 'string' &&
-    typeof value.providerKey === 'string' &&
+    typeof value.draftId === 'string' && value.draftId.length <= 128 &&
+    typeof value.providerKey === 'string' && value.providerKey.length <= 256 &&
     (value.leagueId === undefined || typeof value.leagueId === 'string') &&
     (value.leagueSettings === undefined || isLeagueSettings(value.leagueSettings)) &&
     isDraftStatus(value.status) &&
     isDraftType(value.type) &&
-    isFiniteNumber(value.settings.teams) &&
-    isFiniteNumber(value.settings.rounds) &&
-    isFiniteNumber(value.settings.pickTimer) &&
-    (value.draftOrder === null || isFiniteNumberRecord(value.draftOrder))
+    isDraftSize(value.settings.teams, value.settings.rounds) &&
+    isBoundedInteger(value.settings.pickTimer, 0, 86_400) &&
+    (value.draftOrder === null || isDraftOrder(value.draftOrder))
   );
 }
 
@@ -242,20 +241,20 @@ export function isSleeperDraftPick(value: unknown): value is SleeperDraftPick {
   );
 
   return (
-    isFiniteNumber(value.round) &&
+    isBoundedInteger(value.round, 1, MAX_DRAFT_ROUNDS) &&
     (value.roster_id === null || isFiniteNumber(value.roster_id)) &&
     typeof value.player_id === 'string' &&
     typeof value.picked_by === 'string' &&
-    isFiniteNumber(value.pick_no) &&
+    isBoundedInteger(value.pick_no, 1, MAX_DRAFT_PICKS) &&
     validMetadata &&
     (value.is_keeper === null || typeof value.is_keeper === 'boolean') &&
-    isFiniteNumber(value.draft_slot) &&
+    isBoundedInteger(value.draft_slot, 1, MAX_DRAFT_TEAMS) &&
     typeof value.draft_id === 'string'
   );
 }
 
 export function isSleeperDraftPickList(value: unknown): value is SleeperDraftPick[] {
-  return Array.isArray(value) && value.every(isSleeperDraftPick);
+  return Array.isArray(value) && value.length <= MAX_DRAFT_PICKS && value.every(isSleeperDraftPick);
 }
 
 function isDraftPickEvent(value: unknown): value is DraftPickEvent {
@@ -264,14 +263,14 @@ function isDraftPickEvent(value: unknown): value is DraftPickEvent {
   }
 
   return (
-    typeof value.draftId === 'string' &&
-    isFiniteNumber(value.pickNumber) &&
-    isFiniteNumber(value.round) &&
+    typeof value.draftId === 'string' && value.draftId.length <= 128 &&
+    isBoundedInteger(value.pickNumber, 1, MAX_DRAFT_PICKS) &&
+    isBoundedInteger(value.round, 1, MAX_DRAFT_ROUNDS) &&
     (value.rosterId === null || isFiniteNumber(value.rosterId)) &&
-    isFiniteNumber(value.draftSlot) &&
-    isFiniteNumber(value.teamIndex) &&
-    typeof value.playerId === 'string' &&
-    typeof value.playerName === 'string' &&
+    isBoundedInteger(value.draftSlot, 1, MAX_DRAFT_TEAMS) &&
+    isBoundedInteger(value.teamIndex, 0, MAX_DRAFT_TEAMS - 1) &&
+    typeof value.playerId === 'string' && value.playerId.length <= 128 &&
+    typeof value.playerName === 'string' && value.playerName.length <= 256 &&
     (value.position === null || isPosition(value.position)) &&
     (value.nflTeam === null || typeof value.nflTeam === 'string') &&
     typeof value.isKeeper === 'boolean' &&
@@ -296,6 +295,7 @@ export function isEspnDraftSnapshot(value: unknown): value is EspnDraftSnapshot 
     !isDraftMetadata(draft) ||
     draft.provider !== 'espn' ||
     !Array.isArray(picks) ||
+    picks.length > draft.settings.teams * draft.settings.rounds ||
     !picks.every(isDraftPickEvent) ||
     !isFiniteNumber(value.observedAt)
   ) {
@@ -304,7 +304,7 @@ export function isEspnDraftSnapshot(value: unknown): value is EspnDraftSnapshot 
 
   if (
     value.myDraftSlot !== undefined &&
-    (!isFiniteNumber(value.myDraftSlot) || value.myDraftSlot < 1)
+    (!isBoundedInteger(value.myDraftSlot, 1, draft.settings.teams))
   ) {
     return false;
   }
@@ -312,7 +312,11 @@ export function isEspnDraftSnapshot(value: unknown): value is EspnDraftSnapshot 
   return picks.every(
     (pick) =>
       pick.draftId === draft.draftId &&
-      pick.source === 'espn-extension'
+      pick.source === 'espn-extension' &&
+      pick.pickNumber <= draft.settings.teams * draft.settings.rounds &&
+      pick.round <= draft.settings.rounds &&
+      pick.draftSlot <= draft.settings.teams &&
+      pick.teamIndex < draft.settings.teams
   );
 }
 
@@ -323,9 +327,10 @@ export function isDraftSyncSnapshot(value: unknown): value is DraftSyncSnapshot 
 
   return (
     isDraftProvider(value.provider) &&
-    typeof value.draftId === 'string' &&
+    typeof value.draftId === 'string' && value.draftId.length <= 128 &&
     (value.draft === null || isDraftMetadata(value.draft)) &&
     Array.isArray(value.picks) &&
+    value.picks.length <= MAX_DRAFT_PICKS &&
     value.picks.every(isDraftPickEvent) &&
     (value.status === 'idle' || value.status === 'syncing' || value.status === 'synced' || value.status === 'error') &&
     (value.lastPolledAt === null || isFiniteNumber(value.lastPolledAt)) &&
@@ -469,6 +474,10 @@ export class DraftSyncEngine {
     readonly snapshot: DraftSyncSnapshot;
     readonly newPicks: readonly DraftPickEvent[];
   } {
+    if (!isDraftMetadata(draft) || normalizedPicks.length > MAX_DRAFT_PICKS ||
+        !normalizedPicks.every(isDraftPickEvent)) {
+      throw new Error('Invalid draft metadata or picks');
+    }
     if (draft.provider !== this.provider || draft.draftId !== this.draftId) {
       throw new Error('Draft metadata does not match this sync session');
     }

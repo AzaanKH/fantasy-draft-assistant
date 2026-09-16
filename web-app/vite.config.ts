@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { BROWSER_DATA_FILES } from '../scripts/src/browser-data';
+import { localApiSecurity } from '../server/src/vite-security';
 
 const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
@@ -57,7 +58,7 @@ function browserDataPlugins(): Plugin[] {
 
 export default defineConfig({
   publicDir: false,
-  plugins: [...browserDataPlugins(), react(), tailwindcss()],
+  plugins: [localApiSecurity(), ...browserDataPlugins(), react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -69,14 +70,15 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
   },
   server: {
+    host: '127.0.0.1',
     port: 3000,
+    strictPort: true,
+    cors: false,
+    fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.local/**'] },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true,
-        headers: {
-          Origin: 'http://localhost:3000',
-        },
       },
     },
   },

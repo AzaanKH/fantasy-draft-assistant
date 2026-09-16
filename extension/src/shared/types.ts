@@ -147,6 +147,7 @@ export const STORAGE_KEYS = {
   MY_PICK_POSITION: 'myPickPosition',
   WEB_APP_URL: 'webAppUrl',
   SYNC_SERVER_URL: 'syncServerUrl',
+  SYNC_TOKEN: 'syncToken',
 } as const;
 
 /**
