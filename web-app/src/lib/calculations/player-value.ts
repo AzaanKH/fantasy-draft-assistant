@@ -167,6 +167,16 @@ function getNewsStatus(status: string | undefined): Player['newsStatus'] {
   return 'unknown';
 }
 
+export interface MergePlayerDataOptions {
+  readonly contractPlayers?: readonly ContractPlayerData[];
+  readonly modelPredictions?: readonly PlayerPrediction[];
+  readonly fantasyProsAdp?: readonly FantasyProsAdpPlayer[];
+  readonly identities?: readonly PlayerIdentityData[];
+  readonly sportsbookSnapshot?: SportsbookSnapshot;
+  readonly informationalRiskPredictions?: readonly PlayerPrediction[];
+  readonly leagueContext?: PlayerMergeLeagueContext;
+}
+
 /**
  * Merge ECR, Sleeper platform proxy, Team Environment, and Contract data into Player objects
  */
@@ -176,13 +186,15 @@ export function mergePlayerData(
   fantasyProsNews: readonly FantasyProsNewsItem[],
   sleeperPlayers: readonly SleeperADPPlayer[],
   teamEnvironments: Record<NFLTeam, TeamEnvironment>,
-  contractPlayers: readonly ContractPlayerData[] = [],
-  modelPredictions: readonly PlayerPrediction[] = [],
-  fantasyProsAdp: readonly FantasyProsAdpPlayer[] = [],
-  identities: readonly PlayerIdentityData[] = [],
-  sportsbookSnapshot?: SportsbookSnapshot,
-  informationalRiskPredictions: readonly PlayerPrediction[] = [],
-  leagueContext: PlayerMergeLeagueContext = {}
+  {
+    contractPlayers = [],
+    modelPredictions = [],
+    fantasyProsAdp = [],
+    identities = [],
+    sportsbookSnapshot,
+    informationalRiskPredictions = [],
+    leagueContext = {},
+  }: MergePlayerDataOptions = {}
 ): Player[] {
   const teamEnvironmentLookup: Partial<Record<NFLTeam, TeamEnvironment>> = teamEnvironments;
   const scoringRules = leagueContext.scoringRules ?? DEFAULT_SCORING_RULES;

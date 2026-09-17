@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useDraftStore } from './draftStore';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { createDraftStore, DraftStoreProvider, useDraftStore, useDraftStoreApi, type DraftStoreApi } from './draftStore';
 
 describe('draftStore shortlist', () => {
   beforeEach(() => {
@@ -12,6 +14,37 @@ describe('draftStore shortlist', () => {
     useDraftStore.getState().preloadKeepers([]);
     useDraftStore.getState().resetDraft();
     useDraftStore.getState().setDecisionLens('best-pick');
+  });
+
+  it('keeps imperative callbacks scoped to the same provider as selectors', () => {
+    const first = createDraftStore();
+    const second = createDraftStore();
+    const captured: DraftStoreApi[] = [];
+    const selected: number[] = [];
+    function CaptureStore() {
+      captured.push(useDraftStoreApi());
+      selected.push(useDraftStore((state) => state.currentPick));
+      return null;
+    }
+    for (const store of [first, second]) {
+      renderToString(createElement(DraftStoreProvider, {
+        store,
+        children: createElement(CaptureStore),
+      }));
+    }
+    expect(captured).toEqual([first, second]);
+    expect(selected).toEqual([1, 1]);
+    const api = captured[0];
+    if (!api) throw new Error('Store provider did not render');
+    let notifications = 0;
+    const unsubscribe = api.subscribe(() => { notifications += 1; });
+    api.setState({ currentPick: 4 });
+    expect(api.getState().currentPick).toBe(4);
+    expect(api.getInitialState().currentPick).toBe(1);
+    expect(second.getState().currentPick).toBe(1);
+    expect(useDraftStore.getState().currentPick).toBe(1);
+    expect(notifications).toBe(1);
+    unsubscribe();
   });
 
   it('distinguishes setup, mock, and live draft sessions', () => {

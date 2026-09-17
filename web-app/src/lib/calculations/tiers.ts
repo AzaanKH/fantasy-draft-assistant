@@ -75,8 +75,12 @@ function buildPositionAssignments(players: readonly Player[]): ReadonlyMap<strin
   const sorted = [...players].sort(
     (a, b) => b.projectedPoints - a.projectedPoints || a.ecrRank - b.ecrRank
   );
-  const positiveVorPlayers = sorted.filter((player) => player.valueOverReplacement > 0);
-  const tierablePlayers = positiveVorPlayers.length >= 2 ? positiveVorPlayers : sorted;
+  const indexedPlayers = sorted.map((player, index) => ({ player, index }));
+  const positiveVorPlayers = indexedPlayers.filter(
+    ({ player }) => player.valueOverReplacement > 0
+  );
+  const tierableEntries = positiveVorPlayers.length >= 2 ? positiveVorPlayers : indexedPlayers;
+  const tierablePlayers = tierableEntries.map(({ player }) => player);
   const threshold = getGapThreshold(tierablePlayers);
   const gaps = sorted.slice(0, -1).map((player, index) => ({
     index,
@@ -88,7 +92,7 @@ function buildPositionAssignments(players: readonly Player[]): ReadonlyMap<strin
   const boundaryIndexes = new Set<number>();
   let valueTierCount = 1;
 
-  for (let index = 0; index < tierablePlayers.length - 1; index += 1) {
+  for (const { index } of tierableEntries.slice(0, -1)) {
     const gap = gaps[index]?.points ?? 0;
     if (
       valueTierCount < MAX_VALUE_TIERS &&
@@ -99,12 +103,13 @@ function buildPositionAssignments(players: readonly Player[]): ReadonlyMap<strin
     }
   }
 
+  const lastTierableIndex = tierableEntries.at(-1)?.index;
   if (
-    tierablePlayers.length > 0 &&
-    tierablePlayers.length < sorted.length &&
+    lastTierableIndex !== undefined &&
+    lastTierableIndex < sorted.length - 1 &&
     valueTierCount < MAX_POSITION_TIERS
   ) {
-    boundaryIndexes.add(tierablePlayers.length - 1);
+    boundaryIndexes.add(lastTierableIndex);
   }
   const source = getTierSource(sorted);
   const assignments = new Map<string, TierAssignment>();

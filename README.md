@@ -40,9 +40,15 @@ defense slot. Scoring is full PPR with a 0.5-point tight-end reception premium
 and 0.2 points per rushing attempt.
 
 The deterministic Primary League rehearsal passed on August 25, 2026. The
-real-provider rehearsal is still scheduled, so the release gate and feature
-freeze remain pending. The linked settings, operation record, and reports above
-are the status sources when this summary becomes stale.
+September 5 real-provider attempt was incomplete. Connected polling, all 10
+keepers, an outage, and removal of a temporary local pick were verified; new
+live picks, matching/conflicting reconciliation, and final draft completion were
+not verified. The [operation record](data/primary-league-rehearsal.json) and
+[evidence summary](data/rehearsal-evidence/2026-09-05/report.json) record that
+result. No replacement rehearsal is recorded. The release gate remains blocked
+and feature freeze pending until a complete real-provider rehearsal and current
+readiness checks pass. The current checked-in gate report also identifies stale
+rankings and canonical player identities as blockers.
 
 ## Current Architecture
 

@@ -57,7 +57,7 @@ function player(
 }
 
 const positions: readonly Position[] = [
-  'RB', 'WR', 'RB', 'WR', 'TE', 'RB', 'WR', 'QB', 'RB', 'WR',
+  'RB', 'WR', 'RB', 'WR', 'TE', 'RB', 'WR', 'QB', 'RB', 'WR', 'K',
 ];
 
 const players = Array.from({ length: 150 }, (_, index) =>
@@ -130,7 +130,7 @@ describe('mock draft engine', () => {
       players,
       keepers: [],
       config,
-      freshSelectionLimit: 80,
+      freshSelectionLimit: 150,
     }).filter((pick) => pick.source === 'cpu');
     const perTeam = new Map<number, Record<Position, number>>();
     for (const pick of picks) {
@@ -148,7 +148,34 @@ describe('mock draft engine', () => {
 
     expect([...perTeam.values()].every((counts) => counts.QB <= 2)).toBe(true);
     expect([...perTeam.values()].every((counts) => counts.TE <= 2)).toBe(true);
-    expect(picks.some((pick) => pick.position === 'K' || pick.position === 'DEF')).toBe(false);
+    const kickerPicks = picks.filter((pick) => pick.position === 'K');
+    expect(kickerPicks.length).toBeGreaterThan(0);
+    expect(kickerPicks.every((pick) => Math.ceil(pick.pickNumber / config.totalTeams) >= 13)).toBe(true);
+  });
+
+  it('counts a keeper as drafted even when the caller omitted its ID', () => {
+    const keeper = { ...javonte, playerId: 'player-1', teamIndex: 0, round: 1 };
+    const input = {
+      players,
+      history: [],
+      keepers: [keeper],
+      currentPick: 1,
+      config,
+      iterations: 10,
+    };
+    const omitted = estimateMockSurvivalProbabilities({
+      ...input,
+      draftedPlayerIds: new Set<string>(),
+    });
+    const reserved = estimateMockSurvivalProbabilities({
+      ...input,
+      draftedPlayerIds: new Set([keeper.playerId]),
+    });
+
+    expect(omitted[keeper.playerId]).toBe(0);
+    expect(Object.fromEntries(Object.entries(omitted).filter(
+      ([id]) => id !== keeper.playerId
+    ))).toEqual(reserved);
   });
 
   it('returns seeded Monte Carlo survival estimates for the next user pick', () => {

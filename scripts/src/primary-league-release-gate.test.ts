@@ -92,4 +92,28 @@ describe('Primary League release gate report', () => {
       ]);
     }
   );
+
+  it.each([null, undefined, {}, [], 'unparseable JSON',
+    { productBlockingFailures: null },
+    { productBlockingFailures: 'invalid' },
+    { productBlockingFailures: [], actionableWarnings: {} },
+  ])('blocks feature freeze when readiness evidence is missing or malformed: %j', (readiness) => {
+    const report = buildPrimaryLeagueReleaseGateReport({
+      now: Date.parse('2026-09-05T20:00:00.000Z'),
+      outcomes: passingOutcomes(),
+      readiness,
+      rehearsal: { status: 'passed', failures: [] },
+      operational: {
+        realProviderRehearsal: { status: 'passed', completedAt: '2026-09-05T19:45:00.000Z' },
+      },
+    });
+
+    expect(report.status).toBe('blocked');
+    expect(report.featureFreeze.status).toBe('pending');
+    expect(report.productBlockingFailures).toEqual([
+      expect.objectContaining({ key: 'draft-readiness-report' }),
+    ]);
+    expect(report.releaseBlockingFailures).toEqual([]);
+  });
+
 });

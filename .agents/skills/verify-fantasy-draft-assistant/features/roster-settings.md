@@ -23,7 +23,7 @@ Preconditions: doctor passes and the browser uses a fresh context.
   node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" roster-settings
   ```
 
-  The scenario opens `Roster requirements`, records the current `QB` value, writes a different valid value, closes and reopens the dialog, and requires the edited value. The reopened field is the second read-only view. It then presses `Reset defaults` before the browser closes.
+  The scenario opens `Roster requirements`, records the current `QB` value, writes a different valid value, closes and reopens the dialog, and requires the edited value. The reopened field is the second read-only view. It then presses `Reset defaults` and requires the QB value to match the original default before passing.
 
 ## Gotchas
 

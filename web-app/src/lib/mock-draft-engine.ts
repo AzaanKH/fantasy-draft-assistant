@@ -538,6 +538,7 @@ export function estimateMockSurvivalProbabilities(input: {
       }
       const keeper = getKeeperAtPick(input.keepers, pickNumber, input.config.totalTeams);
       if (keeper) {
+        drafted.add(keeper.playerId);
         history.push({
           pickNumber,
           playerId: keeper.playerId,
