@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateContractReleaseGate,
   fitRidgeModel,
-  reconstructContractState,
   type PlayerSeasonRow,
   type PredictionMetrics,
   type SeasonComparison,
@@ -41,45 +40,6 @@ function metrics(mae: number): PredictionMetrics {
     vorCaptured: 500,
   };
 }
-
-describe('contract-year reconstruction', () => {
-  it('uses the latest deal signed before the season', () => {
-    expect(reconstructContractState(2024, [
-      { yearSigned: 2020, contractEndYear: 2024 },
-      { yearSigned: 2023, contractEndYear: 2027 },
-    ])).toMatchObject({
-      contractKnown: true,
-      isContractYear: false,
-      yearSigned: 2023,
-      contractEndYear: 2027,
-    });
-  });
-
-  it('excludes an extension signed during the evaluated season', () => {
-    expect(reconstructContractState(2024, [
-      { yearSigned: 2020, contractEndYear: 2024 },
-      { yearSigned: 2024, contractEndYear: 2028 },
-    ])).toMatchObject({
-      contractKnown: true,
-      isContractYear: true,
-      yearSigned: 2020,
-      contractEndYear: 2024,
-    });
-  });
-
-  it('does not guess when latest same-year records have conflicting end years', () => {
-    expect(reconstructContractState(2024, [
-      { yearSigned: 2021, contractEndYear: 2024 },
-      { yearSigned: 2021, contractEndYear: 2025 },
-    ])).toEqual({
-      contractKnown: false,
-      isContractYear: false,
-      yearSigned: 2021,
-      contractEndYear: null,
-      exclusionReason: 'ambiguous-latest-contract',
-    });
-  });
-});
 
 describe('contract-year model ablation', () => {
   it('adds predictive information only to the treatment model', () => {

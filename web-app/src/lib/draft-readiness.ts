@@ -1,5 +1,6 @@
 import {
   evaluateDraftReadiness,
+  createDefaultLeagueSettings,
   type DraftReadinessKey,
   type DraftReadinessReport,
   type DraftReadinessSourceObservation,
@@ -13,6 +14,7 @@ interface WorkspaceDraftReadinessInput {
   readonly warnings: readonly DraftReadinessWarningInput[];
   readonly leagueSettings: LeagueSettings;
   readonly totalRounds: number;
+  readonly usePrimaryLeagueSettings?: boolean;
   readonly keeperStatus: KeeperPreloadStatus;
 }
 
@@ -47,19 +49,28 @@ export function evaluateWorkspaceDraftReadiness(
   now: number = Date.now()
 ): DraftReadinessReport {
   const currentSeason = new Date(now).getUTCFullYear();
+  const usingPracticeSettings = input.usePrimaryLeagueSettings === true &&
+    input.leagueSettings.source === 'default' && input.leagueSettings.leagueId === null;
+  const validPracticeSettings = usingPracticeSettings &&
+    input.leagueSettings.fingerprint === createDefaultLeagueSettings(now).fingerprint &&
+    input.totalRounds >= 14;
   const settingsConnected =
     input.leagueSettings.source !== 'default' &&
     input.leagueSettings.leagueId !== null;
   const settingsObservation: DraftReadinessSourceObservation = {
-    availability: settingsConnected
+    availability: usingPracticeSettings
+      ? validPracticeSettings ? 'available' : 'invalid'
+      : settingsConnected
       ? hasPrimaryLeagueSettings(input.leagueSettings, input.totalRounds)
         ? 'available'
         : 'invalid'
       : 'missing',
-    timestamp: settingsConnected
+    timestamp: settingsConnected || usingPracticeSettings
       ? new Date(input.leagueSettings.updatedAt).toISOString()
       : null,
-    detail: settingsConnected
+    detail: usingPracticeSettings
+      ? 'Primary League practice settings selected locally. Sleeper supplies picks and draft order. Use a 10-team mock with at least 14 rounds.'
+      : settingsConnected
       ? 'Expected the provider-confirmed 10-team, 14-round Sleeper Primary League with 4-point passing touchdowns, full PPR, +0.5 TE reception premium, +0.2 rush-attempt scoring, and five bench spots.'
       : 'Connect the Primary League draft to load provider-confirmed settings.',
   };
