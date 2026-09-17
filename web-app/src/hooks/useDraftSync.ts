@@ -21,6 +21,7 @@ import type {
   Player,
 } from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
+import { isValidDraftSyncId } from '@/stores/draftSyncStore';
 import type {
   DraftPickCorrection,
   DraftPickRemoval,
@@ -432,9 +433,10 @@ function getImportWarning(
 
 export function useDraftSync(
   provider: DraftProvider,
-  draftId: string | null,
+  requestedDraftId: string | null,
   shouldImportPicks: boolean = true
 ): DraftSyncController {
+  const draftId = isValidDraftSyncId(provider, requestedDraftId) ? requestedDraftId : null;
   const queryClient = useQueryClient();
   const {
     players,
