@@ -21,6 +21,7 @@ import type {
   Player,
 } from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
+import { isValidDraftSyncId } from '@/stores/draftSyncStore';
 import type {
   DraftPickCorrection,
   DraftPickRemoval,
@@ -84,6 +85,29 @@ export interface DraftReconciliationSummary {
   readonly corrections: readonly DraftPickCorrection[];
   readonly removals: readonly DraftPickRemoval[];
   readonly unresolvedIdentities: readonly UnresolvedProviderPick[];
+}
+
+export interface DraftSyncController extends DraftSyncViewState {
+  readonly provider: DraftProvider;
+  readonly draft: DraftSyncSnapshot['draft'];
+  readonly picks: DraftSyncSnapshot['picks'];
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly error: Error | null;
+  readonly transportState: DraftSyncTransportState;
+  readonly syncStatus: DraftSyncState;
+  readonly lastSyncedPick: number;
+  readonly totalPicks: number;
+  readonly myPicksCount: number;
+  readonly importWarning: string | null;
+  readonly rejectedPickCount: number;
+  readonly lastReconciledSnapshotAt: number | null;
+  readonly reconciliationSummary: DraftReconciliationSummary | null;
+  readonly dismissReconciliationSummary: () => void;
+  readonly refresh: () => Promise<void>;
+  readonly isDrafting: boolean;
+  readonly isPaused: boolean;
+  readonly isComplete: boolean;
 }
 
 export function getDraftSynchronizationState(
@@ -180,17 +204,22 @@ function getSyncPath(provider: DraftProvider, draftId: string): string {
   return `/api/sync/${provider}/drafts/${encodeURIComponent(draftId)}`;
 }
 
+export function isRequestedDraftSnapshot(
+  snapshot: unknown,
+  provider: DraftProvider,
+  draftId: string
+): snapshot is DraftSyncSnapshot {
+  return isDraftSyncSnapshot(snapshot) &&
+    snapshot.provider === provider && snapshot.draftId === draftId;
+}
+
 async function readDraftSnapshot(
   response: Response,
   provider: DraftProvider,
   draftId: string
 ): Promise<DraftSyncSnapshot> {
   const parsed: unknown = await response.json();
-  if (
-    !isDraftSyncSnapshot(parsed) ||
-    parsed.provider !== provider ||
-    parsed.draftId !== draftId
-  ) {
+  if (!isRequestedDraftSnapshot(parsed, provider, draftId)) {
     throw new Error('Sync server returned an invalid draft snapshot');
   }
   return parsed;
@@ -404,9 +433,10 @@ function getImportWarning(
 
 export function useDraftSync(
   provider: DraftProvider,
-  draftId: string | null,
+  requestedDraftId: string | null,
   shouldImportPicks: boolean = true
-) {
+): DraftSyncController {
+  const draftId = isValidDraftSyncId(provider, requestedDraftId) ? requestedDraftId : null;
   const queryClient = useQueryClient();
   const {
     players,
@@ -465,6 +495,9 @@ export function useDraftSync(
           return;
         }
         const update = parsed;
+        if (!isRequestedDraftSnapshot(update.snapshot, provider, draftId)) {
+          return;
+        }
         setTransportState('connected');
         setLiveSnapshot(update.snapshot);
         queryClient.setQueryData(

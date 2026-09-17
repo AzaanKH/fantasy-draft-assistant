@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { areKeepersValid } from './check-draft-readiness.js';
+import primaryLeagueSettings from '../../data/primary-league-settings.json' with { type: 'json' };
 import {
   CORE_DRAFT_DATA_KEYS,
   DRAFT_READINESS_DEFINITIONS,
@@ -171,5 +173,32 @@ describe('Draft Readiness scenarios', () => {
       'pnpm test',
       'pnpm build',
     ]);
+  });
+});
+
+
+describe('Primary League keeper round bounds', () => {
+  function keeperSupply(round: number) {
+    return {
+      season: 2026,
+      keepers: Array.from({ length: 10 }, (_, index) => ({
+        playerName: `Keeper ${String(index)}`,
+        position: 'WR',
+        team: index + 1,
+        round,
+      })),
+    };
+  }
+
+  it.each([1, 14])('accepts valid Primary League round %i', (round) => {
+    expect(areKeepersValid(keeperSupply(round), 2026, primaryLeagueSettings.totalRounds)).toBe(true);
+  });
+
+  it.each([0, 15, 1.5])('rejects out-of-range or fractional round %s', (round) => {
+    expect(areKeepersValid(keeperSupply(round), 2026, primaryLeagueSettings.totalRounds)).toBe(false);
+  });
+
+  it.each([undefined, null, 0, 14.5, '14'])('rejects missing or invalid configured rounds: %s', (rounds) => {
+    expect(areKeepersValid(keeperSupply(1), 2026, rounds)).toBe(false);
   });
 });

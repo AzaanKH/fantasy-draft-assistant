@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
 import type { DraftProvider, Recommendation } from '@fantasy-draft/shared';
 import {
   applyLeagueSurvivalModel,
   getRecommendations,
-  type LeagueSurvivalModel,
 } from '@/lib/calculations';
 import {
   buildShadowRecommendationEvent,
@@ -13,15 +13,6 @@ import {
 import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
-
-async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
-  const response = await fetch('/data/league-history/survival-model.json');
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`Failed to load league survival model: ${String(response.status)}`);
-  }
-  return response.json() as Promise<LeagueSurvivalModel>;
-}
 
 export interface ShadowRecommendationLoggingInput {
   readonly draftId: string | null;

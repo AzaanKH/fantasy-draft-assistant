@@ -66,7 +66,8 @@ export function buildShadowRecommendationEvent(
     },
     shadowRecommendations: shadowRecommendations.map(compactRecommendation),
     disagreement:
-      input.coreBestPick.playerId !== shadowRecommendations[0]?.playerId,
+      shadowRecommendations[0] !== undefined &&
+      input.coreBestPick.playerId !== shadowRecommendations[0].playerId,
     context: {
       draftProvider: input.draftProvider,
       leagueSettingsFingerprint: input.leagueSettingsFingerprint,

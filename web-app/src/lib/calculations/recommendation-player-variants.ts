@@ -59,13 +59,12 @@ function mergeCoreSources(
     sources.news,
     sources.sleeperPlayers,
     sources.teamEnvironments as Record<NFLTeam, TeamEnvironment>,
-    [],
-    modelPredictions,
-    sources.fantasyProsAdp,
-    sources.identities,
-    undefined,
-    [],
-    sources.leagueContext
+    {
+      modelPredictions,
+      fantasyProsAdp: sources.fantasyProsAdp,
+      identities: sources.identities,
+      leagueContext: sources.leagueContext,
+    }
   );
 }
 

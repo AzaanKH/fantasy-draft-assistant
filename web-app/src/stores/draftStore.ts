@@ -13,8 +13,9 @@ import {
   createElement,
   useContext,
   type ReactNode,
+  type ReactElement,
 } from 'react';
-import { create, useStore } from 'zustand';
+import { create, useStore, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 
@@ -560,10 +561,13 @@ const defaultMockSettings: MockDraftSettings = {
   survivalIterations: 250,
 };
 
+type BoundDraftStore = UseBoundStore<Mutate<StoreApi<DraftStore>, [['zustand/immer', never]]>>;
+export type DraftStoreApi = BoundDraftStore;
+
 /**
  * Create the draft store with Zustand + immer for immutable updates
  */
-export function createDraftStore() {
+export function createDraftStore(): BoundDraftStore {
   return create<DraftStore>()(
   immer((set, get) => ({
     // Initial state
@@ -1309,8 +1313,6 @@ export function createDraftStore() {
   );
 }
 
-export type DraftStoreApi = ReturnType<typeof createDraftStore>;
-
 const defaultDraftStore = createDraftStore();
 const DraftStoreContext = createContext<DraftStoreApi | null>(null);
 
@@ -1320,7 +1322,7 @@ export function DraftStoreProvider({
 }: {
   readonly children: ReactNode;
   readonly store: DraftStoreApi;
-}) {
+}): ReactElement {
   return createElement(DraftStoreContext.Provider, { value: store }, children);
 }
 
@@ -1340,6 +1342,8 @@ function useDraftStoreSelector<T>(selector: (state: DraftStore) => T): T {
   return useStore(useDraftStoreApi(), selector);
 }
 
+// Static methods address the default store. Components must capture useDraftStoreApi()
+// during render for imperative callbacks scoped to a DraftStoreProvider.
 export const useDraftStore: UseDraftStore = Object.assign(
   useDraftStoreSelector,
   {

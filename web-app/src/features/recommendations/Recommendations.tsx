@@ -382,12 +382,12 @@ export function Recommendations(): React.ReactElement {
   const keeperAtCurrentPick = sessionMode === 'mock'
     ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams)
     : undefined;
-  const isActiveUserTurn = sessionMode !== 'setup' && isMyTurn && !keeperAtCurrentPick;
+  const isActiveUserTurn = sessionMode === 'mock' && isMyTurn && !keeperAtCurrentPick;
 
   // Handle drafting a player from recommendations
   const handleDraft = React.useCallback(
     (playerId: string) => {
-      if (sessionMode === 'setup') return;
+      if (sessionMode !== 'mock') return;
       const player = players.find((p) => p.id === playerId);
       if (!player) return;
 
@@ -438,7 +438,7 @@ export function Recommendations(): React.ReactElement {
 
         {/* Tabbed Recommendations */}
         <Tabs defaultValue="draft-now" className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-5 gap-1 p-1">
             <TabsTrigger value="draft-now" className="min-h-8 px-1.5 text-[11px]">
               Draft Now
             </TabsTrigger>

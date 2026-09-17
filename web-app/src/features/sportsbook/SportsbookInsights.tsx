@@ -17,11 +17,14 @@ import {
 } from './milestone-watchlist';
 
 function formatSnapshotDate(capturedAt: string): string {
+  const date = new Date(capturedAt);
+  if (!Number.isFinite(date.getTime())) return 'Unknown date';
+
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(capturedAt));
+  }).format(date);
 }
 
 export function SportsbookInsights(): React.ReactElement | null {

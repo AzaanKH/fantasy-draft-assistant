@@ -52,7 +52,7 @@ export interface ReleaseCheckOutcome {
 }
 
 interface ReadinessEvidence {
-  readonly productBlockingFailures?: readonly unknown[];
+  readonly productBlockingFailures: readonly unknown[];
   readonly actionableWarnings?: readonly unknown[];
   readonly optionalSignalDegradations?: readonly unknown[];
 }
@@ -245,10 +245,17 @@ function unavailableOutcome(
   };
 }
 
+function isReadinessEvidence(value: unknown): value is ReadinessEvidence {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  if (!('productBlockingFailures' in value) || !Array.isArray(value.productBlockingFailures)) return false;
+  return (!('actionableWarnings' in value) || Array.isArray(value.actionableWarnings)) &&
+    (!('optionalSignalDegradations' in value) || Array.isArray(value.optionalSignalDegradations));
+}
+
 export function buildPrimaryLeagueReleaseGateReport(input: {
   readonly now: number;
   readonly outcomes: readonly ReleaseCheckOutcome[];
-  readonly readiness: ReadinessEvidence | null;
+  readonly readiness: unknown;
   readonly rehearsal: RehearsalEvidence | null;
   readonly operational: OperationalEvidence | null;
 }): PrimaryLeagueReleaseGateReport {
@@ -265,8 +272,13 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
     input.operational?.realProviderRehearsal?.status === 'passed' &&
     Number.isFinite(completionTime) &&
     completionTime <= input.now;
+  const readiness = isReadinessEvidence(input.readiness) ? input.readiness : null;
   const productBlockingFailures = [
-    ...(input.readiness?.productBlockingFailures ?? []),
+    ...(readiness?.productBlockingFailures ?? [{
+      key: 'draft-readiness-report',
+      label: 'Draft Readiness report',
+      message: 'Draft Readiness evidence is missing or invalid. Run pnpm draft:readiness before activating feature freeze.',
+    }]),
     ...(input.rehearsal?.status === 'passed'
       ? []
       : [{
@@ -279,7 +291,7 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
       : [{
           key: 'real-provider-rehearsal',
           label: 'Real-provider rehearsal',
-          message: 'The scheduled Sleeper rehearsal has not completed successfully.',
+          message: 'The real-provider Sleeper rehearsal has not completed successfully.',
         }]),
   ];
   const releaseBlockingFailures = Object.values(outcomes)
@@ -306,9 +318,9 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
     deterministicRehearsal: input.rehearsal ?? {},
     productBlockingFailures,
     releaseBlockingFailures,
-    actionableWarnings: input.readiness?.actionableWarnings ?? [],
+    actionableWarnings: readiness?.actionableWarnings ?? [],
     optionalSignalDegradations:
-      input.readiness?.optionalSignalDegradations ?? [],
+      readiness?.optionalSignalDegradations ?? [],
     featureFreeze: {
       status: canFreeze ? 'active' : 'pending',
       allowedChanges,

@@ -62,5 +62,9 @@ if (import.meta.env.DEV && visualRouteRequested) {
     applyTheme(readStoredTheme());
     initializeDraftSyncConnection(window.location.search);
     renderNormalApp(<App />);
+  }).catch(() => {
+    root.render(
+      <main role="alert">Unable to load the draft app. Please reload the page.</main>
+    );
   });
 }
