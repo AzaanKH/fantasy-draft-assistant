@@ -64,6 +64,7 @@ data/shadow-logs/*.ndjson
 # Playwright
 playwright-report/
 test-results/
+.agents/skills/*/artifacts/
 
 # Memory bank data (if using locally)
 .memory-bank/

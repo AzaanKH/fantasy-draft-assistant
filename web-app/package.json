@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
+    "rehearse:primary-league": "tsx src/features/draft-room/run-primary-league-rehearsal.ts",
     "test:watch": "vitest",
     "clean": "rm -rf dist node_modules/.vite"
   },
