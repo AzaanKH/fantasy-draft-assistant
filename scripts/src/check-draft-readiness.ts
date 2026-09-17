@@ -113,7 +113,8 @@ function isPrimaryLeagueSettings(value: unknown, season: number): boolean {
   );
 }
 
-function areKeepersValid(value: unknown, season: number): boolean {
+export function areKeepersValid(value: unknown, season: number, totalRounds: unknown): boolean {
+  if (!isFiniteNumber(totalRounds) || !Number.isInteger(totalRounds) || totalRounds < 1) return false;
   if (!isRecord(value) || value['season'] !== season) return false;
   const keepers = asArray(value['keepers']);
   if (keepers.length !== 10) return false;
@@ -132,7 +133,7 @@ function areKeepersValid(value: unknown, season: number): boolean {
       !Number.isInteger(keeper['round']) ||
       !isFiniteNumber(keeper['round']) ||
       keeper['round'] < 1 ||
-      keeper['round'] > 15
+      keeper['round'] > totalRounds
     ) {
       return false;
     }
@@ -255,7 +256,7 @@ export async function buildDraftReadinessReport(now: number): Promise<DraftReadi
     'confirmed-keeper-supply': observation(
       keepers,
       timestamp(nested(keepers.value, 'updatedAt')),
-      areKeepersValid(keepers.value, season),
+      areKeepersValid(keepers.value, season, nested(leagueSettings.value, 'totalRounds')),
       'Expected all 10 Primary League keepers with unique players and legal team/round costs.'
     ),
     'experimental-predictions': observation(

@@ -15,6 +15,7 @@ The helper drives a fresh Playwright browser context. It never reuses a signed-i
 
 ## Prerequisites
 
+- Use macOS or Linux with writable `/tmp`, `rsync`, `lsof`, `ps`, and support for POSIX process-group signals. Native Windows is not supported.
 - Run on Node 20 or newer and pnpm 9 or newer with workspace dependencies already installed.
 - Keep a non-placeholder `FANTASYPROS_API_KEY` in the repository-root `.env.local`. The helper copies this file into disposable state and never prints the value.
 - The helper chooses free web and API ports. It changes only the disposable copy's Vite proxy and development port check, then passes the API port and allowed web origin to the server. It never drives a listener it did not start.
@@ -109,7 +110,7 @@ Always clean up, including after a failed drive:
 node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs cleanup "$RUN_ID"
 ```
 
-Cleanup sends signals only to the recorded process group, waits for it to exit, and removes only `/tmp/fantasy-draft-assistant-verification/$RUN_ID`. It never kills by process name. It preserves the artifact directory and updates `run.json` with cleanup status.
+Cleanup authenticates the recorded leader or a recorded surviving child before signaling the process group, waits for it to exit, and removes only `/tmp/fantasy-draft-assistant-verification/$RUN_ID`. It never kills by process name. If ownership cannot be verified or processes survive termination, cleanup preserves the runtime and reports `cleanup-blocked` in `run.json`. It preserves the artifact directory and updates `run.json` with cleanup status.
 
 Confirm proof survived cleanup:
 

@@ -111,10 +111,10 @@ describe('2026 mock draft calibration', () => {
       fantasyPros.news,
       sleeper.players,
       environments.teams,
-      [],
-      [],
-      fantasyPros.adp ?? [],
-      identities.players
+      {
+        fantasyProsAdp: fantasyPros.adp ?? [],
+        identities: identities.players,
+      }
     );
     keepers = resolveKeepers(keeperFile, players);
     historyModel = history;

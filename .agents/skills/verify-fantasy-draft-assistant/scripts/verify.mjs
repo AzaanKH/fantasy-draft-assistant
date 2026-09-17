@@ -305,7 +305,7 @@ function processCommand(pid) {
   return capture('ps', ['-o', 'command=', '-p', String(pid)]);
 }
 
-function processIdentity(pid) {
+export function processIdentity(pid) {
   return {
     pid,
     pgid: processGroupId(pid),
@@ -313,14 +313,23 @@ function processIdentity(pid) {
   };
 }
 
-function matchesProcessGroupLeader(pgid, expected) {
-  if (!expected || expected.pid !== pgid || expected.pgid !== pgid) return false;
+function matchesGroupMember(pgid, expected) {
+  if (!expected || expected.pgid !== pgid || !Number.isInteger(expected.pid)) return false;
   try {
-    const actual = processIdentity(pgid);
+    const actual = processIdentity(expected.pid);
     return actual.pgid === pgid && actual.startedAt === expected.startedAt;
   } catch {
     return false;
   }
+}
+
+function groupMembers(pgid) {
+  return capture('ps', ['-axo', 'pid=,pgid=,lstart=']).split(/\r?\n/).flatMap((line) => {
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/);
+    return match && Number(match[2]) === pgid
+      ? [{ pid: Number(match[1]), pgid, startedAt: match[3].trim() }]
+      : [];
+  });
 }
 
 function processAlive(pid) {
@@ -336,8 +345,9 @@ function groupAlive(pgid) {
   try {
     process.kill(-pgid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error.code === 'ESRCH') return false;
+    throw error;
   }
 }
 
@@ -360,19 +370,36 @@ async function readiness(webUrl, apiUrl) {
   };
 }
 
-async function terminateGroup(pgid, leaderIdentity) {
-  if (
-    !Number.isInteger(pgid) ||
-    pgid <= 1 ||
-    !groupAlive(pgid) ||
-    !matchesProcessGroupLeader(pgid, leaderIdentity)
-  ) return;
-  process.kill(-pgid, 'SIGTERM');
-  for (let attempt = 0; attempt < 50 && groupAlive(pgid); attempt += 1) {
-    await wait(100);
+export async function terminateGroup(pgid, leaderIdentity, recordedMembers = []) {
+  if (!Number.isInteger(pgid) || pgid <= 1) {
+    throw new Error('Cleanup blocked: no valid recorded process group.');
+  }
+  let identities = [leaderIdentity, ...recordedMembers];
+  for (const signal of ['SIGTERM', 'SIGKILL']) {
+    if (!groupAlive(pgid)) return;
+    if (!identities.some((identity) => matchesGroupMember(pgid, identity))) {
+      throw new Error(`Cleanup blocked: cannot authenticate surviving process group ${String(pgid)}.`);
+    }
+    // Capture children while the group is authenticated so leader exit during
+    // graceful shutdown does not prevent safely terminating surviving children.
+    const members = groupMembers(pgid);
+    if (!identities.some((identity) => matchesGroupMember(pgid, identity))) {
+      if (!groupAlive(pgid)) return;
+      throw new Error('Cleanup blocked: process-group identity changed before signaling.');
+    }
+    identities = members;
+    try {
+      process.kill(-pgid, signal);
+    } catch (error) {
+      if (error.code === 'ESRCH') return;
+      throw error;
+    }
+    for (let attempt = 0; attempt < 50 && groupAlive(pgid); attempt += 1) {
+      await wait(100);
+    }
   }
   if (groupAlive(pgid)) {
-    process.kill(-pgid, 'SIGKILL');
+    throw new Error(`Cleanup blocked: process group ${String(pgid)} is still alive.`);
   }
 }
 
@@ -414,6 +441,7 @@ async function launch(runId) {
   let pid = null;
   let pgid = null;
   let processGroupLeader = null;
+  let processGroupMembers = [];
   try {
     await copyCheckout(runId);
     await configureDisposablePorts(runId, webPort, apiPort);
@@ -468,7 +496,8 @@ async function launch(runId) {
     const deadline = Date.now() + 180_000;
     let ready = false;
     while (Date.now() < deadline) {
-      if (!processAlive(pid)) break;
+      if (!matchesGroupMember(pgid, processGroupLeader)) break;
+      processGroupMembers = groupMembers(pgid);
       try {
         ready = (await readiness(state.webUrl, state.apiUrl)).passed;
       } catch {
@@ -481,8 +510,12 @@ async function launch(runId) {
       throw new Error(`Live startup did not become ready. See ${path.join(evidence, 'startup.log')}.`);
     }
 
+    if (!matchesGroupMember(pgid, processGroupLeader)) {
+      throw new Error('Startup process exited before its child identities could be recorded.');
+    }
+    processGroupMembers = groupMembers(pgid);
     child.unref();
-    state = { ...state, status: 'running', readyAt: new Date().toISOString() };
+    state = { ...state, processGroupMembers, status: 'running', readyAt: new Date().toISOString() };
     await writeJson(statePath(runId), state);
     process.stdout.write(`${JSON.stringify({
       runId,
@@ -494,15 +527,28 @@ async function launch(runId) {
       artifacts: evidence,
     }, null, 2)}\n`);
   } catch (error) {
-    if (pgid) await terminateGroup(pgid, processGroupLeader);
-    await rm(runtime, { recursive: true, force: true });
+    let cleanupError = null;
+    try {
+      if (pgid) await terminateGroup(pgid, processGroupLeader, processGroupMembers);
+      await rm(runtime, { recursive: true, force: true });
+    } catch (failure) {
+      cleanupError = failure instanceof Error ? failure.message : String(failure);
+    }
     state = {
       ...state,
-      status: 'failed',
+      pid,
+      pgid,
+      processGroupLeader,
+      processGroupMembers,
+      status: cleanupError ? 'cleanup-blocked' : 'failed',
+      cleanupError,
       failedAt: new Date().toISOString(),
       error: error instanceof Error ? error.message : String(error),
     };
     await writeJson(statePath(runId), state);
+    if (cleanupError) {
+      throw new Error(`${String(error)} ${cleanupError} Runtime preserved at ${runtime}.`);
+    }
     throw error;
   }
 }
@@ -790,7 +836,7 @@ async function driveAssistantNavigation(page, targetDir, input) {
   };
 }
 
-async function driveRosterSettings(page, targetDir, input) {
+export async function driveRosterSettings(page, targetDir, input) {
   await loadDraft(page, input.webUrl);
   await page.getByRole('button', { name: 'League roster' }).click();
   let dialog = page.getByRole('dialog');
@@ -810,12 +856,16 @@ async function driveRosterSettings(page, targetDir, input) {
   }
   await capturePage(page, targetDir, 'after');
   await dialog.getByRole('button', { name: 'Reset defaults' }).click();
+  const resetValue = Number(await dialog.getByLabel('QB', { exact: true }).inputValue());
+  if (resetValue !== beforeValue) {
+    throw new Error(`QB starter value did not reset to ${String(beforeValue)}: ${String(resetValue)}.`);
+  }
   return {
     featureId: 'roster.session-persistence',
     route: '/draft',
     handle: 'League roster > QB',
     input: { beforeValue, nextValue },
-    observedResult: `QB starter value reread as ${String(rereadValue)}`,
+    observedResult: `QB starter value reread as ${String(rereadValue)} and reset to ${String(resetValue)}`,
     secondReadOnlyView: 'Closing and reopening Roster requirements preserves the edited field',
   };
 }
@@ -948,20 +998,33 @@ async function drive(runId, scenario, parameters = []) {
   process.stdout.write(`${JSON.stringify({ passed: true, runId, scenario, artifacts: targetDir }, null, 2)}\n`);
 }
 
-async function cleanup(runId) {
+export async function cleanup(runId) {
   const target = runtimeRoot(runId);
   const expectedPrefix = `${runtimeBase}${path.sep}`;
   if (!target.startsWith(expectedPrefix) || path.basename(target) !== requireRunId(runId)) {
     throw new Error(`Refusing unsafe cleanup target: ${target}`);
   }
   const state = await readJson(statePath(runId));
-  await terminateGroup(state.pgid, state.processGroupLeader);
+  const remaining = {};
+  try {
+    await terminateGroup(state.pgid, state.processGroupLeader, state.processGroupMembers);
+    for (const port of [state.webPort, state.apiPort]) {
+      remaining[port] = listenerPids(port);
+      if (remaining[port].length > 0) {
+        throw new Error(`Cleanup blocked: port ${String(port)} still has an unverified listener.`);
+      }
+    }
+  } catch (error) {
+    await writeJson(statePath(runId), {
+      ...state,
+      status: 'cleanup-blocked',
+      cleanupError: error instanceof Error ? error.message : String(error),
+      runtimeRemoved: false,
+    });
+    throw error;
+  }
   await rm(target, { recursive: true, force: true });
 
-  const remaining = {};
-  for (const port of [state.webPort, state.apiPort]) {
-    remaining[port] = listenerPids(port);
-  }
   const updated = {
     ...state,
     status: 'cleaned',
@@ -1005,7 +1068,9 @@ async function main() {
   throw new Error(`Unknown command: ${command}`);
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  main().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+}

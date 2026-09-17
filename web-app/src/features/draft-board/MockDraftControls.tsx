@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
 import type { Player } from '@fantasy-draft/shared';
 import { Pause, Play, RotateCcw, Settings2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import {
   calculateIsMyTurn,
   useDraftStore,
+  useDraftStoreApi,
   type DraftSessionMode,
 } from '@/stores/draftStore';
 import {
@@ -24,17 +26,7 @@ import {
   getTeamIndexForPick,
   selectCpuPlayer,
   type MockDraftEngineConfig,
-  type MockLeagueHistoryModel,
 } from '@/lib/mock-draft-engine';
-
-async function fetchMockHistoryModel(): Promise<MockLeagueHistoryModel | null> {
-  const response = await fetch('/data/league-history/survival-model.json');
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`Failed to load league draft history: ${String(response.status)}`);
-  }
-  return response.json() as Promise<MockLeagueHistoryModel>;
-}
 
 function numericValue(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -65,6 +57,7 @@ export function MockDraftControls({
   readonly isMockReady: boolean;
   readonly sessionMode: DraftSessionMode;
 }): React.ReactElement | null {
+  const draftStore = useDraftStoreApi();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isRunning, setIsRunning] = React.useState(false);
   const [isEstimating, setIsEstimating] = React.useState(false);
@@ -80,7 +73,7 @@ export function MockDraftControls({
   );
   const historyQuery = useQuery({
     queryKey: ['league-survival-model'],
-    queryFn: fetchMockHistoryModel,
+    queryFn: fetchLeagueSurvivalModel,
     staleTime: Infinity,
   });
 
@@ -94,7 +87,7 @@ export function MockDraftControls({
   }), [config, mockSettings.randomness, mockSettings.seed]);
 
   const simulateNextCpuPick = React.useCallback((): boolean => {
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     const totalPicks = state.config.totalTeams * state.config.totalRounds;
     if (state.currentPick > totalPicks) return false;
 
@@ -145,20 +138,20 @@ export function MockDraftControls({
       'cpu'
     );
     return true;
-  }, [historyQuery.data, players]);
+  }, [draftStore, historyQuery.data, players]);
 
   React.useEffect(() => {
     if (sessionMode !== 'mock') return;
     const keeper = getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams);
     if (keeper) {
-      useDraftStore.getState().consumeKeeperAtCurrentPick();
+      draftStore.getState().consumeKeeperAtCurrentPick();
     }
-  }, [config.totalTeams, currentPick, preloadedKeepers, sessionMode]);
+  }, [config.totalTeams, currentPick, draftStore, preloadedKeepers, sessionMode]);
 
   React.useEffect(() => {
     if (!isRunning || sessionMode !== 'mock') return;
     const timer = window.setTimeout(() => {
-      const state = useDraftStore.getState();
+      const state = draftStore.getState();
       const keeper = getKeeperAtPick(
         state.preloadedKeepers,
         state.currentPick,
@@ -175,7 +168,7 @@ export function MockDraftControls({
       if (!simulateNextCpuPick()) setIsRunning(false);
     }, 120);
     return () => { window.clearTimeout(timer); };
-  }, [currentPick, isRunning, sessionMode, simulateNextCpuPick]);
+  }, [currentPick, draftStore, isRunning, sessionMode, simulateNextCpuPick]);
 
   React.useEffect(() => {
     if (sessionMode !== 'mock' || players.length === 0) return;
@@ -196,7 +189,7 @@ export function MockDraftControls({
           ])
         );
         if (!cancelled) {
-          useDraftStore.getState().setMockSurvivalProbabilities(probabilities);
+          draftStore.getState().setMockSurvivalProbabilities(probabilities);
           setIsEstimating(false);
         }
         return;
@@ -225,6 +218,7 @@ export function MockDraftControls({
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [
+    draftStore,
     currentPick,
     draftHistory,
     draftedPlayerIds,
@@ -328,7 +322,7 @@ export function MockDraftControls({
                 value={config.totalTeams}
                 disabled={draftStarted}
                 onChange={(event) => {
-                  useDraftStore.getState().setConfig({
+                  draftStore.getState().setConfig({
                     totalTeams: Math.max(
                       minimumMockTeams,
                       numericValue(event.target.value, config.totalTeams)
@@ -347,7 +341,7 @@ export function MockDraftControls({
                 value={config.myPickPosition}
                 disabled={draftStarted}
                 onChange={(event) => {
-                  useDraftStore.getState().setConfig({
+                  draftStore.getState().setConfig({
                     myPickPosition: numericValue(event.target.value, config.myPickPosition),
                   });
                 }}
@@ -362,7 +356,7 @@ export function MockDraftControls({
                 max={100}
                 value={Math.round(mockSettings.randomness * 100)}
                 onChange={(event) => {
-                  useDraftStore.getState().setMockSettings({
+                  draftStore.getState().setMockSettings({
                     randomness: Number(event.target.value) / 100,
                   });
                 }}
@@ -376,7 +370,7 @@ export function MockDraftControls({
                 min={0}
                 value={mockSettings.seed}
                 onChange={(event) => {
-                  useDraftStore.getState().setMockSettings({
+                  draftStore.getState().setMockSettings({
                     seed: numericValue(event.target.value, mockSettings.seed),
                   });
                 }}
@@ -390,7 +384,7 @@ export function MockDraftControls({
                 size="sm"
                 className="h-9 w-full text-xs"
                 onClick={() => {
-                  useDraftStore.getState().setMockSettings({
+                  draftStore.getState().setMockSettings({
                     seed: Math.floor(Date.now() % 2147483647),
                   });
                 }}
@@ -413,7 +407,7 @@ export function MockDraftControls({
                   size="sm"
                   onClick={() => {
                     setIsRunning(false);
-                    useDraftStore.getState().undoLastPick();
+                    draftStore.getState().undoLastPick();
                   }}
                   disabled={draftHistory.length === 0}
                 >
@@ -424,7 +418,7 @@ export function MockDraftControls({
                   size="sm"
                   onClick={() => {
                     setIsRunning(false);
-                    useDraftStore.getState().resetDraft();
+                    draftStore.getState().resetDraft();
                   }}
                 >
                   <RotateCcw className="size-3.5" /> Restart
@@ -448,7 +442,7 @@ export function MockDraftControls({
                   size="sm"
                   onClick={() => {
                     setIsRunning(false);
-                    useDraftStore.getState().branchFromPick(numericValue(branchPick, currentPick));
+                    draftStore.getState().branchFromPick(numericValue(branchPick, currentPick));
                   }}
                 >
                   Create branch
@@ -494,8 +488,8 @@ export function MockDraftControls({
                   variant="ghost"
                   onClick={() => {
                     setIsRunning(false);
-                    useDraftStore.getState().resetDraft();
-                    useDraftStore.getState().setSessionMode('setup');
+                    draftStore.getState().resetDraft();
+                    draftStore.getState().setSessionMode('setup');
                     setIsOpen(false);
                   }}
                 >
@@ -506,7 +500,7 @@ export function MockDraftControls({
             ) : (
               <Button
                 onClick={() => {
-                  useDraftStore.getState().setSessionMode('mock');
+                  draftStore.getState().setSessionMode('mock');
                   setIsOpen(false);
                 }}
                 disabled={!isMockReady}

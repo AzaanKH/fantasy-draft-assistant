@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   DraftPickEvent,
+  DraftSyncSnapshot,
   Player,
 } from '@fantasy-draft/shared';
 import {
@@ -9,6 +10,7 @@ import {
   getDraftSyncConnectionState,
   getDraftSynchronizationState,
   getNextOpenPickNumber,
+  isRequestedDraftSnapshot,
   resolveDraftPickImports,
 } from './useDraftSync';
 
@@ -390,5 +392,32 @@ describe('formatDraftSyncAge', () => {
     expect(formatDraftSyncAge(12_900)).toBe('12s ago');
     expect(formatDraftSyncAge(120_000)).toBe('2m ago');
     expect(formatDraftSyncAge(7_200_000)).toBe('2h ago');
+  });
+});
+
+describe('requested draft snapshot validation', () => {
+  const snapshot: DraftSyncSnapshot = {
+    provider: 'sleeper',
+    draftId: 'draft-123',
+    draft: null,
+    picks: [],
+    status: 'synced',
+    lastPolledAt: 100,
+    lastSuccessfulSyncAt: 100,
+    lastError: null,
+  };
+
+  it('accepts only the requested provider and draft identity', () => {
+    expect(isRequestedDraftSnapshot(snapshot, 'sleeper', 'draft-123')).toBe(true);
+    expect(isRequestedDraftSnapshot(snapshot, 'yahoo', 'draft-123')).toBe(false);
+    expect(isRequestedDraftSnapshot(snapshot, 'sleeper', 'other-draft')).toBe(false);
+  });
+
+  it('rejects malformed snapshots even when the requested identity matches', () => {
+    expect(isRequestedDraftSnapshot({
+      ...snapshot,
+      picks: [{}],
+    }, 'sleeper', 'draft-123')).toBe(false);
+    expect(isRequestedDraftSnapshot(null, 'sleeper', 'draft-123')).toBe(false);
   });
 });
