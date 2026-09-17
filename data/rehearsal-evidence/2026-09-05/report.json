@@ -1,0 +1,40 @@
+{
+  "observedAt": "2026-09-05T16:09:38.796Z",
+  "status": "partial",
+  "provider": "sleeper",
+  "draftId": "1313053610426269696",
+  "managerDraftSlot": 5,
+  "providerStatus": "pre_draft",
+  "checks": {
+    "connectedPolling": true,
+    "keeperCount": 10,
+    "uniquePickNumbers": 10,
+    "uniquePlayerIds": 10,
+    "providerPicksUnchanged": true,
+    "outageDetected": true,
+    "manualContinuityEntered": true,
+    "provisionalPick": {
+      "playerName": "Ja'Marr Chase",
+      "pickNumber": 5,
+      "localOnly": true
+    },
+    "reconciliationRemovalVisible": true,
+    "restoredMyRoster": true,
+    "recommendationsUpdatedDuringOutage": true,
+    "restoredRecommendation": "Ja'Marr Chase",
+    "providerSettingsMatch": true
+  },
+  "unverified": [
+    "New ordinary provider picks through draft completion",
+    "Matching and conflicting provisional picks reconciled against new live picks",
+    "Final 140 slots and 14 players per roster",
+    "Chrome companion extension detection and side panel"
+  ],
+  "console": {
+    "errorsObserved": 0,
+    "warnings": [
+      "3 ECR players not found in Sleeper data"
+    ]
+  },
+  "notes": "The first outage run lost its browser tab before the reconciliation summary was captured. The second run captured automatic reconciliation in the same tab. Both temporary picks were local only. The real-provider result is incomplete because the designated draft remains pre_draft with only keepers."
+}
