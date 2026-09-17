@@ -20,4 +20,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: node --test .agents/skills/verify-fantasy-draft-assistant/scripts/verify.test.mjs
       - run: pnpm verify
+      - name: Assert web static-output policy
+        run: pnpm --filter scripts measure:web-bundle

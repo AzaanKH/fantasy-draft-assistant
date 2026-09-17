@@ -1,0 +1,33 @@
+name: Draft Readiness
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 08:00 PDT during the July-September draft-prep window.
+    - cron: "0 15 * 7-9 *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-readiness
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm draft:rehearsal
+      - run: pnpm draft:readiness

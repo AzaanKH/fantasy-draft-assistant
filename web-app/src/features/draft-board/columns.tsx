@@ -11,6 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, ArrowUp, ArrowDown, Eye, Star } from 'lucide-react';
 import { cn, formatSignedNumber } from '@/lib/utils';
+import {
+  calculatePlayerRisk,
+  type TierAvailability,
+} from '@/lib/calculations';
 
 /**
  * Position badge with color coding
@@ -32,21 +36,62 @@ function PositionBadge({ position }: { position: Position }) {
   );
 }
 
-function CompactMetric({
-  label,
-  value,
-  className,
+function TierDisplay({
+  player,
+  availability,
 }: {
-  label: string;
-  value: React.ReactNode;
-  className?: string;
+  player: Player;
+  availability?: TierAvailability;
 }) {
+  const isLastInTier = availability?.remaining === 1 &&
+    availability.nextTier !== undefined &&
+    availability.isMeaningfulCliff;
+  const detail = availability
+    ? isLastInTier
+      ? 'Last available'
+      : `${String(availability.remaining)} available`
+    : player.tierSource === 'ecr-fallback'
+      ? 'ECR fallback'
+      : 'Projection tier';
+  const cliffDetail = availability?.nextTier !== undefined &&
+    availability.isMeaningfulCliff
+    ? `${availability.dropoffPoints.toFixed(1)} pts to ${player.position} T${String(availability.nextTier)}`
+    : undefined;
+
   return (
-    <div className="flex flex-col leading-tight">
-      <span className={cn('font-mono text-sm font-semibold tabular-nums', className)}>
-        {value}
+    <div className="flex min-w-[104px] flex-col leading-tight">
+      <Badge
+        variant="outline"
+        className={cn(
+          'w-fit font-mono text-xs',
+          isLastInTier && 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+        )}
+      >
+        {player.position} T{player.tier}
+      </Badge>
+      <span
+        className={cn(
+          'mt-1 text-[11px] text-muted-foreground',
+          isLastInTier && 'font-medium text-amber-700 dark:text-amber-300'
+        )}
+      >
+        {detail}
       </span>
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      {cliffDetail && (
+        <span
+          className={cn(
+            'text-[10px] text-muted-foreground',
+            isLastInTier && 'font-medium text-amber-700 dark:text-amber-300'
+          )}
+        >
+          {cliffDetail}
+        </span>
+      )}
+      {player.fantasyProsTier !== undefined && (
+        <span className="text-[10px] text-muted-foreground">
+          FantasyPros T{player.fantasyProsTier}
+        </span>
+      )}
     </div>
   );
 }
@@ -129,47 +174,81 @@ function ValueDisplay({ value }: { value: number }) {
 
 function MarketDeltaDisplay({ player }: { player: Player }) {
   const delta = player.valueScore;
-  const label = delta > 0 ? 'Steal' : delta < 0 ? 'Reach' : 'Even';
+  const label = delta > 0 ? 'Later than ECR' : delta < 0 ? 'Earlier than ECR' : 'At ECR';
 
   return (
     <div className="flex flex-col">
       <ValueDisplay value={delta} />
       <span className="text-[11px] text-muted-foreground">
-        FP #{player.ecrRank} / SL #{player.marketRank} {label}
-      </span>
-    </div>
-  );
-}
-
-function renderMarketDisplay(player: Player) {
-  const delta = player.valueScore;
-  const label = delta > 0 ? 'Steal' : delta < 0 ? 'Reach' : 'Even';
-
-  return (
-    <div className="flex flex-col leading-tight">
-      <ValueDisplay value={delta} />
-      <span className="text-[11px] text-muted-foreground">
-        FP {player.ecrRank} / SL {player.marketRank}
+        ECR {player.ecrRank} · ADP {player.marketRank}
       </span>
       <span className="text-[11px] text-muted-foreground">{label}</span>
     </div>
   );
 }
 
-function renderValueDisplay(player: Player) {
+function SurvivalDisplay({ player }: { player: Player }) {
+  const probability = Math.round(player.nextPickSurvivalProbability * 100);
   return (
-    <div className="grid min-w-[120px] grid-cols-2 gap-3">
-      <CompactMetric label="Proj" value={player.projectedPoints.toFixed(1)} />
-      <CompactMetric
-        label="VOR"
-        value={formatSignedNumber(player.valueOverReplacement, 1)}
-        className="text-foreground"
-      />
+    <div className="flex min-w-[78px] flex-col leading-tight">
+      <span className={cn(
+        'font-mono text-sm tabular-nums',
+        probability < 40 ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-foreground'
+      )}>
+        {probability}%
+      </span>
+      <span className="text-[10px] text-muted-foreground">to your next pick</span>
+    </div>
+  );
+}
+
+function renderMarketDisplay(player: Player) {
+  const delta = player.valueScore;
+  const label = delta > 0 ? 'Later than ECR' : delta < 0 ? 'Earlier than ECR' : 'At ECR';
+
+  return (
+    <div className="flex min-w-[104px] flex-col leading-tight">
+      <ValueDisplay value={delta} />
+      <span className="text-[11px] text-muted-foreground">
+        ECR {player.ecrRank} · ADP {player.marketRank}
+      </span>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function renderCompactProjectionDisplay(player: Player) {
+  return (
+    <div className="flex min-w-[104px] flex-col leading-tight">
+      <span className="font-mono text-sm font-semibold tabular-nums">
+        {player.projectedPoints.toFixed(1)}
+      </span>
+      <span className="text-[11px] text-muted-foreground">Projected pts</span>
+      {player.marketAdjustment !== undefined && (
+        <span className="text-[10px] text-muted-foreground">
+          Sportsbook adjustment {formatSignedNumber(player.marketAdjustment, 1)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function renderCompactVorDisplay(player: Player) {
+  return (
+    <div className="flex min-w-[84px] flex-col leading-tight">
+      <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+        {formatSignedNumber(player.valueOverReplacement, 1)}
+      </span>
+      <span className="text-[11px] text-muted-foreground">vs replacement</span>
     </div>
   );
 }
 
 function renderPredictionDisplay(player: Player) {
+  const hasMarketAdjustment =
+    player.marketAdjustment !== undefined &&
+    player.sportsbookMarketCount !== undefined;
+
   return (
     <div className="flex flex-col">
       <span className="font-mono text-sm font-medium">
@@ -178,6 +257,11 @@ function renderPredictionDisplay(player: Player) {
       <span className="text-[11px] text-muted-foreground capitalize">
         {player.predictionSource}
       </span>
+      {hasMarketAdjustment && (
+        <span className="text-[11px] font-medium text-foreground">
+          Sportsbook {formatSignedNumber(player.marketAdjustment ?? 0, 1)}
+        </span>
+      )}
     </div>
   );
 }
@@ -194,17 +278,26 @@ function renderRangeDisplay(player: Player) {
 }
 
 function renderRiskDisplay(player: Player) {
-  const risk = Math.max(player.injuryRiskScore, player.uncertaintyScore);
-  const className = cn(
-    'font-mono text-sm',
-    risk >= 7 ? 'font-semibold text-foreground' : 'text-muted-foreground'
-  );
+  const risk = calculatePlayerRisk(player);
+  const toneClass = {
+    low: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    moderate: 'border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-300',
+    high: 'border-orange-500/40 bg-orange-500/10 text-orange-800 dark:text-orange-300',
+    'very-high': 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300',
+  }[risk.level];
 
   return (
-    <div className="flex flex-col">
-      <span className={className}>{risk.toFixed(1)}</span>
-      <span className="text-[11px] text-muted-foreground">
-        Avail {player.injuryRiskScore.toFixed(1)} / Unc {player.uncertaintyScore.toFixed(1)}
+    <div className="flex min-w-[132px] flex-col items-start leading-tight">
+      <div className="flex items-center gap-1.5">
+        <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px]', toneClass)}>
+          {risk.label}
+        </Badge>
+        <span className="font-mono text-xs font-semibold tabular-nums">
+          {risk.score.toFixed(1)}
+        </span>
+      </div>
+      <span className="mt-1 text-[10px] text-muted-foreground">
+        Availability {risk.availability.toFixed(1)} · Volatility {risk.volatility.toFixed(1)}
       </span>
     </div>
   );
@@ -287,6 +380,13 @@ export const columns: ColumnDef<Player>[] = [
     },
   },
   {
+    accessorKey: 'tier',
+    header: ({ column }) => (
+      <SortableHeader column={column}>Position tier</SortableHeader>
+    ),
+    cell: ({ row }) => <TierDisplay player={row.original} />,
+  },
+  {
     accessorKey: 'team',
     header: ({ column }) => (
       <SortableHeader column={column}>Team</SortableHeader>
@@ -319,20 +419,20 @@ export const columns: ColumnDef<Player>[] = [
   },
   {
     accessorKey: 'valueScore',
-    header: ({ column }) => <SortableHeader column={column}>FP vs SL</SortableHeader>,
+    header: ({ column }) => <SortableHeader column={column}>ECR vs ADP</SortableHeader>,
     cell: ({ row }) => <MarketDeltaDisplay player={row.original} />,
   },
   {
     accessorKey: 'projectedPoints',
-    header: ({ column }) => <SortableHeader column={column}>Proj</SortableHeader>,
+    header: ({ column }) => <SortableHeader column={column}>Projection</SortableHeader>,
     cell: ({ row }) => renderPredictionDisplay(row.original),
   },
   {
     accessorKey: 'valueOverReplacement',
-    header: ({ column }) => <SortableHeader column={column}>VOR</SortableHeader>,
+    header: ({ column }) => <SortableHeader column={column}>Above replacement</SortableHeader>,
     cell: ({ row }) => (
       <span className="font-mono text-sm">
-        {row.original.valueOverReplacement.toFixed(1)}
+        {formatSignedNumber(row.original.valueOverReplacement, 1)}
       </span>
     ),
   },
@@ -342,8 +442,13 @@ export const columns: ColumnDef<Player>[] = [
     cell: ({ row }) => renderRangeDisplay(row.original),
   },
   {
+    accessorKey: 'nextPickSurvivalProbability',
+    header: ({ column }) => <SortableHeader column={column}>Survival</SortableHeader>,
+    cell: ({ row }) => <SurvivalDisplay player={row.original} />,
+  },
+  {
     id: 'injuryRiskScore',
-    accessorFn: (player) => Math.max(player.injuryRiskScore, player.uncertaintyScore),
+    accessorFn: (player) => calculatePlayerRisk(player).score,
     header: ({ column }) => <SortableHeader column={column}>Risk</SortableHeader>,
     cell: ({ row }) => renderRiskDisplay(row.original),
   },
@@ -366,6 +471,8 @@ export function getColumnsWithActions(
     onToggleShortlist?: (player: Player) => void;
     isShortlisted?: (player: Player) => boolean;
     isDrafted?: (player: Player) => boolean;
+    canDraft?: boolean;
+    getTierAvailability?: (player: Player) => TierAvailability | undefined;
   } = {}
 ): ColumnDef<Player>[] {
   const compactColumns: ColumnDef<Player>[] = [
@@ -410,6 +517,18 @@ export function getColumnsWithActions(
       },
     },
     {
+      accessorKey: 'tier',
+      header: ({ column }) => (
+        <SortableHeader column={column}>Position tier</SortableHeader>
+      ),
+      cell: ({ row }) => (
+        <TierDisplay
+          player={row.original}
+          availability={options.getTierAvailability?.(row.original)}
+        />
+      ),
+    },
+    {
       accessorKey: 'byeWeek',
       header: ({ column }) => (
         <SortableHeader column={column}>Bye</SortableHeader>
@@ -422,17 +541,27 @@ export function getColumnsWithActions(
     },
     {
       accessorKey: 'valueScore',
-      header: ({ column }) => <SortableHeader column={column}>Market</SortableHeader>,
+      header: ({ column }) => <SortableHeader column={column}>Draft cost</SortableHeader>,
       cell: ({ row }) => renderMarketDisplay(row.original),
     },
     {
+      accessorKey: 'projectedPoints',
+      header: ({ column }) => <SortableHeader column={column}>Projection</SortableHeader>,
+      cell: ({ row }) => renderCompactProjectionDisplay(row.original),
+    },
+    {
       accessorKey: 'valueOverReplacement',
-      header: ({ column }) => <SortableHeader column={column}>Value</SortableHeader>,
-      cell: ({ row }) => renderValueDisplay(row.original),
+      header: ({ column }) => <SortableHeader column={column}>Above replacement</SortableHeader>,
+      cell: ({ row }) => renderCompactVorDisplay(row.original),
+    },
+    {
+      accessorKey: 'nextPickSurvivalProbability',
+      header: ({ column }) => <SortableHeader column={column}>Survival</SortableHeader>,
+      cell: ({ row }) => <SurvivalDisplay player={row.original} />,
     },
     {
       id: 'injuryRiskScore',
-      accessorFn: (player) => Math.max(player.injuryRiskScore, player.uncertaintyScore),
+      accessorFn: (player) => calculatePlayerRisk(player).score,
       header: ({ column }) => <SortableHeader column={column}>Risk</SortableHeader>,
       cell: ({ row }) => renderRiskDisplay(row.original),
     },
@@ -483,7 +612,12 @@ export function getColumnsWithActions(
             <Button
               variant="outline"
               size="sm"
-              disabled={isDrafted}
+              disabled={isDrafted || options.canDraft === false}
+              title={
+                options.canDraft === false
+                  ? 'Connect a live draft or start a mock draft to record picks.'
+                  : undefined
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onDraft(player);
