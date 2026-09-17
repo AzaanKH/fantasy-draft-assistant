@@ -176,20 +176,22 @@ describe('mergePlayerData', () => {
         status: 'Active',
       })],
       teamEnvironment,
-      [{
-        name: 'Kenneth Walker',
-        position: 'RB',
-        team: 'SEA',
-        contractEndYear: 2026,
-        isContractYear: true,
-      }],
-      [{
-        name: 'Kenneth Walker',
-        position: 'RB',
-        team: 'SEA',
-        projectedPoints: 180,
-        source: 'model',
-      }]
+      {
+        contractPlayers: [{
+          name: 'Kenneth Walker',
+          position: 'RB',
+          team: 'SEA',
+          contractEndYear: 2026,
+          isContractYear: true,
+        }],
+        modelPredictions: [{
+          name: 'Kenneth Walker',
+          position: 'RB',
+          team: 'SEA',
+          projectedPoints: 180,
+          source: 'model',
+        }],
+      }
     );
 
     expect(players[0]?.team).toBe('SEA');
@@ -206,21 +208,22 @@ describe('mergePlayerData', () => {
       [],
       [createSleeperPlayer({ playerId: '123' })],
       teamEnvironment,
-      [],
-      [{
-        playerId: '123',
-        name: 'Test Player',
-        position: 'WR',
-        team: 'DET',
-        projectedPoints: 241.5,
-        valueOverReplacement: 44.2,
-        ceilingScore: 9.1,
-        floorScore: 6.4,
-        uncertaintyScore: 4.8,
-        injuryRiskScore: 2.5,
-        source: 'model',
-        modelVersion: 'test',
-      }]
+      {
+        modelPredictions: [{
+          playerId: '123',
+          name: 'Test Player',
+          position: 'WR',
+          team: 'DET',
+          projectedPoints: 241.5,
+          valueOverReplacement: 44.2,
+          ceilingScore: 9.1,
+          floorScore: 6.4,
+          uncertaintyScore: 4.8,
+          injuryRiskScore: 2.5,
+          source: 'model',
+          modelVersion: 'test',
+        }],
+      }
     );
 
     expect(players[0]?.projectedPoints).toBe(241.5);
@@ -239,21 +242,18 @@ describe('mergePlayerData', () => {
       [],
       [createSleeperPlayer({ playerId: '123', status: 'Active' })],
       teamEnvironment,
-      [],
-      [],
-      [],
-      [],
-      undefined,
-      [{
-        playerId: '123',
-        name: 'Test Player',
-        position: 'WR',
-        team: 'DET',
-        projectedPoints: 999,
-        uncertaintyScore: 6,
-        injuryRiskScore: 7,
-        source: 'model',
-      }]
+      {
+        informationalRiskPredictions: [{
+          playerId: '123',
+          name: 'Test Player',
+          position: 'WR',
+          team: 'DET',
+          projectedPoints: 999,
+          uncertaintyScore: 6,
+          injuryRiskScore: 7,
+          source: 'model',
+        }],
+      }
     );
 
     expect(players[0]?.projectedPoints).not.toBe(999);
@@ -359,29 +359,26 @@ describe('mergePlayerData', () => {
       [],
       [createSleeperPlayer({ sleeperAdp: 30 })],
       teamEnvironment,
-      [],
-      [],
-      [{
-        rank: 25,
-        name: 'Test Player',
-        position: 'WR',
-        team: 'DET',
-        positionalRank: 10,
-        bestRank: 20,
-        worstRank: 30,
-        averageRank: 25,
-      }],
-      [],
-      undefined,
-      [],
       {
-        marketAdp: [{
-          externalId: 'ffc-1',
+        fantasyProsAdp: [{
+          rank: 25,
           name: 'Test Player',
           position: 'WR',
           team: 'DET',
-          adp: 42.5,
+          positionalRank: 10,
+          bestRank: 20,
+          worstRank: 30,
+          averageRank: 25,
         }],
+        leagueContext: {
+          marketAdp: [{
+            externalId: 'ffc-1',
+            name: 'Test Player',
+            position: 'WR',
+            team: 'DET',
+            adp: 42.5,
+          }],
+        },
       }
     );
 

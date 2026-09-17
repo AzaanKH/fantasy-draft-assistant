@@ -74,7 +74,9 @@ Sleeper rehearsal verified settings, keepers, and recovery from a local outage,
 but the provider draft remained in pre-draft. Full live-pick confirmation,
 correction, and completion still need verification. See the
 [provider rehearsal record](docs/provider-rehearsal-2026-09-05.md) and
-[release-gate report](data/primary-league-release-gate-report.json).
+[release-gate report](data/primary-league-release-gate-report.json). The release
+gate remains blocked and feature freeze pending until the real-provider rehearsal
+and current readiness checks pass.
 
 ## Development
 

@@ -62,6 +62,11 @@ export function DraftHeader({
           <ThemeMenu />
         </div>
       </div>
+      {secondaryControls ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/70 px-2 py-2 sm:px-4 md:hidden">
+          {secondaryControls}
+        </div>
+      ) : null}
     </header>
   );
 }

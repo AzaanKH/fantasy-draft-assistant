@@ -4,7 +4,7 @@ Use this runbook when verifying a complete draft, changing outage recovery, or
 preparing a draft release. For ordinary code changes, use the affected local
 tests or `pnpm verify` as described in [AGENTS.md](../AGENTS.md).
 
-A deterministic rehearsal checks the draft-state and recommendation workflow
+The product rehearsal has two parts. A deterministic rehearsal checks the draft-state and recommendation workflow
 with fixtures. A real-provider rehearsal checks the connected Sleeper workflow.
 The release gate records both forms of evidence; neither substitutes for the
 other.

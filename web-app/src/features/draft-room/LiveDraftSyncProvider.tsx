@@ -6,6 +6,7 @@ import {
 import {
   getDraftSynchronizationState,
   useDraftSync,
+  type DraftSyncController,
   type DraftSynchronizationState,
   type DraftSyncViewState,
 } from '@/hooks/useDraftSync';
@@ -15,8 +16,6 @@ import {
   useDraftSyncConnectionStore,
   type PersistedDraftSyncConnection,
 } from '@/stores/draftSyncStore';
-
-type DraftSyncController = ReturnType<typeof useDraftSync>;
 
 interface StartDraftConnectionInput {
   readonly provider: DraftProvider;

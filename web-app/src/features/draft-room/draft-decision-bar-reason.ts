@@ -58,8 +58,8 @@ export function getDraftDecisionBarReason(
     return `Depth Value moves ${recommendation.position} first with ${String(factors.depthValue.reserveCount)} reserves against a target of ${String(factors.depthValue.targetReserveCount)}.`;
   }
   if (reasonFactor === 'league-value') {
-    return `League value moves this pick first at ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points above replacement.`;
+    return `League value moves this pick first at ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
   }
 
-  return `ECR #${String(factors.playerQuality.ecrRank)} with ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points above replacement.`;
+  return `ECR #${String(factors.playerQuality.ecrRank)} with ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
 }

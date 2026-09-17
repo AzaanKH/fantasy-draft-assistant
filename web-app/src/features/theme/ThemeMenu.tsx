@@ -2,17 +2,12 @@ import * as React from 'react';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from './ThemeProvider';
-import type { ThemeMode } from './theme';
 
-const themeOptions: readonly {
-  readonly id: ThemeMode;
-  readonly label: string;
-  readonly icon: typeof Sun;
-}[] = [
+const THEME_OPTIONS = [
   { id: 'light', label: 'Light', icon: Sun },
   { id: 'dark', label: 'Dark', icon: Moon },
   { id: 'system', label: 'System', icon: Monitor },
-];
+] as const;
 
 export function ThemeMenu({ compact = false }: {
   readonly compact?: boolean;
@@ -63,7 +58,7 @@ export function ThemeMenu({ compact = false }: {
           aria-label="Choose appearance"
           className="absolute right-0 z-50 mt-2 w-40 overflow-hidden rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2xl"
         >
-          {themeOptions.map((option) => {
+          {THEME_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isSelected = option.id === theme;
             return (

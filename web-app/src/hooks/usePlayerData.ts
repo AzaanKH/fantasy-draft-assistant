@@ -112,7 +112,7 @@ function useLivePlayerDataQuery() {
   const identityTimestamp = identityQuery.data?.generatedAt;
   const sleeperTimestamp = sleeperQuery.data?.fetchedAt;
   const teamEnvironmentTimestamp = teamEnvQuery.data?.generatedAt;
-  const readinessSources = {
+  const readinessSources = useMemo(() => ({
     'trusted-rankings': {
       availability: fantasyProsQuery.isError
         ? 'missing'
@@ -197,36 +197,51 @@ function useLivePlayerDataQuery() {
     'contract-context' |
     'sportsbook-context',
     DraftReadinessSourceObservation
-  >>>;
+  >>>), [
+    currentSeason,
+    fantasyProsQuery.data, fantasyProsQuery.error, fantasyProsQuery.isError,
+    identityQuery.data, identityQuery.error, identityQuery.isError,
+    predictionQuery.data, predictionQuery.error, predictionQuery.isError,
+    contractQuery.data, contractQuery.error, contractQuery.isError,
+    sportsbookQuery.data, sportsbookQuery.error, sportsbookQuery.isError,
+    rankingsTimestamp, identityTimestamp, sleeperTimestamp, teamEnvironmentTimestamp,
+  ]);
 
-  const readinessWarnings: DraftReadinessWarningInput[] = [];
-  if (sleeperQuery.isError) {
-    readinessWarnings.push({
-      key: 'sleeper-player-directory',
-      label: 'Sleeper player directory',
-      sourceLabel: 'Sleeper player directory',
-      message: sleeperQuery.error.message,
-      correctiveAction: 'Run `pnpm refresh:sleeper`.',
-    });
-  }
-  if (teamEnvQuery.isError) {
-    readinessWarnings.push({
-      key: 'team-environment',
-      label: 'Team environment',
-      sourceLabel: 'Derived team environment',
-      message: teamEnvQuery.error.message,
-      correctiveAction: 'Run `pnpm refresh:team-env`.',
-    });
-  }
-  if (recommendationPolicyQuery.isError) {
-    readinessWarnings.push({
-      key: 'recommendation-policy',
-      label: 'Recommendation policy',
-      sourceLabel: 'ECR-anchored recommendation policy',
-      message: recommendationPolicyQuery.error.message,
-      correctiveAction: 'Run `pnpm model:backtest`.',
-    });
-  }
+  const readinessWarnings = useMemo(() => {
+    const warnings: DraftReadinessWarningInput[] = [];
+    if (sleeperQuery.isError) {
+      warnings.push({
+        key: 'sleeper-player-directory',
+        label: 'Sleeper player directory',
+        sourceLabel: 'Sleeper player directory',
+        message: sleeperQuery.error.message,
+        correctiveAction: 'Run `pnpm refresh:sleeper`.',
+      });
+    }
+    if (teamEnvQuery.isError) {
+      warnings.push({
+        key: 'team-environment',
+        label: 'Team environment',
+        sourceLabel: 'Derived team environment',
+        message: teamEnvQuery.error.message,
+        correctiveAction: 'Run `pnpm refresh:team-env`.',
+      });
+    }
+    if (recommendationPolicyQuery.isError) {
+      warnings.push({
+        key: 'recommendation-policy',
+        label: 'Recommendation policy',
+        sourceLabel: 'ECR-anchored recommendation policy',
+        message: recommendationPolicyQuery.error.message,
+        correctiveAction: 'Run `pnpm model:backtest`.',
+      });
+    }
+    return warnings;
+  }, [
+    sleeperQuery.error, sleeperQuery.isError,
+    teamEnvQuery.error, teamEnvQuery.isError,
+    recommendationPolicyQuery.error, recommendationPolicyQuery.isError,
+  ]);
 
   const optionalReadiness = evaluateDraftReadiness({
     sources: {
