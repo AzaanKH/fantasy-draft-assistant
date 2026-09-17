@@ -44,7 +44,7 @@ const NEEDS: readonly PositionNeed[] = [{
   scarcityScore: 8,
 }];
 
-function buildEvent() {
+function buildEvent(shadowRecommendations: readonly Recommendation[] = [SHADOW_PICK]) {
   return buildShadowRecommendationEvent({
     season: 2026,
     draftId: 'primary-draft',
@@ -57,7 +57,7 @@ function buildEvent() {
     coreBestPick: BEST_PICK,
     coreBestPlayer: BEST_PLAYER,
     coreRecommendations: [BEST_PICK, BEST_PLAYER],
-    shadowRecommendations: [SHADOW_PICK],
+    shadowRecommendations,
     leagueSettingsFingerprint: 'primary-league-fingerprint',
     totalTeams: 10,
     totalRounds: 14,
@@ -97,6 +97,11 @@ describe('Shadow Recommendation telemetry', () => {
         positionNeeds: [{ position: 'RB', priority: 'critical' }],
       },
     });
+  });
+
+  it('does not report disagreement without a shadow candidate or when the picks match', () => {
+    expect(buildEvent([]).disagreement).toBe(false);
+    expect(buildEvent([BEST_PICK]).disagreement).toBe(false);
   });
 
   it('contains logging failures and leaves the core decision usable', async () => {

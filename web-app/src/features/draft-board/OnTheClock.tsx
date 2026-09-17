@@ -43,9 +43,11 @@ function formatAlternatives(recommendations: readonly Recommendation[]): string 
 export function OnTheClock({
   players,
   onDraft,
+  canDraft,
 }: {
   players: readonly Player[];
   onDraft: (player: Player) => void;
+  canDraft: boolean;
 }): React.ReactElement | null {
   const [showWhy, setShowWhy] = React.useState(false);
   const { overall, isLoading } = useDraftDecision();
@@ -125,7 +127,7 @@ export function OnTheClock({
               <>
                 <span>·</span>
                 <span className="font-mono tabular-nums">
-                  {formatSignedNumber(diagnostics.valueOverReplacement, 0)} above replacement
+                  {formatSignedNumber(diagnostics.valueOverReplacement, 0)} versus replacement
                 </span>
               </>
             )}
@@ -144,9 +146,9 @@ export function OnTheClock({
           <Button
             size="sm"
             onClick={() => {
-              if (topPlayer) onDraft(topPlayer);
+              if (canDraft && topPlayer) onDraft(topPlayer);
             }}
-            disabled={!topPlayer}
+            disabled={!canDraft || !topPlayer}
           >
             Draft
           </Button>

@@ -1,6 +1,6 @@
 # Primary League rehearsal
 
-The release gate has two parts. The deterministic rehearsal proves the draft-state and recommendation workflow without a live provider. The real-provider rehearsal confirms the same workflow against the scheduled Sleeper draft.
+The product rehearsal has two parts. The deterministic rehearsal proves the draft-state and recommendation workflow without a live provider. The real-provider rehearsal confirms the same workflow against the scheduled Sleeper draft.
 
 ## Recorded operation
 

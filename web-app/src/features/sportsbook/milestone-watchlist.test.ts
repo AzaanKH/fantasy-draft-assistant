@@ -98,6 +98,24 @@ describe('buildMilestoneWatchlist', () => {
     ]);
   });
 
+  it('skips zero-odds milestones and retains positive-probability rows', () => {
+    const players = [
+      createPlayer('a', 'Alpha Receiver', 10),
+      createPlayer('b', 'Bravo Receiver', 20),
+    ];
+    const snapshot = createSnapshot([
+      createLine('Alpha Receiver', 0),
+      createLine('Bravo Receiver', 100),
+      createLine('Bravo Receiver', 0),
+    ]);
+
+    const rows = buildMilestoneWatchlist(players, snapshot, new Set());
+
+    expect(rows.map((row) => [row.player.id, row.probability])).toEqual([
+      ['b', 0.5],
+    ]);
+  });
+
   it('removes drafted players so the watchlist advances during the draft', () => {
     const players = [
       createPlayer('a', 'Alpha Receiver', 10),

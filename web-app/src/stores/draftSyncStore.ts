@@ -23,6 +23,14 @@ function isDraftProvider(value: unknown): value is DraftProvider {
   return value === 'sleeper' || value === 'yahoo' || value === 'espn';
 }
 
+export function isValidDraftSyncId(provider: DraftProvider, value: unknown): value is string {
+  return typeof value === 'string' && (
+    provider === 'sleeper'
+      ? /^[A-Za-z0-9_-]{1,128}$/.test(value)
+      : /^\d{1,20}$/.test(value)
+  );
+}
+
 function isDraftPosition(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 20;
 }
@@ -35,8 +43,7 @@ export function isPersistedDraftSyncConnection(
   const candidate = value as Record<string, unknown>;
   return (
     isDraftProvider(candidate.provider) &&
-    typeof candidate.draftId === 'string' &&
-    candidate.draftId.length > 0 &&
+    isValidDraftSyncId(candidate.provider, candidate.draftId) &&
     (candidate.draftPosition === null || isDraftPosition(candidate.draftPosition)) &&
     (candidate.usePrimaryLeagueSettings === undefined ||
       (typeof candidate.usePrimaryLeagueSettings === 'boolean' &&
@@ -63,7 +70,7 @@ export function getDraftSyncConnectionFromSearch(
   const params = new URLSearchParams(search);
   const provider = params.get('provider');
   const draftId = params.get('draftId') ?? params.get('leagueId');
-  if (!isDraftProvider(provider) || !draftId) return null;
+  if (!isDraftProvider(provider) || !isValidDraftSyncId(provider, draftId)) return null;
 
   const parsedPosition = Number.parseInt(params.get('position') ?? '', 10);
   return {
@@ -135,7 +142,7 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
     connection: readStoredConnection(),
     startConnection: (provider, draftId) => {
       const normalizedDraftId = draftId.trim();
-      if (!normalizedDraftId) return;
+      if (!isDraftProvider(provider) || !isValidDraftSyncId(provider, normalizedDraftId)) return;
 
       const current = get().connection;
       const connection: PersistedDraftSyncConnection = {

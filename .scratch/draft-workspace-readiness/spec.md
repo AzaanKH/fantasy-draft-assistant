@@ -78,7 +78,7 @@ Draft Readiness will distinguish Core Draft Data from Optional Signals. Rankings
 52. As the Primary League manager, I want missing contract or sportsbook context labeled as unavailable, so that I understand why an Optional Signal is absent without losing the core Recommendation.
 53. As the Primary League manager, I want freshness failures to describe the actual timestamp relationship correctly, so that readiness diagnostics are actionable rather than contradictory.
 54. As the Primary League manager, I want all timestamps and source labels presented consistently, so that I can judge whether the draft inputs are trustworthy.
-55. As the Primary League manager, I want a full 15-round Primary League rehearsal with configured keepers, so that the live setup is tested in the form I will actually use.
+55. As the Primary League manager, I want a full provider-confirmed 14-round Primary League rehearsal covering 140 slots with configured keepers, so that the live setup is tested in the form I will actually use.
 56. As the Primary League manager, I want the rehearsal to force a synchronization outage, so that Manual Continuity is verified before draft day rather than discovered during it.
 57. As the Primary League manager, I want the rehearsal to restore synchronization and exercise both matching and conflicting Provisional Picks, so that Reconciliation covers its meaningful paths.
 58. As the Primary League manager, I want the rehearsal to verify zero missed and zero duplicate picks, so that the completed draft state is trustworthy.
@@ -140,7 +140,7 @@ Draft Readiness will distinguish Core Draft Data from Optional Signals. Rankings
 - Focused tests remain appropriate for the deterministic Decision Policy, league scoring, roster needs, tier handling, survival/Return Probability, freshness classification, provider normalization, draft synchronization engine, draft stores, and recommendation explanation formatting.
 - Existing calculation tests are prior art for ranking and timing edge cases. Existing synchronization-engine, synchronization-hook, and draft-store tests are prior art for provider normalization, corrected snapshots, duplicate prevention, and store transitions.
 - The Draft Workspace acceptance harness is the release contract; focused tests exist to cover combinatorial edge cases and localize faults rather than replace that higher seam.
-- A manual or automated full 15-round rehearsal uses the actual Primary League configuration and keeper supply. It records every observed pick, forces a mid-draft outage, enters Provisional Picks, restores Sleeper connectivity, and completes Reconciliation.
+- A manual or automated full provider-confirmed 14-round rehearsal covering 140 slots uses the actual Primary League configuration and keeper supply. It records every observed pick, forces a mid-draft outage, enters Provisional Picks, restores Sleeper connectivity, and completes Reconciliation.
 - The rehearsal passes only with zero missed picks, zero duplicate picks, correct final rosters, a correct available-player pool, successful reconciliation notices, and coherent Recommendations throughout.
 - Build, type-check, lint, unit, integration, data-quality, and rehearsal results are recorded separately so a green engineering check cannot conceal a failed product-readiness criterion.
 
@@ -162,7 +162,7 @@ Draft Readiness will distinguish Core Draft Data from Optional Signals. Rankings
 ## Further Notes
 
 - This specification aligns with the existing decisions that Sleeper remains authoritative after Manual Continuity and that Core Draft Data blocks live use while Optional Signals degrade.
-- The exact 2026 Primary League draft date, time, and Sleeper draft identifier were not found in the repository. They are operational inputs for the final rehearsal and live launch, not blockers to implementing this specification.
+- The exact 2026 Primary League draft date, time, and Sleeper draft identifier are recorded in `data/primary-league-rehearsal.json`, as referenced by `docs/primary-league-rehearsal.md` and issue 13. They are operational inputs for the final rehearsal and live launch, not blockers to implementing this specification.
 - The current audited baseline passes the repository verification suite, but the strict data-quality report is not yet green because prediction artifacts trail refreshed inputs. The failure wording also appears directionally confusing and should be corrected as part of readiness semantics.
 - The existing worktree contains substantial changes unrelated to this specification. Before implementation begins, preserve an owner-approved checkpoint or otherwise record the baseline without discarding or overwriting those changes.
 - Private use of existing data credentials does not grant permission to redistribute credentials or cached provider datasets. Public Distribution must complete a separate source-by-source permission and licensing review.

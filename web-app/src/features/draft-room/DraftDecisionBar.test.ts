@@ -85,6 +85,22 @@ describe('getDraftDecisionBarReason', () => {
     );
   });
 
+  it.each([40, -12])('uses neutral replacement wording for signed VOR %s', (value) => {
+    const factors = decisionFactors();
+    const pick = recommendation({
+      ...factors,
+      leagueValue: { ...factors.leagueValue, valueOverReplacement: value },
+    });
+    const signedValue = value > 0 ? `+${String(value)}` : String(value);
+
+    expect(getDraftDecisionBarReason(pick, 'league-value')).toBe(
+      `League value moves this pick first at ${signedValue} points versus replacement.`
+    );
+    expect(getDraftDecisionBarReason(pick)).toBe(
+      `ECR #8 with ${signedValue} points versus replacement.`
+    );
+  });
+
   it('puts a legal-roster requirement ahead of other factors', () => {
     const factors = decisionFactors();
     const feasibilityFactors: RecommendationDecisionFactors = {

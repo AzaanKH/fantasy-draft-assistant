@@ -54,8 +54,8 @@ export function getDraftDecisionBarReason(
     return `Roster fit moves ${recommendation.position} first with ${String(openSpots)} starting spots still open.`;
   }
   if (reasonFactor === 'league-value') {
-    return `League value moves this pick first at ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points above replacement.`;
+    return `League value moves this pick first at ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
   }
 
-  return `ECR #${String(factors.playerQuality.ecrRank)} with ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points above replacement.`;
+  return `ECR #${String(factors.playerQuality.ecrRank)} with ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
 }
