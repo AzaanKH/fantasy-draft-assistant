@@ -401,16 +401,14 @@ function buildPlayers(scoringRules: ScoringRules): Player[] {
     fantasyPros.news,
     sleeper.players,
     environments.teams,
-    [],
-    [],
-    fantasyPros.adp ?? [],
-    identities.players,
-    undefined,
-    [],
     {
-      scoringRules,
-      totalTeams: 10,
-      rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
+      fantasyProsAdp: fantasyPros.adp ?? [],
+      identities: identities.players,
+      leagueContext: {
+        scoringRules,
+        totalTeams: 10,
+        rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
+      },
     }
   ).filter((player) =>
     player.position !== 'DEF' &&
