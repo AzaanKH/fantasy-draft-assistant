@@ -125,9 +125,14 @@ describe('Sleeper mock practice setting', () => {
 
   it('rejects practice mode on another provider', () => {
     const store = useDraftSyncConnectionStore.getState();
-    store.startConnection('espn', 'league');
+    store.startConnection('espn', '12345');
     store.setPrimaryLeagueSettings(true);
-    expect(useDraftSyncConnectionStore.getState().connection?.usePrimaryLeagueSettings).not.toBe(true);
-    expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'espn', draftId: 'league', draftPosition: 5, usePrimaryLeagueSettings: true }))).toBeNull();
+    expect(useDraftSyncConnectionStore.getState().connection).toEqual({
+      provider: 'espn', draftId: '12345', draftPosition: null,
+    });
+    expect(parseStoredDraftSyncConnection(JSON.stringify({
+      provider: 'espn', draftId: '12345', draftPosition: 5,
+    }))).not.toBeNull();
+    expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'espn', draftId: '12345', draftPosition: 5, usePrimaryLeagueSettings: true }))).toBeNull();
   });
 });

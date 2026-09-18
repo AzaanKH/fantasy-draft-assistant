@@ -20,6 +20,8 @@ import {
   isPlayerIdentityFile,
   isPredictionsDataFile,
   isRecommendationPolicyFile,
+  isSleeperDataFile,
+  isTeamEnvDataFile,
 } from './validators';
 
 /**
@@ -37,7 +39,11 @@ export async function fetchSleeperData(): Promise<SleeperDataFile> {
   if (!response.ok) {
     throw new Error(`Failed to load Sleeper data: ${String(response.status)}`);
   }
-  return response.json() as Promise<SleeperDataFile>;
+  const parsed: unknown = await response.json();
+  if (!isSleeperDataFile(parsed)) {
+    throw new Error('Invalid Sleeper data format');
+  }
+  return parsed;
 }
 
 /**
@@ -48,7 +54,11 @@ export async function fetchTeamEnvData(): Promise<TeamEnvDataFile> {
   if (!response.ok) {
     throw new Error(`Failed to load team environment data: ${String(response.status)}`);
   }
-  return response.json() as Promise<TeamEnvDataFile>;
+  const parsed: unknown = await response.json();
+  if (!isTeamEnvDataFile(parsed)) {
+    throw new Error('Invalid team environment data format');
+  }
+  return parsed;
 }
 
 /**
