@@ -58,7 +58,7 @@ function isFiniteNumberRecord(value: unknown): value is Record<string, number> {
   return isRecord(value) && Object.values(value).every(isFiniteNumber);
 }
 
-function isPositionRequirement(value: unknown): boolean {
+function isPositionRequirement(value: unknown): value is { starters: number; max: number } {
   return (
     isRecord(value) &&
     isBoundedInteger(value['starters'], 0, MAX_ROSTER_SPOTS) &&
@@ -71,19 +71,20 @@ export function isRosterRequirements(value: unknown): value is RosterRequirement
     return false;
   }
 
-  return (
-    isPositionRequirement(value['QB']) &&
-    isPositionRequirement(value['RB']) &&
-    isPositionRequirement(value['WR']) &&
-    isPositionRequirement(value['TE']) &&
-    isPositionRequirement(value['K']) &&
-    isPositionRequirement(value['DEF']) &&
+  const fixedRequirements = FIXED_POSITIONS.map((position) => value[position]);
+  if (!(
+    fixedRequirements.every(isPositionRequirement) &&
     isBoundedInteger(value['FLEX']['starters'], 0, MAX_ROSTER_SPOTS) &&
     Array.isArray(value['FLEX']['eligiblePositions']) &&
     value['FLEX']['eligiblePositions'].length <= 6 &&
     value['FLEX']['eligiblePositions'].every(isPosition) &&
     isBoundedInteger(value['BENCH']['spots'], 0, MAX_ROSTER_SPOTS)
-  );
+  )) {
+    return false;
+  }
+
+  const fixedStarters = fixedRequirements.reduce((total, requirement) => total + requirement.starters, 0);
+  return fixedStarters + value['FLEX']['starters'] + value['BENCH']['spots'] <= MAX_ROSTER_SPOTS;
 }
 
 function isScoringRules(value: unknown): value is ScoringRules {

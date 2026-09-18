@@ -474,8 +474,17 @@ export class DraftSyncEngine {
     readonly snapshot: DraftSyncSnapshot;
     readonly newPicks: readonly DraftPickEvent[];
   } {
-    if (!isDraftMetadata(draft) || normalizedPicks.length > MAX_DRAFT_PICKS ||
-        !normalizedPicks.every(isDraftPickEvent)) {
+    if (!isDraftMetadata(draft)) {
+      throw new Error('Invalid draft metadata or picks');
+    }
+    const maxPicks = draft.settings.teams * draft.settings.rounds;
+    if (normalizedPicks.length > maxPicks || !normalizedPicks.every((pick) =>
+      isDraftPickEvent(pick) &&
+      pick.pickNumber <= maxPicks &&
+      pick.round <= draft.settings.rounds &&
+      pick.draftSlot <= draft.settings.teams &&
+      pick.teamIndex < draft.settings.teams
+    )) {
       throw new Error('Invalid draft metadata or picks');
     }
     if (draft.provider !== this.provider || draft.draftId !== this.draftId) {

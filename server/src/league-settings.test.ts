@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   normalizeSleeperLeagueSettings,
+  isRosterRequirements,
+  MAX_ROSTER_SPOTS,
+  type RosterRequirements,
   type SleeperLeague,
 } from '@fantasy-draft/shared';
 
@@ -69,5 +72,45 @@ describe('normalizeSleeperLeagueSettings', () => {
     expect(same.fingerprint).toBe(first.fingerprint);
     expect(changedScoring.fingerprint).not.toBe(first.fingerprint);
     expect(changedRoster.fingerprint).not.toBe(first.fingerprint);
+  });
+});
+
+
+describe('isRosterRequirements', () => {
+  const atCapacity: RosterRequirements = {
+    QB: { starters: 1, max: 40 },
+    RB: { starters: 2, max: 40 },
+    WR: { starters: 2, max: 40 },
+    TE: { starters: 1, max: 40 },
+    K: { starters: 1, max: 40 },
+    DEF: { starters: 1, max: 40 },
+    FLEX: { starters: 2, eligiblePositions: ['QB', 'RB', 'WR', 'TE'] },
+    BENCH: { spots: MAX_ROSTER_SPOTS - 10 },
+  };
+
+  it('accepts capacity with overlapping FLEX eligibility and independent position maxima', () => {
+    expect(isRosterRequirements(atCapacity)).toBe(true);
+  });
+
+  it.each(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'FLEX'] as const)(
+    'rejects aggregate overflow from %s starters', (position) => {
+      expect(isRosterRequirements({
+        ...atCapacity,
+        [position]: { ...atCapacity[position], starters: atCapacity[position].starters + 1 },
+      })).toBe(false);
+    }
+  );
+
+  it('rejects aggregate overflow from bench spots', () => {
+    expect(isRosterRequirements({
+      ...atCapacity, BENCH: { spots: atCapacity.BENCH.spots + 1 },
+    })).toBe(false);
+  });
+
+  it.each([-1, 0.5, MAX_ROSTER_SPOTS + 1])('preserves individual field bounds for %s', (invalid) => {
+    expect(isRosterRequirements({ ...atCapacity, QB: { starters: invalid, max: 40 } })).toBe(false);
+    expect(isRosterRequirements({ ...atCapacity, QB: { starters: 1, max: invalid } })).toBe(false);
+    expect(isRosterRequirements({ ...atCapacity, FLEX: { ...atCapacity.FLEX, starters: invalid } })).toBe(false);
+    expect(isRosterRequirements({ ...atCapacity, BENCH: { spots: invalid } })).toBe(false);
   });
 });

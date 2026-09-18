@@ -103,16 +103,19 @@ describe('local API security', () => {
 
   it('caps event streams while leaving ordinary requests usable', async () => {
     const base = await start({ limits: { maxClients: 2, maxClientsPerSession: 1, maxConcurrentRequests: 1 } });
-    const controllers = [new AbortController(), new AbortController()];
+    const [firstController, secondController] = [new AbortController(), new AbortController()];
     try {
-      const first = await fetch(`${base}/api/sync/espn/drafts/1/events`, { headers: HEADERS, signal: controllers[0]!.signal });
+      const first = await fetch(`${base}/api/sync/espn/drafts/1/events`, { headers: HEADERS, signal: firstController.signal });
       expect(first.status).toBe(200);
       expect((await fetch(`${base}/api/sync/espn/drafts/1/events`, { headers: HEADERS })).status).toBe(429);
-      const second = await fetch(`${base}/api/sync/espn/drafts/2/events`, { headers: HEADERS, signal: controllers[1]!.signal });
+      const second = await fetch(`${base}/api/sync/espn/drafts/2/events`, { headers: HEADERS, signal: secondController.signal });
       expect(second.status).toBe(200);
       expect((await fetch(`${base}/api/sync/espn/drafts/3/events`, { headers: HEADERS })).status).toBe(429);
       expect((await fetch(`${base}/api/auth/check`, { headers: HEADERS })).status).toBe(200);
-    } finally { controllers.forEach(controller => controller.abort()); }
+    } finally {
+      firstController.abort();
+      secondController.abort();
+    }
   });
 
   it('limits aggregate request rate', async () => {

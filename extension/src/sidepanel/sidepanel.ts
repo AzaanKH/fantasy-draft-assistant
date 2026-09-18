@@ -95,7 +95,13 @@ async function readExtensionState(): Promise<void> {
   ]);
   pairingState.hidden = Boolean(stored[STORAGE_KEYS.SYNC_TOKEN]);
   const storedWebAppUrl: unknown = stored[STORAGE_KEYS.WEB_APP_URL];
-  if (typeof storedWebAppUrl === 'string') webAppUrl = localWebAppBase(storedWebAppUrl);
+  if (typeof storedWebAppUrl === 'string') {
+    try {
+      webAppUrl = localWebAppBase(storedWebAppUrl);
+    } catch {
+      webAppUrl = DEFAULT_WEB_APP_URL;
+    }
+  }
 
   const storedPosition: unknown = stored[STORAGE_KEYS.MY_PICK_POSITION];
   if (

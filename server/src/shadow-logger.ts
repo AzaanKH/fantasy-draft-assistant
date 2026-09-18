@@ -72,6 +72,7 @@ export class ShadowRecommendationLogger {
   private async readBoundedLog(path: string): Promise<string> {
     const handle = await open(path, 'r');
     try {
+      await handle.chmod(0o600);
       const size = (await handle.stat()).size;
       const length = Math.min(size, this.limits.maxFileBytes);
       const buffer = Buffer.alloc(length);

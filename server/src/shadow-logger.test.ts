@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -43,6 +43,23 @@ const EVENT: ShadowRecommendationEvent = {
 };
 
 describe('ShadowRecommendationLogger', () => {
+  it.each([false, true])('restricts legacy active and archived files, oversized=%s', async (oversized) => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-permissions-'));
+    const path = join(directory, 'events.ndjson');
+    try {
+      for (const file of [path, `${path}.1`]) {
+        await writeFile(file, oversized ? 'x'.repeat(8192) : '');
+        await chmod(file, 0o644);
+      }
+      const logger = new ShadowRecommendationLogger(path, {
+        maxFileBytes: 4096, maxEventIds: 10, maxPending: 1,
+      });
+      await logger.record(EVENT);
+      expect((await stat(path)).mode & 0o777).toBe(0o600);
+      expect((await stat(`${path}.1`)).mode & 0o777).toBe(0o600);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
   it('rotates within a disk budget and remembers recent IDs across restart', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-bounds-'));
     const path = join(directory, 'events.ndjson');
