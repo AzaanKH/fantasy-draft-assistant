@@ -8,12 +8,17 @@
 import { createBackgroundController } from './background-controller';
 import { ChromeDraftStorage } from './draft-storage';
 import { createSyncSnapshotClient } from './sync-snapshot-client';
-import { isExtensionMessage } from '../shared/types';
+import { isAuthorizedExtensionMessage } from './message-security';
+
+const storageReady = chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
 
 const storage = new ChromeDraftStorage(chrome.storage.local);
 const controller = createBackgroundController({
   storage,
-  syncClient: createSyncSnapshotClient(() => storage.getSyncServerUrl()),
+  syncClient: createSyncSnapshotClient(() => storage.getSyncServerUrl(), async () => {
+    await storageReady;
+    return storage.getSyncToken();
+  }),
   queryActiveTab: async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     return tab?.id;
@@ -35,15 +40,13 @@ chrome.runtime.onInstalled.addListener((details) => {
     });
 });
 
-chrome.runtime.onMessage.addListener(
-  (message: unknown, _sender, sendResponse) => {
-    if (!isExtensionMessage(message)) {
-      sendResponse({ success: false, error: 'Invalid extension message' });
-      return false;
-    }
-    return controller.handleMessage(message, sendResponse);
+chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+  if (!isAuthorizedExtensionMessage(message, sender, chrome.runtime.id)) {
+    sendResponse({ success: false, error: 'Invalid message sender or payload' });
+    return false;
   }
-);
+  return controller.handleMessage(message, sendResponse);
+});
 
 void controller.initialize().catch((error: unknown) => {
   console.warn('[Fantasy Draft BG] Failed to load persisted state:', error);

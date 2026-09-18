@@ -1,3 +1,4 @@
+import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   type RosterRequirements,
@@ -57,31 +58,33 @@ function isFiniteNumberRecord(value: unknown): value is Record<string, number> {
   return isRecord(value) && Object.values(value).every(isFiniteNumber);
 }
 
-function isPositionRequirement(value: unknown): boolean {
+function isPositionRequirement(value: unknown): value is { starters: number; max: number } {
   return (
     isRecord(value) &&
-    isFiniteNumber(value['starters']) &&
-    isFiniteNumber(value['max'])
+    isBoundedInteger(value['starters'], 0, MAX_ROSTER_SPOTS) &&
+    isBoundedInteger(value['max'], 0, MAX_ROSTER_SPOTS)
   );
 }
 
-function isRosterRequirements(value: unknown): value is RosterRequirements {
+export function isRosterRequirements(value: unknown): value is RosterRequirements {
   if (!isRecord(value) || !isRecord(value['FLEX']) || !isRecord(value['BENCH'])) {
     return false;
   }
 
-  return (
-    isPositionRequirement(value['QB']) &&
-    isPositionRequirement(value['RB']) &&
-    isPositionRequirement(value['WR']) &&
-    isPositionRequirement(value['TE']) &&
-    isPositionRequirement(value['K']) &&
-    isPositionRequirement(value['DEF']) &&
-    isFiniteNumber(value['FLEX']['starters']) &&
+  const fixedRequirements = FIXED_POSITIONS.map((position) => value[position]);
+  if (!(
+    fixedRequirements.every(isPositionRequirement) &&
+    isBoundedInteger(value['FLEX']['starters'], 0, MAX_ROSTER_SPOTS) &&
     Array.isArray(value['FLEX']['eligiblePositions']) &&
+    value['FLEX']['eligiblePositions'].length <= 6 &&
     value['FLEX']['eligiblePositions'].every(isPosition) &&
-    isFiniteNumber(value['BENCH']['spots'])
-  );
+    isBoundedInteger(value['BENCH']['spots'], 0, MAX_ROSTER_SPOTS)
+  )) {
+    return false;
+  }
+
+  const fixedStarters = fixedRequirements.reduce((total, requirement) => total + requirement.starters, 0);
+  return fixedStarters + value['FLEX']['starters'] + value['BENCH']['spots'] <= MAX_ROSTER_SPOTS;
 }
 
 function isScoringRules(value: unknown): value is ScoringRules {
@@ -118,8 +121,8 @@ export function isSleeperLeague(value: unknown): value is SleeperLeague {
   return (
     isRecord(value) &&
     typeof value['league_id'] === 'string' &&
-    isFiniteNumber(value['total_rosters']) &&
-    Array.isArray(value['roster_positions']) &&
+    isBoundedInteger(value['total_rosters'], 2, MAX_DRAFT_TEAMS) &&
+    Array.isArray(value['roster_positions']) && value['roster_positions'].length <= MAX_ROSTER_SPOTS &&
     value['roster_positions'].every((slot) => typeof slot === 'string') &&
     isFiniteNumberRecord(value['scoring_settings']) &&
     (value['settings'] === undefined || isRecord(value['settings']))
@@ -135,7 +138,7 @@ export function isLeagueSettings(value: unknown): value is LeagueSettings {
       value['source'] === 'espn'
     ) &&
     (value['leagueId'] === null || typeof value['leagueId'] === 'string') &&
-    isFiniteNumber(value['totalTeams']) &&
+    isBoundedInteger(value['totalTeams'], 2, MAX_DRAFT_TEAMS) &&
     isScoringRules(value['scoringRules']) &&
     isRosterRequirements(value['rosterRequirements']) &&
     isFiniteNumberRecord(value['rawScoringSettings']) &&

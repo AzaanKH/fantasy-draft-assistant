@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pair Draft Assistant</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>Pair Draft Assistant</h1>
+    <p>Start the local app, then run <code>pnpm sync:pair</code> in the repository. Paste the token below to give this extension access to your local draft.</p>
+    <form id="pair-form">
+      <label for="pair-token">Pairing token</label>
+      <input id="pair-token" type="password" required autocomplete="off" minlength="43" maxlength="128" spellcheck="false">
+      <button type="submit">Pair extension</button>
+    </form>
+    <p id="pair-status" role="status" aria-live="polite"></p>
+    <button id="forget-pairing" type="button">Forget pairing</button>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

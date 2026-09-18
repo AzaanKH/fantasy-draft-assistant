@@ -9,6 +9,7 @@ build/
 out/
 
 # Environment variables
+.local/
 .env
 .env.*
 .env.local
@@ -20,7 +21,6 @@ out/
 .vscode/
 *.swp
 *.swo
-.DS_Store
 
 # Logs
 logs/
@@ -64,7 +64,3 @@ data/shadow-logs/*.ndjson
 # Playwright
 playwright-report/
 test-results/
-.agents/skills/*/artifacts/
-
-# Memory bank data (if using locally)
-.memory-bank/

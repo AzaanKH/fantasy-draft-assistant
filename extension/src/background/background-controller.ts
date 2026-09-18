@@ -1,5 +1,6 @@
 import {
   isEspnDraftSnapshot,
+  MAX_DRAFT_PICKS,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
 } from '@fantasy-draft/shared';
@@ -186,7 +187,7 @@ export function createBackgroundController(
     switch (message.type) {
       case 'PICK_DETECTED': {
         if (!isDuplicatePick(detectedPicks, message.data)) {
-          detectedPicks = [...detectedPicks, message.data];
+          detectedPicks = [...detectedPicks, message.data].slice(-MAX_DRAFT_PICKS);
           void dependencies.storage
             .savePicks(detectedPicks)
             .catch((error: unknown) => {

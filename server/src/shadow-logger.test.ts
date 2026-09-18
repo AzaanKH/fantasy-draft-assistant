@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -43,6 +43,58 @@ const EVENT: ShadowRecommendationEvent = {
 };
 
 describe('ShadowRecommendationLogger', () => {
+  it.each([false, true])('restricts legacy active and archived files, oversized=%s', async (oversized) => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-permissions-'));
+    const path = join(directory, 'events.ndjson');
+    try {
+      for (const file of [path, `${path}.1`]) {
+        await writeFile(file, oversized ? 'x'.repeat(8192) : '');
+        await chmod(file, 0o644);
+      }
+      const logger = new ShadowRecommendationLogger(path, {
+        maxFileBytes: 4096, maxEventIds: 10, maxPending: 1,
+      });
+      await logger.record(EVENT);
+      expect((await stat(path)).mode & 0o777).toBe(0o600);
+      expect((await stat(`${path}.1`)).mode & 0o777).toBe(0o600);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('rotates within a disk budget and remembers recent IDs across restart', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-bounds-'));
+    const path = join(directory, 'events.ndjson');
+    const maxFileBytes = Buffer.byteLength(JSON.stringify({ ...EVENT, recordedAt: new Date().toISOString() })) * 2;
+    const limits = { maxFileBytes, maxEventIds: 2, maxPending: 2 };
+    try {
+      const logger = new ShadowRecommendationLogger(path, limits);
+      for (let i = 0; i < 4; i++) await logger.record({ ...EVENT, eventId: `event-${i}` });
+      expect((await readdir(directory)).sort()).toEqual(['events.ndjson', 'events.ndjson.1']);
+      expect((await stat(path)).size).toBeLessThanOrEqual(maxFileBytes);
+      expect((await stat(`${path}.1`)).size).toBeLessThanOrEqual(maxFileBytes);
+      const restarted = new ShadowRecommendationLogger(path, limits);
+      expect(await restarted.record({ ...EVENT, eventId: 'event-3' })).toBe(false);
+      expect(await restarted.record({ ...EVENT, eventId: 'event-0' })).toBe(true);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('bounds legacy files and a burst of pending writes', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-queue-'));
+    const path = join(directory, 'events.ndjson');
+    const limits = { maxFileBytes: 4096, maxEventIds: 10, maxPending: 1 };
+    try {
+      await writeFile(path, 'x'.repeat(8192));
+      await writeFile(`${path}.1`, 'x'.repeat(8192));
+      const logger = new ShadowRecommendationLogger(path, limits);
+      const first = logger.record(EVENT);
+      await expect(logger.record({ ...EVENT, eventId: 'second' })).rejects.toThrow('queue is full');
+      await first;
+      expect((await stat(path)).size).toBeLessThanOrEqual(4096);
+      expect((await stat(`${path}.1`)).size).toBeLessThanOrEqual(4096);
+      expect(await readFile(path, 'utf8')).toContain(EVENT.eventId);
+      await expect(logger.record({ ...EVENT, eventId: 'later' })).resolves.toBe(true);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
   it('accepts later events after a transient storage failure', async () => {
     const temporaryDirectory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-recovery-'));
     const logDirectory = join(temporaryDirectory, 'logs');

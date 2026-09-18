@@ -7,6 +7,7 @@
  */
 
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared';
+import { localWebAppBase } from '../shared/local-urls';
 import {
   DEFAULT_WEB_APP_URL,
   STORAGE_KEYS,
@@ -20,6 +21,8 @@ const loadingState = document.getElementById('loading-state') as HTMLDivElement;
 const errorState = document.getElementById('error-state') as HTMLDivElement;
 const retryButton = document.getElementById('retry-frame') as HTMLButtonElement;
 const openWebAppButton = document.getElementById('open-webapp') as HTMLButtonElement;
+const pairingState = document.getElementById('pairing-state') as HTMLDivElement;
+document.getElementById('open-pairing')?.addEventListener('click', () => { void chrome.runtime.openOptionsPage(); });
 
 let draftStatus: DraftRoomStatus = { isInDraftRoom: false };
 let syncSnapshot: DraftSyncSnapshot | null = null;
@@ -88,16 +91,15 @@ async function readExtensionState(): Promise<void> {
   const stored = await chrome.storage.local.get([
     STORAGE_KEYS.WEB_APP_URL,
     STORAGE_KEYS.MY_PICK_POSITION,
+    STORAGE_KEYS.SYNC_TOKEN,
   ]);
+  pairingState.hidden = Boolean(stored[STORAGE_KEYS.SYNC_TOKEN]);
   const storedWebAppUrl: unknown = stored[STORAGE_KEYS.WEB_APP_URL];
   if (typeof storedWebAppUrl === 'string') {
     try {
-      const parsedUrl = new URL(storedWebAppUrl);
-      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
-        webAppUrl = parsedUrl.toString();
-      }
+      webAppUrl = localWebAppBase(storedWebAppUrl);
     } catch {
-      // Keep the default URL when storage contains an invalid value.
+      webAppUrl = DEFAULT_WEB_APP_URL;
     }
   }
 
@@ -144,6 +146,11 @@ frame.addEventListener('load', () => {
   errorState.hidden = true;
 });
 frame.addEventListener('error', showErrorState);
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && STORAGE_KEYS.SYNC_TOKEN in changes) {
+    pairingState.hidden = Boolean(changes[STORAGE_KEYS.SYNC_TOKEN]?.newValue);
+  }
+});
 retryButton.addEventListener('click', () => { loadSidePanel(true); });
 openWebAppButton.addEventListener('click', () => { void openFullDraftRoom(); });
 chrome.runtime.onMessage.addListener(handleMessage);

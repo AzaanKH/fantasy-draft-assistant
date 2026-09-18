@@ -9,6 +9,7 @@ import {
   normalizeSleeperPick,
   resolveSleeperDraftLeagueId,
   type SleeperDraftMetadata,
+  type DraftPickEvent,
   type SleeperDraftPick,
 } from '@fantasy-draft/shared';
 
@@ -51,6 +52,44 @@ function createPick(
 }
 
 describe('DraftSyncEngine', () => {
+  it.each([
+    { pickNumber: 151 }, { round: 16 }, { draftSlot: 11 }, { teamIndex: 10 },
+    { pickNumber: 0 }, { round: 0 }, { draftSlot: 0 }, { teamIndex: -1 },
+    { pickNumber: 1.5 }, { playerName: 123 },
+  ])('rejects invalid picks without changing accepted state: %j', (overrides) => {
+    const engine = new DraftSyncEngine('sleeper', 'draft-123');
+    const draft = normalizeSleeperDraftMetadata(createDraft());
+    const pick = normalizeSleeperPick(createPick(1, 'p1'));
+    const accepted = engine.reconcile(draft, [pick]);
+    expect(() => engine.reconcile(draft, [{ ...pick, ...overrides } as DraftPickEvent]))
+      .toThrow('Invalid draft metadata or picks');
+    expect(engine.getSnapshot()).toBe(accepted.snapshot);
+    expect(engine.reconcile(draft, [pick]).newPicks).toEqual([]);
+  });
+
+  it('caps the pick list at the active draft capacity and accepts the final pick', () => {
+    const engine = new DraftSyncEngine('sleeper', 'draft-123');
+    const draft = normalizeSleeperDraftMetadata(createDraft());
+    const picks = Array.from({ length: 150 }, (_, index) => ({
+      ...normalizeSleeperPick(createPick(1, `p${index}`)),
+      pickNumber: index + 1,
+      round: Math.floor(index / 10) + 1,
+      draftSlot: index % 10 + 1,
+      teamIndex: index % 10,
+    }));
+    expect(engine.reconcile(draft, picks).snapshot.picks).toHaveLength(150);
+    expect(() => engine.reconcile(draft, [...picks, ...picks.slice(0, 1)]))
+      .toThrow('Invalid draft metadata or picks');
+  });
+
+  it('rejects invalid metadata before inspecting draft bounds', () => {
+    const engine = new DraftSyncEngine('sleeper', 'draft-123');
+    const draft = normalizeSleeperDraftMetadata(createDraft());
+    Reflect.deleteProperty(draft, 'settings');
+    expect(() => engine.reconcile(draft, []))
+      .toThrow('Invalid draft metadata or picks');
+  });
+
   it('records new picks from a snapshot', () => {
     const engine = new DraftSyncEngine('sleeper', 'draft-123');
     const result = engine.reconcile(normalizeSleeperDraftMetadata(createDraft()), [

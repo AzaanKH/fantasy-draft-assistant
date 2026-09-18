@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { randomBytes } from 'node:crypto';
+import { DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
   DraftSyncEngine,
   isEspnDraftSnapshot,
@@ -31,7 +33,6 @@ export type { FetchJson };
 
 export const DEFAULT_POLL_INTERVAL_MS = 1000;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-const DEFAULT_SESSION_STALE_AFTER_MS = 5 * 60_000;
 export const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
   new URL('../../data/shadow-logs/2026-recommendations.ndjson', import.meta.url)
 );
@@ -49,9 +50,10 @@ interface ClientConnection {
 }
 
 interface SyncServerOptions {
+  readonly limits?: Partial<ResourceLimits>;
+  readonly sessionStaleAfterMs?: number;
   readonly pollIntervalMs?: number;
   readonly requestTimeoutMs?: number;
-  readonly sessionStaleAfterMs?: number;
   readonly fetchJson?: FetchJson;
   readonly allowedOrigins?: readonly string[];
   readonly requestToken?: string;
@@ -62,11 +64,15 @@ interface SyncServerOptions {
   };
 }
 
+function isChromeExtensionOrigin(origin: string): boolean {
+  return /^chrome-extension:\/\/[a-p]{32}$/.test(origin);
+}
+
 function isAllowedOrigin(
   origin: string,
   allowedOrigins: readonly string[]
 ): boolean {
-  return allowedOrigins.includes(origin);
+  return allowedOrigins.includes(origin) || isChromeExtensionOrigin(origin);
 }
 
 export interface SyncServer extends Server {
@@ -75,7 +81,8 @@ export interface SyncServer extends Server {
 
 class DraftSession {
   private readonly adapter: DraftSyncAdapter | null;
-  private readonly engine: DraftSyncEngine;
+  private engine: DraftSyncEngine;
+  public lastActivityAt = Date.now();
   private readonly clients = new Map<number, ClientConnection>();
   private readonly pollIntervalMs: number;
   private readonly requestTimeoutMs: number;
@@ -84,7 +91,6 @@ class DraftSession {
   private pollInFlight: Promise<boolean> | null = null;
   private consecutiveFailures = 0;
   private lastIngestedAt: number | null = null;
-  private lastActivityAt = Date.now();
 
   public constructor(
     provider: DraftProvider,
@@ -92,7 +98,7 @@ class DraftSession {
     adapter: DraftSyncAdapter | null,
     pollIntervalMs: number,
     requestTimeoutMs: number,
-    private readonly onIdle: () => void
+    private readonly maxBufferedBytes: number
   ) {
     this.adapter = adapter;
     this.engine = new DraftSyncEngine(provider, draftId);
@@ -104,7 +110,22 @@ class DraftSession {
     return this.engine.getSnapshot();
   }
 
+  public get clientCount(): number { return this.clients.size; }
+
+  public get canEvict(): boolean { return this.clients.size === 0 && this.pollInFlight === null; }
+
+  public reset(): DraftSyncSnapshot {
+    const { provider, draftId } = this.engine.getSnapshot();
+    this.engine = new DraftSyncEngine(provider, draftId);
+    this.lastIngestedAt = null;
+    this.lastActivityAt = Date.now();
+    const snapshot = this.engine.getSnapshot();
+    this.broadcast({ type: 'snapshot', snapshot });
+    return snapshot;
+  }
+
   public addClient(response: ServerResponse<IncomingMessage>): number {
+    this.adapter?.invalidateSettings?.();
     const id = this.nextClientId++;
     this.clients.set(id, { id, response });
     if (this.adapter) this.ensurePolling();
@@ -120,15 +141,10 @@ class DraftSession {
 
   public removeClient(id: number): void {
     this.clients.delete(id);
+    this.lastActivityAt = Date.now();
     if (this.clients.size === 0) {
       this.stopPolling();
-      this.onIdle();
     }
-  }
-
-  public isStale(staleAfterMs: number, now: number = Date.now()): boolean {
-    if (this.clients.size > 0) return false;
-    return now - this.lastActivityAt >= staleAfterMs;
   }
 
   public dispose(): void {
@@ -146,22 +162,31 @@ class DraftSession {
   }
 
   public async refresh(): Promise<DraftSyncSnapshot> {
-    if (this.adapter) await this.pollOnce();
-    this.lastActivityAt = Date.now();
+    if (this.adapter) {
+      // A reconnect must verify settings even if an older poll is finishing.
+      if (this.pollInFlight) await this.pollInFlight;
+      this.adapter.invalidateSettings?.();
+      await this.pollOnce();
+    }
     return this.engine.getSnapshot();
   }
 
   public ingest(
     draft: DraftMetadata,
     picks: readonly DraftPickEvent[],
+    observedAt: number,
     now: number = Date.now()
   ): DraftSyncSnapshot {
-    if (this.lastIngestedAt !== null && now < this.lastIngestedAt) {
-      return this.engine.getSnapshot();
+    if (Math.abs(observedAt - now) > 5 * 60_000) {
+      throw new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
     }
-    this.lastIngestedAt = now;
-    this.lastActivityAt = Date.now();
+    if (this.lastIngestedAt !== null && observedAt < this.lastIngestedAt) {
+      throw new HttpError(409, 'Stale ESPN snapshot');
+    }
+    // Failed reconciliation must not advance the ordering marker.
     const { snapshot, newPicks } = this.engine.reconcile(draft, picks, now);
+    this.lastIngestedAt = observedAt;
+    this.lastActivityAt = now;
 
     for (const pick of newPicks) {
       this.broadcast({ type: 'pick', snapshot, pick });
@@ -190,14 +215,14 @@ class DraftSession {
       return;
     }
 
-    const nextDelayMs = Math.min(
+    const failureBackoffMs = Math.min(
       this.pollIntervalMs * 2 ** this.consecutiveFailures,
       30_000
     );
     this.pollTimer = setTimeout(() => {
       this.pollTimer = null;
       void this.pollOnce().then(() => this.scheduleNextPoll());
-    }, nextDelayMs);
+    }, failureBackoffMs);
   }
 
   private pollOnce(): Promise<boolean> {
@@ -245,6 +270,7 @@ class DraftSession {
       this.consecutiveFailures = 0;
       return true;
     } catch (error) {
+      adapter.invalidateSettings?.();
       const message = error instanceof Error ? error.message : 'Unknown sync error';
       this.broadcast({
         type: 'status',
@@ -254,7 +280,6 @@ class DraftSession {
       return false;
     } finally {
       clearTimeout(timeout);
-      this.lastActivityAt = Date.now();
     }
   }
 
@@ -265,7 +290,7 @@ class DraftSession {
   }
 
   private send(update: DraftSyncUpdate, response: ServerResponse<IncomingMessage>): void {
-    response.write(`data: ${JSON.stringify(update)}\n\n`);
+    writeBoundedEvent(response, `data: ${JSON.stringify(update)}\n\n`, this.maxBufferedBytes);
   }
 }
 
@@ -286,15 +311,11 @@ function setCorsHeaders(
 function isAuthorizedRequest(
   request: IncomingMessage,
   allowedOrigins: readonly string[],
-  requestToken: string | undefined
+  requestToken: string
 ): boolean {
   const origin = request.headers.origin;
-  if (origin && isAllowedOrigin(origin, allowedOrigins)) {
-    return true;
-  }
-
-  const token = request.headers['x-sync-token'];
-  return typeof token === 'string' && requestToken !== undefined && token === requestToken;
+  // Origins constrain browser callers; possession of the capability is always required.
+  return (!origin || isAllowedOrigin(origin, allowedOrigins)) && hasRequestToken(request, requestToken);
 }
 
 function sendJson(
@@ -307,6 +328,7 @@ function sendJson(
   setCorsHeaders(request, response, allowedOrigins);
   response.statusCode = statusCode;
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
+  response.setHeader('Cache-Control', 'no-store');
   response.end(JSON.stringify(payload));
 }
 
@@ -332,9 +354,10 @@ function parseDraftRoute(pathname: string): {
   isStream: boolean;
   isRefresh: boolean;
   isSnapshot: boolean;
+  isReset: boolean;
 } | null {
   const providerMatch = pathname.match(
-    /^\/api\/sync\/(sleeper|yahoo|espn)\/drafts\/([^/]+)(?:\/(events|refresh|snapshot))?$/
+    /^\/api\/sync\/(sleeper|yahoo|espn)\/drafts\/([^/]+)(?:\/(events|refresh|snapshot|reset))?$/
   );
   const legacyMatch = pathname.match(
     /^\/api\/sync\/drafts\/([^/]+)(?:\/(events|refresh))?$/
@@ -348,23 +371,20 @@ function parseDraftRoute(pathname: string): {
   const action = providerMatch?.[3] ?? legacyMatch?.[2];
   if (!encodedDraftId) return null;
 
-  let draftId: string;
-  try {
-    draftId = decodeURIComponent(encodedDraftId);
-  } catch {
-    draftId = '';
-  }
-
   return {
     provider,
-    draftId,
+    draftId: decodeURIComponent(encodedDraftId),
     isStream: action === 'events',
     isRefresh: action === 'refresh',
     isSnapshot: action === 'snapshot',
+    isReset: action === 'reset',
   };
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<unknown> {
+  if (request.headers['content-type']?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') {
+    throw new HttpError(415, 'Content-Type must be application/json');
+  }
   const chunks: Buffer[] = [];
   let receivedBytes = 0;
 
@@ -403,11 +423,16 @@ export async function defaultFetchJson<T>(
 }
 
 export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
+  const requestToken = options.requestToken ?? randomBytes(32).toString('base64url');
+  const limits = { ...DEFAULT_RESOURCE_LIMITS, ...(options.sessionStaleAfterMs === undefined ? {} : { idleSessionMs: options.sessionStaleAfterMs }), ...options.limits };
+  for (const value of Object.values(limits)) {
+    if (!Number.isSafeInteger(value) || value < 1) throw new Error('Resource limits must be positive integers');
+  }
+  const requestBudget = new RequestBudget(limits.requestsPerMinute);
+  let concurrentRequests = 0;
   const sessions = new Map<string, DraftSession>();
-  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const pollIntervalMs = Math.max(1000, options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const sessionStaleAfterMs =
-    options.sessionStaleAfterMs ?? DEFAULT_SESSION_STALE_AFTER_MS;
   const fetchJson = options.fetchJson ?? defaultFetchJson;
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
@@ -416,6 +441,16 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     options.shadowLogPath ?? DEFAULT_SHADOW_LOG_PATH
   );
   const marketAdpProvider = new FantasyFootballCalculatorAdpProvider(fetchJson);
+
+  function evictIdleSessions(): void {
+    const cutoff = Date.now() - limits.idleSessionMs;
+    for (const [key, session] of sessions) {
+      if (session.canEvict && session.lastActivityAt <= cutoff) {
+        session.dispose();
+        sessions.delete(key);
+      }
+    }
+  }
 
   async function loadDraftData(
     kind: 'currentKeepers' | 'sportsbookSnapshot'
@@ -428,23 +463,17 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     return JSON.parse(await readFile(filePath, 'utf8')) as unknown;
   }
 
-  function evictStaleSessions(now: number = Date.now()): void {
-    for (const [sessionKey, session] of sessions) {
-      if (session.isStale(sessionStaleAfterMs, now)) {
-        session.dispose();
-        sessions.delete(sessionKey);
-      }
-    }
-  }
-
   function getSession(
     provider: DraftProvider,
     draftId: string
   ): DraftSession {
-    evictStaleSessions();
     const sessionKey = `${provider}:${draftId}`;
     let session = sessions.get(sessionKey);
     if (!session) {
+      evictIdleSessions();
+      if (sessions.size >= limits.maxSessions) {
+        throw new HttpError(429, 'Too many draft sessions; close unused drafts and retry after the idle timeout');
+      }
       const adapter: DraftSyncAdapter | null =
         provider === 'espn'
           ? null
@@ -457,36 +486,56 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         adapter,
         pollIntervalMs,
         requestTimeoutMs,
-        evictStaleSessions
+        limits.maxBufferedBytes
       );
       sessions.set(sessionKey, session);
     }
-
+    session.lastActivityAt = Date.now();
     return session;
   }
 
-  const server = createServer(async (request, response) => {
+  async function handleRequest(
+    request: IncomingMessage,
+    response: ServerResponse<IncomingMessage>
+  ): Promise<void> {
     if (!request.url || !request.method) {
       sendNotFound(request, response, allowedOrigins);
       return;
     }
 
-    const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
+    let url: URL;
+    try {
+      url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
+    } catch {
+      sendJson(request, response, 400, { error: 'Invalid request URL' }, allowedOrigins);
+      return;
+    }
 
     if (url.pathname === '/api/health') {
       sendJson(request, response, 200, { ok: true }, allowedOrigins);
       return;
     }
 
-    if (!isAuthorizedRequest(request, allowedOrigins, options.requestToken)) {
+    // Preflight grants no access to data and carries no capability header value.
+    if (request.method === 'OPTIONS') {
+      const origin = request.headers.origin;
+      if (!origin || !isAllowedOrigin(origin, allowedOrigins)) {
+        sendForbidden(request, response, allowedOrigins);
+        return;
+      }
+      setCorsHeaders(request, response, allowedOrigins);
+      response.statusCode = 204;
+      response.end();
+      return;
+    }
+
+    if (!isAuthorizedRequest(request, allowedOrigins, requestToken)) {
       sendForbidden(request, response, allowedOrigins);
       return;
     }
 
-    if (request.method === 'OPTIONS') {
-      setCorsHeaders(request, response, allowedOrigins);
-      response.statusCode = 204;
-      response.end();
+    if (url.pathname === '/api/auth/check' && request.method === 'GET') {
+      sendJson(request, response, 200, { ok: true }, allowedOrigins);
       return;
     }
 
@@ -557,6 +606,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       try {
         event = await readJsonBody(request);
       } catch (error) {
+        if (error instanceof HttpError) throw error;
         const message = error instanceof Error ? error.message : 'Invalid request body';
         sendJson(request, response, 400, { error: message }, allowedOrigins);
         return;
@@ -577,13 +627,21 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
           { eventId, recorded },
           allowedOrigins
         );
-      } catch {
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
         sendJson(request, response, 500, { error: 'Failed to persist shadow recommendation' }, allowedOrigins);
       }
       return;
     }
 
-    const route = parseDraftRoute(url.pathname);
+    let route: ReturnType<typeof parseDraftRoute>;
+    try {
+      route = parseDraftRoute(url.pathname);
+    } catch (error) {
+      if (!(error instanceof URIError)) throw error;
+      sendJson(request, response, 400, { error: 'Invalid draft ID' }, allowedOrigins);
+      return;
+    }
     if (!route) {
       sendNotFound(request, response, allowedOrigins);
       return;
@@ -598,7 +656,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       return;
     }
 
-    const hasValidAction = route.isSnapshot
+    const hasValidAction = route.isSnapshot || route.isReset
       ? route.provider === 'espn' && request.method === 'POST'
       : route.isStream
         ? request.method === 'GET'
@@ -610,13 +668,17 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       return;
     }
 
-    const session = getSession(route.provider, route.draftId);
-
     if (route.isSnapshot && request.method === 'POST') {
+      if (route.provider !== 'espn') {
+        sendNotFound(request, response, allowedOrigins);
+        return;
+      }
+
       let payload: unknown;
       try {
         payload = await readJsonBody(request);
       } catch (error) {
+        if (error instanceof HttpError) throw error;
         const message = error instanceof Error ? error.message : 'Invalid request body';
         sendJson(request, response, 400, { error: message }, allowedOrigins);
         return;
@@ -631,7 +693,11 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
-
+      // Reject bogus clocks before allocating a session.
+      if (Math.abs(espnPayload.observedAt - Date.now()) > 5 * 60_000) {
+        throw new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
+      }
+      const session = getSession(route.provider, route.draftId);
       const snapshot = session.ingest(
         espnPayload.draft,
         espnPayload.picks,
@@ -642,6 +708,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     if (route.isStream && request.method === 'GET') {
+      const clientCount = [...sessions.values()].reduce((count, session) => count + session.clientCount, 0);
+      if (clientCount >= limits.maxClients) throw new HttpError(429, 'Too many event streams');
+      const session = getSession(route.provider, route.draftId);
+      if (session.clientCount >= limits.maxClientsPerSession) throw new HttpError(429, 'Too many streams for this draft');
       setCorsHeaders(request, response, allowedOrigins);
       response.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -660,8 +730,14 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     if (route.isRefresh && request.method === 'POST') {
+      const session = getSession(route.provider, route.draftId);
       const snapshot = await session.refresh();
       sendJson(request, response, 200, snapshot, allowedOrigins);
+      return;
+    }
+
+    if (route.isReset && route.provider === 'espn' && request.method === 'POST') {
+      sendJson(request, response, 200, getSession(route.provider, route.draftId).reset(), allowedOrigins);
       return;
     }
 
@@ -669,8 +745,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       !route.isStream &&
       !route.isRefresh &&
       !route.isSnapshot &&
+      !route.isReset &&
       request.method === 'GET'
     ) {
+      const session = getSession(route.provider, route.draftId);
       const snapshot = session.getSnapshot();
       if (snapshot.status === 'idle') {
         await session.refresh();
@@ -680,14 +758,52 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     sendNotFound(request, response, allowedOrigins);
+  }
+
+  const server = createServer((request, response) => {
+    if (!requestBudget.take() || concurrentRequests >= limits.maxConcurrentRequests) {
+      response.setHeader('Retry-After', '60');
+      sendJson(request, response, 429, { error: 'Local sync request limit reached' }, allowedOrigins);
+      request.resume();
+      return;
+    }
+    concurrentRequests += 1;
+    let released = false;
+    const release = () => {
+      if (!released) { concurrentRequests -= 1; released = true; }
+    };
+    response.once('close', release);
+    response.once('finish', release);
+    void handleRequest(request, response).catch((error: unknown) => {
+      if (response.destroyed || response.writableEnded) return;
+      if (response.headersSent) {
+        response.destroy();
+        return;
+      }
+      if (error instanceof HttpError) {
+        if (error.status === 429) response.setHeader('Retry-After', '60');
+        sendJson(request, response, error.status, { error: error.message }, allowedOrigins);
+        return;
+      }
+      console.error('[sync-server] Request failed', error);
+      sendJson(request, response, 500, { error: 'Internal server error' }, allowedOrigins);
+    }).finally(release);
   });
 
+  server.requestTimeout = 10_000;
+  server.headersTimeout = 10_000;
+  server.maxConnections = limits.maxConnections;
+  const evictionTimer = setInterval(evictIdleSessions, Math.min(limits.idleSessionMs, 60_000));
+  evictionTimer.unref();
+
   const disposeSessions = () => {
+    clearInterval(evictionTimer);
     for (const session of sessions.values()) {
       session.dispose();
     }
     sessions.clear();
   };
+  server.once('close', disposeSessions);
 
   const syncServer = server as SyncServer;
   syncServer.shutdown = (callback) => {

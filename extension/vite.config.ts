@@ -32,6 +32,9 @@ function copyStaticFiles(): Plugin {
       );
 
       // Copy icons if they exist
+      for (const file of ['options.html', 'options.css']) {
+        copyFileSync(resolve(__dirname, 'src/options', file), resolve(distDir, file));
+      }
       const iconSizes = ['16', '32', '48', '128'];
       for (const size of iconSizes) {
         const iconPath = resolve(__dirname, `public/icon${size}.png`);
@@ -80,6 +83,7 @@ export default defineConfig({
         content: resolve(__dirname, 'src/content/sleeper-detector.ts'),
         'espn-page': resolve(__dirname, 'src/content/espn-page-bridge.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.ts'),
+        options: resolve(__dirname, 'src/options/options.ts'),
       },
       output: {
         entryFileNames: '[name].js',

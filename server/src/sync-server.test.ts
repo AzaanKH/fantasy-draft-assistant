@@ -8,7 +8,7 @@ import {
   leagueFixture,
   picksFixture,
 } from './__fixtures__/sleeper-fixtures.js';
-import { createSyncServer, SLEEPER_API_BASE, type FetchJson } from './sync-server.js';
+import { createSyncServer as createServer, SLEEPER_API_BASE, type FetchJson } from './sync-server.js';
 import type {
   DraftSyncSnapshot,
   EspnDraftSnapshot,
@@ -22,6 +22,11 @@ import {
   YAHOO_PUBLIC_API_BASE,
   YAHOO_PUBLIC_READ_API_BASE,
 } from './yahoo-adapter.js';
+
+const TOKEN = 'test-only-capability-0000000000000000000000000';
+function createSyncServer(options: Parameters<typeof createServer>[0] = {}) {
+  return createServer({ ...options, requestToken: TOKEN });
+}
 
 function createMockFetchJson(): FetchJson {
   return async <T>(url: string): Promise<T> => {
@@ -67,6 +72,61 @@ function createYahooMockFetchJson(): FetchJson {
 }
 
 describe('createSyncServer', () => {
+  it('rejects malformed draft IDs and continues serving valid draft requests', async () => {
+    const server = createSyncServer({ fetchJson: createMockFetchJson() });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const base = `http://127.0.0.1:${port}`;
+    const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
+
+    try {
+      for (const path of [
+        '/api/sync/sleeper/drafts/%ZZ',
+        '/api/sync/yahoo/drafts/%E0%A4%A/events',
+        '/api/sync/espn/drafts/%/snapshot',
+        '/api/sync/drafts/%FF',
+      ]) {
+        const response = await fetch(`${base}${path}`, { headers });
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({ error: 'Invalid draft ID' });
+      }
+      const response = await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ provider: 'sleeper', status: 'synced' });
+    } finally {
+      await new Promise<void>((resolve, reject) => server.shutdown((error) => {
+        if (error) reject(error);
+        else resolve();
+      }));
+    }
+  });
+
+  it('revalidates league settings on explicit refresh even within the cache TTL', async () => {
+    let settingsRequests = 0;
+    const fixtureFetch = createMockFetchJson();
+    const server = createSyncServer({ fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+      if (url.includes('/league/')) settingsRequests += 1;
+      return fixtureFetch<T>(url, signal);
+    } });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft/refresh`, {
+          method: 'POST',
+          headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+        });
+        expect(await response.json()).toMatchObject({ status: 'synced' });
+      }
+      expect(settingsRequests).toBe(2);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.shutdown((error) => {
+        if (error) reject(error);
+        else resolve();
+      }));
+    }
+  });
+
   it('returns a normalized draft snapshot from mocked Sleeper responses', async () => {
     const server = createSyncServer({
       fetchJson: createMockFetchJson(),
@@ -78,7 +138,7 @@ describe('createSyncServer', () => {
 
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
-        headers: { Origin: 'http://localhost:3000' },
+        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
       });
       expect(response.ok).toBe(true);
 
@@ -128,7 +188,7 @@ describe('createSyncServer', () => {
     try {
       const response = await fetch(
         `http://127.0.0.1:${port}/api/sync/yahoo/drafts/7428778`,
-        { headers: { Origin: 'http://localhost:3000' } }
+        { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
       );
       expect(response.ok).toBe(true);
 
@@ -159,6 +219,7 @@ describe('createSyncServer', () => {
     });
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const { port } = server.address() as AddressInfo;
+    const now = Date.now();
     const draft: EspnDraftSnapshot['draft'] = {
       provider: 'espn',
       draftId: '4242',
@@ -187,12 +248,13 @@ describe('createSyncServer', () => {
 
     const publish = (
       picks: EspnDraftSnapshot['picks'],
-      observedAt: number = 1000
+      observedAt: number = now
     ) =>
       fetch(`http://127.0.0.1:${port}/api/sync/espn/drafts/4242/snapshot`, {
         method: 'POST',
         headers: {
           Origin: extensionOrigin,
+          'X-Sync-Token': TOKEN,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ draft, picks, observedAt }),
@@ -210,17 +272,17 @@ describe('createSyncServer', () => {
         picks: [{ playerId: '4429795', pickNumber: 1 }],
       });
 
-      const stale = await publish([], 999);
-      expect(stale.ok).toBe(true);
-      expect(((await stale.json()) as DraftSyncSnapshot).picks).toHaveLength(1);
+      const stale = await publish([], now - 1);
+      expect(stale.status).toBe(409);
+      expect(await stale.json()).toEqual({ error: 'Stale ESPN snapshot' });
 
-      const undone = await publish([], 1001);
+      const undone = await publish([], now + 1);
       expect(undone.ok).toBe(true);
       expect(((await undone.json()) as DraftSyncSnapshot).picks).toHaveLength(0);
 
       const read = await fetch(
         `http://127.0.0.1:${port}/api/sync/espn/drafts/4242`,
-        { headers: { Origin: 'http://localhost:3000' } }
+        { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
       );
       expect(read.ok).toBe(true);
       expect(((await read.json()) as DraftSyncSnapshot).picks).toHaveLength(0);
@@ -278,7 +340,7 @@ describe('createSyncServer', () => {
     const { port } = server.address() as AddressInfo;
 
     try {
-      const headers = { Origin: 'http://localhost:3000' };
+      const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
       const keeperResponse = await fetch(
         `http://127.0.0.1:${port}/api/draft-data/current-keepers`,
         { headers }
@@ -342,7 +404,7 @@ describe('createSyncServer', () => {
     try {
       const response = await fetch(
         `http://127.0.0.1:${port}/api/sync/sleeper/drafts/%E0%A4%A`,
-        { headers: { Origin: 'http://localhost:3000' } }
+        { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
       );
 
       expect(response.status).toBe(400);
@@ -374,7 +436,7 @@ describe('createSyncServer', () => {
     const freshPort = (freshServer.address() as AddressInfo).port;
     const requestFresh = () => fetch(
       `http://127.0.0.1:${freshPort}/api/sync/drafts/fixture-draft`,
-      { headers: { Origin: 'http://localhost:3000' } }
+      { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
     );
 
     try {
@@ -396,17 +458,18 @@ describe('createSyncServer', () => {
         staleFetchCalls += 1;
         return baseFetch<T>(url, signal);
       },
-      sessionStaleAfterMs: 0,
+      sessionStaleAfterMs: 1,
     });
     await new Promise<void>((resolve) => staleServer.listen(0, resolve));
     const stalePort = (staleServer.address() as AddressInfo).port;
     const requestStale = () => fetch(
       `http://127.0.0.1:${stalePort}/api/sync/drafts/fixture-draft`,
-      { headers: { Origin: 'http://localhost:3000' } }
+      { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
     );
 
     try {
       expect((await requestStale()).ok).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 10));
       expect((await requestStale()).ok).toBe(true);
       expect(staleFetchCalls).toBe(6);
     } finally {
@@ -432,7 +495,7 @@ describe('createSyncServer', () => {
 
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
-        headers: { Origin: 'http://localhost:3000' },
+        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
       });
       const snapshot = (await response.json()) as DraftSyncSnapshot;
 
@@ -502,7 +565,7 @@ describe('createSyncServer', () => {
       const post = () => fetch(`http://127.0.0.1:${port}/api/shadow-recommendations`, {
         method: 'POST',
         headers: {
-          Origin: 'http://localhost:3000',
+          Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(event),

@@ -4,6 +4,7 @@ import {
   type EspnDraftSnapshot,
 } from '@fantasy-draft/shared';
 import type { DraftRoomStatus } from '../shared/types';
+import { localSyncBase } from '../shared/local-urls';
 
 export interface SyncSnapshotClient {
   fetch(status: DraftRoomStatus): Promise<DraftSyncSnapshot | null>;
@@ -21,11 +22,12 @@ export function buildSyncSnapshotUrl(
   }
 
   const provider = status.provider ?? 'sleeper';
-  return `${serverUrl.replace(/\/$/, '')}/api/sync/${provider}/drafts/${encodeURIComponent(status.draftId)}`;
+  return `${localSyncBase(serverUrl)}/api/sync/${provider}/drafts/${encodeURIComponent(status.draftId)}`;
 }
 
 export function createSyncSnapshotClient(
   getServerUrl: () => Promise<string>,
+  getToken: () => Promise<string>,
   fetchImplementation: typeof fetch = fetch,
   requestTimeoutMs: number = DEFAULT_SYNC_REQUEST_TIMEOUT_MS
 ): SyncSnapshotClient {
@@ -66,15 +68,16 @@ export function createSyncSnapshotClient(
         return null;
       }
 
-      return requestSnapshot(url);
+      return requestSnapshot(url, { headers: { 'X-Sync-Token': await getToken() }, redirect: 'error' });
     },
 
     async publishEspnSnapshot(snapshot) {
-      const serverUrl = (await getServerUrl()).replace(/\/$/, '');
+      const serverUrl = localSyncBase(await getServerUrl());
       const url = `${serverUrl}/api/sync/espn/drafts/${encodeURIComponent(snapshot.draft.draftId)}/snapshot`;
       return requestSnapshot(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Sync-Token': await getToken() },
+        redirect: 'error',
         body: JSON.stringify(snapshot),
       });
     },

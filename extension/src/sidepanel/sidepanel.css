@@ -47,6 +47,8 @@ body,
   display: none;
 }
 
+#pairing-state { z-index: 3; }
+
 .panel-state strong {
   font-size: 16px;
 }

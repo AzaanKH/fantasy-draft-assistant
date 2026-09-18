@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { SleeperDraftMetadata } from '@fantasy-draft/shared';
 import {
   draftFixture,
   leagueFixture,
   picksFixture,
 } from './__fixtures__/sleeper-fixtures.js';
-import { SLEEPER_API_BASE, SleeperSyncAdapter } from './sleeper-adapter.js';
+import { SLEEPER_API_BASE, SLEEPER_SETTINGS_CACHE_MS, SleeperSyncAdapter } from './sleeper-adapter.js';
 
 describe('SleeperSyncAdapter', () => {
   it('loads provider-confirmed settings for a Sleeper league mock', async () => {
@@ -73,5 +73,66 @@ describe('SleeperSyncAdapter', () => {
     expect(snapshot.draft.leagueId).toBe(leagueFixture.league_id);
     expect(snapshot.draft.leagueSettings).toBeUndefined();
     expect(snapshot.picks).toHaveLength(picksFixture.length);
+  });
+});
+
+describe('Sleeper settings cache', () => {
+  function setup() {
+    let leagueId = leagueFixture.league_id;
+    let rejectSettings = false;
+    let settingsRequests = 0;
+    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, async <T>(url: string): Promise<T> => {
+      if (url.endsWith('/picks')) return picksFixture as T;
+      if (url.includes('/draft/')) return { ...draftFixture, league_id: leagueId } as T;
+      settingsRequests += 1;
+      if (rejectSettings) throw new Error('Settings unavailable');
+      return { ...leagueFixture, league_id: leagueId } as T;
+    });
+    return { adapter, count: () => settingsRequests,
+      changeLeague: () => { leagueId = 'another-league'; },
+      fail: () => { rejectSettings = true; } };
+  }
+
+  it('reuses verified settings, but verifies again on expiry and explicit reconnect', async () => {
+    vi.useFakeTimers();
+    try {
+      const test = setup();
+      const signal = new AbortController().signal;
+      const first = await test.adapter.poll(signal);
+      expect((await test.adapter.poll(signal)).draft.leagueSettings).toBe(first.draft.leagueSettings);
+      expect(test.count()).toBe(1);
+      vi.advanceTimersByTime(SLEEPER_SETTINGS_CACHE_MS);
+      await test.adapter.poll(signal);
+      expect(test.count()).toBe(2);
+      test.adapter.invalidateSettings();
+      await test.adapter.poll(signal);
+      expect(test.count()).toBe(3);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('does not reuse settings from a different league', async () => {
+    const test = setup();
+    const signal = new AbortController().signal;
+    await test.adapter.poll(signal);
+    test.changeLeague();
+    const changed = await test.adapter.poll(signal);
+    expect(test.count()).toBe(2);
+    expect(changed.draft.leagueSettings?.leagueId).toBe('another-league');
+  });
+
+  it('keeps picks but drops expired settings after a refresh failure', async () => {
+    vi.useFakeTimers();
+    try {
+      const test = setup();
+      const signal = new AbortController().signal;
+      await test.adapter.poll(signal);
+      vi.advanceTimersByTime(SLEEPER_SETTINGS_CACHE_MS);
+      test.fail();
+      const failedRefresh = await test.adapter.poll(signal);
+      expect(failedRefresh.draft.leagueSettings).toBeUndefined();
+      expect(failedRefresh.picks).toHaveLength(picksFixture.length);
+      expect((await test.adapter.poll(signal)).draft.leagueSettings).toBeUndefined();
+      expect(test.count()).toBe(3);
+    } finally { vi.useRealTimers(); }
   });
 });

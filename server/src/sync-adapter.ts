@@ -18,5 +18,6 @@ export interface DraftAdapterSnapshot {
 export interface DraftSyncAdapter {
   readonly provider: DraftProvider;
   readonly draftId: string;
+  invalidateSettings?: () => void;
   poll: (signal: AbortSignal) => Promise<DraftAdapterSnapshot>;
 }

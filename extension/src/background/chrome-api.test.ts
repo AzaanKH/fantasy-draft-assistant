@@ -31,6 +31,7 @@ function createStorageMock(mocks: {
     savePicks: mocks.savePicks,
     saveStatus: mocks.saveStatus,
     getSyncServerUrl: vi.fn(async () => 'http://localhost:3001'),
+    getSyncToken: vi.fn(async () => 'test-token'),
     setInstallationDefaults: mocks.setInstallationDefaults,
   };
 }
