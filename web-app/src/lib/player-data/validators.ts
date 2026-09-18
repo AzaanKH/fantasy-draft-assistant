@@ -1,15 +1,64 @@
 import type { PlayerIdentityData } from '@/lib/calculations/player-value';
-import { isNFLTeam, isPosition, isPredictionSource } from '@fantasy-draft/shared';
+import { isNFLTeam, isPosition, isPredictionSource, isTeamEnvironment, NFL_TEAMS } from '@fantasy-draft/shared';
 
 import type {
   ContractDataFile,
   PlayerIdentityFile,
   PredictionsDataFile,
   RecommendationPolicyFile,
+  SleeperDataFile,
+  TeamEnvDataFile,
 } from './types';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+export function isSleeperDataFile(value: unknown): value is SleeperDataFile {
+  return (
+    isRecord(value) &&
+    typeof value['fetchedAt'] === 'string' &&
+    typeof value['source'] === 'string' &&
+    isFiniteNumber(value['playerCount']) &&
+    Array.isArray(value['players']) &&
+    value['playerCount'] === value['players'].length &&
+    value['players'].every((player: unknown) =>
+      isRecord(player) &&
+      typeof player['playerId'] === 'string' &&
+      typeof player['name'] === 'string' &&
+      isPosition(player['position']) &&
+      isNFLTeam(player['team']) &&
+      isFiniteNumber(player['sleeperAdp']) &&
+      (player['age'] === undefined || player['age'] === null || isFiniteNumber(player['age'])) &&
+      (player['yearsExp'] === undefined || player['yearsExp'] === null || isFiniteNumber(player['yearsExp'])) &&
+      (player['status'] === undefined || typeof player['status'] === 'string')
+    )
+  );
+}
+
+export function isTeamEnvDataFile(value: unknown): value is TeamEnvDataFile {
+  if (!isRecord(value) ||
+    typeof value['generatedAt'] !== 'string' ||
+    !isFiniteNumber(value['season']) ||
+    !isFiniteNumber(value['teamCount']) ||
+    !isRecord(value['teams']) || Array.isArray(value['teams'])) {
+    return false;
+  }
+
+  const teams = value['teams'];
+  return value['teamCount'] === NFL_TEAMS.length &&
+    NFL_TEAMS.every((team) => Object.hasOwn(teams, team)) &&
+    Object.entries(teams).every(([team, environment]) =>
+      isNFLTeam(team) &&
+      isTeamEnvironment(environment) &&
+      environment.team === team &&
+      [environment.offenseScore, environment.pointsRank,
+        environment.passAttemptsRank, environment.rushAttemptsRank].every(isFiniteNumber)
+    );
 }
 
 export function isContractDataFile(value: unknown): value is ContractDataFile {
@@ -26,7 +75,7 @@ export function isContractDataFile(value: unknown): value is ContractDataFile {
     typeof value['playerCount'] === 'number' &&
     Number.isFinite(value['playerCount']) &&
     Array.isArray(value['players']) &&
-    value['players'].every((player) =>
+    value['players'].every((player: unknown) =>
       isRecord(player) &&
       typeof player['name'] === 'string' &&
       isPosition(player['position']) &&
@@ -45,14 +94,23 @@ export function isPredictionsDataFile(value: unknown): value is PredictionsDataF
     typeof value['modelVersion'] === 'string' &&
     value['modelVersion'].length > 0 &&
     Array.isArray(value['players']) &&
-    value['players'].every((player) =>
+    value['players'].every((player: unknown) =>
       isRecord(player) &&
       typeof player['name'] === 'string' &&
       isPosition(player['position']) &&
       isNFLTeam(player['team']) &&
       typeof player['projectedPoints'] === 'number' &&
       Number.isFinite(player['projectedPoints']) &&
-      isPredictionSource(player['source'])
+      isPredictionSource(player['source']) &&
+      ['playerId', 'modelFamily', 'modelVersion'].every((key) =>
+        player[key] === undefined || typeof player[key] === 'string'
+      ) &&
+      [
+        'baseProjectedPoints', 'usageEfficiencyAdjustment', 'customScoringAdjustment',
+        'customProjectedPoints', 'floorProjectedPoints', 'ceilingProjectedPoints',
+        'positionPercentile', 'valueOverReplacement', 'ceilingScore', 'floorScore',
+        'uncertaintyScore', 'riskScore', 'injuryRiskScore',
+      ].every((key) => player[key] === undefined || isFiniteNumber(player[key]))
     )
   );
 }
