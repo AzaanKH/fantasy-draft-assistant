@@ -545,7 +545,7 @@ export function AssistantPage({
               </div>
             )
           ) : (
-            <div className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+            <div role="status" className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
               {deferredSearch
                 ? 'No players match your search and position filter.'
                 : `No available ${positionFilter === 'ALL' ? '' : `${positionFilter} `}players.`}

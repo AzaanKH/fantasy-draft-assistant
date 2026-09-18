@@ -11,6 +11,7 @@ import type {
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
+  POSITIONS,
 } from '@fantasy-draft/shared';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import identityJson from '../../../data/player-identity.json';
@@ -575,11 +576,11 @@ function shouldDeferPosition(
     roundNumber < policy.positionTiming.targetRound;
 }
 
-function getAuditFactors(player: Player | undefined, decisionFactors: AuditDecisionFactors): string[] {
-  if (!player) return [];
+function getAuditFactors(decisionFactors: AuditDecisionFactors): string[] {
   const factors: string[] = [];
   if (decisionFactors.leagueValue) factors.push('league-value');
   if (decisionFactors.rosterFit) factors.push('roster-fit');
+  if (decisionFactors.depthValue) factors.push('depth-value');
   if (decisionFactors.tierSupply) factors.push('tier-supply');
   if (decisionFactors.draftTiming) factors.push('draft-timing');
   return factors;
@@ -588,6 +589,7 @@ function getAuditFactors(player: Player | undefined, decisionFactors: AuditDecis
 interface AuditDecisionFactors {
   readonly leagueValue: boolean;
   readonly rosterFit: boolean;
+  readonly depthValue: boolean;
   readonly tierSupply: boolean;
   readonly draftTiming: boolean;
 }
@@ -689,6 +691,9 @@ function runDraft(input: {
         architecture: 'best-pick-policy',
         requirements: config.rosterRequirements,
         rosterCounts: counts,
+        rosterPlayers: POSITIONS.flatMap((position) => roster[position])
+          .map((playerId) => playersById.get(playerId))
+          .filter((player): player is Player => player !== undefined),
         selectionsRemaining: Math.max(0, config.totalRounds - myRosterIds.size),
       }
     );
@@ -710,6 +715,7 @@ function runDraft(input: {
     const factorFlags: AuditDecisionFactors = {
       leagueValue: decisionFactors?.leagueValue.materiallyChangedOrdering ?? false,
       rosterFit: decisionFactors?.rosterFit.materiallyChangedOrdering ?? false,
+      depthValue: decisionFactors?.depthValue.materiallyChangedOrdering ?? false,
       tierSupply: decisionFactors?.tierSupply.materiallyChangedOrdering ?? false,
       draftTiming: decisionFactors?.draftTiming.materiallyChangedOrdering ?? false,
     };
@@ -728,7 +734,7 @@ function runDraft(input: {
       diverged: bestPickPlayer.id !== bestPlayer.id,
       withinBoundary: decisionFactors?.conservativeBoundary.withinBoundary ?? true,
       feasibilityException: decisionFactors?.conservativeBoundary.feasibilityException ?? false,
-      factors: getAuditFactors(bestPickPlayer, factorFlags),
+      factors: getAuditFactors(factorFlags),
     });
 
     if (input.waitMap) {
@@ -1240,4 +1246,5 @@ export function runPrimaryLeagueExperiments(
 
 export const __testables = {
   summarizeMetric,
+  getAuditFactors,
 };

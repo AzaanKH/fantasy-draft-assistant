@@ -375,10 +375,10 @@ function useLivePlayerDataQuery() {
     marketAdpQuery.data?.players, leagueSettings.scoringRules, totalTeams, rosterRequirements]);
   const players = useMemo(() => coreSources ? mergeCoreSources(coreSources, []) : [], [coreSources]);
   const shadowPlayers = useMemo(() =>
-    coreSources && predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled
+    coreSources && connection?.draftPosition != null && predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled
       ? mergeCoreSources(coreSources, predictionQuery.data?.players ?? [])
       : [],
-  [coreSources, predictionsReady, effectiveRecommendationPolicy.shadowLogging.enabled, predictionQuery.data?.players]);
+  [coreSources, connection?.draftPosition, predictionsReady, effectiveRecommendationPolicy.shadowLogging.enabled, predictionQuery.data?.players]);
 
   return {
     players,

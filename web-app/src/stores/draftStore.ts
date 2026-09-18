@@ -589,7 +589,8 @@ export function createDraftStore(): BoundDraftStore {
       }); },
     setConfig: (newConfig) =>
       { set((state) => {
-        if (!isDraftSize(newConfig.totalTeams ?? state.config.totalTeams, newConfig.totalRounds ?? state.config.totalRounds) ||
+        if ((newConfig.myPickPosition !== undefined && !Number.isFinite(newConfig.myPickPosition)) ||
+            !isDraftSize(newConfig.totalTeams ?? state.config.totalTeams, newConfig.totalRounds ?? state.config.totalRounds) ||
             (newConfig.rosterRequirements !== undefined && !isRosterRequirements(newConfig.rosterRequirements))) return;
         const nextTotalTeams = Math.max(
           2,

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./fonts.css";
+@import "./draft-design.css";
 
 .motion-expandable-grid {
   display: grid;
@@ -230,5 +231,3 @@ html[data-visual-test] *::after {
   animation: none !important;
   transition: none !important;
 }
-
-@import "./draft-design.css";

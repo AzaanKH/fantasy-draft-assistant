@@ -55,7 +55,7 @@ export function DraftHeader({
         <div className="flex min-w-0 items-center gap-1 sm:gap-2">
           {connectionControl}
           {secondaryControls ? (
-            <div className="hidden items-center gap-2 xl:flex">
+            <div className="hidden items-center gap-2 md:flex">
               {secondaryControls}
             </div>
           ) : null}

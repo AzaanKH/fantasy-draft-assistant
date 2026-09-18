@@ -90,7 +90,7 @@ export function DraftDecisionBar({
   );
   const { togglePlayerQueued } = useQueueActions(queuePlayerIdentity);
 
-  if (isLoading || !bestPick) {
+  if (!bestPick) {
     return compact ? null : <EmptyDecisionBar isLoading={isLoading} />;
   }
 

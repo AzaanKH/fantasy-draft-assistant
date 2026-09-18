@@ -95,6 +95,10 @@ export function getTeamByeWeeks(snapshot: unknown, season: number): ReadonlyMap<
     if (ranking && typeof ranking.team === 'string' &&
         typeof ranking.byeWeek === 'number' && Number.isInteger(ranking.byeWeek) &&
         ranking.byeWeek >= 1 && ranking.byeWeek <= 18) {
+      const existingByeWeek = byTeam.get(ranking.team);
+      if (existingByeWeek !== undefined && existingByeWeek !== ranking.byeWeek) {
+        throw new Error(`Conflicting bye weeks for ${ranking.team}: ${String(existingByeWeek)} and ${String(ranking.byeWeek)}.`);
+      }
       byTeam.set(ranking.team, ranking.byeWeek);
     }
   }
