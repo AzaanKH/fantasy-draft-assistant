@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T04:08:02.062Z",
+  "generatedAt": "2026-09-05T15:17:00.007Z",
   "rule": "information_timestamp <= historical_draft_timestamp",
   "dateOnlyPolicy": "information timestamp upper bound is the following midnight UTC",
   "missingnessPolicy": "unknown timestamps and absent preseason rows remain null; no later rows are inferred",
@@ -75,8 +75,8 @@
       "pup": 0,
       "ir": 0,
       "withInjuryDesignation": 0,
-      "withDepthChart": 531,
-      "withPriorSeasonMissedGames": 438,
+      "withDepthChart": 530,
+      "withPriorSeasonMissedGames": 437,
       "withSamePositionCompetition": 472,
       "withRecentTrade": 36,
       "cutoffViolations": 0

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-17T02:39:08.492Z",
+  "generatedAt": "2026-09-17T21:09:20.188Z",
   "status": "blocked",
   "summary": {
     "productBlockingFailures": 2,
-    "actionableWarnings": 3,
+    "actionableWarnings": 2,
     "optionalSignalDegradations": 3
   },
   "coreDraftData": [
@@ -17,9 +17,9 @@
       "correctiveAction": "Run `pnpm refresh:fantasypros`.",
       "status": "blocking",
       "problem": "stale",
-      "timestamp": "2026-08-30T21:16:15.990Z",
-      "ageHours": 413.38125055555554,
-      "message": "FantasyPros ECR is stale: 17 days old exceeds the 24-hour live limit (refreshed at 2026-08-30T21:16:15.990Z), so Trusted rankings is unavailable."
+      "timestamp": "2026-09-16T15:39:57.333Z",
+      "ageHours": 29.489681944444445,
+      "message": "FantasyPros ECR is stale: 29 hours old exceeds the 24-hour live limit (refreshed at 2026-09-16T15:39:57.333Z), so Trusted rankings is unavailable."
     },
     {
       "key": "canonical-player-identities",
@@ -31,9 +31,9 @@
       "correctiveAction": "Run `pnpm data:identity` after refreshing rankings and the Sleeper player directory.",
       "status": "blocking",
       "problem": "stale",
-      "timestamp": "2026-08-30T21:16:16.901Z",
-      "ageHours": 413.3809975,
-      "message": "Generated player identity map is stale: 17 days old exceeds the 24-hour live limit (generated at 2026-08-30T21:16:16.901Z), so Canonical player identities is unavailable."
+      "timestamp": "2026-09-16T15:39:58.266Z",
+      "ageHours": 29.48942277777778,
+      "message": "Generated player identity map is stale: 29 hours old exceeds the 24-hour live limit (generated at 2026-09-16T15:39:58.266Z), so Canonical player identities is unavailable."
     },
     {
       "key": "primary-league-settings",
@@ -46,7 +46,7 @@
       "status": "ready",
       "problem": null,
       "timestamp": "2026-08-25T15:57:03.000Z",
-      "ageHours": 538.7015255555556,
+      "ageHours": 557.2047744444444,
       "message": "Primary League settings from Primary League provider settings is ready (confirmed at 2026-08-25T15:57:03.000Z)."
     },
     {
@@ -60,7 +60,7 @@
       "status": "ready",
       "problem": null,
       "timestamp": "2026-08-25T17:28:41.000Z",
-      "ageHours": 537.1743033333333,
+      "ageHours": 555.6775522222222,
       "message": "Confirmed keeper supply from Primary League keeper file is ready (confirmed at 2026-08-25T17:28:41.000Z)."
     }
   ],
@@ -75,9 +75,9 @@
       "correctiveAction": "Run `pnpm model:dataset` to rebuild the experimental prediction artifact.",
       "status": "degraded",
       "problem": "older-than-dependency",
-      "timestamp": "2026-08-29T20:51:39.431Z",
-      "ageHours": 437.79140583333333,
-      "message": "The experimental predictions artifact (2026-08-29T20:51:39.431Z) is older than Trusted rankings (2026-08-30T21:16:15.990Z); the trusted rankings dependency is newer and Experimental predictions must be refreshed."
+      "timestamp": "2026-09-05T15:17:24.662Z",
+      "ageHours": 293.86542388888887,
+      "message": "The experimental predictions artifact (2026-09-05T15:17:24.662Z) is older than Trusted rankings (2026-09-16T15:39:57.333Z); the trusted rankings dependency is newer and Experimental predictions must be refreshed."
     },
     {
       "key": "contract-context",
@@ -89,9 +89,9 @@
       "correctiveAction": "Run `pnpm refresh:contracts`.",
       "status": "degraded",
       "problem": "stale",
-      "timestamp": "2026-08-29T20:50:49.377Z",
-      "ageHours": 437.8053097222222,
-      "message": "nflverse contract context is stale: 18 days old exceeds the 168-hour live limit (generated at 2026-08-29T20:50:49.377Z), so Contract context is unavailable."
+      "timestamp": "2026-09-05T15:16:36.640Z",
+      "ageHours": 293.8787633333333,
+      "message": "nflverse contract context is stale: 12 days old exceeds the 168-hour live limit (generated at 2026-09-05T15:16:36.640Z), so Contract context is unavailable."
     },
     {
       "key": "sportsbook-context",
@@ -104,7 +104,7 @@
       "status": "degraded",
       "problem": "stale",
       "timestamp": "2026-07-30T21:39:00.000Z",
-      "ageHours": 1157.002358888889,
+      "ageHours": 1175.5056077777779,
       "message": "Imported sportsbook snapshot is stale: 48 days old exceeds the 48-hour live limit (captured at 2026-07-30T21:39:00.000Z), so Sportsbook context is unavailable."
     }
   ],
@@ -119,9 +119,9 @@
       "correctiveAction": "Run `pnpm refresh:fantasypros`.",
       "status": "blocking",
       "problem": "stale",
-      "timestamp": "2026-08-30T21:16:15.990Z",
-      "ageHours": 413.38125055555554,
-      "message": "FantasyPros ECR is stale: 17 days old exceeds the 24-hour live limit (refreshed at 2026-08-30T21:16:15.990Z), so Trusted rankings is unavailable."
+      "timestamp": "2026-09-16T15:39:57.333Z",
+      "ageHours": 29.489681944444445,
+      "message": "FantasyPros ECR is stale: 29 hours old exceeds the 24-hour live limit (refreshed at 2026-09-16T15:39:57.333Z), so Trusted rankings is unavailable."
     },
     {
       "key": "canonical-player-identities",
@@ -133,9 +133,9 @@
       "correctiveAction": "Run `pnpm data:identity` after refreshing rankings and the Sleeper player directory.",
       "status": "blocking",
       "problem": "stale",
-      "timestamp": "2026-08-30T21:16:16.901Z",
-      "ageHours": 413.3809975,
-      "message": "Generated player identity map is stale: 17 days old exceeds the 24-hour live limit (generated at 2026-08-30T21:16:16.901Z), so Canonical player identities is unavailable."
+      "timestamp": "2026-09-16T15:39:58.266Z",
+      "ageHours": 29.48942277777778,
+      "message": "Generated player identity map is stale: 29 hours old exceeds the 24-hour live limit (generated at 2026-09-16T15:39:58.266Z), so Canonical player identities is unavailable."
     }
   ],
   "actionableWarnings": [
@@ -143,27 +143,18 @@
       "key": "data/sleeper-adp.json",
       "label": "Sleeper player directory",
       "sourceLabel": "Sleeper player directory",
-      "message": "Sleeper player directory needs attention (2026-08-30T21:16:11.999Z).",
+      "message": "Sleeper player directory needs attention (2026-09-16T15:39:53.179Z).",
       "correctiveAction": "Run `pnpm refresh:sleeper`.",
-      "timestamp": "2026-08-30T21:16:11.999Z",
-      "status": "warning"
-    },
-    {
-      "key": "data/team-environment.json",
-      "label": "Team environment",
-      "sourceLabel": "Derived team environment",
-      "message": "Team environment needs attention (2026-08-29T20:50:51.441Z).",
-      "correctiveAction": "Run `pnpm refresh:team-env`.",
-      "timestamp": "2026-08-29T20:50:51.441Z",
+      "timestamp": "2026-09-16T15:39:53.179Z",
       "status": "warning"
     },
     {
       "key": "data/recommendation-policy.json",
       "label": "Recommendation policy",
       "sourceLabel": "ECR-anchored recommendation policy",
-      "message": "Recommendation policy needs attention (2026-08-31T04:11:11.063Z).",
+      "message": "Recommendation policy needs attention (2026-09-05T15:18:41.777Z).",
       "correctiveAction": "Run `pnpm model:backtest`.",
-      "timestamp": "2026-08-31T04:11:11.063Z",
+      "timestamp": "2026-09-05T15:18:41.777Z",
       "status": "warning"
     }
   ],
@@ -178,9 +169,9 @@
       "correctiveAction": "Run `pnpm model:dataset` to rebuild the experimental prediction artifact.",
       "status": "degraded",
       "problem": "older-than-dependency",
-      "timestamp": "2026-08-29T20:51:39.431Z",
-      "ageHours": 437.79140583333333,
-      "message": "The experimental predictions artifact (2026-08-29T20:51:39.431Z) is older than Trusted rankings (2026-08-30T21:16:15.990Z); the trusted rankings dependency is newer and Experimental predictions must be refreshed."
+      "timestamp": "2026-09-05T15:17:24.662Z",
+      "ageHours": 293.86542388888887,
+      "message": "The experimental predictions artifact (2026-09-05T15:17:24.662Z) is older than Trusted rankings (2026-09-16T15:39:57.333Z); the trusted rankings dependency is newer and Experimental predictions must be refreshed."
     },
     {
       "key": "contract-context",
@@ -192,9 +183,9 @@
       "correctiveAction": "Run `pnpm refresh:contracts`.",
       "status": "degraded",
       "problem": "stale",
-      "timestamp": "2026-08-29T20:50:49.377Z",
-      "ageHours": 437.8053097222222,
-      "message": "nflverse contract context is stale: 18 days old exceeds the 168-hour live limit (generated at 2026-08-29T20:50:49.377Z), so Contract context is unavailable."
+      "timestamp": "2026-09-05T15:16:36.640Z",
+      "ageHours": 293.8787633333333,
+      "message": "nflverse contract context is stale: 12 days old exceeds the 168-hour live limit (generated at 2026-09-05T15:16:36.640Z), so Contract context is unavailable."
     },
     {
       "key": "sportsbook-context",
@@ -207,7 +198,7 @@
       "status": "degraded",
       "problem": "stale",
       "timestamp": "2026-07-30T21:39:00.000Z",
-      "ageHours": 1157.002358888889,
+      "ageHours": 1175.5056077777779,
       "message": "Imported sportsbook snapshot is stale: 48 days old exceeds the 48-hour live limit (captured at 2026-07-30T21:39:00.000Z), so Sportsbook context is unavailable."
     }
   ],

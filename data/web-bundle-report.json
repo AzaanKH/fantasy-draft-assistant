@@ -1,169 +1,169 @@
 {
-  "generatedAt": "2026-08-31T01:34:38.535Z",
+  "generatedAt": "2026-09-16T15:48:42.548Z",
   "budgets": {
     "jsGzipBytes": 204800,
     "cssGzipBytes": 20480,
     "staticOutputBytes": 5242880
   },
   "totals": {
-    "jsGzipBytes": 187278,
-    "cssGzipBytes": 17052,
-    "staticOutputBytes": 4649387
+    "jsGzipBytes": 187821,
+    "cssGzipBytes": 17842,
+    "staticOutputBytes": 4689189
   },
   "prohibitedPaths": [],
   "passed": true,
   "assets": [
     {
-      "file": "App-tqxu3sLe.js",
+      "file": "App-BF-6Vh1-.js",
       "type": "js",
-      "rawBytes": 234257,
-      "gzipBytes": 69376,
-      "brotliBytes": 58535
+      "rawBytes": 235341,
+      "gzipBytes": 70332,
+      "brotliBytes": 59079
     },
     {
-      "file": "AssistantPage-W7OeBv-q.js",
-      "type": "js",
-      "rawBytes": 42363,
-      "gzipBytes": 11460,
-      "brotliBytes": 10135
+      "file": "App-CwzyNr94.css",
+      "type": "css",
+      "rawBytes": 5622,
+      "gzipBytes": 1714,
+      "brotliBytes": 1453
     },
     {
-      "file": "DraftGlossary-mJXrz4WO.js",
+      "file": "AssistantPage-CWhVVw8a.js",
       "type": "js",
-      "rawBytes": 2839,
-      "gzipBytes": 1422,
-      "brotliBytes": 1144
+      "rawBytes": 41547,
+      "gzipBytes": 11418,
+      "brotliBytes": 10075
     },
     {
-      "file": "DraftQueuePanel-Bef991nK.js",
+      "file": "DraftGlossary-Bwxc1dXg.js",
       "type": "js",
-      "rawBytes": 2538,
-      "gzipBytes": 1192,
-      "brotliBytes": 1052
+      "rawBytes": 2802,
+      "gzipBytes": 1403,
+      "brotliBytes": 1121
     },
     {
-      "file": "DraftRosterPanel-BmSRaBNL.js",
+      "file": "DraftQueuePanel-CLF9zvsg.js",
       "type": "js",
-      "rawBytes": 1928,
-      "gzipBytes": 851,
-      "brotliBytes": 762
+      "rawBytes": 2496,
+      "gzipBytes": 1171,
+      "brotliBytes": 1030
     },
     {
-      "file": "DraftSuggestions-C-Q4Lb0w.js",
+      "file": "DraftRosterPanel-DwJgI8ZD.js",
       "type": "js",
-      "rawBytes": 2712,
-      "gzipBytes": 1172,
-      "brotliBytes": 1050
+      "rawBytes": 1896,
+      "gzipBytes": 839,
+      "brotliBytes": 745
     },
     {
-      "file": "ProviderIdentityBlockedNotice-D167nz_r.js",
+      "file": "DraftSuggestions-D9O9c5-x.js",
+      "type": "js",
+      "rawBytes": 2675,
+      "gzipBytes": 1155,
+      "brotliBytes": 1025
+    },
+    {
+      "file": "ProviderIdentityBlockedNotice-BDlMVr3c.js",
       "type": "js",
       "rawBytes": 4318,
-      "gzipBytes": 1530,
-      "brotliBytes": 1328
+      "gzipBytes": 1533,
+      "brotliBytes": 1335
     },
     {
-      "file": "RosterSettings-C0BX6ZMu.js",
+      "file": "RosterSettings-DyQmHNJt.js",
       "type": "js",
-      "rawBytes": 2803,
-      "gzipBytes": 1127,
-      "brotliBytes": 984
+      "rawBytes": 2766,
+      "gzipBytes": 1108,
+      "brotliBytes": 962
     },
     {
-      "file": "SidePanelPage-dRbRHKhx.js",
+      "file": "SidePanelPage-RCqtbsoa.js",
       "type": "js",
-      "rawBytes": 26402,
-      "gzipBytes": 7228,
-      "brotliBytes": 6445
+      "rawBytes": 26365,
+      "gzipBytes": 7206,
+      "brotliBytes": 6405
     },
     {
-      "file": "draftSyncStore-BpUp2bfS.js",
-      "type": "js",
-      "rawBytes": 2214,
-      "gzipBytes": 934,
-      "brotliBytes": 831
-    },
-    {
-      "file": "index-0Z-qz_uU.css",
+      "file": "index-0PM5xOii.css",
       "type": "css",
-      "rawBytes": 109070,
-      "gzipBytes": 17052,
-      "brotliBytes": 13323
+      "rawBytes": 95368,
+      "gzipBytes": 16128,
+      "brotliBytes": 13137
     },
     {
-      "file": "index-BhO-rBAH.js",
+      "file": "index-C7G2Y8bw.js",
       "type": "js",
-      "rawBytes": 286322,
-      "gzipBytes": 90986,
-      "brotliBytes": 79841
+      "rawBytes": 288767,
+      "gzipBytes": 91656,
+      "brotliBytes": 80389
     }
   ],
   "largestStaticFiles": [
     {
-      "path": "assets/index-BhO-rBAH.js.map",
-      "bytes": 991971
+      "path": "assets/index-C7G2Y8bw.js.map",
+      "bytes": 996918
     },
     {
-      "path": "assets/App-tqxu3sLe.js.map",
-      "bytes": 882008
+      "path": "assets/App-BF-6Vh1-.js.map",
+      "bytes": 891337
     },
     {
       "path": "data/predictions.json",
-      "bytes": 734890
+      "bytes": 623213
     },
     {
       "path": "data/fantasypros-snapshot.json",
-      "bytes": 467473
+      "bytes": 509717
     },
     {
-      "path": "assets/index-BhO-rBAH.js",
-      "bytes": 286322
+      "path": "assets/index-C7G2Y8bw.js",
+      "bytes": 288767
     },
     {
-      "path": "data/sleeper-adp.json",
-      "bytes": 258311
+      "path": "assets/App-BF-6Vh1-.js",
+      "bytes": 235341
     },
     {
       "path": "data/player-identity.json",
-      "bytes": 255775
+      "bytes": 233217
     },
     {
-      "path": "assets/App-tqxu3sLe.js",
-      "bytes": 234257
+      "path": "data/sleeper-adp.json",
+      "bytes": 230182
     },
     {
-      "path": "assets/AssistantPage-W7OeBv-q.js.map",
-      "bytes": 109236
+      "path": "assets/AssistantPage-CWhVVw8a.js.map",
+      "bytes": 112624
     },
     {
-      "path": "assets/index-0Z-qz_uU.css",
-      "bytes": 109070
+      "path": "assets/index-0PM5xOii.css",
+      "bytes": 95368
     },
     {
-      "path": "data/contracts.json",
-      "bytes": 70549
-    },
-    {
-      "path": "assets/SidePanelPage-dRbRHKhx.js.map",
+      "path": "assets/SidePanelPage-RCqtbsoa.js.map",
       "bytes": 69664
     },
     {
-      "path": "assets/AssistantPage-W7OeBv-q.js",
-      "bytes": 42363
+      "path": "data/contracts.json",
+      "bytes": 54104
     },
     {
-      "path": "assets/SidePanelPage-dRbRHKhx.js",
-      "bytes": 26402
+      "path": "assets/AssistantPage-CWhVVw8a.js",
+      "bytes": 41547
     },
     {
-      "path": "data/league-history/survival-model.json",
-      "bytes": 24243
+      "path": "assets/typeface-2-DQS2--yO.woff2",
+      "bytes": 33092
+    },
+    {
+      "path": "assets/typeface-1-Dvg0Waxb.woff2",
+      "bytes": 32964
     }
   ],
   "estimatedSourceComposition": [
     {
       "source": "application",
-      "sourceBytes": 713272
+      "sourceBytes": 714172
     },
     {
       "source": "react-dom",
@@ -187,7 +187,7 @@
     },
     {
       "source": "lucide-react",
-      "sourceBytes": 28432
+      "sourceBytes": 28886
     },
     {
       "source": "tslib",
