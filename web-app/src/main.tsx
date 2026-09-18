@@ -6,6 +6,7 @@ import { UndoToastProvider } from './components/undo-toast';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 import { applyTheme, readStoredTheme } from './features/theme/theme';
 import { LivePlayerDataProvider } from './hooks/usePlayerData';
+import { initializeDraftSyncConnection } from './stores/draftSyncStore';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -55,10 +56,7 @@ if (import.meta.env.DEV && visualRouteRequested) {
 } else if (visualRouteRequested) {
   root.render(<main>Not found</main>);
 } else {
-  void Promise.all([
-    import('./App'),
-    import('./stores/draftSyncStore'),
-  ]).then(([{ App }, { initializeDraftSyncConnection }]) => {
+  void import('./App').then(({ App }) => {
     applyTheme(readStoredTheme());
     initializeDraftSyncConnection(window.location.search);
     renderNormalApp(<App />);

@@ -67,6 +67,10 @@ function getFactorAdvantage(
     return preferredFactors.rosterFit.score -
       (bestPlayerFactors?.rosterFit.score ?? 0);
   }
+  if (factor === 'depth-value') {
+    return preferredFactors.depthValue.score -
+      (bestPlayerFactors?.depthValue.score ?? 0);
+  }
   if (factor === 'tier-supply') {
     return preferredFactors.tierSupply.score -
       (bestPlayerFactors?.tierSupply.score ?? 0);
@@ -102,6 +106,16 @@ function getDominantDivergenceFactor(
         bestPick,
         bestPlayerPolicyVersion,
         'roster-fit'
+      ),
+    },
+    {
+      factor: 'depth-value',
+      materiallyChangedOrdering:
+        factors.depthValue.materiallyChangedOrdering,
+      advantage: getFactorAdvantage(
+        bestPick,
+        bestPlayerPolicyVersion,
+        'depth-value'
       ),
     },
     {
@@ -164,6 +178,11 @@ function getDivergenceTradeoff(
     const openStarterSpots =
       factors.rosterFit.fixedStartersOpen + factors.rosterFit.flexSlotsOpen;
     return `${bestPick.playerName}'s ${bestPick.position} roster fit matters with ${pluralize(openStarterSpots, 'starting spot', 'starting spots')} open and ${pluralize(factors.rosterFit.selectionsRemaining, 'selection', 'selections')} left`;
+  }
+
+  if (factor === 'depth-value') {
+    const depth = factors.depthValue;
+    return `${bestPick.playerName} adds ${bestPick.position} depth with ${pluralize(depth.reserveCount, 'current reserve', 'current reserves')} against a target of ${String(depth.targetReserveCount)}`;
   }
 
   if (factor === 'tier-supply') {

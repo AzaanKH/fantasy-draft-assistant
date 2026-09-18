@@ -1,7 +1,9 @@
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   POSITIONS,
+  optimizeLineupUtility,
   type Player,
+  type PickEvRosterPlayer,
   type Position,
   type RecommendationDecisionFactors,
   type RosterRequirements,
@@ -18,6 +20,8 @@ export const BEST_PICK_ECR_NEIGHBORHOOD = 8;
 export const BEST_PICK_LEAGUE_VALUE_MAX = 6;
 /** Roster construction can add at most eight policy points. */
 export const BEST_PICK_ROSTER_FIT_MAX = 8;
+/** Bench protection can add at most four policy points. */
+export const BEST_PICK_DEPTH_VALUE_MAX = 4;
 /** Tier supply can add at most four cost-of-waiting policy points. */
 export const BEST_PICK_TIER_SUPPLY_MAX = 4;
 /** Next-pick timing can add at most four policy points. */
@@ -26,12 +30,146 @@ export const BEST_PICK_DRAFT_TIMING_MAX = 4;
 const LEAGUE_VOR_POINTS_PER_POLICY_POINT = 24;
 const TIER_DROPOFF_POINTS_PER_POLICY_POINT = 8;
 const TIMING_VALUE_POINTS_PER_POLICY_POINT = 8;
+const DEPTH_POINTS_PER_POLICY_POINT = 8;
 
 export interface BestPickPolicyContext {
   readonly requirements?: RosterRequirements;
   readonly rosterCounts?: Readonly<Partial<Record<Position, number>>>;
+  readonly rosterPlayers?: readonly PickEvRosterPlayer[];
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
+}
+
+function getOptimalStarters(
+  roster: readonly PickEvRosterPlayer[],
+  requirements: RosterRequirements
+): PickEvRosterPlayer[] {
+  const used = new Set<string>();
+  const starters: PickEvRosterPlayer[] = [];
+
+  for (const position of POSITIONS) {
+    const fixed = roster
+      .filter((player) => player.position === position)
+      .sort((left, right) => right.projectedPoints - left.projectedPoints)
+      .slice(0, requirements[position].starters);
+    for (const player of fixed) {
+      used.add(player.id);
+      starters.push(player);
+    }
+  }
+
+  const flex = roster
+    .filter((player) =>
+      !used.has(player.id) &&
+      requirements.FLEX.eligiblePositions.includes(player.position)
+    )
+    .sort((left, right) => right.projectedPoints - left.projectedPoints)
+    .slice(0, requirements.FLEX.starters);
+
+  return [...starters, ...flex];
+}
+
+function getTargetReserveCount(
+  position: Position,
+  requirements: RosterRequirements
+): number {
+  if (position === 'RB' || position === 'WR') {
+    return Math.min(2, Math.ceil(requirements.BENCH.spots / 3));
+  }
+  if (position === 'TE') {
+    return requirements.BENCH.spots >= 5 ? 1 : 0;
+  }
+  return 0;
+}
+
+function getDepthValueFactor(
+  player: Player,
+  roster: readonly PickEvRosterPlayer[],
+  requirements: RosterRequirements,
+  before: RosterAnalysis
+): RecommendationDecisionFactors['depthValue'] {
+  const positionCount = roster.filter(
+    (rosterPlayer) => rosterPlayer.position === player.position
+  ).length;
+  const starters = getOptimalStarters(roster, requirements);
+  const startersAtPosition = starters.filter(
+    (starter) => starter.position === player.position
+  ).length;
+  const reserveCount = Math.max(0, positionCount - startersAtPosition);
+  const targetReserveCount = getTargetReserveCount(player.position, requirements);
+  const reserveDeficit = Math.max(0, targetReserveCount - reserveCount);
+
+  if (
+    before.minimumOffensiveStarterPicks > 0 ||
+    roster.length === 0 ||
+    roster.length !== before.rosterSize ||
+    targetReserveCount === 0
+  ) {
+    return {
+      score: 0,
+      minScore: 0,
+      maxScore: BEST_PICK_DEPTH_VALUE_MAX,
+      positionCount,
+      startersAtPosition,
+      reserveCount,
+      targetReserveCount,
+      reserveDeficit,
+      contingencyPoints: 0,
+      materiallyChangedOrdering: false,
+    };
+  }
+
+  const baselineUtility = optimizeLineupUtility(roster, requirements);
+  const rosterWithCandidate = [...roster, player];
+  const normalGain = Math.max(
+    0,
+    optimizeLineupUtility(rosterWithCandidate, requirements) - baselineUtility
+  );
+  const offensiveStarters = starters.filter(
+    (starter) => starter.position !== 'K' && starter.position !== 'DEF'
+  );
+  const contingencyGains = offensiveStarters.map((missingStarter) => {
+    const availableRoster = roster.filter(
+      (rosterPlayer) => rosterPlayer.id !== missingStarter.id
+    );
+    const withoutCandidate = optimizeLineupUtility(
+      availableRoster,
+      requirements
+    );
+    const withCandidate = optimizeLineupUtility(
+      [...availableRoster, player],
+      requirements
+    );
+    return Math.max(0, withCandidate - withoutCandidate - normalGain);
+  });
+  const contingencyPoints = contingencyGains.length === 0
+    ? 0
+    : contingencyGains.reduce((total, gain) => total + gain, 0) /
+      contingencyGains.length;
+  const coverageScore = reserveDeficit === 0
+    ? 0
+    : Math.min(1.5, 1 + (reserveDeficit - 1) * 0.5);
+  const contingencyScore = Math.min(
+    BEST_PICK_DEPTH_VALUE_MAX - coverageScore,
+    contingencyPoints / DEPTH_POINTS_PER_POLICY_POINT
+  );
+
+  return {
+    score: round(clamp(
+      coverageScore + contingencyScore,
+      0,
+      BEST_PICK_DEPTH_VALUE_MAX
+    )),
+    minScore: 0,
+    maxScore: BEST_PICK_DEPTH_VALUE_MAX,
+    positionCount,
+    startersAtPosition,
+    reserveCount,
+    targetReserveCount,
+    reserveDeficit,
+    contingencyPoints: round(contingencyPoints, 1),
+    materiallyChangedOrdering: false,
+  };
 }
 
 export interface BestPickPolicyEvaluation {
@@ -54,6 +192,7 @@ interface RosterAnalysis {
   readonly flexSlotsOpen: number;
   readonly benchSlotsOpen: number;
   readonly minimumStarterPicks: number;
+  readonly minimumOffensiveStarterPicks: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -132,6 +271,14 @@ function analyzeRoster(
     flexSlotsOpen,
     benchSlotsOpen: Math.max(0, requirements.BENCH.spots - benchPlayers),
     minimumStarterPicks: fixedStartersOpen + flexSlotsOpen,
+    minimumOffensiveStarterPicks:
+      POSITIONS
+        .filter((position) => position !== 'K' && position !== 'DEF')
+        .reduce(
+          (total, position) =>
+            total + fixedStartersOpenByPosition[position],
+          0
+        ) + flexSlotsOpen,
   };
 }
 
@@ -402,6 +549,7 @@ export function evaluateBestPickPolicy(
 ): BestPickPolicyResult {
   const requirements = context.requirements ?? DEFAULT_ROSTER_REQUIREMENTS;
   const counts = getCounts(context.rosterCounts);
+  const rosterPlayers = context.rosterPlayers ?? [];
   const before = analyzeRoster(counts, requirements);
   const selectionsRemaining = Math.max(
     0,
@@ -443,6 +591,12 @@ export function evaluateBestPickPolicy(
       after,
       selectionsRemaining
     );
+    const depthValue = getDepthValueFactor(
+      player,
+      rosterPlayers,
+      requirements,
+      before
+    );
     const tierSupply = getTierSupplyFactor(
       player,
       tierAvailability.get(getTierKey(player.position, player.tier))
@@ -459,7 +613,7 @@ export function evaluateBestPickPolicy(
     return {
       player,
       score: round(
-        playerQualityScore + leagueValueScore + rosterFitScore +
+        playerQualityScore + leagueValueScore + rosterFitScore + depthValue.score +
           tierSupply.score + draftTiming.score
       ),
       factors: {
@@ -493,6 +647,7 @@ export function evaluateBestPickPolicy(
           legalCompletionPossible,
           materiallyChangedOrdering: false,
         },
+        depthValue,
         tierSupply,
         draftTiming,
         conservativeBoundary: {
@@ -514,6 +669,10 @@ export function evaluateBestPickPolicy(
     evaluations,
     (evaluation) => evaluation.score - evaluation.factors.rosterFit.score,
     false
+  );
+  const selectedWithoutDepthValue = selectEvaluation(
+    evaluations,
+    (evaluation) => evaluation.score - evaluation.factors.depthValue.score
   );
   const selectedWithoutTierSupply = selectEvaluation(
     evaluations,
@@ -539,6 +698,10 @@ export function evaluateBestPickPolicy(
     selected !== undefined &&
     selectedWithoutRosterFit !== undefined &&
     selected.player.id !== selectedWithoutRosterFit.player.id;
+  const depthValueChangedOrdering =
+    selected !== undefined &&
+    selectedWithoutDepthValue !== undefined &&
+    selected.player.id !== selectedWithoutDepthValue.player.id;
   const feasibilityException =
     selected !== undefined &&
     selected.factors.rosterFit.legalCompletionPossible &&
@@ -560,6 +723,10 @@ export function evaluateBestPickPolicy(
             rosterFit: {
               ...evaluation.factors.rosterFit,
               materiallyChangedOrdering: rosterFitChangedOrdering,
+            },
+            depthValue: {
+              ...evaluation.factors.depthValue,
+              materiallyChangedOrdering: depthValueChangedOrdering,
             },
             tierSupply: {
               ...evaluation.factors.tierSupply,

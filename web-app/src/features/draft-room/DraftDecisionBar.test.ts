@@ -1,9 +1,38 @@
-import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   Recommendation,
   RecommendationDecisionFactors,
 } from '@fantasy-draft/shared';
+import { DraftDecisionBar } from './DraftDecisionBar';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
+
+const decision = vi.hoisted(() => ({
+  output: { bestPick: null as Recommendation | null },
+  isLoading: true,
+}));
+vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
+  useDraftDecision: () => decision,
+}));
+vi.mock('@/hooks/useQueueActions', () => ({
+  useQueueActions: () => ({ togglePlayerQueued: vi.fn() }),
+}));
+
+describe('DraftDecisionBar loading', () => {
+  it.each([true, false])('keeps the settled pick visible while loading, compact=%s', (compact) => {
+    decision.output.bestPick = recommendation();
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { compact, onOpenAssistant: vi.fn() }));
+    expect(markup).toContain(compact ? 'Why this pick' : 'Assistant');
+    expect(markup).toContain('Add Best Pick to the local queue');
+  });
+
+  it('hides the empty compact bar but retains the full loading skeleton', () => {
+    decision.output.bestPick = null;
+    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { compact: true, onOpenAssistant: vi.fn() }))).toBe('');
+    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }))).toContain('Loading the current Best Pick');
+  });
+});
 
 function decisionFactors(): RecommendationDecisionFactors {
   return {
@@ -26,6 +55,18 @@ function decisionFactors(): RecommendationDecisionFactors {
       benchSlotsOpen: 5,
       selectionsRemaining: 8,
       legalCompletionPossible: true,
+      materiallyChangedOrdering: false,
+    },
+    depthValue: {
+      score: 0,
+      minScore: 0,
+      maxScore: 4,
+      positionCount: 0,
+      startersAtPosition: 0,
+      reserveCount: 0,
+      targetReserveCount: 2,
+      reserveDeficit: 2,
+      contingencyPoints: 0,
       materiallyChangedOrdering: false,
     },
     tierSupply: {
@@ -82,6 +123,20 @@ describe('getDraftDecisionBarReason', () => {
     );
     expect(getDraftDecisionBarReason(recommendation(), 'tier-supply')).toBe(
       '1 RB option remains in Tier 2 before a 20.0 point drop.'
+    );
+    expect(getDraftDecisionBarReason(recommendation({
+      ...decisionFactors(),
+      depthValue: {
+        ...decisionFactors().depthValue,
+        score: 4,
+        reserveCount: 0,
+        targetReserveCount: 2,
+        reserveDeficit: 2,
+        contingencyPoints: 20,
+        materiallyChangedOrdering: true,
+      },
+    }), 'depth-value')).toBe(
+      'Depth Value moves RB first with 0 reserves against a target of 2.'
     );
   });
 

@@ -326,11 +326,9 @@ function DraftWorkspace(): React.ReactElement {
   return (
     <>
       <Header route="draft" />
-      <main className="w-full space-y-4 px-3 py-4 sm:px-4">
-        <div className="sticky top-[4.5rem] z-[35]">
-          <DraftDecisionBar onOpenAssistant={() => undefined} />
-        </div>
+      <main className="draft-workspace w-full space-y-4 px-3 py-4 sm:px-4">
         <DraftBoard roundWindowSize={VISUAL_BOARD_ROUNDS} />
+        <DraftDecisionBar compact onOpenAssistant={() => undefined} />
         <DraftDock onOpenAssistant={() => undefined} />
       </main>
     </>

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./fonts.css";
+@import "./draft-design.css";
 
 .motion-expandable-grid {
   display: grid;

@@ -18,21 +18,6 @@ import { usePlayerDataQuery } from './usePlayerData';
 import { useDraftStore } from '@/stores/draftStore';
 
 /**
- * Hook to calculate positional scarcity scores
- * Based on how many elite players remain at each position
- */
-export function useScarcityScores(): Map<Position, number> {
-  const { players } = usePlayerDataQuery();
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-
-  return useMemo(() => {
-    // Filter to only available (non-drafted) players
-    const availablePlayers = players.filter((p) => !draftedPlayerIds.has(p.id));
-    return calculateAllScarcityScores(availablePlayers);
-  }, [players, draftedPlayerIds]);
-}
-
-/**
  * Hook to calculate team positional needs
  * Returns prioritized list of positions the team needs to fill
  */
@@ -69,21 +54,4 @@ export function useTeamNeeds(): {
     criticalPositions,
     isLoading,
   };
-}
-
-/**
- * Hook to check if a specific position is a need for the team
- */
-export function useIsPositionNeed(position: Position): boolean {
-  const { needs } = useTeamNeeds();
-
-  return useMemo(() => {
-    const need = needs.find((n) => n.position === position);
-    return (
-      need !== undefined &&
-      need.priority !== 'low' &&
-      need.priority !== 'defer' &&
-      need.priority !== 'filled'
-    );
-  }, [needs, position]);
 }

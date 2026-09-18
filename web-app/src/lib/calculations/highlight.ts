@@ -7,7 +7,6 @@
 
 import type {
   HighlightLevel,
-  NFLTeam,
   TeamEnvironment,
 } from '@fantasy-draft/shared';
 import { isTopOffense, isDecentOffense } from '@fantasy-draft/shared';
@@ -62,28 +61,4 @@ export function determineHighlightLevel(
   }
 
   return 'neutral';
-}
-
-/**
- * Convenience function to determine highlight level using player object
- * and team environments map
- *
- * @param player - Object with valueScore, isContractYear, and team properties
- * @param teamEnvironments - Map of team codes to environments
- * @returns The appropriate highlight level
- */
-export function determineHighlightLevelForPlayer(
-  player: {
-    readonly valueScore: number;
-    readonly isContractYear: boolean;
-    readonly team: NFLTeam;
-  },
-  teamEnvironments: Map<NFLTeam, TeamEnvironment>
-): HighlightLevel {
-  const environment = teamEnvironments.get(player.team);
-  return determineHighlightLevel(
-    player.valueScore,
-    player.isContractYear,
-    environment
-  );
 }

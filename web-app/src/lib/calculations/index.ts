@@ -12,7 +12,6 @@ export type { TierAvailability } from './tiers';
 // Highlight level determination
 export {
   determineHighlightLevel,
-  determineHighlightLevelForPlayer,
 } from './highlight';
 
 // Positional scarcity
@@ -26,13 +25,11 @@ export {
 export {
   calculateTeamNeeds,
   getCriticalPositions,
-  isPositionNeed,
 } from './team-needs';
 
 // Recommendations
 export {
   getRecommendations,
-  getTopRecommendation,
 } from './recommendations';
 
 export type {
@@ -46,6 +43,7 @@ export {
   BEST_PICK_ECR_NEIGHBORHOOD,
   BEST_PICK_LEAGUE_VALUE_MAX,
   BEST_PICK_ROSTER_FIT_MAX,
+  BEST_PICK_DEPTH_VALUE_MAX,
   BEST_PICK_TIER_SUPPLY_MAX,
   evaluateBestPickPolicy,
 } from './best-pick-policy';
@@ -62,9 +60,6 @@ export type { PredictionLayerResult } from './prediction-score';
 export { calculateLeagueProjection } from './league-scoring';
 export type { LeagueProjectionResult } from './league-scoring';
 
-export { calculatePlayerRisk } from './risk';
-export type { PlayerRiskAssessment, RiskLevel } from './risk';
-
 export {
   applyLeagueSurvivalModel,
   estimateLeagueSurvivalProbability,
@@ -79,15 +74,12 @@ export type {
   SurvivalContext,
 } from './survival';
 
-// Legacy exports from player-value (for backwards compatibility)
+// Player data merging and filtering
 export {
-  calculateHighlightLevel,
   normalizePlayerName,
   createPlayerKey,
   mergePlayerData,
-  filterByPosition,
   filterDrafted,
-  sortPlayers,
 } from './player-value';
 
 export type {
@@ -95,8 +87,6 @@ export type {
   ContractPlayerData,
   PlayerIdentityData,
   PlayerMergeLeagueContext,
-  SortField,
-  SortDirection,
 } from './player-value';
 
 export { buildRecommendationPlayerVariants } from './recommendation-player-variants';

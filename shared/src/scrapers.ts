@@ -83,41 +83,24 @@ export function parsePositionString(
   };
 }
 
-/**
- * NFL team bye weeks for 2025 season
- * This will need to be updated each year
- */
-export const BYE_WEEKS_2025: Record<NFLTeam, number> = {
-  ARI: 11,
-  ATL: 12,
-  BAL: 14,
-  BUF: 12,
-  CAR: 11,
-  CHI: 7,
-  CIN: 12,
-  CLE: 9,
-  DAL: 7,
-  DEN: 14,
-  DET: 5,
-  GB: 10,
-  HOU: 14,
-  IND: 14,
-  JAX: 12,
-  KC: 6,
-  LAC: 5,
-  LAR: 6,
-  LV: 10,
-  MIA: 6,
-  MIN: 6,
-  NE: 14,
-  NO: 12,
-  NYG: 11,
-  NYJ: 12,
-  PHI: 5,
-  PIT: 9,
-  SEA: 10,
-  SF: 9,
-  TB: 11,
-  TEN: 5,
-  WAS: 14,
-} as const;
+/** Read bye weeks only from a FantasyPros snapshot for the requested season. */
+export function getTeamByeWeeks(snapshot: unknown, season: number): ReadonlyMap<string, number> {
+  const data = snapshot as { metadata?: { season?: unknown }; rankings?: unknown } | null;
+  if (data?.metadata?.season !== season || !Array.isArray(data.rankings)) {
+    throw new Error(`Refresh the FantasyPros snapshot for ${String(season)} before scraping ECR.`);
+  }
+
+  const byTeam = new Map<string, number>();
+  for (const ranking of data.rankings as { team?: unknown; byeWeek?: unknown }[]) {
+    if (ranking && typeof ranking.team === 'string' &&
+        typeof ranking.byeWeek === 'number' && Number.isInteger(ranking.byeWeek) &&
+        ranking.byeWeek >= 1 && ranking.byeWeek <= 18) {
+      const existingByeWeek = byTeam.get(ranking.team);
+      if (existingByeWeek !== undefined && existingByeWeek !== ranking.byeWeek) {
+        throw new Error(`Conflicting bye weeks for ${ranking.team}: ${String(existingByeWeek)} and ${String(ranking.byeWeek)}.`);
+      }
+      byTeam.set(ranking.team, ranking.byeWeek);
+    }
+  }
+  return byTeam;
+}

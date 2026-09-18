@@ -7,7 +7,6 @@
 
 import type {
   Player,
-  HighlightLevel,
   FantasyProsProjection,
   FantasyProsMarketStats,
   FantasyProsAdpPlayer,
@@ -26,11 +25,11 @@ import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
   calculateSportsbookProjectionAdjustment,
-  isTopOffense,
-  isDecentOffense,
 } from '@fantasy-draft/shared';
 import { applyDynamicValueOverReplacement, estimatePlayerPrediction } from './prediction-score';
 import { applyPositionTiers } from './tiers';
+import { calculateValueScore } from './value';
+import { determineHighlightLevel } from './highlight';
 import { calculateLeagueProjection } from './league-scoring';
 
 /**
@@ -85,54 +84,6 @@ function resolveSleeperMarketRank(sleeperAdp: number | undefined, ecrRank: numbe
     sleeperAdp < SLEEPER_PLACEHOLDER_RANK
     ? sleeperAdp
     : ecrRank;
-}
-
-/**
- * Calculate value score: market cost - expert rank.
- * Positive = drafted later than expert rank (good value).
- * Negative = drafted earlier than expert rank (potential reach).
- */
-export function calculateValueScore(ecrRank: number, sleeperAdp: number): number {
-  return sleeperAdp - ecrRank;
-}
-
-/**
- * Determine highlight level based on value, contract status, and offensive environment
- *
- * Rules from spec:
- * - strong-buy: Value >= +10 AND (contract year OR top-10 offense)
- * - good-value: Value >= +5 OR contract year with decent offense
- * - neutral: Default
- * - avoid: Value <= -15
- */
-export function calculateHighlightLevel(
-  valueScore: number,
-  isContractYear: boolean,
-  teamEnvironment: TeamEnvironment | undefined
-): HighlightLevel {
-  // Avoid: significantly overvalued
-  if (valueScore <= -15) {
-    return 'avoid';
-  }
-
-  const isTop = teamEnvironment ? isTopOffense(teamEnvironment) : false;
-  const isDecent = teamEnvironment ? isDecentOffense(teamEnvironment) : false;
-
-  // Strong buy: great value + (contract year OR top offense)
-  if (valueScore >= 10 && (isContractYear || isTop)) {
-    return 'strong-buy';
-  }
-
-  // Good value: decent value OR contract year with decent offense
-  if (valueScore >= 5) {
-    return 'good-value';
-  }
-
-  if (isContractYear && isDecent) {
-    return 'good-value';
-  }
-
-  return 'neutral';
 }
 
 /**
@@ -367,7 +318,7 @@ export function mergePlayerData(
 
     const valueScore = calculateValueScore(ecr.rank, consensusAdp);
     const isContractYear = contract?.isContractYear ?? false;
-    const highlightLevel = calculateHighlightLevel(valueScore, isContractYear, teamEnv);
+    const highlightLevel = determineHighlightLevel(valueScore, isContractYear, teamEnv);
     const offenseScore = teamEnv?.offenseScore ?? 5;
     const nextPickSurvivalProbability = getNextPickSurvivalProbability(valueScore);
     const newsStatus = newsItem?.status ?? getNewsStatus(sleeper?.status);
@@ -496,16 +447,6 @@ export function mergePlayerData(
 }
 
 /**
- * Filter players by position
- */
-export function filterByPosition(players: Player[], position: Position | 'ALL'): Player[] {
-  if (position === 'ALL') {
-    return players;
-  }
-  return players.filter((p) => p.position === position);
-}
-
-/**
  * Filter out drafted players
  */
 export function filterDrafted(
@@ -529,55 +470,4 @@ export function filterDrafted(
         `${normalizePlayerName(player.name)}|${player.position}`
       )
   );
-}
-
-/**
- * Sort players by different criteria
- */
-export type SortField =
-  | 'ecrRank'
-  | 'sleeperAdp'
-  | 'valueScore'
-  | 'projectedPoints'
-  | 'valueOverReplacement'
-  | 'upsideScore'
-  | 'name';
-export type SortDirection = 'asc' | 'desc';
-
-export function sortPlayers(
-  players: Player[],
-  field: SortField,
-  direction: SortDirection = 'asc'
-): Player[] {
-  const sorted = [...players].sort((a, b) => {
-    let comparison = 0;
-
-    switch (field) {
-      case 'ecrRank':
-        comparison = a.ecrRank - b.ecrRank;
-        break;
-      case 'sleeperAdp':
-        comparison = a.sleeperAdp - b.sleeperAdp;
-        break;
-      case 'valueScore':
-        comparison = b.valueScore - a.valueScore; // Higher value first by default
-        break;
-      case 'projectedPoints':
-        comparison = b.projectedPoints - a.projectedPoints;
-        break;
-      case 'valueOverReplacement':
-        comparison = b.valueOverReplacement - a.valueOverReplacement;
-        break;
-      case 'upsideScore':
-        comparison = b.upsideScore - a.upsideScore;
-        break;
-      case 'name':
-        comparison = a.name.localeCompare(b.name);
-        break;
-    }
-
-    return direction === 'asc' ? comparison : -comparison;
-  });
-
-  return sorted;
 }

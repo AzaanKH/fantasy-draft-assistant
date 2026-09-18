@@ -17,6 +17,7 @@ import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
 import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
 
 const DraftGlossary = React.lazy(() =>
   import('@/features/help/DraftGlossary').then((module) => ({
@@ -148,6 +149,7 @@ export function App(): React.ReactElement {
         <DraftHeader
           route={route}
           onNavigate={navigate}
+          connectionControl={<DraftConnectionControl readiness={readiness} />}
           secondaryControls={(
             <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
               <DraftGlossary />

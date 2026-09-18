@@ -11,6 +11,7 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
     "rehearse:primary-league": "tsx src/features/draft-room/run-primary-league-rehearsal.ts",
+    "experiment:primary-league": "tsx src/experiments/run-primary-league-experiments.ts",
     "test:watch": "vitest",
     "clean": "rm -rf dist node_modules/.vite"
   },
@@ -28,9 +29,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.6.0",
-    "zustand": "^5.0.0",
-    "@radix-ui/react-switch": "^1.2.6",
-    "@tanstack/react-table": "^8.21.3"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

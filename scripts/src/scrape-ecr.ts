@@ -8,7 +8,7 @@
  */
 
 import { chromium } from 'playwright';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -17,7 +17,7 @@ import {
   type Position,
   POSITIONS,
   NFL_TEAMS,
-  BYE_WEEKS_2025,
+  getTeamByeWeeks,
   parsePlayerNameAndTeam,
   parsePositionString,
 } from '@fantasy-draft/shared';
@@ -151,7 +151,7 @@ async function scrapeRawData(): Promise<RawRowData[]> {
 /**
  * Parse and validate raw data into ECRPlayer objects
  */
-function parseECRData(rawData: RawRowData[]): ECRPlayer[] {
+function parseECRData(rawData: RawRowData[], byeWeeks: ReadonlyMap<string, number>): ECRPlayer[] {
   const players: ECRPlayer[] = [];
   const errors: string[] = [];
 
@@ -201,8 +201,10 @@ function parseECRData(rawData: RawRowData[]): ECRPlayer[] {
       continue;
     }
 
-    // Get bye week using normalized team
-    const byeWeek = BYE_WEEKS_2025[normalizedTeam as NFLTeam];
+    const byeWeek = byeWeeks.get(normalizedTeam);
+    if (byeWeek === undefined) {
+      throw new Error(`Missing current-season bye week for ${normalizedTeam}; refresh the FantasyPros snapshot.`);
+    }
 
     players.push({
       rank,
@@ -238,6 +240,11 @@ async function main(): Promise<void> {
   console.log('='.repeat(50));
 
   try {
+    const snapshot: unknown = JSON.parse(
+      await readFile(join(DATA_DIR, 'fantasypros-snapshot.json'), 'utf8')
+    );
+    const byeWeeks = getTeamByeWeeks(snapshot, new Date().getFullYear());
+
     // Scrape raw data
     const rawData = await scrapeRawData();
 
@@ -246,7 +253,7 @@ async function main(): Promise<void> {
     }
 
     // Parse and validate
-    const players = parseECRData(rawData);
+    const players = parseECRData(rawData, byeWeeks);
     console.log(`\nSuccessfully parsed ${players.length} players`);
 
     // Ensure data directory exists

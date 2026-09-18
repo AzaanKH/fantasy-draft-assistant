@@ -38,6 +38,7 @@ import {
 } from '@fantasy-draft/shared';
 import { formatDraftSyncAge } from '@/hooks/useDraftSync';
 import { useDraftStore } from '@/stores/draftStore';
+import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { cn } from '@/lib/utils';
 import type { DataFreshnessItem } from '@/lib/data-freshness';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
@@ -199,6 +200,7 @@ export function DraftConnect({
     confirmDraftPosition,
     disconnect,
   } = useLiveDraftSync();
+  const setPrimaryLeagueSettings = useDraftSyncConnectionStore((state) => state.setPrimaryLeagueSettings);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [provider, setProvider] = React.useState<DraftProvider>(
     connection?.provider ?? 'sleeper'
@@ -809,6 +811,25 @@ export function DraftConnect({
     </div>
   );
 
+  const practiceSettingsControl = connection?.provider === 'sleeper' ? (
+    <div className="border-y border-border py-3">
+      <label className="flex cursor-pointer items-start gap-3 text-sm font-medium">
+        <input
+          type="checkbox"
+          className="mt-1 size-4 accent-primary"
+          checked={connection.usePrimaryLeagueSettings === true}
+          onChange={(event) => { setPrimaryLeagueSettings(event.target.checked); }}
+        />
+        Use Primary League settings for this Sleeper mock
+      </label>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        Practice with full PPR, +0.5 TE premium, +0.2 per rush, 4-point passing touchdowns,
+        and the Primary League roster and keepers. Sleeper still supplies picks, teams, and rounds.
+        Use a 10-team mock with at least 14 rounds. Turn off for your actual league draft.
+      </p>
+    </div>
+  ) : null;
+
   if (variant === 'status-control') {
     return (
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -816,14 +837,15 @@ export function DraftConnect({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 min-w-0 max-w-full gap-2 px-2"
+            className="draft-nav-connection h-8 min-w-0 max-w-full gap-2 px-2"
             aria-label={`Manage ${providerLabel} draft connection`}
             title={`Manage ${providerLabel} draft connection`}
           >
-            <span className="hidden shrink-0 font-semibold sm:inline">
-              {providerLabel}
+            <span className="shrink-0 font-semibold">
+              {connection?.usePrimaryLeagueSettings ? 'Sleeper mock' : providerLabel}
             </span>
-            <DraftSyncStatusIndicator sync={syncViewState} compact announce />
+            <span className="draft-nav-sync-status"><DraftSyncStatusIndicator sync={syncViewState} compact announce /></span>
+            {connection?.usePrimaryLeagueSettings ? <span className="hidden text-xs text-primary xl:inline">Practice settings</span> : null}
             <Settings2 className="size-3.5 shrink-0 text-muted-foreground" />
           </Button>
         </DialogTrigger>
@@ -838,6 +860,7 @@ export function DraftConnect({
               disconnect before switching to another draft room.
             </DialogDescription>
           </DialogHeader>
+          {practiceSettingsControl}
           {dialogContent}
         </DialogContent>
       </Dialog>
@@ -1025,6 +1048,7 @@ export function DraftConnect({
             with the live draft room.
           </DialogDescription>
         </DialogHeader>
+        {practiceSettingsControl}
         {dialogContent}
       </DialogContent>
       </Dialog>

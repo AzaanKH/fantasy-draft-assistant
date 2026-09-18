@@ -4,7 +4,7 @@ import type { DraftDecisionView } from '@/features/recommendations/draft-decisio
 import {
   getAssistantAnswerSections,
   getComparisonHighlights,
-} from './AssistantPage';
+} from './assistant-analysis';
 
 function recommendation(
   playerId: string,
@@ -59,6 +59,18 @@ describe('Assistant decision answer', () => {
           benchSlotsOpen: 5,
           selectionsRemaining: 10,
           legalCompletionPossible: true,
+          materiallyChangedOrdering: false,
+        },
+        depthValue: {
+          score: 0,
+          minScore: 0,
+          maxScore: 4,
+          positionCount: 0,
+          startersAtPosition: 0,
+          reserveCount: 0,
+          targetReserveCount: 2,
+          reserveDeficit: 2,
+          contingencyPoints: 0,
           materiallyChangedOrdering: false,
         },
         tierSupply: {

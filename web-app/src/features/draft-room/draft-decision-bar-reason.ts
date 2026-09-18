@@ -20,6 +20,7 @@ function getReasonFactor(
   if (!factors) return null;
   if (factors.draftTiming.materiallyChangedOrdering) return 'draft-timing';
   if (factors.tierSupply.materiallyChangedOrdering) return 'tier-supply';
+  if (factors.depthValue.materiallyChangedOrdering) return 'depth-value';
   if (factors.rosterFit.materiallyChangedOrdering) return 'roster-fit';
   if (factors.leagueValue.materiallyChangedOrdering) return 'league-value';
   return null;
@@ -52,6 +53,9 @@ export function getDraftDecisionBarReason(
   if (reasonFactor === 'roster-fit') {
     const openSpots = factors.rosterFit.fixedStartersOpen + factors.rosterFit.flexSlotsOpen;
     return `Roster fit moves ${recommendation.position} first with ${String(openSpots)} starting spots still open.`;
+  }
+  if (reasonFactor === 'depth-value') {
+    return `Depth Value moves ${recommendation.position} first with ${String(factors.depthValue.reserveCount)} reserves against a target of ${String(factors.depthValue.targetReserveCount)}.`;
   }
   if (reasonFactor === 'league-value') {
     return `League value moves this pick first at ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
