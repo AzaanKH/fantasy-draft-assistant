@@ -12,7 +12,7 @@ Submit your picks in the provider's own draft room.
 ## What it does
 
 - **Draft workspace.** Follow the snake draft board, search the player pool, keep a shortlist, and track your roster.
-- **Draft decisions.** Compare Best Pick, which accounts for roster fit and draft timing, with Best Player and Best Value. Explanations cover positional depth, tiers, and the chance a player lasts until your next pick.
+- **Draft decisions.** Compare the Best Pick and Best Player decision lenses. Best Pick accounts for roster fit and draft timing. Best Value lists actionable Sleeper market-discount recommendations. Explanations cover positional depth, tiers, and the chance a player lasts until your next pick.
 - **Assistant.** Inspect a recommendation, compare alternatives, ask whether you can wait, and review roster needs. Its answers come from the app's ranking and draft calculations.
 - **Live sync.** Connect a provider draft by URL or ID. Sleeper and Yahoo use the local server; ESPN uses observations from your signed-in browser tab.
 - **Mock drafts and recovery.** Practice locally. During a live sync outage, record provisional picks and reconcile them when the provider returns.

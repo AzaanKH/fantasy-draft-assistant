@@ -41,9 +41,11 @@ Production builds return "Not found" for `/__visual/` routes.
 
 ## Local API security
 
-The server requires a local pairing token for every API request. Vite adds it
-only after validating same-origin browser requests, including native EventSource
-connections. Both services bind to loopback. The token stays in the ignored
+The server requires a local pairing token for every protected API request.
+`GET /api/health` and allowed `OPTIONS` preflight requests bypass authentication.
+State-reading and mutating routes require `X-Sync-Token`, including native
+EventSource connections. Vite adds this header only after validating same-origin
+browser requests. Both services bind to loopback. The token stays in the ignored
 `.local/sync-token` file with owner-only permissions; the extension stores its
 copy in storage restricted to trusted extension contexts.
 
