@@ -42,9 +42,9 @@ export interface SleeperADPPlayer {
   readonly position: Position;
   readonly team: NFLTeam;
   readonly sleeperAdp: number;
-  readonly age: number | null;
-  readonly yearsExp: number | null;
-  readonly status: string;
+  readonly age?: number | null;
+  readonly yearsExp?: number | null;
+  readonly status?: string;
 }
 
 /**

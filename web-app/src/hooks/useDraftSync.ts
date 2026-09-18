@@ -21,7 +21,8 @@ import type {
   Player,
 } from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
-import { isValidDraftSyncId } from '@/stores/draftSyncStore';
+import { isValidDraftSyncId, useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { resolveSyncedLeagueSettings } from '@/lib/synced-league-settings';
 import type {
   DraftPickCorrection,
   DraftPickRemoval,
@@ -437,6 +438,10 @@ export function useDraftSync(
   shouldImportPicks: boolean = true
 ): DraftSyncController {
   const draftId = isValidDraftSyncId(provider, requestedDraftId) ? requestedDraftId : null;
+  const usePrimaryLeagueSettings = useDraftSyncConnectionStore((state) =>
+    provider === 'sleeper' && state.connection?.provider === provider &&
+    state.connection.draftId === draftId && state.connection.usePrimaryLeagueSettings === true
+  );
   const queryClient = useQueryClient();
   const {
     players,
@@ -553,10 +558,13 @@ export function useDraftSync(
       totalTeams: snapshot.draft.settings.teams,
       totalRounds: snapshot.draft.settings.rounds,
     });
-    if (snapshot.draft.leagueSettings) {
-      applyLeagueSettings(snapshot.draft.leagueSettings);
-    }
-  }, [applyLeagueSettings, setConfig, snapshot?.draft]);
+    applyLeagueSettings(resolveSyncedLeagueSettings(
+      provider,
+      snapshot.draft.settings.teams,
+      snapshot.draft.leagueSettings,
+      usePrimaryLeagueSettings,
+    ));
+  }, [applyLeagueSettings, setConfig, snapshot?.draft, provider, usePrimaryLeagueSettings]);
 
   const importResult = useMemo(() => {
     if (

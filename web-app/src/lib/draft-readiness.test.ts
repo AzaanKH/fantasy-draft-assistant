@@ -201,3 +201,44 @@ describe('Draft Workspace readiness adapter', () => {
     expect(blocksRecommendations('live', blocked)).toBe(true);
   });
 });
+
+describe('Sleeper mock readiness with Primary League practice settings', () => {
+  const input = {
+    sources,
+    warnings: [],
+    leagueSettings: createDefaultLeagueSettings(NOW),
+    totalRounds: 15,
+    keeperStatus: readyKeepers,
+  };
+
+  it('allows an explicitly selected Primary League profile with a 15-round mock', () => {
+    const report = evaluateWorkspaceDraftReadiness({ ...input, usePrimaryLeagueSettings: true }, NOW);
+    expect(report.status).toBe('ready');
+    expect(blocksLiveRecommendations('live', report)).toBe(false);
+  });
+
+  it('still blocks missing provider settings when practice mode is off', () => {
+    expect(evaluateWorkspaceDraftReadiness(input, NOW).productBlockingFailures)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ key: 'primary-league-settings' })]));
+  });
+
+  it('keeps rankings and keeper checks active in practice mode', () => {
+    const report = evaluateWorkspaceDraftReadiness({
+      ...input, usePrimaryLeagueSettings: true,
+      sources: { ...sources, 'trusted-rankings': { availability: 'missing', timestamp: null } },
+      keeperStatus: { ...readyKeepers, isConfirmed: false },
+    }, NOW);
+    expect(report.productBlockingFailures.map((item) => item.key))
+      .toEqual(expect.arrayContaining(['trusted-rankings', 'confirmed-keeper-supply']));
+  });
+
+  it('rejects practice drafts that cannot reproduce Primary League roster requirements', () => {
+    for (const overrides of [
+      { totalRounds: 10 },
+      { leagueSettings: createLeagueSettings({ ...createDefaultLeagueSettings(NOW), totalTeams: 12 }, NOW) },
+    ]) {
+      const report = evaluateWorkspaceDraftReadiness({ ...input, ...overrides, usePrimaryLeagueSettings: true }, NOW);
+      expect(report.productBlockingFailures.map((item) => item.key)).toContain('primary-league-settings');
+    }
+  });
+});

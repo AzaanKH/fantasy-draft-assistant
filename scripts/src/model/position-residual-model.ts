@@ -439,17 +439,6 @@ export function fitPositionResidualModelForSeason(
   );
 }
 
-export function fitAllPositionResidualModels(
-  rows: readonly PositionResidualRow[]
-): Readonly<Record<OffensivePosition, FittedPositionResidualModel>> {
-  return {
-    QB: fitPositionResidualModel(rows, 'QB'),
-    RB: fitPositionResidualModel(rows, 'RB'),
-    WR: fitPositionResidualModel(rows, 'WR'),
-    TE: fitPositionResidualModel(rows, 'TE'),
-  };
-}
-
 export function fitAllPositionResidualModelsForSeason(
   rows: readonly PositionResidualRow[],
   predictionSeason: number

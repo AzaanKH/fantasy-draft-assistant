@@ -94,3 +94,45 @@ describe('draft sync connection persistence', () => {
     });
   });
 });
+
+describe('Sleeper mock practice setting', () => {
+  afterEach(() => { useDraftSyncConnectionStore.getState().disconnect(); });
+
+  it('survives reload and older links to the same draft, but never follows a different draft', () => {
+    const store = useDraftSyncConnectionStore.getState();
+    store.startConnection('sleeper', 'practice-1');
+    store.confirmDraftPosition(5);
+    store.setPrimaryLeagueSettings(true);
+    const connection = useDraftSyncConnectionStore.getState().connection;
+    if (!connection) throw new Error('Expected a persisted practice connection');
+    expect(parseStoredDraftSyncConnection(JSON.stringify(connection))).toEqual(connection);
+    expect(getDraftSyncConnectionFromSearch(getDraftSyncSearch('', connection))).toEqual(connection);
+    initializeDraftSyncConnection('?provider=sleeper&draftId=practice-1&position=5');
+    expect(useDraftSyncConnectionStore.getState().connection?.usePrimaryLeagueSettings).toBe(true);
+    store.startConnection('sleeper', 'actual-league');
+    expect(useDraftSyncConnectionStore.getState().connection?.usePrimaryLeagueSettings).toBeUndefined();
+  });
+
+  it('can be disabled without changing the draft or slot', () => {
+    const store = useDraftSyncConnectionStore.getState();
+    store.startConnection('sleeper', 'practice');
+    store.confirmDraftPosition(5);
+    store.setPrimaryLeagueSettings(true);
+    store.setPrimaryLeagueSettings(false);
+    expect(useDraftSyncConnectionStore.getState().connection).toEqual({ provider: 'sleeper', draftId: 'practice', draftPosition: 5 });
+    expect(getDraftSyncSearch('?settings=primary-league-mock', useDraftSyncConnectionStore.getState().connection)).not.toContain('settings=');
+  });
+
+  it('rejects practice mode on another provider', () => {
+    const store = useDraftSyncConnectionStore.getState();
+    store.startConnection('espn', '12345');
+    store.setPrimaryLeagueSettings(true);
+    expect(useDraftSyncConnectionStore.getState().connection).toEqual({
+      provider: 'espn', draftId: '12345', draftPosition: null,
+    });
+    expect(parseStoredDraftSyncConnection(JSON.stringify({
+      provider: 'espn', draftId: '12345', draftPosition: 5,
+    }))).not.toBeNull();
+    expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'espn', draftId: '12345', draftPosition: 5, usePrimaryLeagueSettings: true }))).toBeNull();
+  });
+});
