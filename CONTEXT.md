@@ -1,31 +1,27 @@
 # Fantasy Draft Assistant
 
-This context defines the language for a draft-season decision product that helps a fantasy manager choose among available players during preparation, mock drafts, and live drafts.
+Use this glossary when naming features or changing behavior in draft preparation, mock drafts, and live drafts. The product ends at draft completion; it does not manage lineups or the fantasy season afterward.
 
 ## Language
-
-**Fantasy Draft Assistant**:
-The complete product that supports draft preparation, mock rehearsal, and live draft decisions. It ends at draft completion and does not manage the fantasy season afterward.
-_Avoid_: Year-round fantasy manager, lineup manager
 
 **Primary League**:
 The private 10-team keeper league whose scoring rules, keeper supply, draft history, and live Sleeper draft define the current acceptance criteria.
 _Avoid_: Default league, example league
 
+**Primary League Practice Settings**:
+The Primary League scoring rules and roster requirements explicitly selected for a Sleeper mock. Sleeper still supplies picks, team count, rounds, and draft order; these practice rules do not claim provider confirmation.
+_Avoid_: Provider-confirmed mock settings
+
 **Draft Workspace**:
-The primary full-screen decision surface where the manager sees draft state, recommendations, available players, and roster context together while the provider draft room remains open separately.
+The main draft view, with draft state, recommendations, available players, and roster context shown together. The provider draft room stays open separately.
 _Avoid_: Website, dashboard
 
 **Draft Companion**:
-The narrow in-provider surface that carries the same draft state and recommendations as the Draft Workspace. It advises the manager but does not submit provider picks.
+The compact view used beside the provider draft room, with the same draft state and recommendations as the Draft Workspace. It advises the manager without submitting provider picks.
 _Avoid_: Separate recommendation app
 
-**Public Distribution**:
-An open-source, self-hosted form of the Fantasy Draft Assistant in which each manager operates a private instance with their own league access and permitted data credentials.
-_Avoid_: Hosted service, shared public data feed
-
 **Best Pick**:
-The available player whose selection best improves the expected completed roster across the current and future picks, given the league, roster, tier supply, and draft timing. It can differ from the Best Player.
+The available player preferred by the Decision Policy for improving the expected completed roster, given league value, roster needs, Depth Value, tier supply, and the Next-Pick Horizon. It can differ from Best Player.
 _Avoid_: Highest-ranked available player
 
 **Best Player**:
@@ -37,11 +33,11 @@ The manager-selected perspective used to order available players. The canonical 
 _Avoid_: Sort order
 
 **Decision Divergence**:
-The state in which Best Pick and Best Player identify different players. Both candidates remain visible, with the timing or roster trade-off stated explicitly.
+The state in which Best Pick and Best Player identify different players. Both candidates remain visible, with the league-value, roster-fit, depth-value, tier-supply, or timing reason stated explicitly.
 _Avoid_: Ranking error
 
 **Decision Policy**:
-The transparent, ECR-anchored rules that produce Best Pick by applying bounded league value, roster construction, tier, and draft-timing adjustments. It is distinct from the experimental prediction model.
+The transparent, ECR-anchored rules that produce Best Pick by applying bounded league value, roster construction, Depth Value, tier, and draft-timing adjustments. It is distinct from the experimental prediction model.
 _Avoid_: Prediction model, opaque score
 
 **Conservative Override**:
@@ -53,7 +49,7 @@ The live optimization boundary covering the current selection and the manager's 
 _Avoid_: Full-draft simulation
 
 **Recommendation**:
-An explainable ranking of available players for the current draft decision, grounded in trusted player quality, league-adjusted value, roster fit, tier context, and draft timing.
+An explainable ranking of available players for the current draft decision, grounded in trusted player quality, league-adjusted value, roster fit, Depth Value, tier context, and draft timing.
 _Avoid_: Prediction, automatic pick
 
 **ECR Anchor**:
@@ -73,16 +69,20 @@ A pick entered during Manual Continuity that keeps the local draft usable but re
 _Avoid_: Confirmed pick
 
 **Provider Truth**:
-The official Sleeper draft metadata and pick history that ultimately determine the canonical live draft state.
+The connected provider's official draft metadata and pick history that determine the canonical live draft state. Sleeper supplies Provider Truth for the Primary League.
 _Avoid_: Local draft state
 
 **Reconciliation**:
-The process of comparing Provisional Picks with restored Provider Truth, confirming matches and visibly correcting conflicts without duplicating picks or silently corrupting the roster.
+The comparison of local picks with restored Provider Truth that confirms matches, corrects conflicts, and removes local picks absent from the official history. Corrections are visible and preserve consistent rosters and player availability.
 _Avoid_: Reset, resync
 
 **Draft Timing**:
 The cost or benefit of selecting a player now instead of waiting for a later pick, including the chance the player remains available and the value of likely alternatives.
 _Avoid_: Player quality
+
+**Depth Value**:
+The additional protection a candidate gives the manager's completed roster when a usual starter is unavailable. It rewards useful reserves at thin positions and declines when the roster already has comparable coverage.
+_Avoid_: Raw bench points, fixed position quota
 
 **Return Probability**:
 The estimated chance that a player remains available at the manager's next selection, based primarily on the league's draft history calibrated by the current consensus market.
@@ -93,11 +93,11 @@ The same-position fallback with the highest probability-weighted league value at
 _Avoid_: Guaranteed fallback, full-draft outcome
 
 **Core Draft Data**:
-The rankings, player identities, league settings, and confirmed keeper supply required to produce a trustworthy live recommendation.
+The trusted rankings, canonical player identities, league settings, and complete confirmed keeper supply required for a trustworthy live recommendation. Rankings and identities must be fresh; settings and keepers must be confirmed for the applicable season and league.
 _Avoid_: Optional signal
 
 **Optional Signal**:
-Supplemental model, contract, or sportsbook context that may degrade with an explicit label without blocking the live draft.
+Supplemental model, contract, or sportsbook evidence that may be unavailable or stale without blocking the live draft. Experimental predictions belong to Shadow Recommendations; contract and sportsbook context remain informational in the current Decision Policy.
 _Avoid_: Core Draft Data
 
 **Draft Readiness**:

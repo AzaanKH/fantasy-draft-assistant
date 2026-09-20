@@ -1,9 +1,37 @@
-# Data Refresh Policy
+# Data refresh policy
 
-`pnpm dev` starts local watchers and servers. Its `predev` check writes only
-`data/data-quality-report.json`; it does not refresh the other tracked JSON or
-make network-heavy requests. Use explicit refresh commands so a normal coding
-session remains fast and reproducible.
+Use this guide when refreshing draft inputs, changing freshness rules, or tracing
+which command writes an artifact. Start the full app with `pnpm dev:live`; this
+includes live provider refreshes and local report writes.
+
+When explicitly working with cached data, `pnpm dev` starts the local watchers
+and servers. Its `predev` check writes `data/data-quality-report.json` without
+refreshing source snapshots. Local code verification with `pnpm test` or
+`pnpm verify` does not run either startup command or refresh live data.
+
+## Core data and optional signals
+
+Live Recommendations require trusted rankings, canonical player identities,
+league settings, and complete confirmed keeper supply. Invalid Core Draft Data
+blocks live use because it can invalidate every pick. Rankings and identities
+expire with age; settings and keepers must match the declared season and league
+configuration. The [shared readiness definitions](../shared/src/draft-readiness.ts)
+own the current age limits and corrective actions.
+
+Missing or stale predictions, contract context, and sportsbook context receive
+explicit degradation labels without blocking an otherwise valid draft.
+Predictions stay in Shadow Recommendations; contract and sportsbook context
+remain informational. Refreshing an artifact or passing a backtest does not
+enable it in live recommendations. See [data-strategy.md](data-strategy.md)
+when changing which inputs may influence the Decision Policy.
+
+The browser's main loading state waits for rankings and identities. Other
+sources load independently and retain their existing readiness warnings and
+fallbacks. Experimental predictions are requested only when shadow logging is
+enabled, a live connection has a confirmed draft position, and the core queries
+have loaded. Core players are memoized separately from shadow predictions and
+optional contract/sportsbook evidence, so those responses do not rebuild live
+rankings.
 
 ## Commands
 
@@ -12,7 +40,7 @@ session remains fast and reproducible.
 | `pnpm data:check` | Reports freshness and writes `data/data-quality-report.json`. | Any time; runs before `pnpm dev`. |
 | `pnpm data:check:strict` | Fails on stale or invalid required artifacts. | The end of `pnpm prepare:draft`. |
 | `pnpm draft:preflight` | Refreshes the Sleeper directory and FantasyPros rankings, rebuilds canonical identities, then validates the local Core Draft Data needed before a provider connection. | Immediately before starting the live draft workspace. |
-| `pnpm dev:live` | Runs `pnpm draft:preflight`, regenerates the draft prep report without making report failure a startup blocker, and starts the local app only if Core Draft Data passes. | Draft day. |
+| `pnpm dev:live` | Runs `pnpm draft:preflight`, regenerates the draft prep report without making report failure a startup blocker, and starts the local app only if Core Draft Data passes. | Starting the full app, including browser verification. |
 | `pnpm draft:readiness` | Evaluates Core Draft Data, warnings, and Optional Signal degradation separately; writes `data/draft-readiness-report.json` and exits nonzero only for Core Draft Data blockers. | Manually before draft use and in the scheduled Draft Readiness workflow. |
 | `pnpm draft:rehearsal` | Runs the deterministic 140-pick Primary League outage and reconciliation scenario. | After draft-state or Recommendation changes and before the real-provider rehearsal. |
 | `pnpm draft:release-gate` | Records build, type-check, lint, unit, integration, data-quality, product-rehearsal, and real-provider evidence separately. | Before feature freeze and after the real-provider rehearsal. |
@@ -28,6 +56,7 @@ session remains fast and reproducible.
 | `pnpm model:backtest` | Replays the recommendation model, rewrites the fixed-board and counterfactual reports, and updates recommendation policy. | After prediction, scoring, league-history, recommendation, or backtest changes, and once during final draft preparation. |
 | `pnpm model:backtest:contracts` | Runs the leakage-safe 2012–2025 contract-year feature ablation. | After contract/model logic changes and before enabling the signal. |
 | `pnpm report:draft-prep` | Rewrites the prep report from existing artifacts. | After late keeper edits. |
+| `pnpm experiment:primary-league` | Replays the seven Primary League decision experiments and rewrites their JSON and Markdown reports. | After material rankings, keeper, draft-order, opponent-model, scoring, or Best Pick policy changes. |
 
 `pnpm verify` is the deterministic code gate used by pull requests. Freshness is
 checked separately by `.github/workflows/draft-readiness.yml`, which runs daily
@@ -44,6 +73,17 @@ a new season, draft, league, scoring configuration, or roster configuration.
 Run `pnpm dev:live`, then connect the Primary League draft. The connected
 provider settings are the live authority for scoring and roster confirmation.
 
+For a Sleeper mock, open the Sleeper connection control in the navbar and select
+**Use Primary League settings for this Sleeper mock**. This explicitly uses the
+maintained Primary League scoring and roster profile for practice, while Sleeper
+continues to supply picks, team count, rounds, and draft order. Use 10 teams and
+at least 14 rounds; a 15-round mock keeps all 15 rounds on the board. The confirmed
+Primary League keepers still apply. Rankings, identity, and keeper readiness checks
+remain active. The navbar labels the connection as a Sleeper mock with Practice
+settings, and the profile remains locally sourced rather than provider-confirmed.
+The choice is saved for that draft and clears when connecting a different draft.
+Turn it off for the actual league draft to restore provider-confirmed rules.
+
 ## Artifact Ownership
 
 | Artifact | Source | Notes |
@@ -59,9 +99,9 @@ provider settings are the live authority for scoring and roster confirmation.
 | `data/primary-league-release-gate-report.json` | Release-gate runner | Separate engineering, data-quality, deterministic product, real-provider, warning, and Optional Signal outcomes. |
 | `data/primary-league-settings.json` | Provider-confirmed Primary League profile | Season-scoped acceptance configuration for the 10-team, 14-round league. It does not expire with age; refresh `confirmedAt` only after verifying a new season, draft, league, scoring configuration, or roster configuration. |
 | `data/team-environment.json` | nflverse completed-season team stats | Reproducible baseline; offseason changes remain separate signals. |
-| `data/contracts.json` | nflverse historical contracts sourced from OverTheCap | Current context is populated; recommendation influence remains policy-disabled until separately backtested. |
+| `data/contracts.json` | nflverse historical contracts sourced from OverTheCap | Informational contract context; a passing backtest alone does not enable live recommendation influence. |
 | `data/predictions.json` | DuckDB prediction pipeline | Includes league scoring plus leakage-safe trailing snap-share and Next Gen Stats adjustments. |
-| `data/recommendation-policy.json` | Roster-aware walk-forward backtest | Enables model predictions only after both the feature-family and ECR release gates pass. |
+| `data/recommendation-policy.json` | Roster-aware walk-forward backtest | Records validation evidence and shadow settings; promoting predictions into live recommendations requires an explicit policy implementation change. |
 | `data/shadow-logs/2026-recommendations.ndjson` | Live app, append-only and gitignored | Records model/fallback decision pairs without exposing the experimental recommendation. |
 | `data/league-history/survival-model.json` | Imported league draft history plus Sleeper proxy | Room-specific timing adjustment, not player-quality training data. |
 | `data/league-history/current-keepers.json` | Manual late draft-week input | Add every keeper, mark the user's entry with `isMyKeeper`, and set `updatedAt` only when the full list is confirmed. A confirmed list remains valid for its declared season and does not expire with age. The live mock preloads this file before pick 1. |
