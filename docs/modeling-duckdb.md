@@ -1,9 +1,13 @@
-# DuckDB Modeling Workspace
+# DuckDB modeling workspace
 
-DuckDB is used only for offline analytical work: local joins, source profiling,
-and model dataset creation. The web app and extension consume JSON artifacts
-from `data/`, but the live Decision Policy remains ECR-anchored. DuckDB model
-predictions enter only the experimental Shadow Recommendation path.
+Use this guide when changing historical data joins, snapshot cutoffs, model
+features, or backtests. For choosing sources, use [data-strategy.md](data-strategy.md);
+for refresh timing and artifact ownership, use [data-refresh.md](data-refresh.md).
+
+DuckDB performs local analytical work outside the live draft. Dataset and
+snapshot builds fetch published source files over the network; local storage
+does not make those builds offline-only. The web app consumes JSON artifacts,
+and experimental model predictions remain in the Shadow Recommendation path.
 
 ## Layout
 
@@ -16,35 +20,35 @@ data/model/
   backtests/
 ```
 
-Generated DuckDB and Parquet files are ignored by git. Keep source-shaped nflverse and ffopportunity exports in `data/model/raw/`, then build normalized joins and model-ready rows from there.
+Generated DuckDB and Parquet files are ignored by Git. `raw/` and `normalized/`
+are local working directories; the current dataset builder reads published
+source URLs directly and materializes tables in DuckDB. It does not require a
+manual download into `raw/`. Paths are defined in
+[duckdb.ts](../scripts/src/model/duckdb.ts).
 
-## Commands
+## Commands and writes
 
-Initialize the local database from the current JSON cache:
+Run these from the repository root with workspace dependencies installed. Run
+`pnpm --filter @fantasy-draft/shared build` first if shared code changed or its
+build output is missing.
 
-```bash
-pnpm --filter scripts model:duckdb:init
-```
+| Task | Command | Reads and writes |
+| --- | --- | --- |
+| Initialize current-player joins | `pnpm model:duckdb:init` | Reads existing JSON caches; writes DuckDB tables and `normalized/current-player-join.parquet`. |
+| Inspect source coverage | `pnpm model:profile` | Reads initialized tables; writes `data/model/profile-report.json`. |
+| Rebuild the prediction dataset | `pnpm model:dataset` | Initializes current joins, downloads historical sources, and writes training data, snapshots, predictions, and reports. |
+| Rebuild historical snapshots only | `pnpm model:snapshots` | Reads stored draft dates and remote historical sources; writes snapshot tables, Parquet, and the coverage report. |
+| Evaluate recommendations | `pnpm model:backtest` | Reads the built model dataset; rewrites backtest reports and recommendation policy. |
+| Evaluate the contract feature | `pnpm model:backtest:contracts` | Reads historical data; rewrites contract evaluation reports and policy evidence. |
 
-Profile row counts, join coverage, rookies, low-experience players, and unmatched players:
+Use `pnpm model:dataset` for the complete build. Calling
+`pnpm --filter scripts model:dataset` directly assumes the current-player tables
+were already initialized. Dataset builds also rebuild historical snapshots.
 
-```bash
-pnpm --filter scripts model:profile
-```
-
-Build the first model dataset:
-
-```bash
-pnpm --filter scripts model:dataset
-```
-
-Build only the historical as-of-draft snapshots:
-
-```bash
-pnpm model:snapshots
-```
-
-`model:dataset` also rebuilds these snapshots automatically.
+These are data-generation commands, not local unit tests. Run the command
+needed by the task and review its generated diff. Run writes sequentially
+because they share one embedded DuckDB file. A lock error is a reason to find
+the active writer, not to delete the database.
 
 ## Historical draft-morning snapshots
 
@@ -79,25 +83,14 @@ inputs. They do not award or remove fantasy points directly. The compact
 coverage audit is written to `data/historical-snapshot-report.json`; any cutoff
 violation fails the build.
 
-Run the transparent historical recommendation replay:
-
-```bash
-pnpm model:backtest
-```
-
-Run the separate contract-year feature validation:
-
-```bash
-pnpm model:backtest:contracts
-```
-
-This uses an expanding 2012–2025 player-season history and compares identical
-ridge models with and without one `is_contract_year` feature. Contracts signed
-in the evaluated season are excluded because the source exposes a signing year,
-not an exact signing date. The command writes
-`docs/contract-year-backtest.md`, updates the ignored detailed JSON under
-`data/model/backtests/`, and changes `contractSignalEnabled` only when the
-multi-season release gate passes.
+For contract validation, `pnpm model:backtest:contracts` compares identical
+ridge models with and without the `is_contract_year` feature over the stored
+2012-2025 history. It excludes contracts signed in the evaluated season because
+the source provides a signing year rather than an exact date. The command
+writes [contract-year-backtest.md](contract-year-backtest.md), detailed JSON
+under `data/model/backtests/`, and validation evidence in
+[recommendation-policy.json](../data/recommendation-policy.json).
+`contractSignalEnabled` remains false even when validation passes.
 
 The training dataset combines historical production, opportunity, offensive snap share, and position-specific Next Gen Stats. Every evaluated season receives only trailing features from earlier seasons.
 
@@ -159,6 +152,7 @@ The fitted inputs now include observed participation and play-by-play signals:
 The nflverse participation feed charts the primary receiver's route, not every
 eligible receiver's route on every dropback. `dropback_participation` is kept as
 a separately named field and is not represented as an exact routes-run count.
+Participation data from 2023 onward is FTN Data via nflverse (CC-BY-SA 4.0).
 
 All position models terminate at the same output boundary:
 
@@ -168,44 +162,20 @@ All position models terminate at the same output boundary:
 - percentile within position; and
 - value over the current projected replacement player at that position.
 
-## Live policy and shadow-model boundary
+## Prediction outputs and live use
 
-The live Decision Policy produces Best Pick from the ECR Anchor and bounded
-league value, roster construction, tier, and draft-timing adjustments. Its
-player records combine current FantasyPros ECR, projections, news, and ADP with
-Sleeper player and market context, derived team environment, and league scoring.
-The policy then adds roster state, tier supply, and next-pick survival. These
-records do not contain the DuckDB prediction outputs.
+`data/predictions.json` feeds a separate Shadow Recommendation player pool when
+prediction data is ready and shadow logging is enabled. Use
+[data strategy](data-strategy.md#experimental-predictions-and-optional-evidence)
+for the live policy and promotion rules. Neither a dataset build nor a passing
+backtest enables model outputs in live recommendations.
 
-The experimental path is separate. It merges `data/predictions.json` into a
-shadow-only player pool, runs a Shadow Recommendation after the live decision
-has committed, and logs the two results for later evaluation. The shadow result
-cannot change Best Pick or Best Player, and a missing or stale prediction
-artifact cannot block the Draft Workspace.
+## Materialized tables
 
-The common prediction values listed above belong to this shadow path. The
-walk-forward backtest keeps them there unless the added feature family improves
-the previous model out of sample and the complete model clears every ECR
-release requirement. Promotion requires an explicit Decision Policy change; it
-does not happen merely because `data/predictions.json` exists.
-
-## Source Responsibilities
-
-The modeling pipeline keeps source ownership explicit:
-
-| Layer | Uses |
-| --- | --- |
-| `nflreadpy / nflverse` | Historical NFL player stats, rosters, schedules, team stats, and player IDs. |
-| `nflverse participation / PBP` | Play-level pressure, charted primary-receiver routes, on-field dropback participation, and inside-the-five opportunities. Participation data from 2023 onward is FTN Data via nflverse (CC-BY-SA 4.0). |
-| `ffopportunity / ffverse` | Expected fantasy points and opportunity metrics. |
-| `DynastyProcess / ffverse rankings` | Historical pre-draft rankings, market-style redraft rankings, and cross-platform fantasy player IDs. |
-| Experimental prediction model | nflverse production/history, ffopportunity expected points/opportunity, and DynastyProcess ranking context. Its outputs are shadow-only until promotion. |
-| Live Decision Policy | Current FantasyPros ECR, projections, and news; current Sleeper market context; league settings; roster state; tier supply; and next-pick survival. It does not use experimental prediction outputs. |
-| Shadow Recommendation | Experimental prediction outputs merged into a separate player pool, then scored with the current draft context and logged beside the live decision. |
-| League-history survival model | Imported Sleeper draft IDs, your historical picks, and current/historical ADP/ranking context. |
-| Offline draft-pick trade grader | Experimental prediction outputs, survival model features, and draft-context inputs. |
-
-`pnpm --filter scripts model:dataset` now materializes these responsibilities into:
+Use [source responsibilities](data-strategy.md#current-source-responsibilities)
+for source selection and ownership.
+[build-prediction-dataset.ts](../scripts/src/build-prediction-dataset.ts)
+loads those inputs into these DuckDB tables:
 
 - `source.nflverse_*`
 - `source.ffopportunity_weekly`
@@ -219,18 +189,17 @@ The modeling pipeline keeps source ownership explicit:
 - `model.league_history_survival_training_dataset`
 - `model.draft_pick_trade_grader_features`
 
-It also writes `data/predictions.json` for shadow evaluation and a compact
-`data/model-report.json`. The live Decision Policy does not read either artifact
-as a scoring input.
+The `model.draft_pick_trade_grader_features` table contains experimental
+prediction, survival, and draft-context inputs; it does not implement a
+user-facing trade grader. The builder also writes `data/predictions.json`
+and the compact `data/model-report.json` for model inspection and evaluation.
 
-Run write commands sequentially. DuckDB is embedded and protects the local `.duckdb` file with a write lock.
-
-## Querying Locally
+## Querying locally
 
 No server is required. Scripts open `data/model/fantasy-draft.duckdb` directly. If you have the DuckDB CLI installed, you can inspect it with:
 
 ```bash
-duckdb data/model/fantasy-draft.duckdb
+duckdb -readonly data/model/fantasy-draft.duckdb
 ```
 
 Example query:

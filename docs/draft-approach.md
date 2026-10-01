@@ -1,98 +1,87 @@
-# Draft Approach
+# Draft approach
 
-This is the canonical home for durable draft strategy. It should contain
-principles and decision rules, not a frozen player ranking. Season-specific
-evidence belongs in the generated [draft prep report](./draft-prep-report.md).
+Use this guide to prepare for the Primary League draft and decide whom to take
+when your turn arrives. Use the generated [draft prep report](draft-prep-report.md)
+for current players, keepers, and room history. Definitions of Best Pick, Best
+Player, and timing terms live in [CONTEXT.md](../CONTEXT.md).
 
-## Signal Order
+## Prepare for this league
 
-Use signals in this order:
+Confirm the [league settings](../data/primary-league-settings.json) and the
+complete [keeper list](../data/league-history/current-keepers.json) against the
+provider before relying on rankings or planning an opening sequence.
 
-1. League-scored player projection and value over replacement.
-2. Current FantasyPros PPR rankings and projections.
-3. Sleeper platform proxy and this league's historical pick-survival model.
-4. Current roster needs, positional scarcity, and tier drop-offs.
-5. External markets such as Underdog best-ball ADP as context only.
+The saved Primary League profile rewards receptions, rushing attempts, and TE
+receptions, and has two FLEX spots. Use league-scored value when comparing
+players; generic PPR rankings alone do not capture those differences. Account
+for your keeper when deciding which positions your roster still needs.
 
-Underdog is useful for detecting broad market movement. It must not replace the
-home-league market signal because the current Sharp Football Analysis
-[Underdog table](https://www.sharpfootballanalysis.com/fantasy/fantasy-football-adp-half-ppr-underdog-best-ball/)
-is half-PPR and uses best-ball roster construction.
+## At each pick
 
-## Current League Rules
+1. Compare Best Player with Best Pick. Best Player gives the expert-ranking
+   baseline; Best Pick considers your roster and the cost of waiting. Read the
+   stated reason when they differ.
+2. Compare league-scored value among nearby candidates. Favor the player who
+   improves your roster without abandoning a clear player-quality advantage
+   merely to fill a position early.
+3. Compare Depth Value once the starting lineup is covered. A first useful
+   reserve at a thin position should beat another redundant bench player when
+   their player quality is close. Depth Value measures projected lineup
+   protection, not the raw points of players who would remain on the bench.
+4. Check the remaining players in each relevant tier. Waiting is more costly
+   when your candidate is the last attractive option and the next tier is much
+   weaker. Several comparable options give you more room to wait.
+5. Check Return Probability and the Expected Next-Pick Alternative. Identify a
+   fallback you would accept before passing on a target. A return estimate is
+   uncertain, even when the player has lasted longer than expected.
+6. After the pick is recorded, reassess availability, roster needs, and timing.
+   Keep enough remaining selections to complete a legal roster.
 
-The recommendation layer must account for:
+The live policy stays anchored to expert rankings. For source choices and
+recommendation rules, use [data-strategy.md](data-strategy.md).
 
-- full PPR scoring
-- `+0.20` points per rush attempt
-- `+0.50` additional points per TE reception
-- 10 teams
-- keeper-driven player availability
+## Position choices
 
-The rush-attempt bonus raises the value of workhorse RBs and rushing QBs. The TE
-premium raises the value of target-heavy TEs, especially near a tier break.
+- Compare RB workload and receiving opportunities under this league's scoring.
+  Secure needed volume before the remaining options weaken, while checking what
+  you give up at WR or another position.
+- Build WR depth for the WR and FLEX slots. Use the current prep report to judge
+  how quickly this room is taking receivers; do not assume every year repeats
+  the same opening rounds.
+- Take a QB when the league-scored advantage and likely alternatives justify
+  the pick. A run on QBs alone is not a reason to chase the position.
+- Compare TEs by tier and expected reception value. The premium matters most
+  when waiting would leave a substantially weaker option.
+- Leave kicker until late unless the confirmed roster rules or available
+  choices give you a specific reason to act sooner.
 
-## Room Tendencies
+## Read the room
 
-Historical league data should improve timing decisions, not base player quality.
+Use league history and current market cost to judge when players may be taken.
+A player becoming more popular does not by itself improve their projected
+production. Treat individual-manager tendencies cautiously when the sample is
+small, and adjust your plan to the players actually available.
 
-- Use league history to answer whether a player is likely to survive until the
-  next user pick.
-- Recalculate after keepers are announced because keeper supply can materially
-  change positional tiers.
-- Avoid overreacting to one unusual pick or one season.
-- Treat manager-level tendencies as secondary until the sample is larger.
-- Map each player's current consensus market position into the Primary League's
-  empirical position-pick distribution. Blend the resulting historical pick at
-  70%, current consensus cost at 25%, and Sleeper search rank at 5%.
-- Condition Return Probability on the player still being available at the live
-  draft cursor. Recalculate it after every confirmed or provisional pick.
+Keep an alternative opening plan in case a target goes early. The
+[decision experiments](primary-league-experiments.md) can help compare plans,
+but their outcomes depend on saved projections and opponent assumptions.
+Check their inputs before applying them to the current board.
 
-## Position Tiers
+## Draft-week preparation
 
-Displayed tiers are generated locally from league-scored projections and
-within-position value-over-replacement gaps. FantasyPros PPR projections and
-ECR supply the base signal, while the rush-attempt bonus, TE premium, current
-availability, and sportsbook overlay shape the final projection used for tier
-placement.
+1. Confirm the complete keeper list and your draft slot. Mark your own keeper
+   and only record confirmation once the full list has been checked, following
+   the [artifact guidance](data-refresh.md#artifact-ownership).
+2. Run the refresh and preparation commands in [data-refresh.md](data-refresh.md#commands).
+   They fetch data and rewrite artifacts; allow time for modeling and backtests.
+3. Review the regenerated prep report and rerun relevant decision experiments
+   after material keeper, ranking, or draft-order changes. Update your preferred
+   targets and fallback choices from that evidence.
+4. Before live use, run the readiness check and resolve Core Draft Data blockers.
+   Follow the [rehearsal guide](primary-league-rehearsal.md) for a complete draft
+   and outage exercise. At startup, connect the intended provider draft and
+   confirm its settings and keepers.
 
-- Published FantasyPros tiers are retained as reference metadata when the
-  source exposes them; they do not replace the league-adjusted tier.
-- Consensus ADP and league pick-survival affect draft timing, not tier quality.
-- Tier assignments stay fixed during the draft so their meaning does not move.
-- Remaining-player counts and the gap to the next available tier update after
-  every pick.
-- The live Decision Policy turns a meaningful tier cliff into a bounded cost of
-  waiting. The adjustment shrinks when several players remain in the tier, is
-  capped at four policy points, and cannot cross the Conservative Override.
-- The live Decision Policy separately compares drafting a candidate now with
-  the Expected Next-Pick Alternative at the same position. This timing factor is
-  capped at four policy points and stops after the manager's next selection.
-
-## Draft-Day Decision Rules
-
-- Prefer a player with materially higher league-scored VOR when the alternatives
-  are in the same market tier.
-- Take an elite QB when the projection edge and next-pick survival justify it;
-  do not force QB solely because a run started.
-- Secure RB volume before the room exhausts workhorse roles.
-- Keep building WR depth because this league historically spends heavily on WR
-  inside the top 50.
-- Draft TE by tier. The TE-premium edge matters most when the next target-heavy
-  option is unlikely to survive.
-- Leave kicker until late unless the league settings change.
-
-## Draft Week
-
-1. Run `pnpm prepare:draft`.
-2. Update `data/league-history/current-keepers.json` when keepers are announced.
-   Each entry needs `playerName` and `position`; `playerId` is preferred, and
-   the user's keeper should include `"isMyKeeper": true` so roster-aware VOR
-   begins with that player already rostered. Set `updatedAt` to the confirmation
-   timestamp only after the complete league list is present.
-3. Run `pnpm report:draft-prep`.
-4. Review `docs/draft-prep-report.md`.
-
-The live app resolves and removes every confirmed keeper before pick 1 without
-advancing the mock. Mock controls stay locked when the list is unconfirmed or a
-keeper cannot be matched to the current player pool.
+Submit actual picks in the provider draft room. If synchronization fails, use
+Manual Continuity and verify reconciliation when it returns, following the
+[outage recovery rules](primary-league-rehearsal.md#outage-recovery-rules).

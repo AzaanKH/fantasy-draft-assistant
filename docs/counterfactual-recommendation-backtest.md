@@ -1,6 +1,6 @@
 # Counterfactual Recommendation Backtest
 
-Generated: 2026-08-31T04:10:02.302Z
+Generated: 2026-09-05T15:18:30.908Z
 
 This companion to the [fixed-board replay](./recommendation-backtest.md) gives
 each strategy its own draft room. Results are means with 95% Monte Carlo

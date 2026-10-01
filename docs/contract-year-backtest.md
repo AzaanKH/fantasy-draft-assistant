@@ -1,6 +1,6 @@
 # Contract-Year Backtest
 
-Generated: 2026-08-31T04:11:11.063Z
+Generated: 2026-09-05T15:18:41.777Z
 
 Provenance: command `pnpm model:backtest:contracts`; contract identifier `nflverse/contracts/historical_contracts.parquet`; prediction identifier `contract-year-walk-forward-ridge-v1`; historical-input identifier `nflverse-player-stats-and-season-rosters-2012-2025`.
 
