@@ -164,5 +164,9 @@ describe('Assistant decision answer', () => {
         detail: 'First RB is ECR #4, 4 places ahead.',
       },
     ]);
+
+    const fractionalValue = recommendation('second', 'Second RB', 25.5, 0.65, 8);
+    expect(getComparisonHighlights(first, fractionalValue, decision)[0]?.detail)
+      .toBe('First RB has 4.5 more projected points above replacement.');
   });
 });

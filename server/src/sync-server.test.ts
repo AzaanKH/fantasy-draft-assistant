@@ -11,6 +11,7 @@ import {
 import { createSyncServer as createServer, SLEEPER_API_BASE, type FetchJson } from './sync-server.js';
 import type {
   DraftSyncSnapshot,
+  DraftSyncUpdate,
   EspnDraftSnapshot,
 } from '@fantasy-draft/shared';
 import {
@@ -72,6 +73,60 @@ function createYahooMockFetchJson(): FetchJson {
 }
 
 describe('createSyncServer', () => {
+  it('lists authenticated retained sessions without fetching providers or extending activity', async () => {
+    const fixtureFetch = createMockFetchJson();
+    let fetchCalls = 0;
+    const server = createSyncServer({ fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+      fetchCalls += 1;
+      return fixtureFetch<T>(url, signal);
+    } });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const base = `http://127.0.0.1:${port}`;
+    const headers = { 'X-Sync-Token': TOKEN };
+    try {
+      expect((await fetch(`${base}/api/sync/sessions`)).status).toBe(403);
+      expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
+      expect((await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers })).ok).toBe(true);
+      expect((await fetch(`${base}/api/sync/espn/drafts/42/refresh`, { method: 'POST', headers })).ok).toBe(true);
+      const listing = await (await fetch(`${base}/api/sync/sessions`, { headers })).json();
+      expect(listing).toMatchObject({ sessions: [
+        { session: 'espn:42', provider: 'espn', draftId: '42', draftStatus: null,
+          currentPick: null, picksRecorded: 0, sync: { state: 'idle' }, subscribers: 0 },
+        { session: 'sleeper:fixture-draft', provider: 'sleeper', draftId: 'fixture-draft',
+          draftStatus: 'drafting', draftType: 'snake', totalTeams: 10, totalRounds: 15,
+          currentPick: 4, picksRecorded: 3, sync: { state: 'synced', lastError: null }, subscribers: 0 },
+      ] });
+      expect(fetchCalls).toBe(3);
+      expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual(listing);
+      expect(fetchCalls).toBe(3);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.shutdown(error => error ? reject(error) : resolve()));
+    }
+  });
+
+  it('omits expired idle sessions from discovery', async () => {
+    let fetchCalls = 0;
+    const fixtureFetch = createMockFetchJson();
+    const server = createSyncServer({ sessionStaleAfterMs: 1,
+      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+        fetchCalls += 1;
+        return fixtureFetch<T>(url, signal);
+      } });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const base = `http://127.0.0.1:${port}`;
+    const headers = { 'X-Sync-Token': TOKEN };
+    try {
+      expect((await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers })).ok).toBe(true);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
+      expect(fetchCalls).toBe(3);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.shutdown(error => error ? reject(error) : resolve()));
+    }
+  });
+
   it('rejects malformed draft IDs and continues serving valid draft requests', async () => {
     const server = createSyncServer({ fetchJson: createMockFetchJson() });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -173,6 +228,86 @@ describe('createSyncServer', () => {
           resolve();
         });
       });
+    }
+  });
+
+  it('sends a small heartbeat for unchanged polls and a snapshot for a corrected pick', async () => {
+    let providerPicks = picksFixture;
+    const fixtureFetch = createMockFetchJson();
+    const server = createSyncServer({
+      pollIntervalMs: 1_000,
+      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> =>
+        url.endsWith('/fixture-draft/picks')
+          ? providerPicks as T
+          : fixtureFetch<T>(url, signal),
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/sync/sleeper/drafts/fixture-draft/events`,
+        {
+          headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+          signal: controller.signal,
+        }
+      );
+      expect(response.ok).toBe(true);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let pending = '';
+      const nextUpdate = async (): Promise<DraftSyncUpdate> => {
+        for (;;) {
+          const end = pending.indexOf('\n\n');
+          if (end >= 0) {
+            const event = pending.slice(0, end);
+            pending = pending.slice(end + 2);
+            const data = event.split('\n').find((line) => line.startsWith('data: '));
+            if (data) return JSON.parse(data.slice(6)) as DraftSyncUpdate;
+          }
+          const chunk = await reader.read();
+          if (chunk.done) throw new Error('Draft event stream closed');
+          pending += decoder.decode(chunk.value, { stream: true });
+        }
+      };
+      const until = async (matches: (update: DraftSyncUpdate) => boolean) => {
+        for (;;) {
+          const update = await nextUpdate();
+          if (matches(update)) return update;
+        }
+      };
+
+      const initial = await until((update) =>
+        update.type === 'snapshot' && update.snapshot.status === 'synced'
+      );
+      expect(initial.type).toBe('snapshot');
+      const heartbeat = await until((update) => update.type === 'heartbeat');
+      expect(heartbeat).toMatchObject({
+        type: 'heartbeat', provider: 'sleeper', draftId: 'fixture-draft',
+      });
+      expect(heartbeat).not.toHaveProperty('snapshot');
+
+      providerPicks = picksFixture.map((pick, index) =>
+        index === 0 ? { ...pick, player_id: 'corrected-player' } : pick
+      );
+      const correction = await until((update) =>
+        update.type === 'snapshot' &&
+        update.snapshot.picks[0]?.playerId === 'corrected-player'
+      );
+      expect(correction.type).toBe('snapshot');
+      if (correction.type === 'snapshot') {
+        expect(correction.snapshot.picks).toHaveLength(picksFixture.length);
+      }
+      await reader.cancel();
+    } finally {
+      clearTimeout(timeout);
+      controller.abort();
+      await new Promise<void>((resolve, reject) => server.shutdown((error) => {
+        if (error) reject(error);
+        else resolve();
+      }));
     }
   });
 

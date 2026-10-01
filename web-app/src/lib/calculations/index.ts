@@ -29,11 +29,13 @@ export {
 
 // Recommendations
 export {
+  getRecommendationBoard,
   getRecommendations,
 } from './recommendations';
 
 export type {
   RecommendationContext,
+  RecommendationBoardResult,
   RecommendationResult,
   RecommendationSelection,
   RecommendationSelectionPolicy,

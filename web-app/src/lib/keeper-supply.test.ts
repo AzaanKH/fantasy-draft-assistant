@@ -6,6 +6,7 @@ import {
 } from '@fantasy-draft/shared';
 import {
   canonicalizeKeeperSupply,
+  getEffectiveKeeperAssignments,
   isKeeperSupplyComplete,
 } from './keeper-supply';
 import { filterDrafted, getRecommendations } from '@/lib/calculations';
@@ -30,6 +31,19 @@ function entry(
 }
 
 describe('canonicalizeKeeperSupply', () => {
+  it('uses linear pick order when assigning and reconciling keeper reservations', () => {
+    const supply = canonicalizeKeeperSupply([
+      entry('keeper', 'Keeper', 'WR', 1, 2),
+    ], { totalTeams: 10, totalRounds: 14, draftType: 'linear' });
+    expect(supply.assignments[0]?.pickNumber).toBe(12);
+    expect(getEffectiveKeeperAssignments(supply.assignments,
+      [{ playerId: 'keeper', pickNumber: 12 }], 10, 'linear')).toEqual(supply.assignments);
+    expect(getEffectiveKeeperAssignments(supply.assignments,
+      [{ playerId: 'other', pickNumber: 12 }], 10, 'linear')).toEqual([]);
+    expect(getEffectiveKeeperAssignments(supply.assignments,
+      [{ playerId: 'other', pickNumber: 19 }], 10, 'linear')).toEqual(supply.assignments);
+  });
+
   it('assigns each keeper its exact snake-draft selection at the configured round cost', () => {
     const supply = canonicalizeKeeperSupply([
       entry('jt', 'Jonathan Taylor', 'RB', 6, 1),

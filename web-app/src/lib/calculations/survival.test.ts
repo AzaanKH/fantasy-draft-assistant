@@ -134,9 +134,36 @@ describe('getNextUserPick', () => {
       totalRounds: 14,
     })).toBeNull();
   });
+
+  it('skips occupied turns, including when every later turn is reserved', () => {
+    const context = { currentPick: 2, myPickPosition: 2, totalTeams: 10, totalRounds: 3 };
+    expect(getNextUserPick({ ...context, occupiedPickNumbers: new Set([19]) })).toBe(22);
+    expect(getNextUserPick({ ...context, occupiedPickNumbers: new Set([19, 22]) })).toBeNull();
+  });
 });
 
 describe('estimateLeagueSurvivalProbability', () => {
+  it('recalculates probability and timing for the next unreserved selection', () => {
+    const player = createPlayer();
+    const context = { currentPick: 2, myPickPosition: 2, totalTeams: 10, totalRounds: 14 };
+    const ordinary = estimateLeagueSurvivalProbability(player, model, context);
+    const reserved = { ...context, occupiedPickNumbers: new Set([19]) };
+    const later = estimateLeagueSurvivalProbability(player, model, reserved);
+    expect(later.nextPickNumber).toBe(22);
+    expect(later.nextPickLabel).toBe('3.02');
+    expect(later.picksUntilNextPick).toBe(20);
+    expect(later.nextPickSurvivalProbability).toBeLessThan(ordinary.nextPickSurvivalProbability);
+    expect(estimateLeagueSurvivalProbability(player, null, reserved).nextPickNumber).toBe(22);
+    for (const source of [model, null]) {
+      const final = estimateLeagueSurvivalProbability(player, source, {
+        ...reserved, totalRounds: 3, occupiedPickNumbers: new Set([19, 22]),
+      });
+      expect(final.nextPickNumber).toBeUndefined();
+      expect(final.nextPickLabel).toBeUndefined();
+      expect(final.picksUntilNextPick).toBeUndefined();
+    }
+  });
+
   it('lowers survival when the league takes the player position early', () => {
     const player = createPlayer({ position: 'QB', sleeperAdp: 40 });
 

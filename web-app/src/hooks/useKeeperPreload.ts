@@ -125,11 +125,13 @@ export function useKeeperPreload(
   );
   const totalTeams = useDraftStore((state) => state.config.totalTeams);
   const totalRounds = useDraftStore((state) => state.config.totalRounds);
+  const draftType = useDraftStore((state) => state.config.draftType);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const preloadKeepers = useDraftStore((state) => state.preloadKeepers);
   const query = useQuery({
     queryKey: ['current-keepers'],
     queryFn: fetchCurrentKeepers,
+    enabled: keepersEnabled !== false,
     staleTime: Infinity,
   });
 
@@ -178,6 +180,7 @@ export function useKeeperPreload(
     const supply = canonicalizeKeeperSupply(resolved, {
       totalTeams,
       totalRounds,
+      draftType,
     });
     const invalidAssignments = [
       ...supply.invalidEntries.map(getAssignmentLabel),
@@ -193,7 +196,7 @@ export function useKeeperPreload(
       invalidAssignments,
       canonicalAssignments: supply.assignments,
     };
-  }, [keepersEnabled, players, playersLoading, query.data, totalRounds, totalTeams]);
+  }, [keepersEnabled, players, playersLoading, query.data, totalRounds, totalTeams, draftType]);
 
   const configuredCount = keepersEnabled === false ? 0 : query.data?.keepers.length ?? 0;
   const isConfirmed = keepersEnabled === false || (

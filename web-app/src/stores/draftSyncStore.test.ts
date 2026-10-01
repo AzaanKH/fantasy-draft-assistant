@@ -136,3 +136,40 @@ describe('Sleeper mock practice setting', () => {
     expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'espn', draftId: '12345', draftPosition: 5, usePrimaryLeagueSettings: true }))).toBeNull();
   });
 });
+
+
+describe('Quick mock connection profile', () => {
+  afterEach(() => { useDraftSyncConnectionStore.getState().disconnect(); });
+
+  it('persists quick rules for the same draft and resets them for another draft', () => {
+    const store = useDraftSyncConnectionStore.getState();
+    store.startConnection('sleeper', 'quick-1');
+    store.confirmDraftPosition(3);
+    store.setQuickMockSettings(true);
+    const connection = useDraftSyncConnectionStore.getState().connection;
+    expect(parseStoredDraftSyncConnection(JSON.stringify(connection))).toEqual(connection);
+    expect(getDraftSyncConnectionFromSearch(getDraftSyncSearch('', connection))).toEqual(connection);
+    initializeDraftSyncConnection('?provider=sleeper&draftId=quick-1');
+    expect(useDraftSyncConnectionStore.getState().connection?.settingsProfile).toBe('quick-mock');
+    store.startConnection('sleeper', 'another-draft');
+    expect(useDraftSyncConnectionStore.getState().connection?.settingsProfile).toBeUndefined();
+  });
+
+  it('switches mutually exclusive practice profiles and honors an explicit provider link', () => {
+    const store = useDraftSyncConnectionStore.getState();
+    store.startConnection('sleeper', 'quick-1');
+    store.setPrimaryLeagueSettings(true);
+    store.setQuickMockSettings(true);
+    expect(useDraftSyncConnectionStore.getState().connection?.usePrimaryLeagueSettings).toBeUndefined();
+    store.setPrimaryLeagueSettings(true);
+    expect(useDraftSyncConnectionStore.getState().connection?.settingsProfile).toBeUndefined();
+    store.setQuickMockSettings(true);
+    initializeDraftSyncConnection('?provider=sleeper&draftId=quick-1&settings=provider');
+    expect(useDraftSyncConnectionStore.getState().connection).toEqual({ provider: 'sleeper', draftId: 'quick-1', draftPosition: null });
+  });
+
+  it('rejects conflicting or unsupported persisted practice settings', () => {
+    expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'quick', draftPosition: 3, settingsProfile: 'quick-mock', usePrimaryLeagueSettings: true }))).toBeNull();
+    expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'espn', draftId: '12345', draftPosition: 3, settingsProfile: 'quick-mock' }))).toBeNull();
+  });
+});

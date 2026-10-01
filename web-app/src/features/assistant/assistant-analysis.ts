@@ -251,7 +251,7 @@ export function getComparisonHighlights(
       const leader = firstValue > secondValue ? first : second;
       highlights.push({
         label: 'League value',
-        detail: `${leader.playerName} has ${difference.toFixed(0)} more projected points above replacement.`,
+        detail: `${leader.playerName} has ${String(Number(difference.toFixed(1)))} more projected points above replacement.`,
       });
     }
   }

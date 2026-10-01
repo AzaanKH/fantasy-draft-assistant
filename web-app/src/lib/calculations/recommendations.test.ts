@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getRecommendations } from './recommendations';
+import { getRecommendationBoard, getRecommendations } from './recommendations';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
+  POSITIONS,
   type FantasyProsProjection,
   type Player,
   type PositionNeed,
@@ -481,6 +482,45 @@ describe('getRecommendations', () => {
       });
       expect(afterFallbackPick.draftNow.find((pick) => pick.playerId === 'urgent-rb')
         ?.decisionFactors?.draftTiming.expectedAlternative?.playerId).toBe('fallback-two');
+    });
+
+    it('shares timing work across the board without changing position decisions', () => {
+      const players = [
+        { ...createPlayer('rb-top', 'RB', 2), valueOverReplacement: 30,
+          nextPickNumber: 30, nextPickSurvivalProbability: 0.9 },
+        { ...createPlayer('rb-next', 'RB', 4), valueOverReplacement: 20,
+          nextPickNumber: 30, nextPickSurvivalProbability: 0.8 },
+        { ...createPlayer('rb-third', 'RB', 6), valueOverReplacement: 10,
+          nextPickNumber: 30, nextPickSurvivalProbability: 0.7 },
+        { ...createPlayer('wr-top', 'WR', 1), valueOverReplacement: 25,
+          nextPickNumber: 30, nextPickSurvivalProbability: 0.6 },
+        { ...createPlayer('wr-next', 'WR', 5), valueOverReplacement: 15,
+          nextPickNumber: 30, nextPickSurvivalProbability: 0.5 },
+        { ...createPlayer('te-maxed', 'TE', 3), valueOverReplacement: 50,
+          nextPickNumber: 30 },
+      ];
+      const context = {
+        architecture: 'best-pick-policy' as const,
+        requirements: DEFAULT_ROSTER_REQUIREMENTS,
+        rosterCounts: { TE: DEFAULT_ROSTER_REQUIREMENTS.TE.max },
+        selectionsRemaining: 8,
+      };
+      const board = getRecommendationBoard(players, [], 10, context);
+
+      expect(board.overall).toEqual(getRecommendations(players, [], 10, context));
+      for (const position of POSITIONS) {
+        expect(board.byPosition[position]).toEqual(getRecommendations(
+          players.filter((player) => player.position === position),
+          [],
+          10,
+          context
+        ));
+      }
+      expect(board.byPosition.RB.draftNow.find((pick) => pick.playerId === 'rb-top')
+        ?.decisionFactors?.draftTiming.expectedAlternative?.playerId).toBe('rb-next');
+      expect(board.byPosition.RB.draftNow.find((pick) => pick.playerId === 'rb-next')
+        ?.decisionFactors?.draftTiming.expectedAlternative?.playerId).toBe('rb-top');
+      expect(board.byPosition.TE.draftNow).toEqual([]);
     });
 
     it('does not project past the final manager selection', () => {

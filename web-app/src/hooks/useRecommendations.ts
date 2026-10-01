@@ -11,14 +11,13 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   POSITIONS,
-  type Player,
   type Position,
   type Recommendation,
 } from '@fantasy-draft/shared';
 import {
   applyLeagueSurvivalModel,
   filterDrafted,
-  getRecommendations,
+  getRecommendationBoard,
   type RecommendationContext,
   type RecommendationResult,
   type RecommendationSelection,
@@ -87,9 +86,10 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     () => getEffectiveKeeperAssignments(
       preloadedKeepers,
       draftHistory,
-      config.totalTeams
+      config.totalTeams,
+      config.draftType
     ),
-    [config.totalTeams, draftHistory, preloadedKeepers]
+    [config.totalTeams, config.draftType, draftHistory, preloadedKeepers]
   );
   const draftedPlayers = useMemo(
     () => [...draftHistory, ...effectiveKeepers],
@@ -185,37 +185,39 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     config.totalRounds
   );
 
-  const recommendations = useMemo(
-    () => recommendationsEnabled
-      ? getRecommendations(availablePlayers, needs, limit, recommendationContext)
-      : EMPTY_RECOMMENDATIONS,
-    [availablePlayers, recommendationsEnabled, needs, limit, recommendationContext]
-  );
-
-  const positionRecommendationStates = useMemo(() => {
+  const { recommendations, positionRecommendationStates } = useMemo(() => {
     const decisions = {} as Record<Position, PositionRecommendationDecision>;
-    POSITIONS.forEach((position) => {
-      if (!recommendationsEnabled) {
+    if (!recommendationsEnabled) {
+      for (const position of POSITIONS) {
         decisions[position] = {
           recommendations: [],
           bestAvailable: [],
           selection: EMPTY_SELECTION,
         };
-        return;
       }
-      const result = getRecommendations(
-        availablePlayers.filter((player: Player) => player.position === position),
-        needs,
-        limit,
-        recommendationContext
-      );
+      return {
+        recommendations: EMPTY_RECOMMENDATIONS,
+        positionRecommendationStates: decisions,
+      };
+    }
+    const board = getRecommendationBoard(
+      availablePlayers,
+      needs,
+      limit,
+      recommendationContext
+    );
+    for (const position of POSITIONS) {
+      const result = board.byPosition[position];
       decisions[position] = {
         recommendations: result.draftNow,
         bestAvailable: result.bestAvailable,
         selection: result.selection,
       };
-    });
-    return decisions;
+    }
+    return {
+      recommendations: board.overall,
+      positionRecommendationStates: decisions,
+    };
   }, [availablePlayers, recommendationsEnabled, needs, limit, recommendationContext]);
 
   const topPick = recommendations.draftNow[0]

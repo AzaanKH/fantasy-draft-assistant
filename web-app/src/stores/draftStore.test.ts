@@ -57,6 +57,34 @@ describe('draftStore shortlist', () => {
     expect(useDraftStore.getState().sessionMode).toBe('live');
   });
 
+  it('keeps linear keeper reservations consistent through imports, corrections, and resets', () => {
+    const store = createDraftStore();
+    store.getState().setConfig({ totalTeams: 10, draftType: 'linear', myPickPosition: 2 });
+    store.getState().setSessionMode('live');
+    store.getState().preloadKeepers([{
+      playerId: 'keeper', playerName: 'Keeper', position: 'WR', teamIndex: 1, round: 2, isMyKeeper: true,
+    }]);
+    expect(store.getState().preloadedKeepers[0]).toMatchObject({ pickNumber: 12 });
+    const pick = {
+      pickNumber: 12, playerId: 'keeper', playerName: 'Keeper', position: 'WR' as const,
+      teamIndex: 1, teamName: 'My Team', isMyPick: true,
+    };
+    store.getState().reconcileSyncedPicks([pick], 12);
+    expect(store.getState().draftHistory).toEqual([]);
+    expect(store.getState().myRoster.WR).toEqual(['keeper']);
+    expect(store.getState().currentPick).toBe(13);
+    store.getState().reconcileSyncedPicks([{ ...pick, playerId: 'other', playerName: 'Other' }], 13);
+    expect(store.getState().myRoster.WR).toEqual(['other']);
+    expect(store.getState().draftedPlayerIds.has('keeper')).toBe(false);
+    store.getState().undoLastPick();
+    expect(store.getState().myRoster.WR).toEqual(['keeper']);
+    store.getState().consumeKeeperAtCurrentPick();
+    expect(store.getState().draftHistory[0]).toMatchObject({ pickNumber: 12, playerId: 'keeper', source: 'keeper' });
+    store.getState().resetDraft();
+    expect(store.getState().config.draftType).toBe('linear');
+    expect(store.getState().myRoster.WR).toEqual(['keeper']);
+  });
+
   it('records a Provisional Pick in the canonical sequence and every affected roster', () => {
     const store = useDraftStore.getState();
     store.setSessionMode('live');

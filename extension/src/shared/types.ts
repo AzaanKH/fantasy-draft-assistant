@@ -1,3 +1,4 @@
+import { LOCAL_PORTS } from './local-config';
 /**
  * Extension message types for communication between
  * content script, background service worker, and side panel
@@ -153,5 +154,5 @@ export const STORAGE_KEYS = {
 /**
  * Default web app URL
  */
-export const DEFAULT_WEB_APP_URL = 'http://localhost:3000';
-export const DEFAULT_SYNC_SERVER_URL = 'http://localhost:3001';
+export const DEFAULT_WEB_APP_URL = LOCAL_PORTS.webOrigin;
+export const DEFAULT_SYNC_SERVER_URL = `http://localhost:${String(LOCAL_PORTS.apiPort)}`;

@@ -38,7 +38,16 @@ export interface BestPickPolicyContext {
   readonly rosterPlayers?: readonly PickEvRosterPlayer[];
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
+  readonly draftTimingAlternatives?: DraftTimingAlternatives;
 }
+
+type DraftTimingAlternative = NonNullable<
+  RecommendationDecisionFactors['draftTiming']['expectedAlternative']
+>;
+export type DraftTimingAlternatives = ReadonlyMap<
+  Position,
+  readonly DraftTimingAlternative[]
+>;
 
 function getOptimalStarters(
   roster: readonly PickEvRosterPlayer[],
@@ -405,9 +414,47 @@ function getTierSupplyFactor(
   };
 }
 
+/** Sort each position's next-pick substitutes once for the entire candidate pool. */
+export function prepareDraftTimingAlternatives(
+  candidates: readonly Player[]
+): DraftTimingAlternatives {
+  const byPosition = new Map<Position, DraftTimingAlternative[]>();
+  for (const candidate of candidates) {
+    const returnProbability = clamp(
+      candidate.nextPickSurvivalProbability,
+      0,
+      1
+    );
+    const valueOverReplacement = round(
+      Math.max(0, candidate.valueOverReplacement),
+      1
+    );
+    const alternatives = byPosition.get(candidate.position) ?? [];
+    alternatives.push({
+      playerId: candidate.id,
+      playerName: candidate.name,
+      position: candidate.position,
+      ecrRank: candidate.ecrRank,
+      valueOverReplacement,
+      returnProbability,
+      expectedValue: round(valueOverReplacement * returnProbability, 1),
+    });
+    byPosition.set(candidate.position, alternatives);
+  }
+  for (const alternatives of byPosition.values()) {
+    alternatives.sort((left, right) =>
+      right.expectedValue - left.expectedValue ||
+      left.ecrRank - right.ecrRank ||
+      compareText(left.playerName, right.playerName) ||
+      compareText(left.playerId, right.playerId)
+    );
+  }
+  return byPosition;
+}
+
 function getDraftTimingFactor(
   player: Player,
-  candidates: readonly Player[]
+  alternatives: DraftTimingAlternatives
 ): RecommendationDecisionFactors['draftTiming'] {
   const candidateValue = round(Math.max(0, player.valueOverReplacement), 1);
   const nextPickNumber = player.nextPickNumber;
@@ -423,38 +470,9 @@ function getDraftTimingFactor(
     };
   }
 
-  const expectedAlternatives = candidates
-    .filter((candidate) =>
-      candidate.id !== player.id &&
-      candidate.position === player.position
-    )
-    .map((candidate) => {
-      const returnProbability = clamp(
-        candidate.nextPickSurvivalProbability,
-        0,
-        1
-      );
-      const valueOverReplacement = round(
-        Math.max(0, candidate.valueOverReplacement),
-        1
-      );
-      return {
-        playerId: candidate.id,
-        playerName: candidate.name,
-        position: candidate.position,
-        ecrRank: candidate.ecrRank,
-        valueOverReplacement,
-        returnProbability,
-        expectedValue: round(valueOverReplacement * returnProbability, 1),
-      };
-    })
-    .sort((left, right) =>
-      right.expectedValue - left.expectedValue ||
-      left.ecrRank - right.ecrRank ||
-      compareText(left.playerName, right.playerName) ||
-      compareText(left.playerId, right.playerId)
-    );
-  const expectedAlternative = expectedAlternatives[0];
+  const expectedAlternative = alternatives.get(player.position)?.find(
+    (alternative) => alternative.playerId !== player.id
+  );
   const returnProbability = clamp(
     player.nextPickSurvivalProbability,
     0,
@@ -573,6 +591,8 @@ export function evaluateBestPickPolicy(
 
   const ecrRankLimit = ecrChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD;
   const tierAvailability = calculateTierAvailability(candidatePlayers);
+  const draftTimingAlternatives = context.draftTimingAlternatives ??
+    prepareDraftTimingAlternatives(candidatePlayers);
   const evaluations = candidatePlayers.map((player): BestPickPolicyEvaluation => {
     const after = analyzeRoster(addCandidate(counts, player.position), requirements);
     const samePositionTier =
@@ -601,7 +621,7 @@ export function evaluateBestPickPolicy(
       player,
       tierAvailability.get(getTierKey(player.position, player.tier))
     );
-    const draftTiming = getDraftTimingFactor(player, candidatePlayers);
+    const draftTiming = getDraftTimingFactor(player, draftTimingAlternatives);
     const playerQualityScore = -player.ecrRank;
     const legalCompletionPossible = canCompleteLegalRoster(
       player,

@@ -8,6 +8,7 @@ export interface PersistedDraftSyncConnection {
   readonly draftId: string;
   readonly draftPosition: number | null;
   readonly usePrimaryLeagueSettings?: boolean;
+  readonly settingsProfile?: 'quick-mock';
 }
 
 interface DraftSyncConnectionStore {
@@ -16,6 +17,7 @@ interface DraftSyncConnectionStore {
   confirmDraftPosition: (draftPosition: number) => void;
   restoreConnection: (connection: PersistedDraftSyncConnection) => void;
   setPrimaryLeagueSettings: (enabled: boolean) => void;
+  setQuickMockSettings: (enabled: boolean) => void;
   disconnect: () => void;
 }
 
@@ -45,6 +47,7 @@ export function isPersistedDraftSyncConnection(
     isDraftProvider(candidate.provider) &&
     isValidDraftSyncId(candidate.provider, candidate.draftId) &&
     (candidate.draftPosition === null || isDraftPosition(candidate.draftPosition)) &&
+    (candidate.settingsProfile === undefined || (candidate.settingsProfile === 'quick-mock' && candidate.provider === 'sleeper' && candidate.usePrimaryLeagueSettings !== true)) &&
     (candidate.usePrimaryLeagueSettings === undefined ||
       (typeof candidate.usePrimaryLeagueSettings === 'boolean' &&
        (candidate.provider === 'sleeper' || !candidate.usePrimaryLeagueSettings)))
@@ -78,6 +81,7 @@ export function getDraftSyncConnectionFromSearch(
     draftId,
     ...(provider === 'sleeper' && params.get('settings') === 'primary-league-mock'
       ? { usePrimaryLeagueSettings: true } : {}),
+    ...(provider === 'sleeper' && params.get('settings') === 'quick-mock' ? { settingsProfile: 'quick-mock' as const } : {}),
     draftPosition: isDraftPosition(parsedPosition) ? parsedPosition : null,
   };
 }
@@ -99,6 +103,7 @@ export function getDraftSyncSearch(
     if (connection.provider === 'sleeper' && connection.usePrimaryLeagueSettings) {
       params.set('settings', 'primary-league-mock');
     }
+    if (connection.settingsProfile === 'quick-mock') params.set('settings', 'quick-mock');
     if (connection.draftPosition !== null) {
       params.set('position', String(connection.draftPosition));
     }
@@ -150,6 +155,8 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
         draftId: normalizedDraftId,
         ...(current?.provider === provider && current.draftId === normalizedDraftId && current.usePrimaryLeagueSettings
           ? { usePrimaryLeagueSettings: true } : {}),
+        ...(current?.provider === provider && current.draftId === normalizedDraftId && current.settingsProfile === 'quick-mock'
+          ? { settingsProfile: 'quick-mock' as const } : {}),
         draftPosition:
           current?.provider === provider && current.draftId === normalizedDraftId
             ? current.draftPosition
@@ -175,8 +182,20 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
       const current = get().connection;
       if (!current || current.provider !== 'sleeper') return;
       const connection = { ...current };
-      if (enabled) connection.usePrimaryLeagueSettings = true;
+      if (enabled) {
+        connection.usePrimaryLeagueSettings = true;
+        delete connection.settingsProfile;
+      }
       else delete connection.usePrimaryLeagueSettings;
+      persistConnection(connection);
+      set({ connection });
+    },
+    setQuickMockSettings: (enabled) => {
+      const current = get().connection;
+      if (!current || current.provider !== 'sleeper') return;
+      const connection = { ...current };
+      if (enabled) { connection.settingsProfile = 'quick-mock'; delete connection.usePrimaryLeagueSettings; }
+      else delete connection.settingsProfile;
       persistConnection(connection);
       set({ connection });
     },
@@ -195,11 +214,12 @@ export function initializeDraftSyncConnection(search: string): void {
   const storedConnection = store.connection;
   const sameDraft = storedConnection?.provider === urlConnection.provider &&
     storedConnection.draftId === urlConnection.draftId;
-  const connection = sameDraft ? {
+  const explicitSettings = new URLSearchParams(search).has('settings');
+  const connection: PersistedDraftSyncConnection = sameDraft ? {
     ...urlConnection,
     draftPosition: urlConnection.draftPosition ?? storedConnection.draftPosition,
-    ...(urlConnection.usePrimaryLeagueSettings || storedConnection.usePrimaryLeagueSettings
-      ? { usePrimaryLeagueSettings: true } : {}),
+    ...(!explicitSettings && storedConnection.settingsProfile === 'quick-mock' ? { settingsProfile: 'quick-mock' as const } : {}),
+    ...(!explicitSettings && storedConnection.usePrimaryLeagueSettings ? { usePrimaryLeagueSettings: true } : {}),
   } : urlConnection;
   store.restoreConnection(connection);
 }

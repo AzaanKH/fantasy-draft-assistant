@@ -12,7 +12,8 @@ let vite: ViteDevServer;
 let base: string;
 
 beforeAll(async () => {
-  backend = createSyncServer({ requestToken: TOKEN });
+  const allowedOrigins = ['http://localhost:0'];
+  backend = createSyncServer({ requestToken: TOKEN, allowedOrigins });
   await new Promise<void>(resolve => backend.listen(0, '127.0.0.1', resolve));
   const target = `http://127.0.0.1:${(backend.address() as AddressInfo).port}`;
   const root = fileURLToPath(new URL('../../web-app/', import.meta.url));
@@ -27,8 +28,14 @@ beforeAll(async () => {
         ? localApiSecurity(() => TOKEN) : plugin),
     server: { ...loaded.config.server, host: '127.0.0.1', port: 0, proxy: { '/api': { ...proxy, target } } },
   });
-  await vite.listen();
-  base = `http://127.0.0.1:${(vite.httpServer!.address() as AddressInfo).port}`;
+  await new Promise<void>((resolve, reject) => {
+    vite.httpServer!.once('error', reject);
+    vite.httpServer!.listen(0, '127.0.0.1', resolve);
+  });
+  const webPort = (vite.httpServer!.address() as AddressInfo).port;
+  base = `http://127.0.0.1:${webPort}`;
+  // The backend must trust this isolated Vite listener, not the everyday app.
+  allowedOrigins[0] = `http://localhost:${webPort}`;
 });
 
 afterAll(async () => {

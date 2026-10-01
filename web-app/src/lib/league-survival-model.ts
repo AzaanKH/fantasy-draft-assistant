@@ -22,7 +22,7 @@ function isLeagueSurvivalPositionSummary(value: unknown): boolean {
   );
 }
 
-function isLeagueSurvivalModel(value: unknown): value is LeagueSurvivalModel {
+export function isLeagueSurvivalModel(value: unknown): value is LeagueSurvivalModel {
   if (
     !isRecord(value) ||
     typeof value['generatedAt'] !== 'string' ||

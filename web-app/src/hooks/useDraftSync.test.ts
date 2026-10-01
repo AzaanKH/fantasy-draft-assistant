@@ -5,6 +5,7 @@ import type {
   Player,
 } from '@fantasy-draft/shared';
 import {
+  applyDraftSyncHeartbeat,
   DRAFT_SYNC_STALE_AFTER_MS,
   formatDraftSyncAge,
   getDraftSyncConnectionState,
@@ -47,6 +48,30 @@ function createPlayer(
     ...overrides,
   } as Player;
 }
+
+describe('applyDraftSyncHeartbeat', () => {
+  it('updates freshness and recovery status without replacing draft content', () => {
+    const snapshot: DraftSyncSnapshot = {
+      provider: 'sleeper', draftId: 'draft-123', draft: null,
+      picks: [createPick()], status: 'error', lastPolledAt: 100,
+      lastSuccessfulSyncAt: 100, lastError: 'Provider unavailable',
+    };
+    const heartbeat = {
+      type: 'heartbeat' as const, provider: 'sleeper' as const,
+      draftId: 'draft-123', lastPolledAt: 200, lastSuccessfulSyncAt: 200,
+    };
+    const restored = applyDraftSyncHeartbeat(snapshot, heartbeat, 'sleeper', 'draft-123');
+
+    expect(restored).toMatchObject({
+      status: 'synced', lastPolledAt: 200,
+      lastSuccessfulSyncAt: 200, lastError: null,
+    });
+    expect(restored?.picks).toBe(snapshot.picks);
+    expect(applyDraftSyncHeartbeat(restored, heartbeat, 'sleeper', 'draft-123')).toBe(restored);
+    expect(applyDraftSyncHeartbeat(snapshot, { ...heartbeat, draftId: 'other' }, 'sleeper', 'draft-123')).toBe(snapshot);
+    expect(applyDraftSyncHeartbeat(restored, { ...heartbeat, lastSuccessfulSyncAt: 50 }, 'sleeper', 'draft-123')).toBe(restored);
+  });
+});
 
 describe('resolveDraftPickImports', () => {
   it('rejects a pick whose position and local identity are both unknown', () => {
@@ -279,6 +304,19 @@ describe('resolveDraftPickImports', () => {
         teamIndex: 7,
       }),
     ]);
+  });
+
+  it('matches linear keeper slots without hiding conflicts at the corresponding snake slot', () => {
+    const player = createPlayer();
+    const keeper = {
+      playerId: player.id, playerName: player.name, position: player.position,
+      teamIndex: 1, round: 2, isMyKeeper: false,
+    };
+    const pick = createPick({ playerId: player.id, isKeeper: true, pickNumber: 12, round: 2, draftSlot: 2, teamIndex: 1 });
+    expect(resolveDraftPickImports([pick], [player], 1, [keeper], 10, 'linear'))
+      .toEqual({ picks: [], rejectedPicks: [] });
+    expect(resolveDraftPickImports([{ ...pick, pickNumber: 19 }], [player], 1, [keeper], 10, 'linear').picks)
+      .toHaveLength(1);
   });
 });
 

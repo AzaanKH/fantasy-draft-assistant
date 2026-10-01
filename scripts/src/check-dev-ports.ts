@@ -1,6 +1,8 @@
+import { localDevPorts } from '@fantasy-draft/shared';
 import { createServer } from 'node:net';
 
-const DEV_PORTS = [3000, 3001] as const;
+const { webPort, apiPort } = localDevPorts(process.env);
+const DEV_PORTS = [webPort, apiPort];
 
 async function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve, reject) => {
@@ -24,7 +26,7 @@ async function isPortAvailable(port: number): Promise<boolean> {
       });
     });
 
-    server.listen(port);
+    server.listen(port, '127.0.0.1');
   });
 }
 

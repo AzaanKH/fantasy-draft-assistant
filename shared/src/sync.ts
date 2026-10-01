@@ -118,11 +118,19 @@ export interface DraftSyncSnapshot {
   readonly lastError: string | null;
 }
 
-export interface DraftSyncUpdate {
-  readonly type: 'snapshot' | 'pick' | 'status';
-  readonly snapshot: DraftSyncSnapshot;
-  readonly pick?: DraftPickEvent;
-}
+export type DraftSyncUpdate =
+  | {
+    readonly type: 'snapshot' | 'pick' | 'status';
+    readonly snapshot: DraftSyncSnapshot;
+    readonly pick?: DraftPickEvent;
+  }
+  | {
+    readonly type: 'heartbeat';
+    readonly provider: DraftProvider;
+    readonly draftId: string;
+    readonly lastPolledAt: number;
+    readonly lastSuccessfulSyncAt: number;
+  };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -341,11 +349,19 @@ export function isDraftSyncSnapshot(value: unknown): value is DraftSyncSnapshot 
 
 /** Runtime validation for the untrusted SSE payload consumed by the web app. */
 export function isDraftSyncUpdate(value: unknown): value is DraftSyncUpdate {
-  if (!isRecord(value) || !isDraftSyncSnapshot(value.snapshot)) {
+  if (!isRecord(value)) {
     return false;
   }
 
+  if (value.type === 'heartbeat') {
+    return isDraftProvider(value.provider) &&
+      typeof value.draftId === 'string' && value.draftId.length <= 128 &&
+      isFiniteNumber(value.lastPolledAt) &&
+      isFiniteNumber(value.lastSuccessfulSyncAt);
+  }
+
   return (
+    isDraftSyncSnapshot(value.snapshot) &&
     (value.type === 'snapshot' || value.type === 'pick' || value.type === 'status') &&
     (value.pick === undefined || isDraftPickEvent(value.pick))
   );
@@ -421,6 +437,22 @@ export function normalizeSleeperDraftMetadata(
   };
 }
 
+function samePickContent(left: DraftPickEvent, right: DraftPickEvent): boolean {
+  return left.draftId === right.draftId &&
+    left.pickNumber === right.pickNumber &&
+    left.round === right.round &&
+    left.rosterId === right.rosterId &&
+    left.draftSlot === right.draftSlot &&
+    left.teamIndex === right.teamIndex &&
+    left.playerId === right.playerId &&
+    left.playerName === right.playerName &&
+    left.position === right.position &&
+    left.nflTeam === right.nflTeam &&
+    left.isKeeper === right.isKeeper &&
+    left.source === right.source &&
+    left.confidence === right.confidence;
+}
+
 export class DraftSyncEngine {
   private readonly provider: DraftProvider;
   private readonly draftId: string;
@@ -473,6 +505,7 @@ export class DraftSyncEngine {
   ): {
     readonly snapshot: DraftSyncSnapshot;
     readonly newPicks: readonly DraftPickEvent[];
+    readonly changed: boolean;
   } {
     if (!isDraftMetadata(draft)) {
       throw new Error('Invalid draft metadata or picks');
@@ -497,6 +530,24 @@ export class DraftSyncEngine {
     const sortedPicks = [...normalizedPicks].sort(
       (a, b) => a.pickNumber - b.pickNumber
     );
+
+    const contentChanged =
+      JSON.stringify(this.snapshot.draft) !== JSON.stringify(draft) ||
+      this.snapshot.picks.length !== sortedPicks.length ||
+      sortedPicks.some((pick, index) =>
+        !samePickContent(pick, this.snapshot.picks[index]!)
+      );
+
+    if (!contentChanged) {
+      this.snapshot = {
+        ...this.snapshot,
+        status: 'synced',
+        lastPolledAt: now,
+        lastSuccessfulSyncAt: now,
+        lastError: null,
+      };
+      return { snapshot: this.snapshot, newPicks: [], changed: false };
+    }
 
     const nextPicksByNumber = new Map<number, DraftPickEvent>();
     const newPicks: DraftPickEvent[] = [];
@@ -534,6 +585,7 @@ export class DraftSyncEngine {
     return {
       snapshot: this.snapshot,
       newPicks,
+      changed: true,
     };
   }
 }
