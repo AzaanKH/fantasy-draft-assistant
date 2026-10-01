@@ -1,136 +1,119 @@
 ---
 name: verify-fantasy-draft-assistant
-description: Verify the Fantasy Draft Assistant through its React Draft Workspace and Draft Companion UI when checking local startup, draft-board behavior, navigation, mock drafting, a live read-only Sleeper mock-draft connection, roster settings, or captured browser evidence.
+description: Verify Fantasy Draft Assistant through its browser workspace and draft CLI. Use for board, queue, mock, Assistant, provider connection, CLI, and offline replay changes.
 ---
 
 # Verify Fantasy Draft Assistant
 
-Use this skill from the repository root. Read [features/README.md](features/README.md) and the matching feature file before driving the app.
-
-## Scope
-
-The primary user surface is the React Draft Workspace, normally at `http://localhost:3000/draft`. The Draft Companion at `/sidepanel` is a secondary web route and the matching Chrome extension lives under `extension/`. The local sync API normally listens on `127.0.0.1:3001`. Verification runs use isolated ports recorded in `run.json`.
-
-The helper drives a fresh Playwright browser context. It never reuses a signed-in browser profile or an existing local app process. The app does not submit provider picks, but a connected provider draft can expose live draft state. Only use provider IDs supplied for the verification run.
-
-## Prerequisites
-
-- Use macOS or Linux with writable `/tmp`, `rsync`, `lsof`, `ps`, and support for POSIX process-group signals. Native Windows is not supported.
-- Run on Node 20 or newer and pnpm 9 or newer with workspace dependencies already installed.
-- Keep a non-placeholder `FANTASYPROS_API_KEY` in the repository-root `.env.local`. The helper copies this file into disposable state and never prints the value.
-- The helper chooses free web and API ports. It changes only the disposable copy's Vite proxy and development port check, then passes the API port and allowed web origin to the server. It never drives a listener it did not start.
-- Expect the launch to call live Sleeper and FantasyPros endpoints. The mandatory `pnpm dev:live` preflight refreshes Core Draft Data.
-- Do not use the checked-in manual FantasyPros fallback for this verification. On August 26, 2026, that fallback produced rankings without FantasyPros IDs, which made canonical identity coverage `0/321` and stopped startup.
+Use this skill to check what a drafter can do in the web app and CLI. Read [the feature map](features/README.md) before choosing a path. The React app at `/draft` and `/assistant` is the primary user surface. The CLI is another user interface for provider sessions and recorded archives. The Chrome extension side panel, provider draft rooms, and local API need separate checks when affected. CLI JSON can corroborate connected data and advice, but it cannot read browser-local queues, mocks, selected players, or settings profiles. Unit tests and the deterministic Primary League rehearsal do not prove that browser controls work.
 
 ## Launch
 
-Choose a unique run ID and launch from the repository root:
+From the repository root, run:
 
 ```bash
-RUN_ID="verify-$(date -u +%Y%m%dT%H%M%SZ)-$$"
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs launch "$RUN_ID"
+.agents/skills/verify-fantasy-draft-assistant/helpers/control.py start
 ```
 
-The helper copies the current checkout, including uncommitted files and `.env.local`, to `/tmp/fantasy-draft-assistant-verification/$RUN_ID/repo`. It links the installed `node_modules` directories, assigns free ports in that copy, runs `pnpm build`, then starts the required `pnpm dev:live` command in its own process group. This keeps port changes and preflight rewrites out of the working checkout.
+The command prints a `run_id`, the URL, and the evidence directory. Set `RUN_ID` to that printed ID and `EVIDENCE` to the printed directory for the commands below. It copies the current checkout, including uncommitted source and `.env.local`, into a private temporary directory; installs locked dependencies there; builds the shared package and CLI with `pnpm build:cli`; then runs the documented `pnpm dev:live`. The live preflight refreshes Sleeper and FantasyPros inputs and writes reports only in the copy. `FANTASYPROS_API_KEY` in `.env.local` is optional because the refresh has a documented fallback. The copied server creates its own pairing token in `.local/sync-token`. No provider login is needed for the local mock or queue paths.
 
-Launch is ready only after all of these checks pass:
+The everyday app defaults to 3000/3001. Verification defaults to 3100/3101, set together with `DRAFT_WEB_PORT` and `DRAFT_API_PORT`. Override verification with `start --web-port 3200 --api-port 3201`. The helper checks only the requested pair, refuses occupied ports, and never attaches to an existing instance. It waits for `/draft` and `/api/health` to return HTTP 200. The copy keeps the checked-out app's data files, while the printed `browser_profile` is a fresh private directory for the extension browser. The test origin also separates web localStorage and IndexedDB from the everyday app. Ports alone do not isolate cookies or extension storage, so extension checks must use this private profile. If package installation, live refresh, or readiness fails, read `setup.log` or `app.log` in the printed evidence directory. The helper removes a failed copy automatically.
 
-- The run-specific `$WEB_URL/draft` returns HTTP 200.
-- The run-specific `$API_URL/api/health` returns HTTP 200 with `{"ok":true}`.
-- The startup process remains alive.
+For offline CLI checks, including when another app owns the fixed ports, use:
 
-Launch writes `run.json`, `build.log`, `build.json`, and `startup.log` under `.agents/skills/verify-fantasy-draft-assistant/artifacts/$RUN_ID/`.
+```bash
+.agents/skills/verify-fantasy-draft-assistant/helpers/control.py start --offline
+```
+
+This creates a fresh private checkout and builds the CLI without starting a server or refreshing providers. It preserves current data timestamps, so stale-data blockers are valid results. The `.local` pairing file and saved CLI connections are excluded. Use a new offline run for each independent scenario; commands within one replay scenario share its private checkout. An offline run does not satisfy browser or live-provider coverage.
 
 ## Doctor
 
-Run this read-only safety check before the first drive and after any surprising failure:
+Before the first drive in each run, and after any failed or surprising drive, run this read-only check:
 
 ```bash
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs doctor "$RUN_ID" \
-  | tee ".agents/skills/verify-fantasy-draft-assistant/artifacts/$RUN_ID/doctor.json"
+.agents/skills/verify-fantasy-draft-assistant/helpers/control.py doctor "$RUN_ID"
 ```
 
-Doctor requires the recorded process group to be alive, confirms that the run-specific listeners belong to that group, checks the three build outputs, reads both readiness endpoints, confirms the disposable data directory, requires FantasyPros API data, checks at least `98%` ranking identity coverage and all 32 defenses, and reports the credential as present without exposing it.
+Require every boolean to be `true`. It checks the process group, private checkout and data directory, shared build output, ownership of both recorded ports, web and API readiness, and a token-authenticated read of the copy's keeper data. App mode also checks that its token differs from the everyday checkout and that its browser profile is private. Both modes also check the CLI build and execute its help command. Offline mode checks only the private checkout and builds; it does not probe occupied ports or another server. If it fails, stop this run and inspect its logs. Do not drive a listener that the doctor cannot associate with this run.
 
-Do not drive the app when doctor fails. Do not stop or reuse an unknown listener.
+## Browser drive
 
-## Drive
+Use T3 Code's collaborative preview when available. Call `preview_status`, then `preview_open` if needed. Use a dedicated run tab, navigate to the printed URL, inspect with `preview_snapshot`, and drive snapshot-provided locators. After doctor proves ownership, reset localStorage, sessionStorage, and any app IndexedDB only on the printed test origin before the first scenario, then reload. Record `RUN_ID` in sessionStorage. Never reset 3000/3001 or another active run. A dedicated tab alone does not isolate storage; the separate test origin provides web storage isolation from your everyday app. Use the private profile for cookie or extension checks. The doctor cannot detect a wedged UI, so reload or reopen the run tab after a surprising browser failure. Save its evidence and close only that tab during cleanup.
 
-Use the scenario from the matching feature file:
+If T3 preview tools are absent or explicitly unavailable, use `agent-browser` with this run's ID:
 
 ```bash
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" workspace-queue
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" connection-dialog
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" mock-start
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" assistant-navigation
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" roster-settings
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" sidepanel-preview
+agent-browser --session "$RUN_ID" open http://127.0.0.1:3100/draft
+agent-browser --session "$RUN_ID" snapshot -i
 ```
 
-The stable handles are route paths, ARIA labels, roles, and visible button names. Do not replace them with coordinates or generated Radix IDs.
+Drive with accessible button names from a fresh snapshot. Resnapshot after navigation, dialogs, or tab changes. The draft toolbar has `Start mock`; the board has `Current pick` and `Full board`; the lower `Draft tools` region has `Players`, `Suggestions`, `Queue`, and `Roster` tabs. The header has `Draft workspace` and `Assistant` buttons. `/assistant` and `/sidepanel` are also routes, but `/sidepanel` is a companion layout and is not an extension installation test.
 
-The helper always opens a new browser context with no local storage. It does not inherit a saved provider connection. `connection-dialog` stops before submitting a provider ID. `sleeper-provider` submits only the explicit mock-draft URL passed on its command line and reads Sleeper through the app's normal server path. `mock-start` mutates only that disposable browser context.
+For the proven queue path, the player pool buttons use `Add <player name> to local shortlist`. The Best Pick bar uses `Add <player name> to the local queue`. After an add, open the `Queue` tab and check its own player row. See [queue and shortlist](features/queue-and-shortlist.md) for the exact commands and proof.
 
-Run the Sleeper provider rehearsal with a mock-draft URL supplied for this run. The optional slot defaults to `1`:
+## Required browser coverage
+
+Use the real `/draft` and `/assistant` controls with normal refreshed data. Keep one coordinating driver and run these checks serially. A CLI success does not complete a browser row.
+
+| Path | Required action and independent confirmation |
+| --- | --- |
+| Queue | Add independently from Players, Best Pick, Suggestions, Assistant header, Assistant pool, and positional depth. After each add, confirm the named Queue row, remove it, and exercise toast Undo. Check an empty queue between entry points. |
+| Mock | Start with a recorded slot and seed; advance one CPU turn and run to your turn; draft an available player; confirm board and Roster; undo an ordinary pick; branch after several picks; restart and exit. |
+| Navigation | Open Assistant from the header, Why this pick, and Ask why. Check the selected player, all four questions, and both return buttons. Confirm pick history and queue survive route changes. |
+| Extension | Launch the actual test build in the private profile, pair to the private API, load the side panel, and observe a real provider draft update reaching the private app. Record missing provider login/draft prerequisites separately. |
+
+Use the feature recipes for selectors and capture before/after snapshots, screenshots, visible text, and the selected player's identity. A toast alone is not queue proof, and `/sidepanel` alone is not extension proof.
+
+## Extension browser
+
+The app watcher builds `extension/dist` in the private copy with the same port pair. Its defaults, URL validation, host permissions, and frame CSP follow those ports. A test extension rejects everyday app URLs.
 
 ```bash
-test -n "$SLEEPER_MOCK_URL"
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive \
-  "$RUN_ID" sleeper-provider "$SLEEPER_MOCK_URL" 1
+"$CONTROL" extension-browser "$RUN_ID" --browser-executable "/absolute/path/to/Chromium"
 ```
 
-The helper accepts only an HTTPS `sleeper.com/draft/nfl/<numeric-draft-id>` URL. It cannot tell whether the ID belongs to a mock or production draft, so the operator must supply a mock. The Fantasy Draft Assistant polls Sleeper's read-only API and never submits a provider pick.
+Set `CONTROL` to this skill's `helpers/control.py`. Use Chromium or Chrome for Testing with unpacked-extension loading support. The helper launches only this run's build and private profile, records its process, and opens `chrome://extensions/`. Verify Fantasy Draft Assistant is enabled without errors. Do not load the test build into your everyday profile. Follow [live draft connection](features/live-draft-connection.md) for pairing and observation proof. If the collaborative browser cannot drive an installed extension, perform this portion in the launched extension browser and retain its evidence separately; never count web-preview results as extension results.
+
+## CLI drive
+
+Use the skill helper so the executable, data root, saved connection, and token all belong to the private checkout:
+
+```bash
+CONTROL=.agents/skills/verify-fantasy-draft-assistant/helpers/control.py
+"$CONTROL" cli "$RUN_ID" -- --help
+"$CONTROL" cli "$RUN_ID" -- readiness --json > "$EVIDENCE/readiness.json" 2> "$EVIDENCE/readiness.stderr"
+CLI_EXIT=$?
+printf '%s\n' "$CLI_EXIT" > "$EVIDENCE/readiness.exit"
+```
+
+The helper runs doctor before each command and after a nonzero exit. Doctor writes to stderr, leaving stdout as CLI output. It clears inherited `DRAFT_*` and `SYNC_REQUEST_TOKEN`, sets `DRAFT_ROOT` to the private copy and `DRAFT_SERVER_URL` to this run's API port, and invokes `node cli/bin/draft.mjs` to preserve exact exit codes. Supply session and slot explicitly when comparing against the browser. To test saved defaults, run `connect` first inside that same private run. Never use a globally linked `draft` for verification.
+
+Offline runs allow local `readiness`, help, and replay commands. Connected commands require an app run. Use absolute paths for replay input and export output, because the helper runs from the private checkout. Read [CLI and replay](features/cli-and-replay.md) for command coverage, streams, and expected errors. Rebuild after source changes by starting a fresh copy.
 
 ## Evidence
 
-Evidence lives at `.agents/skills/verify-fantasy-draft-assistant/artifacts/$RUN_ID/$SCENARIO/`:
+Put proof under the printed `EVIDENCE` path, which is `artifacts/verification/<run_id>/` and is ignored by Git. Record the feature file, entry point, action, and result in a short text file. CLI proof includes the arguments, stdout, stderr, and exact exit code. Keep archives and finite NDJSON recordings here too. Label fixture, recorded-provider, and live-provider evidence separately; an archive never proves current sync. Save a browser snapshot before the action, a snapshot after it, and screenshots showing the relevant control and resulting state. For a state change, open a second read-only view such as the Queue tab, then save its snapshot and visible text. A screenshot alone is insufficient if it does not show what changed.
 
-- `before.png` and `after.png` show the user action and resulting UI with the app header visible.
-- `before-aria.yml` and `after-aria.yml` record the user-facing accessibility state.
-- `action.json` records the feature ID, route, stable handle, input, and observed result.
-- `result.json` records pass or fail and the second read-only view used to confirm the result.
-- `console.json` and `network-failures.json` preserve browser diagnostics.
-- `trace.zip` contains the Playwright trace.
-- `provider-snapshot.json` is added by `sleeper-provider`. It records the canonical provider, draft ID, status, settings, and picks returned by the local sync API after the UI connection succeeds.
-
-A passing proof needs `result.json` with `"passed": true`, both screenshots, both ARIA snapshots, and a second read-only view. A screenshot alone is not proof. The queue scenario, for example, clicks `Add <player> to local shortlist`, opens the `Queue` tab, and confirms `Remove <player> from queue` without another mutation.
-
-Inspect a trace with:
-
-```bash
-pnpm --filter scripts exec playwright show-trace \
-  ".agents/skills/verify-fantasy-draft-assistant/artifacts/$RUN_ID/$SCENARIO/trace.zip"
-```
+The app's `/__visual/` routes use fictional fixed data for README screenshots. They are useful for layout checks but do not prove the real draft workspace. The browser run here uses real app controls and the app's normal refreshed data. Provider connections need a separate real draft and current settings confirmation; never claim live sync from a local mock.
 
 ## Cleanup
 
-Always clean up, including after a failed drive:
+After capturing evidence, run:
 
 ```bash
-node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs cleanup "$RUN_ID"
+.agents/skills/verify-fantasy-draft-assistant/helpers/control.py stop "$RUN_ID"
 ```
 
-Cleanup authenticates the recorded leader or a recorded surviving child before signaling the process group, waits for it to exit, and removes only `/tmp/fantasy-draft-assistant-verification/$RUN_ID`. It never kills by process name. If ownership cannot be verified or processes survive termination, cleanup preserves the runtime and reports `cleanup-blocked` in `run.json`. It preserves the artifact directory and updates `run.json` with cleanup status.
-
-Confirm proof survived cleanup:
-
-```bash
-test -s ".agents/skills/verify-fantasy-draft-assistant/artifacts/$RUN_ID/$SCENARIO/result.json"
-test -s ".agents/skills/verify-fantasy-draft-assistant/artifacts/$RUN_ID/$SCENARIO/after.png"
-```
+Close a T3 preview run tab separately after saving its evidence. The helper closes this run's `agent-browser` session when installed, closes the recorded extension browser process group, signals only the app process group it started, and removes only its private temporary checkout. It leaves `artifacts/verification/<run_id>/` intact. Confirm the evidence files still exist. Never kill processes by name or clear a shared browser profile.
 
 ## Helpers
 
-`scripts/verify.mjs` is the only helper. Invoke it with:
+- `helpers/control.py start` creates the private checkout, installs dependencies, builds the CLI, runs `pnpm dev:live`, and prints the run details.
+- `helpers/control.py extension-browser <run_id> --browser-executable <path>` loads the actual test extension in the run's disposable profile.
+- `helpers/control.py start --offline` creates and builds a private copy without starting services.
+- `helpers/control.py cli <run_id> -- <arguments>` checks the run and executes its CLI with isolated defaults. It preserves command exit codes; helper failures exit 1.
+- `helpers/control.py doctor <run_id>` performs the read-only safety and readiness check.
+- `helpers/control.py stop <run_id>` closes this run's browser session and removes its process and copy while retaining proof.
 
-```text
-verify.mjs launch <run-id>
-verify.mjs doctor <run-id>
-verify.mjs drive <run-id> <scenario> [scenario-arguments]
-verify.mjs cleanup <run-id>
-verify.mjs help
-```
-
-`sleeper-provider` requires a Sleeper mock-draft URL and accepts an optional draft slot. All other scenarios take no extra arguments.
-
-Use only run IDs containing letters, digits, dots, underscores, or hyphens. Each run ID is single-use so earlier evidence cannot be confused with a new run.
+The helper requires Python 3, `rsync`, Node 22.12+, and pnpm 9.15.0. App mode also requires `lsof`; browser checks require an available browser driver. Test helper isolation and cleanup with `python3 -m unittest discover -s .agents/skills/verify-fantasy-draft-assistant/helpers -p 'test_*.py'`. Reprove changed helpers with an actual start, doctor, drive, and stop cycle.

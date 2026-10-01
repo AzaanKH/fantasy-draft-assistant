@@ -64,3 +64,11 @@ data/shadow-logs/*.ndjson
 # Playwright
 playwright-report/
 test-results/
+
+# Local investigations and one-off working notes
+/artifacts/
+/.scratch/
+
+# Python verification helper caches
+__pycache__/
+*.pyc
