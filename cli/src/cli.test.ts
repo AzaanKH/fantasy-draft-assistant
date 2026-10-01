@@ -16,6 +16,7 @@ let snapshot: DraftSyncSnapshot;
 let requestCount = 0;
 let streamCount = 0;
 let streamHandler: ((response: ServerResponse) => void) | null = null;
+let sessionsResponseBody: string | null = null;
 const connections = new Set<ServerResponse>();
 
 beforeAll(async () => {
@@ -29,6 +30,7 @@ beforeAll(async () => {
     }
     if (request.url === '/api/sync/sessions') {
       response.setHeader('Content-Type', 'application/json');
+      if (sessionsResponseBody !== null) { response.end(sessionsResponseBody); return; }
       response.end(JSON.stringify({ sessions: [{ session: `${snapshot.provider}:${snapshot.draftId}`,
         provider: snapshot.provider, draftId: snapshot.draftId, draftStatus: snapshot.draft?.status ?? null,
         draftType: snapshot.draft?.type ?? null, totalTeams: snapshot.draft?.settings.teams ?? null,
@@ -52,7 +54,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  snapshot = fixtureSnapshot(); streamHandler = null; streamCount = 0; requestCount = 0;
+  snapshot = fixtureSnapshot(); streamHandler = null; sessionsResponseBody = null; streamCount = 0; requestCount = 0;
   await Promise.all(['cli-connections.json', 'session.json'].map(file => rm(join(root, '.local', file), { force: true })));
 });
 afterAll(async () => {
@@ -140,6 +142,18 @@ describe('draft CLI against a local fixture server', () => {
     expect(result.result.data.sessions).toEqual([expect.objectContaining({ session: 'sleeper:fixture',
       picksRecorded: 1, totalTeams: 10, active: false, slot: null })]);
     expect(result.stdout).not.toContain(token);
+  });
+
+  it.each([
+    ['malformed JSON', '{bad json}'],
+    ['a null response', 'null'],
+    ['a missing session list', '{}'],
+    ['an invalid session summary', '{"sessions":[{}]}'],
+  ])('reports INVALID_SESSIONS for %s', async (_description, body) => {
+    sessionsResponseBody = body;
+    const result = await command(['sessions', '--json']);
+    expect(result.code).toBe(1);
+    expect(result.result.error).toMatchObject({ code: 'INVALID_SESSIONS', message: 'The server sent an invalid session list.' });
   });
 
   it('connects by URL and saves the session and slot for later commands', async () => {

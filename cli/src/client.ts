@@ -97,7 +97,9 @@ export class DraftClient {
 
   async sessions(signal: AbortSignal): Promise<readonly DraftSessionSummary[]> {
     const response = await this.request('/api/sync/sessions', 'GET', AbortSignal.any([signal, AbortSignal.timeout(20_000)]));
-    const value = await response.json() as { sessions?: unknown };
+    let value: { sessions?: unknown } | null;
+    try { value = await response.json() as { sessions?: unknown } | null; }
+    catch { throw new CliError('INVALID_SESSIONS', 'The server sent an invalid session list.'); }
     if (!value || !Array.isArray(value.sessions) || value.sessions.length > 128 || !value.sessions.every(isDraftSessionSummary)) {
       throw new CliError('INVALID_SESSIONS', 'The server sent an invalid session list.');
     }
