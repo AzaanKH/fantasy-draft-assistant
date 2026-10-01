@@ -46,8 +46,7 @@ vi.mock('./usePlayerData', () => ({
   usePlayerDataQuery: () => ({ players: [{ id: 'known', name: 'Canonical Name', position: 'WR', team: 'BUF' }] }),
 }));
 
-function renderDraft(draftId: string) {
-  const store = createDraftStore();
+function renderDraft(draftId: string, store = createDraftStore()) {
   let result: ReturnType<typeof useDraftSync> | undefined;
   function CaptureDraft() {
     result = useDraftSync('sleeper', draftId);
@@ -103,6 +102,45 @@ describe('Sleeper sync ingress and reconciliation', () => {
   function liveSnapshot() {
     return mocks.states[0] as DraftSyncSnapshot;
   }
+
+  it('advances the reconciled timestamp for unchanged imports without reconciling them twice', () => {
+    const snapshot = { ...mocks.snapshot };
+    mocks.query.mockReturnValue({ data: snapshot });
+    const store = createDraftStore();
+    const reconcile = vi.fn(store.getState().reconcileSyncedPicks);
+    vi.spyOn(store, 'getInitialState').mockReturnValue({ ...store.getInitialState(), reconcileSyncedPicks: reconcile });
+    const { cleanup } = renderDraft('Draft_1-abc', store);
+    try {
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(mocks.states[2]).toBe(100);
+      snapshot.lastPolledAt = 200;
+      snapshot.lastSuccessfulSyncAt = 200;
+      mocks.effects.at(-1)?.();
+      expect(mocks.states[2]).toBe(200);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('stores the provider draft type before reconciling keeper picks', () => {
+    const snapshot: DraftSyncSnapshot = {
+      ...newerSnapshot,
+      draft: {
+        provider: 'sleeper', draftId: 'Draft_1-abc', providerKey: 'Draft_1-abc',
+        status: 'drafting', type: 'linear', draftOrder: null,
+        settings: { teams: 10, rounds: 14, pickTimer: 30 },
+      },
+    };
+    mocks.query.mockReturnValue({ data: snapshot });
+    const { store, cleanup } = renderDraft('Draft_1-abc');
+    try {
+      expect(store.getState().config.draftType).toBe('linear');
+      expect(store.getState().draftHistory[0]).toMatchObject({ playerId: 'known' });
+    } finally {
+      cleanup();
+    }
+  });
 
   it('preserves newer streamed picks when a delayed refresh arrives before heartbeats', async () => {
     let finishRefresh!: (response: unknown) => void;

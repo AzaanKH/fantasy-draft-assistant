@@ -15,4 +15,8 @@ describe('local service ports', () => {
   it('rejects colliding services', () => {
     expect(() => localDevPorts({ DRAFT_API_PORT: '3000' })).toThrow('different');
   });
+  it('omits the default HTTP port from both local origins', () => {
+    expect(localDevPorts({ DRAFT_WEB_PORT: '80' }).webOrigin).toBe('http://localhost');
+    expect(localDevPorts({ DRAFT_API_PORT: '80' }).apiOrigin).toBe('http://127.0.0.1');
+  });
 });

@@ -52,6 +52,19 @@ function player(id: string, overrides: Partial<Player> = {}): Player {
 }
 
 describe('positional depth drilldowns', () => {
+  it('uses the same identity once when duplicate records disagree on position', () => {
+    const input = [player('duplicate', { position: 'RB', tier: 2 }),
+      player('duplicate', { position: 'WR', tier: 1 }), player('wr', { position: 'WR', tier: 3 })];
+    const available = getAvailableDepthPlayers(input, new Set());
+    const rows = getPositionalDepth(input, new Set());
+    expect(rows.find(row => row.position === 'RB')?.tier2).toBe(1);
+    expect(rows.find(row => row.position === 'WR')?.tier1).toBe(0);
+    for (const row of rows) {
+      expect(row.total).toBe(getDepthPlayers(available, row.position, 'all').length);
+    }
+    expect(rows.reduce((total, row) => total + row.total, 0)).toBe(2);
+  });
+
   it('shows exactly the available players counted in each tier, ordered by rank', () => {
     const input = [player('kept'), player('picked'), player('second', { ecrRank: 8 }),
       player('first', { ecrRank: 2 }), player('first', { ecrRank: 2 }), player('later', { tier: 5 })];

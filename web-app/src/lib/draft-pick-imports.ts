@@ -1,6 +1,5 @@
-import type { DraftPickEvent, Player, Position } from '@fantasy-draft/shared';
-import type { KeeperSupplyEntry } from './keeper-supply';
-import { getPickNumberForTeamRound } from './mock-draft-engine';
+import type { DraftPickEvent, DraftType, Player, Position } from '@fantasy-draft/shared';
+import { getKeeperPickNumber, type KeeperSupplyEntry } from './keeper-supply';
 
 export interface DraftPickImportRejection {
   readonly pickNumber: number;
@@ -92,7 +91,8 @@ export function resolveDraftPickImports(
   players: readonly Player[],
   myPickPosition: number,
   preloadedKeepers: readonly KeeperSupplyEntry[] = [],
-  totalTeams: number = 0
+  totalTeams: number = 0,
+  draftType: DraftType = 'snake'
 ): DraftPickImportResult {
   const playersById = new Map<string, Player>();
   const playersByNameTeam = new Map<string, Player>();
@@ -103,11 +103,7 @@ export function resolveDraftPickImports(
   const preloadedKeeperKeys = new Set(
     totalTeams > 0
       ? preloadedKeepers.map((keeper) => `${keeper.playerId}:${String(
-        getPickNumberForTeamRound(
-          keeper.teamIndex,
-          keeper.round,
-          totalTeams
-        )
+        getKeeperPickNumber(keeper, totalTeams, draftType)
       )}`)
       : []
   );

@@ -26,6 +26,7 @@ import type {
   Player,
   Position,
   DraftPick,
+  DraftType,
   LeagueSettings,
   RosterRequirements,
 } from '@fantasy-draft/shared';
@@ -39,10 +40,9 @@ import {
 import {
   canonicalizeKeeperSupply,
   getEffectiveKeeperAssignments,
+  getKeeperPickNumber,
 } from '@/lib/keeper-supply';
 import {
-  getKeeperAtPick,
-  getPickNumberForTeamRound,
   getTeamIndexForPick,
 } from '@/lib/mock-draft-engine';
 
@@ -88,6 +88,7 @@ interface FilterState {
 export interface DraftConfig {
   totalTeams: number;
   totalRounds: number;
+  draftType: DraftType;
   myPickPosition: number;
   rosterRequirements: RosterRequirements;
 }
@@ -191,10 +192,11 @@ function addPlayerToRoster(
 
 function getKeeperPickNumbers(
   keepers: readonly PreloadedKeeper[],
-  totalTeams: number
+  totalTeams: number,
+  draftType: DraftType
 ): Set<number> {
   return new Set(keepers.map((keeper) =>
-    getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams)
+    getKeeperPickNumber(keeper, totalTeams, draftType)
   ));
 }
 
@@ -202,12 +204,14 @@ function advancePastKeeperSlots(
   pickNumber: number,
   keepers: readonly PreloadedKeeper[],
   totalTeams: number,
-  totalPicks: number
+  totalPicks: number,
+  draftType: DraftType
 ): number {
   let nextPick = pickNumber;
+  const keeperPicks = getKeeperPickNumbers(keepers, totalTeams, draftType);
   while (
     nextPick <= totalPicks &&
-    getKeeperAtPick(keepers, nextPick, totalTeams)
+    keeperPicks.has(nextPick)
   ) {
     nextPick += 1;
   }
@@ -333,7 +337,8 @@ function rebuildCanonicalRosters(state: Pick<
   const effectiveKeepers = getEffectiveKeeperAssignments(
     state.preloadedKeepers,
     state.draftHistory,
-    state.config.totalTeams
+    state.config.totalTeams,
+    state.config.draftType
   );
 
   for (const keeper of effectiveKeepers) {
@@ -353,10 +358,11 @@ function getNextCanonicalOpenPick(
   history: readonly RecordedDraftPick[],
   keepers: readonly PreloadedKeeper[],
   totalTeams: number,
-  totalPicks: number
+  totalPicks: number,
+  draftType: DraftType
 ): number {
   const occupied = new Set(history.map((pick) => pick.pickNumber));
-  for (const keeperPick of getKeeperPickNumbers(keepers, totalTeams)) {
+  for (const keeperPick of getKeeperPickNumbers(keepers, totalTeams, draftType)) {
     occupied.add(keeperPick);
   }
 
@@ -400,7 +406,8 @@ function rebuildAfterProvisionalChange(state: Pick<
   const effectiveKeepers = getEffectiveKeeperAssignments(
     state.preloadedKeepers,
     state.draftHistory,
-    state.config.totalTeams
+    state.config.totalTeams,
+    state.config.draftType
   );
   state.draftedPlayerIds = new Set([
     ...state.draftHistory.map((pick) => pick.playerId),
@@ -414,7 +421,8 @@ function rebuildAfterProvisionalChange(state: Pick<
     state.draftHistory,
     effectiveKeepers,
     state.config.totalTeams,
-    state.config.totalTeams * state.config.totalRounds
+    state.config.totalTeams * state.config.totalRounds,
+    state.config.draftType
   );
   state.mockSurvivalProbabilities = {};
 }
@@ -531,6 +539,7 @@ const defaultFilter: FilterState = {
 const defaultConfig: DraftConfig = {
   totalTeams: 10,
   totalRounds: 14,
+  draftType: 'snake',
   myPickPosition: 5,
   rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
 };
@@ -591,6 +600,7 @@ export function createDraftStore(): BoundDraftStore {
       { set((state) => {
         if ((newConfig.myPickPosition !== undefined && !Number.isFinite(newConfig.myPickPosition)) ||
             !isDraftSize(newConfig.totalTeams ?? state.config.totalTeams, newConfig.totalRounds ?? state.config.totalRounds) ||
+            (newConfig.draftType !== undefined && !['snake', 'linear', 'auction'].includes(newConfig.draftType)) ||
             (newConfig.rosterRequirements !== undefined && !isRosterRequirements(newConfig.rosterRequirements))) return;
         const nextTotalTeams = Math.max(
           2,
@@ -611,6 +621,7 @@ export function createDraftStore(): BoundDraftStore {
           nextTotalTeams === state.config.totalTeams &&
           nextTotalRounds === state.config.totalRounds &&
           nextPickPosition === state.config.myPickPosition &&
+          (newConfig.draftType ?? state.config.draftType) === state.config.draftType &&
           newConfig.rosterRequirements === undefined
         ) {
           return;
@@ -778,7 +789,8 @@ export function createDraftStore(): BoundDraftStore {
         );
         const reservedKeeperPickNumbers = getKeeperPickNumbers(
           state.preloadedKeepers,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         const invalidPick =
           state.sessionMode !== 'live' ||
@@ -831,7 +843,8 @@ export function createDraftStore(): BoundDraftStore {
         );
         const reservedKeeperPickNumbers = getKeeperPickNumbers(
           state.preloadedKeepers,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         const duplicatesAnotherPick = state.draftHistory.some(
           (pick, index) =>
@@ -918,20 +931,18 @@ export function createDraftStore(): BoundDraftStore {
         const effectiveKeepers = getEffectiveKeeperAssignments(
           state.preloadedKeepers,
           incomingPicks,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         const keeperPickKeys = new Set(
           effectiveKeepers.map((keeper) => `${keeper.playerId}:${String(
-            getPickNumberForTeamRound(
-              keeper.teamIndex,
-              keeper.round,
-              state.config.totalTeams
-            )
+            getKeeperPickNumber(keeper, state.config.totalTeams, state.config.draftType)
           )}`)
         );
         const keeperPickNumbers = getKeeperPickNumbers(
           effectiveKeepers,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         const ordinaryIncomingPicks = incomingPicks
           .filter(
@@ -1019,7 +1030,8 @@ export function createDraftStore(): BoundDraftStore {
           Math.min(totalPicks + 1, Math.max(1, Math.round(nextPickNumber))),
           effectiveKeepers,
           state.config.totalTeams,
-          totalPicks
+          totalPicks,
+          state.config.draftType
         );
         const historyChanged = !hasSameCanonicalHistory(
           state.draftHistory,
@@ -1079,6 +1091,7 @@ export function createDraftStore(): BoundDraftStore {
         const supply = canonicalizeKeeperSupply(keepers, {
           totalTeams: state.config.totalTeams,
           totalRounds: state.config.totalRounds,
+          draftType: state.config.draftType,
         });
         const supplyIsValid =
           supply.duplicatePlayerIds.length === 0 &&
@@ -1100,7 +1113,8 @@ export function createDraftStore(): BoundDraftStore {
         const effectiveKeepers = getEffectiveKeeperAssignments(
           state.preloadedKeepers,
           state.draftHistory,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         state.draftedPlayerIds = new Set([
           ...state.draftHistory.map((pick) => pick.playerId),
@@ -1115,7 +1129,8 @@ export function createDraftStore(): BoundDraftStore {
             state.currentPick,
             effectiveKeepers,
             state.config.totalTeams,
-            state.config.totalTeams * state.config.totalRounds
+            state.config.totalTeams * state.config.totalRounds,
+            state.config.draftType
           );
         }
         state.mockSurvivalProbabilities = {};
@@ -1123,10 +1138,8 @@ export function createDraftStore(): BoundDraftStore {
 
     consumeKeeperAtCurrentPick: () =>
       { set((state) => {
-        const keeper = getKeeperAtPick(
-          state.preloadedKeepers,
-          state.currentPick,
-          state.config.totalTeams
+        const keeper = state.preloadedKeepers.find(
+          (candidate) => getKeeperPickNumber(candidate, state.config.totalTeams, state.config.draftType) === state.currentPick
         );
         if (!keeper) return;
         if (state.draftHistory.some((pick) => pick.pickNumber === state.currentPick)) return;
@@ -1161,7 +1174,8 @@ export function createDraftStore(): BoundDraftStore {
           const effectiveKeepers = getEffectiveKeeperAssignments(
             state.preloadedKeepers,
             state.draftHistory,
-            state.config.totalTeams
+            state.config.totalTeams,
+            state.config.draftType
           );
           state.draftedPlayerIds = new Set([
             ...state.draftHistory.map((pick) => pick.playerId),
@@ -1193,7 +1207,8 @@ export function createDraftStore(): BoundDraftStore {
         const effectiveKeepers = getEffectiveKeeperAssignments(
           state.preloadedKeepers,
           state.draftHistory,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         state.draftedPlayerIds = new Set([
           ...effectiveKeepers.map((keeper) => keeper.playerId),

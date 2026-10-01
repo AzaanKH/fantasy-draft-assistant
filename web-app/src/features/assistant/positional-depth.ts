@@ -11,12 +11,11 @@ export interface PositionalDepth {
 }
 
 export function getPositionalDepth(players: readonly Pick<Player, 'id' | 'position' | 'tier'>[], draftedIds: ReadonlySet<string>): PositionalDepth[] {
+  const availablePlayers = getAvailableDepthPlayers(players, draftedIds);
   return POSITIONS.map((position) => {
     const row: PositionalDepth = { position, tier1: 0, tier2: 0, tier3: 0, other: 0, total: 0 };
-    const counted = new Set<string>();
-    for (const player of players) {
-      if (player.position !== position || draftedIds.has(player.id) || counted.has(player.id)) continue;
-      counted.add(player.id);
+    for (const player of availablePlayers) {
+      if (player.position !== position) continue;
       row.total += 1;
       if (player.tier === 1) row.tier1 += 1;
       else if (player.tier === 2) row.tier2 += 1;

@@ -471,6 +471,7 @@ export function useDraftSync(
     setConfig({
       totalTeams: snapshot.draft.settings.teams,
       totalRounds: snapshot.draft.settings.rounds,
+      draftType: snapshot.draft.type,
     });
     applyLeagueSettings(resolveSyncedLeagueSettings(
       provider,
@@ -483,6 +484,7 @@ export function useDraftSync(
 
   const pickHistory = snapshot?.picks;
   const draftSettings = snapshot?.draft?.settings;
+  const draftType = snapshot?.draft?.type;
 
   const importResult = useMemo(() => {
     if (!pickHistory || isPlayerDataLoading) {
@@ -494,7 +496,8 @@ export function useDraftSync(
       players,
       myPickPosition,
       preloadedKeepers,
-      totalTeams
+      totalTeams,
+      draftType
     );
   }, [
     pickHistory,
@@ -503,6 +506,7 @@ export function useDraftSync(
     myPickPosition,
     preloadedKeepers,
     totalTeams,
+    draftType,
   ]);
 
   const nextOpenPickNumber = useMemo(() => {
@@ -536,6 +540,7 @@ export function useDraftSync(
       previousImport.rejectedPicks === importResult.rejectedPicks &&
       previousImport.nextOpenPickNumber === nextOpenPickNumber
     ) {
+      setLastReconciledSnapshotAt(snapshot.lastSuccessfulSyncAt);
       return;
     }
 
