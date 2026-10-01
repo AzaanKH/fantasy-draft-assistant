@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T20:51:39.438Z",
+  "generatedAt": "2026-09-05T15:17:24.668Z",
   "modelVersion": "position-ridge-v4-nested-selection-2021-2025",
   "seasons": [
     2021,
@@ -187,7 +187,7 @@
     },
     {
       "tableName": "source.nflverse_player_ids",
-      "rowCount": 25066
+      "rowCount": 24828
     },
     {
       "tableName": "source.nflverse_snap_counts",
@@ -219,11 +219,11 @@
     },
     {
       "tableName": "source.dynastyprocess_rankings",
-      "rowCount": 1824172
+      "rowCount": 1830022
     },
     {
       "tableName": "source.dynastyprocess_player_ids",
-      "rowCount": 12484
+      "rowCount": 12492
     },
     {
       "tableName": "model.prediction_training_dataset",
@@ -235,27 +235,27 @@
     },
     {
       "tableName": "model.qb_prediction_features",
-      "rowCount": 130
+      "rowCount": 118
     },
     {
       "tableName": "model.rb_prediction_features",
-      "rowCount": 222
+      "rowCount": 191
     },
     {
       "tableName": "model.wr_prediction_features",
-      "rowCount": 405
+      "rowCount": 317
     },
     {
       "tableName": "model.te_prediction_features",
-      "rowCount": 225
+      "rowCount": 197
     },
     {
       "tableName": "model.position_model_components",
-      "rowCount": 1053
+      "rowCount": 893
     },
     {
       "tableName": "model.prediction_outputs",
-      "rowCount": 1053
+      "rowCount": 893
     },
     {
       "tableName": "model.league_history_survival_training_dataset",
@@ -263,7 +263,7 @@
     },
     {
       "tableName": "model.draft_pick_trade_grader_features",
-      "rowCount": 1053
+      "rowCount": 893
     }
   ]
 }
