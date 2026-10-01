@@ -1,0 +1,908 @@
+{
+  "fileId": "01M3WA2Q1MFA27D0073VKWBR6K",
+  "pageId": "p-1-0",
+  "status": "Pending. Paper weekly MCP quota reached during creation of the desktop example.",
+  "bindings": {
+    "desktop": "B0-0"
+  },
+  "steps": [
+    {
+      "tool": "write_html",
+      "targetRef": "desktop",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Snake draftboard\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;gap:4px;padding-bottom:24px;\"></div>",
+      "bind": "snakeBoard",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 1 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 1 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_blue.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 1</div></div></div>",
+      "bind": "teamCol0",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 2 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 2 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v3/avatars/avatar_default_aqua.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 2</div></div></div>",
+      "bind": "teamCol1",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 3 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 3 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v3/avatars/avatar_default_purple.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 3</div></div></div>",
+      "bind": "teamCol2",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 4 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 4 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_salmon.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 4</div></div></div>",
+      "bind": "teamCol3",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 5 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;background:var(--color-primary-subtle);border:1px solid var(--color-primary);border-radius:8px;\"><div layer-name=\"Team 5 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_lilac.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-foreground);\">AzaanKhalfe</div></div></div>",
+      "bind": "teamCol4",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 6 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 6 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v3/avatars/avatar_default_yellow.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 6</div></div></div>",
+      "bind": "teamCol5",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 7 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 7 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_mint.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 7</div></div></div>",
+      "bind": "teamCol6",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 8 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 8 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_orange.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 8</div></div></div>",
+      "bind": "teamCol7",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 9 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 9 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v3/avatars/avatar_default_lightblue.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 9</div></div></div>",
+      "bind": "teamCol8",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "snakeBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Team 10 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div layer-name=\"Team 10 header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:76px;\"><img src=\"https://sleepercdn.com/images/v3/avatars/avatar_default_pink.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;height:40px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 10</div></div></div>",
+      "bind": "teamCol9",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol0",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.01\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.01</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Bijan<br/>Robinson</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · ATL (11)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9509.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.01",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol1",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.02\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.02</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Jahmyr<br/>Gibbs</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · DET (6)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9221.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.02",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol2",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.03\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.03</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Jonathan<br/>Taylor</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · IND (13)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/6813.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.03",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol3",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.04\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.04</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Christian<br/>McCaffrey</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · SF (8)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/4034.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.04",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol4",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.05\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-wr);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.05</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Ja'Marr<br/>Chase</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">WR · CIN (6)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/7564.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.05",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol5",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.06\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.06</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">James<br/>Cook</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · BUF (7)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/8138.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.06",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol6",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.07\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.07</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">De'Von<br/>Achane</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · MIA (6)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9226.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.07",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol7",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.08\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.08</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Derrick<br/>Henry</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · BAL (13)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/3198.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.08",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol8",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.09\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-wr);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.09</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Jaxon<br/>Smith-Njigba</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">WR · SEA (11)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9488.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.09",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol9",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 1.10\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-wr);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">1.10</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Puka<br/>Nacua</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">WR · LAR (11)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9493.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick1.10",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol0",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.10 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.10</div></div>",
+      "bind": "pick2.10",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol1",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.09 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.09</div></div>",
+      "bind": "pick2.09",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol2",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.08 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.08</div></div>",
+      "bind": "pick2.08",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol3",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.07 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.07</div></div>",
+      "bind": "pick2.07",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol4",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.06 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.06</div></div>",
+      "bind": "pick2.06",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol5",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.05\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-qb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">2.05</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Josh<br/>Allen</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">QB · BUF (7)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/4984.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick2.05",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol6",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.04\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">2.04</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Kyren<br/>Williams</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · LAR (11)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/8150.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick2.04",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol7",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.03\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-wr);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">2.03</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">CeeDee<br/>Lamb</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">WR · DAL (14)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/6786.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick2.03",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol8",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.02\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">2.02</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Ashton<br/>Jeanty</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · LV (13)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/12527.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick2.02",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol9",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 2.01\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;position:relative;flex-direction:column;justify-content:center;gap:3px;height:74px;padding:8px;background:var(--color-position-rb);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;top:6px;right:7px;color:var(--color-primary-foreground);font-size:12px;\">2.01</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;line-height:16px;font-weight:700;color:var(--color-primary-foreground);\">Omarion<br/>Hampton</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:16px;color:var(--color-primary-foreground);\">RB · LAC (7)</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/12507.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);position:absolute;bottom:0;right:0;width:28px;height:28px;object-fit:cover;\"/></div>",
+      "bind": "pick2.01",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol0",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.01 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.01</div></div>",
+      "bind": "pick3.01",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol1",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.02 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.02</div></div>",
+      "bind": "pick3.02",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol2",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.03 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.03</div></div>",
+      "bind": "pick3.03",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol3",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.04 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.04</div></div>",
+      "bind": "pick3.04",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol4",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.05 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.05</div></div>",
+      "bind": "pick3.05",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol5",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.06 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.06</div></div>",
+      "bind": "pick3.06",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol6",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.07 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.07</div></div>",
+      "bind": "pick3.07",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol7",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.08 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.08</div></div>",
+      "bind": "pick3.08",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol8",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.09 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.09</div></div>",
+      "bind": "pick3.09",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol9",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 3.10 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.10</div></div>",
+      "bind": "pick3.10",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol0",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.10 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.10</div></div>",
+      "bind": "pick4.10",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol1",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.09 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.09</div></div>",
+      "bind": "pick4.09",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol2",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.08 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.08</div></div>",
+      "bind": "pick4.08",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol3",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.07 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.07</div></div>",
+      "bind": "pick4.07",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol4",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.06 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.06</div></div>",
+      "bind": "pick4.06",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol5",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.05 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.05</div></div>",
+      "bind": "pick4.05",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol6",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.04 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.04</div></div>",
+      "bind": "pick4.04",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol7",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.03 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.03</div></div>",
+      "bind": "pick4.03",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol8",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.02 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.02</div></div>",
+      "bind": "pick4.02",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "teamCol9",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pick 4.01 upcoming\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:74px;padding:8px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">4.01</div></div>",
+      "bind": "pick4.01",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktop",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Player workspace\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:stretch;border-top:1px solid var(--color-border);\"><div layer-name=\"Player pool\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;flex:1;min-width:0;border-right:1px solid var(--color-border);\"></div><div layer-name=\"Roster panel\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;width:360px;flex-shrink:0;\"></div></div>",
+      "bind": "playerWorkspace",
+      "bindChildren": {
+        "Player pool": "playerPool",
+        "Roster panel": "rosterPanel"
+      }
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Pool toolbar\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:72px;padding:12px;background:var(--color-surface);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:8px;width:250px;height:44px;padding:0 12px;background:var(--color-surface-inset);border:1px solid var(--color-border);border-radius:8px;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\" stroke=\"#A5B3CB\" stroke-width=\"1.7\"/><path d=\"m16 16 5 5\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\"/></svg><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Search player or team</div></div><div layer-name=\"Desktop filters\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;gap:8px;\"></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:44px;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-muted-foreground);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:16px;height:16px;border:1px solid var(--color-border);border-radius:4px;\"></div>Drafted</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);padding:12px;font-size:14px;background:var(--color-surface-inset);border:1px solid var(--color-border);border-radius:6px;\">'26 Projected</div></div>",
+      "bind": "poolToolbar",
+      "bindChildren": {
+        "Desktop filters": "desktopFilters"
+      }
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktopFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;height:48px;border-radius:999px;background:var(--color-foreground);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">All</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">1 / 15</div></div>",
+      "bind": "desktopFilterAll",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktopFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;height:48px;border-radius:999px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-foreground);\">QB</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">0 / 1</div></div>",
+      "bind": "desktopFilterQB",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktopFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;height:48px;border-radius:999px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-foreground);\">RB</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">0 / 2</div></div>",
+      "bind": "desktopFilterRB",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktopFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;height:48px;border-radius:999px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-foreground);\">WR</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">1 / 2</div></div>",
+      "bind": "desktopFilterWR",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktopFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;height:48px;border-radius:999px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-foreground);\">TE</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">0 / 1</div></div>",
+      "bind": "desktopFilterTE",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktopFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;height:48px;border-radius:999px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-foreground);\">FLEX</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">0 / 2</div></div>",
+      "bind": "desktopFilterFLEX",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Player table header\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:44px;padding:0 12px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:86px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\"></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Rank</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:310px;flex:1;min-width:220px;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Player</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:44px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\"></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:44px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\"></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">ADP</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Bye</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Age</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Proj. pts</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Avg.</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Rush yds</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--color-muted-foreground);\">Rec. yds</div></div>",
+      "bind": "playerTableHeader",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Saquon Barkley player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:56px;padding:0 12px;background:var(--color-primary-subtle);border-bottom:1px solid var(--color-primary);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;width:86px;flex-shrink:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:72px;height:32px;background:var(--color-surface-raised);border-radius:999px;font-size:12px;font-weight:700;color:var(--color-muted-foreground);\">Draft</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:14px;color:var(--color-muted-foreground);\">14</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;flex:1;min-width:220px;\"><img src=\"https://sleepercdn.com/content/nfl/players/thumb/4866.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:34px;height:34px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:2px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Saquon Barkley</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);color:var(--color-position-rb);font-size:12px;\">RB</span> · PHI · Bye 10</div></div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 4h12v16H4zM8 8h4M8 12h4M18 7v6M15 10h6\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">13.4</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">10</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">29.6</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">209.7</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">12.3</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">1,220</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">277</div></div>",
+      "bind": "playerRow14",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Jeremiyah Love player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:56px;padding:0 12px;background:var(--color-surface);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;width:86px;flex-shrink:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:72px;height:32px;background:var(--color-surface-raised);border-radius:999px;font-size:12px;font-weight:700;color:var(--color-muted-foreground);\">Draft</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:14px;color:var(--color-muted-foreground);\">17</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;flex:1;min-width:220px;\"><img src=\"https://sleepercdn.com/content/nfl/players/thumb/13287.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:34px;height:34px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:2px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Jeremiyah Love</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);color:var(--color-position-rb);font-size:12px;\">RB</span> · ARI · Bye 14 <span style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:600;color:var(--color-position-k);\">Rookie</span></div></div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 4h12v16H4zM8 8h4M8 12h4M18 7v6M15 10h6\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">15.2</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">14</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">21.3</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">164.8</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">9.7</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">897</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">351</div></div>",
+      "bind": "playerRow17",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Amon-Ra St. Brown player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:56px;padding:0 12px;background:var(--color-surface);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;width:86px;flex-shrink:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:72px;height:32px;background:var(--color-surface-raised);border-radius:999px;font-size:12px;font-weight:700;color:var(--color-muted-foreground);\">Draft</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:14px;color:var(--color-muted-foreground);\">18</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;flex:1;min-width:220px;\"><img src=\"https://sleepercdn.com/content/nfl/players/thumb/7547.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:34px;height:34px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:2px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Amon-Ra St. Brown</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);color:var(--color-position-wr);font-size:12px;\">WR</span> · DET · Bye 6</div></div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 4h12v16H4zM8 8h4M8 12h4M18 7v6M15 10h6\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">16.8</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">6</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">26.9</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">174.5</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">10.3</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">16</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">1,249</div></div>",
+      "bind": "playerRow18",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Chase Brown player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:56px;padding:0 12px;background:var(--color-surface);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;width:86px;flex-shrink:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:72px;height:32px;background:var(--color-surface-raised);border-radius:999px;font-size:12px;font-weight:700;color:var(--color-muted-foreground);\">Draft</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:14px;color:var(--color-muted-foreground);\">19</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;flex:1;min-width:220px;\"><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9224.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:34px;height:34px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:2px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Chase Brown</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);color:var(--color-position-rb);font-size:12px;\">RB</span> · CIN · Bye 10</div></div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 4h12v16H4zM8 8h4M8 12h4M18 7v6M15 10h6\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">17.8</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">10</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">26.5</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">198.2</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">11.7</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">945</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">410</div></div>",
+      "bind": "playerRow19",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Justin Jefferson player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:56px;padding:0 12px;background:var(--color-surface);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;width:86px;flex-shrink:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:72px;height:32px;background:var(--color-surface-raised);border-radius:999px;font-size:12px;font-weight:700;color:var(--color-muted-foreground);\">Draft</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:14px;color:var(--color-muted-foreground);\">20</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;flex:1;min-width:220px;\"><img src=\"https://sleepercdn.com/content/nfl/players/thumb/6794.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:34px;height:34px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:2px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Justin Jefferson</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);color:var(--color-position-wr);font-size:12px;\">WR</span> · MIN · Bye 6 <span style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;font-weight:700;color:var(--color-warning);\">QUES</span></div></div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 4h12v16H4zM8 8h4M8 12h4M18 7v6M15 10h6\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">18.5</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">6</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">27.3</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">160.4</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">9.4</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">6</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">1,178</div></div>",
+      "bind": "playerRow20",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Drake London player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:56px;padding:0 12px;background:var(--color-surface);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;width:86px;flex-shrink:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:72px;height:32px;background:var(--color-surface-raised);border-radius:999px;font-size:12px;font-weight:700;color:var(--color-muted-foreground);\">Draft</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:40px;flex-shrink:0;font-size:14px;color:var(--color-muted-foreground);\">21</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;flex:1;min-width:220px;\"><img src=\"https://sleepercdn.com/content/nfl/players/thumb/8112.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:34px;height:34px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:2px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Drake London</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);color:var(--color-position-wr);font-size:12px;\">WR</span> · ATL · Bye 11</div></div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L2.3 9.6l6.2-.9Z\" stroke=\"#FDE047\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;width:44px;flex-shrink:0;\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M4 4h12v16H4zM8 8h4M8 12h4M18 7v6M15 10h6\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:75px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">19.1</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">11</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:64px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">25.2</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">160.2</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:72px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">9.4</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">6</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:92px;flex-shrink:0;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-muted-foreground);\">1,156</div></div>",
+      "bind": "playerRow21",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "playerPool",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:space-between;padding:16px 12px;background:var(--color-surface-inset);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Draft actions are unavailable while paused.</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">ADP sorted ascending</div></div>",
+      "bind": "pausedPoolHint",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:72px;padding:0 16px;border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;height:72px;padding:0 12px;border-bottom:3px solid var(--color-primary);font-size:16px;font-weight:700;\">Roster</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);padding:0 12px;font-size:16px;font-weight:700;color:var(--color-muted-foreground);\">Queue</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);padding:0 12px;font-size:16px;font-weight:700;color:var(--color-muted-foreground);\">Chat</div></div>",
+      "bind": "rosterTabs",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:space-between;padding:16px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:16px;font-weight:700;\">Drafted players</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">1 / 15</div></div>",
+      "bind": "rosterHeading",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"QB roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface-inset);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-position-qb);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">QB</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Empty</div></div>",
+      "bind": "rosterQB69",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"RB roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface-inset);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-position-rb);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">RB</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Empty</div></div>",
+      "bind": "rosterRB70",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"RB roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface-inset);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-position-rb);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">RB</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Empty</div></div>",
+      "bind": "rosterRB71",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"WR roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-position-wr);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">WR</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/7564.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;border-radius:999px;object-fit:cover;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:3px;flex:1;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Ja'Marr Chase</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">CIN · Bye 6</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">1.05</div></div>",
+      "bind": "rosterWRChase",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"WR roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface-inset);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-position-wr);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">WR</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Empty</div></div>",
+      "bind": "rosterWR73",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"TE roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface-inset);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-position-te);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">TE</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Empty</div></div>",
+      "bind": "rosterTE74",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "rosterPanel",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"FLEX roster slot\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:var(--color-surface-inset);border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;width:44px;height:32px;background:var(--color-surface-raised);border-radius:4px;font-size:12px;font-weight:700;color:var(--color-foreground);\">FLEX</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Empty</div></div>",
+      "bind": "rosterFLEX75",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "desktop",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Desktop layout guidance\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:space-between;padding-top:20px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Desktop composition · 1600px · four-round preview · static example of the paused mock draft</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Source: Sleeper new draftboard</div></div>",
+      "bind": "desktopFooter",
+      "bindChildren": {}
+    },
+    {
+      "tool": "update_styles",
+      "targetRef": "desktop",
+      "styles": {
+        "height": "fit-content"
+      }
+    },
+    {
+      "tool": "create_artboard",
+      "bind": "mobile",
+      "name": "Compact draft room",
+      "styles": {
+        "width": "390px",
+        "height": "1200px",
+        "display": "flex",
+        "flexDirection": "column",
+        "padding": "16px",
+        "gap": "12px",
+        "backgroundColor": "var(--color-background)"
+      }
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:4px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:20px;font-weight:700;\">10-team Mock</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Standard snake · 15 rounds</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);padding:8px 12px;border-radius:999px;background:var(--color-timer);font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">Paused</div></div>",
+      "bind": "mobileHeader",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--color-primary-subtle);border-radius:8px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:4px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">AzaanKhalfe</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Next pick · 2.06</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;color:var(--color-primary);\">Your team</div></div>",
+      "bind": "mobileTeamStatus",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Compact board preview\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;gap:4px;\"></div>",
+      "bind": "mobileBoard",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Compact Team 4 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:62px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_salmon.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 4</div></div></div>",
+      "bind": "mobileCol3",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol3",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;justify-content:center;gap:4px;height:68px;padding:8px;border-radius:6px;background:var(--color-position-rb);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">1.4</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:14px;font-weight:700;color:var(--color-primary-foreground);\">Christian<br/>McCaffrey</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">RB · SF</div></div>",
+      "bind": "mobilePick1.4",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol3",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:68px;padding:8px;border-radius:6px;background:var(--color-surface);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.7</div></div>",
+      "bind": "mobilePick2.7",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol3",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:68px;padding:8px;border-radius:6px;background:var(--color-surface);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.4</div></div>",
+      "bind": "mobilePick3.4",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Compact AzaanKhalfe column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;background:var(--color-primary-subtle);border:1px solid var(--color-primary);border-radius:8px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:62px;\"><img src=\"https://sleepercdn.com/images/v4/avatars/avatar_default_lilac.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Your team</div></div></div>",
+      "bind": "mobileCol4",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol4",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;justify-content:center;gap:4px;height:68px;padding:8px;border-radius:6px;background:var(--color-position-wr);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">1.5</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:14px;font-weight:700;color:var(--color-primary-foreground);\">Ja'Marr<br/>Chase</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">WR · CIN</div></div>",
+      "bind": "mobilePick1.5",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol4",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:68px;padding:8px;border-radius:6px;background:var(--color-surface);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">2.6</div></div>",
+      "bind": "mobilePick2.6",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol4",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:68px;padding:8px;border-radius:6px;background:var(--color-surface);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.5</div></div>",
+      "bind": "mobilePick3.5",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileBoard",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Compact Team 6 column\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;min-width:0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:62px;\"><img src=\"https://sleepercdn.com/images/v3/avatars/avatar_default_yellow.webp\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Team 6</div></div></div>",
+      "bind": "mobileCol5",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol5",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;justify-content:center;gap:4px;height:68px;padding:8px;border-radius:6px;background:var(--color-position-rb);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">1.6</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:14px;font-weight:700;color:var(--color-primary-foreground);\">James<br/>Cook</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">RB · BUF</div></div>",
+      "bind": "mobilePick1.6",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol5",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;justify-content:center;gap:4px;height:68px;padding:8px;border-radius:6px;background:var(--color-position-qb);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">2.5</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;line-height:14px;font-weight:700;color:var(--color-primary-foreground);\">Josh<br/>Allen</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-primary-foreground);\">QB · BUF</div></div>",
+      "bind": "mobilePick2.5",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileCol5",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:flex-start;justify-content:flex-end;height:68px;padding:8px;border-radius:6px;background:var(--color-surface);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">3.6</div></div>",
+      "bind": "mobilePick3.6",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:space-between;font-size:12px;color:var(--color-muted-foreground);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Swipe for more teams</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">Showing 3 rounds</div></div>",
+      "bind": "mobileBoardHint",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;border-bottom:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;flex:1;padding:12px 0;border-bottom:3px solid var(--color-primary);font-size:14px;font-weight:700;\">Players</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;flex:1;padding:12px 0;font-size:14px;color:var(--color-muted-foreground);\">Roster 1 / 15</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:center;flex:1;padding:12px 0;font-size:14px;color:var(--color-muted-foreground);\">Queue</div></div>",
+      "bind": "mobileTabs",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface-inset);\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\" stroke=\"#A5B3CB\" stroke-width=\"1.7\"/><path d=\"m16 16 5 5\" stroke=\"#A5B3CB\" stroke-width=\"1.7\" stroke-linecap=\"round\"/></svg><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;color:var(--color-muted-foreground);\">Search player or team</div></div>",
+      "bind": "mobileSearch",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Compact filters\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;gap:8px;\"></div>",
+      "bind": "mobileFilters",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;border-radius:999px;background:var(--color-foreground);font-size:12px;font-weight:700;color:var(--color-primary-foreground);\">All</div>",
+      "bind": "mobileFilterAll",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;border-radius:999px;background:var(--color-surface);font-size:12px;font-weight:700;color:var(--color-foreground);\">QB</div>",
+      "bind": "mobileFilterQB",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;border-radius:999px;background:var(--color-surface);font-size:12px;font-weight:700;color:var(--color-foreground);\">RB</div>",
+      "bind": "mobileFilterRB",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;border-radius:999px;background:var(--color-surface);font-size:12px;font-weight:700;color:var(--color-foreground);\">WR</div>",
+      "bind": "mobileFilterWR",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobileFilters",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;border-radius:999px;background:var(--color-surface);font-size:12px;font-weight:700;color:var(--color-foreground);\">TE</div>",
+      "bind": "mobileFilterTE",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;justify-content:space-between;align-items:center;padding:4px 0;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:16px;font-weight:700;\">Available players</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">ADP ↑</div></div>",
+      "bind": "mobilePoolHeading",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Saquon Barkley compact player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;height:64px;padding:10px;background:var(--color-primary-subtle);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:20px;flex-shrink:0;font-size:12px;color:var(--color-muted-foreground);\">14</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/4866.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;object-fit:cover;border-radius:999px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Saquon Barkley</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-position-rb);\">RB</span> · PHI · Bye 10</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:4px;width:34px;flex-shrink:0;text-align:right;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">13.4</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">ADP</div></div></div>",
+      "bind": "compactPlayer14",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Jeremiyah Love compact player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;height:64px;padding:10px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:20px;flex-shrink:0;font-size:12px;color:var(--color-muted-foreground);\">17</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/13287.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;object-fit:cover;border-radius:999px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Jeremiyah Love</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-position-rb);\">RB</span> · ARI · Bye 14</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:4px;width:34px;flex-shrink:0;text-align:right;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">15.2</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">ADP</div></div></div>",
+      "bind": "compactPlayer17",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Amon-Ra St. Brown compact player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;height:64px;padding:10px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:20px;flex-shrink:0;font-size:12px;color:var(--color-muted-foreground);\">18</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/7547.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;object-fit:cover;border-radius:999px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Amon-Ra St. Brown</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-position-wr);\">WR</span> · DET · Bye 6</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:4px;width:34px;flex-shrink:0;text-align:right;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">16.8</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">ADP</div></div></div>",
+      "bind": "compactPlayer18",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div layer-name=\"Chase Brown compact player row\" style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:10px;height:64px;padding:10px;background:var(--color-surface);border-radius:6px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);width:20px;flex-shrink:0;font-size:12px;color:var(--color-muted-foreground);\">19</div><img src=\"https://sleepercdn.com/content/nfl/players/thumb/9224.jpg\" style=\"color:var(--color-foreground);font-family:var(--font-sans);width:32px;height:32px;object-fit:cover;border-radius:999px;\"/><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex:1;flex-direction:column;gap:4px;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">Chase Brown</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\"><span style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-position-rb);\">RB</span> · CIN · Bye 10</div></div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;flex-direction:column;gap:4px;width:34px;flex-shrink:0;text-align:right;\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:14px;font-weight:600;\">17.8</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);font-size:12px;color:var(--color-muted-foreground);\">ADP</div></div></div>",
+      "bind": "compactPlayer19",
+      "bindChildren": {}
+    },
+    {
+      "tool": "write_html",
+      "targetRef": "mobile",
+      "mode": "insert-children",
+      "html": "<div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--color-border);\"><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;background:var(--color-surface-raised);border-radius:999px;font-size:14px;font-weight:700;color:var(--color-muted-foreground);\">Draft paused</div><div style=\"color:var(--color-foreground);font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;flex:1;height:44px;background:var(--color-primary);border-radius:999px;font-size:14px;font-weight:700;color:var(--color-primary-foreground);\">Add to queue</div></div>",
+      "bind": "mobileActions",
+      "bindChildren": {}
+    },
+    {
+      "tool": "update_styles",
+      "targetRef": "mobile",
+      "styles": {
+        "height": "fit-content"
+      }
+    }
+  ],
+  "instructions": [
+    "Call the Paper guide once before tools.",
+    "Resolve targetRef using bindings.",
+    "After write_html bind the first created node to bind. Resolve bindChildren by layer name in createdNodes.",
+    "Stop immediately on any tool error; do not continue with missing bindings.",
+    "After each section, capture a Paper screenshot, review it and fix issues.",
+    "Apply update_styles to targetRef.",
+    "Always call finish_working_on_nodes after finishing."
+  ]
+}
