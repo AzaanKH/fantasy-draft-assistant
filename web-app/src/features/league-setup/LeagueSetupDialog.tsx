@@ -79,7 +79,7 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
           <h3 className="text-sm font-semibold">Review your Primary League rules</h3>
           <p className="rounded-md bg-muted p-3 text-sm leading-6">10 teams · 14 rounds · Snake<br />Full PPR · +0.5 TE premium · +0.2 per rush · 4-point passing touchdowns<br />1 QB · 2 RB · 2 WR · 1 TE · 2 FLEX · 1 K · 5 bench<br />Confirmed Primary League keepers</p>
           <p className="text-sm leading-relaxed text-muted-foreground">For practice, use these rules with the Primary League keeper list. For your real draft, connect Sleeper to verify its scoring and roster settings.</p>
-          <Button variant="outline" className="w-full" onClick={() => {
+          <Button variant="outline" className="w-full" disabled={localDraftInProgress} onClick={() => {
             save('primary-league', savedQuickMock);
             setPrimaryPractice(false);
             setQuickMock(false);

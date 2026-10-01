@@ -6,6 +6,7 @@ import { useDraftDecision } from '@/features/recommendations/DraftDecisionContex
 import { getRecommendationPolicyLabel } from '@/features/recommendations/draft-decision';
 import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { useDraftStore } from '@/stores/draftStore';
+import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { KeeperStatus } from '@/features/draft-room/KeeperStatus';
 
@@ -17,13 +18,14 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
   const transferringFocus = React.useRef(false);
   const config = useDraftStore((state) => state.config);
   const sessionMode = useDraftStore((state) => state.sessionMode);
+  const connection = useDraftSyncConnectionStore((state) => state.connection);
   const quickMock = useDraftStore((state) => state.leagueSettings.keepersEnabled === false && state.leagueSettings.source === 'default');
   const settingsSource = useDraftStore((state) => state.leagueSettings.source);
   const decision = useDraftDecision();
   const primarySettings = decision.readiness?.coreDraftData.find((item) => item.key === 'primary-league-settings');
   const settingsReady = primarySettings?.status === 'ready';
   const needsAttention = decision.readiness?.status === 'blocked' || keeperStatus?.isMockReady === false;
-  const mode = sessionMode === 'setup' ? 'Preview' : sessionMode === 'mock' ? 'Mock draft' : quickMock ? 'Sleeper mock' : 'Live draft';
+  const mode = sessionMode === 'setup' ? 'Preview' : sessionMode === 'mock' ? 'Mock draft' : connection?.usePrimaryLeagueSettings || connection?.settingsProfile === 'quick-mock' ? 'Sleeper mock' : 'Live draft';
   const complete = decision.currentPick > config.totalTeams * config.totalRounds;
   const pick = complete ? 'Draft complete' : `Pick ${formatRoundPick(decision.currentPick, config.totalTeams)}`;
 
