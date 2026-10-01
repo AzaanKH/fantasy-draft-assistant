@@ -8,7 +8,8 @@ import {
 } from '@fantasy-draft/shared';
 import { DraftHeader } from '@/components/DraftHeader';
 import { MotionProvider } from '@/components/motion';
-import { UndoToastProvider } from '@/components/undo-toast';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { NotificationProvider } from '@/components/notifications';
 import { AssistantPage } from '@/features/assistant/AssistantPage';
 import type { AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftBoard } from '@/features/draft-room/DraftBoard';
@@ -430,16 +431,16 @@ export function VisualApp(): React.ReactElement {
       <QueryClientProvider client={queryClient}>
         <DraftStoreProvider store={draftStore}>
           <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
-            <UndoToastProvider>
-              <MotionProvider>
+            <NotificationProvider>
+              <TooltipProvider><MotionProvider>
                 <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
                   <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
                     <VisualRouteContent route={route} />
                   </div>
                   <VisualReadySignal />
                 </DraftDecisionProvider>
-              </MotionProvider>
-            </UndoToastProvider>
+              </MotionProvider></TooltipProvider>
+            </NotificationProvider>
           </PlayerDataFixtureProvider>
         </DraftStoreProvider>
       </QueryClientProvider>

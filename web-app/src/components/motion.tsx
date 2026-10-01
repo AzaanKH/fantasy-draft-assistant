@@ -1,12 +1,27 @@
 import * as React from 'react';
+import { AnimatePresence, LazyMotion, MotionConfig, useIsPresent } from 'motion/react';
+import * as m from 'motion/react-m';
 import { cn } from '@/lib/utils';
+
+const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
+const CONTENT_TRANSITION = { duration: 0.21, ease: MOTION_EASE };
+const loadMotionFeatures = () => import('./motion-features').then((module) => module.default);
 
 export function MotionProvider({
   children,
 }: {
   readonly children: React.ReactNode;
 }): React.ReactElement {
-  return <>{children}</>;
+  const reduceMotion = usePrefersReducedMotion();
+
+  return (
+    <MotionConfig
+      reducedMotion={reduceMotion ? 'always' : 'never'}
+      transition={reduceMotion ? { duration: 0 } : CONTENT_TRANSITION}
+    >
+      <LazyMotion features={loadMotionFeatures} strict>{children}</LazyMotion>
+    </MotionConfig>
+  );
 }
 
 function getReducedMotionPreference(): boolean {
@@ -50,11 +65,67 @@ function useChangeAnimation(
     previousKey.current = motionKey;
     if (!changed || reduceMotion || !element.current) return;
 
-    element.current.animate(keyframes, {
+    const animation = element.current.animate(keyframes, {
       duration,
       easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
     });
+    return () => { animation.cancel(); };
   }, [duration, element, keyframes, motionKey, reduceMotion]);
+}
+
+const FADE_KEYFRAMES: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }];
+
+/** Update in place so focus and actions always belong to the current player. */
+export function MotionFade({ motionKey, children, className }: {
+  readonly motionKey: React.Key;
+  readonly children: React.ReactNode;
+  readonly className?: string;
+}): React.ReactElement {
+  const element = React.useRef<HTMLDivElement>(null);
+  useChangeAnimation(element, motionKey, FADE_KEYFRAMES, 180);
+  return <div ref={element} className={className} data-motion="recommendation-fade">{children}</div>;
+}
+
+function MotionSwapContent({
+  children,
+  className,
+  axis,
+  distance,
+  kind,
+}: {
+  readonly children: React.ReactNode;
+  readonly className?: string;
+  readonly axis: 'x' | 'y' | 'none';
+  readonly distance: number;
+  readonly kind: 'content-swap' | 'player-identity';
+}): React.ReactElement {
+  const reduceMotion = usePrefersReducedMotion();
+  const isPresent = useIsPresent();
+  const element = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    // A departing recommendation must not expose stale draft actions or labels.
+    if (element.current) element.current.inert = !isPresent;
+  }, [isPresent]);
+
+  return (
+    <m.div
+      ref={element}
+      className={className}
+      data-motion={kind}
+      aria-hidden={isPresent ? undefined : true}
+      initial={reduceMotion ? false : {
+        opacity: 0,
+        x: axis === 'x' ? distance : 0,
+        y: axis === 'y' ? distance : 0,
+      }}
+      animate={{ opacity: 1, x: 0, y: 0 }}
+      exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.08 } }}
+      transition={reduceMotion ? { duration: 0 } : CONTENT_TRANSITION}
+    >
+      {children}
+    </m.div>
+  );
 }
 
 export function DecisionSwap({
@@ -70,24 +141,12 @@ export function DecisionSwap({
   readonly axis?: 'x' | 'y' | 'none';
   readonly distance?: number;
 }): React.ReactElement {
-  const element = React.useRef<HTMLDivElement>(null);
-  const keyframes = React.useMemo<Keyframe[]>(() => {
-    const transform = axis === 'x'
-      ? `translateX(${String(distance)}px)`
-      : axis === 'y'
-        ? `translateY(${String(distance)}px)`
-        : 'none';
-    return [
-      { opacity: 0, transform },
-      { opacity: 1, transform: 'none' },
-    ];
-  }, [axis, distance]);
-  useChangeAnimation(element, motionKey, keyframes, 210);
-
   return (
-    <div ref={element} className={className} data-motion="content-swap">
-      {children}
-    </div>
+    <AnimatePresence initial={false} mode="wait">
+      <MotionSwapContent key={motionKey} className={className} axis={axis} distance={distance} kind="content-swap">
+        {children}
+      </MotionSwapContent>
+    </AnimatePresence>
   );
 }
 
@@ -100,17 +159,12 @@ export function MotionIdentitySwap({
   readonly children: React.ReactNode;
   readonly className?: string;
 }): React.ReactElement {
-  const element = React.useRef<HTMLDivElement>(null);
-  const keyframes = React.useMemo<Keyframe[]>(() => [
-    { opacity: 0.25, transform: 'translateX(7px)' },
-    { opacity: 1, transform: 'translateX(0)' },
-  ], []);
-  useChangeAnimation(element, motionKey, keyframes, 240);
-
   return (
-    <div ref={element} className={className} data-motion="player-identity">
-      {children}
-    </div>
+    <AnimatePresence initial={false} mode="wait">
+      <MotionSwapContent key={motionKey} className={className} axis="x" distance={7} kind="player-identity">
+        {children}
+      </MotionSwapContent>
+    </AnimatePresence>
   );
 }
 
@@ -161,60 +215,47 @@ export function MotionCount({
   );
 }
 
-export function MotionReorderItem({
+export function MotionReorderList({
   children,
   className,
-  order,
-  rowHeight = 61,
 }: {
   readonly children: React.ReactNode;
   readonly className?: string;
+}): React.ReactElement {
+  return (
+    <m.div layoutScroll className={className} style={{ overflowAnchor: 'none' }}>
+      {children}
+    </m.div>
+  );
+}
+
+export function MotionReorderItem({
+  children,
+  className,
+}: {
+  readonly children: React.ReactNode;
+  readonly className?: string;
+  // Retained for existing callers; Motion measures the rendered layout.
   readonly order: number;
   readonly rowHeight?: number;
 }): React.ReactElement {
   const reduceMotion = usePrefersReducedMotion();
-  const previousOrder = React.useRef(order);
-  const isMounted = React.useRef(false);
-  const element = React.useRef<HTMLDivElement>(null);
-
-  React.useLayoutEffect(() => {
-    const node = element.current;
-    if (!node) return;
-
-    if (!isMounted.current) {
-      isMounted.current = true;
-      previousOrder.current = order;
-      if (reduceMotion) return;
-      node.animate(
-        [
-          { opacity: 0, transform: 'translateY(-8px)' },
-          { opacity: 1, transform: 'translateY(0)' },
-        ],
-        { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
-      );
-      return;
-    }
-
-    const offset = (previousOrder.current - order) * rowHeight;
-    previousOrder.current = order;
-    if (reduceMotion || offset === 0) return;
-
-    node.animate(
-      [
-        { transform: `translateY(${String(offset)}px)` },
-        { transform: 'translateY(0)' },
-      ],
-      {
-        duration: 280,
-        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-      }
-    );
-  }, [order, reduceMotion, rowHeight]);
 
   return (
-    <div ref={element} className={className}>
+    <m.div
+      className={className}
+      data-motion="reorder-item"
+      layout={reduceMotion ? false : 'position'}
+      initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduceMotion ? { duration: 0 } : {
+        duration: 0.24,
+        ease: MOTION_EASE,
+        layout: { duration: 0.25, ease: MOTION_EASE },
+      }}
+    >
       {children}
-    </div>
+    </m.div>
   );
 }
 

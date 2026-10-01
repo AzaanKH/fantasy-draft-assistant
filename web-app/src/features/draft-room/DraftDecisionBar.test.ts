@@ -6,6 +6,7 @@ import type {
   RecommendationDecisionFactors,
 } from '@fantasy-draft/shared';
 import { DraftDecisionBar } from './DraftDecisionBar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 
 const decision = vi.hoisted(() => ({
@@ -22,14 +23,14 @@ vi.mock('@/hooks/useQueueActions', () => ({
 describe('DraftDecisionBar loading', () => {
   it.each([true, false])('keeps the settled pick visible while loading, compact=%s', (compact) => {
     decision.output.bestPick = recommendation();
-    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { compact, onOpenAssistant: vi.fn() }));
+    const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { compact, onOpenAssistant: vi.fn() })));
     expect(markup).toContain(compact ? 'Why this pick' : 'Assistant');
     expect(markup).toContain('Add Best Pick to the local queue');
   });
 
-  it('hides the empty compact bar but retains the full loading skeleton', () => {
+  it('shows compact loading feedback and retains the full loading skeleton', () => {
     decision.output.bestPick = null;
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { compact: true, onOpenAssistant: vi.fn() }))).toBe('');
+    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { compact: true, onOpenAssistant: vi.fn() }))).toContain('Finding your best pick');
     expect(renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }))).toContain('Loading the current Best Pick');
   });
 });

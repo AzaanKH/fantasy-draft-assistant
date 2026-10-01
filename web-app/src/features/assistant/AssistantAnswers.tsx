@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import {
   getRecommendationExplanation,
 } from '@/features/recommendations/recommendation-explanation';
@@ -13,6 +12,8 @@ import {
   getSignalValueColor,
   survivalPercent,
 } from './assistant-analysis';
+
+const PositionalDepthChart = React.lazy(() => import('./PositionalDepthChart'));
 
 export function CalculationDetails({ explanation }: { readonly explanation: string }): React.ReactElement {
   return (
@@ -105,7 +106,7 @@ export function RosterAnswer({ needs, recommendation }: {
   const isActionable = selectedNeed && !['filled', 'defer'].includes(selectedNeed.priority);
 
   return (
-    <div className="max-w-5xl">
+    <div className="roster-answer min-w-0">
       <p className="text-lg font-semibold leading-snug xl:text-[1.875rem] xl:leading-[1.2] 2xl:text-4xl">
         {selectedNeed
           ? `${selectedNeed.position} is a ${selectedNeed.priority} roster need right now.`
@@ -117,21 +118,17 @@ export function RosterAnswer({ needs, recommendation }: {
           : 'Use the remaining picks for value, upside, and bench depth.'}
         {isActionable ? ` ${recommendation.playerName} would address that need.` : ''}
       </p>
-      <div className="mt-4 flex flex-wrap gap-2 xl:mt-6 xl:gap-3 2xl:mt-7">
+      <dl className="roster-need-grid" aria-label="Roster needs by position">
         {needs.map((need) => (
-          <Badge
-            key={need.position}
-            variant="outline"
-            className={cn(
-              'font-mono xl:px-3 xl:py-1 xl:text-base 2xl:text-lg',
-              need.priority === 'critical' && 'border-red-500/40 text-red-700 dark:text-red-300',
-              need.priority === 'high' && 'border-orange-500/40 text-orange-700 dark:text-orange-300'
-            )}
-          >
-            {need.position} · {need.priority}
-          </Badge>
+          <div key={need.position} data-priority={need.priority}>
+            <dt>{need.position}</dt>
+            <dd>{need.priority}</dd>
+          </div>
         ))}
-      </div>
+      </dl>
+      <React.Suspense fallback={<p role="status" className="mt-5 text-sm text-muted-foreground">Loading positional depth…</p>}>
+        <PositionalDepthChart needs={needs} />
+      </React.Suspense>
     </div>
   );
 }

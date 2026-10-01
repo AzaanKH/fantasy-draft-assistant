@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { MotionReorderItem } from '@/components/motion';
+import { MotionReorderItem, MotionReorderList } from '@/components/motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
@@ -36,12 +36,11 @@ export function DraftQueuePanel(): React.ReactElement {
   }
 
   return (
-    <div className="max-h-[310px] overflow-y-auto border-y border-border/70">
+    <MotionReorderList className="max-h-[310px] overflow-y-auto border-y border-border/70">
       {queuedPlayers.map((player, index) => (
         <MotionReorderItem
           key={player.id}
           order={index}
-          rowHeight={57}
           className="flex items-center gap-3 border-b border-border/60 px-3 py-2 last:border-b-0 hover:bg-muted/25"
         >
           <span className="w-5 text-center font-mono text-xs text-muted-foreground">
@@ -84,6 +83,6 @@ export function DraftQueuePanel(): React.ReactElement {
           </Button>
         </MotionReorderItem>
       ))}
-    </div>
+    </MotionReorderList>
   );
 }

@@ -3,9 +3,9 @@ import {
   DecisionSwap,
   MotionIdentitySwap,
   MotionMetricSwap,
-  StatePulseDot,
+  usePrefersReducedMotion,
 } from '@/components/motion';
-import { Badge } from '@/components/ui/badge';
+import { MetricHelp } from '@/features/help/MetricHelp';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import type { AssistantLens } from '@/features/assistant/assistant-navigation';
@@ -13,11 +13,9 @@ import { getPositionRecommendations } from '@/features/assistant/assistant-posit
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { ProviderIdentityBlockedNotice } from '@/features/draft-room/ProviderIdentityBlockedNotice';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import { getRecommendationPolicyLabel } from '@/features/recommendations/draft-decision';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn, formatSignedNumber } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
 import { POSITIONS, type Position, type Recommendation } from '@fantasy-draft/shared';
@@ -96,6 +94,7 @@ export function AssistantPage({
   readonly onReturnToDraft: () => void;
 }): React.ReactElement {
   const [lens, setLens] = React.useState<AssistantLens>(initialLens);
+  const reduceMotion = usePrefersReducedMotion();
   const [showAllPlayers, setShowAllPlayers] = React.useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = React.useState<string | null>(
     initialSelectedPlayerId
@@ -112,7 +111,6 @@ export function AssistantPage({
   const { players } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
   const config = useDraftStore((state) => state.config);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
   const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(players);
   const playerById = React.useMemo(
@@ -173,9 +171,10 @@ export function AssistantPage({
     setLens('compare');
     setComparisonPlayerId(playerId);
     window.requestAnimationFrame(() => {
-      analysisPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      analysisPanelRef.current?.focus({ preventScroll: true });
+      analysisPanelRef.current?.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth', block: 'start' });
     });
-  }, []);
+  }, [reduceMotion]);
 
   if (decision.recommendationsBlockedByProviderIdentity) {
     return (
@@ -227,22 +226,6 @@ export function AssistantPage({
 
   return (
     <main className="assistant-workspace w-full px-4 py-4">
-      <section className="mb-4 flex min-h-11 flex-wrap items-center justify-between gap-3 border-y border-border/65 bg-muted/20 px-4 py-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300">
-            Pick {formatRoundPick(decision.currentPick, config.totalTeams)} · #{String(decision.currentPick)}
-          </span>
-          <span className="text-xs text-muted-foreground">{String(config.totalTeams)} teams · {String(config.totalRounds)} rounds · Snake</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-          <StatePulseDot
-            motionKey={`${String(decision.currentPick)}:${topPick?.playerId ?? 'none'}:${sessionMode}`}
-            className="size-2 text-emerald-500"
-          />
-          Same live decision state · {getRecommendationPolicyLabel(activeDecision.selection)} · {sessionMode === 'setup' ? 'preview' : sessionMode}
-        </div>
-      </section>
-
       {selectedRecommendation ? (
         <section className="assistant-recommendation mb-3 overflow-hidden rounded-xl border border-border/75 bg-card shadow-sm">
           <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center xl:p-5 2xl:gap-6 2xl:p-6">
@@ -276,8 +259,8 @@ export function AssistantPage({
                 </div>
               </div>
             </MotionIdentitySwap>
-            <div className="grid gap-2 2xl:gap-3">
-              <Button className="2xl:h-11 2xl:text-base" onClick={onReturnToDraft}>Return to draft <ArrowLeft className="size-4 rotate-180" /></Button>
+            <div className="assistant-header-actions grid gap-2 2xl:gap-3">
+              <Button className="2xl:h-11 2xl:text-base" onClick={onReturnToDraft}><ArrowLeft className="size-4 rotate-180" aria-hidden="true" /> Return to draft</Button>
               <Button
                 variant={queuedSet.has(selectedRecommendation.playerId) ? 'secondary' : 'outline'}
                 className="2xl:h-11 2xl:text-base"
@@ -288,45 +271,39 @@ export function AssistantPage({
               </Button>
             </div>
           </div>
-          <dl className="grid border-t border-border/70 sm:grid-cols-3">
-            <div className="border-b border-border/70 px-4 py-3 text-center sm:border-b-0 sm:border-r 2xl:py-4">
-              <dt>
-                <MotionMetricSwap
-                  motionKey={selectedDiagnostics?.valueOverReplacement ?? 'none'}
-                  className="font-mono text-lg font-bold text-emerald-700 dark:text-emerald-300 2xl:text-2xl"
-                >
+          <dl className="assistant-summary-metrics">
+            <div>
+              <dt><MetricHelp metric="vor" label="Above replacement" /></dt>
+              <dd>
+                <MotionMetricSwap motionKey={selectedDiagnostics?.valueOverReplacement ?? 'none'}>
                   {selectedDiagnostics ? formatSignedNumber(selectedDiagnostics.valueOverReplacement, 0) : '—'}
                 </MotionMetricSwap>
-              </dt>
-              <dd className="mt-1 text-[11px] text-muted-foreground 2xl:text-sm">above replacement</dd>
+              </dd>
             </div>
-            <div className="border-b border-border/70 px-4 py-3 text-center sm:border-b-0 sm:border-r 2xl:py-4">
+            <div>
               <dt>
-                <MotionMetricSwap
-                  motionKey={`${String(selectedDiagnostics?.tier)}:${String(selectedDiagnostics?.isLastInTier)}`}
-                  className="font-mono text-lg font-bold text-emerald-700 dark:text-emerald-300 2xl:text-2xl"
-                >
-                  Tier {String(selectedDiagnostics?.tier ?? '—')}{selectedDiagnostics?.isLastInTier ? ' · last in tier' : ''}
+                <MetricHelp metric="tier" label="Position tier" />
+                {selectedDiagnostics?.isLastInTier ? <span className="summary-tier-note">Last in tier</span> : null}
+              </dt>
+              <dd>
+                <MotionMetricSwap motionKey={`${String(selectedDiagnostics?.tier)}:${String(selectedDiagnostics?.isLastInTier)}`}>
+                  Tier {String(selectedDiagnostics?.tier ?? '—')}
                 </MotionMetricSwap>
-              </dt>
-              <dd className="mt-1 text-[11px] text-muted-foreground 2xl:text-sm">position tier</dd>
+              </dd>
             </div>
-            <div className="px-4 py-3 text-center 2xl:py-4">
-              <dt>
-                <MotionMetricSwap
-                  motionKey={selectedSurvival ?? 'none'}
-                  className="font-mono text-lg font-bold text-emerald-700 dark:text-emerald-300 2xl:text-2xl"
-                >
+            <div>
+              <dt><MetricHelp metric="returnProbability" label="At next pick" /></dt>
+              <dd>
+                <MotionMetricSwap motionKey={selectedSurvival ?? 'none'}>
                   {selectedSurvival === null ? '—' : `${String(selectedSurvival)}%`}
                 </MotionMetricSwap>
-              </dt>
-              <dd className="mt-1 text-[11px] text-muted-foreground 2xl:text-sm">at your next pick</dd>
+              </dd>
             </div>
           </dl>
         </section>
       ) : null}
 
-      <section className="assistant-decision-layout">
+      <section className="assistant-decision-layout" data-lens={lens}>
         <div className="assistant-answer-panel">
         <aside className="assistant-question-tabs" aria-label="Assistant questions">
           <div className="px-3 pb-2 pt-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground xl:text-sm 2xl:px-4 2xl:pb-3 2xl:text-base">
@@ -365,17 +342,19 @@ export function AssistantPage({
 
         <section
           ref={analysisPanelRef}
+          tabIndex={-1}
+          aria-label="Player analysis"
           className="assistant-answer min-w-0 scroll-mt-20"
           aria-live="polite"
         >
           <div className="mb-5 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300 xl:mb-7 xl:text-base 2xl:mb-8 2xl:gap-3 2xl:text-lg">
             <ShieldQuestion className="size-5 xl:size-6 2xl:size-7" /> Assistant analysis
             {selectedRecommendation ? (
-              <Badge variant="outline" className="normal-case tracking-normal text-foreground xl:px-3 xl:text-sm 2xl:text-base">
+              <span className="border-l border-border pl-3 font-normal normal-case tracking-normal text-muted-foreground">
                 {lens === 'compare' && comparisonRecommendation
-                  ? `${selectedRecommendation.playerName} vs ${comparisonRecommendation.playerName}`
+                  ? 'Player comparison'
                   : selectedRecommendation.playerName}
-              </Badge>
+              </span>
             ) : null}
           </div>
           <DecisionSwap motionKey={`${lens}:${selectedRecommendation?.playerId ?? 'none'}`}>
@@ -396,6 +375,7 @@ export function AssistantPage({
                 availableComparisons={availableComparisons}
                 decision={activeDecision}
                 onComparisonPlayerChange={setComparisonPlayerId}
+                playerById={playerById}
               />
             ) : lens === 'wait' ? (
               <WaitAnswer recommendation={selectedRecommendation} />
@@ -409,11 +389,14 @@ export function AssistantPage({
         </section>
 
         </div>
-        <AssistantComparisonSnapshot
+        {lens !== 'compare' ? <AssistantComparisonSnapshot
           recommendations={comparisonRecommendations}
           playerById={playerById}
           decision={activeDecision}
-        />
+          onOpenComparison={() => {
+            if (comparisonRecommendation) handleCompareFromCard(comparisonRecommendation.playerId);
+          }}
+        /> : null}
       </section>
 
       {activeDecision.recommendations.length > 0 ? (

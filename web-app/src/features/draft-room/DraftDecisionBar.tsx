@@ -1,40 +1,17 @@
 import * as React from 'react';
 import { ArrowRight, Check, ListPlus, LoaderCircle } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
+import { MotionFade, MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
 import { DecisionBarSkeleton } from '@/components/skeletons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { MetricHelp } from '@/features/help/MetricHelp';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useDraftSessionMode, useDraftStore } from '@/stores/draftStore';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
-
-function useBoardSequencedRecommendation<T extends { readonly playerId: string }>(
-  recommendation: T | null
-): T | null {
-  const [settledRecommendation, setSettledRecommendation] = React.useState(recommendation);
-  const latestRecommendation = React.useRef(recommendation);
-  latestRecommendation.current = recommendation;
-
-  React.useEffect(() => {
-    if (recommendation?.playerId === settledRecommendation?.playerId) {
-      setSettledRecommendation(recommendation);
-    }
-  }, [recommendation, settledRecommendation?.playerId]);
-
-  React.useEffect(() => {
-    if (recommendation?.playerId === settledRecommendation?.playerId) return;
-    const timeout = window.setTimeout(() => {
-      setSettledRecommendation(latestRecommendation.current);
-    }, 520);
-    return () => { window.clearTimeout(timeout); };
-  }, [recommendation?.playerId, settledRecommendation?.playerId]);
-
-  return settledRecommendation;
-}
 
 function EmptyDecisionBar({
   isLoading,
@@ -77,7 +54,7 @@ export function DraftDecisionBar({
   readonly compact?: boolean;
 }): React.ReactElement | null {
   const { output, isLoading } = useDraftDecision();
-  const bestPick = useBoardSequencedRecommendation(output.bestPick);
+  const bestPick = output.bestPick;
   const sessionMode = useDraftSessionMode();
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
@@ -91,7 +68,14 @@ export function DraftDecisionBar({
   const { togglePlayerQueued } = useQueueActions(queuePlayerIdentity);
 
   if (!bestPick) {
-    return compact ? null : <EmptyDecisionBar isLoading={isLoading} />;
+    return compact ? (
+      <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite" aria-busy={isLoading}>
+        <div className="draft-best-pick-content">
+          <span className="text-xs font-semibold text-primary">Best Pick</span>
+          <p className="text-sm text-muted-foreground">{isLoading ? 'Finding your best pick…' : 'No pick available'}</p>
+        </div>
+      </section>
+    ) : <EmptyDecisionBar isLoading={isLoading} />;
   }
 
   const diagnostics = bestPick.diagnostics;
@@ -120,23 +104,29 @@ export function DraftDecisionBar({
   if (compact) {
     return (
       <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-xs font-semibold text-primary">Best Pick</span>
-            <strong className="text-sm">{bestPick.playerName}</strong>
-            <span className="text-xs text-muted-foreground">{bestPick.position}</span>
-          </div>
-          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground" title={reason}>{reason}</p>
+        <div className="draft-best-pick-content">
+          <span className="draft-best-pick-label">
+            <MetricHelp metric="bestPick" context={<p><strong>{bestPick.playerName}.</strong> {reason}</p>} />
+          </span>
+          <MotionFade motionKey={`${bestPick.playerId}:${reason}`} className="draft-best-pick-recommendation">
+            <div className="draft-best-pick-identity">
+              <strong title={bestPick.playerName}>{bestPick.playerName}</strong>
+              <span>{bestPick.position}</span>
+            </div>
+            <p title={reason}>{reason}</p>
+          </MotionFade>
         </div>
-        <Button variant="ghost" size="sm" aria-pressed={isQueued}
-          aria-label={isQueued ? `Remove ${bestPick.playerName} from the local queue` : `Add ${bestPick.playerName} to the local queue`}
-          onClick={() => { togglePlayerQueued(bestPick.playerId); }}>
-          {isQueued ? <Check className="size-4" /> : <ListPlus className="size-4" />}
-          {isQueued ? 'Queued' : 'Queue'}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => { onOpenAssistant({ lens: 'why', selectedPlayerId: bestPick.playerId }); }}>
-          Why this pick <ArrowRight className="size-3.5" />
-        </Button>
+        <div className="draft-best-pick-actions">
+          <Button variant={isQueued ? 'secondary' : 'outline'} size="sm" className="draft-best-pick-queue" aria-pressed={isQueued}
+            aria-label={isQueued ? `Remove ${bestPick.playerName} from the local queue` : `Add ${bestPick.playerName} to the local queue`}
+            onClick={() => { togglePlayerQueued(bestPick.playerId); }}>
+            {isQueued ? <Check className="size-4" /> : <ListPlus className="size-4" />}
+            {isQueued ? 'Queued' : 'Queue'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { onOpenAssistant({ lens: 'why', selectedPlayerId: bestPick.playerId }); }}>
+            Why this pick <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
       </section>
     );
   }
@@ -163,7 +153,7 @@ export function DraftDecisionBar({
                   id="current-best-pick-label"
                   className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300"
                 >
-                  Best Pick
+                  <MetricHelp key={bestPick.playerId} metric="bestPick" context={<p><strong>{bestPick.playerName}.</strong> {reason}</p>} />
                 </span>
                 <Badge variant="outline" className="h-5 px-1.5 font-mono text-[10px]">
                   {bestPick.position}
@@ -191,7 +181,7 @@ export function DraftDecisionBar({
           <div className="flex flex-nowrap items-center gap-2 border-t border-border/60 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
             <div className="mr-auto min-w-20 sm:min-w-24 lg:mr-1">
               <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Return Probability
+                <MetricHelp metric="returnProbability" />
               </div>
               <MotionMetricSwap
                 motionKey={`${String(returnProbability)}:${nextPickLabel ?? 'none'}`}
