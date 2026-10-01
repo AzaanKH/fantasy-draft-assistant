@@ -1,0 +1,584 @@
+- banner:
+  - generic: Fantasy Draft
+  - navigation "Primary navigation":
+    - button "Draft workspace":
+      - text: Draft workspace
+    - button "Assistant":
+      - text: Assistant
+  - button "How scores work":
+    - text: How scores work
+  - button "League roster"
+  - 'button "Appearance: system"':
+    - generic: Appearance
+- main:
+  - generic: Manual Continuity
+  - generic: "Pick 1.01 · #1"
+  - generic: 10 teams · 14 rounds · Snake
+  - generic: Your pick in 4
+  - button "Manage Sleeper draft connection":
+    - generic: Sleeper
+    - status "Manual Continuity. Last sync 43s ago.":
+      - generic: Manual Continuity
+      - generic: · 43s ago
+  - status:
+    - heading "Manual Continuity is active" [level=2]
+    - paragraph: The last confirmed Provider Truth remains loaded. 1 Provisional Pick is local only and will never be submitted or queued with Sleeper.
+  - button "Add Provisional Pick":
+    - text: Add Provisional Pick
+  - heading "Local picks awaiting Reconciliation" [level=3]
+  - generic: Confirmed picks are locked
+  - list "Provisional Picks":
+    - listitem "Ja'Marr Chase, WR, pick 1.05, My Team, recorded locally":
+      - paragraph: Ja'Marr ChaseWR
+      - paragraph: "Pick 1.05 · #5 · My Team · Recorded locally"
+      - button "Correct Provisional Pick for Ja'Marr Chase":
+        - text: Correct
+      - button "Remove Provisional Pick for Ja'Marr Chase":
+        - text: Remove
+  - region "Best Pick":
+    - generic: Best Pick
+    - generic: RB
+    - generic: 4 picks away
+    - heading "Jahmyr Gibbs" [level=2]
+    - generic: "ECR #2 with +223 points above replacement."
+    - generic: Return Probability
+    - text: 83%
+    - generic: at pick 1.05
+    - button "Add Jahmyr Gibbs to the local queue":
+      - text: Queue
+    - button "Open Assistant for Jahmyr Gibbs":
+      - text: Assistant
+  - region "Draft board":
+    - heading "Draft board" [level=2]
+    - paragraph: 10 teams · 14 rounds · snake order
+    - generic: Pick 1.01
+    - group "Draft board view":
+      - button "Current pick" [pressed]:
+        - generic: Current pick
+      - button "Full board":
+        - text: Full board
+    - generic: Active round
+    - generic: Round 1 · Team 1
+    - generic: Latest pick
+    - generic "Ja'Marr Chase": "#5 · Ja'Marr Chase"
+    - generic: Upcoming window
+    - generic: "#1 to #5 · 4 picks"
+    - generic: Round
+    - generic: Team 1
+    - generic: Team 2
+    - generic: Team 3
+    - generic: Team 4
+    - generic: My Team
+    - generic: Team 6
+    - generic: Team 7
+    - generic: Team 8
+    - generic: Team 9
+    - generic: Team 10
+    - generic: R1
+    - generic: Now
+    - generic "Pick 1.01, on the clock, in the upcoming selection window":
+      - generic: "1.01"
+      - generic: On the clock
+    - generic "Pick 1.02, in the upcoming selection window":
+      - generic: "1.02"
+      - generic: In 1
+    - generic "Pick 1.03, in the upcoming selection window":
+      - generic: "1.03"
+      - generic: In 2
+    - generic "Pick 1.04, in the upcoming selection window":
+      - generic: "1.04"
+      - generic: In 3
+    - generic "Pick 1.05, Ja'Marr Chase, Provisional Pick, latest pick, My Team, in the upcoming selection window":
+      - generic: Ja'Marr Chase
+      - generic: "#5"
+      - generic: · WR
+      - generic: · CIN
+      - generic: Provisional Pick
+    - generic "Pick 1.06":
+      - generic: "1.06"
+      - generic: Open
+    - generic "Pick 1.07, Jonathan Taylor":
+      - generic: Jonathan Taylor
+      - generic: "#7"
+      - generic: · RB
+      - generic: · IND
+      - text: · Keeper
+    - generic "Pick 1.08":
+      - generic: "1.08"
+      - generic: Open
+    - generic "Pick 1.09, Puka Nacua":
+      - generic: Puka Nacua
+      - generic: "#9"
+      - generic: · WR
+      - generic: · LAR
+      - text: · Keeper
+    - generic "Pick 1.10":
+      - generic: "1.10"
+      - generic: Open
+    - generic: R2
+    - generic "Pick 2.10, Jaxon Smith-Njigba":
+      - generic: Jaxon Smith-Njigba
+      - generic: "#20"
+      - generic: · WR
+      - generic: · SEA
+      - text: · Keeper
+    - generic "Pick 2.09":
+      - generic: "2.09"
+      - generic: Open
+    - generic "Pick 2.08":
+      - generic: "2.08"
+      - generic: Open
+    - generic "Pick 2.07":
+      - generic: "2.07"
+      - generic: Open
+    - generic "Pick 2.06, My Team":
+      - generic: "2.06"
+      - generic: Open
+    - generic "Pick 2.05":
+      - generic: "2.05"
+      - generic: Open
+    - generic "Pick 2.04":
+      - generic: "2.04"
+      - generic: Open
+    - generic "Pick 2.03":
+      - generic: "2.03"
+      - generic: Open
+    - generic "Pick 2.02":
+      - generic: "2.02"
+      - generic: Open
+    - generic "Pick 2.01":
+      - generic: "2.01"
+      - generic: Open
+    - generic: R3
+    - generic "Pick 3.01":
+      - generic: "3.01"
+      - generic: Open
+    - generic "Pick 3.02":
+      - generic: "3.02"
+      - generic: Open
+    - generic "Pick 3.03":
+      - generic: "3.03"
+      - generic: Open
+    - generic "Pick 3.04":
+      - generic: "3.04"
+      - generic: Open
+    - generic "Pick 3.05, My Team":
+      - generic: "3.05"
+      - generic: Open
+    - generic "Pick 3.06":
+      - generic: "3.06"
+      - generic: Open
+    - generic "Pick 3.07":
+      - generic: "3.07"
+      - generic: Open
+    - generic "Pick 3.08, Omarion Hampton":
+      - generic: Omarion Hampton
+      - generic: "#28"
+      - generic: · RB
+      - generic: · LAC
+      - text: · Keeper
+    - generic "Pick 3.09":
+      - generic: "3.09"
+      - generic: Open
+    - generic "Pick 3.10, James Cook III":
+      - generic: James Cook III
+      - generic: "#30"
+      - generic: · RB
+      - generic: · BUF
+      - text: · Keeper
+    - generic: R4
+    - generic "Pick 4.10":
+      - generic: "4.10"
+      - generic: Open
+    - generic "Pick 4.09":
+      - generic: "4.09"
+      - generic: Open
+    - generic "Pick 4.08":
+      - generic: "4.08"
+      - generic: Open
+    - generic "Pick 4.07":
+      - generic: "4.07"
+      - generic: Open
+    - generic "Pick 4.06, My Team":
+      - generic: "4.06"
+      - generic: Open
+    - generic "Pick 4.05":
+      - generic: "4.05"
+      - generic: Open
+    - generic "Pick 4.04":
+      - generic: "4.04"
+      - generic: Open
+    - generic "Pick 4.03":
+      - generic: "4.03"
+      - generic: Open
+    - generic "Pick 4.02":
+      - generic: "4.02"
+      - generic: Open
+    - generic "Pick 4.01":
+      - generic: "4.01"
+      - generic: Open
+    - generic: R5
+    - generic "Pick 5.01":
+      - generic: "5.01"
+      - generic: Open
+    - generic "Pick 5.02":
+      - generic: "5.02"
+      - generic: Open
+    - generic "Pick 5.03":
+      - generic: "5.03"
+      - generic: Open
+    - generic "Pick 5.04":
+      - generic: "5.04"
+      - generic: Open
+    - generic "Pick 5.05, My Team":
+      - generic: "5.05"
+      - generic: Open
+    - generic "Pick 5.06":
+      - generic: "5.06"
+      - generic: Open
+    - generic "Pick 5.07":
+      - generic: "5.07"
+      - generic: Open
+    - generic "Pick 5.08":
+      - generic: "5.08"
+      - generic: Open
+    - generic "Pick 5.09":
+      - generic: "5.09"
+      - generic: Open
+    - generic "Pick 5.10":
+      - generic: "5.10"
+      - generic: Open
+    - generic: R6
+    - generic "Pick 6.10":
+      - generic: "6.10"
+      - generic: Open
+    - generic "Pick 6.09":
+      - generic: "6.09"
+      - generic: Open
+    - generic "Pick 6.08":
+      - generic: "6.08"
+      - generic: Open
+    - generic "Pick 6.07":
+      - generic: "6.07"
+      - generic: Open
+    - generic "Pick 6.06, My Team":
+      - generic: "6.06"
+      - generic: Open
+    - generic "Pick 6.05":
+      - generic: "6.05"
+      - generic: Open
+    - generic "Pick 6.04":
+      - generic: "6.04"
+      - generic: Open
+    - generic "Pick 6.03":
+      - generic: "6.03"
+      - generic: Open
+    - generic "Pick 6.02":
+      - generic: "6.02"
+      - generic: Open
+    - generic "Pick 6.01":
+      - generic: "6.01"
+      - generic: Open
+    - generic: R7
+    - generic "Pick 7.01":
+      - generic: "7.01"
+      - generic: Open
+    - generic "Pick 7.02":
+      - generic: "7.02"
+      - generic: Open
+    - generic "Pick 7.03, Quinshon Judkins":
+      - generic: Quinshon Judkins
+      - generic: "#63"
+      - generic: · RB
+      - generic: · CLE
+      - text: · Keeper
+    - generic "Pick 7.04":
+      - generic: "7.04"
+      - generic: Open
+    - generic "Pick 7.05, My Team":
+      - generic: "7.05"
+      - generic: Open
+    - generic "Pick 7.06":
+      - generic: "7.06"
+      - generic: Open
+    - generic "Pick 7.07":
+      - generic: "7.07"
+      - generic: Open
+    - generic "Pick 7.08":
+      - generic: "7.08"
+      - generic: Open
+    - generic "Pick 7.09":
+      - generic: "7.09"
+      - generic: Open
+    - generic "Pick 7.10":
+      - generic: "7.10"
+      - generic: Open
+    - generic: R8
+    - generic "Pick 8.10":
+      - generic: "8.10"
+      - generic: Open
+    - generic "Pick 8.09, Emeka Egbuka":
+      - generic: Emeka Egbuka
+      - generic: "#79"
+      - generic: · WR
+      - generic: · TB
+      - text: · Keeper
+    - generic "Pick 8.08":
+      - generic: "8.08"
+      - generic: Open
+    - generic "Pick 8.07":
+      - generic: "8.07"
+      - generic: Open
+    - generic "Pick 8.06, My Team":
+      - generic: "8.06"
+      - generic: Open
+    - generic "Pick 8.05":
+      - generic: "8.05"
+      - generic: Open
+    - generic "Pick 8.04":
+      - generic: "8.04"
+      - generic: Open
+    - generic "Pick 8.03":
+      - generic: "8.03"
+      - generic: Open
+    - generic "Pick 8.02":
+      - generic: "8.02"
+      - generic: Open
+    - generic "Pick 8.01":
+      - generic: "8.01"
+      - generic: Open
+    - generic: R9
+    - generic "Pick 9.01":
+      - generic: "9.01"
+      - generic: Open
+    - generic "Pick 9.02":
+      - generic: "9.02"
+      - generic: Open
+    - generic "Pick 9.03":
+      - generic: "9.03"
+      - generic: Open
+    - generic "Pick 9.04":
+      - generic: "9.04"
+      - generic: Open
+    - generic "Pick 9.05, My Team":
+      - generic: "9.05"
+      - generic: Open
+    - generic "Pick 9.06, Travis Etienne Jr.":
+      - generic: Travis Etienne Jr.
+      - generic: "#86"
+      - generic: · RB
+      - generic: · NO
+      - text: · Keeper
+    - generic "Pick 9.07":
+      - generic: "9.07"
+      - generic: Open
+    - generic "Pick 9.08":
+      - generic: "9.08"
+      - generic: Open
+    - generic "Pick 9.09":
+      - generic: "9.09"
+      - generic: Open
+    - generic "Pick 9.10":
+      - generic: "9.10"
+      - generic: Open
+    - generic: R10
+    - generic "Pick 10.10":
+      - generic: "10.10"
+      - generic: Open
+    - generic "Pick 10.09":
+      - generic: "10.09"
+      - generic: Open
+    - generic "Pick 10.08":
+      - generic: "10.08"
+      - generic: Open
+    - generic "Pick 10.07":
+      - generic: "10.07"
+      - generic: Open
+    - generic "Pick 10.06, Javonte Williams, My Team":
+      - generic: Javonte Williams
+      - generic: "#96"
+      - generic: · RB
+      - generic: · DAL
+      - text: · Keeper
+    - generic "Pick 10.05":
+      - generic: "10.05"
+      - generic: Open
+    - generic "Pick 10.04":
+      - generic: "10.04"
+      - generic: Open
+    - generic "Pick 10.03":
+      - generic: "10.03"
+      - generic: Open
+    - generic "Pick 10.02":
+      - generic: "10.02"
+      - generic: Open
+    - generic "Pick 10.01":
+      - generic: "10.01"
+      - generic: Open
+    - generic: R11
+    - generic "Pick 11.01":
+      - generic: "11.01"
+      - generic: Open
+    - generic "Pick 11.02":
+      - generic: "11.02"
+      - generic: Open
+    - generic "Pick 11.03":
+      - generic: "11.03"
+      - generic: Open
+    - generic "Pick 11.04":
+      - generic: "11.04"
+      - generic: Open
+    - generic "Pick 11.05, My Team":
+      - generic: "11.05"
+      - generic: Open
+    - generic "Pick 11.06":
+      - generic: "11.06"
+      - generic: Open
+    - generic "Pick 11.07":
+      - generic: "11.07"
+      - generic: Open
+    - generic "Pick 11.08":
+      - generic: "11.08"
+      - generic: Open
+    - generic "Pick 11.09":
+      - generic: "11.09"
+      - generic: Open
+    - generic "Pick 11.10":
+      - generic: "11.10"
+      - generic: Open
+    - generic: R12
+    - generic "Pick 12.10":
+      - generic: "12.10"
+      - generic: Open
+    - generic "Pick 12.09":
+      - generic: "12.09"
+      - generic: Open
+    - generic "Pick 12.08":
+      - generic: "12.08"
+      - generic: Open
+    - generic "Pick 12.07":
+      - generic: "12.07"
+      - generic: Open
+    - generic "Pick 12.06, My Team":
+      - generic: "12.06"
+      - generic: Open
+    - generic "Pick 12.05":
+      - generic: "12.05"
+      - generic: Open
+    - generic "Pick 12.04":
+      - generic: "12.04"
+      - generic: Open
+    - generic "Pick 12.03":
+      - generic: "12.03"
+      - generic: Open
+    - generic "Pick 12.02":
+      - generic: "12.02"
+      - generic: Open
+    - generic "Pick 12.01":
+      - generic: "12.01"
+      - generic: Open
+    - generic: R13
+    - generic "Pick 13.01":
+      - generic: "13.01"
+      - generic: Open
+    - generic "Pick 13.02":
+      - generic: "13.02"
+      - generic: Open
+    - generic "Pick 13.03":
+      - generic: "13.03"
+      - generic: Open
+    - generic "Pick 13.04":
+      - generic: "13.04"
+      - generic: Open
+    - generic "Pick 13.05, My Team":
+      - generic: "13.05"
+      - generic: Open
+    - generic "Pick 13.06":
+      - generic: "13.06"
+      - generic: Open
+    - generic "Pick 13.07":
+      - generic: "13.07"
+      - generic: Open
+    - generic "Pick 13.08":
+      - generic: "13.08"
+      - generic: Open
+    - generic "Pick 13.09":
+      - generic: "13.09"
+      - generic: Open
+    - generic "Pick 13.10":
+      - generic: "13.10"
+      - generic: Open
+    - generic: R14
+    - generic "Pick 14.10":
+      - generic: "14.10"
+      - generic: Open
+    - generic "Pick 14.09":
+      - generic: "14.09"
+      - generic: Open
+    - generic "Pick 14.08":
+      - generic: "14.08"
+      - generic: Open
+    - generic "Pick 14.07, Rico Dowdle":
+      - generic: Rico Dowdle
+      - generic: "#137"
+      - generic: · RB
+      - generic: · PIT
+      - text: · Keeper
+    - generic "Pick 14.06, My Team":
+      - generic: "14.06"
+      - generic: Open
+    - generic "Pick 14.05":
+      - generic: "14.05"
+      - generic: Open
+    - generic "Pick 14.04":
+      - generic: "14.04"
+      - generic: Open
+    - generic "Pick 14.03":
+      - generic: "14.03"
+      - generic: Open
+    - generic "Pick 14.02":
+      - generic: "14.02"
+      - generic: Open
+    - generic "Pick 14.01":
+      - generic: "14.01"
+      - generic: Open
+  - region "Draft tools":
+    - heading "Draft workspace" [level=2]
+    - paragraph: Player pool ordered by Best Pick · suggestions, local shortlist, and roster
+    - button "Collapse" [expanded]:
+      - text: Collapse
+    - tablist:
+      - tab "Players":
+        - text: Players
+      - tab "Suggestions 3":
+        - text: Suggestions
+        - generic: "3"
+      - tab "Queue 0":
+        - text: Queue
+        - generic: "0"
+      - tab "Roster 2" [active] [selected]:
+        - text: Roster
+        - generic: "2"
+    - tabpanel "Roster 2":
+      - generic: Draft slot 5
+      - generic: 2 / 14 players
+      - generic: QB
+      - generic: 0 / 14
+      - generic: Empty
+      - generic: RB
+      - generic: 1 / 14
+      - generic: Javonte Williams
+      - generic: Starter · DAL
+      - generic: WR
+      - generic: 1 / 14
+      - generic: Ja'Marr Chase
+      - generic: Starter · CIN
+      - generic: TE
+      - generic: 0 / 14
+      - generic: Empty
+      - generic: K
+      - generic: 0 / 14
+      - generic: Empty
+      - generic: DEF
+      - generic: 0 / 14
+      - generic: Empty

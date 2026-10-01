@@ -1,0 +1,4199 @@
+{
+  "generatedAt": "2026-09-05T15:21:40.008Z",
+  "experimentVersion": "primary-league-draft-experiments-v1",
+  "parameters": {
+    "seed": 20260831,
+    "draftSlot": 5,
+    "totalTeams": 10,
+    "totalRounds": 14,
+    "keeper": {
+      "playerName": "Javonte Williams",
+      "position": "RB",
+      "round": 10
+    },
+    "scale": {
+      "tournamentIterations": 150,
+      "timingIterations": 100,
+      "stressIterations": 100,
+      "sensitivityIterations": 100,
+      "scoringIterations": 100,
+      "waitMapIterations": 400
+    }
+  },
+  "openingPlanTournament": {
+    "strategies": [
+      {
+        "id": "best-pick",
+        "label": "Best Pick",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2316.83,
+          "p10": 2178.02,
+          "p90": 2425.81,
+          "meanConfidenceInterval95": {
+            "lower": 2302.24,
+            "upper": 2331.42
+          }
+        },
+        "starterVor": {
+          "mean": 503.34,
+          "p10": 425.39,
+          "p90": 594.37,
+          "meanConfidenceInterval95": {
+            "lower": 493.07,
+            "upper": 513.62
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3515.97,
+          "p10": 3300.49,
+          "p90": 3699.28,
+          "meanConfidenceInterval95": {
+            "lower": 3493.23,
+            "upper": 3538.71
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.28
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.22
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.207
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Rashee Rice",
+            "rate": 0.027
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Zay Flowers",
+            "rate": 0.027
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Drake London / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.77,
+          "RB": 18.03,
+          "WR": 21.63,
+          "TE": 4.57
+        },
+        "qb": {
+          "averageRound": 7.13,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.44
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.207
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.2
+            }
+          ],
+          "averageProjectedPoints": 325.72
+        },
+        "te": {
+          "averageRound": 12.43,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.493
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.147
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.127
+            }
+          ],
+          "averageProjectedPoints": 193.59
+        }
+      },
+      {
+        "id": "best-player",
+        "label": "Best Player",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 1990.56,
+          "p10": 1870.67,
+          "p90": 2197.59,
+          "meanConfidenceInterval95": {
+            "lower": 1969.56,
+            "upper": 2011.56
+          }
+        },
+        "starterVor": {
+          "mean": 441.08,
+          "p10": 370.42,
+          "p90": 522.25,
+          "meanConfidenceInterval95": {
+            "lower": 431.17,
+            "upper": 451
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3670.4,
+          "p10": 3609.58,
+          "p90": 3732.48,
+          "meanConfidenceInterval95": {
+            "lower": 3661.94,
+            "upper": 3678.85
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": -326.27,
+          "p10": -469.47,
+          "p90": -146.11,
+          "meanConfidenceInterval95": {
+            "lower": -344.74,
+            "upper": -307.8
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.587
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.267
+          },
+          {
+            "positions": "WR-WR-RB-WR",
+            "rate": 0.093
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / George Pickens / Malik Nabers",
+            "rate": 0.033
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / Chris Olave / Malik Nabers",
+            "rate": 0.027
+          },
+          {
+            "players": "Ja'Marr Chase / Drake London / A.J. Brown / Malik Nabers",
+            "rate": 0.027
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.78,
+          "RB": 18.05,
+          "WR": 21.57,
+          "TE": 4.61
+        },
+        "qb": {
+          "averageRound": 7.98,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.493
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.273
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.087
+            }
+          ],
+          "averageProjectedPoints": 321.98
+        },
+        "te": {
+          "averageRound": 13.83,
+          "mostCommonPlayers": [
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.374
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.285
+            },
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.276
+            }
+          ],
+          "averageProjectedPoints": 188.45
+        }
+      },
+      {
+        "id": "wr-wr",
+        "label": "WR-WR start",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2235.31,
+          "p10": 2126.27,
+          "p90": 2354.03,
+          "meanConfidenceInterval95": {
+            "lower": 2221.53,
+            "upper": 2249.1
+          }
+        },
+        "starterVor": {
+          "mean": 445.74,
+          "p10": 378.17,
+          "p90": 525.61,
+          "meanConfidenceInterval95": {
+            "lower": 436.73,
+            "upper": 454.74
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3416.8,
+          "p10": 3246.2,
+          "p90": 3618.31,
+          "meanConfidenceInterval95": {
+            "lower": 3394.04,
+            "upper": 3439.57
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": -81.51,
+          "p10": -225.34,
+          "p90": 0,
+          "meanConfidenceInterval95": {
+            "lower": -97.85,
+            "upper": -65.18
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.633
+          },
+          {
+            "positions": "WR-WR-RB-WR",
+            "rate": 0.353
+          },
+          {
+            "positions": "WR-WR-QB-WR",
+            "rate": 0.007
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Drake London / Chase Brown / Malik Nabers",
+            "rate": 0.033
+          },
+          {
+            "players": "Ja'Marr Chase / Drake London / Chris Olave / Zay Flowers",
+            "rate": 0.027
+          },
+          {
+            "players": "Amon-Ra St. Brown / A.J. Brown / Chris Olave / Malik Nabers",
+            "rate": 0.013
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.87,
+          "RB": 18.08,
+          "WR": 21.42,
+          "TE": 4.63
+        },
+        "qb": {
+          "averageRound": 7.06,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.413
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.26
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.187
+            }
+          ],
+          "averageProjectedPoints": 327.51
+        },
+        "te": {
+          "averageRound": 12.45,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.707
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.107
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.087
+            }
+          ],
+          "averageProjectedPoints": 188.54
+        }
+      },
+      {
+        "id": "rb-rb",
+        "label": "RB-RB start",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2388.99,
+          "p10": 2320.47,
+          "p90": 2458.11,
+          "meanConfidenceInterval95": {
+            "lower": 2380.77,
+            "upper": 2397.21
+          }
+        },
+        "starterVor": {
+          "mean": 554.85,
+          "p10": 487.79,
+          "p90": 616.82,
+          "meanConfidenceInterval95": {
+            "lower": 546.78,
+            "upper": 562.93
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3610.29,
+          "p10": 3476.14,
+          "p90": 3758.92,
+          "meanConfidenceInterval95": {
+            "lower": 3593.26,
+            "upper": 3627.32
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": 72.16,
+          "p10": -14.22,
+          "p90": 196.46,
+          "meanConfidenceInterval95": {
+            "lower": 58.54,
+            "upper": 85.79
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-RB-WR-WR",
+            "rate": 0.913
+          },
+          {
+            "positions": "RB-RB-RB-WR",
+            "rate": 0.08
+          },
+          {
+            "positions": "RB-RB-QB-WR",
+            "rate": 0.007
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Chase Brown / De'Von Achane / Chris Olave / Malik Nabers",
+            "rate": 0.02
+          },
+          {
+            "players": "Jahmyr Gibbs / Chase Brown / Chris Olave / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Jahmyr Gibbs / Chase Brown / Drake London / Rashee Rice",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.88,
+          "RB": 18.11,
+          "WR": 21.33,
+          "TE": 4.68
+        },
+        "qb": {
+          "averageRound": 7.25,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.52
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.16
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.127
+            }
+          ],
+          "averageProjectedPoints": 324.38
+        },
+        "te": {
+          "averageRound": 12.95,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.42
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.24
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.173
+            }
+          ],
+          "averageProjectedPoints": 190.19
+        }
+      },
+      {
+        "id": "wr-rb",
+        "label": "WR-RB start",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2329.86,
+          "p10": 2274.59,
+          "p90": 2395.72,
+          "meanConfidenceInterval95": {
+            "lower": 2322.06,
+            "upper": 2337.65
+          }
+        },
+        "starterVor": {
+          "mean": 497.25,
+          "p10": 443.49,
+          "p90": 561.42,
+          "meanConfidenceInterval95": {
+            "lower": 489.67,
+            "upper": 504.83
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3551.1,
+          "p10": 3412.41,
+          "p90": 3681,
+          "meanConfidenceInterval95": {
+            "lower": 3534.86,
+            "upper": 3567.34
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": 13.03,
+          "p10": -114.34,
+          "p90": 167.7,
+          "meanConfidenceInterval95": {
+            "lower": -3.09,
+            "upper": 29.15
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.88
+          },
+          {
+            "positions": "WR-RB-RB-WR",
+            "rate": 0.107
+          },
+          {
+            "positions": "WR-RB-WR-QB",
+            "rate": 0.007
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Rashee Rice",
+            "rate": 0.047
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Zay Flowers",
+            "rate": 0.033
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Drake London / Zay Flowers",
+            "rate": 0.033
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.78,
+          "RB": 18.04,
+          "WR": 21.57,
+          "TE": 4.61
+        },
+        "qb": {
+          "averageRound": 7.19,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.493
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.18
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.133
+            }
+          ],
+          "averageProjectedPoints": 324.09
+        },
+        "te": {
+          "averageRound": 12.93,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.447
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.2
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.147
+            }
+          ],
+          "averageProjectedPoints": 191.05
+        }
+      },
+      {
+        "id": "rb-wr",
+        "label": "RB-WR start",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2348.42,
+          "p10": 2268.36,
+          "p90": 2428.26,
+          "meanConfidenceInterval95": {
+            "lower": 2338.77,
+            "upper": 2358.07
+          }
+        },
+        "starterVor": {
+          "mean": 516.21,
+          "p10": 434.51,
+          "p90": 594.48,
+          "meanConfidenceInterval95": {
+            "lower": 506.72,
+            "upper": 525.7
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3557.22,
+          "p10": 3413.06,
+          "p90": 3700.27,
+          "meanConfidenceInterval95": {
+            "lower": 3539.59,
+            "upper": 3574.84
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": 31.59,
+          "p10": -64.04,
+          "p90": 157.83,
+          "meanConfidenceInterval95": {
+            "lower": 18.34,
+            "upper": 44.84
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.74
+          },
+          {
+            "positions": "RB-WR-RB-WR",
+            "rate": 0.26
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Jahmyr Gibbs / Drake London / Chris Olave / Rashee Rice",
+            "rate": 0.027
+          },
+          {
+            "players": "Bijan Robinson / CeeDee Lamb / Chris Olave / Rashee Rice",
+            "rate": 0.013
+          },
+          {
+            "players": "Bijan Robinson / Drake London / Chris Olave / Malik Nabers",
+            "rate": 0.013
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.83,
+          "RB": 17.99,
+          "WR": 21.54,
+          "TE": 4.65
+        },
+        "qb": {
+          "averageRound": 7.17,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.467
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.18
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.173
+            }
+          ],
+          "averageProjectedPoints": 325.42
+        },
+        "te": {
+          "averageRound": 12.96,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.473
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.18
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.167
+            }
+          ],
+          "averageProjectedPoints": 189.15
+        }
+      },
+      {
+        "id": "elite-te",
+        "label": "TE in round 2",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2286.94,
+          "p10": 2164.65,
+          "p90": 2393.36,
+          "meanConfidenceInterval95": {
+            "lower": 2272.1,
+            "upper": 2301.78
+          }
+        },
+        "starterVor": {
+          "mean": 478.06,
+          "p10": 402.77,
+          "p90": 554.86,
+          "meanConfidenceInterval95": {
+            "lower": 468.43,
+            "upper": 487.68
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3544.29,
+          "p10": 3350.43,
+          "p90": 3703.93,
+          "meanConfidenceInterval95": {
+            "lower": 3521.74,
+            "upper": 3566.84
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": -29.89,
+          "p10": -158.91,
+          "p90": 61.95,
+          "meanConfidenceInterval95": {
+            "lower": -44.13,
+            "upper": -15.64
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-TE-WR-WR",
+            "rate": 0.413
+          },
+          {
+            "positions": "RB-TE-WR-WR",
+            "rate": 0.267
+          },
+          {
+            "positions": "WR-TE-RB-WR",
+            "rate": 0.213
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Colston Loveland / Chris Olave / Zay Flowers",
+            "rate": 0.027
+          },
+          {
+            "players": "Amon-Ra St. Brown / Colston Loveland / Chris Olave / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Colston Loveland / A.J. Brown / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.85,
+          "RB": 18.14,
+          "WR": 21.38,
+          "TE": 4.63
+        },
+        "qb": {
+          "averageRound": 7.41,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.473
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.26
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.133
+            }
+          ],
+          "averageProjectedPoints": 324.3
+        },
+        "te": {
+          "averageRound": 2,
+          "mostCommonPlayers": [
+            {
+              "player": "Colston Loveland",
+              "rate": 0.633
+            },
+            {
+              "player": "Tyler Warren",
+              "rate": 0.287
+            },
+            {
+              "player": "Trey McBride",
+              "rate": 0.047
+            }
+          ],
+          "averageProjectedPoints": 251.53
+        }
+      },
+      {
+        "id": "early-qb",
+        "label": "QB in round 3",
+        "iterations": 150,
+        "starterProjectedPoints": {
+          "mean": 2271.72,
+          "p10": 2158.47,
+          "p90": 2381.57,
+          "meanConfidenceInterval95": {
+            "lower": 2257.94,
+            "upper": 2285.51
+          }
+        },
+        "starterVor": {
+          "mean": 463.14,
+          "p10": 383.04,
+          "p90": 549.44,
+          "meanConfidenceInterval95": {
+            "lower": 453.42,
+            "upper": 472.86
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3507.86,
+          "p10": 3281.53,
+          "p90": 3696.91,
+          "meanConfidenceInterval95": {
+            "lower": 3482.91,
+            "upper": 3532.8
+          }
+        },
+        "pairedStarterPointsDeltaVsBestPick": {
+          "mean": -45.11,
+          "p10": -158.57,
+          "p90": 26.63,
+          "meanConfidenceInterval95": {
+            "lower": -56.08,
+            "upper": -34.13
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-QB-WR",
+            "rate": 0.387
+          },
+          {
+            "positions": "RB-WR-QB-WR",
+            "rate": 0.267
+          },
+          {
+            "positions": "WR-RB-QB-WR",
+            "rate": 0.233
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Lamar Jackson / Malik Nabers",
+            "rate": 0.047
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Drake Maye / Rashee Rice",
+            "rate": 0.033
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Drake Maye / Zay Flowers",
+            "rate": 0.033
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.95,
+          "RB": 18.05,
+          "WR": 21.35,
+          "TE": 4.64
+        },
+        "qb": {
+          "averageRound": 3,
+          "mostCommonPlayers": [
+            {
+              "player": "Lamar Jackson",
+              "rate": 0.607
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.373
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.013
+            }
+          ],
+          "averageProjectedPoints": 349.11
+        },
+        "te": {
+          "averageRound": 12.35,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.56
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.147
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.093
+            }
+          ],
+          "averageProjectedPoints": 192.88
+        }
+      }
+    ],
+    "projectedPointsLeader": "rb-rb",
+    "robustLeader": "rb-rb"
+  },
+  "takeNowOrWaitMap": {
+    "representativeSeed": 20310831,
+    "decisions": [
+      {
+        "pickNumber": 5,
+        "roundPick": "1.05",
+        "selectedPlayer": "Jahmyr Gibbs",
+        "selectedPosition": "RB",
+        "nextPickNumber": 16,
+        "candidates": [
+          {
+            "playerId": "7564",
+            "playerName": "Ja'Marr Chase",
+            "position": "WR",
+            "ecrRank": 1,
+            "projectedPoints": 338.7,
+            "returnProbability": 0.142,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "9221",
+            "playerName": "Jahmyr Gibbs",
+            "position": "RB",
+            "ecrRank": 2,
+            "projectedPoints": 423,
+            "returnProbability": 0.033,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "7547",
+            "playerName": "Amon-Ra St. Brown",
+            "position": "WR",
+            "ecrRank": 6,
+            "projectedPoints": 334.4,
+            "returnProbability": 0.237,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "6786",
+            "playerName": "CeeDee Lamb",
+            "position": "WR",
+            "ecrRank": 7,
+            "projectedPoints": 286.1,
+            "returnProbability": 0.268,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "6794",
+            "playerName": "Justin Jefferson",
+            "position": "WR",
+            "ecrRank": 9,
+            "projectedPoints": 274.2,
+            "returnProbability": 0.48,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 16,
+        "roundPick": "2.06",
+        "selectedPlayer": "Justin Jefferson",
+        "selectedPosition": "WR",
+        "nextPickNumber": 25,
+        "candidates": [
+          {
+            "playerId": "6794",
+            "playerName": "Justin Jefferson",
+            "position": "WR",
+            "ecrRank": 9,
+            "projectedPoints": 274.2,
+            "returnProbability": 0.113,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "8112",
+            "playerName": "Drake London",
+            "position": "WR",
+            "ecrRank": 11,
+            "projectedPoints": 271.3,
+            "returnProbability": 0.35,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "9224",
+            "playerName": "Chase Brown",
+            "position": "RB",
+            "ecrRank": 15,
+            "projectedPoints": 335.8,
+            "returnProbability": 0.362,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "8144",
+            "playerName": "Chris Olave",
+            "position": "WR",
+            "ecrRank": 16,
+            "projectedPoints": 261.4,
+            "returnProbability": 0.575,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "4866",
+            "playerName": "Saquon Barkley",
+            "position": "RB",
+            "ecrRank": 22,
+            "projectedPoints": 333.3,
+            "returnProbability": 0.443,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 25,
+        "roundPick": "3.05",
+        "selectedPlayer": "Chase Brown",
+        "selectedPosition": "RB",
+        "nextPickNumber": 36,
+        "candidates": [
+          {
+            "playerId": "9224",
+            "playerName": "Chase Brown",
+            "position": "RB",
+            "ecrRank": 15,
+            "projectedPoints": 335.8,
+            "returnProbability": 0.003,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "8144",
+            "playerName": "Chris Olave",
+            "position": "WR",
+            "ecrRank": 16,
+            "projectedPoints": 261.4,
+            "returnProbability": 0.065,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "7525",
+            "playerName": "DeVonta Smith",
+            "position": "WR",
+            "ecrRank": 21,
+            "projectedPoints": 234.2,
+            "returnProbability": 0.21,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "4866",
+            "playerName": "Saquon Barkley",
+            "position": "RB",
+            "ecrRank": 22,
+            "projectedPoints": 333.3,
+            "returnProbability": 0.005,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "10229",
+            "playerName": "Rashee Rice",
+            "position": "WR",
+            "ecrRank": 27,
+            "projectedPoints": 275,
+            "returnProbability": 0.448,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 36,
+        "roundPick": "4.06",
+        "selectedPlayer": "Zay Flowers",
+        "selectedPosition": "WR",
+        "nextPickNumber": 45,
+        "candidates": [
+          {
+            "playerId": "11632",
+            "playerName": "Malik Nabers",
+            "position": "WR",
+            "ecrRank": 23,
+            "projectedPoints": 209.6,
+            "returnProbability": 0.105,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "9997",
+            "playerName": "Zay Flowers",
+            "position": "WR",
+            "ecrRank": 29,
+            "projectedPoints": 254.7,
+            "returnProbability": 0.043,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "11635",
+            "playerName": "Ladd McConkey",
+            "position": "WR",
+            "ecrRank": 32,
+            "projectedPoints": 212.9,
+            "returnProbability": 0.667,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "7526",
+            "playerName": "Jaylen Waddle",
+            "position": "WR",
+            "ecrRank": 33,
+            "projectedPoints": 209.5,
+            "returnProbability": 0.735,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "12526",
+            "playerName": "Tetairoa McMillan",
+            "position": "WR",
+            "ecrRank": 34,
+            "projectedPoints": 222,
+            "returnProbability": 0.34,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 45,
+        "roundPick": "5.05",
+        "selectedPlayer": "Jaylen Waddle",
+        "selectedPosition": "WR",
+        "nextPickNumber": 56,
+        "candidates": [
+          {
+            "playerId": "7526",
+            "playerName": "Jaylen Waddle",
+            "position": "WR",
+            "ecrRank": 33,
+            "projectedPoints": 209.5,
+            "returnProbability": 0.083,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "6801",
+            "playerName": "Tee Higgins",
+            "position": "WR",
+            "ecrRank": 35,
+            "projectedPoints": 220.6,
+            "returnProbability": 0.02,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "6770",
+            "playerName": "Joe Burrow",
+            "position": "QB",
+            "ecrRank": 44,
+            "projectedPoints": 323.2,
+            "returnProbability": 0.043,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "12519",
+            "playerName": "Luther Burden III",
+            "position": "WR",
+            "ecrRank": 46,
+            "projectedPoints": 204.2,
+            "returnProbability": 0.517,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "2133",
+            "playerName": "Davante Adams",
+            "position": "WR",
+            "ecrRank": 48,
+            "projectedPoints": 222.6,
+            "returnProbability": 0.212,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 56,
+        "roundPick": "6.06",
+        "selectedPlayer": "Luther Burden III",
+        "selectedPosition": "WR",
+        "nextPickNumber": 65,
+        "candidates": [
+          {
+            "playerId": "12519",
+            "playerName": "Luther Burden III",
+            "position": "WR",
+            "ecrRank": 46,
+            "projectedPoints": 204.2,
+            "returnProbability": 0.182,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "5927",
+            "playerName": "Terry McLaurin",
+            "position": "WR",
+            "ecrRank": 47,
+            "projectedPoints": 202.8,
+            "returnProbability": 0.305,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "4983",
+            "playerName": "DJ Moore",
+            "position": "WR",
+            "ecrRank": 49,
+            "projectedPoints": 201.5,
+            "returnProbability": 0.215,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "8167",
+            "playerName": "Christian Watson",
+            "position": "WR",
+            "ecrRank": 55,
+            "projectedPoints": 197.8,
+            "returnProbability": 0.713,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "11560",
+            "playerName": "Caleb Williams",
+            "position": "QB",
+            "ecrRank": 63,
+            "projectedPoints": 319,
+            "returnProbability": 0.955,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 65,
+        "roundPick": "7.05",
+        "selectedPlayer": "Christian Watson",
+        "selectedPosition": "WR",
+        "nextPickNumber": 76,
+        "candidates": [
+          {
+            "playerId": "8167",
+            "playerName": "Christian Watson",
+            "position": "WR",
+            "ecrRank": 55,
+            "projectedPoints": 197.8,
+            "returnProbability": 0.048,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "9487",
+            "playerName": "Parker Washington",
+            "position": "WR",
+            "ecrRank": 59,
+            "projectedPoints": 198.2,
+            "returnProbability": 0.102,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "2216",
+            "playerName": "Mike Evans",
+            "position": "WR",
+            "ecrRank": 62,
+            "projectedPoints": 199.9,
+            "returnProbability": 0.145,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "11560",
+            "playerName": "Caleb Williams",
+            "position": "QB",
+            "ecrRank": 63,
+            "projectedPoints": 319,
+            "returnProbability": 0.647,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "6797",
+            "playerName": "Justin Herbert",
+            "position": "QB",
+            "ecrRank": 69,
+            "projectedPoints": 320,
+            "returnProbability": 0.833,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 76,
+        "roundPick": "8.06",
+        "selectedPlayer": "Trevor Lawrence",
+        "selectedPosition": "QB",
+        "nextPickNumber": 85,
+        "candidates": [
+          {
+            "playerId": "4037",
+            "playerName": "Chris Godwin Jr.",
+            "position": "WR",
+            "ecrRank": 72,
+            "projectedPoints": 181.5,
+            "returnProbability": 0.453,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "7523",
+            "playerName": "Trevor Lawrence",
+            "position": "QB",
+            "ecrRank": 73,
+            "projectedPoints": 327.9,
+            "returnProbability": 0.843,
+            "recommendation": "likely-to-return",
+            "isBestPick": true,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "3294",
+            "playerName": "Dak Prescott",
+            "position": "QB",
+            "ecrRank": 75,
+            "projectedPoints": 326.7,
+            "returnProbability": 0.255,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "5846",
+            "playerName": "DK Metcalf",
+            "position": "WR",
+            "ecrRank": 78,
+            "projectedPoints": 194,
+            "returnProbability": 0.323,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "5967",
+            "playerName": "Tony Pollard",
+            "position": "RB",
+            "ecrRank": 81,
+            "projectedPoints": 224.8,
+            "returnProbability": 0.03,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 85,
+        "roundPick": "9.05",
+        "selectedPlayer": "Michael Pittman Jr.",
+        "selectedPosition": "WR",
+        "nextPickNumber": 96,
+        "candidates": [
+          {
+            "playerId": "6819",
+            "playerName": "Michael Pittman Jr.",
+            "position": "WR",
+            "ecrRank": 80,
+            "projectedPoints": 186.6,
+            "returnProbability": 0.242,
+            "recommendation": "take-now",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "8126",
+            "playerName": "Wan'Dale Robinson",
+            "position": "WR",
+            "ecrRank": 84,
+            "projectedPoints": 174.5,
+            "returnProbability": 0.495,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "9500",
+            "playerName": "Josh Downs",
+            "position": "WR",
+            "ecrRank": 88,
+            "projectedPoints": 159.5,
+            "returnProbability": 0.895,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "9754",
+            "playerName": "Quentin Johnston",
+            "position": "WR",
+            "ecrRank": 89,
+            "projectedPoints": 170.9,
+            "returnProbability": 0.657,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "12489",
+            "playerName": "RJ Harvey",
+            "position": "RB",
+            "ecrRank": 90,
+            "projectedPoints": 184.8,
+            "returnProbability": 0.125,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 105,
+        "roundPick": "11.05",
+        "selectedPlayer": "Brock Purdy",
+        "selectedPosition": "QB",
+        "nextPickNumber": 116,
+        "candidates": [
+          {
+            "playerId": "8183",
+            "playerName": "Brock Purdy",
+            "position": "QB",
+            "ecrRank": 91,
+            "projectedPoints": 325,
+            "returnProbability": 1,
+            "recommendation": "likely-to-return",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "11563",
+            "playerName": "Bo Nix",
+            "position": "QB",
+            "ecrRank": 94,
+            "projectedPoints": 310.4,
+            "returnProbability": 1,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "12508",
+            "playerName": "Jaxson Dart",
+            "position": "QB",
+            "ecrRank": 96,
+            "projectedPoints": 320.2,
+            "returnProbability": 0.938,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "4046",
+            "playerName": "Patrick Mahomes II",
+            "position": "QB",
+            "ecrRank": 101,
+            "projectedPoints": 318.5,
+            "returnProbability": 1,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "10222",
+            "playerName": "Jayden Reed",
+            "position": "WR",
+            "ecrRank": 102,
+            "projectedPoints": 177.8,
+            "returnProbability": 0.065,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 116,
+        "roundPick": "12.06",
+        "selectedPlayer": "Bo Nix",
+        "selectedPosition": "QB",
+        "nextPickNumber": 125,
+        "candidates": [
+          {
+            "playerId": "11563",
+            "playerName": "Bo Nix",
+            "position": "QB",
+            "ecrRank": 94,
+            "projectedPoints": 310.4,
+            "returnProbability": 0.998,
+            "recommendation": "likely-to-return",
+            "isBestPick": true,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "12508",
+            "playerName": "Jaxson Dart",
+            "position": "QB",
+            "ecrRank": 96,
+            "projectedPoints": 320.2,
+            "returnProbability": 0.792,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "4046",
+            "playerName": "Patrick Mahomes II",
+            "position": "QB",
+            "ecrRank": 101,
+            "projectedPoints": 318.5,
+            "returnProbability": 1,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "3163",
+            "playerName": "Jared Goff",
+            "position": "QB",
+            "ecrRank": 103,
+            "projectedPoints": 298.3,
+            "returnProbability": 1,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "421",
+            "playerName": "Matthew Stafford",
+            "position": "QB",
+            "ecrRank": 104,
+            "projectedPoints": 302.1,
+            "returnProbability": 0.66,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 125,
+        "roundPick": "13.05",
+        "selectedPlayer": "Dalton Kincaid",
+        "selectedPosition": "TE",
+        "nextPickNumber": 136,
+        "candidates": [
+          {
+            "playerId": "4046",
+            "playerName": "Patrick Mahomes II",
+            "position": "QB",
+            "ecrRank": 101,
+            "projectedPoints": 318.5,
+            "returnProbability": 0.855,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "3163",
+            "playerName": "Jared Goff",
+            "position": "QB",
+            "ecrRank": 103,
+            "projectedPoints": 298.3,
+            "returnProbability": 0.993,
+            "recommendation": "likely-to-return",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "421",
+            "playerName": "Matthew Stafford",
+            "position": "QB",
+            "ecrRank": 104,
+            "projectedPoints": 302.1,
+            "returnProbability": 0.608,
+            "recommendation": "decision-zone",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "10236",
+            "playerName": "Dalton Kincaid",
+            "position": "TE",
+            "ecrRank": 112,
+            "projectedPoints": 183.4,
+            "returnProbability": 0.302,
+            "recommendation": "decision-zone",
+            "isBestPick": true,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "8131",
+            "playerName": "Isaiah Likely",
+            "position": "TE",
+            "ecrRank": 119,
+            "projectedPoints": 192,
+            "returnProbability": 0.063,
+            "recommendation": "take-now",
+            "isBestPick": false,
+            "isBestPlayer": false
+          }
+        ]
+      },
+      {
+        "pickNumber": 136,
+        "roundPick": "14.06",
+        "selectedPlayer": "Tyler Loop",
+        "selectedPosition": "K",
+        "nextPickNumber": null,
+        "candidates": [
+          {
+            "playerId": "4046",
+            "playerName": "Patrick Mahomes II",
+            "position": "QB",
+            "ecrRank": 101,
+            "projectedPoints": 318.5,
+            "returnProbability": 0,
+            "recommendation": "last-pick",
+            "isBestPick": false,
+            "isBestPlayer": true
+          },
+          {
+            "playerId": "3163",
+            "playerName": "Jared Goff",
+            "position": "QB",
+            "ecrRank": 103,
+            "projectedPoints": 298.3,
+            "returnProbability": 0,
+            "recommendation": "last-pick",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "421",
+            "playerName": "Matthew Stafford",
+            "position": "QB",
+            "ecrRank": 104,
+            "projectedPoints": 302.1,
+            "returnProbability": 0,
+            "recommendation": "last-pick",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "5849",
+            "playerName": "Kyler Murray",
+            "position": "QB",
+            "ecrRank": 114,
+            "projectedPoints": 316.7,
+            "returnProbability": 0,
+            "recommendation": "last-pick",
+            "isBestPick": false,
+            "isBestPlayer": false
+          },
+          {
+            "playerId": "12711",
+            "playerName": "Tyler Loop",
+            "position": "K",
+            "ecrRank": 210,
+            "projectedPoints": 132,
+            "returnProbability": 0,
+            "recommendation": "last-pick",
+            "isBestPick": true,
+            "isBestPlayer": false
+          }
+        ]
+      }
+    ]
+  },
+  "qbAndTeTiming": {
+    "qb": [
+      {
+        "id": "qb-round-3",
+        "label": "QB in round 3",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2260.02,
+          "p10": 2140.1,
+          "p90": 2365.63,
+          "meanConfidenceInterval95": {
+            "lower": 2242.72,
+            "upper": 2277.32
+          }
+        },
+        "starterVor": {
+          "mean": 456.22,
+          "p10": 382.7,
+          "p90": 527.78,
+          "meanConfidenceInterval95": {
+            "lower": 444.71,
+            "upper": 467.73
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3482.04,
+          "p10": 3247.22,
+          "p90": 3674.5,
+          "meanConfidenceInterval95": {
+            "lower": 3450.61,
+            "upper": 3513.46
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-QB-WR",
+            "rate": 0.41
+          },
+          {
+            "positions": "RB-WR-QB-WR",
+            "rate": 0.32
+          },
+          {
+            "positions": "WR-RB-QB-WR",
+            "rate": 0.2
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Drake Maye / Zay Flowers",
+            "rate": 0.04
+          },
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Lamar Jackson / Malik Nabers",
+            "rate": 0.04
+          },
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Lamar Jackson / Zay Flowers",
+            "rate": 0.04
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 6.02,
+          "RB": 17.9,
+          "WR": 21.33,
+          "TE": 4.75
+        },
+        "qb": {
+          "averageRound": 3,
+          "mostCommonPlayers": [
+            {
+              "player": "Lamar Jackson",
+              "rate": 0.63
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.36
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.01
+            }
+          ],
+          "averageProjectedPoints": 349.05
+        },
+        "te": {
+          "averageRound": 12.45,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.6
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.14
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.13
+            }
+          ],
+          "averageProjectedPoints": 191.1
+        }
+      },
+      {
+        "id": "qb-round-5",
+        "label": "QB in round 5",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2316.53,
+          "p10": 2196.8,
+          "p90": 2408.82,
+          "meanConfidenceInterval95": {
+            "lower": 2301.16,
+            "upper": 2331.91
+          }
+        },
+        "starterVor": {
+          "mean": 499.77,
+          "p10": 428.85,
+          "p90": 573.03,
+          "meanConfidenceInterval95": {
+            "lower": 488.74,
+            "upper": 510.8
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3557.37,
+          "p10": 3387.79,
+          "p90": 3699.22,
+          "meanConfidenceInterval95": {
+            "lower": 3531.71,
+            "upper": 3583.02
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.28
+          },
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.27
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.18
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / George Pickens / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Bijan Robinson / Justin Jefferson / A.J. Brown / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 6,
+          "RB": 17.98,
+          "WR": 21.35,
+          "TE": 4.67
+        },
+        "qb": {
+          "averageRound": 5,
+          "mostCommonPlayers": [
+            {
+              "player": "Joe Burrow",
+              "rate": 0.51
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.35
+            },
+            {
+              "player": "Jalen Hurts",
+              "rate": 0.11
+            }
+          ],
+          "averageProjectedPoints": 333.21
+        },
+        "te": {
+          "averageRound": 12.62,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.6
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.12
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.11
+            }
+          ],
+          "averageProjectedPoints": 191.15
+        }
+      },
+      {
+        "id": "qb-round-8",
+        "label": "QB in round 8",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2313.96,
+          "p10": 2173.58,
+          "p90": 2412.08,
+          "meanConfidenceInterval95": {
+            "lower": 2296.64,
+            "upper": 2331.29
+          }
+        },
+        "starterVor": {
+          "mean": 498.83,
+          "p10": 417.34,
+          "p90": 581.81,
+          "meanConfidenceInterval95": {
+            "lower": 486.56,
+            "upper": 511.11
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3489.74,
+          "p10": 3291.36,
+          "p90": 3683.86,
+          "meanConfidenceInterval95": {
+            "lower": 3461.81,
+            "upper": 3517.68
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.28
+          },
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.27
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.18
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / George Pickens / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Bijan Robinson / Justin Jefferson / A.J. Brown / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.81,
+          "RB": 17.94,
+          "WR": 21.45,
+          "TE": 4.8
+        },
+        "qb": {
+          "averageRound": 8,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.59
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.36
+            },
+            {
+              "player": "Trevor Lawrence",
+              "rate": 0.05
+            }
+          ],
+          "averageProjectedPoints": 319.81
+        },
+        "te": {
+          "averageRound": 12.66,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.5
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.19
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.14
+            }
+          ],
+          "averageProjectedPoints": 190.22
+        }
+      }
+    ],
+    "te": [
+      {
+        "id": "te-round-2",
+        "label": "TE in round 2",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2289.69,
+          "p10": 2155.91,
+          "p90": 2397.02,
+          "meanConfidenceInterval95": {
+            "lower": 2271.19,
+            "upper": 2308.19
+          }
+        },
+        "starterVor": {
+          "mean": 480,
+          "p10": 397.31,
+          "p90": 558.52,
+          "meanConfidenceInterval95": {
+            "lower": 467.48,
+            "upper": 492.51
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3555.35,
+          "p10": 3333.77,
+          "p90": 3703.38,
+          "meanConfidenceInterval95": {
+            "lower": 3525.92,
+            "upper": 3584.78
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-TE-WR-WR",
+            "rate": 0.4
+          },
+          {
+            "positions": "RB-TE-WR-WR",
+            "rate": 0.29
+          },
+          {
+            "positions": "WR-TE-RB-WR",
+            "rate": 0.22
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Colston Loveland / Drake London / Zay Flowers",
+            "rate": 0.03
+          },
+          {
+            "players": "Ja'Marr Chase / Tyler Warren / Drake London / Rashee Rice",
+            "rate": 0.03
+          },
+          {
+            "players": "Ja'Marr Chase / Colston Loveland / Chase Brown / Garrett Wilson",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.84,
+          "RB": 17.99,
+          "WR": 21.36,
+          "TE": 4.81
+        },
+        "qb": {
+          "averageRound": 7.56,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.49
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.24
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.1
+            }
+          ],
+          "averageProjectedPoints": 322.82
+        },
+        "te": {
+          "averageRound": 2,
+          "mostCommonPlayers": [
+            {
+              "player": "Colston Loveland",
+              "rate": 0.6
+            },
+            {
+              "player": "Tyler Warren",
+              "rate": 0.26
+            },
+            {
+              "player": "Brock Bowers",
+              "rate": 0.1
+            }
+          ],
+          "averageProjectedPoints": 254.09
+        }
+      },
+      {
+        "id": "te-round-5",
+        "label": "TE in round 5",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2349.79,
+          "p10": 2227.53,
+          "p90": 2456.24,
+          "meanConfidenceInterval95": {
+            "lower": 2333.28,
+            "upper": 2366.31
+          }
+        },
+        "starterVor": {
+          "mean": 529.48,
+          "p10": 458.14,
+          "p90": 616.21,
+          "meanConfidenceInterval95": {
+            "lower": 517.74,
+            "upper": 541.22
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3628.19,
+          "p10": 3448.26,
+          "p90": 3741.36,
+          "meanConfidenceInterval95": {
+            "lower": 3604.92,
+            "upper": 3651.46
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.28
+          },
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.27
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.18
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / George Pickens / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Bijan Robinson / Justin Jefferson / A.J. Brown / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.77,
+          "RB": 17.83,
+          "WR": 21.09,
+          "TE": 5.31
+        },
+        "qb": {
+          "averageRound": 7.69,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.51
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.29
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.13
+            }
+          ],
+          "averageProjectedPoints": 320.78
+        },
+        "te": {
+          "averageRound": 5,
+          "mostCommonPlayers": [
+            {
+              "player": "Harold Fannin Jr.",
+              "rate": 0.76
+            },
+            {
+              "player": "Tyler Warren",
+              "rate": 0.14
+            },
+            {
+              "player": "Kyle Pitts Sr.",
+              "rate": 0.1
+            }
+          ],
+          "averageProjectedPoints": 236.38
+        }
+      },
+      {
+        "id": "te-round-8",
+        "label": "TE in round 8",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2333.82,
+          "p10": 2210.64,
+          "p90": 2427.88,
+          "meanConfidenceInterval95": {
+            "lower": 2316.8,
+            "upper": 2350.83
+          }
+        },
+        "starterVor": {
+          "mean": 518.07,
+          "p10": 446.86,
+          "p90": 589.21,
+          "meanConfidenceInterval95": {
+            "lower": 506.28,
+            "upper": 529.85
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3611.48,
+          "p10": 3443.1,
+          "p90": 3776.16,
+          "meanConfidenceInterval95": {
+            "lower": 3586.7,
+            "upper": 3636.25
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.28
+          },
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.27
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.18
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / George Pickens / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Bijan Robinson / Justin Jefferson / A.J. Brown / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.86,
+          "RB": 17.89,
+          "WR": 21.45,
+          "TE": 4.8
+        },
+        "qb": {
+          "averageRound": 7.78,
+          "mostCommonPlayers": [
+            {
+              "player": "Justin Herbert",
+              "rate": 0.34
+            },
+            {
+              "player": "Caleb Williams",
+              "rate": 0.27
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.16
+            }
+          ],
+          "averageProjectedPoints": 325.77
+        },
+        "te": {
+          "averageRound": 8,
+          "mostCommonPlayers": [
+            {
+              "player": "Travis Kelce",
+              "rate": 0.45
+            },
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.33
+            },
+            {
+              "player": "George Kittle",
+              "rate": 0.18
+            }
+          ],
+          "averageProjectedPoints": 209.15
+        }
+      }
+    ]
+  },
+  "positionalRunStressTest": {
+    "scenarios": [
+      {
+        "id": "league-history",
+        "label": "League history",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2308.53,
+          "p10": 2186.15,
+          "p90": 2417.92,
+          "meanConfidenceInterval95": {
+            "lower": 2291.52,
+            "upper": 2325.53
+          }
+        },
+        "starterVor": {
+          "mean": 494.86,
+          "p10": 410.25,
+          "p90": 579.68,
+          "meanConfidenceInterval95": {
+            "lower": 482.53,
+            "upper": 507.19
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3509.74,
+          "p10": 3296.73,
+          "p90": 3696.65,
+          "meanConfidenceInterval95": {
+            "lower": 3479.99,
+            "upper": 3539.48
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.3
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.21
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.2
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Drake London / Saquon Barkley / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / Chase Brown / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Bijan Robinson / Drake London / Chris Olave / Zay Flowers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.89,
+          "RB": 17.95,
+          "WR": 21.44,
+          "TE": 4.72
+        },
+        "qb": {
+          "averageRound": 7.26,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.49
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.21
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.2
+            }
+          ],
+          "averageProjectedPoints": 324.97
+        },
+        "te": {
+          "averageRound": 12.61,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.6
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.16
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.11
+            }
+          ],
+          "averageProjectedPoints": 189.41
+        }
+      },
+      {
+        "id": "qb-run",
+        "label": "QB run",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2313.07,
+          "p10": 2191.07,
+          "p90": 2410.3,
+          "meanConfidenceInterval95": {
+            "lower": 2296.42,
+            "upper": 2329.71
+          }
+        },
+        "starterVor": {
+          "mean": 501.17,
+          "p10": 427.53,
+          "p90": 582.21,
+          "meanConfidenceInterval95": {
+            "lower": 489.68,
+            "upper": 512.66
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3472.24,
+          "p10": 3300.54,
+          "p90": 3622.11,
+          "meanConfidenceInterval95": {
+            "lower": 3447.1,
+            "upper": 3497.39
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.32
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.24
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.19
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Bijan Robinson / Drake London / George Pickens / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / CeeDee Lamb / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Drake London / DeVonta Smith",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 6.55,
+          "RB": 17.62,
+          "WR": 21.2,
+          "TE": 4.63
+        },
+        "qb": {
+          "averageRound": 7.98,
+          "mostCommonPlayers": [
+            {
+              "player": "Justin Herbert",
+              "rate": 0.41
+            },
+            {
+              "player": "Caleb Williams",
+              "rate": 0.38
+            },
+            {
+              "player": "Trevor Lawrence",
+              "rate": 0.13
+            }
+          ],
+          "averageProjectedPoints": 321.6
+        },
+        "te": {
+          "averageRound": 12.7,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.55
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.17
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.1
+            }
+          ],
+          "averageProjectedPoints": 190.31
+        }
+      },
+      {
+        "id": "rb-run",
+        "label": "RB run",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2328.85,
+          "p10": 2171.59,
+          "p90": 2451.62,
+          "meanConfidenceInterval95": {
+            "lower": 2306.67,
+            "upper": 2351.03
+          }
+        },
+        "starterVor": {
+          "mean": 531.08,
+          "p10": 431.87,
+          "p90": 622.81,
+          "meanConfidenceInterval95": {
+            "lower": 517.22,
+            "upper": 544.93
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3514.8,
+          "p10": 3280.94,
+          "p90": 3725.73,
+          "meanConfidenceInterval95": {
+            "lower": 3480.57,
+            "upper": 3549.02
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.36
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.26
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.18
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / A.J. Brown / Zay Flowers",
+            "rate": 0.04
+          },
+          {
+            "players": "Ja'Marr Chase / CeeDee Lamb / A.J. Brown / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / CeeDee Lamb / Drake London / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.36,
+          "RB": 19.92,
+          "WR": 20.25,
+          "TE": 4.47
+        },
+        "qb": {
+          "averageRound": 6.91,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.37
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.23
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.2
+            }
+          ],
+          "averageProjectedPoints": 327.22
+        },
+        "te": {
+          "averageRound": 12.51,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.68
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.11
+            },
+            {
+              "player": "Isaiah Likely",
+              "rate": 0.1
+            }
+          ],
+          "averageProjectedPoints": 190.64
+        }
+      },
+      {
+        "id": "wr-run",
+        "label": "WR run",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2399.77,
+          "p10": 2306.89,
+          "p90": 2496.01,
+          "meanConfidenceInterval95": {
+            "lower": 2384.92,
+            "upper": 2414.63
+          }
+        },
+        "starterVor": {
+          "mean": 565.88,
+          "p10": 477.63,
+          "p90": 659.37,
+          "meanConfidenceInterval95": {
+            "lower": 551.93,
+            "upper": 579.83
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3727.88,
+          "p10": 3623.96,
+          "p90": 3825.07,
+          "meanConfidenceInterval95": {
+            "lower": 3710.54,
+            "upper": 3745.23
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-RB-RB-WR",
+            "rate": 0.22
+          },
+          {
+            "positions": "WR-WR-RB-WR",
+            "rate": 0.21
+          },
+          {
+            "positions": "RB-RB-RB-WR",
+            "rate": 0.11
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Chase Brown / Malik Nabers",
+            "rate": 0.03
+          },
+          {
+            "players": "Jahmyr Gibbs / Chase Brown / De'Von Achane / Garrett Wilson",
+            "rate": 0.03
+          },
+          {
+            "players": "Ja'Marr Chase / Amon-Ra St. Brown / Saquon Barkley / Ladd McConkey",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.33,
+          "RB": 16.89,
+          "WR": 23.47,
+          "TE": 4.31
+        },
+        "qb": {
+          "averageRound": 5.62,
+          "mostCommonPlayers": [
+            {
+              "player": "Drake Maye",
+              "rate": 0.45
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.25
+            },
+            {
+              "player": "Caleb Williams",
+              "rate": 0.18
+            }
+          ],
+          "averageProjectedPoints": 334.88
+        },
+        "te": {
+          "averageRound": 11.78,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.65
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.14
+            },
+            {
+              "player": "Isaiah Likely",
+              "rate": 0.05
+            }
+          ],
+          "averageProjectedPoints": 199.31
+        }
+      },
+      {
+        "id": "te-run",
+        "label": "TE run",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2320.56,
+          "p10": 2197.25,
+          "p90": 2421.91,
+          "meanConfidenceInterval95": {
+            "lower": 2304,
+            "upper": 2337.12
+          }
+        },
+        "starterVor": {
+          "mean": 506.6,
+          "p10": 418.68,
+          "p90": 590.91,
+          "meanConfidenceInterval95": {
+            "lower": 494.27,
+            "upper": 518.92
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3541.52,
+          "p10": 3319.16,
+          "p90": 3722.78,
+          "meanConfidenceInterval95": {
+            "lower": 3512.16,
+            "upper": 3570.88
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.29
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.18
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.17
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Drake London / Saquon Barkley / Zay Flowers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.66,
+          "RB": 17.37,
+          "WR": 20.82,
+          "TE": 6.15
+        },
+        "qb": {
+          "averageRound": 7.14,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.49
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.19
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.15
+            }
+          ],
+          "averageProjectedPoints": 325.23
+        },
+        "te": {
+          "averageRound": 12.77,
+          "mostCommonPlayers": [
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.59
+            },
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.21
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.15
+            }
+          ],
+          "averageProjectedPoints": 186.83
+        }
+      }
+    ]
+  },
+  "opponentModelSensitivity": {
+    "scenarios": [
+      {
+        "id": "league-history",
+        "label": "League history",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2310.58,
+          "p10": 2189.14,
+          "p90": 2417.7,
+          "meanConfidenceInterval95": {
+            "lower": 2293.41,
+            "upper": 2327.76
+          }
+        },
+        "starterVor": {
+          "mean": 502.43,
+          "p10": 420.32,
+          "p90": 589.53,
+          "meanConfidenceInterval95": {
+            "lower": 490.88,
+            "upper": 513.98
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3541.9,
+          "p10": 3301.32,
+          "p90": 3743.47,
+          "meanConfidenceInterval95": {
+            "lower": 3511.43,
+            "upper": 3572.36
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.34
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.23
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.16
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / George Pickens / Rashee Rice",
+            "rate": 0.03
+          },
+          {
+            "players": "Christian McCaffrey / Drake London / Chris Olave / Zay Flowers",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.78,
+          "RB": 18.02,
+          "WR": 21.47,
+          "TE": 4.73
+        },
+        "qb": {
+          "averageRound": 6.99,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.46
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.21
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.12
+            }
+          ],
+          "averageProjectedPoints": 326.32
+        },
+        "te": {
+          "averageRound": 12.34,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.53
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.15
+            },
+            {
+              "player": "Dallas Goedert",
+              "rate": 0.13
+            }
+          ],
+          "averageProjectedPoints": 194.47
+        }
+      },
+      {
+        "id": "market-only",
+        "label": "Market only",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2319.96,
+          "p10": 2201.91,
+          "p90": 2418.38,
+          "meanConfidenceInterval95": {
+            "lower": 2303.42,
+            "upper": 2336.49
+          }
+        },
+        "starterVor": {
+          "mean": 506.73,
+          "p10": 427.92,
+          "p90": 579.3,
+          "meanConfidenceInterval95": {
+            "lower": 494.9,
+            "upper": 518.57
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3513.69,
+          "p10": 3331.16,
+          "p90": 3701.71,
+          "meanConfidenceInterval95": {
+            "lower": 3485.98,
+            "upper": 3541.4
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.29
+          },
+          {
+            "positions": "WR-WR-RB-WR",
+            "rate": 0.2
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.18
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / Chris Olave / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Amon-Ra St. Brown / George Pickens / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Chase Brown / Nico Collins / Rashee Rice",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 6.05,
+          "RB": 18.01,
+          "WR": 21.34,
+          "TE": 4.6
+        },
+        "qb": {
+          "averageRound": 7.37,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.46
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.23
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.13
+            }
+          ],
+          "averageProjectedPoints": 323.76
+        },
+        "te": {
+          "averageRound": 11.96,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.44
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.19
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.16
+            }
+          ],
+          "averageProjectedPoints": 198.62
+        }
+      },
+      {
+        "id": "league-no-manager",
+        "label": "League, no manager tendencies",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2299.97,
+          "p10": 2165.22,
+          "p90": 2391.28,
+          "meanConfidenceInterval95": {
+            "lower": 2282.1,
+            "upper": 2317.84
+          }
+        },
+        "starterVor": {
+          "mean": 493.27,
+          "p10": 412.01,
+          "p90": 561.75,
+          "meanConfidenceInterval95": {
+            "lower": 481.32,
+            "upper": 505.23
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3517.15,
+          "p10": 3300.38,
+          "p90": 3680.79,
+          "meanConfidenceInterval95": {
+            "lower": 3488.71,
+            "upper": 3545.59
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.33
+          },
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.25
+          },
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.16
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Chase Brown / Malik Nabers",
+            "rate": 0.03
+          },
+          {
+            "players": "Amon-Ra St. Brown / Justin Jefferson / Chris Olave / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Amon-Ra St. Brown / Chris Olave / Malik Nabers",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.78,
+          "RB": 17.94,
+          "WR": 21.68,
+          "TE": 4.6
+        },
+        "qb": {
+          "averageRound": 6.86,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.4
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.24
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.16
+            }
+          ],
+          "averageProjectedPoints": 326.91
+        },
+        "te": {
+          "averageRound": 12.52,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.52
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.15
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.14
+            }
+          ],
+          "averageProjectedPoints": 189.96
+        }
+      },
+      {
+        "id": "chalk",
+        "label": "Low-randomness chalk",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2264.36,
+          "p10": 2143.31,
+          "p90": 2346.43,
+          "meanConfidenceInterval95": {
+            "lower": 2248.58,
+            "upper": 2280.15
+          }
+        },
+        "starterVor": {
+          "mean": 458.99,
+          "p10": 394.49,
+          "p90": 516.9,
+          "meanConfidenceInterval95": {
+            "lower": 449.56,
+            "upper": 468.43
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3441.75,
+          "p10": 3247.33,
+          "p90": 3652.03,
+          "meanConfidenceInterval95": {
+            "lower": 3413.5,
+            "upper": 3469.99
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "WR-RB-WR-WR",
+            "rate": 0.38
+          },
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.33
+          },
+          {
+            "positions": "WR-WR-RB-WR",
+            "rate": 0.12
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / Chris Olave / Zay Flowers",
+            "rate": 0.04
+          },
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / Chris Olave / Garrett Wilson",
+            "rate": 0.03
+          },
+          {
+            "players": "Amon-Ra St. Brown / Chase Brown / George Pickens / Zay Flowers",
+            "rate": 0.03
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 6.07,
+          "RB": 17.89,
+          "WR": 21.56,
+          "TE": 4.48
+        },
+        "qb": {
+          "averageRound": 6.8,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.39
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.34
+            },
+            {
+              "player": "Justin Herbert",
+              "rate": 0.22
+            }
+          ],
+          "averageProjectedPoints": 328.23
+        },
+        "te": {
+          "averageRound": 12.67,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.64
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.16
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.16
+            }
+          ],
+          "averageProjectedPoints": 186.42
+        }
+      },
+      {
+        "id": "chaos",
+        "label": "High-randomness room",
+        "iterations": 100,
+        "starterProjectedPoints": {
+          "mean": 2350.26,
+          "p10": 2224.93,
+          "p90": 2452.33,
+          "meanConfidenceInterval95": {
+            "lower": 2333.22,
+            "upper": 2367.29
+          }
+        },
+        "starterVor": {
+          "mean": 532.49,
+          "p10": 448.84,
+          "p90": 621.65,
+          "meanConfidenceInterval95": {
+            "lower": 519.64,
+            "upper": 545.34
+          }
+        },
+        "rosterProjectedPoints": {
+          "mean": 3579.11,
+          "p10": 3365.51,
+          "p90": 3751.75,
+          "meanConfidenceInterval95": {
+            "lower": 3551.3,
+            "upper": 3606.93
+          }
+        },
+        "mostCommonOpenings": [
+          {
+            "positions": "RB-WR-WR-WR",
+            "rate": 0.24
+          },
+          {
+            "positions": "WR-WR-WR-WR",
+            "rate": 0.22
+          },
+          {
+            "positions": "WR-WR-RB-WR",
+            "rate": 0.15
+          }
+        ],
+        "mostCommonFirstFourPlayers": [
+          {
+            "players": "Ja'Marr Chase / CeeDee Lamb / Drake London / Rashee Rice",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / A.J. Brown / George Pickens",
+            "rate": 0.02
+          },
+          {
+            "players": "Ja'Marr Chase / Justin Jefferson / Drake London / DeVonta Smith",
+            "rate": 0.02
+          }
+        ],
+        "averageFirst50PositionCounts": {
+          "QB": 5.48,
+          "RB": 18.21,
+          "WR": 21.27,
+          "TE": 5.04
+        },
+        "qb": {
+          "averageRound": 6.88,
+          "mostCommonPlayers": [
+            {
+              "player": "Caleb Williams",
+              "rate": 0.36
+            },
+            {
+              "player": "Drake Maye",
+              "rate": 0.19
+            },
+            {
+              "player": "Joe Burrow",
+              "rate": 0.18
+            }
+          ],
+          "averageProjectedPoints": 328.72
+        },
+        "te": {
+          "averageRound": 11.87,
+          "mostCommonPlayers": [
+            {
+              "player": "Dalton Kincaid",
+              "rate": 0.49
+            },
+            {
+              "player": "Juwan Johnson",
+              "rate": 0.18
+            },
+            {
+              "player": "Jake Ferguson",
+              "rate": 0.11
+            }
+          ],
+          "averageProjectedPoints": 198.29
+        }
+      }
+    ],
+    "openingAgreementRate": 0.6
+  },
+  "scoringRuleAblation": {
+    "scenarios": [
+      {
+        "id": "standard-ppr",
+        "label": "Standard PPR",
+        "strategy": {
+          "id": "standard-ppr",
+          "label": "Standard PPR",
+          "iterations": 100,
+          "starterProjectedPoints": {
+            "mean": 2132.46,
+            "p10": 2054.44,
+            "p90": 2220.58,
+            "meanConfidenceInterval95": {
+              "lower": 2119.68,
+              "upper": 2145.24
+            }
+          },
+          "starterVor": {
+            "mean": 475.21,
+            "p10": 426.46,
+            "p90": 530.95,
+            "meanConfidenceInterval95": {
+              "lower": 467.49,
+              "upper": 482.93
+            }
+          },
+          "rosterProjectedPoints": {
+            "mean": 3311.01,
+            "p10": 3123.4,
+            "p90": 3468.56,
+            "meanConfidenceInterval95": {
+              "lower": 3284.36,
+              "upper": 3337.66
+            }
+          },
+          "mostCommonOpenings": [
+            {
+              "positions": "WR-WR-WR-WR",
+              "rate": 0.67
+            },
+            {
+              "positions": "RB-WR-WR-WR",
+              "rate": 0.16
+            },
+            {
+              "positions": "WR-WR-RB-WR",
+              "rate": 0.08
+            }
+          ],
+          "mostCommonFirstFourPlayers": [
+            {
+              "players": "Ja'Marr Chase / Drake London / Chris Olave / Rashee Rice",
+              "rate": 0.04
+            },
+            {
+              "players": "Ja'Marr Chase / Justin Jefferson / George Pickens / Garrett Wilson",
+              "rate": 0.03
+            },
+            {
+              "players": "Ja'Marr Chase / Justin Jefferson / George Pickens / Rashee Rice",
+              "rate": 0.03
+            }
+          ],
+          "averageFirst50PositionCounts": {
+            "QB": 5.65,
+            "RB": 16.77,
+            "WR": 23.42,
+            "TE": 4.16
+          },
+          "qb": {
+            "averageRound": 6.2,
+            "mostCommonPlayers": [
+              {
+                "player": "Caleb Williams",
+                "rate": 0.29
+              },
+              {
+                "player": "Drake Maye",
+                "rate": 0.24
+              },
+              {
+                "player": "Jayden Daniels",
+                "rate": 0.18
+              }
+            ],
+            "averageProjectedPoints": 313.31
+          },
+          "te": {
+            "averageRound": 12.37,
+            "mostCommonPlayers": [
+              {
+                "player": "Dalton Kincaid",
+                "rate": 0.78
+              },
+              {
+                "player": "Dallas Goedert",
+                "rate": 0.07
+              },
+              {
+                "player": "Isaiah Likely",
+                "rate": 0.04
+              }
+            ],
+            "averageProjectedPoints": 160.31
+          }
+        },
+        "averageFirstFourPositionCounts": {
+          "QB": 0.01,
+          "RB": 0.35,
+          "WR": 3.63,
+          "TE": 0.01
+        }
+      },
+      {
+        "id": "rush-only",
+        "label": "PPR plus rush-attempt bonus",
+        "strategy": {
+          "id": "rush-only",
+          "label": "PPR plus rush-attempt bonus",
+          "iterations": 100,
+          "starterProjectedPoints": {
+            "mean": 2296.01,
+            "p10": 2171.36,
+            "p90": 2377.96,
+            "meanConfidenceInterval95": {
+              "lower": 2281.37,
+              "upper": 2310.65
+            }
+          },
+          "starterVor": {
+            "mean": 525.08,
+            "p10": 446.77,
+            "p90": 601.17,
+            "meanConfidenceInterval95": {
+              "lower": 513.76,
+              "upper": 536.4
+            }
+          },
+          "rosterProjectedPoints": {
+            "mean": 3503.03,
+            "p10": 3292,
+            "p90": 3672.64,
+            "meanConfidenceInterval95": {
+              "lower": 3475.86,
+              "upper": 3530.2
+            }
+          },
+          "mostCommonOpenings": [
+            {
+              "positions": "WR-WR-RB-WR",
+              "rate": 0.25
+            },
+            {
+              "positions": "RB-WR-WR-WR",
+              "rate": 0.2
+            },
+            {
+              "positions": "WR-RB-WR-WR",
+              "rate": 0.19
+            }
+          ],
+          "mostCommonFirstFourPlayers": [
+            {
+              "players": "Amon-Ra St. Brown / Justin Jefferson / A.J. Brown / Rashee Rice",
+              "rate": 0.02
+            },
+            {
+              "players": "Amon-Ra St. Brown / Justin Jefferson / De'Von Achane / Zay Flowers",
+              "rate": 0.02
+            },
+            {
+              "players": "Ja'Marr Chase / Chase Brown / Chris Olave / Zay Flowers",
+              "rate": 0.02
+            }
+          ],
+          "averageFirst50PositionCounts": {
+            "QB": 5.86,
+            "RB": 18.65,
+            "WR": 21.31,
+            "TE": 4.18
+          },
+          "qb": {
+            "averageRound": 7.09,
+            "mostCommonPlayers": [
+              {
+                "player": "Caleb Williams",
+                "rate": 0.42
+              },
+              {
+                "player": "Drake Maye",
+                "rate": 0.21
+              },
+              {
+                "player": "Justin Herbert",
+                "rate": 0.21
+              }
+            ],
+            "averageProjectedPoints": 325.73
+          },
+          "te": {
+            "averageRound": 12.69,
+            "mostCommonPlayers": [
+              {
+                "player": "Dalton Kincaid",
+                "rate": 0.71
+              },
+              {
+                "player": "Dallas Goedert",
+                "rate": 0.07
+              },
+              {
+                "player": "Jake Ferguson",
+                "rate": 0.07
+              }
+            ],
+            "averageProjectedPoints": 159.01
+          }
+        },
+        "averageFirstFourPositionCounts": {
+          "QB": 0,
+          "RB": 1,
+          "WR": 3,
+          "TE": 0
+        }
+      },
+      {
+        "id": "te-only",
+        "label": "PPR plus TE premium",
+        "strategy": {
+          "id": "te-only",
+          "label": "PPR plus TE premium",
+          "iterations": 100,
+          "starterProjectedPoints": {
+            "mean": 2152.2,
+            "p10": 2066.94,
+            "p90": 2231.91,
+            "meanConfidenceInterval95": {
+              "lower": 2139.16,
+              "upper": 2165.25
+            }
+          },
+          "starterVor": {
+            "mean": 429.25,
+            "p10": 382.72,
+            "p90": 473.24,
+            "meanConfidenceInterval95": {
+              "lower": 421.99,
+              "upper": 436.5
+            }
+          },
+          "rosterProjectedPoints": {
+            "mean": 3323.54,
+            "p10": 3152.4,
+            "p90": 3480.73,
+            "meanConfidenceInterval95": {
+              "lower": 3299.2,
+              "upper": 3347.89
+            }
+          },
+          "mostCommonOpenings": [
+            {
+              "positions": "WR-WR-WR-WR",
+              "rate": 0.57
+            },
+            {
+              "positions": "WR-WR-RB-WR",
+              "rate": 0.18
+            },
+            {
+              "positions": "RB-WR-WR-WR",
+              "rate": 0.17
+            }
+          ],
+          "mostCommonFirstFourPlayers": [
+            {
+              "players": "Ja'Marr Chase / Drake London / A.J. Brown / Rashee Rice",
+              "rate": 0.03
+            },
+            {
+              "players": "Ja'Marr Chase / Drake London / Chris Olave / Rashee Rice",
+              "rate": 0.03
+            },
+            {
+              "players": "Ja'Marr Chase / Drake London / George Pickens / Garrett Wilson",
+              "rate": 0.03
+            }
+          ],
+          "averageFirst50PositionCounts": {
+            "QB": 5.76,
+            "RB": 16.67,
+            "WR": 22.43,
+            "TE": 5.14
+          },
+          "qb": {
+            "averageRound": 6.75,
+            "mostCommonPlayers": [
+              {
+                "player": "Caleb Williams",
+                "rate": 0.41
+              },
+              {
+                "player": "Drake Maye",
+                "rate": 0.21
+              },
+              {
+                "player": "Joe Burrow",
+                "rate": 0.11
+              }
+            ],
+            "averageProjectedPoints": 311.18
+          },
+          "te": {
+            "averageRound": 12.45,
+            "mostCommonPlayers": [
+              {
+                "player": "Dalton Kincaid",
+                "rate": 0.66
+              },
+              {
+                "player": "Jake Ferguson",
+                "rate": 0.12
+              },
+              {
+                "player": "Juwan Johnson",
+                "rate": 0.11
+              }
+            ],
+            "averageProjectedPoints": 187.79
+          }
+        },
+        "averageFirstFourPositionCounts": {
+          "QB": 0.02,
+          "RB": 0.43,
+          "WR": 3.54,
+          "TE": 0.01
+        }
+      },
+      {
+        "id": "primary-league",
+        "label": "Primary League scoring",
+        "strategy": {
+          "id": "primary-league",
+          "label": "Primary League scoring",
+          "iterations": 100,
+          "starterProjectedPoints": {
+            "mean": 2324.05,
+            "p10": 2192.59,
+            "p90": 2423.81,
+            "meanConfidenceInterval95": {
+              "lower": 2306.4,
+              "upper": 2341.7
+            }
+          },
+          "starterVor": {
+            "mean": 508.24,
+            "p10": 416.8,
+            "p90": 591.38,
+            "meanConfidenceInterval95": {
+              "lower": 495.38,
+              "upper": 521.11
+            }
+          },
+          "rosterProjectedPoints": {
+            "mean": 3543.95,
+            "p10": 3313.35,
+            "p90": 3720.34,
+            "meanConfidenceInterval95": {
+              "lower": 3514.96,
+              "upper": 3572.94
+            }
+          },
+          "mostCommonOpenings": [
+            {
+              "positions": "WR-RB-WR-WR",
+              "rate": 0.23
+            },
+            {
+              "positions": "WR-WR-WR-WR",
+              "rate": 0.23
+            },
+            {
+              "positions": "RB-WR-WR-WR",
+              "rate": 0.17
+            }
+          ],
+          "mostCommonFirstFourPlayers": [
+            {
+              "players": "Ja'Marr Chase / Chase Brown / Drake London / Malik Nabers",
+              "rate": 0.03
+            },
+            {
+              "players": "Ja'Marr Chase / Chase Brown / George Pickens / Zay Flowers",
+              "rate": 0.03
+            },
+            {
+              "players": "Amon-Ra St. Brown / Justin Jefferson / A.J. Brown / Rashee Rice",
+              "rate": 0.02
+            }
+          ],
+          "averageFirst50PositionCounts": {
+            "QB": 5.76,
+            "RB": 18.13,
+            "WR": 21.49,
+            "TE": 4.62
+          },
+          "qb": {
+            "averageRound": 7.17,
+            "mostCommonPlayers": [
+              {
+                "player": "Caleb Williams",
+                "rate": 0.47
+              },
+              {
+                "player": "Drake Maye",
+                "rate": 0.19
+              },
+              {
+                "player": "Justin Herbert",
+                "rate": 0.13
+              }
+            ],
+            "averageProjectedPoints": 325.85
+          },
+          "te": {
+            "averageRound": 12.58,
+            "mostCommonPlayers": [
+              {
+                "player": "Dalton Kincaid",
+                "rate": 0.53
+              },
+              {
+                "player": "Dallas Goedert",
+                "rate": 0.13
+              },
+              {
+                "player": "Jake Ferguson",
+                "rate": 0.13
+              }
+            ],
+            "averageProjectedPoints": 192.87
+          }
+        },
+        "averageFirstFourPositionCounts": {
+          "QB": 0,
+          "RB": 0.96,
+          "WR": 3.02,
+          "TE": 0.02
+        }
+      }
+    ],
+    "largestPlayerAdjustments": [
+      {
+        "playerName": "Derrick Henry",
+        "position": "RB",
+        "primaryLeaguePoints": 342.4,
+        "standardPprPoints": 278.4,
+        "adjustment": 64
+      },
+      {
+        "playerName": "Jonathan Taylor",
+        "position": "RB",
+        "primaryLeaguePoints": 373,
+        "standardPprPoints": 309.4,
+        "adjustment": 63.6
+      },
+      {
+        "playerName": "James Cook III",
+        "position": "RB",
+        "primaryLeaguePoints": 330.1,
+        "standardPprPoints": 270.6,
+        "adjustment": 59.5
+      },
+      {
+        "playerName": "Bijan Robinson",
+        "position": "RB",
+        "primaryLeaguePoints": 412.4,
+        "standardPprPoints": 353.3,
+        "adjustment": 59.1
+      },
+      {
+        "playerName": "Saquon Barkley",
+        "position": "RB",
+        "primaryLeaguePoints": 333.3,
+        "standardPprPoints": 274.2,
+        "adjustment": 59.1
+      },
+      {
+        "playerName": "Quinshon Judkins",
+        "position": "RB",
+        "primaryLeaguePoints": 266.9,
+        "standardPprPoints": 209.4,
+        "adjustment": 57.5
+      },
+      {
+        "playerName": "Trey McBride",
+        "position": "TE",
+        "primaryLeaguePoints": 316.1,
+        "standardPprPoints": 260.4,
+        "adjustment": 55.7
+      },
+      {
+        "playerName": "Jahmyr Gibbs",
+        "position": "RB",
+        "primaryLeaguePoints": 423,
+        "standardPprPoints": 369.6,
+        "adjustment": 53.4
+      },
+      {
+        "playerName": "Ashton Jeanty",
+        "position": "RB",
+        "primaryLeaguePoints": 306.8,
+        "standardPprPoints": 253.7,
+        "adjustment": 53.1
+      },
+      {
+        "playerName": "Kenneth Walker III",
+        "position": "RB",
+        "primaryLeaguePoints": 309.9,
+        "standardPprPoints": 257,
+        "adjustment": 52.9
+      },
+      {
+        "playerName": "Christian McCaffrey",
+        "position": "RB",
+        "primaryLeaguePoints": 383.6,
+        "standardPprPoints": 331.3,
+        "adjustment": 52.3
+      },
+      {
+        "playerName": "Javonte Williams",
+        "position": "RB",
+        "primaryLeaguePoints": 283.4,
+        "standardPprPoints": 231.2,
+        "adjustment": 52.2
+      },
+      {
+        "playerName": "Breece Hall",
+        "position": "RB",
+        "primaryLeaguePoints": 298.1,
+        "standardPprPoints": 246.6,
+        "adjustment": 51.5
+      },
+      {
+        "playerName": "Travis Etienne Jr.",
+        "position": "RB",
+        "primaryLeaguePoints": 285,
+        "standardPprPoints": 233.5,
+        "adjustment": 51.5
+      },
+      {
+        "playerName": "Chase Brown",
+        "position": "RB",
+        "primaryLeaguePoints": 335.8,
+        "standardPprPoints": 285.8,
+        "adjustment": 50
+      },
+      {
+        "playerName": "Omarion Hampton",
+        "position": "RB",
+        "primaryLeaguePoints": 298.4,
+        "standardPprPoints": 248.5,
+        "adjustment": 49.9
+      },
+      {
+        "playerName": "Bucky Irving",
+        "position": "RB",
+        "primaryLeaguePoints": 261.8,
+        "standardPprPoints": 212.3,
+        "adjustment": 49.5
+      },
+      {
+        "playerName": "Cam Skattebo",
+        "position": "RB",
+        "primaryLeaguePoints": 283.2,
+        "standardPprPoints": 234.3,
+        "adjustment": 48.9
+      },
+      {
+        "playerName": "David Montgomery",
+        "position": "RB",
+        "primaryLeaguePoints": 250.7,
+        "standardPprPoints": 203.1,
+        "adjustment": 47.6
+      },
+      {
+        "playerName": "De'Von Achane",
+        "position": "RB",
+        "primaryLeaguePoints": 348.1,
+        "standardPprPoints": 300.7,
+        "adjustment": 47.4
+      }
+    ]
+  },
+  "bestPickAudit": {
+    "decisions": 1950,
+    "divergences": 541,
+    "divergenceRate": 0.277,
+    "policyDivergences": 228,
+    "policyDivergenceRate": 0.117,
+    "averageEcrGapWhenDiverged": 3.4,
+    "maximumEcrGap": 6,
+    "boundaryViolations": 0,
+    "feasibilityExceptions": 335,
+    "feasibilityDivergences": 313,
+    "factorCounts": {
+      "draft-timing": 95,
+      "league-value": 89,
+      "roster-fit": 78,
+      "tier-supply": 62
+    },
+    "divergenceByRound": [
+      {
+        "round": 1,
+        "decisions": 150,
+        "divergences": 9,
+        "rate": 0.06
+      },
+      {
+        "round": 2,
+        "decisions": 150,
+        "divergences": 46,
+        "rate": 0.307
+      },
+      {
+        "round": 3,
+        "decisions": 150,
+        "divergences": 22,
+        "rate": 0.147
+      },
+      {
+        "round": 4,
+        "decisions": 150,
+        "divergences": 50,
+        "rate": 0.333
+      },
+      {
+        "round": 5,
+        "decisions": 150,
+        "divergences": 38,
+        "rate": 0.253
+      },
+      {
+        "round": 6,
+        "decisions": 150,
+        "divergences": 16,
+        "rate": 0.107
+      },
+      {
+        "round": 7,
+        "decisions": 150,
+        "divergences": 21,
+        "rate": 0.14
+      },
+      {
+        "round": 8,
+        "decisions": 150,
+        "divergences": 23,
+        "rate": 0.153
+      },
+      {
+        "round": 9,
+        "decisions": 150,
+        "divergences": 0,
+        "rate": 0
+      },
+      {
+        "round": 11,
+        "decisions": 150,
+        "divergences": 3,
+        "rate": 0.02
+      },
+      {
+        "round": 12,
+        "decisions": 150,
+        "divergences": 37,
+        "rate": 0.247
+      },
+      {
+        "round": 13,
+        "decisions": 150,
+        "divergences": 126,
+        "rate": 0.84
+      },
+      {
+        "round": 14,
+        "decisions": 150,
+        "divergences": 150,
+        "rate": 1
+      }
+    ],
+    "commonDivergences": [
+      {
+        "bestPlayer": "Malik Nabers",
+        "bestPick": "Zay Flowers",
+        "count": 27
+      },
+      {
+        "bestPlayer": "Malik Nabers",
+        "bestPick": "Rashee Rice",
+        "count": 20
+      },
+      {
+        "bestPlayer": "Parker Washington",
+        "bestPick": "Caleb Williams",
+        "count": 18
+      },
+      {
+        "bestPlayer": "A.J. Brown",
+        "bestPick": "Chase Brown",
+        "count": 16
+      },
+      {
+        "bestPlayer": "Drake London",
+        "bestPick": "Chase Brown",
+        "count": 16
+      },
+      {
+        "bestPlayer": "Jaylen Waddle",
+        "bestPick": "Drake Maye",
+        "count": 15
+      },
+      {
+        "bestPlayer": "Jaylen Waddle",
+        "bestPick": "Tetairoa McMillan",
+        "count": 14
+      },
+      {
+        "bestPlayer": "Chris Olave",
+        "bestPick": "Saquon Barkley",
+        "count": 8
+      },
+      {
+        "bestPlayer": "Marvin Harrison Jr.",
+        "bestPick": "Justin Herbert",
+        "count": 8
+      },
+      {
+        "bestPlayer": "Nico Collins",
+        "bestPick": "Chase Brown",
+        "count": 8
+      }
+    ],
+    "commonFeasibilityRescues": [
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Eddy Pineiro",
+        "count": 43
+      },
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Dalton Kincaid",
+        "count": 36
+      },
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Tyler Loop",
+        "count": 21
+      },
+      {
+        "bestPlayer": "Patrick Mahomes II",
+        "bestPick": "Eddy Pineiro",
+        "count": 16
+      },
+      {
+        "bestPlayer": "Brock Purdy",
+        "bestPick": "Dalton Kincaid",
+        "count": 12
+      },
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Dallas Goedert",
+        "count": 11
+      },
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Jake Ferguson",
+        "count": 11
+      },
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Juwan Johnson",
+        "count": 11
+      },
+      {
+        "bestPlayer": "Bo Nix",
+        "bestPick": "Tyler Allgeier",
+        "count": 11
+      },
+      {
+        "bestPlayer": "Jaxson Dart",
+        "bestPick": "Dalton Kincaid",
+        "count": 9
+      }
+    ],
+    "bestPickVsBestPlayer": {
+      "starterProjectedPointsDelta": 326.27,
+      "starterVorDelta": 62.26,
+      "pairedStarterPointsDelta95": {
+        "lower": 307.8,
+        "upper": 344.74
+      }
+    }
+  },
+  "limitations": [
+    "The tournament measures current projected roster acquisition, not realized 2026 fantasy points.",
+    "Opponent choices come from a calibrated heuristic. Monte Carlo intervals measure room variance, not model uncertainty.",
+    "Forced opening and timing plans test position constraints. They do not prove that a named player will be available.",
+    "The take-now-or-wait map follows one reproducible Best Pick room state and should be regenerated after rankings, keepers, or draft order change.",
+    "Best Pick remains ECR-anchored. These experiments do not promote the separate experimental prediction model."
+  ]
+}

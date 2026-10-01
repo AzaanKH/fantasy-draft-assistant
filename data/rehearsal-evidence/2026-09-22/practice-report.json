@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-09-23T01:27:05Z",
+  "status": "partial",
+  "providerStatus": "complete",
+  "draftId": "1408291994693832704",
+  "draftUrl": "https://sleeper.com/draft/nfl/1408291994693832704?ftue=commish",
+  "providerSettings": {
+    "teams": 10,
+    "rounds": 15,
+    "pickTimerSeconds": 120,
+    "keeperCount": 0
+  },
+  "observations": {
+    "livePickImport": true,
+    "providerDelayDetectedAfterLocalServerPause": true,
+    "manualContinuityOffered": true,
+    "matchingProvisionalPick": {
+      "pickNumber": 14,
+      "playerName": "Ashton Jeanty",
+      "confirmedOnReconnect": true
+    },
+    "conflictingProvisionalPickTested": false,
+    "extraProvisionalPickRemovalTested": false,
+    "officialPickSubmittedByAssistant": false,
+    "providerPickCount": 150,
+    "uniqueProviderPickNumbers": 150,
+    "uniqueProviderPlayerIds": 150,
+    "providerPickCountsBySlot": [15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+    "connectedAppStatus": "complete",
+    "connectedAppBoardSlots": 150,
+    "connectedAppMyRosterCount": 15,
+    "unresolvedProviderPicksAt44PickCheckpoint": 0,
+    "localProvisionalPicksAt44PickCheckpoint": 0
+  },
+  "limitations": [
+    "The practice draft uses 15 rounds, a 120-second timer, and no provider keepers; the designated league uses 14 rounds, a 60-second timer, and 10 keepers.",
+    "The signed-in Safari draft was visible, but computer-use clicks to choose a player failed during the live pick clock. The assistant did not submit an official pick.",
+    "The connected draft reached completion, but no conflicting or extra provisional pick was recorded during the outage."
+  ]
+}

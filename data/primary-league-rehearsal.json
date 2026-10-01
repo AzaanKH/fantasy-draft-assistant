@@ -3,11 +3,11 @@
   "provider": "sleeper",
   "draftId": "1313053610426269696",
   "leagueId": "1313053610417872896",
-  "recordedAt": "2026-09-05T16:09:38.796Z",
+  "recordedAt": "2026-09-23T01:04:06.263Z",
   "scheduledStartAt": "2026-09-05T18:00:40.000Z",
   "timezone": "America/Los_Angeles",
   "pickTimerSeconds": 60,
-  "providerStatus": "pre_draft",
+  "providerStatus": "complete",
   "expectedConfiguration": {
     "totalTeams": 10,
     "totalRounds": 14,
@@ -33,8 +33,8 @@
   "realProviderRehearsal": {
     "status": "incomplete",
     "completedAt": null,
-    "notes": "Connected Sleeper pre-draft checks passed for user-confirmed slot 5. Verified settings and all 10 keepers, simulated a local server outage, recorded a temporary local pick, and observed automatic removal with restored roster and recommendations. Full live-pick confirmation/correction and completion remain unverified because the provider is still pre_draft. See data/rehearsal-evidence/2026-09-05/report.json.",
-    "lastAttemptAt": "2026-09-05T16:09:38.796Z",
-    "evidencePath": "data/rehearsal-evidence/2026-09-05/report.json"
+    "notes": "The designated Sleeper draft was complete when connected observation began: 140 unique picks, 14 per team, all 10 keepers, matching scoring and roster settings, and 14 players in each local roster. A separate practice draft finished with 150 unique official picks and a complete connected board. It verified live pick import, provider-delay detection, Manual Continuity, and confirmation of one matching provisional pick on reconnection. That practice draft uses 15 rounds, a 120-second timer, and no provider keepers. Conflicting provisional correction, extra provisional removal, and a complete live run with the designated profile remain unverified. See data/rehearsal-evidence/2026-09-22/report.json, data/rehearsal-evidence/2026-09-22/practice-report.json, and docs/provider-rehearsal-2026-09-22.md.",
+    "lastAttemptAt": "2026-09-23T01:27:05Z",
+    "evidencePath": "data/rehearsal-evidence/2026-09-22/report.json"
   }
 }
