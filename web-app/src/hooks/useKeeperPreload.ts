@@ -130,6 +130,7 @@ export function useKeeperPreload(
   const query = useQuery({
     queryKey: ['current-keepers'],
     queryFn: fetchCurrentKeepers,
+    enabled: keepersEnabled !== false,
     staleTime: Infinity,
   });
 

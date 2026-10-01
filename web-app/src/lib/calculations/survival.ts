@@ -67,6 +67,8 @@ export interface SurvivalContext {
   readonly myPickPosition: number;
   readonly totalTeams: number;
   readonly totalRounds: number;
+  /** Completed picks and effective keeper reservations cannot be selected again. */
+  readonly occupiedPickNumbers?: ReadonlySet<number>;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -111,7 +113,7 @@ export function getNextUserPick(context: SurvivalContext): number | null {
       ? pickInRound
       : context.totalTeams - pickInRound + 1;
 
-    if (slot === context.myPickPosition) {
+    if (slot === context.myPickPosition && !context.occupiedPickNumbers?.has(pick)) {
       return pick;
     }
   }

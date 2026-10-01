@@ -1,6 +1,9 @@
 import { defineConfig, type Plugin } from 'vite';
 import { resolve } from 'path';
-import { copyFileSync, mkdirSync, existsSync } from 'fs';
+import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { localDevPorts } from '../shared/src/local-dev';
+
+const ports = localDevPorts(process.env);
 
 // Plugin to copy static files after build
 function copyStaticFiles(): Plugin {
@@ -15,10 +18,15 @@ function copyStaticFiles(): Plugin {
       }
 
       // Copy manifest.json
-      copyFileSync(
-        resolve(__dirname, 'public/manifest.json'),
-        resolve(distDir, 'manifest.json')
-      );
+      const manifest = JSON.parse(readFileSync(resolve(__dirname, 'public/manifest.json'), 'utf8'));
+      manifest.host_permissions = [
+        ...manifest.host_permissions.filter((origin: string) => !origin.startsWith('http://localhost:') && !origin.startsWith('http://127.0.0.1:')),
+        ...[ports.webPort, ports.apiPort].flatMap(port =>
+          ['localhost', '127.0.0.1'].map(host => `http://${host}:${String(port)}/*`)),
+      ];
+      manifest.content_security_policy.extension_pages =
+        `script-src 'self'; object-src 'self'; frame-src http://localhost:${String(ports.webPort)} http://127.0.0.1:${String(ports.webPort)}`;
+      writeFileSync(resolve(distDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
       // Copy sidepanel.html
       copyFileSync(
@@ -73,6 +81,7 @@ function validateClassicContentScripts(): Plugin {
 }
 
 export default defineConfig({
+  define: { __DRAFT_LOCAL_PORTS__: JSON.stringify(ports) },
   plugins: [validateClassicContentScripts(), copyStaticFiles()],
   build: {
     outDir: 'dist',

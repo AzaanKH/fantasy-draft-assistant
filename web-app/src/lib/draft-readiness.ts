@@ -1,6 +1,7 @@
 import {
   evaluateDraftReadiness,
   createDefaultLeagueSettings,
+  isLeagueSettings,
   type DraftReadinessKey,
   type DraftReadinessReport,
   type DraftReadinessSourceObservation,
@@ -15,6 +16,7 @@ interface WorkspaceDraftReadinessInput {
   readonly leagueSettings: LeagueSettings;
   readonly totalRounds: number;
   readonly usePrimaryLeagueSettings?: boolean;
+  readonly useQuickMockSettings?: boolean;
   readonly keeperStatus: KeeperPreloadStatus;
 }
 
@@ -57,18 +59,27 @@ export function evaluateWorkspaceDraftReadiness(
   const settingsConnected =
     input.leagueSettings.source !== 'default' &&
     input.leagueSettings.leagueId !== null;
+  const quickMock = input.useQuickMockSettings === true;
+  const roster = input.leagueSettings.rosterRequirements;
+  const starterCount = roster.QB.starters + roster.RB.starters + roster.WR.starters + roster.TE.starters +
+    roster.FLEX.starters + roster.K.starters + roster.DEF.starters;
+  const validQuickMock = quickMock && isLeagueSettings(input.leagueSettings) &&
+    input.leagueSettings.source === 'default' && input.leagueSettings.leagueId === null &&
+    input.leagueSettings.keepersEnabled === false && starterCount > 0 &&
+    starterCount + roster.BENCH.spots <= input.totalRounds;
   const settingsObservation: DraftReadinessSourceObservation = {
-    availability: usingPracticeSettings
+    availability: quickMock ? validQuickMock ? 'available' : 'invalid'
+      : usingPracticeSettings
       ? validPracticeSettings ? 'available' : 'invalid'
       : settingsConnected
       ? hasPrimaryLeagueSettings(input.leagueSettings, input.totalRounds)
         ? 'available'
         : 'invalid'
       : 'missing',
-    timestamp: settingsConnected || usingPracticeSettings
+    timestamp: settingsConnected || usingPracticeSettings || quickMock
       ? new Date(input.leagueSettings.updatedAt).toISOString()
       : null,
-    detail: usingPracticeSettings
+    detail: quickMock ? 'Locally selected quick mock rules. No Primary League connection is required.' : usingPracticeSettings
       ? 'Primary League practice settings selected locally. Sleeper supplies picks and draft order. Use a 10-team mock with at least 14 rounds.'
       : settingsConnected
       ? 'Expected the provider-confirmed 10-team, 14-round Sleeper Primary League with 4-point passing touchdowns, full PPR, +0.5 TE reception premium, +0.2 rush-attempt scoring, and five bench spots.'
@@ -104,14 +115,25 @@ export function evaluateWorkspaceDraftReadiness(
             : 'Expected all 10 confirmed Primary League keepers to resolve to unique legal draft slots.'),
   };
 
-  return evaluateDraftReadiness({
+  const report = evaluateDraftReadiness({
     sources: {
       ...input.sources,
       'primary-league-settings': settingsObservation,
-      'confirmed-keeper-supply': keeperObservation,
+      'confirmed-keeper-supply': quickMock && input.leagueSettings.keepersEnabled === false ? {
+        availability: input.keeperStatus.isInitialized && input.keeperStatus.canonicalCount === 0 ? 'available' : 'missing',
+        timestamp: new Date(now).toISOString(),
+        detail: 'Quick mocks use no preloaded Primary League keepers.',
+      } : keeperObservation,
     },
     warnings: input.warnings,
   }, now);
+  if (!quickMock) return report;
+  const relabel = (item: DraftReadinessReport['coreDraftData'][number]) => item.key === 'primary-league-settings'
+    ? { ...item, label: 'Quick mock settings', sourceLabel: 'Local mock settings', correctiveAction: 'Open League setup and choose quick mock rules that fit the draft size.', message: validQuickMock ? 'Quick mock settings are ready.' : 'The selected mock rules do not fit this draft. Review its teams, rounds, and roster.' }
+    : item.key === 'confirmed-keeper-supply'
+      ? { ...item, label: 'Mock keeper rules', sourceLabel: 'No-keeper mock', correctiveAction: 'Select Quick mock in League setup to clear Primary League keeper reservations.', message: item.status === 'ready' ? 'No keepers are reserved for this mock.' : 'Waiting for Primary League keeper reservations to clear.' }
+      : item;
+  return { ...report, coreDraftData: report.coreDraftData.map(relabel), productBlockingFailures: report.productBlockingFailures.map(relabel) };
 }
 
 export function blocksLiveRecommendations(
@@ -123,10 +145,11 @@ export function blocksLiveRecommendations(
 
 export function blocksRecommendations(
   sessionMode: 'setup' | 'mock' | 'live',
-  readiness: DraftReadinessReport | null
+  readiness: DraftReadinessReport | null,
+  requireAllCoreData = false
 ): boolean {
   const keeperSupplyBlocked = readiness?.coreDraftData.some(
     (item) => item.key === 'confirmed-keeper-supply' && item.status === 'blocking'
   ) ?? false;
-  return keeperSupplyBlocked || blocksLiveRecommendations(sessionMode, readiness);
+  return keeperSupplyBlocked || (requireAllCoreData && readiness?.status === 'blocked') || blocksLiveRecommendations(sessionMode, readiness);
 }

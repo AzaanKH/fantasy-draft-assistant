@@ -137,6 +137,8 @@ export type {
 } from './fantasypros';
 
 // Sync types
+export { isDraftSessionSummary } from './sessions';
+export type { DraftSessionSummary } from './sessions';
 export {
   DraftSyncEngine,
   isDraftProvider,
@@ -250,3 +252,5 @@ export type {
 } from './draft-readiness';
 
 export { isRosterRequirements } from './league-settings';
+
+export { localDevPorts } from './local-dev.js';

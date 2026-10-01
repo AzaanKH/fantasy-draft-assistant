@@ -31,7 +31,7 @@ export function localApiSecurity(getToken: () => string = getLocalSyncToken): Pl
         // Only validated same-origin requests gain the backend capability.
         // Keeping it on the server also authenticates native EventSource requests.
         request.headers['x-sync-token'] = token;
-        request.headers.origin = 'http://localhost:3000';
+        request.headers.origin = `http://localhost:${String(address.port)}`;
         next();
       });
     },

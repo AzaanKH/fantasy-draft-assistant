@@ -9,6 +9,7 @@ import {
   isMarketAdpFormat,
   isShadowRecommendationEvent,
   type DraftMetadata,
+  type DraftSessionSummary,
   type DraftPickEvent,
   type DraftProvider,
   type DraftSyncSnapshot,
@@ -240,19 +241,22 @@ class DraftSession {
     const adapter = this.adapter;
     if (!adapter) return false;
 
-    this.broadcast({
-      type: 'status',
-      snapshot: this.engine.beginSync(),
-    });
+    const wasSynced = this.engine.getSnapshot().status === 'synced';
+    const syncingSnapshot = this.engine.beginSync();
+    if (!wasSynced) {
+      this.broadcast({ type: 'status', snapshot: syncingSnapshot });
+    }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
 
     try {
       const adapterSnapshot = await adapter.poll(controller.signal);
-      const { snapshot, newPicks } = this.engine.reconcile(
+      const polledAt = Date.now();
+      const { snapshot, newPicks, changed } = this.engine.reconcile(
         adapterSnapshot.draft,
-        adapterSnapshot.picks
+        adapterSnapshot.picks,
+        polledAt
       );
 
       for (const pick of newPicks) {
@@ -263,10 +267,17 @@ class DraftSession {
         });
       }
 
-      this.broadcast({
-        type: 'snapshot',
-        snapshot,
-      });
+      if (changed) {
+        this.broadcast({ type: 'snapshot', snapshot });
+      } else {
+        this.broadcast({
+          type: 'heartbeat',
+          provider: snapshot.provider,
+          draftId: snapshot.draftId,
+          lastPolledAt: polledAt,
+          lastSuccessfulSyncAt: polledAt,
+        });
+      }
       this.consecutiveFailures = 0;
       return true;
     } catch (error) {
@@ -536,6 +547,27 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
 
     if (url.pathname === '/api/auth/check' && request.method === 'GET') {
       sendJson(request, response, 200, { ok: true }, allowedOrigins);
+      return;
+    }
+
+    if (url.pathname === '/api/sync/sessions' && request.method === 'GET') {
+      evictIdleSessions();
+      const retained = [...sessions.entries()].map(([sessionId, session]): DraftSessionSummary => {
+        const snapshot = session.getSnapshot();
+        const draft = snapshot.draft;
+        const totalPicks = draft ? draft.settings.teams * draft.settings.rounds : 0;
+        const occupied = new Set(snapshot.picks.map((pick: DraftPickEvent) => pick.pickNumber));
+        let currentPick = 1;
+        while (currentPick <= totalPicks && occupied.has(currentPick)) currentPick += 1;
+        return { session: sessionId, provider: snapshot.provider, draftId: snapshot.draftId,
+          draftStatus: draft?.status ?? null, draftType: draft?.type ?? null,
+          totalTeams: draft?.settings.teams ?? null, totalRounds: draft?.settings.rounds ?? null,
+          currentPick: draft ? draft.status === 'complete' ? totalPicks + 1 : currentPick : null,
+          picksRecorded: snapshot.picks.length,
+          sync: { state: snapshot.status, lastSuccessfulSyncAt: snapshot.lastSuccessfulSyncAt, lastError: snapshot.lastError },
+          lastActivityAt: session.lastActivityAt, subscribers: session.clientCount };
+      }).sort((left, right) => left.session.localeCompare(right.session));
+      sendJson(request, response, 200, { sessions: retained }, allowedOrigins);
       return;
     }
 

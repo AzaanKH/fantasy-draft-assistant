@@ -7,6 +7,7 @@ import {
   type DraftReadinessKey,
   type DraftReadinessSourceObservation,
 } from '@fantasy-draft/shared';
+import { createQuickMockSettings } from './quick-mock-settings';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import {
   blocksRecommendations,
@@ -240,5 +241,48 @@ describe('Sleeper mock readiness with Primary League practice settings', () => {
       const report = evaluateWorkspaceDraftReadiness({ ...input, ...overrides, usePrimaryLeagueSettings: true }, NOW);
       expect(report.productBlockingFailures.map((item) => item.key)).toContain('primary-league-settings');
     }
+  });
+});
+
+
+describe('Quick mock readiness', () => {
+  const input = {
+    sources, warnings: [], leagueSettings: createQuickMockSettings(undefined, NOW),
+    totalRounds: 15, useQuickMockSettings: true,
+    keeperStatus: { ...readyKeepers, season: undefined, confirmedAt: null,
+      configuredCount: 0, resolvedCount: 0, canonicalCount: 0 },
+  };
+
+  it('needs no Primary League settings or keeper file for local and Sleeper mocks', () => {
+    const report = evaluateWorkspaceDraftReadiness(input, NOW);
+    expect(report.status).toBe('ready');
+    expect(report.coreDraftData.find((item) => item.key === 'primary-league-settings')?.label).toBe('Quick mock settings');
+    expect(blocksRecommendations('mock', report, true)).toBe(false);
+    expect(blocksLiveRecommendations('live', report)).toBe(false);
+  });
+
+  it('does not let an actual league silently fall back to quick mock rules', () => {
+    const report = evaluateWorkspaceDraftReadiness({ ...input, useQuickMockSettings: false }, NOW);
+    expect(blocksLiveRecommendations('live', report)).toBe(true);
+    expect(report.productBlockingFailures.map((item) => item.key)).toContain('primary-league-settings');
+  });
+
+  it('still requires current rankings and identities for a quick mock', () => {
+    const report = evaluateWorkspaceDraftReadiness({ ...input,
+      sources: { ...sources, 'trusted-rankings': { availability: 'missing', timestamp: null } },
+    }, NOW);
+    expect(report.productBlockingFailures.map((item) => item.key)).toEqual(['trusted-rankings']);
+    expect(blocksRecommendations('setup', report, true)).toBe(true);
+    expect(blocksRecommendations('mock', report, true)).toBe(true);
+    expect(blocksLiveRecommendations('live', report)).toBe(true);
+  });
+
+  it('blocks incompatible roster sizes and waits for old keeper reservations to clear', () => {
+    const report = evaluateWorkspaceDraftReadiness({ ...input, totalRounds: 8,
+      keeperStatus: { ...input.keeperStatus, canonicalCount: 10, isInitialized: false },
+    }, NOW);
+    expect(report.productBlockingFailures.map((item) => item.key)).toEqual(
+      expect.arrayContaining(['primary-league-settings', 'confirmed-keeper-supply'])
+    );
   });
 });

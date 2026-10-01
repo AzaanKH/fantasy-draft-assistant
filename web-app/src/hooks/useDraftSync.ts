@@ -1,3 +1,4 @@
+import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 /**
  * Provider-neutral Draft Integration Hook
  *
@@ -6,7 +7,7 @@
  * updates to the app over SSE.
  */
 
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   isDraftSyncSnapshot,
@@ -14,11 +15,10 @@ import {
 } from '@fantasy-draft/shared';
 import type {
   DraftSyncSnapshot,
-  DraftPickEvent,
   DraftProvider,
   DraftStatus,
   DraftSyncState,
-  Player,
+  DraftSyncUpdate,
 } from '@fantasy-draft/shared';
 import { useDraftStore } from '@/stores/draftStore';
 import { isValidDraftSyncId, useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
@@ -26,20 +26,12 @@ import { resolveSyncedLeagueSettings } from '@/lib/synced-league-settings';
 import type {
   DraftPickCorrection,
   DraftPickRemoval,
-  PreloadedKeeper,
   ProvisionalPickConfirmation,
-  SyncedImportedPick,
   UnresolvedProviderPick,
 } from '@/stores/draftStore';
-import { getPickNumberForTeamRound } from '@/lib/mock-draft-engine';
+import { getNextOpenPickNumber, resolveDraftPickImports, type DraftPickImportRejection, type DraftPickImportResult } from '@/lib/draft-pick-imports';
+export { getNextOpenPickNumber, resolveDraftPickImports, type DraftPickImportRejection, type DraftPickImportResult } from '@/lib/draft-pick-imports';
 import { usePlayerDataQuery } from './usePlayerData';
-
-export type DraftPickImportRejection = UnresolvedProviderPick;
-
-export interface DraftPickImportResult {
-  readonly picks: readonly SyncedImportedPick[];
-  readonly rejectedPicks: readonly DraftPickImportRejection[];
-}
 
 const EMPTY_IMPORT_RESULT: DraftPickImportResult = {
   picks: [],
@@ -214,6 +206,58 @@ export function isRequestedDraftSnapshot(
     snapshot.provider === provider && snapshot.draftId === draftId;
 }
 
+export function applyDraftSyncHeartbeat(
+  snapshot: DraftSyncSnapshot | null,
+  heartbeat: Extract<DraftSyncUpdate, { type: 'heartbeat' }>,
+  provider: DraftProvider,
+  draftId: string
+): DraftSyncSnapshot | null {
+  if (
+    !snapshot ||
+    heartbeat.provider !== provider || heartbeat.draftId !== draftId ||
+    snapshot.provider !== provider || snapshot.draftId !== draftId ||
+    (snapshot.lastSuccessfulSyncAt !== null &&
+      heartbeat.lastSuccessfulSyncAt < snapshot.lastSuccessfulSyncAt)
+  ) {
+    return snapshot;
+  }
+
+  if (
+    snapshot.status === 'synced' && snapshot.lastError === null &&
+    snapshot.lastPolledAt === heartbeat.lastPolledAt &&
+    snapshot.lastSuccessfulSyncAt === heartbeat.lastSuccessfulSyncAt
+  ) {
+    return snapshot;
+  }
+
+  return {
+    ...snapshot,
+    status: 'synced',
+    lastPolledAt: heartbeat.lastPolledAt,
+    lastSuccessfulSyncAt: heartbeat.lastSuccessfulSyncAt,
+    lastError: null,
+  };
+}
+
+function selectLatestDraftSnapshot(
+  current: DraftSyncSnapshot | null | undefined,
+  incoming: DraftSyncSnapshot
+): DraftSyncSnapshot {
+  // A refresh response can arrive after a newer stream event. Poll time also
+  // orders errors and syncing states that have no new successful sync time.
+  if (
+    current?.provider === incoming.provider &&
+    current.draftId === incoming.draftId &&
+    (
+      (incoming.lastSuccessfulSyncAt ?? -Infinity) < (current.lastSuccessfulSyncAt ?? -Infinity) ||
+      (incoming.lastPolledAt ?? -Infinity) < (current.lastPolledAt ?? -Infinity)
+    )
+  ) {
+    return current;
+  }
+  return incoming;
+}
+
 async function readDraftSnapshot(
   response: Response,
   provider: DraftProvider,
@@ -252,161 +296,6 @@ async function requestRefresh(
   return readDraftSnapshot(response, provider, draftId);
 }
 
-const DRAFT_TEAM_ALIASES: Readonly<Record<string, string>> = {
-  JAC: 'JAX',
-  OAK: 'LV',
-  SD: 'LAC',
-  STL: 'LAR',
-  WSH: 'WAS',
-};
-
-function getNormalizedPlayerName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[’'`]/g, '')
-    .replace(/\b(jr|sr|ii|iii|iv)\.?$/i, '')
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function getNameTeamKey(name: string, team: string): string {
-  const normalizedTeam = team.trim().toUpperCase();
-  const canonicalTeam = DRAFT_TEAM_ALIASES[normalizedTeam] ?? normalizedTeam;
-  const normalizedName = getNormalizedPlayerName(name);
-  return `${normalizedName}|${canonicalTeam}`;
-}
-
-function usesCanonicalPlayerIds(pick: DraftPickEvent): boolean {
-  // The app's canonical player IDs come from Sleeper. ESPN and Yahoo IDs can
-  // be numeric too, but they belong to different namespaces and can collide
-  // with an unrelated Sleeper player.
-  return pick.source === 'sleeper-api' || pick.source === 'manual';
-}
-
-/**
- * Sleeper includes reserved keeper selections in its picks response before the
- * draft reaches them. The active selection is therefore the first unfilled
- * slot, not one after the largest pick number in the payload.
- */
-export function getNextOpenPickNumber(
-  picks: readonly DraftPickEvent[],
-  totalPicks: number
-): number {
-  const filledPickNumbers = new Set(
-    picks
-      .map((pick) => pick.pickNumber)
-      .filter((pickNumber) =>
-        Number.isInteger(pickNumber) &&
-        pickNumber >= 1 &&
-        pickNumber <= totalPicks
-      )
-  );
-
-  for (let pickNumber = 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (!filledPickNumbers.has(pickNumber)) {
-      return pickNumber;
-    }
-  }
-
-  return totalPicks + 1;
-}
-
-/**
- * Resolves nullable provider positions from local player identity data. Picks
- * that still lack a position are deliberately omitted from the store.
- */
-export function resolveDraftPickImports(
-  picks: readonly DraftPickEvent[],
-  players: readonly Player[],
-  myPickPosition: number,
-  preloadedKeepers: readonly PreloadedKeeper[] = [],
-  totalTeams: number = 0
-): DraftPickImportResult {
-  const playersById = new Map<string, Player>();
-  const playersByNameTeam = new Map<string, Player>();
-  const playersByUniqueName = new Map<string, Player>();
-  const ambiguousNames = new Set<string>();
-  const importedPicks: SyncedImportedPick[] = [];
-  const rejectedPicks: DraftPickImportRejection[] = [];
-  const preloadedKeeperKeys = new Set(
-    totalTeams > 0
-      ? preloadedKeepers.map((keeper) => `${keeper.playerId}:${String(
-        getPickNumberForTeamRound(
-          keeper.teamIndex,
-          keeper.round,
-          totalTeams
-        )
-      )}`)
-      : []
-  );
-
-  for (const player of players) {
-    playersById.set(player.id, player);
-    playersByNameTeam.set(
-      getNameTeamKey(player.name, player.team),
-      player
-    );
-    const normalizedName = getNormalizedPlayerName(player.name);
-    if (playersByUniqueName.has(normalizedName)) {
-      playersByUniqueName.delete(normalizedName);
-      ambiguousNames.add(normalizedName);
-    } else if (!ambiguousNames.has(normalizedName)) {
-      playersByUniqueName.set(normalizedName, player);
-    }
-  }
-
-  for (const pick of picks) {
-    const matchedByNameTeam = pick.nflTeam
-      ? playersByNameTeam.get(
-        getNameTeamKey(pick.playerName, pick.nflTeam)
-      )
-      : undefined;
-    const matchedByUniqueName = playersByUniqueName.get(
-      getNormalizedPlayerName(pick.playerName)
-    );
-    const matchedByCanonicalId = usesCanonicalPlayerIds(pick)
-      ? playersById.get(pick.playerId)
-      : undefined;
-    const matchedPlayer =
-      matchedByNameTeam ?? matchedByUniqueName ?? matchedByCanonicalId;
-
-    if (!matchedPlayer) {
-      rejectedPicks.push({
-        pickNumber: pick.pickNumber,
-        playerId: pick.playerId,
-        playerName: pick.playerName,
-        nflTeam: pick.nflTeam,
-      });
-      continue;
-    }
-
-    // Exact keeper matches are already reserved by useKeeperPreload. A provider
-    // keeper at another slot is a real conflict and must reach reconciliation.
-    if (
-      pick.isKeeper &&
-      preloadedKeeperKeys.has(`${matchedPlayer.id}:${String(pick.pickNumber)}`)
-    ) {
-      continue;
-    }
-
-    const isMyPick = pick.draftSlot === myPickPosition;
-    importedPicks.push({
-      pickNumber: pick.pickNumber,
-      playerId: matchedPlayer.id,
-      playerName: matchedPlayer.name,
-      position: matchedPlayer.position,
-      teamIndex: pick.teamIndex,
-      teamName: isMyPick ? 'My Team' : `Team ${String(pick.draftSlot)}`,
-      isMyPick,
-    });
-  }
-
-  return {
-    picks: importedPicks,
-    rejectedPicks,
-  };
-}
-
 function getImportWarning(
   rejectedPicks: readonly DraftPickImportRejection[]
 ): string | null {
@@ -438,6 +327,10 @@ export function useDraftSync(
   shouldImportPicks: boolean = true
 ): DraftSyncController {
   const draftId = isValidDraftSyncId(provider, requestedDraftId) ? requestedDraftId : null;
+  const quickMockPreferences = useLeagueSetupStore((state) => state.quickMock);
+  const useQuickMockSettings = useDraftSyncConnectionStore((state) =>
+    state.connection?.provider === provider && state.connection.draftId === draftId && state.connection.settingsProfile === 'quick-mock'
+  );
   const usePrimaryLeagueSettings = useDraftSyncConnectionStore((state) =>
     provider === 'sleeper' && state.connection?.provider === provider &&
     state.connection.draftId === draftId && state.connection.usePrimaryLeagueSettings === true
@@ -458,6 +351,13 @@ export function useDraftSync(
     DraftReconciliationSummary | null
   >(null);
   const [now, setNow] = useState(() => Date.now());
+  const lastImported = useRef<{
+    draftId: string;
+    picks: DraftSyncSnapshot['picks'];
+    importedPicks: DraftPickImportResult['picks'];
+    rejectedPicks: DraftPickImportResult['rejectedPicks'];
+    nextOpenPickNumber: number;
+  } | null>(null);
   const reconcileSyncedPicks = useDraftStore((state) => state.reconcileSyncedPicks);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
   const totalTeams = useDraftStore((state) => state.config.totalTeams);
@@ -500,6 +400,20 @@ export function useDraftSync(
           return;
         }
         const update = parsed;
+        if (update.type === 'heartbeat') {
+          if (update.provider !== provider || update.draftId !== draftId) return;
+          setTransportState('connected');
+          setLiveSnapshot((current) =>
+            applyDraftSyncHeartbeat(current, update, provider, draftId)
+          );
+          queryClient.setQueryData<DraftSyncSnapshot>(
+            ['draft-sync-snapshot', provider, draftId],
+            (current) => applyDraftSyncHeartbeat(
+              current ?? null, update, provider, draftId
+            ) ?? current
+          );
+          return;
+        }
         if (!isRequestedDraftSnapshot(update.snapshot, provider, draftId)) {
           return;
         }
@@ -563,26 +477,27 @@ export function useDraftSync(
       snapshot.draft.settings.teams,
       snapshot.draft.leagueSettings,
       usePrimaryLeagueSettings,
+      useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
     ));
-  }, [applyLeagueSettings, setConfig, snapshot?.draft, provider, usePrimaryLeagueSettings]);
+  }, [applyLeagueSettings, setConfig, snapshot?.draft, provider, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
+
+  const pickHistory = snapshot?.picks;
+  const draftSettings = snapshot?.draft?.settings;
 
   const importResult = useMemo(() => {
-    if (
-      !snapshot ||
-      isPlayerDataLoading
-    ) {
+    if (!pickHistory || isPlayerDataLoading) {
       return EMPTY_IMPORT_RESULT;
     }
 
     return resolveDraftPickImports(
-      snapshot.picks,
+      pickHistory,
       players,
       myPickPosition,
       preloadedKeepers,
       totalTeams
     );
   }, [
-    snapshot,
+    pickHistory,
     isPlayerDataLoading,
     players,
     myPickPosition,
@@ -591,15 +506,15 @@ export function useDraftSync(
   ]);
 
   const nextOpenPickNumber = useMemo(() => {
-    if (!snapshot?.draft) {
+    if (!pickHistory || !draftSettings) {
       return 1;
     }
 
     return getNextOpenPickNumber(
-      snapshot.picks,
-      snapshot.draft.settings.teams * snapshot.draft.settings.rounds
+      pickHistory,
+      draftSettings.teams * draftSettings.rounds
     );
-  }, [snapshot]);
+  }, [pickHistory, draftSettings]);
 
   useEffect(() => {
     if (
@@ -609,6 +524,18 @@ export function useDraftSync(
       !shouldImportPicks ||
       isPlayerDataLoading
     ) {
+      lastImported.current = null;
+      return;
+    }
+
+    const previousImport = lastImported.current;
+    if (
+      previousImport?.draftId === draftId &&
+      previousImport.picks === snapshot.picks &&
+      previousImport.importedPicks === importResult.picks &&
+      previousImport.rejectedPicks === importResult.rejectedPicks &&
+      previousImport.nextOpenPickNumber === nextOpenPickNumber
+    ) {
       return;
     }
 
@@ -617,6 +544,13 @@ export function useDraftSync(
       nextOpenPickNumber,
       importResult.rejectedPicks
     );
+    lastImported.current = {
+      draftId: snapshot.draftId,
+      picks: snapshot.picks,
+      importedPicks: importResult.picks,
+      rejectedPicks: importResult.rejectedPicks,
+      nextOpenPickNumber,
+    };
     const hasVisibleOutcome =
       reconciliation.confirmations.length > 0 ||
       reconciliation.corrections.length > 0 ||
@@ -640,6 +574,7 @@ export function useDraftSync(
     }
     setLastReconciledSnapshotAt(snapshot.lastSuccessfulSyncAt);
   }, [
+    draftId,
     snapshot,
     shouldImportPicks,
     isPlayerDataLoading,
@@ -659,10 +594,10 @@ export function useDraftSync(
     }
 
     const refreshedSnapshot = await requestRefresh(provider, draftId);
-    setLiveSnapshot(refreshedSnapshot);
-    queryClient.setQueryData(
+    setLiveSnapshot((current) => selectLatestDraftSnapshot(current, refreshedSnapshot));
+    queryClient.setQueryData<DraftSyncSnapshot>(
       ['draft-sync-snapshot', provider, draftId],
-      refreshedSnapshot
+      (current) => selectLatestDraftSnapshot(current, refreshedSnapshot)
     );
   }, [draftId, provider, queryClient]);
 

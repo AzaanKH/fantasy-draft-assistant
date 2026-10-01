@@ -1,4 +1,4 @@
-import type { Position } from '@fantasy-draft/shared';
+import type { DraftType, Position } from '@fantasy-draft/shared';
 import { getPickNumberForTeamRound } from '@/lib/mock-draft-engine';
 
 export interface KeeperSupplyEntry {
@@ -15,7 +15,7 @@ export interface CanonicalKeeperAssignment extends KeeperSupplyEntry {
 }
 
 export interface CanonicalKeeperSupply {
-  /** Deterministic keeper assignments ordered by snake-draft pick number. */
+  /** Deterministic keeper assignments ordered by draft pick number. */
   readonly assignments: readonly CanonicalKeeperAssignment[];
   /** Player ids that appeared on more than one keeper entry. */
   readonly duplicatePlayerIds: readonly string[];
@@ -33,6 +33,17 @@ interface CompletedKeeperConflictPick {
 interface KeeperSupplyConfig {
   readonly totalTeams: number;
   readonly totalRounds: number;
+  readonly draftType?: DraftType;
+}
+
+export function getKeeperPickNumber(
+  keeper: Pick<KeeperSupplyEntry, 'teamIndex' | 'round'>,
+  totalTeams: number,
+  draftType: DraftType = 'snake'
+): number {
+  return draftType === 'linear'
+    ? (keeper.round - 1) * totalTeams + keeper.teamIndex + 1
+    : getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams);
 }
 
 export interface KeeperSupplyCompletenessInput {
@@ -71,14 +82,11 @@ export function isKeeperSupplyComplete(
 export function getEffectiveKeeperAssignments<T extends KeeperSupplyEntry>(
   keepers: readonly T[],
   completedPicks: readonly CompletedKeeperConflictPick[],
-  totalTeams: number
+  totalTeams: number,
+  draftType: DraftType = 'snake'
 ): T[] {
   return keepers.filter((keeper) => {
-    const keeperPickNumber = getPickNumberForTeamRound(
-      keeper.teamIndex,
-      keeper.round,
-      totalTeams
-    );
+    const keeperPickNumber = getKeeperPickNumber(keeper, totalTeams, draftType);
 
     return !completedPicks.some((pick) =>
       (pick.pickNumber === keeperPickNumber && pick.playerId !== keeper.playerId) ||
@@ -105,7 +113,7 @@ function compareEntries(left: KeeperSupplyEntry, right: KeeperSupplyEntry): numb
 
 /**
  * Validates and normalizes confirmed keeper supply into one deterministic
- * canonical sequence: every kept player occupies exactly one snake-draft slot
+ * canonical sequence: every kept player occupies exactly one draft slot
  * at its configured team and round-selection cost.
  */
 export function canonicalizeKeeperSupply(
@@ -139,7 +147,7 @@ export function canonicalizeKeeperSupply(
         Number.isInteger(keeper.round) &&
         keeper.round >= 1 &&
         keeper.round <= config.totalRounds
-          ? getPickNumberForTeamRound(keeper.teamIndex, keeper.round, config.totalTeams)
+          ? getKeeperPickNumber(keeper, config.totalTeams, config.draftType)
           : null,
     }))
     .sort((left, right) => {

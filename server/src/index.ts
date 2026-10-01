@@ -1,14 +1,15 @@
+import { localDevPorts } from '@fantasy-draft/shared';
 import { createSyncServer, DEFAULT_POLL_INTERVAL_MS } from './sync-server.js';
 import { getLocalSyncToken } from './local-auth.js';
 
-const PORT = Number.parseInt(process.env.PORT ?? '3001', 10);
+const { apiPort: PORT, webOrigin } = localDevPorts(process.env);
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.DRAFT_SYNC_POLL_INTERVAL_MS ??
     process.env.SLEEPER_POLL_INTERVAL_MS ??
     `${DEFAULT_POLL_INTERVAL_MS}`,
   10
 );
-const ALLOWED_ORIGINS = (process.env.SYNC_ALLOWED_ORIGINS ?? 'http://localhost:3000')
+const ALLOWED_ORIGINS = (process.env.SYNC_ALLOWED_ORIGINS ?? webOrigin)
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);

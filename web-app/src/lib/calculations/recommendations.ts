@@ -5,12 +5,15 @@
  * team needs, and positional scarcity.
  */
 
+import {
+  POSITIONS,
+  type Position,
+} from '@fantasy-draft/shared';
 import type {
   NeedPriority,
   Player,
   PositionNeed,
   Recommendation,
-  Position,
   PickEvScore,
   PickEvRosterPlayer,
   PickEvSelection,
@@ -32,7 +35,9 @@ import {
 import {
   BEST_PICK_ECR_NEIGHBORHOOD,
   evaluateBestPickPolicy,
+  prepareDraftTimingAlternatives,
   type BestPickPolicyEvaluation,
+  type DraftTimingAlternatives,
 } from './best-pick-policy';
 
 type RecommendationDiagnostics = NonNullable<Recommendation['diagnostics']>;
@@ -71,6 +76,11 @@ export interface RecommendationResult {
   readonly byNeed: readonly Recommendation[];
   /** Canonical policy decision that ordered the Draft Now list. */
   readonly selection: RecommendationSelection;
+}
+
+export interface RecommendationBoardResult {
+  readonly overall: RecommendationResult;
+  readonly byPosition: Readonly<Record<Position, RecommendationResult>>;
 }
 
 export type RecommendationSelectionPolicy =
@@ -607,15 +617,78 @@ export function getRecommendations(
   limit: number = 10,
   context?: RecommendationContext
 ): RecommendationResult {
-  const needsByPosition = new Map(teamNeeds.map((need) => [need.position, need]));
-  const scarcityScores = calculateAllScarcityScores(availablePlayers);
+  return calculateRecommendations(availablePlayers, teamNeeds, limit, context);
+}
+
+function getLegalPlayers(
+  availablePlayers: readonly Player[],
+  context?: RecommendationContext
+): readonly Player[] {
   const requirements = context?.requirements;
-  const legalPlayers = requirements
+  return requirements
     ? availablePlayers.filter((player) =>
         (context.rosterCounts?.[player.position] ?? 0) <
           requirements[player.position].max
       )
     : availablePlayers;
+}
+
+/** Build the overall and position decisions with one legal pool and timing index. */
+export function getRecommendationBoard(
+  availablePlayers: readonly Player[],
+  teamNeeds: readonly PositionNeed[],
+  limit: number = 10,
+  context?: RecommendationContext
+): RecommendationBoardResult {
+  const legalPlayers = getLegalPlayers(availablePlayers, context);
+  const draftTimingAlternatives = context?.architecture === 'best-pick-policy'
+    ? prepareDraftTimingAlternatives(legalPlayers)
+    : undefined;
+  const playersByPosition = {} as Record<Position, Player[]>;
+  const legalByPosition = {} as Record<Position, Player[]>;
+  for (const position of POSITIONS) {
+    playersByPosition[position] = [];
+    legalByPosition[position] = [];
+  }
+  for (const player of availablePlayers) {
+    playersByPosition[player.position].push(player);
+  }
+  for (const player of legalPlayers) {
+    legalByPosition[player.position].push(player);
+  }
+  const overall = calculateRecommendations(
+    availablePlayers,
+    teamNeeds,
+    limit,
+    context,
+    draftTimingAlternatives,
+    legalPlayers
+  );
+  const byPosition = {} as Record<Position, RecommendationResult>;
+  for (const position of POSITIONS) {
+    byPosition[position] = calculateRecommendations(
+      playersByPosition[position],
+      teamNeeds,
+      limit,
+      context,
+      draftTimingAlternatives,
+      legalByPosition[position]
+    );
+  }
+  return { overall, byPosition };
+}
+
+function calculateRecommendations(
+  availablePlayers: readonly Player[],
+  teamNeeds: readonly PositionNeed[],
+  limit: number,
+  context?: RecommendationContext,
+  draftTimingAlternatives?: DraftTimingAlternatives,
+  preparedLegalPlayers?: readonly Player[]
+): RecommendationResult {
+  const needsByPosition = new Map(teamNeeds.map((need) => [need.position, need]));
+  const scarcityScores = calculateAllScarcityScores(availablePlayers);
+  const legalPlayers = preparedLegalPlayers ?? getLegalPlayers(availablePlayers, context);
   const hasOffensivePlayers = legalPlayers.some((player) => !isSpecialTeams(player));
   const recommendationPool = shouldDeferSpecialTeams(context) && hasOffensivePlayers
     ? legalPlayers.filter((player) => !isSpecialTeams(player))
@@ -657,6 +730,7 @@ export function getRecommendations(
         rosterCounts: context.rosterCounts,
         rosterPlayers: context.rosterPlayers,
         selectionsRemaining: context.selectionsRemaining,
+        draftTimingAlternatives,
       })
     : undefined;
   const policyEvaluationById = new Map(

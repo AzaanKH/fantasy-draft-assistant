@@ -120,6 +120,34 @@ describe('DraftSyncEngine', () => {
     expect(result.snapshot.picks).toHaveLength(2);
   });
 
+  it('keeps canonical content on an unchanged poll while updating freshness', () => {
+    const engine = new DraftSyncEngine('sleeper', 'draft-123');
+    const first = engine.reconcile(
+      normalizeSleeperDraftMetadata(createDraft()),
+      [normalizeSleeperPick(createPick(1, 'p1'))],
+      100
+    );
+    const repeated = engine.reconcile(
+      normalizeSleeperDraftMetadata(createDraft()),
+      [normalizeSleeperPick(createPick(1, 'p1'))],
+      200
+    );
+
+    expect(repeated.changed).toBe(false);
+    expect(repeated.newPicks).toEqual([]);
+    expect(repeated.snapshot.picks).toBe(first.snapshot.picks);
+    expect(repeated.snapshot.draft).toBe(first.snapshot.draft);
+    expect(repeated.snapshot.lastSuccessfulSyncAt).toBe(200);
+
+    const paused = engine.reconcile(
+      normalizeSleeperDraftMetadata({ ...createDraft(), status: 'paused' }),
+      [normalizeSleeperPick(createPick(1, 'p1'))],
+      300
+    );
+    expect(paused.changed).toBe(true);
+    expect(paused.snapshot.draft?.status).toBe('paused');
+  });
+
   it('reconciles removed and corrected picks from the latest snapshot', () => {
     const engine = new DraftSyncEngine('sleeper', 'draft-123');
     engine.reconcile(
@@ -236,5 +264,13 @@ describe('DraftSyncEngine', () => {
       draftOrder: { user: '1' },
     })).toBe(false);
     expect(isDraftSyncUpdate({ type: 'snapshot', snapshot: { draftId: 'draft-123' } })).toBe(false);
+    expect(isDraftSyncUpdate({
+      type: 'heartbeat', provider: 'sleeper', draftId: 'draft-123',
+      lastPolledAt: 200, lastSuccessfulSyncAt: 200,
+    })).toBe(true);
+    expect(isDraftSyncUpdate({
+      type: 'heartbeat', provider: 'sleeper', draftId: 'draft-123',
+      lastPolledAt: '200', lastSuccessfulSyncAt: 200,
+    })).toBe(false);
   });
 });
