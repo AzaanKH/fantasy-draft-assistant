@@ -12,6 +12,6 @@ export function localDevPorts(env: Readonly<Record<string, string | undefined>> 
   const webPort = port(env.DRAFT_WEB_PORT, 3000, 'DRAFT_WEB_PORT');
   const apiPort = port(env.DRAFT_API_PORT ?? env.PORT, 3001, 'DRAFT_API_PORT');
   if (webPort === apiPort) throw new Error('Web and API ports must be different');
-  return { webPort, apiPort, webOrigin: `http://localhost:${String(webPort)}`,
-    apiOrigin: `http://127.0.0.1:${String(apiPort)}` };
+  return { webPort, apiPort, webOrigin: new URL(`http://localhost:${String(webPort)}`).origin,
+    apiOrigin: new URL(`http://127.0.0.1:${String(apiPort)}`).origin };
 }

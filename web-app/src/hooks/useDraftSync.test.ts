@@ -305,6 +305,19 @@ describe('resolveDraftPickImports', () => {
       }),
     ]);
   });
+
+  it('matches linear keeper slots without hiding conflicts at the corresponding snake slot', () => {
+    const player = createPlayer();
+    const keeper = {
+      playerId: player.id, playerName: player.name, position: player.position,
+      teamIndex: 1, round: 2, isMyKeeper: false,
+    };
+    const pick = createPick({ playerId: player.id, isKeeper: true, pickNumber: 12, round: 2, draftSlot: 2, teamIndex: 1 });
+    expect(resolveDraftPickImports([pick], [player], 1, [keeper], 10, 'linear'))
+      .toEqual({ picks: [], rejectedPicks: [] });
+    expect(resolveDraftPickImports([{ ...pick, pickNumber: 19 }], [player], 1, [keeper], 10, 'linear').picks)
+      .toHaveLength(1);
+  });
 });
 
 describe('getNextOpenPickNumber', () => {

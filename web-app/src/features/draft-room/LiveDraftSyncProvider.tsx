@@ -189,6 +189,10 @@ export function LiveDraftSyncProvider({
     setSessionMode('live');
   }, [connection, setConfig, setSessionMode]);
 
+  React.useEffect(() => {
+    if (sync.draft) setConfig({ draftType: sync.draft.type });
+  }, [sync.draft, setConfig]);
+
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
     setIsManualContinuity(false);
     setManualContinuityBaselineAt(null);
@@ -217,10 +221,11 @@ export function LiveDraftSyncProvider({
     setManualContinuityBaselineAt(null);
     setReconciliationTargetAt(null);
     clearConnection();
+    setConfig({ draftType: 'snake' });
     applyLeagueSettings(createDefaultLeagueSettings());
     resetDraft();
     setSessionMode('setup');
-  }, [applyLeagueSettings, clearConnection, resetDraft, setSessionMode]);
+  }, [applyLeagueSettings, clearConnection, resetDraft, setConfig, setSessionMode]);
 
   const viewState = React.useMemo<DraftSyncViewState>(() => ({
     connectionState: sync.connectionState,

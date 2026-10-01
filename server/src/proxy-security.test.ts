@@ -28,7 +28,10 @@ beforeAll(async () => {
         ? localApiSecurity(() => TOKEN) : plugin),
     server: { ...loaded.config.server, host: '127.0.0.1', port: 0, proxy: { '/api': { ...proxy, target } } },
   });
-  await vite.listen();
+  await new Promise<void>((resolve, reject) => {
+    vite.httpServer!.once('error', reject);
+    vite.httpServer!.listen(0, '127.0.0.1', resolve);
+  });
   const webPort = (vite.httpServer!.address() as AddressInfo).port;
   base = `http://127.0.0.1:${webPort}`;
   // The backend must trust this isolated Vite listener, not the everyday app.

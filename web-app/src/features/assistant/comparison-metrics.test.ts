@@ -56,4 +56,13 @@ describe('comparison chart scales', () => {
     const rows = getComparisonMetrics(missing, recommendation('b', 20, 0.8), new Map());
     expect(rows.every(row => row.values[0] === null)).toBe(true);
   });
+  it.each([-0.001, 1.001, Infinity, -Infinity])('withholds an invalid probability before rounding: %s', (probability) => {
+    const rows = getComparisonMetrics(recommendation('a', 10, probability), recommendation('b', 20, 0.456), new Map());
+    expect(rows.find(row => row.key === 'returnProbability')?.values).toEqual([null, 46]);
+  });
+
+  it('keeps both valid probability boundaries available', () => {
+    const rows = getComparisonMetrics(recommendation('a', 10, 0), recommendation('b', 20, 1), new Map());
+    expect(rows.find(row => row.key === 'returnProbability')?.values).toEqual([0, 100]);
+  });
 });

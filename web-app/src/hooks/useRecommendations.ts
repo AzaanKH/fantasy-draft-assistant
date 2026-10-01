@@ -86,9 +86,10 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     () => getEffectiveKeeperAssignments(
       preloadedKeepers,
       draftHistory,
-      config.totalTeams
+      config.totalTeams,
+      config.draftType
     ),
-    [config.totalTeams, draftHistory, preloadedKeepers]
+    [config.totalTeams, config.draftType, draftHistory, preloadedKeepers]
   );
   const draftedPlayers = useMemo(
     () => [...draftHistory, ...effectiveKeepers],

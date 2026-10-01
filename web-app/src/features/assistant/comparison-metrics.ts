@@ -47,8 +47,8 @@ export function getComparisonMetrics(
     finite(first.diagnostics?.projectedPoints), finite(second.diagnostics?.projectedPoints),
   ];
   const probability = (recommendation: Recommendation): number | null => {
-    const percent = finite(survivalPercent(recommendation));
-    return percent !== null && percent >= 0 && percent <= 100 ? percent : null;
+    const raw = finite(recommendation.diagnostics?.nextPickSurvivalProbability);
+    return raw !== null && raw >= 0 && raw <= 1 ? survivalPercent(recommendation) : null;
   };
 
   return [
