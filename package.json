@@ -24,7 +24,7 @@
     "build:extension": "pnpm --filter extension build",
     "typecheck": "pnpm --filter @fantasy-draft/shared build && pnpm run -r typecheck",
     "lint": "pnpm run -r lint",
-    "test": "pnpm --filter extension test && pnpm --filter web-app test && pnpm --filter server test && pnpm --filter scripts test",
+    "test": "pnpm --filter extension test && pnpm --filter web-app test && pnpm --filter server test && pnpm --filter scripts test && pnpm --filter @fantasy-draft/cli test",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "draft:preflight": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts prepare:live-draft",
     "draft:readiness": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts check:draft-readiness",
@@ -54,7 +54,9 @@
     "prepare:draft": "pnpm refresh:daily && pnpm model:dataset && pnpm model:league-survival && pnpm model:backtest && pnpm model:backtest:contracts && pnpm report:draft-prep && pnpm data:check:strict",
     "clean": "pnpm run -r clean && rm -rf node_modules",
     "sync:pair": "pnpm --filter server exec tsx src/pair-extension.ts",
-    "audit:security": "pnpm audit --audit-level=moderate"
+    "audit:security": "pnpm audit --audit-level=moderate",
+    "draft": "node cli/bin/draft.mjs",
+    "build:cli": "pnpm --filter @fantasy-draft/shared build && pnpm --filter @fantasy-draft/cli build"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
@@ -74,5 +76,8 @@
       "picomatch@4": "^4.0.4",
       "@humanfs/node@0.16": "^0.16.8"
     }
+  },
+  "bin": {
+    "draft": "cli/bin/draft.mjs"
   }
 }
