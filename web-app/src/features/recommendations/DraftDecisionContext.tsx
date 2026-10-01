@@ -51,6 +51,7 @@ export function DraftDecisionProvider({
   readonly readiness?: DraftReadinessReport | null;
 }): React.ReactElement {
   const sessionMode = useDraftStore((state) => state.sessionMode);
+  const quickMockRules = useDraftStore((state) => state.leagueSettings.source === 'default' && state.leagueSettings.keepersEnabled === false);
   const unresolvedProviderPicks = useDraftStore(
     (state) => state.unresolvedProviderPicks
   );
@@ -60,7 +61,7 @@ export function DraftDecisionProvider({
       unresolvedProviderPicks.length
     );
   const recommendationsBlocked =
-    blocksRecommendations(sessionMode, readiness) ||
+    blocksRecommendations(sessionMode, readiness, quickMockRules) ||
     recommendationsBlockedByProviderIdentity;
   const recommendationState = useRecommendations(60, !recommendationsBlocked);
   const {

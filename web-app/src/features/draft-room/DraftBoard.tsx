@@ -3,7 +3,7 @@ import type { Player, Position } from '@fantasy-draft/shared';
 import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3 } from 'lucide-react';
 import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { isMotionDisabled } from '@/components/motion';
+import { isMotionDisabled, usePrefersReducedMotion } from '@/components/motion';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import {
   formatRoundPick,
@@ -70,7 +70,7 @@ function EmptyPick({
       <span className="board-pick-number">{formatRoundPick(pickNumber, totalTeams)}</span>
       {isActive ? (
         <div className="board-clock-label">
-          <strong>{isMyTeam ? 'Your pick' : 'On the clock'}</strong>
+          <strong>{isMyTeam ? 'Your turn' : 'On the clock'}</strong>
           <Clock3 aria-hidden="true" size={20} />
         </div>
       ) : isUpcoming && isMyTeam ? (
@@ -190,7 +190,7 @@ function DraftGrid({
       ref={boardRef}
       data-round-column-width={roundColumnWidth}
       className={cn(
-        'board-scroll h-[clamp(380px,57vh,650px)] overflow-auto',
+        'board-scroll overflow-auto',
         wrapperClassName
       )}
     >
@@ -340,8 +340,10 @@ export function getDraftBoardRoundNumbers(
 
 export function DraftBoard({
   roundWindowSize,
+  toolbarActions,
 }: {
   readonly roundWindowSize?: number;
+  readonly toolbarActions?: React.ReactNode;
 } = {}): React.ReactElement {
   const { players } = usePlayerDataQuery();
   const config = useDraftStore((state) => state.config);
@@ -349,6 +351,14 @@ export function DraftBoard({
   const draftHistory = useDraftStore((state) => state.draftHistory);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const [mode, setMode] = React.useState<BoardMode>('current');
+  const [boardHeight, setBoardHeight] = React.useState(() => {
+    try {
+      const stored = Number(window.localStorage.getItem('draft-board-height'));
+      return stored >= 240 && stored <= 640 ? stored : 320;
+    } catch { return 320; }
+  });
+  const turnIndicatorRef = React.useRef<HTMLSpanElement>(null);
+  const reduceMotion = usePrefersReducedMotion();
   const [settlingPickNumber, setSettlingPickNumber] = React.useState<number | null>(null);
   const currentDesktopBoardRef = React.useRef<HTMLDivElement>(null);
   const currentDesktopSlotRef = React.useRef<HTMLDivElement>(null);
@@ -432,7 +442,7 @@ export function DraftBoard({
     setSettlingPickNumber(latestPickNumber);
     const timeout = window.setTimeout(() => {
       setSettlingPickNumber(null);
-    }, 820);
+    }, 450);
     return () => { window.clearTimeout(timeout); };
   }, [latestPickNumber]);
 
@@ -473,7 +483,20 @@ export function DraftBoard({
         behavior: reduceMotion ? 'auto' : 'smooth',
       });
     }
-  }, [currentPick, mode]);
+  }, [currentPick, mode, boardHeight]);
+
+  const isYourTurn = currentPick <= totalPicks && currentView.upcomingMyPickNumber === currentPick;
+  const previouslyYourTurn = React.useRef(isYourTurn);
+  React.useEffect(() => {
+    const justStarted = isYourTurn && !previouslyYourTurn.current;
+    previouslyYourTurn.current = isYourTurn;
+    if (!justStarted || reduceMotion || !turnIndicatorRef.current) return;
+    const animation = turnIndicatorRef.current.animate([
+      { backgroundColor: 'rgba(255, 227, 77, 0.24)' },
+      { backgroundColor: 'rgba(255, 227, 77, 0)' },
+    ], { duration: 600, easing: 'ease-out' });
+    return () => { animation.cancel(); };
+  }, [isYourTurn, reduceMotion]);
 
   const gridProps = {
     activeRound: currentView.activeRound,
@@ -492,16 +515,17 @@ export function DraftBoard({
   } as const;
 
   return (
-    <section className="draft-board" aria-label="Draft board">
+    <section className="draft-board" aria-label="Draft board" style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}>
       <div className="board-toolbar flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <div>
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
           <h2 className="text-base font-bold" title={`${String(config.totalTeams)} teams · ${String(config.totalRounds)} rounds · snake order`}>Draft board</h2>
+          {toolbarActions}
         </div>
         <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <span role="status" className={cn("board-current-pick", currentView.upcomingMyPickNumber === currentPick && "is-your-turn")}><Clock3 size={14} aria-hidden="true" />
+          <span ref={turnIndicatorRef} role="status" className={cn("board-current-pick", isYourTurn && "is-your-turn")}><Clock3 size={14} aria-hidden="true" />
             {currentPick > totalPicks
               ? 'Complete'
-              : `${currentView.upcomingMyPickNumber === currentPick ? 'Your pick' : 'Pick'} ${formatRoundPick(currentPick, config.totalTeams)}`}
+              : `${isYourTurn ? 'Your turn ·' : 'Pick'} ${formatRoundPick(currentPick, config.totalTeams)}`}
           </span>
           <div className="inline-flex rounded-lg bg-muted p-0.5" role="group" aria-label="Draft board view">
             <BoardModeButton active={mode === 'current'} onClick={() => { setMode('current'); }}>
@@ -516,6 +540,18 @@ export function DraftBoard({
           </div>
         </div>
       </div>
+
+      <label className="board-height-control">
+        <span>Board height</span>
+        <input type="range" min="240" max="640" step="20" value={boardHeight}
+          aria-label="Board height" aria-valuetext={`${String(boardHeight)} pixels`}
+          onChange={(event) => {
+            const height = Number(event.target.value);
+            setBoardHeight(height);
+            try { window.localStorage.setItem('draft-board-height', String(height)); } catch { /* The control still works when storage is unavailable. */ }
+          }} />
+        <span className="board-height-value" aria-hidden="true">{String(boardHeight)} px</span>
+      </label>
 
       {mode === 'current' ? (
         <>

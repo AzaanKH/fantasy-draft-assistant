@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
 import {
   createDefaultLeagueSettings,
   type DraftProvider,
@@ -114,6 +115,12 @@ export function LiveDraftSyncProvider({
     connection?.provider ?? 'sleeper',
     connection?.draftId ?? null,
     isDraftPositionConfirmed && !isManualContinuity
+  );
+
+  useConnectionNotifications(
+    connection ? `${connection.provider}:${connection.draftId}` : null,
+    connection?.provider === 'sleeper' ? 'Sleeper' : connection?.provider === 'espn' ? 'ESPN' : 'Yahoo',
+    sync.connectionState
   );
 
   const synchronizationState = reconciliationTargetAt === null

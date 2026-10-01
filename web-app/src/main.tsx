@@ -2,7 +2,8 @@ import { StrictMode, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionProvider } from './components/motion';
-import { UndoToastProvider } from './components/undo-toast';
+import { TooltipProvider } from './components/ui/tooltip';
+import { NotificationProvider } from './components/notifications';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 import { applyTheme, readStoredTheme } from './features/theme/theme';
 import { LivePlayerDataProvider } from './hooks/usePlayerData';
@@ -32,9 +33,9 @@ function renderNormalApp(app: ReactElement): void {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <LivePlayerDataProvider>
-            <UndoToastProvider>
-              <MotionProvider>{app}</MotionProvider>
-            </UndoToastProvider>
+            <NotificationProvider>
+              <TooltipProvider><MotionProvider>{app}</MotionProvider></TooltipProvider>
+            </NotificationProvider>
           </LivePlayerDataProvider>
         </QueryClientProvider>
       </ThemeProvider>

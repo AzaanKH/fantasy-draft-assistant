@@ -1,3 +1,4 @@
+import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 /**
  * Draft Connection Component
  *
@@ -55,6 +56,8 @@ interface DraftConnectProps {
   dataFreshness: readonly DataFreshnessItem[];
   readiness: DraftReadinessReport;
   variant?: 'card' | 'strip' | 'status-control';
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type ConfidenceTone = 'neutral' | 'good' | 'warn' | 'bad';
@@ -190,6 +193,8 @@ export function DraftConnect({
   dataFreshness,
   readiness,
   variant = 'card',
+  open,
+  onOpenChange,
 }: DraftConnectProps): React.ReactElement {
   const {
     connection,
@@ -200,8 +205,17 @@ export function DraftConnect({
     confirmDraftPosition,
     disconnect,
   } = useLiveDraftSync();
+  const localProfile = useLeagueSetupStore((state) => state.profile);
+  const quickMockPreferences = useLeagueSetupStore((state) => state.quickMock);
+  const [pendingSettingsProfile, setPendingSettingsProfile] = React.useState('provider');
+  const setQuickMockSettings = useDraftSyncConnectionStore((state) => state.setQuickMockSettings);
   const setPrimaryLeagueSettings = useDraftSyncConnectionStore((state) => state.setPrimaryLeagueSettings);
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [localDialogOpen, setLocalDialogOpen] = React.useState(false);
+  const isDialogOpen = open ?? localDialogOpen;
+  const setIsDialogOpen = onOpenChange ?? setLocalDialogOpen;
+  React.useEffect(() => {
+    if (isDialogOpen && !connection) setPendingSettingsProfile(localProfile === 'quick-mock' ? 'quick-mock' : 'provider');
+  }, [isDialogOpen, connection, localProfile]);
   const [provider, setProvider] = React.useState<DraftProvider>(
     connection?.provider ?? 'sleeper'
   );
@@ -547,6 +561,10 @@ export function DraftConnect({
     setProvider(parsedConnection.provider);
     setDraftIdInput(parsedConnection.draftId);
     startConnection(parsedConnection);
+    if (parsedConnection.provider === 'sleeper') {
+      setPrimaryLeagueSettings(pendingSettingsProfile === 'primary-league-mock');
+      setQuickMockSettings(pendingSettingsProfile === 'quick-mock');
+    }
   };
 
   const handleConfirmDraftPosition = () => {
@@ -811,21 +829,27 @@ export function DraftConnect({
     </div>
   );
 
-  const practiceSettingsControl = connection?.provider === 'sleeper' ? (
-    <div className="border-y border-border py-3">
-      <label className="flex cursor-pointer items-start gap-3 text-sm font-medium">
-        <input
-          type="checkbox"
-          className="mt-1 size-4 accent-primary"
-          checked={connection.usePrimaryLeagueSettings === true}
-          onChange={(event) => { setPrimaryLeagueSettings(event.target.checked); }}
-        />
-        Use Primary League settings for this Sleeper mock
-      </label>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Practice with full PPR, +0.5 TE premium, +0.2 per rush, 4-point passing touchdowns,
-        and the Primary League roster and keepers. Sleeper still supplies picks, teams, and rounds.
-        Use a 10-team mock with at least 14 rounds. Turn off for your actual league draft.
+  const settingsProfile = connection
+    ? connection.settingsProfile === 'quick-mock' ? 'quick-mock' : connection.usePrimaryLeagueSettings ? 'primary-league-mock' : 'provider'
+    : pendingSettingsProfile;
+  const practiceSettingsControl = (connection?.provider ?? provider) === 'sleeper' ? (
+    <div className="space-y-2 border-y border-border py-3">
+      <label htmlFor="draft-settings-profile" className="block text-sm font-medium">Rules for this draft</label>
+      <Select id="draft-settings-profile" className="w-full" value={settingsProfile} options={[
+        { value: 'quick-mock', label: 'Quick mock · Default league rules' },
+        { value: 'primary-league-mock', label: 'Practice with Primary League rules' },
+        { value: 'provider', label: 'Actual Primary League · Verify with Sleeper' },
+      ]} onValueChange={(value) => {
+        if (!connection) { setPendingSettingsProfile(value); return; }
+        setPrimaryLeagueSettings(value === 'primary-league-mock');
+        setQuickMockSettings(value === 'quick-mock');
+      }} />
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        {settingsProfile === 'quick-mock'
+          ? `${quickMockPreferences.reception === 1 ? 'Full PPR' : quickMockPreferences.reception === 0.5 ? 'Half PPR' : 'Standard scoring'}, ${String(quickMockPreferences.passingTouchdown)}-point passing touchdowns, no premiums or keepers. No Primary League setup required. Sleeper supplies picks, teams, and rounds; use at least 10 rounds.`
+          : settingsProfile === 'primary-league-mock'
+            ? 'Full PPR, +0.5 TE premium, +0.2 per rush, 4-point passing touchdowns, and Primary League keepers. Use a 10-team mock with at least 14 rounds.'
+            : 'Use this for your actual league draft. Scoring, roster settings, and keepers must match the Primary League.'}
       </p>
     </div>
   ) : null;
@@ -842,26 +866,28 @@ export function DraftConnect({
             title={`Manage ${providerLabel} draft connection`}
           >
             <span className="shrink-0 font-semibold">
-              {connection?.usePrimaryLeagueSettings ? 'Sleeper mock' : providerLabel}
+              {connection?.usePrimaryLeagueSettings || connection?.settingsProfile === 'quick-mock' ? 'Sleeper mock' : providerLabel}
             </span>
             <span className="draft-nav-sync-status"><DraftSyncStatusIndicator sync={syncViewState} compact announce /></span>
             {connection?.usePrimaryLeagueSettings ? <span className="hidden text-xs text-primary xl:inline">Practice settings</span> : null}
             <Settings2 className="size-3.5 shrink-0 text-muted-foreground" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Link2 className="size-5 text-green-600" />
               Live draft sync
             </DialogTitle>
             <DialogDescription>
-              Review this provider connection, refresh its draft state, or
-              disconnect before switching to another draft room.
+              Choose quick mock rules for practice, or verify your actual Primary League settings with Sleeper.
             </DialogDescription>
           </DialogHeader>
           {practiceSettingsControl}
+          {liveDraftBlockerPanel}
           {dialogContent}
+          {warningPanel}
+          {optionalSignalPanel}
         </DialogContent>
       </Dialog>
     );

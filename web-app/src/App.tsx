@@ -1,3 +1,6 @@
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createQuickMockSettings } from '@/lib/quick-mock-settings';
+import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { DraftHeader } from '@/components/DraftHeader';
@@ -18,6 +21,8 @@ import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
+
+const LeagueSetupDialog = React.lazy(() => import('@/features/league-setup/LeagueSetupDialog').then((module) => ({ default: module.LeagueSetupDialog })));
 
 const DraftGlossary = React.lazy(() =>
   import('@/features/help/DraftGlossary').then((module) => ({
@@ -48,6 +53,8 @@ function RouteLoading({ route }: { readonly route: AppRoute }): React.ReactEleme
 }
 
 export function App(): React.ReactElement {
+  const [leagueSetupOpen, setLeagueSetupOpen] = React.useState(false);
+  const [connectionDialogOpen, setConnectionDialogOpen] = React.useState(false);
   const [route, setRoute] = React.useState<AppRoute>(() => getAppRoute(window.location.pathname));
   const [assistantNavigationTarget, setAssistantNavigationTarget] =
     React.useState<AssistantNavigationTarget>(() =>
@@ -57,10 +64,21 @@ export function App(): React.ReactElement {
     );
   const { players, isLoading, dataInfo } = usePlayerDataQuery();
   const keeperStatus = useKeeperPreload(players, isLoading);
+  const localProfile = useLeagueSetupStore((state) => state.profile);
+  const quickMockPreferences = useLeagueSetupStore((state) => state.quickMock);
+  const connection = useDraftSyncConnectionStore((state) => state.connection);
+  const sessionMode = useDraftStore((state) => state.sessionMode);
+  const applyLeagueSettings = useDraftStore((state) => state.applyLeagueSettings);
+  const setConfig = useDraftStore((state) => state.setConfig);
+  const hasPicks = useDraftStore((state) => state.draftHistory.some((pick) => pick.source !== 'keeper'));
+  const useQuickMockSettings = connection ? connection.settingsProfile === 'quick-mock' : localProfile === 'quick-mock';
+  React.useEffect(() => {
+    if (connection || sessionMode !== 'setup' || hasPicks) return;
+    applyLeagueSettings(localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings());
+    setConfig(localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 });
+  }, [connection, sessionMode, hasPicks, localProfile, quickMockPreferences, applyLeagueSettings, setConfig]);
   const leagueSettings = useDraftStore((state) => state.leagueSettings);
-  const usePrimaryLeagueSettings = useDraftSyncConnectionStore((state) =>
-    state.connection?.provider === 'sleeper' && state.connection.usePrimaryLeagueSettings === true
-  );
+  const usePrimaryLeagueSettings = connection ? connection.provider === 'sleeper' && connection.usePrimaryLeagueSettings === true : localProfile === 'primary-league';
   const totalRounds = useDraftStore((state) => state.config.totalRounds);
   const [readinessNow, setReadinessNow] = React.useState(() => Date.now());
   const readiness = React.useMemo(() => evaluateWorkspaceDraftReadiness({
@@ -70,6 +88,7 @@ export function App(): React.ReactElement {
     totalRounds,
     keeperStatus,
     usePrimaryLeagueSettings,
+    useQuickMockSettings,
   }, readinessNow), [
     dataInfo.readinessSources,
     dataInfo.readinessWarnings,
@@ -78,6 +97,7 @@ export function App(): React.ReactElement {
     readinessNow,
     totalRounds,
     usePrimaryLeagueSettings,
+    useQuickMockSettings,
   ]);
 
   React.useEffect(() => {
@@ -146,18 +166,23 @@ export function App(): React.ReactElement {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <LiveDraftSyncProvider>
-        <DraftHeader
-          route={route}
-          onNavigate={navigate}
-          connectionControl={<DraftConnectionControl readiness={readiness} />}
-          secondaryControls={(
-            <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
-              <DraftGlossary />
-              <RosterSettings />
-            </React.Suspense>
-          )}
-        />
         <DraftDecisionProvider readiness={readiness}>
+          <DraftHeader
+            route={route}
+            onNavigate={navigate}
+            connectionControl={<DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
+            keeperStatus={keeperStatus}
+            onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
+            secondaryControls={(
+              <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
+                <DraftGlossary />
+                <RosterSettings />
+              </React.Suspense>
+            )}
+          />
+          {leagueSetupOpen ? <React.Suspense fallback={null}>
+            <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
+          </React.Suspense> : null}
           <ShadowRecommendationObserver />
           <React.Suspense fallback={<RouteLoading route={route} />}>
             {route === 'assistant' ? (
@@ -170,7 +195,6 @@ export function App(): React.ReactElement {
             ) : (
               <DraftRoom
                 keeperStatus={keeperStatus}
-                readiness={readiness}
                 onOpenAssistant={(target) => { navigate('assistant', target); }}
               />
             )}

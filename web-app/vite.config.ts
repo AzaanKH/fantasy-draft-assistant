@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { localDevPorts } from '../shared/src/local-dev';
 import { readFile } from 'node:fs/promises';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
@@ -6,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { BROWSER_DATA_FILES } from '../scripts/src/browser-data';
 import { localApiSecurity } from '../server/src/vite-security';
+
+const { webPort, apiOrigin } = localDevPorts(process.env);
 
 const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
@@ -71,13 +74,13 @@ export default defineConfig({
   },
   server: {
     host: '127.0.0.1',
-    port: 3000,
+    port: webPort,
     strictPort: true,
     cors: false,
     fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.local/**'] },
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: apiOrigin,
         changeOrigin: true,
       },
     },

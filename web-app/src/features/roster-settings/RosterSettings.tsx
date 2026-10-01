@@ -1,5 +1,4 @@
-import type { Position, RosterRequirements } from '@fantasy-draft/shared';
-import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,29 +11,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { useDraftStore } from '@/stores/draftStore';
 
-const EDITABLE_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K'] as const satisfies readonly Position[];
+const EDITABLE_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const satisfies readonly Position[];
 
 function numericValue(value: string, maximum: number = 20): number {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? Math.min(maximum, Math.max(0, parsed)) : 0;
 }
 
-function cloneDefaults(): RosterRequirements {
-  return {
-    ...DEFAULT_ROSTER_REQUIREMENTS,
-    QB: { ...DEFAULT_ROSTER_REQUIREMENTS.QB },
-    RB: { ...DEFAULT_ROSTER_REQUIREMENTS.RB },
-    WR: { ...DEFAULT_ROSTER_REQUIREMENTS.WR },
-    TE: { ...DEFAULT_ROSTER_REQUIREMENTS.TE },
-    FLEX: { ...DEFAULT_ROSTER_REQUIREMENTS.FLEX },
-    K: { ...DEFAULT_ROSTER_REQUIREMENTS.K },
-    DEF: { ...DEFAULT_ROSTER_REQUIREMENTS.DEF },
-    BENCH: { ...DEFAULT_ROSTER_REQUIREMENTS.BENCH },
-  };
-}
-
 export function RosterSettings(): React.ReactElement {
   const requirements = useDraftStore((state) => state.config.rosterRequirements);
+  const leagueRoster = useDraftStore((state) => state.leagueSettings.rosterRequirements);
   const setRosterRequirements = useDraftStore((state) => state.setRosterRequirements);
 
   const updatePosition = (
@@ -54,11 +40,11 @@ export function RosterSettings(): React.ReactElement {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">League roster</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Roster requirements</DialogTitle>
           <DialogDescription>
-            PickEV uses these slots to calculate marginal lineup utility. Defense is disabled for this league.
+            These slots guide roster needs and recommendations for the selected league rules.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,10 +127,10 @@ export function RosterSettings(): React.ReactElement {
               variant="outline"
               size="sm"
               onClick={() => {
-                setRosterRequirements(cloneDefaults());
+                setRosterRequirements(leagueRoster);
               }}
             >
-              Reset defaults
+              Reset to league rules
             </Button>
           </div>
         </div>
