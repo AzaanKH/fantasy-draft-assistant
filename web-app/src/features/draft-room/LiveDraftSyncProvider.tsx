@@ -97,11 +97,13 @@ export function LiveDraftSyncProvider({
     (state) => state.confirmDraftPosition
   );
   const clearConnection = useDraftSyncConnectionStore((state) => state.disconnect);
-  const [isManualContinuity, setIsManualContinuity] = React.useState(false);
-  const [manualContinuityBaselineAt, setManualContinuityBaselineAt] =
-    React.useState<number | null>(null);
+  const manualContinuityBaselineAt = useDraftStore((state) => state.manualContinuityBaselineAt);
+  const recordManualContinuity = useDraftStore((state) => state.enterManualContinuity);
+  const lastConfirmedSyncAt = useDraftStore((state) => state.lastConfirmedSyncAt);
+  const lastConfirmedPickNumber = useDraftStore((state) => state.lastConfirmedPickNumber);
   const [reconciliationTargetAt, setReconciliationTargetAt] =
     React.useState<number | null>(null);
+  const isManualContinuity = manualContinuityBaselineAt !== null && reconciliationTargetAt === null;
   const applyLeagueSettings = useDraftStore((state) => state.applyLeagueSettings);
   const resetDraft = useDraftStore((state) => state.resetDraft);
   const setConfig = useDraftStore((state) => state.setConfig);
@@ -130,7 +132,7 @@ export function LiveDraftSyncProvider({
     !isManualContinuity &&
     connection?.provider === 'sleeper' &&
     connection.draftPosition !== null &&
-    sync.lastSuccessfulSyncAt !== null &&
+    (sync.lastSuccessfulSyncAt ?? lastConfirmedSyncAt) !== null &&
     (
       sync.connectionState === 'reconnecting' ||
       sync.connectionState === 'stale' ||
@@ -142,8 +144,6 @@ export function LiveDraftSyncProvider({
   }, [connection]);
 
   React.useEffect(() => {
-    setIsManualContinuity(false);
-    setManualContinuityBaselineAt(null);
     setReconciliationTargetAt(null);
   }, [connection?.draftId, connection?.provider]);
 
@@ -159,7 +159,6 @@ export function LiveDraftSyncProvider({
     if (restoredSnapshotAt === null) return;
 
     setReconciliationTargetAt(restoredSnapshotAt);
-    setIsManualContinuity(false);
   }, [
     connection?.provider,
     isManualContinuity,
@@ -179,7 +178,6 @@ export function LiveDraftSyncProvider({
     }
 
     setReconciliationTargetAt(null);
-    setManualContinuityBaselineAt(null);
   }, [reconciliationTargetAt, sync.lastReconciledSnapshotAt]);
 
   React.useEffect(() => {
@@ -194,16 +192,11 @@ export function LiveDraftSyncProvider({
   }, [sync.draft, setConfig]);
 
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
-    setIsManualContinuity(false);
-    setManualContinuityBaselineAt(null);
     setReconciliationTargetAt(null);
     persistStartConnection(next.provider, next.draftId);
-    setSessionMode('setup');
-  }, [persistStartConnection, setSessionMode]);
+  }, [persistStartConnection]);
 
   const confirmDraftPosition = React.useCallback((draftPosition: number) => {
-    setIsManualContinuity(false);
-    setManualContinuityBaselineAt(null);
     setReconciliationTargetAt(null);
     persistDraftPosition(draftPosition);
     setConfig({ myPickPosition: draftPosition });
@@ -212,13 +205,11 @@ export function LiveDraftSyncProvider({
 
   const enterManualContinuity = React.useCallback(() => {
     if (!canEnterManualContinuity) return;
-    setManualContinuityBaselineAt(sync.lastSuccessfulSyncAt);
-    setIsManualContinuity(true);
-  }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt]);
+    const baselineAt = sync.lastSuccessfulSyncAt ?? lastConfirmedSyncAt;
+    if (baselineAt !== null) recordManualContinuity(baselineAt);
+  }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt, lastConfirmedSyncAt, recordManualContinuity]);
 
   const disconnect = React.useCallback(() => {
-    setIsManualContinuity(false);
-    setManualContinuityBaselineAt(null);
     setReconciliationTargetAt(null);
     clearConnection();
     setConfig({ draftType: 'snake' });
@@ -247,7 +238,7 @@ export function LiveDraftSyncProvider({
     viewState,
     synchronizationState,
     canEnterManualContinuity,
-    lastConfirmedPickNumber: sync.lastSyncedPick,
+    lastConfirmedPickNumber,
     provisionalPickCount,
     startConnection,
     confirmDraftPosition,
@@ -259,6 +250,7 @@ export function LiveDraftSyncProvider({
     confirmDraftPosition,
     disconnect,
     enterManualContinuity,
+    lastConfirmedPickNumber,
     provisionalPickCount,
     startConnection,
     sync,

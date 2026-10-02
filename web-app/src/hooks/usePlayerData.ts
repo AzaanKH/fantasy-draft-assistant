@@ -231,9 +231,9 @@ function useLivePlayerDataQuery() {
       warnings.push({
         key: 'recommendation-policy',
         label: 'Recommendation policy',
-        sourceLabel: 'ECR-anchored recommendation policy',
+        sourceLabel: 'Runtime recommendation policy',
         message: recommendationPolicyQuery.error.message,
-        correctiveAction: 'Run `pnpm model:backtest`.',
+        correctiveAction: 'Restore the recommendation policy configuration.',
       });
     }
     return warnings;
@@ -299,14 +299,6 @@ function useLivePlayerDataQuery() {
       requiredForLiveDraft: false,
     }),
     createDataFreshnessItem({
-      key: 'recommendation-policy',
-      label: 'Recommendation policy',
-      timestamp: recommendationPolicyQuery.data?.generatedAt,
-      maxAgeHours: 24 * 7,
-      refreshCommand: 'pnpm model:backtest',
-      requiredForLiveDraft: false,
-    }),
-    createDataFreshnessItem({
       key: 'predictions',
       label: 'Prediction model',
       timestamp: predictionQuery.data?.generatedAt,
@@ -337,7 +329,6 @@ function useLivePlayerDataQuery() {
     identityQuery.data?.generatedAt,
     marketAdpQuery.data?.refreshedAt,
     predictionQuery.data?.generatedAt,
-    recommendationPolicyQuery.data?.generatedAt,
     sleeperQuery.data?.fetchedAt,
     sportsbookQuery.data?.metadata.capturedAt,
     teamEnvQuery.data?.generatedAt,
@@ -410,8 +401,6 @@ function useLivePlayerDataQuery() {
       predictionGeneratedAt: predictionQuery.data?.generatedAt,
       shadowRecommendationAvailable:
         predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled,
-      pickEvOverrideEnabled: effectiveRecommendationPolicy.pickEvOverrideEnabled,
-      pickEvOverrideThreshold: effectiveRecommendationPolicy.pickEvOverrideThreshold,
       recommendationFallback: effectiveRecommendationPolicy.fallback,
       recommendationPolicyReason: effectiveRecommendationPolicy.reason,
       shadowLoggingEnabled:

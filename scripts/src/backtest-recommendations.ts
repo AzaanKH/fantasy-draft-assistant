@@ -1,3 +1,4 @@
+import { writeRecommendationEvaluation } from './recommendation-evaluation.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -61,7 +62,6 @@ const COUNTERFACTUAL_MARKDOWN_OUTPUT = join(
   'docs',
   'counterfactual-recommendation-backtest.md'
 );
-const POLICY_OUTPUT = join(DATA_DIR, 'recommendation-policy.json');
 const OUTER_TEST_SEASONS = [2022, 2023, 2024, 2025] as const;
 const RELEASE_SEASONS_REQUIRED = 3;
 const DEFAULT_COUNTERFACTUAL_ITERATIONS = 1_000;
@@ -1475,40 +1475,28 @@ async function main(): Promise<void> {
       COUNTERFACTUAL_JSON_OUTPUT,
       `${JSON.stringify(counterfactualReport, null, 2)}\n`
     );
-    await writeFile(
-      POLICY_OUTPUT,
-      `${JSON.stringify({
-        generatedAt: report.generatedAt,
-        modelVersion: report.modelVersion,
-        modelPredictionsEnabled: false,
-        contractSignalEnabled: false,
-        pickEvOverrideEnabled: pickEvOverrideValidation.passed,
-        pickEvOverrideThreshold: PICK_EV_OVERRIDE_THRESHOLD,
-        pickEvOverrideValidation,
-        recommendationArchitecture: 'pick-ev-v1',
-        pickEvEvaluation: {
-          improvesLegacyStarterPoints:
-            architectureComparison.incrementalDeltas.fullVsLegacy.starterPoints > 0,
-          beatsEcrStarterPoints:
-            architectureComparison.incrementalDeltas.fullVsEcr.starterPoints > 0,
-          fullVsLegacy: architectureComparison.incrementalDeltas.fullVsLegacy,
-          fullVsEcr: architectureComparison.incrementalDeltas.fullVsEcr,
-          dataStatus: architectureComparison.dataStatus,
-        },
-        fallback: 'fantasypros-ecr-market',
-        promotionGates: {
-          feature: report.featureGate,
-          release: report.releaseGate,
-          passed: report.promotion.passed,
-        },
-        shadowLogging: {
-          enabled: true,
-          season: new Date().getFullYear(),
-          endpoint: '/api/shadow-recommendations',
-        },
-        reason: report.promotion.decision,
-      }, null, 2)}\n`
-    );
+    await writeRecommendationEvaluation(DATA_DIR, {
+      generatedAt: report.generatedAt,
+      modelVersion: report.modelVersion,
+      pickEvOverrideThreshold: PICK_EV_OVERRIDE_THRESHOLD,
+      pickEvOverrideValidation,
+      evaluatedArchitecture: 'pick-ev-v1',
+      pickEvEvaluation: {
+        improvesLegacyStarterPoints:
+          architectureComparison.incrementalDeltas.fullVsLegacy.starterPoints > 0,
+        beatsEcrStarterPoints:
+          architectureComparison.incrementalDeltas.fullVsEcr.starterPoints > 0,
+        fullVsLegacy: architectureComparison.incrementalDeltas.fullVsLegacy,
+        fullVsEcr: architectureComparison.incrementalDeltas.fullVsEcr,
+        dataStatus: architectureComparison.dataStatus,
+      },
+      promotionGates: {
+        feature: report.featureGate,
+        release: report.releaseGate,
+        passed: report.promotion.passed,
+      },
+      decision: report.promotion.decision,
+    });
     const seasonRows = report.seasons.map((season) => {
       const selectedModels = OFFENSIVE_POSITIONS.map((position) => {
         const selection = season.positionModelSelections[position];
@@ -1606,7 +1594,7 @@ unavailable historical FantasyPros or observed ADP data.
 ### PickEV override gate
 
 - Candidate threshold: ${String(report.pickEvOverrideValidation.threshold)} PickEV points
-- Validated for live overrides: **${String(report.pickEvOverrideValidation.passed)}**
+- Historical override gate passed: **${String(report.pickEvOverrideValidation.passed)}**
 - ECR remains the champion whenever this gate fails.
 
 | Architecture | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |

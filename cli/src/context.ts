@@ -1,5 +1,5 @@
 import {
-  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, POSITIONS, type DraftSyncSnapshot,
+  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, LIVE_RECOMMENDATION_ARCHITECTURE, POSITIONS, type DraftSyncSnapshot,
   type DraftReadinessReport, type LeagueSettings, type Player, type Roster,
 } from '@fantasy-draft/shared';
 import { resolveDraftPickImports, getNextOpenPickNumber } from '@/lib/draft-pick-imports';
@@ -126,10 +126,9 @@ export function adviceBoard(context: SessionContext, data: DraftData) {
   const selectionsRemaining = Math.max(0, context.totalRounds - rosterPlayers.length);
   const recommendationContext: RecommendationContext = {
     currentPick, totalPicks: context.totalPicks, totalTeams: context.totalTeams, isMyTurn: context.isMyTurn,
-    architecture: 'best-pick-policy', requirements: context.settings.rosterRequirements,
+    architecture: LIVE_RECOMMENDATION_ARCHITECTURE, requirements: context.settings.rosterRequirements,
     rosterPlayers, selectionsRemaining,
     rosterCounts: Object.fromEntries(POSITIONS.map(position => [position, context.roster[position].length])),
-    allowPickEvOverrides: data.policy.pickEvOverrideEnabled, pickEvOverrideThreshold: data.policy.pickEvOverrideThreshold,
   };
   const hasDecision = currentPick <= context.totalPicks && selectionsRemaining > 0;
   const recommendations = getRecommendations(hasDecision ? available : [], needs, Math.max(1, available.length), recommendationContext);

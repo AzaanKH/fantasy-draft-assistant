@@ -181,7 +181,7 @@ function createSupportWarning(
 
 export async function buildDraftReadinessReport(now: number, repoRoot: string = REPO_ROOT): Promise<DraftReadinessReport> {
   const [rankings, identities, leagueSettings, keepers, predictions, contracts, sportsbook,
-    sleeper, teamEnvironment, recommendationPolicy, survivalModel] = await Promise.all([
+    sleeper, teamEnvironment, recommendationEvaluation, survivalModel] = await Promise.all([
       loadArtifact('data/fantasypros-snapshot.json', repoRoot),
       loadArtifact('data/player-identity.json', repoRoot),
       loadArtifact('data/primary-league-settings.json', repoRoot),
@@ -191,7 +191,7 @@ export async function buildDraftReadinessReport(now: number, repoRoot: string = 
       loadArtifact('data/sportsbook-snapshot.json', repoRoot),
       loadArtifact('data/sleeper-adp.json', repoRoot),
       loadArtifact('data/team-environment.json', repoRoot),
-      loadArtifact('data/recommendation-policy.json', repoRoot),
+      loadArtifact('data/recommendation-evaluation.json', repoRoot),
       loadArtifact('data/league-history/survival-model.json', repoRoot),
     ]);
   const season = new Date(now).getUTCFullYear();
@@ -300,10 +300,10 @@ export async function buildDraftReadinessReport(now: number, repoRoot: string = 
       'Run `pnpm refresh:team-env`.'
     ),
     createSupportWarning(
-      recommendationPolicy,
-      'Recommendation policy',
-      'ECR-anchored recommendation policy',
-      timestamp(nested(recommendationPolicy.value, 'generatedAt')),
+      recommendationEvaluation,
+      'Recommendation evaluation',
+      'Historical recommendation backtest',
+      timestamp(nested(recommendationEvaluation.value, 'generatedAt')),
       24 * 7,
       now,
       'Run `pnpm model:backtest`.'

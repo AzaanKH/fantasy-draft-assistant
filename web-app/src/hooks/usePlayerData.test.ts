@@ -8,8 +8,12 @@ import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
 const draftState = vi.hoisted(() => ({ connection: null as PersistedDraftSyncConnection | null }));
-vi.mock('@/stores/draftSyncStore', () => ({
-  useDraftSyncConnectionStore: (selector: (state: typeof draftState) => unknown) => selector(draftState),
+vi.mock('@/stores/draftSyncStore', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/stores/draftSyncStore')>(),
+  useDraftSyncConnectionStore: Object.assign(
+    (selector: (state: typeof draftState) => unknown) => selector(draftState),
+    { getState: () => draftState, subscribe: vi.fn() }
+  ),
 }));
 
 let loadedData: Record<string, unknown> = {};

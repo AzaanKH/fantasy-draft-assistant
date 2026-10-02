@@ -1,3 +1,4 @@
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   POSITIONS,
@@ -55,7 +56,7 @@ const needs: PositionNeed[] = POSITIONS.map((position) => ({
   scarcityScore: 5,
 }));
 const context = {
-  architecture: 'best-pick-policy' as const,
+  architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
   currentPick: 55,
   totalPicks: 150,
   totalTeams: 10,

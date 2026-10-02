@@ -72,8 +72,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
     refreshCommand: 'pnpm prepare:draft',
   },
   {
-    label: 'Recommendation policy',
-    path: 'data/recommendation-policy.json',
+    label: 'Recommendation evaluation',
+    path: 'data/recommendation-evaluation.json',
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
     required: false,

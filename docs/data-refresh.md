@@ -53,7 +53,7 @@ rankings.
 | `pnpm refresh:team-env` | Derives `data/team-environment.json` from the latest completed nflverse season. | Weekly during the offseason or after pipeline changes. |
 | `pnpm refresh:daily` | Runs Sleeper, FantasyPros, identity, contract, and team-environment refreshes. | Draft week. |
 | `pnpm prepare:draft` | Refreshes daily data, rebuilds DuckDB predictions and survival data, runs the backtest, and writes the prep report. | Draft week and after scoring/model changes. |
-| `pnpm model:backtest` | Replays the recommendation model, rewrites the fixed-board and counterfactual reports, and updates recommendation policy. | After prediction, scoring, league-history, recommendation, or backtest changes, and once during final draft preparation. |
+| `pnpm model:backtest` | Replays the recommendation model, rewrites the fixed-board and counterfactual reports, and updates historical recommendation evaluation. | After prediction, scoring, league-history, recommendation, or backtest changes, and once during final draft preparation. |
 | `pnpm model:backtest:contracts` | Runs the leakage-safe 2012–2025 contract-year feature ablation. | After contract/model logic changes and before enabling the signal. |
 | `pnpm report:draft-prep` | Rewrites the prep report from existing artifacts. | After late keeper edits. |
 | `pnpm experiment:primary-league` | Replays the seven Primary League decision experiments and rewrites their JSON and Markdown reports. | After material rankings, keeper, draft-order, opponent-model, scoring, or Best Pick policy changes. |
@@ -111,7 +111,8 @@ Primary League for the real draft to restore the provider verification gate.
 | `data/team-environment.json` | nflverse completed-season team stats | Reproducible baseline; offseason changes remain separate signals. |
 | `data/contracts.json` | nflverse historical contracts sourced from OverTheCap | Informational contract context; a passing backtest alone does not enable live recommendation influence. |
 | `data/predictions.json` | DuckDB prediction pipeline | Includes league scoring plus leakage-safe trailing snap-share and Next Gen Stats adjustments. |
-| `data/recommendation-policy.json` | Roster-aware walk-forward backtest | Records validation evidence and shadow settings; promoting predictions into live recommendations requires an explicit policy implementation change. |
+| `data/recommendation-policy.json` | Reviewed runtime configuration | Names `best-pick-policy` and controls optional signals and shadow logging. Backtests do not rewrite this file. |
+| `data/recommendation-evaluation.json` | Roster-aware and contract walk-forward backtests | Records the historical `pick-ev-v1` architecture, model versions, validation thresholds, and promotion evidence. Passing a gate does not change runtime configuration. |
 | `data/shadow-logs/2026-recommendations.ndjson` | Live app, append-only and gitignored | Records model/fallback decision pairs without exposing the experimental recommendation. |
 | `data/league-history/survival-model.json` | Imported league draft history plus Sleeper proxy | Room-specific timing adjustment, not player-quality training data. |
 | `data/league-history/current-keepers.json` | Manual late draft-week input | Add every keeper, mark the user's entry with `isMyKeeper`, and set `updatedAt` only when the full list is confirmed. A confirmed list remains valid for its declared season and does not expire with age. The live mock preloads this file before pick 1. |

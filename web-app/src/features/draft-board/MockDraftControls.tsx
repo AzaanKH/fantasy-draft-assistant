@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
+import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import type { Player } from '@fantasy-draft/shared';
 import { Pause, Play, RotateCcw, Settings2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -71,11 +70,7 @@ export function MockDraftControls({
   const survivalProbabilities = useDraftStore(
     (state) => state.mockSurvivalProbabilities
   );
-  const historyQuery = useQuery({
-    queryKey: ['league-survival-model'],
-    queryFn: fetchLeagueSurvivalModel,
-    staleTime: Infinity,
-  });
+  const timingEvidence = useLeagueTimingEvidence(sessionMode !== 'live');
 
   const engineConfig = React.useMemo<MockDraftEngineConfig>(() => ({
     totalTeams: config.totalTeams,
@@ -123,7 +118,7 @@ export function MockDraftControls({
         randomness: state.mockSettings.randomness,
         seed: state.mockSettings.seed,
       },
-      historyModel: historyQuery.data,
+      historyModel: timingEvidence.model,
     });
     if (!selection) return false;
 
@@ -138,7 +133,7 @@ export function MockDraftControls({
       'cpu'
     );
     return true;
-  }, [draftStore, historyQuery.data, players]);
+  }, [draftStore, timingEvidence.model, players]);
 
   React.useEffect(() => {
     if (sessionMode !== 'mock') return;
@@ -201,7 +196,7 @@ export function MockDraftControls({
         keepers: preloadedKeepers,
         currentPick,
         config: engineConfig,
-        historyModel: historyQuery.data,
+        historyModel: timingEvidence.model,
         iterations: chunkIterations,
         iterationOffset: completedIterations,
       });
@@ -223,7 +218,7 @@ export function MockDraftControls({
     draftHistory,
     draftedPlayerIds,
     engineConfig,
-    historyQuery.data,
+    timingEvidence.model,
     mockSettings.survivalIterations,
     players,
     preloadedKeepers,

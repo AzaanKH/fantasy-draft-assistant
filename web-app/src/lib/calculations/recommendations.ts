@@ -48,6 +48,7 @@ export interface RecommendationContext {
   readonly totalPicks?: number;
   readonly isMyTurn?: boolean;
   readonly totalTeams?: number;
+  /** Legacy and PickEV support historical comparisons. Live callers share Best Pick. */
   readonly architecture?: 'legacy' | 'pick-ev' | 'best-pick-policy';
   readonly requirements?: RosterRequirements;
   readonly rosterPlayers?: readonly PickEvRosterPlayer[];

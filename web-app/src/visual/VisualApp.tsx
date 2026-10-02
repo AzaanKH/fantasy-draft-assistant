@@ -216,8 +216,6 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
     predictionModelVersion: 'visual-fixture-v1',
     predictionGeneratedAt: VISUAL_SOURCE_TIMESTAMP,
     shadowRecommendationAvailable: false,
-    pickEvOverrideEnabled: false,
-    pickEvOverrideThreshold: 0,
     recommendationFallback: 'fantasypros-ecr-market',
     recommendationPolicyReason: 'Fixed visual fixture.',
     shadowLoggingEnabled: false,
@@ -418,7 +416,7 @@ export function VisualApp(): React.ReactElement {
         },
       },
     });
-    client.setQueryData(['league-survival-model'], null, { updatedAt: VISUAL_NOW });
+    client.setQueryData(['league-survival-model', 'primary-league'], null, { updatedAt: VISUAL_NOW });
     return client;
   });
   const route = React.useMemo(

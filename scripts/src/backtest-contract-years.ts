@@ -1,3 +1,4 @@
+import { isRecommendationEvaluation, writeRecommendationEvaluation } from './recommendation-evaluation.js';
 /**
  * Walk-forward validation of the contract-year feature.
  *
@@ -33,7 +34,7 @@ const CONTRACTS_URL =
   'https://github.com/nflverse/nflverse-data/releases/download/contracts/historical_contracts.parquet';
 const JSON_OUTPUT = join(BACKTESTS_MODEL_DIR, 'contract-year-backtest.json');
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'contract-year-backtest.md');
-const POLICY_OUTPUT = join(DATA_DIR, 'recommendation-policy.json');
+const EVALUATION_OUTPUT = join(DATA_DIR, 'recommendation-evaluation.json');
 const HISTORY_START = Number(process.env['CONTRACT_BACKTEST_START_SEASON'] ?? 2012);
 const HISTORY_END = Number(process.env['CONTRACT_BACKTEST_END_SEASON'] ?? 2025);
 const FIRST_TEST_SEASON = Number(process.env['CONTRACT_BACKTEST_FIRST_TEST_SEASON'] ?? 2015);
@@ -59,34 +60,6 @@ interface QueryRow {
   readonly expected_role: string;
   readonly contract_known: boolean | null;
   readonly is_contract_year: boolean | null;
-}
-
-interface RecommendationPolicy {
-  readonly generatedAt?: string;
-  readonly modelVersion?: string;
-  readonly modelPredictionsEnabled?: boolean;
-  readonly contractSignalEnabled?: boolean;
-  readonly fallback?: string;
-  readonly reason?: string;
-  readonly [key: string]: unknown;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isRecommendationPolicy(value: unknown): value is RecommendationPolicy {
-  if (!isRecord(value)) return false;
-  return (
-    (value['generatedAt'] === undefined || typeof value['generatedAt'] === 'string') &&
-    (value['modelVersion'] === undefined || typeof value['modelVersion'] === 'string') &&
-    (value['modelPredictionsEnabled'] === undefined ||
-      typeof value['modelPredictionsEnabled'] === 'boolean') &&
-    (value['contractSignalEnabled'] === undefined ||
-      typeof value['contractSignalEnabled'] === 'boolean') &&
-    (value['fallback'] === undefined || typeof value['fallback'] === 'string') &&
-    (value['reason'] === undefined || typeof value['reason'] === 'string')
-  );
 }
 
 function range(start: number, end: number): number[] {
@@ -463,19 +436,18 @@ async function main(): Promise<void> {
   await mkdir(dirname(MARKDOWN_OUTPUT), { recursive: true });
   await writeFile(JSON_OUTPUT, `${JSON.stringify(report, null, 2)}\n`);
 
-  const currentPolicyJson: unknown = JSON.parse(await readFile(POLICY_OUTPUT, 'utf8'));
-  if (!isRecommendationPolicy(currentPolicyJson)) {
-    throw new Error(`Recommendation policy is malformed: ${POLICY_OUTPUT}`);
+  const currentEvaluationJson: unknown = JSON.parse(await readFile(EVALUATION_OUTPUT, 'utf8'));
+  if (!isRecommendationEvaluation(currentEvaluationJson)) {
+    throw new Error(`Recommendation evaluation is malformed: ${EVALUATION_OUTPUT}`);
   }
-  const currentPolicy = currentPolicyJson;
-  await writeFile(POLICY_OUTPUT, `${JSON.stringify({
-    ...currentPolicy,
+  const currentEvaluation = currentEvaluationJson;
+  await writeRecommendationEvaluation(DATA_DIR, {
+    ...currentEvaluation,
     generatedAt: report.generatedAt,
-    contractSignalEnabled: false,
     contractSignalValidationPassed: releaseGate.passed,
     contractSignalModelVersion: report.modelVersion,
     contractSignalReason: decision,
-  }, null, 2)}\n`);
+  });
 
   const seasonRows = report.seasons.map((season) =>
     `| ${String(season.season)} | ${String(season.baseline.observations)} | ` +

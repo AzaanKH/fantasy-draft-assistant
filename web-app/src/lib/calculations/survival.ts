@@ -236,13 +236,36 @@ function getSurvivalScale(
   return leagueAdjustedMarketRank <= 60 ? 7 : 11;
 }
 
+function getConditionalSurvivalProbability(
+  expectedPick: number,
+  scale: number,
+  currentPick: number,
+  nextPick: number
+): number {
+  const draftedByCurrentPick = logistic((currentPick - expectedPick) / scale);
+  const draftedByNextPick = logistic((nextPick - expectedPick) / scale);
+  const stillAvailableAtCurrentPick = Math.max(0.03, 1 - draftedByCurrentPick);
+  return round(clamp((1 - draftedByNextPick) / stillAvailableAtCurrentPick, 0.03, 0.97), 2);
+}
+
 function withHeuristicSurvivalSource(
   player: Player,
   context: SurvivalContext
 ): Player {
   const nextPick = getNextUserPick(context);
+  const consensusMarketPick = getConsensusMarketPick(player);
+  const sleeperTimingPick = getSleeperTimingPick(player);
+  const expectedPick = sleeperTimingPick === undefined
+    ? consensusMarketPick
+    : consensusMarketPick * 0.95 + sleeperTimingPick * 0.05;
   return {
     ...player,
+    nextPickSurvivalProbability: nextPick === null ? 1 : getConditionalSurvivalProbability(
+      expectedPick,
+      expectedPick <= 60 ? 7 : 11,
+      context.currentPick,
+      nextPick
+    ),
     nextPickNumber: nextPick ?? undefined,
     nextPickLabel: nextPick === null
       ? undefined
@@ -255,8 +278,8 @@ function withHeuristicSurvivalSource(
     leaguePositionTendency: undefined,
     survivalModelSource: 'heuristic',
     historicalExpectedPick: undefined,
-    consensusMarketPick: getConsensusMarketPick(player),
-    sleeperTimingPick: getSleeperTimingPick(player),
+    consensusMarketPick,
+    sleeperTimingPick,
     survivalModelSampleSize: undefined,
   };
 }
@@ -296,18 +319,11 @@ export function estimateLeagueSurvivalProbability(
   );
 
   const scale = getSurvivalScale(player, model, leagueAdjustedMarketRank);
-  const draftedByCurrentPick = logistic(
-    (context.currentPick - leagueAdjustedMarketRank) / scale
-  );
-  const draftedByNextPick = logistic(
-    (nextPick - leagueAdjustedMarketRank) / scale
-  );
-  const stillAvailableAtCurrentPick = Math.max(0.03, 1 - draftedByCurrentPick);
-  const conditionalSurvival = (1 - draftedByNextPick) /
-    stillAvailableAtCurrentPick;
-  const nextPickSurvivalProbability = round(
-    clamp(conditionalSurvival, 0.03, 0.97),
-    2
+  const nextPickSurvivalProbability = getConditionalSurvivalProbability(
+    leagueAdjustedMarketRank,
+    scale,
+    context.currentPick,
+    nextPick
   );
 
   return {

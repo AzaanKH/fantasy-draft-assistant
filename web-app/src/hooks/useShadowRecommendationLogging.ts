@@ -1,6 +1,6 @@
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import { useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
+import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import type { DraftProvider, Recommendation } from '@fantasy-draft/shared';
 import {
   applyLeagueSurvivalModel,
@@ -47,12 +47,7 @@ export function useShadowRecommendationLogging(
   const currentPick = useDraftStore((state) => state.currentPick);
   const isMyTurn = useIsMyTurn();
   const attemptedEventIds = useRef(new Set<string>());
-  const survivalModelQuery = useQuery({
-    queryKey: ['league-survival-model'],
-    queryFn: fetchLeagueSurvivalModel,
-    staleTime: Infinity,
-    enabled: dataInfo.shadowLoggingEnabled && draftReady,
-  });
+  const timingEvidence = useLeagueTimingEvidence(dataInfo.shadowLoggingEnabled && draftReady);
   const context = useMemo(() => ({
     currentPick,
     myPickPosition: config.myPickPosition,
@@ -96,7 +91,7 @@ export function useShadowRecommendationLogging(
       try {
         const availableModel = applyLeagueSurvivalModel(
           shadowPlayers,
-          survivalModelQuery.data,
+          timingEvidence.model,
           context
         ).filter((player) => !draftedPlayerIds.has(player.id));
         const playersById = new Map(
@@ -124,7 +119,7 @@ export function useShadowRecommendationLogging(
             totalPicks: config.totalTeams * config.totalRounds,
             totalTeams: config.totalTeams,
             isMyTurn,
-            architecture: 'best-pick-policy',
+            architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
             requirements: config.rosterRequirements,
             rosterPlayers,
             selectionsRemaining: Math.max(0, config.totalRounds - rosterPlayers.length),
@@ -180,5 +175,5 @@ export function useShadowRecommendationLogging(
         attemptedIds.delete(eventId);
       }
     };
-  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, survivalModelQuery.data]);
+  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
 }

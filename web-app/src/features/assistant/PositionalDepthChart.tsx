@@ -1,5 +1,4 @@
 import { useId, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { POSITIONS, type Player, type Position, type PositionNeed } from '@fantasy-draft/shared';
 import { Check, ChevronDown, ChevronRight, ListPlus, X } from 'lucide-react';
 import { MotionFade } from '@/components/motion';
@@ -9,7 +8,7 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { estimateLeagueSurvivalProbability, getNextUserPick } from '@/lib/calculations/survival';
 import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
-import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
+import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import { formatSignedNumber } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
 import {
@@ -36,18 +35,18 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
   const sessionMode = useDraftStore((state) => state.sessionMode);
   const mockProbabilities = useDraftStore((state) => state.mockSurvivalProbabilities);
   const { togglePlayerQueued } = useQueueActions(players);
-  const model = useQuery({ queryKey: ['league-survival-model'], queryFn: fetchLeagueSurvivalModel, staleTime: Infinity });
+  const timingEvidence = useLeagueTimingEvidence();
   const timing = useMemo(() => {
     const context = { currentPick, myPickPosition: config.myPickPosition, totalTeams: config.totalTeams, totalRounds: config.totalRounds };
     return new Map(players.slice(0, limit).map((player) => {
       if (getNextUserPick(context) === null) return [player.id, null];
-      const estimate = estimateLeagueSurvivalProbability(player, model.data, context, timingPool);
-      const probability = sessionMode === 'mock'
+      const estimate = estimateLeagueSurvivalProbability(player, timingEvidence.model, context, timingPool);
+      const probability = sessionMode === 'mock' && timingEvidence.model
         ? mockProbabilities[player.id] ?? estimate.nextPickSurvivalProbability
         : estimate.nextPickSurvivalProbability;
       return [player.id, Number.isFinite(probability) && probability >= 0 && probability <= 1 ? Math.round(probability * 100) : null];
     }));
-  }, [timingPool, config.myPickPosition, config.totalRounds, config.totalTeams, currentPick, limit, mockProbabilities, model.data, players, sessionMode]);
+  }, [timingPool, config.myPickPosition, config.totalRounds, config.totalTeams, currentPick, limit, mockProbabilities, timingEvidence.model, players, sessionMode]);
   const drop = getDepthTierDrop(allPlayers, position, tier);
   const aboveReplacement = players.filter((player) => player.valueOverReplacement > 0).length;
 

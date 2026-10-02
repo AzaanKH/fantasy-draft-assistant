@@ -38,8 +38,8 @@ build output is missing.
 | Inspect source coverage | `pnpm model:profile` | Reads initialized tables; writes `data/model/profile-report.json`. |
 | Rebuild the prediction dataset | `pnpm model:dataset` | Initializes current joins, downloads historical sources, and writes training data, snapshots, predictions, and reports. |
 | Rebuild historical snapshots only | `pnpm model:snapshots` | Reads stored draft dates and remote historical sources; writes snapshot tables, Parquet, and the coverage report. |
-| Evaluate recommendations | `pnpm model:backtest` | Reads the built model dataset; rewrites backtest reports and recommendation policy. |
-| Evaluate the contract feature | `pnpm model:backtest:contracts` | Reads historical data; rewrites contract evaluation reports and policy evidence. |
+| Evaluate recommendations | `pnpm model:backtest` | Reads the built model dataset; rewrites backtest reports and historical recommendation evaluation. |
+| Evaluate the contract feature | `pnpm model:backtest:contracts` | Reads historical data; rewrites contract evaluation reports and historical validation evidence. |
 
 Use `pnpm model:dataset` for the complete build. Calling
 `pnpm --filter scripts model:dataset` directly assumes the current-player tables
@@ -89,8 +89,10 @@ ridge models with and without the `is_contract_year` feature over the stored
 the source provides a signing year rather than an exact date. The command
 writes [contract-year-backtest.md](contract-year-backtest.md), detailed JSON
 under `data/model/backtests/`, and validation evidence in
-[recommendation-policy.json](../data/recommendation-policy.json).
-`contractSignalEnabled` remains false even when validation passes.
+[recommendation-evaluation.json](../data/recommendation-evaluation.json).
+The runtime [recommendation policy](../data/recommendation-policy.json) keeps
+`contractSignalEnabled` false even when validation passes. Backtests write only
+evaluation evidence.
 
 The training dataset combines historical production, opportunity, offensive snap share, and position-specific Next Gen Stats. Every evaluated season receives only trailing features from earlier seasons.
 
