@@ -12,9 +12,10 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
@@ -22,6 +23,7 @@
     "eslint": "^9.16.0",
     "globals": "^15.13.0",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.18.0"
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^4.1.0"
   }
 }

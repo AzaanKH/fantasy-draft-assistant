@@ -11,7 +11,7 @@ import {
   type SleeperDraftMetadata,
   type DraftPickEvent,
   type SleeperDraftPick,
-} from '@fantasy-draft/shared';
+} from './index.js';
 
 function createDraft(): SleeperDraftMetadata {
   return {
