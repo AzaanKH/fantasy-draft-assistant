@@ -42,4 +42,30 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
     expect(cached).toBe(first);
     expect(fetchCalls).toBe(1);
   });
+
+  it('falls back to a name-position ID when the provider ID is malformed', async () => {
+    const fetchJson: FetchJson = async <T>(): Promise<T> => ({
+      status: 'Success',
+      meta: { total_drafts: 10 },
+      players: [
+        { player_id: { id: 7 }, name: 'Object Id', position: 'WR', team: 'MIA', adp: 20 },
+        { player_id: ['8'], name: 'Array Id', position: 'TE', team: 'KC', adp: 30 },
+        { player_id: null, name: 'Null Id', position: 'QB', team: 'BUF', adp: 40 },
+        { name: 'Missing Id', position: 'RB', team: 'SF', adp: 50 },
+        { player_id: 'abc-9', name: 'String Id', position: 'RB', team: 'DET', adp: 60 },
+      ],
+    } as T);
+    const provider = new FantasyFootballCalculatorAdpProvider(fetchJson);
+
+    const snapshot = await provider.getSnapshot('ppr', 12, 2026, new AbortController().signal);
+
+    expect(snapshot.players.map((player) => player.externalId)).toEqual([
+      'Object Id-WR',
+      'Array Id-TE',
+      'Null Id-QB',
+      'Missing Id-RB',
+      'abc-9',
+    ]);
+    expect(snapshot.players.some((player) => player.externalId.includes('[object'))).toBe(false);
+  });
 });

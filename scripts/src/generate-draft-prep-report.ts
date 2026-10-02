@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Position } from '@fantasy-draft/shared';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -97,7 +97,7 @@ async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, 'utf8')) as T;
 }
 
-async function readOptionalJson<T>(path: string): Promise<T | null> {
+export async function readOptionalJson<T>(path: string): Promise<T | null> {
   try {
     await access(path);
     return await readJson<T>(path);
@@ -295,7 +295,10 @@ ${report.draftDayChecklist.map((item) => `- ${item}`).join('\n')}
   console.log(`Draft prep Markdown written to ${MARKDOWN_OUTPUT}`);
 }
 
-main().catch((error: unknown) => {
-  console.error('Draft prep report generation failed:', error);
-  process.exit(1);
-});
+const entryPoint = process.argv[1];
+if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
+  main().catch((error: unknown) => {
+    console.error('Draft prep report generation failed:', error);
+    process.exit(1);
+  });
+}
