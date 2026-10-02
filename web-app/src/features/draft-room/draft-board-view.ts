@@ -1,5 +1,6 @@
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
-import { getTeamIndexForPick } from '@/lib/mock-draft-engine';
+import type { DraftType } from '@fantasy-draft/shared';
+import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
 export interface DraftBoardCurrentView {
   readonly activeRound: number | null;
@@ -35,25 +36,28 @@ export function getDraftBoardCurrentView({
   myPickPosition,
   totalTeams,
   totalRounds,
+  draftType = 'snake',
 }: {
   readonly currentPick: number;
   readonly myPickPosition: number;
   readonly totalTeams: number;
   readonly totalRounds: number;
+  readonly draftType?: DraftType;
 }): DraftBoardCurrentView {
   const totalPicks = totalTeams * totalRounds;
   const isComplete = currentPick > totalPicks;
   const activePickNumber = clamp(currentPick, 1, Math.max(1, totalPicks));
   const activeTeamIndex = isComplete
     ? clamp(myPickPosition - 1, 0, Math.max(0, totalTeams - 1))
-    : getTeamIndexForPick(activePickNumber, totalTeams);
+    : getTeamIndexForDraftPick(activePickNumber, totalTeams, draftType);
   const picksUntilMyTurn = isComplete
     ? null
     : getPicksUntilMyTurn(
         currentPick,
         myPickPosition,
         totalTeams,
-        totalRounds
+        totalRounds,
+        draftType
       );
 
   return {

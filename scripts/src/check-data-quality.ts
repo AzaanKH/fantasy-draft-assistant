@@ -320,6 +320,11 @@ async function main(): Promise<void> {
         : 'Prediction artifact or input timestamps are invalid.');
   add(checks, 'dependencies.recommendation-evaluation', evaluationTime >= predictionTime ? 'pass' : 'fail',
     'Recommendation evaluation is newer than the prediction artifact.');
+  const contractEvaluationTime = timestamp(nested(evaluation, 'contractSignalGeneratedAt'));
+  const contractSourceTime = timestamp(nested(loaded.get('contracts.json'), 'sourceUpdatedAt'));
+  add(checks, 'dependencies.contract-evaluation',
+    contractEvaluationTime >= contractSourceTime ? 'pass' : 'warn',
+    'Contract-year evaluation is newer than the upstream nflverse contracts release.');
   add(checks, 'recommendation-policy.decision',
     nested(policy, 'modelPredictionsEnabled') === false &&
       nested(policy, 'fallback') === 'fantasypros-ecr-market'

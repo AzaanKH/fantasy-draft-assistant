@@ -10,7 +10,7 @@ import {
   type LeagueSettings,
 } from '@fantasy-draft/shared';
 import { canonicalizeKeeperSupply } from '@/lib/keeper-supply';
-import { getTeamIndexForPick } from '@/lib/mock-draft-engine';
+import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import { isValidDraftSyncId } from './draftSyncStore';
 import type {
   DraftConfig,
@@ -32,6 +32,12 @@ export interface PersistedDraftSession {
   readonly version: 1;
   /** Increments on every write so tabs can detect that another tab saved first. */
   readonly revision: number;
+  /**
+   * Recent write IDs this session builds on, newest last. A tab whose write is
+   * missing was overwritten by a concurrent save and must reapply its change.
+   * Sessions saved before multi-tab merging have none.
+   */
+  readonly lineage: readonly string[];
   readonly identity: DraftSessionIdentity;
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
@@ -57,22 +63,8 @@ export function getDraftSessionStorageKey(identity: DraftSessionIdentity): strin
   return `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
 }
 
-/** A small companion key, so tabs can check for newer saves without parsing the session. */
-export function getDraftSessionRevisionKey(identity: DraftSessionIdentity): string {
-  return `${getDraftSessionStorageKey(identity)}:revision`;
-}
-
-export function readDraftSessionRevision(
-  storage: DraftSessionStorage | null,
-  identity: DraftSessionIdentity
-): number {
-  try {
-    const value = Number(storage?.getItem(getDraftSessionRevisionKey(identity)) ?? 0);
-    return isBoundedInteger(value, 0, Number.MAX_SAFE_INTEGER) ? value : 0;
-  } catch {
-    return 0;
-  }
-}
+/** Bounds both the saved lineage and how many unconfirmed writes a tab can replay. */
+export const DRAFT_SESSION_LINEAGE_LIMIT = 100;
 
 export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {
   try {
@@ -105,7 +97,7 @@ function isRecordedPick(value: unknown, config: DraftConfig): value is RecordedD
     isBoundedInteger(value.teamIndex, 0, config.totalTeams - 1) && isText(value.teamName) &&
     isTimestamp(value.timestamp) &&
     (value.source === 'sync' || value.source === 'manual' || value.source === 'provisional' || value.source === 'keeper') &&
-    (value.source !== 'provisional' || value.teamIndex === getTeamIndexForPick(value.pickNumber, config.totalTeams)) &&
+    (value.source !== 'provisional' || value.teamIndex === getTeamIndexForDraftPick(value.pickNumber, config.totalTeams, config.draftType)) &&
     (value.shortlistIndex === undefined || isBoundedInteger(value.shortlistIndex, 0, MAX_DRAFT_PICKS)) &&
     (value.provisionalRevision === undefined || isBoundedInteger(value.provisionalRevision, 0, Number.MAX_SAFE_INTEGER)) &&
     (value.provisionalUpdatedAt === undefined || isTimestamp(value.provisionalUpdatedAt));
@@ -162,9 +154,12 @@ export function parseStoredDraftSession(
         !isBoundedInteger(value.lastConfirmedPickNumber, 0, totalPicks) ||
         // Sessions saved before tab coordination carry no revision.
         (value.revision !== undefined && !isBoundedInteger(value.revision, 0, Number.MAX_SAFE_INTEGER)) ||
+        (value.lineage !== undefined && !(Array.isArray(value.lineage) &&
+          value.lineage.length <= DRAFT_SESSION_LINEAGE_LIMIT && value.lineage.every(isText))) ||
         (value.manualContinuityBaselineAt !== null && identity.provider !== 'sleeper')) return null;
 
     const draftHistory = value.draftHistory;
+    const lineage: readonly string[] = value.lineage ?? [];
     const preloadedKeepers = value.preloadedKeepers;
     if (new Set(draftHistory.map((pick) => pick.pickNumber)).size !== draftHistory.length ||
         new Set(draftHistory.map((pick) => pick.playerId)).size !== draftHistory.length) return null;
@@ -187,49 +182,63 @@ export function parseStoredDraftSession(
       manualContinuityBaselineAt: value.manualContinuityBaselineAt,
       lastConfirmedSyncAt: value.lastConfirmedSyncAt,
       lastConfirmedPickNumber: value.lastConfirmedPickNumber,
+      lineage,
     };
   } catch {
     return null;
   }
 }
 
-export function readDraftSession(
+/** The raw stored text, compared verbatim to detect any save by another tab. */
+export function readStoredDraftSessionText(
   storage: DraftSessionStorage | null,
   identity: DraftSessionIdentity
-): PersistedDraftSession | null {
+): string | null {
   try {
-    return parseStoredDraftSession(storage?.getItem(getDraftSessionStorageKey(identity)) ?? null, identity);
+    return storage?.getItem(getDraftSessionStorageKey(identity)) ?? null;
   } catch {
     return null;
   }
 }
 
+/** The stored session this tab last read or wrote, and therefore builds on. */
+export interface DraftSessionBase {
+  readonly revision: number;
+  readonly serialized: string | null;
+  readonly lineage: readonly string[];
+}
+
 export type DraftSessionWriteResult =
-  | { readonly status: 'written'; readonly revision: number }
-  | { readonly status: 'conflict'; readonly saved: PersistedDraftSession }
+  | { readonly status: 'written'; readonly writeId: string; readonly base: DraftSessionBase }
+  | { readonly status: 'conflict' }
   | { readonly status: 'skipped' };
 
+function createWriteId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /**
- * Writes the session only if no other tab saved since `baseRevision`. A stale
- * tab receives the newer session instead, so it cannot erase another tab's picks.
+ * Writes the session only if no other tab saved since `base`. On conflict the
+ * caller must reapply its change to the newer session and try again; `force`
+ * skips the check, leaving the overwritten tab to detect and reapply its write.
  */
 export function persistDraftSession(
   storage: DraftSessionStorage | null,
   state: DraftStore,
-  baseRevision: number
+  base: DraftSessionBase,
+  force = false
 ): DraftSessionWriteResult {
   if (!storage || !state.liveSession || state.sessionMode === 'mock') return { status: 'skipped' };
-  const key = getDraftSessionStorageKey(state.liveSession);
-  const storedRevision = readDraftSessionRevision(storage, state.liveSession);
-  if (storedRevision !== baseRevision) {
-    const saved = readDraftSession(storage, state.liveSession);
-    // An unreadable newer entry cannot be adopted; overwrite it rather than stall.
-    if (saved) return { status: 'conflict', saved };
+  const stored = readStoredDraftSessionText(storage, state.liveSession);
+  // An unreadable entry cannot be adopted; overwrite it rather than stall.
+  if (!force && stored !== base.serialized && parseStoredDraftSession(stored, state.liveSession)) {
+    return { status: 'conflict' };
   }
-  const revision = Math.max(storedRevision, baseRevision) + 1;
+  const writeId = createWriteId();
   const session: PersistedDraftSession = {
     version: 1,
-    revision,
+    revision: base.revision + 1,
+    lineage: [...base.lineage, writeId].slice(-DRAFT_SESSION_LINEAGE_LIMIT),
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
@@ -244,12 +253,11 @@ export function persistDraftSession(
     lastConfirmedSyncAt: state.lastConfirmedSyncAt,
     lastConfirmedPickNumber: state.lastConfirmedPickNumber,
   };
+  const serialized = JSON.stringify(session);
   try {
-    // Synchronous writes keep picks and queue changes durable before reload.
-    storage.setItem(key, JSON.stringify(session));
-    // Publish the revision last, so a tab that sees it can already read the session.
-    storage.setItem(getDraftSessionRevisionKey(state.liveSession), String(revision));
-    return { status: 'written', revision };
+    // A single synchronous write keeps picks and queue changes durable before reload.
+    storage.setItem(getDraftSessionStorageKey(state.liveSession), serialized);
+    return { status: 'written', writeId, base: { revision: session.revision, serialized, lineage: session.lineage } };
   } catch {
     // Storage failure must not interrupt recording a local pick.
     return { status: 'skipped' };

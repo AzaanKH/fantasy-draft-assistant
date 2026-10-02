@@ -53,7 +53,8 @@ export function useShadowRecommendationLogging(
     myPickPosition: config.myPickPosition,
     totalTeams: config.totalTeams,
     totalRounds: config.totalRounds,
-  }), [config.myPickPosition, config.totalRounds, config.totalTeams, currentPick]);
+    draftType: config.draftType,
+  }), [config.myPickPosition, config.totalRounds, config.totalTeams, config.draftType, currentPick]);
 
   useEffect(() => {
     const attemptedIds = attemptedEventIds.current;

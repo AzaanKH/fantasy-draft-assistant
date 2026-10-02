@@ -2,7 +2,11 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isRecommendationEvaluation, writeRecommendationEvaluation } from './recommendation-evaluation.js';
+import {
+  isRecommendationEvaluation,
+  readContractSignalEvidence,
+  writeRecommendationEvaluation,
+} from './recommendation-evaluation.js';
 
 const evaluation = {
   generatedAt: '2026-09-05T15:18:41.777Z',
@@ -37,6 +41,31 @@ describe('historical recommendation evaluation', () => {
       await expect(readFile(join(directory, 'recommendation-evaluation.json'))).rejects.toMatchObject({ code: 'ENOENT' });
     }
   );
+
+  it('carries the contract backtest result forward when the recommendation backtest rewrites evidence', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'recommendation-evaluation-'));
+    directories.push(directory);
+    expect(await readContractSignalEvidence(directory)).toEqual({});
+    const contractEvidence = {
+      contractSignalGeneratedAt: '2026-09-04T00:00:00.000Z',
+      contractSignalValidationPassed: true,
+      contractSignalModelVersion: 'contract-model',
+      contractSignalReason: 'Clears the gate.',
+    };
+    await writeRecommendationEvaluation(directory, { ...evaluation, ...contractEvidence, decision: 'old' });
+
+    await writeRecommendationEvaluation(directory, {
+      ...evaluation,
+      generatedAt: '2026-09-06T00:00:00.000Z',
+      ...await readContractSignalEvidence(directory),
+    });
+
+    expect(JSON.parse(await readFile(join(directory, 'recommendation-evaluation.json'), 'utf8'))).toEqual({
+      ...evaluation,
+      generatedAt: '2026-09-06T00:00:00.000Z',
+      ...contractEvidence,
+    });
+  });
 
   it('preserves the saved backtest metadata as evaluation rather than runtime settings', async () => {
     const saved: unknown = JSON.parse(await readFile(new URL('../../data/recommendation-evaluation.json', import.meta.url), 'utf8'));

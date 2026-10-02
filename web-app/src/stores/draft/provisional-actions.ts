@@ -1,4 +1,4 @@
-import { getTeamIndexForPick } from '@/lib/mock-draft-engine';
+import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import {
   getKeeperPickNumbers,
   restoreShortlistedPlayer,
@@ -18,10 +18,13 @@ export function createProvisionalActions(
     recordProvisionalPick: (pick) => {
       let recorded = false;
       set((state) => {
+        // A save conflict replays this transition on another tab's newer session.
+        recorded = false;
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const expectedTeamIndex = getTeamIndexForPick(
+        const expectedTeamIndex = getTeamIndexForDraftPick(
           pick.pickNumber,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         const reservedKeeperPickNumbers = getKeeperPickNumbers(
           state.preloadedKeepers,
@@ -61,6 +64,7 @@ export function createProvisionalActions(
     correctProvisionalPick: (originalPickNumber, replacement) => {
       let corrected = false;
       set((state) => {
+        corrected = false;
         const originalIndex = state.draftHistory.findIndex(
           (pick) =>
             pick.pickNumber === originalPickNumber &&
@@ -70,9 +74,10 @@ export function createProvisionalActions(
         if (!original || state.sessionMode !== 'live') return;
 
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const expectedTeamIndex = getTeamIndexForPick(
+        const expectedTeamIndex = getTeamIndexForDraftPick(
           replacement.pickNumber,
-          state.config.totalTeams
+          state.config.totalTeams,
+          state.config.draftType
         );
         const keeperPlayerIds = new Set(
           state.preloadedKeepers.map((keeper) => keeper.playerId)
@@ -139,6 +144,7 @@ export function createProvisionalActions(
     removeProvisionalPick: (pickNumber) => {
       let removed = false;
       set((state) => {
+        removed = false;
         if (state.sessionMode !== 'live') return;
         const pickIndex = state.draftHistory.findIndex(
           (pick) =>

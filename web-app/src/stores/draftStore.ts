@@ -5,11 +5,12 @@ import { enableMapSet } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
 import { useDraftSyncConnectionStore } from './draftSyncStore';
 import {
+  DRAFT_SESSION_LINEAGE_LIMIT,
   getBrowserDraftSessionStorage,
-  getDraftSessionRevisionKey,
+  getDraftSessionStorageKey,
+  parseStoredDraftSession,
   persistDraftSession,
-  readDraftSession,
-  readDraftSessionRevision,
+  readStoredDraftSessionText,
   type DraftSessionIdentity,
   type DraftSessionStorage,
   type PersistedDraftSession,
@@ -23,7 +24,12 @@ import {
   defaultFilter,
   defaultMockSettings,
 } from './draft/state';
-import { applySavedDraftSession, createSessionActions, type DraftSessionPersistence } from './draft/session-actions';
+import {
+  applySavedDraftSession,
+  createSessionActions,
+  EMPTY_DRAFT_SESSION_BASE,
+  type DraftSessionPersistence,
+} from './draft/session-actions';
 import { createConfigurationActions } from './draft/configuration-actions';
 import { createProvisionalActions } from './draft/provisional-actions';
 import { createPickActions } from './draft/pick-actions';
@@ -75,6 +81,11 @@ function subscribeToBrowserStorageEvents(
   });
 }
 
+type DraftTransition = Parameters<SetDraftState>[0];
+
+/** Retries before a save overwrites a tab that keeps saving first; that tab then reapplies its write. */
+const MAX_SAVE_ATTEMPTS = 5;
+
 /**
  * Create the draft store with Zustand + immer for immutable updates
  */
@@ -83,14 +94,34 @@ export function createDraftStore({
   session = null,
   externalChanges = null,
 }: DraftStoreOptions = {}): BoundDraftStore {
-  const persistence: DraftSessionPersistence = { revision: 0 };
+  const persistence: DraftSessionPersistence = { base: EMPTY_DRAFT_SESSION_BASE };
+  // This tab's saves not yet built on by another tab. One missing from the stored
+  // lineage was overwritten by a concurrent save, so its changes are reapplied.
+  let unconfirmedWrites: { readonly writeId: string; readonly transitions: readonly DraftTransition[] }[] = [];
   let adoptingSavedSession = false;
+  let pendingTransitions: readonly DraftTransition[] = [];
+  let forceSave = false;
+  let saveConflicted = false;
   const store = create<DraftStore>()(
   immer((rawSet, get) => {
   // Every change starts from the newest saved session, so edits from other tabs are kept.
+  // If another tab saves between that check and this tab's write, the change is
+  // reapplied to the newer session before the action reports its result.
   const set: SetDraftState = (transition) => {
-    syncFromOtherTabs();
-    rawSet(transition);
+    for (let attempt = 1; ; attempt += 1) {
+      syncFromOtherTabs();
+      pendingTransitions = [transition];
+      // Persistent contention is not expected; the overwritten tab reapplies its own write.
+      forceSave = attempt >= MAX_SAVE_ATTEMPTS;
+      saveConflicted = false;
+      try {
+        rawSet(transition);
+      } finally {
+        pendingTransitions = [];
+        forceSave = false;
+      }
+      if (!saveConflicted) return;
+    }
   };
   return {
     // Initial state
@@ -121,7 +152,8 @@ export function createDraftStore({
       return calculateIsMyTurn(
         state.currentPick,
         state.config.myPickPosition,
-        state.config.totalTeams
+        state.config.totalTeams,
+        state.config.draftType
       );
     },
     get totalPicks() {
@@ -167,17 +199,31 @@ export function createDraftStore({
         state.lastConfirmedSyncAt !== previous.lastConfirmedSyncAt ||
         state.lastConfirmedPickNumber !== previous.lastConfirmedPickNumber) {
       if (adoptingSavedSession) return;
-      const result = persistDraftSession(storage, state, persistence.revision);
-      if (result.status === 'written') persistence.revision = result.revision;
-      // Another tab saved within the same instant; keep its session rather than erase it.
-      if (result.status === 'conflict') adoptSavedSession(result.saved);
+      const sessionChanged = state.liveSession !== previous.liveSession;
+      if (!saveSession(state) && !sessionChanged) saveConflicted = true;
+      // Loading a session starts a new lineage; replaying the load would discard newer saves.
+      if (sessionChanged) unconfirmedWrites = [];
     }
   });
 
-  function adoptSavedSession(saved: PersistedDraftSession): void {
+  /** Returns false when another tab saved first and nothing was written. */
+  function saveSession(state: DraftStore): boolean {
+    const result = persistDraftSession(storage, state, persistence.base, forceSave);
+    if (result.status === 'conflict') return false;
+    if (result.status === 'written') {
+      persistence.base = result.base;
+      unconfirmedWrites = [
+        ...unconfirmedWrites,
+        { writeId: result.writeId, transitions: pendingTransitions },
+      ].slice(-DRAFT_SESSION_LINEAGE_LIMIT);
+    }
+    return true;
+  }
+
+  function adoptSavedSession(saved: PersistedDraftSession, serialized: string | null): void {
     const { liveSession } = store.getState();
     if (!liveSession) return;
-    persistence.revision = saved.revision;
+    persistence.base = { revision: saved.revision, serialized, lineage: saved.lineage };
     adoptingSavedSession = true;
     try {
       store.setState((state) => { applySavedDraftSession(state, liveSession, saved); });
@@ -190,14 +236,43 @@ export function createDraftStore({
     // Runs inside action calls, which only happen after the store exists.
     const { liveSession, sessionMode } = store.getState();
     if (!storage || !liveSession || sessionMode === 'mock') return;
-    if (readDraftSessionRevision(storage, liveSession) <= persistence.revision) return;
-    const saved = readDraftSession(storage, liveSession);
-    if (saved) adoptSavedSession(saved);
+    for (let attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt += 1) {
+      const serialized = readStoredDraftSessionText(storage, liveSession);
+      if (serialized === persistence.base.serialized) return;
+      const saved = parseStoredDraftSession(serialized, liveSession);
+      // An unreadable entry is overwritten by the next save.
+      if (!saved) return;
+      const builtOn = new Set(saved.lineage);
+      const overwritten = unconfirmedWrites.filter((write) => !builtOn.has(write.writeId));
+      unconfirmedWrites = overwritten;
+      adoptSavedSession(saved, serialized);
+      if (overwritten.length === 0) return;
+
+      // Another tab saved concurrently over this tab's writes; reapply them to its session.
+      const transitions = overwritten.flatMap((write) => write.transitions);
+      adoptingSavedSession = true;
+      try {
+        for (const transition of transitions) store.setState(transition);
+      } finally {
+        adoptingSavedSession = false;
+      }
+      unconfirmedWrites = [];
+      pendingTransitions = transitions;
+      forceSave = attempt === MAX_SAVE_ATTEMPTS;
+      try {
+        if (saveSession(store.getState())) return;
+        // Never written, so the next pass reapplies these changes again.
+        unconfirmedWrites = [{ writeId: '', transitions }];
+      } finally {
+        pendingTransitions = [];
+        forceSave = false;
+      }
+    }
   }
 
   externalChanges?.((key) => {
     const { liveSession } = store.getState();
-    if (liveSession && (key === null || key === getDraftSessionRevisionKey(liveSession))) syncFromOtherTabs();
+    if (liveSession && (key === null || key === getDraftSessionStorageKey(liveSession))) syncFromOtherTabs();
   });
   if (session) store.getState().setLiveDraftSession(session);
   return store;
@@ -263,6 +338,7 @@ export const useIsMyTurn = () =>
     calculateIsMyTurn(
       state.currentPick,
       state.config.myPickPosition,
-      state.config.totalTeams
+      state.config.totalTeams,
+      state.config.draftType
     )
   );

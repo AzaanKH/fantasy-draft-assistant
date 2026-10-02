@@ -126,6 +126,16 @@ describe('getNextUserPick', () => {
     })).toBe(13);
   });
 
+  it('keeps round-one order in a linear draft', () => {
+    expect(getNextUserPick({
+      currentPick: 8,
+      myPickPosition: 8,
+      totalTeams: 10,
+      totalRounds: 14,
+      draftType: 'linear',
+    })).toBe(18);
+  });
+
   it('returns null after the final user pick', () => {
     expect(getNextUserPick({
       currentPick: 138,
@@ -379,6 +389,19 @@ describe('estimateLeagueSurvivalProbability', () => {
     // Reusing a previously adjusted player must not retain its old probability.
     expect(estimateLeagueSurvivalProbability({ ...player, nextPickSurvivalProbability: 0.01 }, null,
       context).nextPickSurvivalProbability).toBe(near.nextPickSurvivalProbability);
+  });
+
+  it('keeps the conditional ratio for players still available long after their market cost', () => {
+    // 12-team snake: pick 100 is 9.04, and the first slot next picks at 120.
+    const result = estimateLeagueSurvivalProbability(
+      createPlayer({ consensusAdp: 5, marketAdp: 5, marketRank: 5, sleeperAdp: undefined }),
+      null,
+      { currentPick: 100, myPickPosition: 1, totalTeams: 12, totalRounds: 15 }
+    );
+
+    // P(next | now) is about e^(-20 / 7), not the clamped 0.03 floor.
+    expect(result.nextPickNumber).toBe(120);
+    expect(result.nextPickSurvivalProbability).toBe(0.06);
   });
 
   it('stops at the manager\'s final selection instead of extending the horizon', () => {

@@ -1,4 +1,5 @@
-import type { Player, Position } from '@fantasy-draft/shared';
+import type { DraftType, Player, Position } from '@fantasy-draft/shared';
+import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
 const POSITION_LABELS: Record<Position, string> = {
   QB: 'QBs',
@@ -67,6 +68,8 @@ export interface SurvivalContext {
   readonly myPickPosition: number;
   readonly totalTeams: number;
   readonly totalRounds: number;
+  /** Defaults to snake for callers that predate linear-draft support. */
+  readonly draftType?: DraftType;
   /** Completed picks and effective keeper reservations cannot be selected again. */
   readonly occupiedPickNumbers?: ReadonlySet<number>;
 }
@@ -75,8 +78,9 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function logistic(value: number): number {
-  return 1 / (1 + Math.exp(-value));
+/** log(1 + e^x) without overflow; -softplus(x) is log(1 - logistic(x)). */
+function softplus(value: number): number {
+  return Math.max(value, 0) + Math.log1p(Math.exp(-Math.abs(value)));
 }
 
 function isPositiveFinite(value: number | undefined): value is number {
@@ -107,13 +111,8 @@ function formatRoundPick(pickNumber: number, totalTeams: number): string {
 export function getNextUserPick(context: SurvivalContext): number | null {
   const totalPicks = context.totalTeams * context.totalRounds;
   for (let pick = context.currentPick + 1; pick <= totalPicks; pick += 1) {
-    const round = Math.ceil(pick / context.totalTeams);
-    const pickInRound = ((pick - 1) % context.totalTeams) + 1;
-    const slot = round % 2 === 1
-      ? pickInRound
-      : context.totalTeams - pickInRound + 1;
-
-    if (slot === context.myPickPosition && !context.occupiedPickNumbers?.has(pick)) {
+    const teamIndex = getTeamIndexForDraftPick(pick, context.totalTeams, context.draftType ?? 'snake');
+    if (teamIndex === context.myPickPosition - 1 && !context.occupiedPickNumbers?.has(pick)) {
       return pick;
     }
   }
@@ -242,10 +241,15 @@ function getConditionalSurvivalProbability(
   currentPick: number,
   nextPick: number
 ): number {
-  const draftedByCurrentPick = logistic((currentPick - expectedPick) / scale);
-  const draftedByNextPick = logistic((nextPick - expectedPick) / scale);
-  const stillAvailableAtCurrentPick = Math.max(0.03, 1 - draftedByCurrentPick);
-  return round(clamp((1 - draftedByNextPick) / stillAvailableAtCurrentPick, 0.03, 0.97), 2);
+  // P(available at next | available now) = (1 - F(next)) / (1 - F(current)).
+  // Divide in log space so far-past-ADP players do not underflow to 0 / 0.
+  const logStillAvailableAtCurrentPick = -softplus((currentPick - expectedPick) / scale);
+  const logStillAvailableAtNextPick = -softplus((nextPick - expectedPick) / scale);
+  return round(clamp(
+    Math.exp(logStillAvailableAtNextPick - logStillAvailableAtCurrentPick),
+    0.03,
+    0.97
+  ), 2);
 }
 
 function withHeuristicSurvivalSource(

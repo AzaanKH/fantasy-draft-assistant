@@ -1,5 +1,6 @@
 import { DEFAULT_ROSTER_REQUIREMENTS, type DraftType, type Position } from '@fantasy-draft/shared';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
+import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import type {
   MutableRoster,
   PreloadedKeeper,
@@ -179,18 +180,10 @@ export function rebuildAfterProvisionalChange(state: Pick<
 export function calculateIsMyTurn(
   currentPick: number,
   myPickPosition: number,
-  totalTeams: number
+  totalTeams: number,
+  draftType: DraftType = 'snake'
 ): boolean {
-  // Snake draft: odd rounds go 1-10, even rounds go 10-1
-  const round = Math.ceil(currentPick / totalTeams);
-  const pickInRound = ((currentPick - 1) % totalTeams) + 1;
-
-  const isOddRound = round % 2 === 1;
-  const positionThisRound = isOddRound
-    ? pickInRound
-    : totalTeams - pickInRound + 1;
-
-  return positionThisRound === myPickPosition;
+  return getTeamIndexForDraftPick(currentPick, totalTeams, draftType) === myPickPosition - 1;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { writeRecommendationEvaluation } from './recommendation-evaluation.js';
+import { readContractSignalEvidence, writeRecommendationEvaluation } from './recommendation-evaluation.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -1496,6 +1496,7 @@ async function main(): Promise<void> {
         passed: report.promotion.passed,
       },
       decision: report.promotion.decision,
+      ...await readContractSignalEvidence(DATA_DIR),
     });
     const seasonRows = report.seasons.map((season) => {
       const selectedModels = OFFENSIVE_POSITIONS.map((position) => {

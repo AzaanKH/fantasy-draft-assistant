@@ -443,7 +443,7 @@ async function main(): Promise<void> {
   const currentEvaluation = currentEvaluationJson;
   await writeRecommendationEvaluation(DATA_DIR, {
     ...currentEvaluation,
-    generatedAt: report.generatedAt,
+    contractSignalGeneratedAt: report.generatedAt,
     contractSignalValidationPassed: releaseGate.passed,
     contractSignalModelVersion: report.modelVersion,
     contractSignalReason: decision,

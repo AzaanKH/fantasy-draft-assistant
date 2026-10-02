@@ -269,6 +269,56 @@ describe('durable draft sessions', () => {
     expect(saved?.decisionLens).toBe('best-player');
   });
 
+  it('reapplies a pick when another tab saves between the pre-change check and the write', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let racingReads: number | null = null;
+    const tabA = openSession({
+      ...storage,
+      getItem: vi.fn((storedKey: string) => {
+        // Read 1 is A's pre-change check; before read 2, A's save, tab B saves.
+        if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
+          tabB.getState().setDecisionLens('best-player');
+        }
+        return storage.getItem(storedKey);
+      }),
+    });
+    const tabB = openSession(storage);
+    racingReads = 0;
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+
+    for (const state of [tabA.getState(), createDraftStore({ storage, session: identity }).getState()]) {
+      expect(state.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+      expect(state.decisionLens).toBe('best-player');
+    }
+  });
+
+  it('reapplies a save that a concurrent tab overwrote from a stale read', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let staleRead: string | null = null;
+    const tabA = openSession(storage);
+    // Tab B reads before tab A's save lands, as when both tabs save at once.
+    const tabB = openSession({
+      ...storage,
+      getItem: vi.fn((storedKey: string) => storedKey === key && staleRead !== null ? staleRead : storage.getItem(storedKey)),
+    });
+    staleRead = storage.getItem(key);
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    tabB.getState().setDecisionLens('best-player');
+    expect(parseStoredDraftSession(storage.getItem(key), identity)?.draftHistory).toEqual([]);
+
+    // A's next check finds its save missing from B's lineage and reapplies the pick.
+    tabA.getState().togglePlayerShortlisted('queued');
+    for (const state of [tabA.getState(), createDraftStore({ storage, session: identity }).getState()]) {
+      expect(state.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+      expect(state.decisionLens).toBe('best-player');
+      expect(state.shortlistedPlayerIds).toEqual(['queued']);
+    }
+  });
+
   it('restores the draft type and treats sessions saved before draft types as snake drafts', () => {
     const storage = memoryStorage();
     const store = openSession(storage);

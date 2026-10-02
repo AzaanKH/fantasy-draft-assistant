@@ -134,6 +134,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       myPickPosition: config.myPickPosition,
       totalTeams: config.totalTeams,
       totalRounds: config.totalRounds,
+      draftType: config.draftType,
     });
     const leagueAdjusted = filterDrafted(
       leagueAdjustedPool,
@@ -151,7 +152,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
             survivalModelSource: 'league-history' as const,
           };
     });
-  }, [enabled, players, draftedPlayerIds, draftedPlayers, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, mockSurvivalProbabilities, sessionMode]);
+  }, [enabled, players, draftedPlayerIds, draftedPlayers, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
 
   const recommendationContext = useMemo<RecommendationContext>(() => ({
       currentPick,

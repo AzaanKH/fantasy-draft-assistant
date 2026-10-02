@@ -3,7 +3,9 @@ import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
 import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
 import {
   isDraftSessionIdentity,
-  readDraftSession,
+  parseStoredDraftSession,
+  readStoredDraftSessionText,
+  type DraftSessionBase,
   type DraftSessionIdentity,
   type DraftSessionStorage,
   type PersistedDraftSession,
@@ -11,10 +13,12 @@ import {
 import { defaultConfig, defaultFilter, rebuildCanonicalRosters } from './state';
 import type { DraftActions, SetDraftState, DraftStore } from './types';
 
-/** The last saved revision this store loaded or wrote, shared with the persistence subscriber. */
+/** The saved session this store last loaded or wrote, shared with the persistence subscriber. */
 export interface DraftSessionPersistence {
-  revision: number;
+  base: DraftSessionBase;
 }
+
+export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [] };
 
 /** Replaces durable session state with a saved session, rebuilding derived sets and rosters. */
 export function applySavedDraftSession(
@@ -77,9 +81,13 @@ export function createSessionActions(
       if (identity !== null && !isDraftSessionIdentity(identity)) return;
       const current = get().liveSession;
       if (current?.provider === identity?.provider && current?.draftId === identity?.draftId) return;
-      const saved = identity ? readDraftSession(storage, identity) : null;
-      persistence.revision = saved?.revision ?? 0;
+      const serialized = identity ? readStoredDraftSessionText(storage, identity) : null;
+      const saved = identity ? parseStoredDraftSession(serialized, identity) : null;
       set((state) => {
+        // Rebase inside the transition, after the pre-change check of the previous session.
+        persistence.base = saved
+          ? { revision: saved.revision, serialized, lineage: saved.lineage }
+          : EMPTY_DRAFT_SESSION_BASE;
         applySavedDraftSession(state, identity, saved);
         state.filter = { ...defaultFilter };
       });

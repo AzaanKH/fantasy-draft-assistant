@@ -37,7 +37,7 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
   const { togglePlayerQueued } = useQueueActions(players);
   const timingEvidence = useLeagueTimingEvidence();
   const timing = useMemo(() => {
-    const context = { currentPick, myPickPosition: config.myPickPosition, totalTeams: config.totalTeams, totalRounds: config.totalRounds };
+    const context = { currentPick, myPickPosition: config.myPickPosition, totalTeams: config.totalTeams, totalRounds: config.totalRounds, draftType: config.draftType };
     return new Map(players.slice(0, limit).map((player) => {
       if (getNextUserPick(context) === null) return [player.id, null];
       const estimate = estimateLeagueSurvivalProbability(player, timingEvidence.model, context, timingPool);
@@ -46,7 +46,7 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
         : estimate.nextPickSurvivalProbability;
       return [player.id, Number.isFinite(probability) && probability >= 0 && probability <= 1 ? Math.round(probability * 100) : null];
     }));
-  }, [timingPool, config.myPickPosition, config.totalRounds, config.totalTeams, currentPick, limit, mockProbabilities, timingEvidence.model, players, sessionMode]);
+  }, [timingPool, config.myPickPosition, config.totalRounds, config.totalTeams, config.draftType, currentPick, limit, mockProbabilities, timingEvidence.model, players, sessionMode]);
   const drop = getDepthTierDrop(allPlayers, position, tier);
   const aboveReplacement = players.filter((player) => player.valueOverReplacement > 0).length;
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { createDraftStore, DraftStoreProvider, useDraftStore, useDraftStoreApi, type DraftStoreApi } from './draftStore';
+import { calculateIsMyTurn, createDraftStore, DraftStoreProvider, useDraftStore, useDraftStoreApi, type DraftStoreApi } from './draftStore';
 
 describe('draftStore shortlist', () => {
   beforeEach(() => {
@@ -105,6 +105,24 @@ describe('draftStore shortlist', () => {
     expect(store.getState().currentPick).toBe(6);
     expect(store.getState().draftedPlayerIds.has('keeper')).toBe(true);
     expect(store.getState().myRoster.WR).toEqual(['keeper']);
+  });
+
+  it('assigns even-round linear picks to round-one order', () => {
+    const store = createDraftStore();
+    store.getState().setConfig({ totalTeams: 10, draftType: 'linear', myPickPosition: 2 });
+    store.getState().setSessionMode('live');
+    expect(calculateIsMyTurn(12, 2, 10, 'linear')).toBe(true);
+    expect(calculateIsMyTurn(12, 2, 10, 'snake')).toBe(false);
+
+    const provisional = (teamIndex: number) => ({
+      pickNumber: 12, playerId: `team-${String(teamIndex)}`, playerName: 'Observed', position: 'WR' as const,
+      teamIndex, teamName: `Team ${String(teamIndex + 1)}`,
+    });
+    // Snake order would give pick 12 to the ninth team.
+    expect(store.getState().recordProvisionalPick(provisional(8))).toBe(false);
+    expect(store.getState().recordProvisionalPick(provisional(1))).toBe(true);
+    expect(store.getState().correctProvisionalPick(12, { ...provisional(8), playerId: 'other' })).toBe(false);
+    expect(store.getState().correctProvisionalPick(12, { ...provisional(1), playerId: 'other' })).toBe(true);
   });
 
   it('records a Provisional Pick in the canonical sequence and every affected roster', () => {
