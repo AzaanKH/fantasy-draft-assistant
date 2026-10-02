@@ -1,34 +1,36 @@
 # Mock draft
 
-The Draft Workspace can start a local mock with keeper reservations, team count, draft slot, randomness, and a deterministic seed.
+A drafter can practice in the local room, make their own picks, let CPU teams advance, and undo or restart without sending picks to a provider.
 
 ## Sub-features
 
-- `mock.open-settings`: `Start mock` opens `Start a mock draft`.
-- `mock.start`: `Start mock draft` changes the session to `Mock draft` and shows `Mock active`.
-- `mock.controls`: the active session exposes `CPU pick`, `To my pick`, and `Settings`.
-- `mock.reset-paths`: settings expose Undo, Restart, branch, and Exit mock after picks exist.
+- `mock-start`: Open setup and start a mock with the confirmed keeper list.
+- `mock-pick`: Draft an available player on the user's turn.
+- `mock-cpu`: Advance one CPU turn or run to the next user pick.
+- `mock-recovery`: Undo, restart, branch, or exit the mock.
 
 ## How to get to it (user POV)
 
-- Open `/draft` with confirmed keeper data and use `Start mock` in the top session strip.
-- During a mock, use `Settings` to reopen `Mock draft controls`.
+- Open `/draft` and choose `Start mock` at the top of the workspace.
+- In the setup dialog, review `League teams`, `Your draft slot`, `Randomness`, and `Draft seed`, then choose `Start mock draft`.
+- Once active, use `Draft` in the Players or Queue tab; use `CPU pick`, `To my pick`, or `Settings` above the board.
+- In `Settings`, use `Undo`, `Restart`, `Create branch`, or `Exit mock`.
 
-## Driving it with Playwright verifier
+## Driving it with agent-browser
 
-Preconditions: doctor passes and the `Mock ready` status is present. The scenario uses a fresh browser context, so no previous mock state exists.
+Preconditions: `control.py doctor "$RUN_ID"` passes. Record the active league profile and mock keeper readiness from the draft-status control. Quick mock has no keepers; Primary League practice requires its validated keeper list. Do not force the start button when keeper validation disables it.
 
-- Start and reread the mock state:
-
-  ```bash
-  node .agents/skills/verify-fantasy-draft-assistant/scripts/verify.mjs drive "$RUN_ID" mock-start
-  ```
-
-  The scenario opens `Start a mock draft`, reads `League teams`, `Your draft slot`, and `Draft seed`, presses `Start mock draft`, requires `Mock draft` and `Mock active`, then opens `Settings` and requires `Mock draft controls` as the second read-only view.
+- `mock-start`: `agent-browser --session "$RUN_ID" click 'button:has-text("Start mock")'`; `snapshot -i` must show dialog `Start a mock draft` and the settings. Click the fresh `Start mock draft` button ref. Require the top control to change to `Settings` and mock controls to appear.
+- `mock-pick`: If it is not the user's turn, click `To my pick` and wait for `Your selection` in `Settings`. Open Players and click an enabled `Draft` button from a visible row. Capture the before and after board, then open Roster as a second view to require that player on the user's roster.
+- `mock-cpu`: On a CPU turn, click `CPU pick` for one pick or `To my pick` to stop at the next user turn. Verify the board's overall pick advances and the chosen CPU player's card appears. `To my pick` disables on the user's turn.
+- `mock-recovery`: Open `Settings`; click `Undo` after an ordinary pick and require that pick to disappear. A reserved keeper turn is automatically consumed again. Make several ordinary selections before `Create branch`, set `Branch at overall pick` to an earlier selection, and require later ordinary picks to disappear while earlier picks and keeper reservations remain. Then `Restart` returns to the initial board with keepers retained. `Exit mock` returns to setup with `Start mock` available again.
 
 ## Gotchas
 
-- `Start mock` is disabled until all keeper assignments load and pass validation.
-- Starting the mock changes only the isolated browser store. Closing the Playwright context discards it.
-- Team count and draft slot lock after the first selection. This scenario does not make a selection.
-- Do not call a preview session Manual Continuity. Manual Continuity belongs to a live draft during provider sync loss.
+- Keeper supply depends on the active league profile. Record its count on each run; do not require the Primary League's keepers in Quick mock.
+- Player and CPU picks mutate only the private copied app and isolated browser session. Never treat them as live provider picks.
+- The user's turn depends on the selected draft slot. Check the turn indicator before expecting `Draft` or `CPU pick` to enable.
+
+## CLI cross-check
+
+The CLI reads provider snapshots and archives, not the browser mock store. It cannot start a mock, make or undo picks, run CPU turns, branch, restart, or inspect this mock roster. Offline replay reconstructs recorded provider history and is separate coverage, not proof of mock recovery. See [CLI and replay](cli-and-replay.md) for commands and evidence requirements.

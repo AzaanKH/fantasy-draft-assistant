@@ -25,7 +25,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit:security
-      - run: node --test .agents/skills/verify-fantasy-draft-assistant/scripts/verify.test.mjs
+      - run: python3 -m unittest discover -s .agents/skills/verify-fantasy-draft-assistant/helpers -p 'test_*.py'
       - run: pnpm verify
       - name: Assert web static-output policy
         run: pnpm --filter scripts measure:web-bundle

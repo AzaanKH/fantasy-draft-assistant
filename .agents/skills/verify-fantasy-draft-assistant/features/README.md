@@ -1,48 +1,20 @@
-# Fantasy Draft Assistant verification map
+# Fantasy Draft Assistant feature map
 
-This directory maps the most important user-facing behavior in the Fantasy Draft Assistant. Read this index first, then follow the feature recipe that matches the task.
-
-## Baseline preconditions
-
-- Start from the repository root with Node 20 or newer, pnpm 9 or newer, and installed workspace dependencies.
-- Put a usable `FANTASYPROS_API_KEY` in `.env.local`. The live preflight currently needs API-backed rankings with FantasyPros IDs.
-- Launch through `scripts/verify.mjs launch <run-id>`. The helper builds and runs a disposable copy with `pnpm dev:live`.
-- Read the isolated web and API URLs from the launch output or `artifacts/<run-id>/run.json`. The helper patches ports only inside the disposable checkout.
-- Run `scripts/verify.mjs doctor <run-id>` before the first drive.
-- Never drive a process that the run did not start. Never reuse a browser profile with a saved `fantasy-draft-live-sync-v1` connection.
+This map records user paths in the React web app and draft CLI. Start with [the skill](../SKILL.md), launch one private run, set `RUN_ID` and `EVIDENCE` from its output, and require `control.py doctor "$RUN_ID"` to pass before driving. Drive one app run serially, resetting browser state when a recipe requires it. Offline CLI scenarios use fresh private runs. The app uses current provider data, so player names and rankings can change between runs.
 
 ## Driving conventions
 
-- The Playwright verifier uses a fresh context for every scenario.
-- Prefer route paths, roles, accessible names, labels, and `aria-pressed` state.
-- Treat scenario names and quoted handles as literal.
-- The root path redirects to `/draft`. `/assistant` and `/sidepanel` are direct routes.
-- Live provider picks are read-only in this product. The verifier submits a provider ID only when `sleeper-provider` receives an explicit Sleeper mock-draft URL for that run.
-
-## Proof and skip reporting
-
-- Capture `before.png` before the user action and `after.png` after the observable result.
-- Keep the app header or route identity visible in both screenshots.
-- Pair screenshots with `before-aria.yml`, `after-aria.yml`, `action.json`, and `result.json`.
-- Confirm changed browser state through another read-only UI view.
-- Record console output and failed requests. A warning is evidence, not an automatic failure.
-- Report each untested entry point by name. Do not use a direct-route pass to claim the extension side panel or a live provider connection works.
-- Preserve artifacts during cleanup.
-
-## Feature entry contract
-
-Each feature file describes one user-visible behavior and has these sections in order:
-
-1. `Sub-features`
-2. `How to get to it (user POV)`
-3. `Driving it with Playwright verifier`
-4. `Gotchas`
+- Follow the skill's browser-driver selection. The recipes below use `agent-browser --session "$RUN_ID"` syntax; translate them to snapshot locators when using T3 preview. Capture a fresh snapshot before taking a ref, and take a new snapshot after each change.
+- Prefer accessible names. When a player name varies with refreshed rankings, read the name from the first snapshot and use the corresponding button or the documented stable `aria-label` pattern.
+- Keep a feature's entry points separate. A working Queue tab does not prove the Best Pick, Suggestions, or Assistant add buttons.
+- Save action and result artifacts under `$EVIDENCE`. A second view must confirm a state change, such as the Queue tab after adding a player.
+- Record skips and blockers with the attempted action. Do not treat `/__visual/` fixtures, Vitest, or the deterministic draft rehearsal as browser proof.
 
 ## Features
 
-- [Draft Workspace and local queue](draft-workspace.md) covers the board, player pool, root redirect, shortlist action, and Queue confirmation.
-- [Live draft connection setup and Sleeper provider rehearsal](live-draft-connection.md) covers the safe dialog boundary and a full read-only connection using an explicitly supplied Sleeper mock-draft URL.
-- [Mock draft](mock-draft.md) covers starting an isolated mock and confirming the active mock state.
-- [Assistant](assistant.md) covers header navigation, the direct route, decision questions, and return navigation.
-- [League roster settings](roster-settings.md) covers editing and rereading roster requirements in one browser session.
-- [Draft Companion](draft-companion.md) covers the `/sidepanel` web route and records the Chrome extension as a separate, unverified entry point.
+- [Draft board and player pool](draft-board-and-player-pool.md) covers board views, player search, position filters, and draft tools tabs.
+- [Queue and shortlist](queue-and-shortlist.md) covers adding a player from each user entry point, viewing the Queue tab, and removing a player. The player pool to Queue path has browser proof.
+- [Mock draft](mock-draft.md) covers Start mock, selecting a player, CPU turns, undo, and leaving the mock.
+- [Assistant](assistant.md) covers header and recommendation entry points, decision questions, comparisons, and return navigation.
+- [Live draft connection](live-draft-connection.md) covers provider selection, slot confirmation, status, and disconnect. It requires a real provider draft to verify sync.
+- [CLI and replay](cli-and-replay.md) covers local and connected readiness, sessions, saved connections, roster, player filters, advice, watch, export, offline replay, and machine-readable failures.
