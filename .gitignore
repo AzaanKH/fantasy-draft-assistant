@@ -57,6 +57,8 @@ data/model/**/*.parquet
 data/model/profile-report.json
 data/model/backtests/*.json
 data/shadow-logs/*.ndjson
+# Raw sportsbook PDF exports; only data/sportsbook-snapshot.json is used at runtime
+/betting-lines-pdfs/
 
 # TypeScript
 *.tsbuildinfo

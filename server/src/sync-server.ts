@@ -401,14 +401,18 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     receivedBytes += buffer.length;
     if (receivedBytes > MAX_JSON_BODY_BYTES) {
-      throw new Error('Request body is too large');
+      throw new HttpError(413, 'Request body is too large');
     }
     chunks.push(buffer);
   }
 
   const body = Buffer.concat(chunks).toString('utf8');
-  if (!body) throw new Error('Request body is required');
-  return JSON.parse(body) as unknown;
+  if (!body) throw new HttpError(400, 'Request body is required');
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    throw new HttpError(400, 'Request body must be valid JSON');
+  }
 }
 
 export async function defaultFetchJson<T>(
@@ -632,15 +636,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     if (url.pathname === '/api/shadow-recommendations' && request.method === 'POST') {
-      let event: unknown;
-      try {
-        event = await readJsonBody(request);
-      } catch (error) {
-        if (error instanceof HttpError) throw error;
-        const message = error instanceof Error ? error.message : 'Invalid request body';
-        sendJson(request, response, 400, { error: message }, allowedOrigins);
-        return;
-      }
+      const event = await readJsonBody(request);
       if (!isShadowRecommendationEvent(event)) {
         sendJson(request, response, 400, { error: 'Invalid shadow recommendation event' }, allowedOrigins);
         return;
@@ -704,15 +700,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         return;
       }
 
-      let payload: unknown;
-      try {
-        payload = await readJsonBody(request);
-      } catch (error) {
-        if (error instanceof HttpError) throw error;
-        const message = error instanceof Error ? error.message : 'Invalid request body';
-        sendJson(request, response, 400, { error: message }, allowedOrigins);
-        return;
-      }
+      const payload = await readJsonBody(request);
 
       if (!isEspnDraftSnapshot(payload)) {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);

@@ -1,4 +1,3 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 /**
  * Recommendations Hook
  *
@@ -10,6 +9,7 @@ import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 
 import { useMemo } from 'react';
 import {
+  LIVE_RECOMMENDATION_ARCHITECTURE,
   POSITIONS,
   type Position,
   type Recommendation,

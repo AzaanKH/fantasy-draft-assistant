@@ -46,7 +46,7 @@ rankings.
 | `pnpm draft:release-gate` | Records build, type-check, lint, unit, integration, data-quality, product-rehearsal, and real-provider evidence separately. | Before feature freeze and after the real-provider rehearsal. |
 | `pnpm refresh:sleeper` | Refreshes `data/sleeper-adp.json` from Sleeper player `search_rank`. | Daily during draft week. |
 | `pnpm refresh:fantasypros` | Refreshes rankings, projections, and news. | Daily during draft week and shortly before drafting. |
-| `pnpm import:sportsbook` | Normalizes the FanDuel and DraftKings PDF exports into `data/sportsbook-snapshot.json`. | After replacing any file in `betting-lines-pdfs/`. |
+| `pnpm import:sportsbook` | Normalizes the FanDuel and DraftKings PDF exports into `data/sportsbook-snapshot.json`. | After replacing any file in `betting-lines-pdfs/`. The PDFs are local-only (ignored by Git); the committed snapshot is the runtime input. |
 | `pnpm data:identity` | Builds the canonical Sleeper/FantasyPros player crosswalk. | After either market source changes. |
 | `pnpm refresh:contracts` | Builds current contract context from nflverse/OverTheCap history. | Weekly during the offseason and before draft prep. |
 | `pnpm model:snapshots` | Rebuilds strict as-of-draft historical injury, roster, depth, competition, and transaction context. | After historical draft/source changes; also runs inside `model:dataset`. |

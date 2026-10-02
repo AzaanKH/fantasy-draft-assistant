@@ -57,6 +57,20 @@ describe('local API security', () => {
     expect(await snapshot.json()).toMatchObject({ status: 'idle' });
   });
 
+  it('distinguishes oversized, empty, and malformed JSON bodies', async () => {
+    const base = await start();
+    const url = `${base}/api/sync/espn/drafts/4242/snapshot`;
+    const oversized = await fetch(url, { method: 'POST', headers: HEADERS, body: `"${'x'.repeat(300 * 1024)}"` });
+    expect(oversized.status).toBe(413);
+    expect(await oversized.json()).toEqual({ error: 'Request body is too large' });
+    const empty = await fetch(url, { method: 'POST', headers: HEADERS, body: '' });
+    expect(empty.status).toBe(400);
+    expect(await empty.json()).toEqual({ error: 'Request body is required' });
+    const malformed = await fetch(url, { method: 'POST', headers: HEADERS, body: '{"draft":' });
+    expect(malformed.status).toBe(400);
+    expect(await malformed.json()).toEqual({ error: 'Request body must be valid JSON' });
+  });
+
   it('rejects invalid sizes before retaining data and accepts a subsequent valid snapshot', async () => {
     const base = await start();
     for (const teams of [0, 1, 10.5, 33, 2 ** 32, null]) {

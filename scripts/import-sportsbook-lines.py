@@ -303,6 +303,12 @@ def extract_fanduel_over_under(
 
 
 def main() -> None:
+    if not PDF_DIR.is_dir():
+        raise SystemExit(
+            f"Missing {PDF_DIR.relative_to(REPO_ROOT)}/. The sportsbook PDF exports are "
+            "kept out of Git; copy them there before running pnpm import:sportsbook."
+        )
+
     warnings: list[str] = []
     over_under: list[dict[str, Any]] = []
     milestones: list[dict[str, Any]] = []
