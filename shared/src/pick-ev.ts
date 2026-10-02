@@ -1,7 +1,7 @@
-import type { NeedPriority, RosterRequirements } from './draft';
-import { DEFAULT_ROSTER_REQUIREMENTS } from './draft';
-import type { Position } from './player';
-import { POSITIONS } from './player';
+import type { NeedPriority, RosterRequirements } from './draft.js';
+import { DEFAULT_ROSTER_REQUIREMENTS } from './draft.js';
+import type { Position } from './player.js';
+import { POSITIONS } from './player.js';
 
 export interface PickEvPlayer {
   readonly id: string;

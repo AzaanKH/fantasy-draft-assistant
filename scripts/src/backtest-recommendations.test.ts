@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Position } from '@fantasy-draft/shared';
+import type { OffensivePosition } from './model/position-residual-model.js';
 import { backtestInternals } from './backtest-recommendations.js';
 
-function player(id: string, position: Position, points: number = 100) {
+function player(id: string, position: OffensivePosition, points: number = 100) {
   return {
     season: 2025,
     sleeper_player_id: id,

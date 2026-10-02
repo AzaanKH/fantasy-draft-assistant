@@ -1,5 +1,5 @@
 // Player types
-export { MAX_DRAFT_TEAMS, MAX_DRAFT_ROUNDS, MAX_DRAFT_PICKS, MAX_ROSTER_SPOTS, isBoundedInteger, isDraftSize } from './limits';
+export { MAX_DRAFT_TEAMS, MAX_DRAFT_ROUNDS, MAX_DRAFT_PICKS, MAX_ROSTER_SPOTS, isBoundedInteger, isDraftSize } from './limits.js';
 export {
   NFL_TEAMS,
   POSITIONS,
@@ -15,7 +15,7 @@ export {
   isTierSource,
   isNewsStatus,
   isPlayer,
-} from './player';
+} from './player.js';
 
 export type {
   NFLTeam,
@@ -27,7 +27,7 @@ export type {
   SurvivalModelSource,
   PlayerPrediction,
   Player,
-} from './player';
+} from './player.js';
 
 // Draft types
 export {
@@ -37,7 +37,7 @@ export {
   isNeedPriority,
   DECISION_LENSES,
   DECISION_DIVERGENCE_FACTORS,
-} from './draft';
+} from './draft.js';
 
 export type {
   Roster,
@@ -53,7 +53,7 @@ export type {
   DecisionLens,
   DecisionDivergenceFactor,
   DecisionOutput,
-} from './draft';
+} from './draft.js';
 
 // Team environment types
 export {
@@ -62,15 +62,15 @@ export {
   isTeamEnvironment,
   isTopOffense,
   isDecentOffense,
-} from './team-environment';
+} from './team-environment.js';
 
 export type {
   VolumeLevel,
   TeamEnvironment,
-} from './team-environment';
+} from './team-environment.js';
 
 // Scoring types
-export { DEFAULT_SCORING_RULES } from './scoring';
+export { DEFAULT_SCORING_RULES } from './scoring.js';
 
 export type {
   PassingScoringRules,
@@ -81,7 +81,7 @@ export type {
   DefenseScoringRules,
   MiscScoringRules,
   ScoringRules,
-} from './scoring';
+} from './scoring.js';
 
 // Normalized league scoring and roster configuration
 export {
@@ -90,42 +90,42 @@ export {
   isLeagueSettings,
   isSleeperLeague,
   normalizeSleeperLeagueSettings,
-} from './league-settings';
+} from './league-settings.js';
 
 export type {
   LeagueSettings,
   LeagueSettingsInput,
   LeagueSettingsSource,
   SleeperLeague,
-} from './league-settings';
+} from './league-settings.js';
 
 // Observed market ADP
-export { isMarketAdpFormat, isMarketAdpSnapshot } from './market-adp';
+export { isMarketAdpFormat, isMarketAdpSnapshot } from './market-adp.js';
 
 export type {
   MarketAdpFormat,
   MarketAdpPlayer,
   MarketAdpSnapshot,
-} from './market-adp';
+} from './market-adp.js';
 
 // Scraper types
 export {
   getTeamByeWeeks,
   parsePlayerNameAndTeam,
   parsePositionString,
-} from './scrapers';
+} from './scrapers.js';
 
 export type {
   ECRPlayer,
   ContractPlayer,
   RawECRData,
-} from './scrapers';
+} from './scrapers.js';
 
 // FantasyPros snapshot types
 export {
   FANTASYPROS_SNAPSHOT_SOURCES,
   isFantasyProsSnapshotSource,
-} from './fantasypros';
+} from './fantasypros.js';
 
 export type {
   FantasyProsSnapshotSource,
@@ -134,11 +134,11 @@ export type {
   FantasyProsNewsItem,
   FantasyProsSnapshotMetadata,
   FantasyProsSnapshot,
-} from './fantasypros';
+} from './fantasypros.js';
 
 // Sync types
-export { isDraftSessionSummary } from './sessions';
-export type { DraftSessionSummary } from './sessions';
+export { isDraftSessionSummary } from './sessions.js';
+export type { DraftSessionSummary } from './sessions.js';
 export {
   DraftSyncEngine,
   isDraftProvider,
@@ -153,7 +153,7 @@ export {
   normalizeSleeperDraftMetadata,
   normalizeSleeperPick,
   resolveSleeperDraftLeagueId,
-} from './sync';
+} from './sync.js';
 
 export type {
   SleeperDraftPick,
@@ -169,16 +169,16 @@ export type {
   DraftSyncState,
   DraftSyncSnapshot,
   DraftSyncUpdate,
-} from './sync';
+} from './sync.js';
 
 // Experimental model shadow-evaluation types
-export { isShadowRecommendationEvent } from './shadow';
+export { isShadowRecommendationEvent } from './shadow.js';
 
 export type {
   ShadowRecommendation,
   ShadowPositionNeed,
   ShadowRecommendationEvent,
-} from './shadow';
+} from './shadow.js';
 
 // ECR-anchored pick expected-value scoring
 export {
@@ -188,7 +188,7 @@ export {
   optimizeLineupUtility,
   scorePickEvBoard,
   selectPickEvRecommendation,
-} from './pick-ev';
+} from './pick-ev.js';
 
 export type {
   PickEvPlayer,
@@ -198,7 +198,7 @@ export type {
   PickEvLayers,
   PickEvScore,
   PickEvSelection,
-} from './pick-ev';
+} from './pick-ev.js';
 
 // Sportsbook market snapshots and projection adjustments
 export {
@@ -209,7 +209,7 @@ export {
   getLeagueScoringValue,
   isSportsbookSnapshot,
   normalizeSportsbookPlayerName,
-} from './sportsbook';
+} from './sportsbook.js';
 
 export type {
   Sportsbook,
@@ -221,7 +221,7 @@ export type {
   FantasyProsMarketStats,
   SportsbookMarketConsensus,
   SportsbookProjectionAdjustment,
-} from './sportsbook';
+} from './sportsbook.js';
 
 // Product Draft Readiness: Core Draft Data blocks; Optional Signals degrade.
 export {
@@ -231,7 +231,7 @@ export {
   evaluateDraftReadiness,
   formatDraftReadinessAge,
   formatDraftReadinessTimestamp,
-} from './draft-readiness';
+} from './draft-readiness.js';
 
 export type {
   CoreDraftDataKey,
@@ -249,10 +249,10 @@ export type {
   DraftReadinessItem,
   DraftReadinessReport,
   EvaluateDraftReadinessInput,
-} from './draft-readiness';
+} from './draft-readiness.js';
 
-export { isRosterRequirements } from './league-settings';
+export { isRosterRequirements } from './league-settings.js';
 
 export { localDevPorts } from './local-dev.js';
 
-export { LIVE_RECOMMENDATION_ARCHITECTURE } from './recommendation-policy';
+export { LIVE_RECOMMENDATION_ARCHITECTURE } from './recommendation-policy.js';

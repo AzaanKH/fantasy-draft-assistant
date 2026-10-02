@@ -1,5 +1,5 @@
-import type { Position } from './player';
-import type { ScoringRules } from './scoring';
+import type { Position } from './player.js';
+import type { ScoringRules } from './scoring.js';
 
 export const SPORTSBOOKS = ['draftkings', 'fanduel'] as const;
 export type Sportsbook = (typeof SPORTSBOOKS)[number];
