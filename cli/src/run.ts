@@ -10,7 +10,7 @@ import { invocationMode, parseArguments, parseSession, HELP, type Arguments } fr
 import { DraftClient, readPairingToken } from './client';
 import { loadDraftData, loadJson, resolveKeepers, type DraftData } from './data';
 import { connectedSettings, createSessionContext, withConnectedReadiness, withLocalKeeperReadiness, replaceCoreReadiness, requireAdvice, adviceBoard, type SessionContext } from './context';
-import { CliError } from './errors';
+import { CliError, required } from './errors';
 import { EMPTY_CONNECTIONS, loadConnections, saveConnection } from './connections';
 import { archivedData, createArchive, readArchive, replayBoundaries, replaySnapshot, saveArchive, type SessionArchive } from './archive';
 import { inspectRoster } from './roster';
@@ -59,7 +59,7 @@ function playerSummary(recommendation: Recommendation) {
 }
 
 async function watch(args: Arguments, client: DraftClient, io: Output, runtime: Runtime): Promise<void> {
-  const session = args.session!;
+  const session = required(args.session, 'draft session');
   let sequence = 0;
   let failures = 0;
   const now = runtime.now ?? Date.now;
@@ -78,7 +78,7 @@ async function watch(args: Arguments, client: DraftClient, io: Output, runtime: 
     }
     const retryInMs = Math.min(30_000, 1000 * 2 ** Math.min(failures++, 5));
     await emit({ type: 'reconnecting', retryInMs });
-    await delay(retryInMs, undefined, { signal: runtime.signal }).catch(error => {
+    await delay(retryInMs, undefined, { signal: runtime.signal }).catch((error: unknown) => {
       if (!runtime.signal.aborted) throw error;
     });
   }
@@ -88,7 +88,7 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
   let now = (runtime.now ?? Date.now)();
   const root = resolve(runtime.root);
   if (args.command === 'sessions') {
-    const [sessions, saved] = await Promise.all([client!.sessions(runtime.signal), loadConnections(root)]);
+    const [sessions, saved] = await Promise.all([required(client, 'server client').sessions(runtime.signal), loadConnections(root)]);
     return { data: { serverUrl: args.serverUrl, total: sessions.length,
       activeSession: saved.activeSession, sessions: sessions.map(session => {
         const connection = saved.connections.find(row => row.session === session.session && row.serverUrl === args.serverUrl);
@@ -118,15 +118,15 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
     now = Date.parse(archive.capturedAt);
     args = { ...args, session: parseSession(archive.session), slot: args.slot ?? archive.slot ?? undefined };
   }
-  const session = args.session!;
-  const snapshot = archive ? replaySnapshot(archive, args.pick) : await client!.snapshot(session, runtime.signal);
+  const session = required(args.session, 'draft session');
+  const snapshot = archive ? replaySnapshot(archive, args.pick) : await required(client, 'server client').snapshot(session, runtime.signal);
   const settings = connectedSettings(snapshot, now);
   const rounds = snapshot.draft?.settings.rounds ?? 14;
   const warnings: string[] = [...(archive?.warnings ?? [])];
   let data: DraftData | null = archive ? archivedData(archive) : null;
   let localReadiness = archive?.readiness ?? (['status', 'connect'].includes(args.command) ? null : await buildDraftReadinessReport(now, root));
   const needsMarket = !archive && ['players', 'recommend', 'compare', 'wait', 'roster', 'export'].includes(args.command);
-  const market = needsMarket ? await client!.marketAdp(settings, new Date(now).getUTCFullYear(), runtime.signal) : { players: [] };
+  const market = needsMarket ? await required(client, 'server client').marketAdp(settings, new Date(now).getUTCFullYear(), runtime.signal) : { players: [] };
   if (market.warning) warnings.push(market.warning);
   try { if (!archive) data = await loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type); }
   catch (error) {
@@ -138,7 +138,7 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
     warnings.push(error instanceof Error ? error.message : 'The local player pool is unavailable.');
   }
   const context = createSessionContext(snapshot, data, args.slot, now);
-  const origin = archive ? { source: 'replay', replay: { file: resolve(args.replayFile!),
+  const origin = archive ? { source: 'replay', replay: { file: resolve(required(args.replayFile, 'replay file')),
     capturedAt: archive.capturedAt, requestedPick: args.pick ?? null } } : { source: 'live' };
   if (args.command === 'connect') {
     const waitingForObservation = session.provider === 'espn' && snapshot.draft === null;
@@ -157,7 +157,7 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
   // A missing player pool must still produce a connected readiness report with actionable failures.
   const readinessData = data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds).status,
     survivalModel: null, policy: SAFE_RECOMMENDATION_POLICY };
-  const readiness = withConnectedReadiness(localReadiness!, snapshot, readinessData, now);
+  const readiness = withConnectedReadiness(required(localReadiness, 'readiness report'), snapshot, readinessData, now);
   if (args.command === 'readiness') {
     const blockers = [
       ...(context.sync.health !== 'healthy' ? [{ code: 'SYNC_UNHEALTHY', message: 'Restore provider synchronization before using advice.' }] : []),
@@ -171,25 +171,27 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
       sync: context.sync, warnings }, exitCode: readyForAdvice ? 0 : 3 };
   }
   if (!snapshot.draft) throw new CliError('SESSION_NOT_READY', 'The draft has no provider metadata yet. Check draft status and restore the provider connection.');
+  // Commands past this point rethrow player-data failures above, so the pool is always loaded.
+  const pool = required(data, 'player data');
   if (args.command === 'export') {
     runtime.signal.throwIfAborted();
-    const file = resolve(args.outputFile!);
-    const saved = createArchive(snapshot, data!, readiness, args.slot, warnings, now);
+    const file = resolve(required(args.outputFile, 'output file'));
+    const saved = createArchive(snapshot, pool, readiness, args.slot, warnings, now);
     await saveArchive(file, saved, args.force);
     return { data: { ...origin, session: session.id, file, capturedAt: saved.capturedAt,
-      currentPick: context.currentPick, picksRecorded: snapshot.picks.length, playersRecorded: data!.players.length,
+      currentPick: context.currentPick, picksRecorded: snapshot.picks.length, playersRecorded: pool.players.length,
       slot: args.slot ?? null, readinessStatus: readiness.status }, exitCode: 0 };
   }
   if (args.command === 'replay') {
     return { data: { ...statusData(context, session.id, warnings), ...origin,
-      snapshot, readiness, ...(context.slot === null ? {} : { rosterInspection: inspectRoster(context, data!) }) }, exitCode: 0 };
+      snapshot, readiness, ...(context.slot === null ? {} : { rosterInspection: inspectRoster(context, pool) }) }, exitCode: 0 };
   }
   if (args.command === 'roster') {
     return { data: { session: session.id, ...origin, currentPick: context.currentPick,
-      sync: context.sync, readiness, warnings, ...inspectRoster(context, data!) }, exitCode: 0 };
+      sync: context.sync, readiness, warnings, ...inspectRoster(context, pool) }, exitCode: 0 };
   }
   if (args.command === 'players') {
-    let players = [...(args.available ? context.availablePlayers : data!.players)];
+    let players = [...(args.available ? context.availablePlayers : pool.players)];
     if (args.position) players = players.filter(player => player.position === args.position);
     if (args.search) {
       const query = args.search.toLowerCase();
@@ -205,7 +207,7 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
       readiness, unresolvedPicks: context.unresolvedPicks, warnings }, exitCode: 0 };
   }
   requireAdvice(context, readiness);
-  const board = adviceBoard(context, data!);
+  const board = adviceBoard(context, pool);
   const decision = createDraftDecisionOutput(board.recommendations.draftNow, board.recommendations.selection,
     board.recommendations.bestAvailable, args.lens);
   const recommendations = decision.selectedView.recommendations;
@@ -224,17 +226,17 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
   }
   if (!board.hasDecision) throw new CliError('NO_REMAINING_PICK', 'You have no draft selection remaining.');
   const find = (id: string): Recommendation => {
-    if (!data!.players.some(player => player.id === id)) throw new CliError('PLAYER_NOT_FOUND', `Unknown player ID ${id}. Use draft players to find stable IDs.`, 2);
+    if (!pool.players.some(player => player.id === id)) throw new CliError('PLAYER_NOT_FOUND', `Unknown player ID ${id}. Use draft players to find stable IDs.`, 2);
     if (context.draftedIds.has(id)) throw new CliError('PLAYER_UNAVAILABLE', `Player ${id} is drafted or reserved as a keeper.`, 2);
     const recommendation = recommendations.find(candidate => candidate.playerId === id);
     if (!recommendation) throw new CliError('PLAYER_INELIGIBLE', `Player ${id} cannot fill a remaining roster slot under this decision lens.`, 2);
     return recommendation;
   };
-  const first = find(args.playerIds[0]!);
+  const first = find(required(args.playerIds[0], 'player ID'));
   if (args.command === 'compare') {
-    const second = find(args.playerIds[1]!);
-    const firstRank = decision.selectedView.rankByPlayerId.get(first.playerId)!;
-    const secondRank = decision.selectedView.rankByPlayerId.get(second.playerId)!;
+    const second = find(required(args.playerIds[1], 'second player ID'));
+    const firstRank = required(decision.selectedView.rankByPlayerId.get(first.playerId), 'player rank');
+    const secondRank = required(decision.selectedView.rankByPlayerId.get(second.playerId), 'player rank');
     return { data: { ...common, players: [playerSummary(first), playerSummary(second)],
       preferredPlayerId: firstRank <= secondRank ? first.playerId : second.playerId,
       metrics: getComparisonMetrics(first, second, decision.selectedView.rankByPlayerId),
@@ -253,7 +255,7 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
 }
 
 async function replayStream(args: Arguments, io: Output, runtime: Runtime): Promise<void> {
-  const archive = await readArchive(args.replayFile!);
+  const archive = await readArchive(required(args.replayFile, 'replay file'));
   const boundaries = args.pick === undefined ? replayBoundaries(archive) : [args.pick];
   let sequence = 0;
   for (const pick of boundaries) {
@@ -276,7 +278,7 @@ export async function runDraft(argv: readonly string[], io: Output, runtime: Run
     if (!args) { await io.stdout(HELP); return 0; }
     const token = !args.replayFile && (args.session || args.command === 'sessions') ? await readPairingToken(runtime.root, runtime.env) : null;
     const client = token ? new DraftClient(args.serverUrl, token) : null;
-    if (args.command === 'watch') { await watch(args, client!, io, runtime); return 0; }
+    if (args.command === 'watch') { await watch(args, required(client, 'server client'), io, runtime); return 0; }
     if (args.command === 'replay' && args.format === 'ndjson') { await replayStream(args, io, runtime); return 0; }
     const result = await execute(args, client, runtime);
     if (runtime.signal.aborted) return 0;

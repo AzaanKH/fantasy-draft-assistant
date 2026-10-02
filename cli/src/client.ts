@@ -126,7 +126,7 @@ export class DraftClient {
   async *events(session: SessionId, signal: AbortSignal): AsyncGenerator<DraftSyncUpdate> {
     // Bound connection establishment while keeping a healthy stream open indefinitely.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20_000);
+    const timer = setTimeout(() => { controller.abort(); }, 20_000);
     let response: Response;
     try {
       response = await this.request(`${this.route(session)}/events`, 'GET', AbortSignal.any([signal, controller.signal]));
@@ -135,11 +135,11 @@ export class DraftClient {
       await response.body?.cancel();
       throw new CliError('INVALID_STREAM', 'The server did not return a draft event stream.');
     }
-    let idleTimer = setTimeout(() => controller.abort(), 30_000);
+    let idleTimer = setTimeout(() => { controller.abort(); }, 30_000);
     try {
       for await (const event of parseDraftEvents(response.body)) {
         clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => controller.abort(), 30_000);
+        idleTimer = setTimeout(() => { controller.abort(); }, 30_000);
         const identity = event.type === 'heartbeat' ? event : event.snapshot;
         if (identity.provider !== session.provider || identity.draftId !== session.draftId ||
             event.type !== 'heartbeat' && event.snapshot.draft !== null &&

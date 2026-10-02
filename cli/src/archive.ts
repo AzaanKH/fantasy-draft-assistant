@@ -9,7 +9,7 @@ import { createSessionContext } from './context';
 import { parseSession } from './arguments';
 import type { DraftData } from './data';
 import { readBoundedJson, writePrivateJson } from './files';
-import { CliError } from './errors';
+import { CliError, required } from './errors';
 
 type ArchivedDraftData = Omit<DraftData, 'keeperStatus'> & {
   readonly keeperStatus: Omit<DraftData['keeperStatus'], 'error'> & { readonly error: string | null };
@@ -37,7 +37,7 @@ function validReadiness(value: unknown): value is DraftReadinessReport {
       !Array.isArray(value.coreDraftData) || !Array.isArray(value.optionalSignals) ||
       !Array.isArray(value.productBlockingFailures) || !Array.isArray(value.optionalSignalDegradations) ||
       !Array.isArray(value.actionableWarnings)) return false;
-  const items = [...value.coreDraftData, ...value.optionalSignals];
+  const items: unknown[] = [...(value.coreDraftData as unknown[]), ...(value.optionalSignals as unknown[])];
   if (!items.every(item => isRecord(item) && typeof item.key === 'string' &&
       ['ready', 'blocking', 'degraded'].includes(String(item.status)) &&
       ['label', 'sourceLabel', 'timestampLabel', 'correctiveAction', 'message'].every(key => typeof item[key] === 'string') &&
@@ -72,13 +72,14 @@ function validData(value: unknown, snapshot: DraftSyncSnapshot): value is Archiv
       !['unresolvedNames', 'duplicateNames', 'invalidAssignments'].every(key => strings(status[key])) ||
       !['isLoading', 'isError', 'isInitialized', 'isConfirmed', 'isMockReady'].every(key => typeof status[key] === 'boolean') ||
       !(status.error === null || typeof status.error === 'string')) return false;
-  const teams = snapshot.draft!.settings.teams;
-  const rounds = snapshot.draft!.settings.rounds;
+  const draft = snapshot.draft;
+  if (!draft) return false;
+  const { teams, rounds } = draft.settings;
   const byId = new Map((value.players as Player[]).map(player => [player.id, player]));
   return value.keepers.every(keeper => isRecord(keeper) && typeof keeper.playerId === 'string' &&
     typeof keeper.playerName === 'string' && isPosition(keeper.position) && typeof keeper.isMyKeeper === 'boolean' &&
     count(keeper.teamIndex, teams - 1) && typeof keeper.round === 'number' && keeper.round >= 1 && count(keeper.round, rounds) &&
-    keeper.pickNumber === getKeeperPickNumber({ teamIndex: keeper.teamIndex, round: keeper.round }, teams, snapshot.draft!.type) &&
+    keeper.pickNumber === getKeeperPickNumber({ teamIndex: keeper.teamIndex, round: keeper.round }, teams, draft.type) &&
     byId.get(keeper.playerId)?.position === keeper.position) &&
     new Set(value.keepers.map(keeper => (keeper as { playerId: string }).playerId)).size === value.keepers.length &&
     new Set(value.keepers.map(keeper => (keeper as { pickNumber: number }).pickNumber)).size === value.keepers.length;
@@ -113,9 +114,10 @@ export async function readArchive(path: string): Promise<SessionArchive> {
         !(value.slot === null || typeof value.slot === 'number' && value.slot >= 1 && count(value.slot, value.snapshot.draft.settings.teams)) ||
         !validData(value.data, value.snapshot) || !validReadiness(value.readiness) || !strings(value.warnings)) throw new Error('Invalid archive');
     const snapshot = value.snapshot;
-    const totalPicks = snapshot.draft!.settings.teams * snapshot.draft!.settings.rounds;
+    const { teams } = value.snapshot.draft.settings;
+    const totalPicks = teams * value.snapshot.draft.settings.rounds;
     if (snapshot.picks.some(pick => pick.draftId !== snapshot.draftId || pick.pickNumber > totalPicks ||
-        pick.draftSlot > snapshot.draft!.settings.teams || pick.teamIndex >= snapshot.draft!.settings.teams) ||
+        pick.draftSlot > teams || pick.teamIndex >= teams) ||
         new Set(snapshot.picks.map(pick => pick.pickNumber)).size !== snapshot.picks.length ||
         new Set(snapshot.picks.map(pick => pick.playerId)).size !== snapshot.picks.length) throw new Error('Inconsistent picks');
     return value as unknown as SessionArchive;
@@ -130,16 +132,19 @@ export function archivedData(archive: SessionArchive): DraftData {
 export function replaySnapshot(archive: SessionArchive, pick?: number): DraftSyncSnapshot {
   if (pick === undefined) return archive.snapshot;
   const context = createSessionContext(archive.snapshot, archivedData(archive), archive.slot ?? undefined, Date.parse(archive.capturedAt));
-  if (!Number.isInteger(pick) || pick < 1 || pick > context.currentPick!) {
+  const draft = required(archive.snapshot.draft, 'archived draft');
+  const currentPick = required(context.currentPick, 'archived current pick');
+  if (!Number.isInteger(pick) || pick < 1 || pick > currentPick) {
     throw new CliError('REPLAY_PICK_OUT_OF_RANGE', `--pick must be between 1 and the captured current pick ${String(context.currentPick)}.`, 2);
   }
   return { ...archive.snapshot, picks: archive.snapshot.picks.filter(entry => entry.isKeeper || entry.pickNumber < pick),
-    draft: { ...archive.snapshot.draft!, status: archive.snapshot.draft!.status === 'complete' && pick <= context.totalPicks
-      ? 'drafting' : archive.snapshot.draft!.status } };
+    draft: { ...draft, status: draft.status === 'complete' && pick <= context.totalPicks
+      ? 'drafting' : draft.status } };
 }
 
 export function replayBoundaries(archive: SessionArchive): readonly number[] {
   const context = createSessionContext(archive.snapshot, archivedData(archive), archive.slot ?? undefined, Date.parse(archive.capturedAt));
-  return [...new Set([1, ...archive.snapshot.picks.filter(pick => !pick.isKeeper).map(pick => pick.pickNumber + 1), context.currentPick!])]
-    .filter(pick => pick <= context.currentPick!).sort((left, right) => left - right);
+  const currentPick = required(context.currentPick, 'archived current pick');
+  return [...new Set([1, ...archive.snapshot.picks.filter(pick => !pick.isKeeper).map(pick => pick.pickNumber + 1), currentPick])]
+    .filter(pick => pick <= currentPick).sort((left, right) => left - right);
 }

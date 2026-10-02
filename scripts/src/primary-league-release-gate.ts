@@ -195,8 +195,8 @@ async function runCommand(spec: CommandSpec): Promise<CommandOutcome> {
       env: process.env,
       stdio: 'inherit',
     });
-    child.once('error', () => resolveExit(null));
-    child.once('exit', (code) => resolveExit(code));
+    child.once('error', () => { resolveExit(null); });
+    child.once('exit', (code) => { resolveExit(code); });
   });
   return {
     command: commandLabel(spec),

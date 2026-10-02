@@ -29,7 +29,7 @@ export function localApiSecurity(getToken: () => string = getLocalSyncToken): Pl
     configureServer(server) {
       const token = getToken();
       server.middlewares.use((request, response, next) => {
-        if (!request.url?.startsWith('/api')) return next();
+        if (!request.url?.startsWith('/api')) { next(); return; }
         const address = server.httpServer?.address();
         if (!address || typeof address === 'string' || !isSameOriginApiRequest(request, address.port)) {
           response.statusCode = 403;

@@ -9,10 +9,13 @@ export function inspectRoster(context: SessionContext, data: DraftData) {
   if (context.slot === null) throw new CliError('SLOT_REQUIRED', 'Set --slot NUMBER or DRAFT_SLOT, or connect with --slot to inspect your roster.', 2);
   const players = new Map(data.players.map(player => [player.id, player]));
   const imports = resolveDraftPickImports(context.snapshot.picks, data.players, context.slot).picks;
-  const confirmed = new Map(imports.filter(pick => pick.teamIndex === context.slot! - 1).map(pick => [pick.playerId, pick]));
-  const reservations = new Map(context.keeperReservations.filter(keeper => keeper.teamIndex === context.slot! - 1).map(keeper => [keeper.playerId, keeper]));
-  const entries = POSITIONS.flatMap(position => context.roster[position].map(id => {
-    const player = players.get(id)!;
+  const teamIndex = context.slot - 1;
+  const confirmed = new Map(imports.filter(pick => pick.teamIndex === teamIndex).map(pick => [pick.playerId, pick]));
+  const reservations = new Map(context.keeperReservations.filter(keeper => keeper.teamIndex === teamIndex).map(keeper => [keeper.playerId, keeper]));
+  const entries = POSITIONS.flatMap(position => context.roster[position].flatMap(id => {
+    const player = players.get(id);
+    // Skip IDs missing from the local player pool instead of crashing the command.
+    if (!player) return [];
     const pick = confirmed.get(id);
     const keeper = reservations.get(id);
     const providerPick = pick ? context.snapshot.picks.find(entry => entry.pickNumber === pick.pickNumber) : undefined;

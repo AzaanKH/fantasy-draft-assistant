@@ -100,7 +100,7 @@ async function readJson<T>(path: string): Promise<T> {
 async function readOptionalJson<T>(path: string): Promise<T | null> {
   try {
     await access(path);
-    return readJson<T>(path);
+    return await readJson<T>(path);
   } catch {
     return null;
   }
@@ -110,7 +110,7 @@ function markdownTable(headers: readonly string[], rows: readonly (readonly unkn
   return [
     `| ${headers.join(' | ')} |`,
     `| ${headers.map(() => '---').join(' | ')} |`,
-    ...rows.map((row) => `| ${row.map((value) => String(value ?? '-')).join(' | ')} |`),
+    ...rows.map((row) => `| ${row.map((value) => value === null || value === undefined ? '-' : String(value as string | number | boolean)).join(' | ')} |`),
   ].join('\n');
 }
 

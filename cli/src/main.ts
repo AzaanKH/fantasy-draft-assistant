@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { runDraft } from './run';
 
 const controller = new AbortController();
-const stop = () => controller.abort();
+const stop = () => { controller.abort(); };
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
 // A downstream pipe such as head may close a watch stream at any point.
