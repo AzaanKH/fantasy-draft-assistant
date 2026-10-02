@@ -211,6 +211,64 @@ describe('durable draft sessions', () => {
     expect(store.getState().shortlistedPlayerIds).toEqual(['queued']);
   });
 
+  it('applies a stale tab’s change on top of another tab’s outage picks, queue, and baseline', () => {
+    const storage = memoryStorage();
+    const tabA = openSession(storage);
+    tabA.getState().setConfig({ myPickPosition: 2 });
+    tabA.getState().preloadKeepers([]);
+    const tabB = openSession(storage);
+    tabA.getState().reconcileSyncedPicks([official(1, 'confirmed')], 2, [], 100);
+    tabA.getState().togglePlayerShortlisted('queued');
+    tabA.getState().enterManualContinuity(100);
+    expect(tabA.getState().recordProvisionalPick(pick(2, 'observed'))).toBe(true);
+
+    // Tab B never saw A's writes and now changes only its decision lens.
+    tabB.getState().setDecisionLens('best-player');
+
+    // B applies its change on top of A's newer session instead of writing over it.
+    for (const state of [tabB.getState(), createDraftStore({ storage, session: identity }).getState()]) {
+      expect(state.draftHistory.map((entry) => entry.playerId)).toEqual(['confirmed', 'observed']);
+      expect(state.shortlistedPlayerIds).toEqual(['queued']);
+      expect(state.manualContinuityBaselineAt).toBe(100);
+      expect(state.decisionLens).toBe('best-player');
+    }
+  });
+
+  it('applies other tabs’ saves as they happen so later edits build on them', () => {
+    const values = new Map<string, string>();
+    const listeners: ((key: string | null, newValue: string | null) => void)[] = [];
+    // Mirrors the storage event: every other tab hears a write, the writer does not.
+    function tab() {
+      let self: ((key: string | null, newValue: string | null) => void) | null = null;
+      const storage = {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          values.set(key, value);
+          for (const listener of listeners) if (listener !== self) listener(key, value);
+        },
+      };
+      const store = createDraftStore({
+        storage,
+        session: identity,
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+      });
+      store.getState().setSessionMode('live');
+      return store;
+    }
+    const tabA = tab();
+    const tabB = tab();
+
+    tabA.getState().recordProvisionalPick(pick(1, 'observed'));
+    expect(tabB.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(tabB.getState().draftedPlayerIds.has('observed')).toBe(true);
+
+    tabB.getState().setDecisionLens('best-player');
+    expect(tabA.getState().decisionLens).toBe('best-player');
+    const saved = parseStoredDraftSession(values.get(getDraftSessionStorageKey(identity)) ?? null, identity);
+    expect(saved?.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(saved?.decisionLens).toBe('best-player');
+  });
+
   it('restores the draft type and treats sessions saved before draft types as snake drafts', () => {
     const storage = memoryStorage();
     const store = openSession(storage);

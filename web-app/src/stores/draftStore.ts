@@ -6,11 +6,15 @@ import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
 import { useDraftSyncConnectionStore } from './draftSyncStore';
 import {
   getBrowserDraftSessionStorage,
+  getDraftSessionRevisionKey,
   persistDraftSession,
+  readDraftSession,
+  readDraftSessionRevision,
   type DraftSessionIdentity,
   type DraftSessionStorage,
+  type PersistedDraftSession,
 } from './draftSessionStorage';
-import type { DraftStore, DraftSessionMode } from './draft/types';
+import type { DraftStore, DraftSessionMode, SetDraftState } from './draft/types';
 import {
   calculateIsMyTurn,
   createEmptyMutableRoster,
@@ -19,7 +23,7 @@ import {
   defaultFilter,
   defaultMockSettings,
 } from './draft/state';
-import { createSessionActions } from './draft/session-actions';
+import { applySavedDraftSession, createSessionActions, type DraftSessionPersistence } from './draft/session-actions';
 import { createConfigurationActions } from './draft/configuration-actions';
 import { createProvisionalActions } from './draft/provisional-actions';
 import { createPickActions } from './draft/pick-actions';
@@ -49,17 +53,46 @@ enableMapSet();
 type BoundDraftStore = UseBoundStore<Mutate<StoreApi<DraftStore>, [['zustand/immer', never]]>>;
 export type DraftStoreApi = BoundDraftStore;
 
+/** Notifies the store when another tab changes a stored key, as the `storage` event does. */
+export type ExternalDraftSessionChanges = (
+  onChange: (key: string | null, newValue: string | null) => void
+) => void;
+
 interface DraftStoreOptions {
   readonly storage?: DraftSessionStorage | null;
   readonly session?: DraftSessionIdentity | null;
+  readonly externalChanges?: ExternalDraftSessionChanges | null;
+}
+
+function subscribeToBrowserStorageEvents(
+  onChange: (key: string | null, newValue: string | null) => void
+): void {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  window.addEventListener('storage', (event) => {
+    if (event.storageArea === null || event.storageArea === getBrowserDraftSessionStorage()) {
+      onChange(event.key, event.newValue);
+    }
+  });
 }
 
 /**
  * Create the draft store with Zustand + immer for immutable updates
  */
-export function createDraftStore({ storage = null, session = null }: DraftStoreOptions = {}): BoundDraftStore {
+export function createDraftStore({
+  storage = null,
+  session = null,
+  externalChanges = null,
+}: DraftStoreOptions = {}): BoundDraftStore {
+  const persistence: DraftSessionPersistence = { revision: 0 };
+  let adoptingSavedSession = false;
   const store = create<DraftStore>()(
-  immer((set, get) => ({
+  immer((rawSet, get) => {
+  // Every change starts from the newest saved session, so edits from other tabs are kept.
+  const set: SetDraftState = (transition) => {
+    syncFromOtherTabs();
+    rawSet(transition);
+  };
+  return {
     // Initial state
     sessionMode: 'setup',
     liveSession: null,
@@ -96,7 +129,7 @@ export function createDraftStore({ storage = null, session = null }: DraftStoreO
       return state.config.totalTeams * state.config.totalRounds;
     },
 
-    ...createSessionActions(set, get, storage),
+    ...createSessionActions(set, get, storage, persistence),
     ...createConfigurationActions(set),
     ...createProvisionalActions(set),
     ...createPickActions(set),
@@ -117,7 +150,8 @@ export function createDraftStore({ storage = null, session = null }: DraftStoreO
         state.filter.searchQuery = query;
       }); },
 
-    }))
+  };
+  })
   );
   // Derived Sets and rosters are rebuilt on hydration, never deserialized.
   store.subscribe((state, previous) => {
@@ -132,8 +166,38 @@ export function createDraftStore({ storage = null, session = null }: DraftStoreO
         state.manualContinuityBaselineAt !== previous.manualContinuityBaselineAt ||
         state.lastConfirmedSyncAt !== previous.lastConfirmedSyncAt ||
         state.lastConfirmedPickNumber !== previous.lastConfirmedPickNumber) {
-      persistDraftSession(storage, state);
+      if (adoptingSavedSession) return;
+      const result = persistDraftSession(storage, state, persistence.revision);
+      if (result.status === 'written') persistence.revision = result.revision;
+      // Another tab saved within the same instant; keep its session rather than erase it.
+      if (result.status === 'conflict') adoptSavedSession(result.saved);
     }
+  });
+
+  function adoptSavedSession(saved: PersistedDraftSession): void {
+    const { liveSession } = store.getState();
+    if (!liveSession) return;
+    persistence.revision = saved.revision;
+    adoptingSavedSession = true;
+    try {
+      store.setState((state) => { applySavedDraftSession(state, liveSession, saved); });
+    } finally {
+      adoptingSavedSession = false;
+    }
+  }
+
+  function syncFromOtherTabs(): void {
+    // Runs inside action calls, which only happen after the store exists.
+    const { liveSession, sessionMode } = store.getState();
+    if (!storage || !liveSession || sessionMode === 'mock') return;
+    if (readDraftSessionRevision(storage, liveSession) <= persistence.revision) return;
+    const saved = readDraftSession(storage, liveSession);
+    if (saved) adoptSavedSession(saved);
+  }
+
+  externalChanges?.((key) => {
+    const { liveSession } = store.getState();
+    if (liveSession && (key === null || key === getDraftSessionRevisionKey(liveSession))) syncFromOtherTabs();
   });
   if (session) store.getState().setLiveDraftSession(session);
   return store;
@@ -142,6 +206,7 @@ export function createDraftStore({ storage = null, session = null }: DraftStoreO
 const defaultDraftStore = createDraftStore({
   storage: getBrowserDraftSessionStorage(),
   session: useDraftSyncConnectionStore.getState().connection,
+  externalChanges: subscribeToBrowserStorageEvents,
 });
 // Connection changes bind and hydrate synchronously, before React's sync effects.
 // Explicitly created stores remain isolated for mocks, rehearsals, and tests.

@@ -30,6 +30,8 @@ export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem'>;
 /** Canonical history doubles as the local journal, including provisional revisions. */
 export interface PersistedDraftSession {
   readonly version: 1;
+  /** Increments on every write so tabs can detect that another tab saved first. */
+  readonly revision: number;
   readonly identity: DraftSessionIdentity;
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
@@ -53,6 +55,23 @@ export function isDraftSessionIdentity(value: unknown): value is DraftSessionIde
 
 export function getDraftSessionStorageKey(identity: DraftSessionIdentity): string {
   return `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
+}
+
+/** A small companion key, so tabs can check for newer saves without parsing the session. */
+export function getDraftSessionRevisionKey(identity: DraftSessionIdentity): string {
+  return `${getDraftSessionStorageKey(identity)}:revision`;
+}
+
+export function readDraftSessionRevision(
+  storage: DraftSessionStorage | null,
+  identity: DraftSessionIdentity
+): number {
+  try {
+    const value = Number(storage?.getItem(getDraftSessionRevisionKey(identity)) ?? 0);
+    return isBoundedInteger(value, 0, Number.MAX_SAFE_INTEGER) ? value : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {
@@ -141,6 +160,8 @@ export function parseStoredDraftSession(
         !isNullableTimestamp(value.manualContinuityBaselineAt) ||
         !isNullableTimestamp(value.lastConfirmedSyncAt) ||
         !isBoundedInteger(value.lastConfirmedPickNumber, 0, totalPicks) ||
+        // Sessions saved before tab coordination carry no revision.
+        (value.revision !== undefined && !isBoundedInteger(value.revision, 0, Number.MAX_SAFE_INTEGER)) ||
         (value.manualContinuityBaselineAt !== null && identity.provider !== 'sleeper')) return null;
 
     const draftHistory = value.draftHistory;
@@ -152,6 +173,7 @@ export function parseStoredDraftSession(
 
     return {
       version: 1,
+      revision: value.revision ?? 0,
       identity: { provider: identity.provider, draftId: identity.draftId },
       config,
       leagueSettings: value.leagueSettings,
@@ -182,10 +204,32 @@ export function readDraftSession(
   }
 }
 
-export function persistDraftSession(storage: DraftSessionStorage | null, state: DraftStore): void {
-  if (!storage || !state.liveSession || state.sessionMode === 'mock') return;
+export type DraftSessionWriteResult =
+  | { readonly status: 'written'; readonly revision: number }
+  | { readonly status: 'conflict'; readonly saved: PersistedDraftSession }
+  | { readonly status: 'skipped' };
+
+/**
+ * Writes the session only if no other tab saved since `baseRevision`. A stale
+ * tab receives the newer session instead, so it cannot erase another tab's picks.
+ */
+export function persistDraftSession(
+  storage: DraftSessionStorage | null,
+  state: DraftStore,
+  baseRevision: number
+): DraftSessionWriteResult {
+  if (!storage || !state.liveSession || state.sessionMode === 'mock') return { status: 'skipped' };
+  const key = getDraftSessionStorageKey(state.liveSession);
+  const storedRevision = readDraftSessionRevision(storage, state.liveSession);
+  if (storedRevision !== baseRevision) {
+    const saved = readDraftSession(storage, state.liveSession);
+    // An unreadable newer entry cannot be adopted; overwrite it rather than stall.
+    if (saved) return { status: 'conflict', saved };
+  }
+  const revision = Math.max(storedRevision, baseRevision) + 1;
   const session: PersistedDraftSession = {
     version: 1,
+    revision,
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
@@ -202,8 +246,12 @@ export function persistDraftSession(storage: DraftSessionStorage | null, state: 
   };
   try {
     // Synchronous writes keep picks and queue changes durable before reload.
-    storage.setItem(getDraftSessionStorageKey(state.liveSession), JSON.stringify(session));
+    storage.setItem(key, JSON.stringify(session));
+    // Publish the revision last, so a tab that sees it can already read the session.
+    storage.setItem(getDraftSessionRevisionKey(state.liveSession), String(revision));
+    return { status: 'written', revision };
   } catch {
     // Storage failure must not interrupt recording a local pick.
+    return { status: 'skipped' };
   }
 }
