@@ -10,13 +10,15 @@ import { DRAFT_SYNC_STORAGE_KEY } from './draftSyncStore';
 
 const identity: DraftSessionIdentity = { provider: 'sleeper', draftId: '123' };
 
-function memoryStorage() {
-  const values = new Map<string, string>();
+/** Tabs share `values`, as they share localStorage. */
+function memoryStorage(values = new Map<string, string>()) {
   return {
     values,
     getItem: vi.fn((key: string) => values.get(key) ?? null),
     setItem: vi.fn((key: string, value: string) => { values.set(key, value); }),
     removeItem: vi.fn((key: string) => { values.delete(key); }),
+    key: (index: number) => [...values.keys()][index] ?? null,
+    get length() { return values.size; },
   };
 }
 
@@ -203,6 +205,9 @@ describe('durable draft sessions', () => {
     const storage = {
       getItem: () => { throw new Error('Blocked'); },
       setItem: () => { throw new Error('Full'); },
+      removeItem: () => { throw new Error('Blocked'); },
+      key: () => { throw new Error('Blocked'); },
+      get length(): number { throw new Error('Blocked'); },
     };
     const store = createDraftStore({ storage, session: identity });
     store.getState().setSessionMode('live');
@@ -241,13 +246,11 @@ describe('durable draft sessions', () => {
     // Mirrors the storage event: every other tab hears a write, the writer does not.
     function tab() {
       let self: ((key: string | null, newValue: string | null) => void) | null = null;
-      const storage = {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => {
-          values.set(key, value);
-          for (const listener of listeners) if (listener !== self) listener(key, value);
-        },
-      };
+      const storage = memoryStorage(values);
+      storage.setItem.mockImplementation((key: string, value: string) => {
+        values.set(key, value);
+        for (const listener of listeners) if (listener !== self) listener(key, value);
+      });
       const store = createDraftStore({
         storage,
         session: identity,
@@ -274,16 +277,15 @@ describe('durable draft sessions', () => {
     const storage = memoryStorage();
     const key = getDraftSessionStorageKey(identity);
     let racingReads: number | null = null;
-    const tabA = openSession({
-      ...storage,
-      getItem: vi.fn((storedKey: string) => {
-        // Read 1 is A's pre-change check; before read 2, A's save, tab B saves.
-        if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
-          tabB.getState().setDecisionLens('best-player');
-        }
-        return storage.getItem(storedKey);
-      }),
+    const racingStorage = memoryStorage(storage.values);
+    racingStorage.getItem.mockImplementation((storedKey: string) => {
+      // Read 1 is A's pre-change check; before read 2, A's save, tab B saves.
+      if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
+        tabB.getState().setDecisionLens('best-player');
+      }
+      return storage.getItem(storedKey);
     });
+    const tabA = openSession(racingStorage);
     const tabB = openSession(storage);
     racingReads = 0;
 
@@ -301,10 +303,10 @@ describe('durable draft sessions', () => {
     let staleRead: string | null = null;
     const tabA = openSession(storage);
     // Tab B reads before tab A's save lands, as when both tabs save at once.
-    const tabB = openSession({
-      ...storage,
-      getItem: vi.fn((storedKey: string) => storedKey === key && staleRead !== null ? staleRead : storage.getItem(storedKey)),
-    });
+    const staleStorage = memoryStorage(storage.values);
+    staleStorage.getItem.mockImplementation((storedKey: string) =>
+      storedKey === key && staleRead !== null ? staleRead : storage.getItem(storedKey));
+    const tabB = openSession(staleStorage);
     staleRead = storage.getItem(key);
 
     expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
@@ -318,6 +320,50 @@ describe('durable draft sessions', () => {
       expect(state.decisionLens).toBe('best-player');
       expect(state.shortlistedPlayerIds).toEqual(['queued']);
     }
+  });
+
+  it('merges back an overwritten pick after the tab that logged it reloads', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let staleRead: string | null = null;
+    const tabA = openSession(storage);
+    tabA.getState().togglePlayerShortlisted('observed');
+    tabA.getState().togglePlayerShortlisted('waiting');
+    const staleStorage = memoryStorage(storage.values);
+    staleStorage.getItem.mockImplementation((storedKey: string) =>
+      storedKey === key && staleRead !== null ? staleRead : storage.getItem(storedKey));
+    const tabB = openSession(staleStorage);
+    staleRead = storage.getItem(key);
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    tabB.getState().setDecisionLens('best-player');
+    staleRead = null;
+    expect(parseStoredDraftSession(storage.getItem(key), identity)?.draftHistory).toEqual([]);
+
+    // Tab A reloads before it hears of B's save, so only storage holds its pick.
+    const reloaded = createDraftStore({ storage, session: identity });
+    for (const state of [reloaded.getState(), createDraftStore({ storage, session: identity }).getState()]) {
+      expect(state.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+      expect(state.shortlistedPlayerIds).toEqual(['waiting']);
+      expect(state.decisionLens).toBe('best-player');
+    }
+    tabB.getState().togglePlayerShortlisted('later');
+    expect(tabB.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(tabB.getState().shortlistedPlayerIds).toEqual(['waiting', 'later']);
+  });
+
+  it('removes recorded saves once later saves build on them, so reloads do not accumulate entries', () => {
+    const storage = memoryStorage();
+    const recordedSaves = () => [...storage.values.keys()].filter((key) => key !== getDraftSessionStorageKey(identity));
+    const tabA = openSession(storage);
+    for (let reload = 0; reload < 5; reload += 1) {
+      createDraftStore({ storage, session: identity }).getState().togglePlayerShortlisted(`reload-${String(reload)}`);
+      tabA.getState().setDecisionLens(reload % 2 === 0 ? 'best-player' : 'best-pick');
+      // Only each tab's newest save is kept until another save builds on it.
+      expect(recordedSaves().length).toBeLessThanOrEqual(2);
+    }
+    expect(createDraftStore({ storage, session: identity }).getState().shortlistedPlayerIds)
+      .toEqual(['reload-0', 'reload-1', 'reload-2', 'reload-3', 'reload-4']);
   });
 
   it('does not replay a save that dropped out of the lineage after later saves built on it', () => {
@@ -341,16 +387,15 @@ describe('durable draft sessions', () => {
     const storage = memoryStorage();
     const key = getDraftSessionStorageKey(identity);
     let racingReads: number | null = null;
-    const tabA = openSession({
-      ...storage,
-      getItem: vi.fn((storedKey: string) => {
-        // Before A saves, tab B applies newer provider history that picked someone else.
-        if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
-          tabB.getState().reconcileSyncedPicks([official(1, 'other')], 2, [], 200);
-        }
-        return storage.getItem(storedKey);
-      }),
+    const racingStorage = memoryStorage(storage.values);
+    racingStorage.getItem.mockImplementation((storedKey: string) => {
+      // Before A saves, tab B applies newer provider history that picked someone else.
+      if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
+        tabB.getState().reconcileSyncedPicks([official(1, 'other')], 2, [], 200);
+      }
+      return storage.getItem(storedKey);
     });
+    const tabA = openSession(racingStorage);
     const tabB = openSession(storage);
     tabA.getState().recordProvisionalPick(pick(1, 'observed'));
     racingReads = 0;

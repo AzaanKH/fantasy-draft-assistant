@@ -18,7 +18,7 @@ export interface DraftSessionPersistence {
   base: DraftSessionBase;
 }
 
-export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [] };
+export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [], session: null };
 
 /** Replaces durable session state with a saved session, rebuilding derived sets and rosters. */
 export function applySavedDraftSession(
@@ -86,7 +86,7 @@ export function createSessionActions(
       set((state) => {
         // Rebase inside the transition, after the pre-change check of the previous session.
         persistence.base = saved
-          ? { revision: saved.revision, serialized, lineage: saved.lineage }
+          ? { revision: saved.revision, serialized, lineage: saved.lineage, session: saved }
           : EMPTY_DRAFT_SESSION_BASE;
         applySavedDraftSession(state, identity, saved);
         state.filter = { ...defaultFilter };

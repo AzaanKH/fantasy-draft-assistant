@@ -12,6 +12,11 @@ import {
 import { canonicalizeKeeperSupply } from '@/lib/keeper-supply';
 import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import { isValidDraftSyncId } from './draftSyncStore';
+import {
+  computeDraftSessionChange,
+  isEmptyDraftSessionChange,
+  writeDraftSessionChange,
+} from './draftSessionUnconfirmedSaves';
 import type {
   DraftConfig,
   DraftStore,
@@ -25,16 +30,18 @@ export interface DraftSessionIdentity {
   readonly draftId: string;
 }
 
-export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem'>;
+/** Enumeration and removal let any tab find and clear every tab's recorded saves. */
+export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
 /** Canonical history doubles as the local journal, including provisional revisions. */
 export interface PersistedDraftSession {
   readonly version: 1;
-  /** Increments on every write so tabs can detect that another tab saved first. */
+  /** Advances by one per lineage entry a write adds, so tabs can detect that another tab saved first. */
   readonly revision: number;
   /**
-   * Recent write IDs this session builds on, newest last. A tab whose write is
-   * missing was overwritten by a concurrent save and must reapply its change.
+   * Recent write IDs this session includes, newest last: saves it builds on and
+   * overwritten saves merged back into it. A recorded save missing from the
+   * lineage was overwritten by a concurrent save and must be merged back.
    * Sessions saved before multi-tab merging have none.
    */
   readonly lineage: readonly string[];
@@ -63,7 +70,7 @@ export function getDraftSessionStorageKey(identity: DraftSessionIdentity): strin
   return `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
 }
 
-/** Bounds both the saved lineage and how many unconfirmed writes a tab can replay. */
+/** Bounds the saved lineage; the revision advances once per entry so it stays aligned. */
 export const DRAFT_SESSION_LINEAGE_LIMIT = 100;
 
 export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {
@@ -206,6 +213,17 @@ export interface DraftSessionBase {
   readonly revision: number;
   readonly serialized: string | null;
   readonly lineage: readonly string[];
+  /** Parsed form of `serialized`, used to record what the next save changes. */
+  readonly session: PersistedDraftSession | null;
+}
+
+export interface DraftSessionWriteOptions {
+  /** Skips the conflict check, leaving the overwritten tab's save to be merged back. */
+  readonly force?: boolean;
+  /** Records this save under the tab's own key so any tab can merge it back. */
+  readonly tabId?: string | null;
+  /** Overwritten saves this session merges back, added to its lineage. */
+  readonly mergedWriteIds?: readonly string[];
 }
 
 export type DraftSessionWriteResult =
@@ -213,20 +231,19 @@ export type DraftSessionWriteResult =
   | { readonly status: 'conflict' }
   | { readonly status: 'skipped' };
 
-function createWriteId(): string {
+export function createDraftSessionWriteId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
 /**
  * Writes the session only if no other tab saved since `base`. On conflict the
- * caller must reapply its change to the newer session and try again; `force`
- * skips the check, leaving the overwritten tab to detect and reapply its write.
+ * caller must reapply its change to the newer session and try again.
  */
 export function persistDraftSession(
   storage: DraftSessionStorage | null,
   state: DraftStore,
   base: DraftSessionBase,
-  force = false
+  { force = false, tabId = null, mergedWriteIds = [] }: DraftSessionWriteOptions = {}
 ): DraftSessionWriteResult {
   if (!storage || !state.liveSession || state.sessionMode === 'mock') return { status: 'skipped' };
   const stored = readStoredDraftSessionText(storage, state.liveSession);
@@ -234,11 +251,12 @@ export function persistDraftSession(
   if (!force && stored !== base.serialized && parseStoredDraftSession(stored, state.liveSession)) {
     return { status: 'conflict' };
   }
-  const writeId = createWriteId();
+  const writeId = createDraftSessionWriteId();
+  const added = [...mergedWriteIds, writeId];
   const session: PersistedDraftSession = {
     version: 1,
-    revision: base.revision + 1,
-    lineage: [...base.lineage, writeId].slice(-DRAFT_SESSION_LINEAGE_LIMIT),
+    revision: base.revision + added.length,
+    lineage: [...base.lineage, ...added].slice(-DRAFT_SESSION_LINEAGE_LIMIT),
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
@@ -254,10 +272,19 @@ export function persistDraftSession(
     lastConfirmedPickNumber: state.lastConfirmedPickNumber,
   };
   const serialized = JSON.stringify(session);
+  if (tabId) {
+    // Recorded first, so a save overwritten before this tab notices survives a reload.
+    const change = computeDraftSessionChange(base.session, session, writeId);
+    if (!isEmptyDraftSessionChange(change)) writeDraftSessionChange(storage, state.liveSession, tabId, change);
+  }
   try {
     // A single synchronous write keeps picks and queue changes durable before reload.
     storage.setItem(getDraftSessionStorageKey(state.liveSession), serialized);
-    return { status: 'written', writeId, base: { revision: session.revision, serialized, lineage: session.lineage } };
+    return {
+      status: 'written',
+      writeId,
+      base: { revision: session.revision, serialized, lineage: session.lineage, session },
+    };
   } catch {
     // Storage failure must not interrupt recording a local pick.
     return { status: 'skipped' };
