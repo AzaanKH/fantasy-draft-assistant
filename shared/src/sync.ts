@@ -1,6 +1,6 @@
-import { isBoundedInteger, isDraftSize, MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from './limits';
-import { isPosition, type Position } from './player';
-import { isLeagueSettings, type LeagueSettings } from './league-settings';
+import { isBoundedInteger, isDraftSize, MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from './limits.js';
+import { isPosition, type Position } from './player.js';
+import { isLeagueSettings, type LeagueSettings } from './league-settings.js';
 
 export interface SleeperDraftPick {
   readonly round: number;
@@ -534,9 +534,10 @@ export class DraftSyncEngine {
     const contentChanged =
       JSON.stringify(this.snapshot.draft) !== JSON.stringify(draft) ||
       this.snapshot.picks.length !== sortedPicks.length ||
-      sortedPicks.some((pick, index) =>
-        !samePickContent(pick, this.snapshot.picks[index]!)
-      );
+      sortedPicks.some((pick, index) => {
+        const previous = this.snapshot.picks[index];
+        return previous === undefined || !samePickContent(pick, previous);
+      });
 
     if (!contentChanged) {
       this.snapshot = {

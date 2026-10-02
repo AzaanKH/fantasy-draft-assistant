@@ -1,4 +1,4 @@
-import type { Position, SurvivalModelSource, TierSource } from './player';
+import type { Position, SurvivalModelSource, TierSource } from './player.js';
 
 /**
  * Roster structure tracking player IDs by position

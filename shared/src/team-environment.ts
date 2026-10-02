@@ -1,4 +1,4 @@
-import type { NFLTeam } from './player';
+import type { NFLTeam } from './player.js';
 
 /**
  * Volume classification for pass/rush attempts

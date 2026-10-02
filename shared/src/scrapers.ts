@@ -1,4 +1,4 @@
-import type { NFLTeam, Position } from './player';
+import type { NFLTeam, Position } from './player.js';
 
 /**
  * Raw player data from FantasyPros ECR scraping

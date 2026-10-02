@@ -1,5 +1,5 @@
-import type { NewsStatus, NFLTeam, Position } from './player';
-import type { ECRPlayer } from './scrapers';
+import type { NewsStatus, NFLTeam, Position } from './player.js';
+import type { ECRPlayer } from './scrapers.js';
 
 export const FANTASYPROS_SNAPSHOT_SOURCES = [
   'manual-refresh',

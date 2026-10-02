@@ -1,6 +1,6 @@
-import { isNeedPriority, type NeedPriority } from './draft';
-import { isPosition, type Position } from './player';
-import { isDraftProvider, type DraftProvider } from './sync';
+import { isNeedPriority, type NeedPriority } from './draft.js';
+import { isPosition, type Position } from './player.js';
+import { isDraftProvider, type DraftProvider } from './sync.js';
 
 export interface ShadowRecommendation {
   readonly playerId: string;

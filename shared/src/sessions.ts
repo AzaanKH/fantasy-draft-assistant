@@ -1,5 +1,5 @@
-import { isBoundedInteger, MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from './limits';
-import { isDraftProvider, type DraftProvider, type DraftStatus, type DraftType, type DraftSyncState } from './sync';
+import { isBoundedInteger, MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from './limits.js';
+import { isDraftProvider, type DraftProvider, type DraftStatus, type DraftType, type DraftSyncState } from './sync.js';
 
 /** Retained local sessions, without requesting new provider data. */
 export interface DraftSessionSummary {
@@ -27,8 +27,8 @@ export function isDraftSessionSummary(value: unknown): value is DraftSessionSumm
   const sync = row.sync as Record<string, unknown> | null;
   return isDraftProvider(row.provider) && typeof row.draftId === 'string' && row.draftId.length <= 128 &&
     row.session === `${row.provider}:${row.draftId}` &&
-    (row.draftStatus === null || ['pre_draft', 'drafting', 'paused', 'complete'].includes(String(row.draftStatus))) &&
-    (row.draftType === null || ['snake', 'linear', 'auction'].includes(String(row.draftType))) &&
+    (row.draftStatus === null || ['pre_draft', 'drafting', 'paused', 'complete'].includes(row.draftStatus as string)) &&
+    (row.draftType === null || ['snake', 'linear', 'auction'].includes(row.draftType as string)) &&
     (row.totalTeams === null || isBoundedInteger(row.totalTeams, 2, MAX_DRAFT_TEAMS)) &&
     (row.totalRounds === null || isBoundedInteger(row.totalRounds, 1, MAX_DRAFT_ROUNDS)) &&
     (row.currentPick === null || isBoundedInteger(row.currentPick, 1, MAX_DRAFT_PICKS + 1)) &&
