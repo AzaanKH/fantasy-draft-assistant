@@ -16,18 +16,27 @@ export interface ConnectionConfig {
 }
 export const EMPTY_CONNECTIONS: ConnectionConfig = { schemaVersion: 1, activeSession: null, connections: [] };
 
+function isSavedConnection(value: unknown): value is SavedConnection {
+  if (typeof value !== 'object' || value === null) return false;
+  const { session, serverUrl, slot, connectedAt } = value as Record<string, unknown>;
+  return typeof session === 'string' && parseSession(session).id === session && typeof serverUrl === 'string' &&
+    (slot === undefined || Number.isInteger(slot) && typeof slot === 'number' && slot >= 1 && slot <= 32) &&
+    typeof connectedAt === 'string' && Number.isFinite(Date.parse(connectedAt));
+}
+
+function isConnectionConfig(value: unknown): value is ConnectionConfig {
+  if (typeof value !== 'object' || value === null) return false;
+  const { schemaVersion, activeSession, connections } = value as Record<string, unknown>;
+  return schemaVersion === 1 && Array.isArray(connections) && connections.length <= 128 &&
+    (activeSession === null || typeof activeSession === 'string') &&
+    (connections as unknown[]).every(isSavedConnection) &&
+    (activeSession === null || (connections as SavedConnection[]).some(row => row.session === activeSession));
+}
+
 export async function loadConnections(root: string): Promise<ConnectionConfig> {
   try {
-    const value = await readBoundedJson(join(root, '.local/cli-connections.json'), 64 * 1024) as ConnectionConfig;
-    if (!value || value.schemaVersion !== 1 || !Array.isArray(value.connections) || value.connections.length > 128 ||
-        !(value.activeSession === null || typeof value.activeSession === 'string') ||
-        !value.connections.every(row => row && typeof row.session === 'string' &&
-          parseSession(row.session).id === row.session && typeof row.serverUrl === 'string' &&
-          (row.slot === undefined || Number.isInteger(row.slot) && row.slot >= 1 && row.slot <= 32) &&
-          typeof row.connectedAt === 'string' && Number.isFinite(Date.parse(row.connectedAt))) ||
-        value.activeSession !== null && !value.connections.some(row => row.session === value.activeSession)) {
-      throw new Error('Invalid connection settings');
-    }
+    const value = await readBoundedJson(join(root, '.local/cli-connections.json'), 64 * 1024);
+    if (!isConnectionConfig(value)) throw new Error('Invalid connection settings');
     return value;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return EMPTY_CONNECTIONS;

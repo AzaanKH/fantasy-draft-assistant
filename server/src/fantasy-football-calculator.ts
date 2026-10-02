@@ -61,8 +61,12 @@ function normalizePlayers(value: unknown): MarketAdpPlayer[] {
     const adp = finiteNumber(item['adp']);
     if (!name || position === null || adp === null || adp <= 0) continue;
 
+    const providerId = item['player_id'];
     players.push({
-      externalId: String(item['player_id'] ?? `${name}-${position}`),
+      // Ignore malformed IDs instead of publishing "[object Object]" as a player identity.
+      externalId: typeof providerId === 'string' || typeof providerId === 'number'
+        ? String(providerId)
+        : `${name}-${position}`,
       name,
       position,
       team: normalizeTeam(item['team']),

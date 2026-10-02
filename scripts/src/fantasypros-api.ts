@@ -299,7 +299,7 @@ async function fetchFantasyProsJson<T>(
   let response: Response | undefined;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FANTASYPROS_REQUEST_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => { controller.abort(); }, FANTASYPROS_REQUEST_TIMEOUT_MS);
     try {
       response = await fetch(url, {
         headers: {

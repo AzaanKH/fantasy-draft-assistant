@@ -60,7 +60,7 @@ beforeEach(async () => {
 afterAll(async () => {
   for (const response of connections) response.destroy();
   server.closeAllConnections();
-  await new Promise<void>(done => server.close(() => done()));
+  await new Promise<void>(done => server.close(() => { done(); }));
   await rm(root, { recursive: true, force: true });
 });
 
@@ -328,7 +328,7 @@ describe('draft CLI against a local fixture server', () => {
         fixtureSnapshot({ picks: [fixturePick(1, 4)] }) })}\n\n`);
       if (streamCount === 1) response.end();
     };
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => { controller.abort(); }, 5000);
     try {
       const code = await runDraft(['watch', '--session', 'fixture', '--format', 'ndjson'], {
         stdout: text => { const event = JSON.parse(text); output.push(event);

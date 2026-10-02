@@ -32,12 +32,24 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.16.0
+        version: 9.39.2
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.6
+      eslint:
+        specifier: ^9.16.0
+        version: 9.39.2(jiti@2.6.1)
+      globals:
+        specifier: ^15.13.0
+        version: 15.15.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.18.0
+        version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^6.4.3
         version: 6.4.3(@types/node@22.19.6)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)
@@ -97,15 +109,27 @@ importers:
         specifier: ^1.49.0
         version: 1.57.0
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.16.0
+        version: 9.39.2
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.6
+      eslint:
+        specifier: ^9.16.0
+        version: 9.39.2(jiti@2.6.1)
+      globals:
+        specifier: ^15.13.0
+        version: 15.15.0
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.18.0
+        version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       vitest:
         specifier: ^4.1.0
         version: 4.1.11(@types/node@22.19.6)(jsdom@26.1.0)(msw@2.12.7(@types/node@22.19.6)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.6)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0))
@@ -116,15 +140,27 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.16.0
+        version: 9.39.2
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.6
+      eslint:
+        specifier: ^9.16.0
+        version: 9.39.2(jiti@2.6.1)
+      globals:
+        specifier: ^15.13.0
+        version: 15.15.0
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.18.0
+        version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^6.4.3
         version: 6.4.3(@types/node@22.19.6)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)
@@ -134,9 +170,21 @@ importers:
 
   shared:
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.16.0
+        version: 9.39.2
+      eslint:
+        specifier: ^9.16.0
+        version: 9.39.2(jiti@2.6.1)
+      globals:
+        specifier: ^15.13.0
+        version: 15.15.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.18.0
+        version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
 
   web-app:
     dependencies:

@@ -108,7 +108,7 @@ async function scrapeRawData(): Promise<RawRowData[]> {
     await page.waitForTimeout(1000);
 
     // Scroll back up and wait for any additional renders
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => { window.scrollTo(0, 0); });
     await page.waitForTimeout(500);
 
     console.log('Extracting player data...');
@@ -210,8 +210,8 @@ function parseECRData(rawData: RawRowData[], byeWeeks: ReadonlyMap<string, numbe
       rank,
       fantasyProsTier: row.fantasyProsTier,
       name: nameTeam.name,
-      position: normalizedPosition as Position,
-      team: normalizedTeam as NFLTeam,
+      position: normalizedPosition,
+      team: normalizedTeam,
       byeWeek,
       positionalRank: positionData.positionalRank,
       bestRank: best,
@@ -222,7 +222,7 @@ function parseECRData(rawData: RawRowData[], byeWeeks: ReadonlyMap<string, numbe
 
   if (errors.length > 0) {
     console.warn(`\nParsing warnings (${errors.length}):`);
-    errors.slice(0, 10).forEach((e) => console.warn(`  - ${e}`));
+    errors.slice(0, 10).forEach((e) => { console.warn(`  - ${e}`); });
     if (errors.length > 10) {
       console.warn(`  ... and ${errors.length - 10} more`);
     }
@@ -271,16 +271,16 @@ async function main(): Promise<void> {
     console.log(`\nData written to ${OUTPUT_FILE}`);
 
     // Summary stats
-    const positionCounts = players.reduce(
+    const positionCounts = players.reduce<Record<string, number>>(
       (acc, p) => {
         acc[p.position] = (acc[p.position] ?? 0) + 1;
         return acc;
       },
-      {} as Record<string, number>
+      {}
     );
 
     console.log('\nPosition breakdown:');
-    const entries = Object.entries(positionCounts) as Array<[string, number]>;
+    const entries = Object.entries(positionCounts);
     entries.sort((a, b) => b[1] - a[1]);
     for (const entry of entries) {
       console.log(`  ${entry[0]}: ${entry[1]}`);
@@ -291,4 +291,7 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

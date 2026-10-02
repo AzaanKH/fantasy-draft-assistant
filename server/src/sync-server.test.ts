@@ -101,7 +101,7 @@ describe('createSyncServer', () => {
       expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual(listing);
       expect(fetchCalls).toBe(3);
     } finally {
-      await new Promise<void>((resolve, reject) => server.shutdown(error => error ? reject(error) : resolve()));
+      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
     }
   });
 
@@ -123,7 +123,7 @@ describe('createSyncServer', () => {
       expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
       expect(fetchCalls).toBe(3);
     } finally {
-      await new Promise<void>((resolve, reject) => server.shutdown(error => error ? reject(error) : resolve()));
+      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
     }
   });
 
@@ -149,10 +149,10 @@ describe('createSyncServer', () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({ provider: 'sleeper', status: 'synced' });
     } finally {
-      await new Promise<void>((resolve, reject) => server.shutdown((error) => {
+      await new Promise<void>((resolve, reject) => { server.shutdown((error) => {
         if (error) reject(error);
         else resolve();
-      }));
+      }); });
     }
   });
 
@@ -175,10 +175,10 @@ describe('createSyncServer', () => {
       }
       expect(settingsRequests).toBe(2);
     } finally {
-      await new Promise<void>((resolve, reject) => server.shutdown((error) => {
+      await new Promise<void>((resolve, reject) => { server.shutdown((error) => {
         if (error) reject(error);
         else resolve();
-      }));
+      }); });
     }
   });
 
@@ -244,7 +244,7 @@ describe('createSyncServer', () => {
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as AddressInfo;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5_000);
+    const timeout = setTimeout(() => { controller.abort(); }, 5_000);
 
     try {
       const response = await fetch(
@@ -304,10 +304,10 @@ describe('createSyncServer', () => {
     } finally {
       clearTimeout(timeout);
       controller.abort();
-      await new Promise<void>((resolve, reject) => server.shutdown((error) => {
+      await new Promise<void>((resolve, reject) => { server.shutdown((error) => {
         if (error) reject(error);
         else resolve();
-      }));
+      }); });
     }
   });
 
@@ -621,7 +621,7 @@ describe('createSyncServer', () => {
     const server = createSyncServer({
       requestTimeoutMs: 5,
       fetchJson: <T>(_url: string, signal: AbortSignal) => new Promise<T>((_resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('Sleeper request timed out')));
+        signal.addEventListener('abort', () => { reject(new Error('Sleeper request timed out')); });
       }),
     });
 

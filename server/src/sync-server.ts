@@ -14,8 +14,6 @@ import {
   type DraftProvider,
   type DraftSyncSnapshot,
   type DraftSyncUpdate,
-  type EspnDraftSnapshot,
-  type ShadowRecommendationEvent,
 } from '@fantasy-draft/shared';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
 import {
@@ -47,7 +45,7 @@ const MAX_JSON_BODY_BYTES = 256 * 1024;
 
 interface ClientConnection {
   readonly id: number;
-  readonly response: ServerResponse<IncomingMessage>;
+  readonly response: ServerResponse;
 }
 
 interface SyncServerOptions {
@@ -125,7 +123,7 @@ class DraftSession {
     return snapshot;
   }
 
-  public addClient(response: ServerResponse<IncomingMessage>): number {
+  public addClient(response: ServerResponse): number {
     this.adapter?.invalidateSettings?.();
     const id = this.nextClientId++;
     this.clients.set(id, { id, response });
@@ -201,7 +199,7 @@ class DraftSession {
       return;
     }
 
-    void this.pollOnce().then(() => this.scheduleNextPoll());
+    void this.pollOnce().then(() => { this.scheduleNextPoll(); });
   }
 
   private stopPolling(): void {
@@ -222,7 +220,7 @@ class DraftSession {
     );
     this.pollTimer = setTimeout(() => {
       this.pollTimer = null;
-      void this.pollOnce().then(() => this.scheduleNextPoll());
+      void this.pollOnce().then(() => { this.scheduleNextPoll(); });
     }, failureBackoffMs);
   }
 
@@ -248,7 +246,7 @@ class DraftSession {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    const timeout = setTimeout(() => { controller.abort(); }, this.requestTimeoutMs);
 
     try {
       const adapterSnapshot = await adapter.poll(controller.signal);
@@ -300,14 +298,14 @@ class DraftSession {
     }
   }
 
-  private send(update: DraftSyncUpdate, response: ServerResponse<IncomingMessage>): void {
+  private send(update: DraftSyncUpdate, response: ServerResponse): void {
     writeBoundedEvent(response, `data: ${JSON.stringify(update)}\n\n`, this.maxBufferedBytes);
   }
 }
 
 function setCorsHeaders(
   request: IncomingMessage,
-  response: ServerResponse<IncomingMessage>,
+  response: ServerResponse,
   allowedOrigins: readonly string[]
 ): void {
   const origin = request.headers.origin;
@@ -331,7 +329,7 @@ function isAuthorizedRequest(
 
 function sendJson(
   request: IncomingMessage,
-  response: ServerResponse<IncomingMessage>,
+  response: ServerResponse,
   statusCode: number,
   payload: unknown,
   allowedOrigins: readonly string[]
@@ -345,7 +343,7 @@ function sendJson(
 
 function sendNotFound(
   request: IncomingMessage,
-  response: ServerResponse<IncomingMessage>,
+  response: ServerResponse,
   allowedOrigins: readonly string[]
 ): void {
   sendJson(request, response, 404, { error: 'Not found' }, allowedOrigins);
@@ -353,7 +351,7 @@ function sendNotFound(
 
 function sendForbidden(
   request: IncomingMessage,
-  response: ServerResponse<IncomingMessage>,
+  response: ServerResponse,
   allowedOrigins: readonly string[]
 ): void {
   sendJson(request, response, 403, { error: 'Forbidden' }, allowedOrigins);
@@ -399,7 +397,7 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let receivedBytes = 0;
 
-  for await (const chunk of request) {
+  for await (const chunk of request as AsyncIterable<Buffer | string>) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     receivedBytes += buffer.length;
     if (receivedBytes > MAX_JSON_BODY_BYTES) {
@@ -507,7 +505,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
 
   async function handleRequest(
     request: IncomingMessage,
-    response: ServerResponse<IncomingMessage>
+    response: ServerResponse
   ): Promise<void> {
     if (!request.url || !request.method) {
       sendNotFound(request, response, allowedOrigins);
@@ -615,7 +613,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       }
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+      const timeout = setTimeout(() => { controller.abort(); }, requestTimeoutMs);
       try {
         const snapshot = await marketAdpProvider.getSnapshot(
           format,
@@ -648,7 +646,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         return;
       }
 
-      const shadowEvent = event as ShadowRecommendationEvent;
+      const shadowEvent = event;
       try {
         const eventId = shadowEvent.eventId;
         const recorded = await shadowLogger.record(shadowEvent);
@@ -720,7 +718,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
-      const espnPayload = payload as EspnDraftSnapshot;
+      const espnPayload = payload;
       if (espnPayload.draft.draftId !== route.draftId) {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
