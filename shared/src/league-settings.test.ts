@@ -5,7 +5,7 @@ import {
   MAX_ROSTER_SPOTS,
   type RosterRequirements,
   type SleeperLeague,
-} from '@fantasy-draft/shared';
+} from './index.js';
 
 function createLeague(overrides: Partial<SleeperLeague> = {}): SleeperLeague {
   return {
