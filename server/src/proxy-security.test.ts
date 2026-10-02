@@ -42,7 +42,7 @@ afterAll(async () => {
   await vite?.close();
   if (backend) {
     backend.closeAllConnections();
-    await new Promise<void>(resolve => backend.shutdown(() => resolve()));
+    await new Promise<void>(resolve => { backend.shutdown(() => { resolve(); }); });
   }
 });
 

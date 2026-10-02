@@ -21,7 +21,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   for (const server of servers.splice(0)) {
     server.closeAllConnections();
-    await new Promise<void>((resolve, reject) => server.shutdown(error => error ? reject(error) : resolve()));
+    await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
   }
 });
 

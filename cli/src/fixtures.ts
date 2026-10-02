@@ -12,7 +12,7 @@ export function fixturePick(pickNumber: number, playerNumber: number, overrides:
   return { draftId: 'fixture', pickNumber, round: Math.ceil(pickNumber / 10),
     rosterId: pickNumber, draftSlot: pickNumber, teamIndex: pickNumber - 1,
     playerId: `p${String(playerNumber)}`, playerName: `Player ${String(playerNumber)}`,
-    position: positions[(playerNumber - 1) % positions.length]!, nflTeam: 'DET', isKeeper: false,
+    position: positions[(playerNumber - 1) % positions.length] ?? 'RB', nflTeam: 'DET', isKeeper: false,
     source: 'sleeper-api', confidence: 'confirmed', observedAt: FIXTURE_NOW, ...overrides };
 }
 
@@ -28,14 +28,14 @@ export function fixtureSnapshot(overrides: Partial<DraftSyncSnapshot> = {}): Dra
 export async function writeFixtureData(root: string): Promise<void> {
   const rankings = Array.from({ length: 350 }, (_, index) => ({
     fantasyProsId: `fp${String(index + 1)}`, rank: index + 1, name: `Player ${String(index + 1)}`,
-    position: positions[index % positions.length]!, team: 'DET', byeWeek: 5,
+    position: positions[index % positions.length] ?? 'RB', team: 'DET', byeWeek: 5,
     positionalRank: Math.floor(index / positions.length) + 1,
     bestRank: index + 1, worstRank: index + 1, avgRank: index + 1,
   }));
   const identities = Array.from({ length: 850 }, (_, index) => ({
     canonicalId: `p${String(index + 1)}`, fantasyProsId: `fp${String(index + 1)}`,
     sleeperId: `p${String(index + 1)}`, name: `Player ${String(index + 1)}`,
-    aliases: [], position: positions[index % positions.length]!, team: 'DET',
+    aliases: [], position: positions[index % positions.length] ?? 'RB', team: 'DET',
   }));
   const artifacts = {
     'data/fantasypros-snapshot.json': { metadata: { season: 2026, sourceType: 'manual-refresh',

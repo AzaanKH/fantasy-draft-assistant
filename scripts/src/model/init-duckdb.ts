@@ -45,7 +45,7 @@ async function main(): Promise<void> {
   const teamEnvironment = await readJsonFile<TeamEnvironmentJson>(MODEL_PATHS.teamEnvironmentJson);
   const hasContracts = (contracts.players?.length ?? 0) > 0;
   const teamEnvironmentValues = (
-    Object.values(teamEnvironment.teams) as Array<TeamEnvironmentJson['teams'][string]>
+    Object.values(teamEnvironment.teams)
   )
     .map(
       (team) =>

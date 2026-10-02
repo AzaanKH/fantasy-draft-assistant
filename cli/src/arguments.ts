@@ -169,7 +169,7 @@ export function parseArguments(argv: readonly string[], env: NodeJS.ProcessEnv, 
   return {
     command: typedCommand, session,
     slot: integer(values.slot ?? env.DRAFT_SLOT ?? (saved?.slot === undefined ? undefined : String(saved.slot)), '--slot', 32), json: values.json ?? false,
-    position: position as Position | undefined, available: values.available ?? false,
+    position: position, available: values.available ?? false,
     search: values.search, lens: (values.lens ?? 'best-pick') as DecisionLens,
     limit: integer(values.limit, '--limit', 1280), playerIds, serverUrl: url.origin,
     outputFile: values.out, replayFile, pick: integer(values.pick, '--pick', 1281), force: values.force ?? false,

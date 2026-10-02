@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Position } from '@fantasy-draft/shared';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -97,10 +97,10 @@ async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, 'utf8')) as T;
 }
 
-async function readOptionalJson<T>(path: string): Promise<T | null> {
+export async function readOptionalJson<T>(path: string): Promise<T | null> {
   try {
     await access(path);
-    return readJson<T>(path);
+    return await readJson<T>(path);
   } catch {
     return null;
   }
@@ -110,7 +110,7 @@ function markdownTable(headers: readonly string[], rows: readonly (readonly unkn
   return [
     `| ${headers.join(' | ')} |`,
     `| ${headers.map(() => '---').join(' | ')} |`,
-    ...rows.map((row) => `| ${row.map((value) => String(value ?? '-')).join(' | ')} |`),
+    ...rows.map((row) => `| ${row.map((value) => value === null || value === undefined ? '-' : String(value as string | number | boolean)).join(' | ')} |`),
   ].join('\n');
 }
 
@@ -295,7 +295,10 @@ ${report.draftDayChecklist.map((item) => `- ${item}`).join('\n')}
   console.log(`Draft prep Markdown written to ${MARKDOWN_OUTPUT}`);
 }
 
-main().catch((error: unknown) => {
-  console.error('Draft prep report generation failed:', error);
-  process.exit(1);
-});
+const entryPoint = process.argv[1];
+if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
+  main().catch((error: unknown) => {
+    console.error('Draft prep report generation failed:', error);
+    process.exit(1);
+  });
+}

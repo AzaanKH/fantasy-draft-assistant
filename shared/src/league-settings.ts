@@ -1,10 +1,10 @@
-import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits';
+import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   type RosterRequirements,
-} from './draft';
-import { isPosition, type Position } from './player';
-import { DEFAULT_SCORING_RULES, type ScoringRules } from './scoring';
+} from './draft.js';
+import { isPosition, type Position } from './player.js';
+import { DEFAULT_SCORING_RULES, type ScoringRules } from './scoring.js';
 
 export type LeagueSettingsSource = 'default' | 'sleeper' | 'espn';
 

@@ -1,4 +1,4 @@
-import { isNFLTeam, isPosition, type NFLTeam, type Position } from './player';
+import { isNFLTeam, isPosition, type NFLTeam, type Position } from './player.js';
 
 export const MARKET_ADP_FORMATS = ['standard', 'half-ppr', 'ppr'] as const;
 export type MarketAdpFormat = (typeof MARKET_ADP_FORMATS)[number];

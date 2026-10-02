@@ -95,7 +95,7 @@ function getDraftRounds(settings: Record<string, unknown>): number {
   }
 
   const nonDraftedPositions = new Set(['IR', 'IR+', 'IL', 'IL+', 'NA']);
-  const rounds = positions.reduce((total, entry) => {
+  const rounds = (positions as unknown[]).reduce<number>((total, entry) => {
     if (!isRecord(entry)) return total;
     const position = getString(entry.position)?.toUpperCase();
     const count = getNumber(entry.count);
