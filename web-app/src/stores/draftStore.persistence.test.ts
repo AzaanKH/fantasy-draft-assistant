@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, type ProvisionalPickInput, type SyncedImportedPick } from './draftStore';
 import {
+  DRAFT_SESSION_LINEAGE_LIMIT,
   getDraftSessionStorageKey,
   parseStoredDraftSession,
   type DraftSessionIdentity,
@@ -317,6 +318,48 @@ describe('durable draft sessions', () => {
       expect(state.decisionLens).toBe('best-player');
       expect(state.shortlistedPlayerIds).toEqual(['queued']);
     }
+  });
+
+  it('does not replay a save that dropped out of the lineage after later saves built on it', () => {
+    const storage = memoryStorage();
+    const tabA = openSession(storage);
+    const tabB = openSession(storage);
+
+    tabA.getState().togglePlayerShortlisted('queued');
+    // Tab A stays dormant while tab B saves more times than the lineage keeps.
+    for (let index = 0; index <= DRAFT_SESSION_LINEAGE_LIMIT; index += 1) {
+      tabB.getState().setDecisionLens(index % 2 === 0 ? 'best-player' : 'best-pick');
+    }
+    tabA.getState().setDecisionLens('best-player');
+
+    for (const state of [tabA.getState(), createDraftStore({ storage, session: identity }).getState()]) {
+      expect(state.shortlistedPlayerIds).toEqual(['queued']);
+    }
+  });
+
+  it('reports only the reconciliation attempt that was saved after a conflict', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let racingReads: number | null = null;
+    const tabA = openSession({
+      ...storage,
+      getItem: vi.fn((storedKey: string) => {
+        // Before A saves, tab B applies newer provider history that picked someone else.
+        if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
+          tabB.getState().reconcileSyncedPicks([official(1, 'other')], 2, [], 200);
+        }
+        return storage.getItem(storedKey);
+      }),
+    });
+    const tabB = openSession(storage);
+    tabA.getState().recordProvisionalPick(pick(1, 'observed'));
+    racingReads = 0;
+
+    const result = tabA.getState().reconcileSyncedPicks([official(1, 'observed')], 2, [], 100);
+
+    expect(result.changed).toBe(false);
+    expect(result.confirmations).toEqual([]);
+    expect(tabA.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['other']);
   });
 
   it('restores the draft type and treats sessions saved before draft types as snake drafts', () => {

@@ -103,14 +103,17 @@ export function createReconciliationActions(
 > {
   return {
     reconcileSyncedPicks: (incomingPicks, nextPickNumber, unresolvedPicks = [], confirmedAt) => {
-      let result: DraftReconciliationResult = {
+      const unchanged: DraftReconciliationResult = {
         changed: false,
         confirmations: [],
         corrections: [],
         removals: [],
         unresolvedIdentities: [],
       };
+      let result = unchanged;
       set((state) => {
+        // A save conflict retries this on a newer session; report only the final attempt.
+        result = unchanged;
         if (confirmedAt !== undefined && (!Number.isFinite(confirmedAt) || confirmedAt < 0 ||
             (state.lastConfirmedSyncAt !== null && confirmedAt < state.lastConfirmedSyncAt))) return;
         // An old cached history must not erase observations restored after an outage.

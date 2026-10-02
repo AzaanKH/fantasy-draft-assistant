@@ -97,7 +97,11 @@ export function createDraftStore({
   const persistence: DraftSessionPersistence = { base: EMPTY_DRAFT_SESSION_BASE };
   // This tab's saves not yet built on by another tab. One missing from the stored
   // lineage was overwritten by a concurrent save, so its changes are reapplied.
-  let unconfirmedWrites: { readonly writeId: string; readonly transitions: readonly DraftTransition[] }[] = [];
+  let unconfirmedWrites: {
+    readonly writeId: string;
+    readonly revision: number;
+    readonly transitions: readonly DraftTransition[];
+  }[] = [];
   let adoptingSavedSession = false;
   let pendingTransitions: readonly DraftTransition[] = [];
   let forceSave = false;
@@ -214,7 +218,7 @@ export function createDraftStore({
       persistence.base = result.base;
       unconfirmedWrites = [
         ...unconfirmedWrites,
-        { writeId: result.writeId, transitions: pendingTransitions },
+        { writeId: result.writeId, revision: result.base.revision, transitions: pendingTransitions },
       ].slice(-DRAFT_SESSION_LINEAGE_LIMIT);
     }
     return true;
@@ -243,7 +247,12 @@ export function createDraftStore({
       // An unreadable entry is overwritten by the next save.
       if (!saved) return;
       const builtOn = new Set(saved.lineage);
-      const overwritten = unconfirmedWrites.filter((write) => !builtOn.has(write.writeId));
+      // The lineage covers only recent revisions. An older write dropped out of it after
+      // later saves built on it, so replaying it would undo edits like a queue toggle.
+      const oldestCoveredRevision = saved.revision - saved.lineage.length + 1;
+      const overwritten = unconfirmedWrites.filter(
+        (write) => write.revision >= oldestCoveredRevision && !builtOn.has(write.writeId)
+      );
       unconfirmedWrites = overwritten;
       adoptSavedSession(saved, serialized);
       if (overwritten.length === 0) return;
@@ -262,7 +271,7 @@ export function createDraftStore({
       try {
         if (saveSession(store.getState())) return;
         // Never written, so the next pass reapplies these changes again.
-        unconfirmedWrites = [{ writeId: '', transitions }];
+        unconfirmedWrites = [{ writeId: '', revision: Number.POSITIVE_INFINITY, transitions }];
       } finally {
         pendingTransitions = [];
         forceSave = false;
