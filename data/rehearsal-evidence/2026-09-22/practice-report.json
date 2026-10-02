@@ -36,5 +36,10 @@
     "The practice draft uses 15 rounds, a 120-second timer, and no provider keepers; the designated league uses 14 rounds, a 60-second timer, and 10 keepers.",
     "The signed-in Safari draft was visible, but computer-use clicks to choose a player failed during the live pick clock. The assistant did not submit an official pick.",
     "The connected draft reached completion, but no conflicting or extra provisional pick was recorded during the outage."
-  ]
+  ],
+  "completedProviderSnapshot": {
+    "path": "data/rehearsal-evidence/2026-09-22/practice-completed-provider-snapshot.json",
+    "capturedAt": "2026-10-02T03:18:00Z",
+    "note": "Retrieved after the rehearsal to verify the final provider pick counts."
+  }
 }
