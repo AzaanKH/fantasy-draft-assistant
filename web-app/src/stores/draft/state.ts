@@ -155,7 +155,8 @@ export function rebuildAfterProvisionalChange(state: Pick<
   const effectiveKeepers = getEffectiveKeeperAssignments(
     state.preloadedKeepers,
     state.draftHistory,
-    state.config.totalTeams
+    state.config.totalTeams,
+    state.config.draftType
   );
   state.draftedPlayerIds = new Set([
     ...state.draftHistory.map((pick) => pick.playerId),

@@ -71,6 +71,7 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
   const lastConfirmedSyncAt = useDraftStore((state) => state.lastConfirmedSyncAt);
   const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
   const totalTeams = useDraftStore((state) => state.config.totalTeams);
+  const configuredDraftType = useDraftStore((state) => state.config.draftType);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const setConfig = useDraftStore((state) => state.setConfig);
   const applyLeagueSettings = useDraftStore((state) => state.applyLeagueSettings);
@@ -101,7 +102,7 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
 
   const pickHistory = snapshot?.picks;
   const draftSettings = snapshot?.draft?.settings;
-  const draftType = snapshot?.draft?.type;
+  const draftType = snapshot?.draft?.type ?? configuredDraftType;
 
   const importResult = useMemo(() => {
     if (!pickHistory || isPlayerDataLoading) {

@@ -391,9 +391,10 @@ export function DraftBoard({
     () => getEffectiveKeeperAssignments(
       preloadedKeepers,
       draftHistory,
-      config.totalTeams
+      config.totalTeams,
+      config.draftType
     ),
-    [config.totalTeams, draftHistory, preloadedKeepers]
+    [config.totalTeams, config.draftType, draftHistory, preloadedKeepers]
   );
 
   const playersById = React.useMemo(

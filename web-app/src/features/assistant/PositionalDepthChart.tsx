@@ -120,9 +120,9 @@ export default function PositionalDepthChart({ needs }: {
   const detailId = useId();
   const available = useMemo(() => {
     const excluded = new Set([...draftedIds, ...history.map((pick) => pick.playerId),
-      ...getEffectiveKeeperAssignments(keepers, history, config.totalTeams).map((keeper) => keeper.playerId)]);
+      ...getEffectiveKeeperAssignments(keepers, history, config.totalTeams, config.draftType).map((keeper) => keeper.playerId)]);
     return getAvailableDepthPlayers(players, excluded);
-  }, [players, draftedIds, history, keepers, config.totalTeams]);
+  }, [players, draftedIds, history, keepers, config.totalTeams, config.draftType]);
   const positions = POSITIONS.filter((position) => config.rosterRequirements[position].starters > 0 ||
     (config.rosterRequirements.FLEX.starters > 0 && config.rosterRequirements.FLEX.eligiblePositions.includes(position)));
   const secondary = positions.filter((position) => (position === 'K' || position === 'DEF') &&

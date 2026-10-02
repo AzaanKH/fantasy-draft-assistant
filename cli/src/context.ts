@@ -53,6 +53,7 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
   const totalRounds = draft?.settings.rounds ?? 0;
   const totalPicks = totalTeams * totalRounds;
   const settings = connectedSettings(snapshot, now);
+  const draftType = draft?.type ?? 'snake';
   const imports = resolveDraftPickImports(snapshot.picks, data?.players ?? [], slot ?? 0);
   const keeperSupplyReady = data !== null && settings.keepersEnabled !== false && isKeeperSupplyComplete({
     keepersEnabled: settings.keepersEnabled, season: data.keeperStatus.season,
@@ -62,7 +63,7 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
     unresolvedNames: data.keeperStatus.unresolvedNames, duplicateNames: data.keeperStatus.duplicateNames,
     invalidAssignments: data.keeperStatus.invalidAssignments,
   });
-  const effectiveKeepers = getEffectiveKeeperAssignments(keeperSupplyReady ? data.keepers : [], imports.picks, totalTeams, draft?.type);
+  const effectiveKeepers = getEffectiveKeeperAssignments(keeperSupplyReady ? data.keepers : [], imports.picks, totalTeams, draftType);
   const filled = new Set([...snapshot.picks, ...effectiveKeepers].map(pick => pick.pickNumber));
   const currentPick = draft ? draft.status === 'complete' ? totalPicks + 1
     : getNextOpenPickNumber([...snapshot.picks, ...effectiveKeepers], totalPicks) : null;
