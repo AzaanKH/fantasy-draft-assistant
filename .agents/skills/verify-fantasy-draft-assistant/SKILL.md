@@ -15,7 +15,7 @@ From the repository root, run:
 .agents/skills/verify-fantasy-draft-assistant/helpers/control.py start
 ```
 
-The command prints a `run_id`, the URL, and the evidence directory. Set `RUN_ID` to that printed ID and `EVIDENCE` to the printed directory for the commands below. It copies the current checkout, including uncommitted source and `.env.local`, into a private temporary directory; installs locked dependencies there; builds the shared package and CLI with `pnpm build:cli`; then runs the documented `pnpm dev:live`. The live preflight refreshes Sleeper and FantasyPros inputs and writes reports only in the copy. `FANTASYPROS_API_KEY` in `.env.local` is optional because the refresh has a documented fallback. The copied server creates its own pairing token in `.local/sync-token`. No provider login is needed for the local mock or queue paths.
+The command prints a `run_id`, the URL, and the evidence directory. Set `RUN_ID` to that printed ID, `RUN_URL` to the printed URL, and `EVIDENCE` to the printed directory for the commands below. It copies the current checkout, including uncommitted source, into a private temporary directory, excluding `.env` and `.env.local` before installing locked dependencies, building the shared package and CLI with `pnpm build:cli`, and running the documented `pnpm dev:live`. The live preflight refreshes Sleeper and FantasyPros inputs and writes reports only in the copy. The helper removes inherited `FANTASYPROS_API_KEY` from setup and CLI commands and, by default, app startup. The refresh has a documented fallback without this optional key. Only for trusted code, export `FANTASYPROS_API_KEY` and use `start --trusted-credentials` to pass it to the live app run. Never supply credentials when verifying untrusted changes. The copied server creates its own pairing token in `.local/sync-token`. No provider login is needed for the local mock or queue paths.
 
 The everyday app defaults to 3000/3001. Verification defaults to 3100/3101, set together with `DRAFT_WEB_PORT` and `DRAFT_API_PORT`. Override verification with `start --web-port 3200 --api-port 3201`. The helper checks only the requested pair, refuses occupied ports, and never attaches to an existing instance. It waits for `/draft` and `/api/health` to return HTTP 200. The copy keeps the checked-out app's data files, while the printed `browser_profile` is a fresh private directory for the extension browser. The test origin also separates web localStorage and IndexedDB from the everyday app. Ports alone do not isolate cookies or extension storage, so extension checks must use this private profile. If package installation, live refresh, or readiness fails, read `setup.log` or `app.log` in the printed evidence directory. The helper removes a failed copy automatically.
 
@@ -44,7 +44,7 @@ Use T3 Code's collaborative preview when available. Call `preview_status`, then 
 If T3 preview tools are absent or explicitly unavailable, use `agent-browser` with this run's ID:
 
 ```bash
-agent-browser --session "$RUN_ID" open http://127.0.0.1:3100/draft
+agent-browser --session "$RUN_ID" open "$RUN_URL"
 agent-browser --session "$RUN_ID" snapshot -i
 ```
 

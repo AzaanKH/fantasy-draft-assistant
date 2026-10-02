@@ -87,7 +87,7 @@ def remove_copy(state: dict) -> None:
 def cli_environment(copy: Path) -> dict[str, str]:
     env = os.environ.copy()
     for name in tuple(env):
-        if name.startswith("DRAFT_") or name == "SYNC_REQUEST_TOKEN":
+        if name.startswith("DRAFT_") or name in ("SYNC_REQUEST_TOKEN", "FANTASYPROS_API_KEY"):
             env.pop(name)
     env["DRAFT_ROOT"] = str(copy)
     return env
@@ -98,7 +98,8 @@ def run_ports(state: dict) -> tuple[int, int]:
     return state.get("web_port", 3000), state.get("api_port", 3001)
 
 
-def start(offline: bool = False, web_port: int = 3100, api_port: int = 3101) -> None:
+def start(offline: bool = False, web_port: int = 3100, api_port: int = 3101,
+          trusted_credentials: bool = False) -> None:
     if not all(1 <= port <= 65535 for port in (web_port, api_port)) or web_port == api_port:
         raise ValueError("Use two different ports from 1 to 65535")
     occupied = {} if offline else {port: sorted(listener_pids(port)) for port in (web_port, api_port) if listener_pids(port)}
@@ -120,15 +121,16 @@ def start(offline: bool = False, web_port: int = 3100, api_port: int = 3101) -> 
         with (evidence / "setup.log").open("w") as setup_log:
             subprocess.run([
                 "rsync", "-a", "--exclude=.git", "--exclude=node_modules",
-                "--exclude=dist", "--exclude=*.tsbuildinfo", "--exclude=.local", "--exclude=artifacts",
+                "--exclude=dist", "--exclude=*.tsbuildinfo", "--exclude=.local",
+                "--exclude=.env", "--exclude=.env.local", "--exclude=artifacts",
                 "--exclude=tmp", "--exclude=temp", f"{ROOT}/", str(copy),
             ], stdout=setup_log, stderr=subprocess.STDOUT, check=True)
             subprocess.run(
                 ["pnpm", "install", "--frozen-lockfile", "--prefer-offline"],
-                cwd=copy, stdout=setup_log, stderr=subprocess.STDOUT, check=True,
+                cwd=copy, env=cli_environment(copy), stdout=setup_log, stderr=subprocess.STDOUT, check=True,
             )
             subprocess.run(
-                ["pnpm", "build:cli"], cwd=copy,
+                ["pnpm", "build:cli"], cwd=copy, env=cli_environment(copy),
                 stdout=setup_log, stderr=subprocess.STDOUT, check=True,
             )
         if offline:
@@ -138,6 +140,8 @@ def start(offline: bool = False, web_port: int = 3100, api_port: int = 3101) -> 
                               "evidence": str(evidence)}))
             return
         env = cli_environment(copy)
+        if trusted_credentials and "FANTASYPROS_API_KEY" in os.environ:
+            env["FANTASYPROS_API_KEY"] = os.environ["FANTASYPROS_API_KEY"]
         for name in ("PORT", "SYNC_ALLOWED_ORIGINS"):
             env.pop(name, None)
         env.update(DRAFT_WEB_PORT=str(web_port), DRAFT_API_PORT=str(api_port))
@@ -220,6 +224,9 @@ def doctor(run_id: str, output=None) -> None:
 
 def stop(run_id: str) -> None:
     state = read_state(run_id)
+    if state.get("status") == "stopped":
+        print(f"{run_id} is already stopped; evidence retained at {state_path(run_id).parent}")
+        return
     try:
         if state.get("mode") != "offline" and shutil.which("agent-browser"):
             subprocess.run(["agent-browser", "--session", run_id, "close"], timeout=15,
@@ -230,7 +237,7 @@ def stop(run_id: str) -> None:
         stop_process({"pid": state.get("browser_pid")})
         stop_process(state)
         remove_copy(state)
-    state["status"] = "stopped"
+    state.update(status="stopped", pid=None, browser_pid=None)
     save_state(state)
     print(f"Stopped {run_id}; evidence retained at {state_path(run_id).parent}")
 
@@ -291,16 +298,20 @@ def main() -> None:
     parser.add_argument("command", choices=("start", "doctor", "stop", "cli", "extension-browser"))
     parser.add_argument("run_id", nargs="?", help="ID printed by start")
     parser.add_argument("--offline", action="store_true", help="Build an isolated CLI without starting or contacting servers")
+    parser.add_argument("--trusted-credentials", action="store_true",
+                        help="Pass the environment's FANTASYPROS_API_KEY to app startup only for trusted code")
     parser.add_argument("--web-port", type=int, default=DEFAULT_PORTS[0])
     parser.add_argument("--api-port", type=int, default=DEFAULT_PORTS[1])
     parser.add_argument("--browser-executable", help="Chromium/Chrome for Testing executable for extension-browser")
     args = parser.parse_args()
     if args.offline and args.command != "start":
         parser.error("--offline is only supported by start")
+    if args.trusted_credentials and (args.command != "start" or args.offline):
+        parser.error("--trusted-credentials is only supported by app start")
     if args.command == "start":
         if args.run_id:
             parser.error("start takes no run ID")
-        start(args.offline, args.web_port, args.api_port)
+        start(args.offline, args.web_port, args.api_port, args.trusted_credentials)
     elif not args.run_id:
         parser.error(f"{args.command} requires the run ID printed by start")
     elif args.command == "doctor":

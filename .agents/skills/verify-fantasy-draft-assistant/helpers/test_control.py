@@ -17,10 +17,11 @@ class CliIsolationTests(unittest.TestCase):
     def test_environment_does_not_inherit_connection_or_credentials(self):
         with patch.dict(os.environ, {"DRAFT_ROOT": "/user", "DRAFT_SLOT": "9",
                                     "DRAFT_SESSION": "sleeper:user", "DRAFT_SERVER_URL": "http://localhost:9999",
-                                    "SYNC_REQUEST_TOKEN": "secret"}):
+                                    "SYNC_REQUEST_TOKEN": "secret", "FANTASYPROS_API_KEY": "provider-secret"}):
             env = control.cli_environment(Path("/private/checkout"))
         self.assertEqual(env["DRAFT_ROOT"], "/private/checkout")
         self.assertNotIn("SYNC_REQUEST_TOKEN", env)
+        self.assertNotIn("FANTASYPROS_API_KEY", env)
         self.assertEqual([key for key in env if key.startswith("DRAFT_")], ["DRAFT_ROOT"])
 
     def test_offline_rejects_connected_commands_before_execution(self):
@@ -77,6 +78,69 @@ class CliIsolationTests(unittest.TestCase):
             self.assertEqual({call.args[0] for call in listeners.call_args_list}, {3100, 3101})
             run.assert_not_called()
 
+    def test_start_excludes_credentials_before_executing_checkout_code(self):
+        subprocess_run = subprocess.run
+        subprocess_popen = subprocess.Popen
+        for offline, trusted in ((True, False), (False, False), (False, True)):
+            with self.subTest(offline=offline, trusted=trusted), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / "source"
+                root.mkdir()
+                for name in (".env", ".env.local", ".env.example", "package.json"):
+                    (root / name).write_text("fixture")
+
+                def check_copy(copy):
+                    self.assertFalse((copy / ".env").exists())
+                    self.assertFalse((copy / ".env.local").exists())
+                    self.assertTrue((copy / ".env.example").is_file())
+                    self.assertTrue((copy / "package.json").is_file())
+
+                def setup_command(argv, **kwargs):
+                    if argv[0] == "rsync":
+                        with patch.object(control.subprocess, "Popen", subprocess_popen):
+                            return subprocess_run(argv, **kwargs)
+                    check_copy(kwargs["cwd"])
+                    self.assertNotIn("FANTASYPROS_API_KEY", kwargs["env"])
+                    return subprocess.CompletedProcess(argv, 0)
+
+                with patch.object(control, "ROOT", root), \
+                        patch.object(control, "EVIDENCE_ROOT", Path(directory) / "evidence"), \
+                        patch.dict(os.environ, {"FANTASYPROS_API_KEY": "provider-secret"}), \
+                        patch.object(control, "listener_pids", return_value=set()), \
+                        patch.object(control.subprocess, "run", side_effect=setup_command) as run, \
+                        patch.object(control.subprocess, "Popen") as popen, \
+                        patch.object(control, "fetch", return_value=(200, "Fantasy Draft Assistant")), \
+                        patch.object(control, "stop_process"), \
+                        patch.object(control.shutil, "which", return_value=None), \
+                        contextlib.redirect_stdout(io.StringIO()) as output:
+                    popen.return_value.pid = 123
+                    popen.return_value.poll.return_value = None
+                    control.start(offline=offline, trusted_credentials=trusted)
+                    state = json.loads(output.getvalue())
+                    try:
+                        check_copy(Path(state["copy"]))
+                        self.assertEqual([call.args[0][1] for call in run.call_args_list if call.args[0][0] == "pnpm"],
+                                         ["install", "build:cli"])
+                        if offline:
+                            popen.assert_not_called()
+                        else:
+                            self.assertEqual(popen.call_args.kwargs["env"].get("FANTASYPROS_API_KEY"),
+                                             "provider-secret" if trusted else None)
+                    finally:
+                        control.stop(state["run_id"])
+
+    def test_stop_already_stopped_does_not_attempt_cleanup(self):
+        state = {"status": "stopped", "pid": 123, "browser_pid": 456}
+        with patch.object(control, "read_state", return_value=state), \
+                patch.object(control.shutil, "which") as which, \
+                patch.object(control.subprocess, "run") as run, \
+                patch.object(control, "stop_process") as stop_process, \
+                patch.object(control, "remove_copy") as remove_copy, \
+                patch.object(control, "save_state") as save_state, \
+                contextlib.redirect_stdout(io.StringIO()):
+            control.stop("fda-test")
+            for cleanup in (which, run, stop_process, remove_copy, save_state):
+                cleanup.assert_not_called()
+
     def test_stop_without_browser_preserves_evidence(self):
         with tempfile.TemporaryDirectory() as evidence, tempfile.TemporaryDirectory(prefix="fda-verify-") as directory:
             copy = Path(directory) / "checkout"
@@ -111,6 +175,8 @@ class CliIsolationTests(unittest.TestCase):
                     patch.object(control.shutil, "which", return_value=None), \
                     contextlib.redirect_stdout(io.StringIO()):
                 popen.return_value.pid = 456
+                stopped_pids = []
+                stop_process.side_effect = lambda state: stopped_pids.append(state.get("pid"))
                 control.save_state(state)
                 control.extension_browser("fda-test", str(executable))
                 args = popen.call_args.args[0]
@@ -120,7 +186,13 @@ class CliIsolationTests(unittest.TestCase):
                 self.assertTrue(popen.call_args.kwargs["start_new_session"])
                 self.assertEqual(control.read_state("fda-test")["browser_pid"], 456)
                 control.stop("fda-test")
-                self.assertEqual([call.args[0]["pid"] for call in stop_process.call_args_list], [456, 123])
+                self.assertEqual(stopped_pids, [456, 123])
+                stopped = control.read_state("fda-test")
+                self.assertEqual(stopped["status"], "stopped")
+                self.assertIsNone(stopped["pid"])
+                self.assertIsNone(stopped["browser_pid"])
+                control.stop("fda-test")
+                self.assertEqual(stop_process.call_count, 2)
                 self.assertFalse(profile.exists())
                 self.assertTrue((Path(evidence) / "fda-test" / "extension-browser.log").exists())
 
