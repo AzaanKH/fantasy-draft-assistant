@@ -1,173 +1,228 @@
 {
-  "generatedAt": "2026-08-31T01:34:38.535Z",
+  "generatedAt": "2026-09-26T17:26:38.847Z",
   "budgets": {
-    "jsGzipBytes": 204800,
+    "jsGzipBytes": 393216,
     "cssGzipBytes": 20480,
-    "staticOutputBytes": 5242880
+    "staticOutputBytes": 9437184
   },
   "totals": {
-    "jsGzipBytes": 187278,
-    "cssGzipBytes": 17052,
-    "staticOutputBytes": 4649387
+    "jsGzipBytes": 380123,
+    "cssGzipBytes": 19196,
+    "staticOutputBytes": 8574783
   },
   "prohibitedPaths": [],
   "passed": true,
   "assets": [
     {
-      "file": "App-tqxu3sLe.js",
-      "type": "js",
-      "rawBytes": 234257,
-      "gzipBytes": 69376,
-      "brotliBytes": 58535
-    },
-    {
-      "file": "AssistantPage-W7OeBv-q.js",
-      "type": "js",
-      "rawBytes": 42363,
-      "gzipBytes": 11460,
-      "brotliBytes": 10135
-    },
-    {
-      "file": "DraftGlossary-mJXrz4WO.js",
-      "type": "js",
-      "rawBytes": 2839,
-      "gzipBytes": 1422,
-      "brotliBytes": 1144
-    },
-    {
-      "file": "DraftQueuePanel-Bef991nK.js",
-      "type": "js",
-      "rawBytes": 2538,
-      "gzipBytes": 1192,
-      "brotliBytes": 1052
-    },
-    {
-      "file": "DraftRosterPanel-BmSRaBNL.js",
-      "type": "js",
-      "rawBytes": 1928,
-      "gzipBytes": 851,
-      "brotliBytes": 762
-    },
-    {
-      "file": "DraftSuggestions-C-Q4Lb0w.js",
-      "type": "js",
-      "rawBytes": 2712,
-      "gzipBytes": 1172,
-      "brotliBytes": 1050
-    },
-    {
-      "file": "ProviderIdentityBlockedNotice-D167nz_r.js",
-      "type": "js",
-      "rawBytes": 4318,
-      "gzipBytes": 1530,
-      "brotliBytes": 1328
-    },
-    {
-      "file": "RosterSettings-C0BX6ZMu.js",
-      "type": "js",
-      "rawBytes": 2803,
-      "gzipBytes": 1127,
-      "brotliBytes": 984
-    },
-    {
-      "file": "SidePanelPage-dRbRHKhx.js",
-      "type": "js",
-      "rawBytes": 26402,
-      "gzipBytes": 7228,
-      "brotliBytes": 6445
-    },
-    {
-      "file": "draftSyncStore-BpUp2bfS.js",
-      "type": "js",
-      "rawBytes": 2214,
-      "gzipBytes": 934,
-      "brotliBytes": 831
-    },
-    {
-      "file": "index-0Z-qz_uU.css",
+      "file": "App-CwzyNr94.css",
       "type": "css",
-      "rawBytes": 109070,
-      "gzipBytes": 17052,
-      "brotliBytes": 13323
+      "rawBytes": 5622,
+      "gzipBytes": 1714,
+      "brotliBytes": 1453
     },
     {
-      "file": "index-BhO-rBAH.js",
+      "file": "App-DDrID-Qo.js",
       "type": "js",
-      "rawBytes": 286322,
-      "gzipBytes": 90986,
-      "brotliBytes": 79841
+      "rawBytes": 257441,
+      "gzipBytes": 76782,
+      "brotliBytes": 64105
+    },
+    {
+      "file": "AssistantPage-B95ov6vh.js",
+      "type": "js",
+      "rawBytes": 44921,
+      "gzipBytes": 12914,
+      "brotliBytes": 11434
+    },
+    {
+      "file": "DraftGlossary-CSmsLBAZ.js",
+      "type": "js",
+      "rawBytes": 2812,
+      "gzipBytes": 1406,
+      "brotliBytes": 1124
+    },
+    {
+      "file": "DraftQueuePanel-Bfwb7jLn.js",
+      "type": "js",
+      "rawBytes": 2492,
+      "gzipBytes": 1171,
+      "brotliBytes": 1028
+    },
+    {
+      "file": "DraftRosterPanel-BYQ6nyNK.js",
+      "type": "js",
+      "rawBytes": 1896,
+      "gzipBytes": 837,
+      "brotliBytes": 744
+    },
+    {
+      "file": "DraftSuggestions-qKdXBKfk.js",
+      "type": "js",
+      "rawBytes": 2675,
+      "gzipBytes": 1156,
+      "brotliBytes": 1025
+    },
+    {
+      "file": "LeagueSetupDialog-JGV3inxU.js",
+      "type": "js",
+      "rawBytes": 5380,
+      "gzipBytes": 2058,
+      "brotliBytes": 1789
+    },
+    {
+      "file": "PlayerPointCharts-BDqxXbcA.js",
+      "type": "js",
+      "rawBytes": 7060,
+      "gzipBytes": 2957,
+      "brotliBytes": 2636
+    },
+    {
+      "file": "PositionalDepthChart-CrldpS3r.js",
+      "type": "js",
+      "rawBytes": 3441,
+      "gzipBytes": 1526,
+      "brotliBytes": 1330
+    },
+    {
+      "file": "ProviderIdentityBlockedNotice-C_MhYSIR.js",
+      "type": "js",
+      "rawBytes": 4319,
+      "gzipBytes": 1532,
+      "brotliBytes": 1333
+    },
+    {
+      "file": "RosterSettings-DyoKKcLC.js",
+      "type": "js",
+      "rawBytes": 2694,
+      "gzipBytes": 1065,
+      "brotliBytes": 926
+    },
+    {
+      "file": "SidePanelPage-DNwFlcyr.js",
+      "type": "js",
+      "rawBytes": 26629,
+      "gzipBytes": 7327,
+      "brotliBytes": 6533
+    },
+    {
+      "file": "index-BcbvqsCx.js",
+      "type": "js",
+      "rawBytes": 416931,
+      "gzipBytes": 133720,
+      "brotliBytes": 116855
+    },
+    {
+      "file": "index-BlEieuWW.css",
+      "type": "css",
+      "rawBytes": 102337,
+      "gzipBytes": 17482,
+      "brotliBytes": 14317
+    },
+    {
+      "file": "motion-features-DiPTNITW.js",
+      "type": "js",
+      "rawBytes": 85736,
+      "gzipBytes": 28158,
+      "brotliBytes": 25343
+    },
+    {
+      "file": "tooltip-styles-BaTUN9oj.js",
+      "type": "js",
+      "rawBytes": 366941,
+      "gzipBytes": 107514,
+      "brotliBytes": 89958
     }
   ],
   "largestStaticFiles": [
     {
-      "path": "assets/index-BhO-rBAH.js.map",
-      "bytes": 991971
+      "path": "assets/tooltip-styles-BaTUN9oj.js.map",
+      "bytes": 1997430
     },
     {
-      "path": "assets/App-tqxu3sLe.js.map",
-      "bytes": 882008
+      "path": "assets/index-BcbvqsCx.js.map",
+      "bytes": 1632593
+    },
+    {
+      "path": "assets/App-DDrID-Qo.js.map",
+      "bytes": 944174
     },
     {
       "path": "data/predictions.json",
-      "bytes": 734890
+      "bytes": 623213
     },
     {
       "path": "data/fantasypros-snapshot.json",
-      "bytes": 467473
+      "bytes": 545540
     },
     {
-      "path": "assets/index-BhO-rBAH.js",
-      "bytes": 286322
+      "path": "assets/motion-features-DiPTNITW.js.map",
+      "bytes": 473163
     },
     {
-      "path": "data/sleeper-adp.json",
-      "bytes": 258311
+      "path": "assets/index-BcbvqsCx.js",
+      "bytes": 416931
+    },
+    {
+      "path": "assets/tooltip-styles-BaTUN9oj.js",
+      "bytes": 366941
+    },
+    {
+      "path": "assets/App-DDrID-Qo.js",
+      "bytes": 257441
     },
     {
       "path": "data/player-identity.json",
-      "bytes": 255775
+      "bytes": 235114
     },
     {
-      "path": "assets/App-tqxu3sLe.js",
-      "bytes": 234257
+      "path": "data/sleeper-adp.json",
+      "bytes": 232200
     },
     {
-      "path": "assets/AssistantPage-W7OeBv-q.js.map",
-      "bytes": 109236
+      "path": "assets/AssistantPage-B95ov6vh.js.map",
+      "bytes": 119186
     },
     {
-      "path": "assets/index-0Z-qz_uU.css",
-      "bytes": 109070
+      "path": "assets/index-BlEieuWW.css",
+      "bytes": 102337
     },
     {
-      "path": "data/contracts.json",
-      "bytes": 70549
+      "path": "assets/motion-features-DiPTNITW.js",
+      "bytes": 85736
     },
     {
-      "path": "assets/SidePanelPage-dRbRHKhx.js.map",
-      "bytes": 69664
-    },
-    {
-      "path": "assets/AssistantPage-W7OeBv-q.js",
-      "bytes": 42363
-    },
-    {
-      "path": "assets/SidePanelPage-dRbRHKhx.js",
-      "bytes": 26402
-    },
-    {
-      "path": "data/league-history/survival-model.json",
-      "bytes": 24243
+      "path": "assets/SidePanelPage-DNwFlcyr.js.map",
+      "bytes": 71218
     }
   ],
   "estimatedSourceComposition": [
     {
+      "source": "recharts",
+      "sourceBytes": 786179
+    },
+    {
       "source": "application",
-      "sourceBytes": 713272
+      "sourceBytes": 777687
+    },
+    {
+      "source": "motion-dom",
+      "sourceBytes": 356797
+    },
+    {
+      "source": "framer-motion",
+      "sourceBytes": 139372
     },
     {
       "source": "react-dom",
       "sourceBytes": 133667
+    },
+    {
+      "source": "immer",
+      "sourceBytes": 101805
+    },
+    {
+      "source": "@reduxjs/toolkit",
+      "sourceBytes": 80294
     },
     {
       "source": "@tanstack/query-core",
@@ -178,48 +233,28 @@
       "sourceBytes": 74233
     },
     {
-      "source": "immer",
-      "sourceBytes": 49821
+      "source": "es-toolkit",
+      "sourceBytes": 73536
+    },
+    {
+      "source": "sonner",
+      "sourceBytes": 69795
+    },
+    {
+      "source": "decimal.js-light",
+      "sourceBytes": 49610
     },
     {
       "source": "@tanstack/virtual-core",
       "sourceBytes": 49383
     },
     {
-      "source": "lucide-react",
-      "sourceBytes": 28432
+      "source": "react-redux",
+      "sourceBytes": 37526
     },
     {
-      "source": "tslib",
-      "sourceBytes": 17648
-    },
-    {
-      "source": "@radix-ui/react-collection",
-      "sourceBytes": 17173
-    },
-    {
-      "source": "react-remove-scroll",
-      "sourceBytes": 16013
-    },
-    {
-      "source": "@radix-ui/react-dialog",
-      "sourceBytes": 12986
-    },
-    {
-      "source": "@radix-ui/react-roving-focus",
-      "sourceBytes": 9311
-    },
-    {
-      "source": "@radix-ui/react-dismissable-layer",
-      "sourceBytes": 9040
-    },
-    {
-      "source": "@tanstack/react-query",
-      "sourceBytes": 8796
-    },
-    {
-      "source": "@radix-ui/react-slot",
-      "sourceBytes": 8781
+      "source": "@floating-ui/core",
+      "sourceBytes": 36290
     }
   ],
   "notes": [

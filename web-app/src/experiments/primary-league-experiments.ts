@@ -182,6 +182,7 @@ export interface PrimaryLeagueExperimentOptions {
 
 export interface PrimaryLeagueExperimentReport {
   readonly generatedAt: string;
+  readonly fantasyProsSnapshot: FantasyProsSnapshot['metadata'];
   readonly experimentVersion: string;
   readonly parameters: {
     readonly seed: number;
@@ -1017,6 +1018,7 @@ function averageFirstFourPositionCounts(
 export function runPrimaryLeagueExperiments(
   options: PrimaryLeagueExperimentOptions = {}
 ): PrimaryLeagueExperimentReport {
+  const fantasyPros = fantasyProsJson as unknown as FantasyProsSnapshot;
   const seed = options.seed ?? 20260831;
   const scale: ExperimentScale = { ...DEFAULT_SCALE, ...options.scale };
   const experiment = createInputs();
@@ -1195,6 +1197,7 @@ export function runPrimaryLeagueExperiments(
 
   return {
     generatedAt: new Date().toISOString(),
+    fantasyProsSnapshot: { ...fantasyPros.metadata },
     experimentVersion: 'primary-league-draft-experiments-v1',
     parameters: {
       seed,

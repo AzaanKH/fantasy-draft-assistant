@@ -1,0 +1,89 @@
+{
+  "provider": "sleeper",
+  "draftId": "1408291994693832704",
+  "draft": {
+    "provider": "sleeper",
+    "draftId": "1408291994693832704",
+    "providerKey": "1408291994693832704",
+    "status": "drafting",
+    "type": "snake",
+    "settings": {
+      "teams": 10,
+      "rounds": 15,
+      "pickTimer": 120
+    },
+    "draftOrder": {
+      "734368165714345984": 5
+    }
+  },
+  "picks": [
+    {
+      "draftId": "1408291994693832704",
+      "pickNumber": 1,
+      "round": 1,
+      "rosterId": null,
+      "draftSlot": 1,
+      "teamIndex": 0,
+      "playerId": "9509",
+      "playerName": "Bijan Robinson",
+      "position": "RB",
+      "nflTeam": "ATL",
+      "isKeeper": false,
+      "source": "sleeper-api",
+      "confidence": "confirmed",
+      "observedAt": 1790125707239
+    },
+    {
+      "draftId": "1408291994693832704",
+      "pickNumber": 2,
+      "round": 1,
+      "rosterId": null,
+      "draftSlot": 2,
+      "teamIndex": 1,
+      "playerId": "6813",
+      "playerName": "Jonathan Taylor",
+      "position": "RB",
+      "nflTeam": "IND",
+      "isKeeper": false,
+      "source": "sleeper-api",
+      "confidence": "confirmed",
+      "observedAt": 1790125707239
+    },
+    {
+      "draftId": "1408291994693832704",
+      "pickNumber": 3,
+      "round": 1,
+      "rosterId": null,
+      "draftSlot": 3,
+      "teamIndex": 2,
+      "playerId": "4034",
+      "playerName": "Christian McCaffrey",
+      "position": "RB",
+      "nflTeam": "SF",
+      "isKeeper": false,
+      "source": "sleeper-api",
+      "confidence": "confirmed",
+      "observedAt": 1790125707239
+    },
+    {
+      "draftId": "1408291994693832704",
+      "pickNumber": 4,
+      "round": 1,
+      "rosterId": null,
+      "draftSlot": 4,
+      "teamIndex": 3,
+      "playerId": "9221",
+      "playerName": "Jahmyr Gibbs",
+      "position": "RB",
+      "nflTeam": "DET",
+      "isKeeper": false,
+      "source": "sleeper-api",
+      "confidence": "confirmed",
+      "observedAt": 1790125707239
+    }
+  ],
+  "status": "syncing",
+  "lastPolledAt": 1790125708240,
+  "lastSuccessfulSyncAt": 1790125707239,
+  "lastError": null
+}

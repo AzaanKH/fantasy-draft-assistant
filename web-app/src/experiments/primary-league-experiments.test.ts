@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import * as recommendations from '../lib/calculations/recommendations';
 import {
   __testables,
@@ -40,6 +41,7 @@ describe('Primary League experiments', () => {
       },
     });
 
+    expect(report.fantasyProsSnapshot).toEqual(fantasyProsJson.metadata);
     expect(report.openingPlanTournament.strategies).toHaveLength(8);
     expect(report.takeNowOrWaitMap.decisions.length).toBeGreaterThan(0);
     expect(report.qbAndTeTiming.qb).toHaveLength(3);

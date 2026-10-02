@@ -1,0 +1,172 @@
+{
+  "recordedAt": "2026-09-23T01:04:06.263Z",
+  "status": "incomplete",
+  "reason": "The designated draft was already complete when this connected observation began; matching and conflicting provisional picks could not be reconciled against newly arriving official picks.",
+  "source": "local authenticated Sleeper sync server snapshot and connected web workspace",
+  "draftId": "1313053610426269696",
+  "leagueId": "1313053610417872896",
+  "providerStatus": "complete",
+  "providerSettings": {
+    "teams": 10,
+    "rounds": 14,
+    "pickTimer": 60
+  },
+  "scoringMatches": true,
+  "rosterMatches": true,
+  "unsupportedScoringKeys": [
+    "def_st_ff",
+    "def_st_fum_rec",
+    "def_st_td",
+    "ff",
+    "pts_allow_0",
+    "pts_allow_1_6",
+    "pts_allow_7_13",
+    "st_ff",
+    "st_fum_rec",
+    "st_td",
+    "yds_allow_0_100",
+    "yds_allow_100_199",
+    "yds_allow_200_299",
+    "yds_allow_350_399",
+    "yds_allow_400_449",
+    "yds_allow_450_499",
+    "yds_allow_500_549",
+    "yds_allow_550p"
+  ],
+  "unsupportedRosterSlots": [],
+  "pickCount": 140,
+  "uniquePickNumbers": 140,
+  "uniquePlayerIds": 140,
+  "missingPickNumbers": [],
+  "slotCounts": [
+    {
+      "slot": 1,
+      "picks": 14
+    },
+    {
+      "slot": 2,
+      "picks": 14
+    },
+    {
+      "slot": 3,
+      "picks": 14
+    },
+    {
+      "slot": 4,
+      "picks": 14
+    },
+    {
+      "slot": 5,
+      "picks": 14
+    },
+    {
+      "slot": 6,
+      "picks": 14
+    },
+    {
+      "slot": 7,
+      "picks": 14
+    },
+    {
+      "slot": 8,
+      "picks": 14
+    },
+    {
+      "slot": 9,
+      "picks": 14
+    },
+    {
+      "slot": 10,
+      "picks": 14
+    }
+  ],
+  "keeperChecks": [
+    {
+      "pickNumber": 20,
+      "slot": 1,
+      "expectedPlayer": "Jaxon Smith-Njigba",
+      "providerPlayer": "Jaxon Smith-Njigba",
+      "matches": true
+    },
+    {
+      "pickNumber": 79,
+      "slot": 2,
+      "expectedPlayer": "Emeka Egbuka",
+      "providerPlayer": "Emeka Egbuka",
+      "matches": true
+    },
+    {
+      "pickNumber": 63,
+      "slot": 3,
+      "expectedPlayer": "Quinshon Judkins",
+      "providerPlayer": "Quinshon Judkins",
+      "matches": true
+    },
+    {
+      "pickNumber": 137,
+      "slot": 4,
+      "expectedPlayer": "Rico Dowdle",
+      "providerPlayer": "Rico Dowdle",
+      "matches": true
+    },
+    {
+      "pickNumber": 96,
+      "slot": 5,
+      "expectedPlayer": "Javonte Williams",
+      "providerPlayer": "Javonte Williams",
+      "matches": true
+    },
+    {
+      "pickNumber": 28,
+      "slot": 8,
+      "expectedPlayer": "Omarion Hampton",
+      "providerPlayer": "Omarion Hampton",
+      "matches": true
+    },
+    {
+      "pickNumber": 7,
+      "slot": 7,
+      "expectedPlayer": "Jonathan Taylor",
+      "providerPlayer": "Jonathan Taylor",
+      "matches": true
+    },
+    {
+      "pickNumber": 86,
+      "slot": 6,
+      "expectedPlayer": "Travis Etienne Jr.",
+      "providerPlayer": "Travis Etienne",
+      "matches": true
+    },
+    {
+      "pickNumber": 9,
+      "slot": 9,
+      "expectedPlayer": "Puka Nacua",
+      "providerPlayer": "Puka Nacua",
+      "matches": true
+    },
+    {
+      "pickNumber": 30,
+      "slot": 10,
+      "expectedPlayer": "James Cook III",
+      "providerPlayer": "James Cook",
+      "matches": true
+    }
+  ],
+  "webWorkspace": {
+    "confirmedSlot": 5,
+    "sessionMode": "live",
+    "currentPick": 141,
+    "ordinaryHistoryCount": 130,
+    "preloadedKeeperCount": 10,
+    "draftedPlayerCount": 140,
+    "unresolvedProviderPickCount": 0,
+    "allTenRosterCounts": 14,
+    "myRosterCount": 14,
+    "recommendationsAfterCompletion": 0
+  },
+  "remaining": [
+    "Observe new official picks through a connected draft.",
+    "During an outage, record matching and conflicting provisional picks and verify confirmation and correction after synchronization returns.",
+    "Exercise extension detection and companion side panel if they will be used."
+  ]
+}
