@@ -1,4 +1,4 @@
-import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
+import type { DraftType, Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 
 export type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
 
@@ -141,6 +141,17 @@ export function getTeamIndexForPick(pickNumber: number, totalTeams: number): num
   return roundNumber % 2 === 1
     ? pickInRound - 1
     : totalTeams - pickInRound;
+}
+
+/** Linear drafts repeat round-one order; snake (and auction nomination order) reverses even rounds. */
+export function getTeamIndexForDraftPick(
+  pickNumber: number,
+  totalTeams: number,
+  draftType: DraftType
+): number {
+  return draftType === 'linear'
+    ? (pickNumber - 1) % totalTeams
+    : getTeamIndexForPick(pickNumber, totalTeams);
 }
 
 export function getPickNumberForTeamRound(

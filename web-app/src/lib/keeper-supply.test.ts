@@ -49,7 +49,7 @@ describe('canonicalizeKeeperSupply', () => {
       entry('jt', 'Jonathan Taylor', 'RB', 6, 1),
       entry('jsn', 'Jaxon Smith-Njigba', 'WR', 0, 2),
       entry('javonte', 'Javonte Williams', 'RB', 4, 10, true),
-    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS });
+    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS, draftType: 'snake' });
 
     expect(supply.duplicatePlayerIds).toEqual([]);
     expect(supply.invalidEntries).toEqual([]);
@@ -66,7 +66,7 @@ describe('canonicalizeKeeperSupply', () => {
       entry('dup', 'Duplicate Keeper', 'WR', 1, 3),
       entry('dup', 'Duplicate Keeper', 'WR', 1, 4),
       entry('other', 'Other Keeper', 'RB', 2, 5),
-    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS });
+    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS, draftType: 'snake' });
 
     expect(supply.duplicatePlayerIds).toEqual(['dup']);
     expect(supply.assignments.map((keeper) => [keeper.playerId, keeper.pickNumber])).toEqual([
@@ -81,7 +81,7 @@ describe('canonicalizeKeeperSupply', () => {
       entry('bad-team', 'Bad Team Keeper', 'QB', TOTAL_TEAMS, 2),
       entry('slot-a', 'Slot A', 'RB', 2, 6),
       entry('slot-b', 'Slot B', 'TE', 2, 6),
-    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS });
+    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS, draftType: 'snake' });
 
     expect(supply.assignments.map((keeper) => keeper.playerId)).toEqual(['slot-a']);
     expect(supply.invalidEntries.map((keeper) => keeper.playerId)).toEqual([

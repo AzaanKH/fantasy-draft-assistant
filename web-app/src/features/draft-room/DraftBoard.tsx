@@ -1,15 +1,12 @@
 import * as React from 'react';
-import type { Player, Position } from '@fantasy-draft/shared';
+import type { DraftType, Player, Position } from '@fantasy-draft/shared';
 import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3 } from 'lucide-react';
 import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { isMotionDisabled, usePrefersReducedMotion } from '@/components/motion';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import {
-  formatRoundPick,
-  getPickNumberForTeamRound,
-} from '@/lib/mock-draft-engine';
-import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
+import { formatRoundPick } from '@/lib/mock-draft-engine';
+import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
 import { cn } from '@/lib/utils';
 import { useDraftStore, type RecordedDraftPick } from '@/stores/draftStore';
 import { getDraftBoardScrollTarget } from './draft-board-scroll';
@@ -138,6 +135,7 @@ interface DraftGridProps {
   readonly compact: boolean;
   readonly currentPick: number;
   readonly currentPickMode: boolean;
+  readonly draftType: DraftType;
   readonly latestPickNumber: number;
   readonly settlingPickNumber: number | null;
   readonly myTeamIndex: number;
@@ -160,6 +158,7 @@ function DraftGrid({
   compact,
   currentPick,
   currentPickMode,
+  draftType,
   latestPickNumber,
   settlingPickNumber,
   myTeamIndex,
@@ -235,10 +234,10 @@ function DraftGrid({
                 ) : null}
               </div>
               {teamIndices.map((teamIndex) => {
-                const pickNumber = getPickNumberForTeamRound(
-                  teamIndex,
-                  roundNumber,
-                  totalTeams
+                const pickNumber = getKeeperPickNumber(
+                  { teamIndex, round: roundNumber },
+                  totalTeams,
+                  draftType
                 );
                 const pick = picksByNumber.get(pickNumber);
                 const isActive = currentPick === pickNumber && currentPick <= totalPicks;
@@ -378,6 +377,7 @@ export function DraftBoard({
     myPickPosition: config.myPickPosition,
     totalTeams: config.totalTeams,
     totalRounds: config.totalRounds,
+    draftType: config.draftType,
   });
   const roundNumbers = React.useMemo(
     () => getDraftBoardRoundNumbers(
@@ -391,9 +391,10 @@ export function DraftBoard({
     () => getEffectiveKeeperAssignments(
       preloadedKeepers,
       draftHistory,
-      config.totalTeams
+      config.totalTeams,
+      config.draftType
     ),
-    [config.totalTeams, draftHistory, preloadedKeepers]
+    [config.totalTeams, config.draftType, draftHistory, preloadedKeepers]
   );
 
   const playersById = React.useMemo(
@@ -404,11 +405,7 @@ export function DraftBoard({
     const picks = new Map<number, BoardPick>();
     for (const keeper of effectiveKeepers) {
       if (keeper.teamIndex >= config.totalTeams || keeper.round > config.totalRounds) continue;
-      const pickNumber = getPickNumberForTeamRound(
-        keeper.teamIndex,
-        keeper.round,
-        config.totalTeams
-      );
+      const pickNumber = getKeeperPickNumber(keeper, config.totalTeams, config.draftType);
       picks.set(pickNumber, {
         playerId: keeper.playerId,
         playerName: keeper.playerName,
@@ -421,7 +418,7 @@ export function DraftBoard({
       picks.set(pick.pickNumber, pick);
     }
     return picks;
-  }, [config.totalRounds, config.totalTeams, draftHistory, effectiveKeepers]);
+  }, [config.totalRounds, config.totalTeams, config.draftType, draftHistory, effectiveKeepers]);
   const teamNames = React.useMemo(
     () => getTeamNames(draftHistory, config.totalTeams, myTeamIndex),
     [config.totalTeams, draftHistory, myTeamIndex]
@@ -511,6 +508,7 @@ export function DraftBoard({
     teamNames,
     totalPicks,
     totalTeams: config.totalTeams,
+    draftType: config.draftType,
     upcomingMyPickNumber: currentView.upcomingMyPickNumber,
   } as const;
 
@@ -518,7 +516,7 @@ export function DraftBoard({
     <section className="draft-board" aria-label="Draft board" style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}>
       <div className="board-toolbar flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
-          <h2 className="text-base font-bold" title={`${String(config.totalTeams)} teams · ${String(config.totalRounds)} rounds · snake order`}>Draft board</h2>
+          <h2 className="text-base font-bold" title={`${String(config.totalTeams)} teams · ${String(config.totalRounds)} rounds · ${config.draftType} order`}>Draft board</h2>
           {toolbarActions}
         </div>
         <div className="flex items-center justify-between gap-2 sm:justify-end">

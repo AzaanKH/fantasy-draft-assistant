@@ -17,6 +17,18 @@ history determines the Primary League's canonical state. Confirm matching
 picks, correct conflicts, and remove local picks absent from that history so a
 mistaken local observation cannot become a second source of truth.
 
+The app saves each live session in browser storage under its provider and draft
+ID. The saved history includes Provisional Picks, their correction revisions,
+the ordered queue, keeper reservations, league settings, and the Manual
+Continuity baseline. Reloading restores that session before live sync imports
+picks and rebuilds rosters and player availability from the saved history.
+A snapshot at or before the continuity baseline cannot erase local observations.
+A newer successful snapshot reconciles them and saves the resulting canonical
+history. Disconnecting retains the saved session for reconnection; resetting
+the active draft saves the cleared history and queue. Mock drafts use separate
+in-memory state. Blocked or full browser storage leaves the current session
+usable in memory but cannot preserve new actions across a reload.
+
 Show the reconciliation result and recompute rosters, player availability, and
 Recommendations. Repeated snapshots must not duplicate picks or apply the same
 roster change twice. The rehearsals below verify these rules.

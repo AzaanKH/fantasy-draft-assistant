@@ -33,13 +33,13 @@ interface CompletedKeeperConflictPick {
 interface KeeperSupplyConfig {
   readonly totalTeams: number;
   readonly totalRounds: number;
-  readonly draftType?: DraftType;
+  readonly draftType: DraftType;
 }
 
 export function getKeeperPickNumber(
   keeper: Pick<KeeperSupplyEntry, 'teamIndex' | 'round'>,
   totalTeams: number,
-  draftType: DraftType = 'snake'
+  draftType: DraftType
 ): number {
   return draftType === 'linear'
     ? (keeper.round - 1) * totalTeams + keeper.teamIndex + 1
@@ -83,7 +83,7 @@ export function getEffectiveKeeperAssignments<T extends KeeperSupplyEntry>(
   keepers: readonly T[],
   completedPicks: readonly CompletedKeeperConflictPick[],
   totalTeams: number,
-  draftType: DraftType = 'snake'
+  draftType: DraftType
 ): T[] {
   return keepers.filter((keeper) => {
     const keeperPickNumber = getKeeperPickNumber(keeper, totalTeams, draftType);

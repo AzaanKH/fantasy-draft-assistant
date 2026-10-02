@@ -1,3 +1,4 @@
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import type { PlayerIdentityData } from '@/lib/calculations/player-value';
 import { isNFLTeam, isPosition, isPredictionSource, isTeamEnvironment, NFL_TEAMS } from '@fantasy-draft/shared';
 
@@ -151,12 +152,9 @@ export function isRecommendationPolicyFile(value: unknown): value is Recommendat
   return (
     isRecord(value) &&
     typeof value['generatedAt'] === 'string' &&
-    typeof value['modelVersion'] === 'string' &&
+    value['recommendationArchitecture'] === LIVE_RECOMMENDATION_ARCHITECTURE &&
     typeof value['modelPredictionsEnabled'] === 'boolean' &&
     typeof value['contractSignalEnabled'] === 'boolean' &&
-    typeof value['pickEvOverrideEnabled'] === 'boolean' &&
-    typeof value['pickEvOverrideThreshold'] === 'number' &&
-    Number.isFinite(value['pickEvOverrideThreshold']) &&
     (value['fallback'] === 'model' || value['fallback'] === 'fantasypros-ecr-market') &&
     isRecord(value['shadowLogging']) &&
     typeof value['shadowLogging']['enabled'] === 'boolean' &&

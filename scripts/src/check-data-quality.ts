@@ -1,3 +1,4 @@
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,6 +75,7 @@ async function main(): Promise<void> {
     'predictions.json',
     'model-report.json',
     'recommendation-policy.json',
+    'recommendation-evaluation.json',
     'league-history/survival-model.json',
     'contracts.json',
     'historical-snapshot-report.json',
@@ -303,7 +305,8 @@ async function main(): Promise<void> {
   const identityTime = timestamp(nested(identity, 'generatedAt'));
   const predictionTime = timestamp(nested(predictions, 'generatedAt'));
   const policy = loaded.get('recommendation-policy.json');
-  const policyTime = timestamp(nested(policy, 'generatedAt'));
+  const evaluation = loaded.get('recommendation-evaluation.json');
+  const evaluationTime = timestamp(nested(evaluation, 'generatedAt'));
   add(checks, 'dependencies.identity', identityTime >= Math.max(
     timestamp(nested(fantasyPros, 'metadata', 'refreshedAt')),
     timestamp(nested(sleeper, 'fetchedAt'))
@@ -315,18 +318,23 @@ async function main(): Promise<void> {
       : Number.isFinite(predictionTime) && newestPredictionInput
         ? `The prediction artifact (${new Date(predictionTime).toISOString()}) is older than ${newestPredictionInput.label} (${new Date(inputTime).toISOString()}).`
         : 'Prediction artifact or input timestamps are invalid.');
-  add(checks, 'dependencies.recommendation-policy', policyTime >= predictionTime ? 'pass' : 'fail',
-    'Recommendation policy is newer than the prediction artifact.');
+  add(checks, 'dependencies.recommendation-evaluation', evaluationTime >= predictionTime ? 'pass' : 'fail',
+    'Recommendation evaluation is newer than the prediction artifact.');
+  const contractEvaluationTime = timestamp(nested(evaluation, 'contractSignalGeneratedAt'));
+  const contractSourceTime = timestamp(nested(loaded.get('contracts.json'), 'sourceUpdatedAt'));
+  add(checks, 'dependencies.contract-evaluation',
+    contractEvaluationTime >= contractSourceTime ? 'pass' : 'warn',
+    'Contract-year evaluation is newer than the upstream nflverse contracts release.');
   add(checks, 'recommendation-policy.decision',
     nested(policy, 'modelPredictionsEnabled') === false &&
       nested(policy, 'fallback') === 'fantasypros-ecr-market'
       ? 'pass' : 'fail',
     'The 2026 recommendation policy keeps live ordering ECR-anchored.');
-  add(checks, 'recommendation-policy.promotion-gates',
-    typeof nested(policy, 'promotionGates', 'feature', 'passed') === 'boolean' &&
-      typeof nested(policy, 'promotionGates', 'release', 'passed') === 'boolean' &&
-      typeof nested(policy, 'promotionGates', 'passed') === 'boolean' ? 'pass' : 'fail',
-    'Recommendation policy records both sequential promotion gates and the combined decision.');
+  add(checks, 'recommendation-evaluation.promotion-gates',
+    typeof nested(evaluation, 'promotionGates', 'feature', 'passed') === 'boolean' &&
+      typeof nested(evaluation, 'promotionGates', 'release', 'passed') === 'boolean' &&
+      typeof nested(evaluation, 'promotionGates', 'passed') === 'boolean' ? 'pass' : 'fail',
+    'Historical evaluation records both sequential promotion gates and the combined decision.');
   add(checks, 'recommendation-policy.shadow-logging',
     nested(policy, 'shadowLogging', 'enabled') === true &&
       nested(policy, 'shadowLogging', 'season') === CURRENT_SEASON &&
@@ -337,21 +345,19 @@ async function main(): Promise<void> {
     nested(policy, 'contractSignalEnabled') === false ? 'pass' : 'fail',
     'Contract context remains read-only and cannot alter live ordering.');
   add(checks, 'recommendation-policy.architecture',
-    nested(policy, 'recommendationArchitecture') === 'pick-ev-v1' ? 'pass' : 'fail',
-    'Recommendation policy selects the ECR-anchored PickEV architecture.');
-  add(checks, 'recommendation-policy.pick-ev-override',
-    typeof nested(policy, 'pickEvOverrideEnabled') === 'boolean' &&
-      finiteNumber(nested(policy, 'pickEvOverrideThreshold')) &&
-      typeof nested(policy, 'pickEvOverrideValidation', 'passed') === 'boolean' &&
-      nested(policy, 'pickEvOverrideEnabled') ===
-        nested(policy, 'pickEvOverrideValidation', 'passed')
+    nested(policy, 'recommendationArchitecture') === LIVE_RECOMMENDATION_ARCHITECTURE ? 'pass' : 'fail',
+    'Runtime policy matches the live Best Pick implementation.');
+  add(checks, 'recommendation-evaluation.pick-ev-override',
+    nested(evaluation, 'evaluatedArchitecture') === 'pick-ev-v1' &&
+      finiteNumber(nested(evaluation, 'pickEvOverrideThreshold')) &&
+      typeof nested(evaluation, 'pickEvOverrideValidation', 'passed') === 'boolean'
       ? 'pass' : 'fail',
-    'PickEV overrides are enabled only when the recorded hybrid gate passes.');
+    'Historical PickEV evaluation records its threshold and gate result.');
   add(checks, 'experimental.contract-signal',
     nested(policy, 'contractSignalEnabled') === true ? 'pass' : 'warn',
     nested(policy, 'contractSignalEnabled') === true
       ? 'Contract-year recommendation signal is validated and enabled.'
-      : nested(policy, 'contractSignalValidationPassed') === true
+      : nested(evaluation, 'contractSignalValidationPassed') === true
         ? 'Contract-year validation passed, but the signal remains read-only pending separate live-policy approval.'
         : 'Contract data is available for context, but its recommendation boost is disabled until backtested.');
 

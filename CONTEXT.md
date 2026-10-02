@@ -89,7 +89,7 @@ The additional protection a candidate gives the manager's completed roster when 
 _Avoid_: Raw bench points, fixed position quota
 
 **Return Probability**:
-The estimated chance that a player remains available at the manager's next selection, based primarily on the league's draft history calibrated by the current consensus market.
+The estimated chance that a player remains available at the manager's next selection, based on current market cost and the distance to that selection. An explicitly selected Primary League profile adds its draft history; Quick Mock uses market timing.
 _Avoid_: Guarantee, Sleeper rank
 
 **Expected Next-Pick Alternative**:

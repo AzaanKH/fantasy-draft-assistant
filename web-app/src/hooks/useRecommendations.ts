@@ -1,3 +1,4 @@
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 /**
  * Recommendations Hook
  *
@@ -8,7 +9,6 @@
  */
 
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   POSITIONS,
   type Position,
@@ -22,7 +22,7 @@ import {
   type RecommendationResult,
   type RecommendationSelection,
 } from '@/lib/calculations';
-import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
+import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
@@ -76,7 +76,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   topPick: Recommendation | null;
   isLoading: boolean;
 } {
-  const { players, isLoading: playersLoading, dataInfo } = usePlayerDataQuery();
+  const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
   const draftHistory = useDraftStore((state) => state.draftHistory);
@@ -125,26 +125,23 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       })
     );
   }, [myRoster, players]);
-  const survivalModelQuery = useQuery({
-    queryKey: ['league-survival-model'],
-    queryFn: fetchLeagueSurvivalModel,
-    staleTime: Infinity,
-  });
+  const timingEvidence = useLeagueTimingEvidence(enabled);
 
   const availablePlayers = useMemo(() => {
     if (!enabled) return [];
-    const leagueAdjustedPool = applyLeagueSurvivalModel(players, survivalModelQuery.data, {
+    const leagueAdjustedPool = applyLeagueSurvivalModel(players, timingEvidence.model, {
       currentPick,
       myPickPosition: config.myPickPosition,
       totalTeams: config.totalTeams,
       totalRounds: config.totalRounds,
+      draftType: config.draftType,
     });
     const leagueAdjusted = filterDrafted(
       leagueAdjustedPool,
       draftedPlayerIds,
       draftedPlayers
     );
-    if (sessionMode !== 'mock') return leagueAdjusted;
+    if (sessionMode !== 'mock' || !timingEvidence.model) return leagueAdjusted;
     return leagueAdjusted.map((player) => {
       const mockProbability = mockSurvivalProbabilities[player.id];
       return mockProbability === undefined
@@ -155,19 +152,17 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
             survivalModelSource: 'league-history' as const,
           };
     });
-  }, [enabled, players, draftedPlayerIds, draftedPlayers, survivalModelQuery.data, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, mockSurvivalProbabilities, sessionMode]);
+  }, [enabled, players, draftedPlayerIds, draftedPlayers, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
 
   const recommendationContext = useMemo<RecommendationContext>(() => ({
       currentPick,
       totalPicks: config.totalTeams * config.totalRounds,
       totalTeams: config.totalTeams,
       isMyTurn,
-      architecture: 'best-pick-policy',
+      architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
       requirements: config.rosterRequirements,
       rosterPlayers,
       selectionsRemaining: Math.max(0, config.totalRounds - rosterSize),
-      allowPickEvOverrides: dataInfo.pickEvOverrideEnabled,
-      pickEvOverrideThreshold: dataInfo.pickEvOverrideThreshold,
       rosterCounts: {
         QB: myRoster.QB.length,
         RB: myRoster.RB.length,
@@ -176,7 +171,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
         K: myRoster.K.length,
         DEF: myRoster.DEF.length,
       },
-  }), [currentPick, config.totalTeams, config.totalRounds, config.rosterRequirements, isMyTurn, myRoster, rosterPlayers, rosterSize, dataInfo.pickEvOverrideEnabled, dataInfo.pickEvOverrideThreshold]);
+  }), [currentPick, config.totalTeams, config.totalRounds, config.rosterRequirements, isMyTurn, myRoster, rosterPlayers, rosterSize]);
 
   const recommendationsEnabled = enabled && hasRemainingDraftDecision(
     currentPick,
@@ -230,7 +225,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     positionRecommendationStates,
     topPick,
     isLoading: enabled && (
-      playersLoading || needsLoading || survivalModelQuery.isLoading
+      playersLoading || needsLoading || timingEvidence.isLoading
     ),
   };
 }

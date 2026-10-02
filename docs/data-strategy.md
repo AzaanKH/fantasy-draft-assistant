@@ -35,6 +35,11 @@ of acquiring a player and helps estimate whether that player will return at the
 manager's next selection. Sleeper `search_rank` is a platform ordering proxy,
 not observed draft ADP. Preserve that distinction in labels and calculations.
 
+Quick Mock uses current market cost and the next-pick horizon for timing.
+Primary League history is attached only when that profile is explicitly selected,
+including Primary League practice settings on a connected mock. Quick Mock
+connections override the saved local profile. The same selection applies to
+recommendations, shadow recommendations, and local CPU simulations.
 The league-history survival model combines the room's past drafts with current
 market context. Keep timing evidence separate from player quality so a player
 becoming more popular does not automatically make them a better player.
@@ -77,10 +82,11 @@ shadow result beside the live decision for later evaluation. A shadow result
 cannot change the displayed Best Pick or Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
-records validation evidence while keeping `contractSignalEnabled` false.
-[recommendation-policy.json](../data/recommendation-policy.json) records
-backtest outcomes and shadow settings; it does not bypass the live player-pool
-boundary. Promoting a model or optional signal requires an explicit change to
+records validation evidence in
+[recommendation-evaluation.json](../data/recommendation-evaluation.json).
+[recommendation-policy.json](../data/recommendation-policy.json) contains runtime
+configuration for `best-pick-policy` and shadow logging, with
+`contractSignalEnabled` false. Backtests cannot rewrite runtime configuration. Promoting a model or optional signal requires an explicit change to
 the Decision Policy and its verification.
 
 Use the [data requirements](data-refresh.md#core-data-and-optional-signals)

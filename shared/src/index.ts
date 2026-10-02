@@ -254,3 +254,5 @@ export type {
 export { isRosterRequirements } from './league-settings';
 
 export { localDevPorts } from './local-dev.js';
+
+export { LIVE_RECOMMENDATION_ARCHITECTURE } from './recommendation-policy';

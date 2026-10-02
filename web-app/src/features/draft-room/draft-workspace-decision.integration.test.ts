@@ -137,6 +137,11 @@ function seedProviderTruthThroughPickFour(): void {
 
 describe('Draft Workspace decision integration', () => {
   beforeEach(() => {
+    useDraftSyncConnectionStore.getState().startConnection(
+      'sleeper',
+      'primary-league-draft'
+    );
+    useDraftSyncConnectionStore.getState().confirmDraftPosition(5);
     const store = useDraftStore.getState();
     store.preloadKeepers([]);
     store.setConfig({ totalTeams: 10, totalRounds: 15, myPickPosition: 5 });
@@ -145,11 +150,6 @@ describe('Draft Workspace decision integration', () => {
     store.setPositionFilter('WR');
     store.setSearchQuery('receiver');
     store.setSessionMode('live');
-    useDraftSyncConnectionStore.getState().startConnection(
-      'sleeper',
-      'primary-league-draft'
-    );
-    useDraftSyncConnectionStore.getState().confirmDraftPosition(5);
   });
 
   afterEach(() => {

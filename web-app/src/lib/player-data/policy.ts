@@ -1,13 +1,12 @@
 
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import type { RecommendationPolicyFile } from './types';
 
 export const SAFE_RECOMMENDATION_POLICY: RecommendationPolicyFile = {
   generatedAt: '1970-01-01T00:00:00.000Z',
-  modelVersion: 'safe-ecr-fallback',
+  recommendationArchitecture: LIVE_RECOMMENDATION_ARCHITECTURE,
   modelPredictionsEnabled: false,
   contractSignalEnabled: false,
-  pickEvOverrideEnabled: false,
-  pickEvOverrideThreshold: 0,
   fallback: 'fantasypros-ecr-market',
   shadowLogging: {
     enabled: false,

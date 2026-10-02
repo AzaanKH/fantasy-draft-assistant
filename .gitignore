@@ -72,3 +72,7 @@ test-results/
 # Python verification helper caches
 __pycache__/
 *.pyc
+
+# Python bytecode from agent skill helpers
+__pycache__/
+*.pyc

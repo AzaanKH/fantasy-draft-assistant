@@ -9,6 +9,9 @@ import { useDraftSync } from './useDraftSync';
 const mocks = vi.hoisted(() => ({
   effects: [] as EffectCallback[],
   states: [] as unknown[],
+  stateCursor: 0,
+  refs: [] as { current: unknown }[],
+  refCursor: 0,
   queryClient: null as QueryClient | null,
   query: vi.fn(),
   snapshot: {
@@ -26,10 +29,16 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react', async (importOriginal) => ({
   ...await importOriginal<typeof import('react')>(),
   useEffect: (effect: EffectCallback) => { mocks.effects.push(effect); },
+  useSyncExternalStore: <T,>(_subscribe: unknown, getSnapshot: () => T) => getSnapshot(),
+  useRef: (initial: unknown) => {
+    const index = mocks.refCursor++;
+    mocks.refs[index] ??= { current: initial };
+    return mocks.refs[index];
+  },
   // Retain state updates from async handlers without requiring a browser DOM.
   useState: <T,>(initial: T | (() => T)) => {
-    const index = mocks.states.length;
-    mocks.states.push(typeof initial === 'function' ? (initial as () => T)() : initial);
+    const index = mocks.stateCursor++;
+    if (index === mocks.states.length) mocks.states.push(typeof initial === 'function' ? (initial as () => T)() : initial);
     return [mocks.states[index], (update: SetStateAction<T>) => {
       mocks.states[index] = typeof update === 'function'
         ? (update as (current: T) => T)(mocks.states[index] as T)
@@ -47,6 +56,9 @@ vi.mock('./usePlayerData', () => ({
 }));
 
 function renderDraft(draftId: string, store = createDraftStore()) {
+  mocks.effects.length = 0;
+  mocks.stateCursor = 0;
+  mocks.refCursor = 0;
   let result: ReturnType<typeof useDraftSync> | undefined;
   function CaptureDraft() {
     result = useDraftSync('sleeper', draftId);
@@ -71,6 +83,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
   beforeEach(() => {
     mocks.effects.length = 0;
     mocks.states.length = 0;
+    mocks.refs.length = 0;
     mocks.queryClient = new QueryClient();
     mocks.query.mockReset().mockReturnValue({ data: mocks.snapshot });
     stream.onmessage = null;
@@ -103,6 +116,37 @@ describe('Sleeper sync ingress and reconciliation', () => {
     return mocks.states[0] as DraftSyncSnapshot;
   }
 
+  it('keeps a restored journal through a stale snapshot and reconciles it when only the heartbeat time changes', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+    const session = { provider: 'sleeper' as const, draftId: 'Draft_1-abc' };
+    const original = createDraftStore({ storage, session });
+    original.getState().setSessionMode('live');
+    original.getState().reconcileSyncedPicks([], 1, [], 100);
+    original.getState().enterManualContinuity(100);
+    original.getState().recordProvisionalPick({ pickNumber: 1, playerId: 'mistaken', playerName: 'Mistaken', position: 'WR', teamIndex: 0, teamName: 'Team 1' });
+    const restarted = createDraftStore({ storage, session });
+    mocks.query.mockReturnValue({ data: { ...newerSnapshot, lastSuccessfulSyncAt: 100, lastPolledAt: 100 } });
+    const stale = renderDraft(session.draftId, restarted);
+    expect(restarted.getState().draftHistory[0]?.playerId).toBe('mistaken');
+    expect(restarted.getState().manualContinuityBaselineAt).toBe(100);
+    stale.cleanup();
+
+    mocks.query.mockReturnValue({ data: newerSnapshot });
+    const fresh = renderDraft(session.draftId, restarted);
+    expect(restarted.getState().draftHistory[0]).toMatchObject({ playerId: 'known', source: 'sync' });
+    expect(restarted.getState().manualContinuityBaselineAt).toBeNull();
+    fresh.cleanup();
+    const repeated = renderDraft(session.draftId, restarted);
+    expect(repeated.result.reconciliationSummary?.corrections).toHaveLength(1);
+    expect(restarted.getState().draftHistory).toHaveLength(1);
+    repeated.cleanup();
+    expect(createDraftStore({ storage, session }).getState().draftHistory[0]?.source).toBe('sync');
+  });
+
   it('advances the reconciled timestamp for unchanged imports without reconciling them twice', () => {
     const snapshot = { ...mocks.snapshot };
     mocks.query.mockReturnValue({ data: snapshot });
@@ -115,7 +159,8 @@ describe('Sleeper sync ingress and reconciliation', () => {
       expect(mocks.states[2]).toBe(100);
       snapshot.lastPolledAt = 200;
       snapshot.lastSuccessfulSyncAt = 200;
-      mocks.effects.at(-1)?.();
+      // Transport registers one effect, then reconciliation registers three; the import effect is last of those.
+      mocks.effects[3]?.();
       expect(mocks.states[2]).toBe(200);
       expect(reconcile).toHaveBeenCalledTimes(1);
     } finally {

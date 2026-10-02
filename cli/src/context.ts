@@ -1,5 +1,5 @@
 import {
-  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, POSITIONS, type DraftSyncSnapshot,
+  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, LIVE_RECOMMENDATION_ARCHITECTURE, POSITIONS, type DraftSyncSnapshot,
   type DraftReadinessReport, type LeagueSettings, type Player, type Roster,
 } from '@fantasy-draft/shared';
 import { resolveDraftPickImports, getNextOpenPickNumber } from '@/lib/draft-pick-imports';
@@ -53,6 +53,7 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
   const totalRounds = draft?.settings.rounds ?? 0;
   const totalPicks = totalTeams * totalRounds;
   const settings = connectedSettings(snapshot, now);
+  const draftType = draft?.type ?? 'snake';
   const imports = resolveDraftPickImports(snapshot.picks, data?.players ?? [], slot ?? 0);
   const keeperSupplyReady = data !== null && settings.keepersEnabled !== false && isKeeperSupplyComplete({
     keepersEnabled: settings.keepersEnabled, season: data.keeperStatus.season,
@@ -62,7 +63,7 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
     unresolvedNames: data.keeperStatus.unresolvedNames, duplicateNames: data.keeperStatus.duplicateNames,
     invalidAssignments: data.keeperStatus.invalidAssignments,
   });
-  const effectiveKeepers = getEffectiveKeeperAssignments(keeperSupplyReady ? data.keepers : [], imports.picks, totalTeams, draft?.type);
+  const effectiveKeepers = getEffectiveKeeperAssignments(keeperSupplyReady ? data.keepers : [], imports.picks, totalTeams, draftType);
   const filled = new Set([...snapshot.picks, ...effectiveKeepers].map(pick => pick.pickNumber));
   const currentPick = draft ? draft.status === 'complete' ? totalPicks + 1
     : getNextOpenPickNumber([...snapshot.picks, ...effectiveKeepers], totalPicks) : null;
@@ -126,10 +127,9 @@ export function adviceBoard(context: SessionContext, data: DraftData) {
   const selectionsRemaining = Math.max(0, context.totalRounds - rosterPlayers.length);
   const recommendationContext: RecommendationContext = {
     currentPick, totalPicks: context.totalPicks, totalTeams: context.totalTeams, isMyTurn: context.isMyTurn,
-    architecture: 'best-pick-policy', requirements: context.settings.rosterRequirements,
+    architecture: LIVE_RECOMMENDATION_ARCHITECTURE, requirements: context.settings.rosterRequirements,
     rosterPlayers, selectionsRemaining,
     rosterCounts: Object.fromEntries(POSITIONS.map(position => [position, context.roster[position].length])),
-    allowPickEvOverrides: data.policy.pickEvOverrideEnabled, pickEvOverrideThreshold: data.policy.pickEvOverrideThreshold,
   };
   const hasDecision = currentPick <= context.totalPicks && selectionsRemaining > 0;
   const recommendations = getRecommendations(hasDecision ? available : [], needs, Math.max(1, available.length), recommendationContext);

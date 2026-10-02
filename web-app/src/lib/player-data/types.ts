@@ -55,11 +55,9 @@ export interface PlayerIdentityFile {
 
 export interface RecommendationPolicyFile {
   generatedAt: string;
-  modelVersion: string;
+  recommendationArchitecture: typeof import('@fantasy-draft/shared').LIVE_RECOMMENDATION_ARCHITECTURE;
   modelPredictionsEnabled: boolean;
   contractSignalEnabled: boolean;
-  pickEvOverrideEnabled: boolean;
-  pickEvOverrideThreshold: number;
   fallback: 'model' | 'fantasypros-ecr-market';
   shadowLogging: {
     enabled: boolean;
