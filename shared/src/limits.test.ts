@@ -17,6 +17,10 @@ describe('resource limits', () => {
     expect(isBoundedInteger(10, 1, 10)).toBe(true);
   });
 
+  it('rejects unsafe integers even when they fall within the bounds', () => {
+    expect(isBoundedInteger(Number.MAX_SAFE_INTEGER + 1, 0, Number.MAX_VALUE)).toBe(false);
+  });
+
   it.each([
     ['below the minimum', 0],
     ['above the maximum', 11],

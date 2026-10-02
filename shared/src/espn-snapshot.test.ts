@@ -68,7 +68,7 @@ describe('ESPN snapshot validation', () => {
 
   it('rejects more picks than the draft can hold', () => {
     const smallDraft = { ...draft, settings: { teams: 2, rounds: 1, pickTimer: 90 } };
-    const picks = [1, 2, 3].map((pickNumber) => pick({ pickNumber, draftSlot: 1, teamIndex: 0 }));
+    const picks = [1, 2, 1].map((pickNumber) => pick({ pickNumber, draftSlot: 1, teamIndex: 0 }));
     expect(isEspnDraftSnapshot({ draft: smallDraft, picks, observedAt: 1_000 })).toBe(false);
   });
 
