@@ -13,9 +13,9 @@ import { NotificationProvider } from '@/components/notifications';
 import { AssistantPage } from '@/features/assistant/AssistantPage';
 import type { AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftBoard } from '@/features/draft-room/DraftBoard';
-import { DraftDecisionBar } from '@/features/draft-room/DraftDecisionBar';
-import { DraftDock } from '@/features/draft-room/DraftDock';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
+import { DraftWorkspace } from '@/features/draft-room/DraftWorkspace';
+import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
 import { DraftGlossary } from '@/features/help/DraftGlossary';
 import {
   DraftDecisionProvider,
@@ -157,16 +157,34 @@ export const VISUAL_READY_REPORT = evaluateDraftReadiness(
   VISUAL_NOW
 );
 
+const VISUAL_STALE_TIMESTAMP = new Date(VISUAL_NOW - 6 * 24 * 60 * 60 * 1000).toISOString();
+
+/** Mirrors a session started without the live preflight and connected to a Sleeper mock. */
 export const VISUAL_BLOCKED_REPORT = evaluateDraftReadiness({
   sources: {
     ...READY_SOURCES,
+    'trusted-rankings': {
+      availability: 'available',
+      timestamp: VISUAL_STALE_TIMESTAMP,
+      detail: 'Fixed visual ranking fixture, intentionally stale for this capture.',
+    },
     'canonical-player-identities': {
+      availability: 'available',
+      timestamp: VISUAL_STALE_TIMESTAMP,
+      detail: 'Fixed visual identity fixture, intentionally stale for this capture.',
+    },
+    'primary-league-settings': {
       availability: 'missing',
       timestamp: null,
-      detail: 'The player identity fixture is intentionally blocked for this capture.',
+      detail: 'Connect the Primary League draft to load provider-confirmed settings.',
     },
   },
 }, VISUAL_NOW);
+
+const VISUAL_SETUP_ACTIONS: DraftSetupActions = {
+  openLeagueSetup: () => undefined,
+  openDraftConnection: () => undefined,
+};
 
 const VISUAL_DATA_FRESHNESS = [
   createDataFreshnessItem({
@@ -321,15 +339,11 @@ function Header({ route }: { readonly route: 'draft' | 'assistant' }): React.Rea
   );
 }
 
-function DraftWorkspace(): React.ReactElement {
+function DraftWorkspaceFixture(): React.ReactElement {
   return (
     <>
       <Header route="draft" />
-      <main className="draft-workspace w-full space-y-4 px-3 py-4 sm:px-4">
-        <DraftBoard roundWindowSize={VISUAL_BOARD_ROUNDS} />
-        <DraftDecisionBar compact onOpenAssistant={() => undefined} />
-        <DraftDock onOpenAssistant={() => undefined} />
-      </main>
+      <DraftWorkspace roundWindowSize={VISUAL_BOARD_ROUNDS} onOpenAssistant={() => undefined} />
     </>
   );
 }
@@ -361,14 +375,16 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
     case 'mobile-assistant':
       return <AssistantFixture lens={route.state} />;
     case 'mobile-draft':
-      return <DraftWorkspace />;
+      return <DraftWorkspaceFixture />;
     case 'readiness': {
       const report = route.state === 'blocked'
         ? VISUAL_BLOCKED_REPORT
         : VISUAL_READY_REPORT;
       return (
         <main className="mx-auto w-full max-w-4xl p-4">
-          <DraftReadinessBlockedNotice readiness={report} />
+          <DraftSetupActionsContext.Provider value={VISUAL_SETUP_ACTIONS}>
+            <DraftReadinessBlockedNotice readiness={report} />
+          </DraftSetupActionsContext.Provider>
         </main>
       );
     }

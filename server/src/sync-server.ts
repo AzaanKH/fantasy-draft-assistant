@@ -25,6 +25,7 @@ import type {
   FetchJson,
 } from './sync-adapter.js';
 import { YahooSyncAdapter } from './yahoo-adapter.js';
+import { DraftDataRefreshJob, type RunRefreshScript } from './draft-data-refresh.js';
 import { FantasyFootballCalculatorAdpProvider } from './fantasy-football-calculator.js';
 
 export { SLEEPER_API_BASE };
@@ -61,6 +62,8 @@ interface SyncServerOptions {
     readonly currentKeepers?: unknown;
     readonly sportsbookSnapshot?: unknown;
   };
+  /** Replaces the package-script runner for the Core Draft Data refresh, for tests. */
+  readonly runRefreshScript?: RunRefreshScript;
 }
 
 function isChromeExtensionOrigin(origin: string): boolean {
@@ -450,6 +453,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     options.shadowLogPath ?? DEFAULT_SHADOW_LOG_PATH
   );
   const marketAdpProvider = new FantasyFootballCalculatorAdpProvider(fetchJson);
+  const draftDataRefresh = new DraftDataRefreshJob(options.runRefreshScript);
 
   function evictIdleSessions(): void {
     const cutoff = Date.now() - limits.idleSessionMs;
@@ -566,6 +570,17 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
           lastActivityAt: session.lastActivityAt, subscribers: session.clientCount };
       }).sort((left, right) => left.session.localeCompare(right.session));
       sendJson(request, response, 200, { sessions: retained }, allowedOrigins);
+      return;
+    }
+
+    if (url.pathname === '/api/draft-data/refresh') {
+      if (request.method === 'GET') {
+        sendJson(request, response, 200, draftDataRefresh.getStatus(), allowedOrigins);
+      } else if (request.method === 'POST') {
+        sendJson(request, response, 202, draftDataRefresh.start(), allowedOrigins);
+      } else {
+        sendNotFound(request, response, allowedOrigins);
+      }
       return;
     }
 
@@ -832,6 +847,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       session.dispose();
     }
     sessions.clear();
+    draftDataRefresh.dispose();
   };
   server.once('close', disposeSessions);
 

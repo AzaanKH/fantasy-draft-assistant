@@ -15,7 +15,8 @@ import { getDraftBoardCurrentView } from './draft-board-view';
 const STICKY_HEADER_HEIGHT = 76;
 const STICKY_ROUND_COLUMN_WIDTH = 56;
 const MOBILE_ROUND_COLUMN_WIDTH = 44;
-const TEAM_COLUMN_MIN_WIDTH = 116;
+const TEAM_COLUMN_MIN_WIDTH = 124;
+const TEAM_COLORS = ['#3FA7FF', '#49E8CC', '#9C7BFF', '#FF7A93', '#B57BFF', '#FFAF5B', '#5CE0B0', '#FF7A2E', '#4AD0EE', '#F07BF0'] as const;
 
 interface BoardPick {
   readonly playerId: string;
@@ -99,6 +100,7 @@ function FilledPick({
       `board-position-${pick.position.toLowerCase()}`,
       compact && 'is-compact',
       pick.source === 'provisional' && 'is-provisional',
+      pick.source === 'reserved' && 'is-keeper',
       isSettling && 'draft-pick-confirmed'
     )}>
       <span className="board-pick-number">{formatRoundPick(pick.pickNumber, totalTeams)}</span>
@@ -209,10 +211,10 @@ function DraftGrid({
                 isActiveTeam && 'is-active-team'
               )}
             >
-              <span className="board-team-avatar" style={{ '--team-color': ['#00aaff', '#00cbb6', '#9464ff', '#ff729b', '#bd63f5', '#ffb15b', '#37dda4', '#ff791b', '#21bbe9', '#e660ef'][teamIndex % 10] } as React.CSSProperties} aria-hidden="true">
+              <span className="board-team-avatar" style={{ '--team-color': TEAM_COLORS[teamIndex % TEAM_COLORS.length] } as React.CSSProperties} aria-hidden="true">
                 {String(teamIndex + 1).padStart(2, '0')}
               </span>
-              <span className="board-team-name" title={teamNames[teamIndex]}>{teamNames[teamIndex]}{isMyTeam ? <span className="board-team-dot" /> : null}</span>
+              <span className="board-team-name" title={teamNames[teamIndex]}>{teamNames[teamIndex]}</span>
             </div>
           );
         })}
@@ -304,9 +306,9 @@ function BoardModeButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-semibold outline-none transition-[background-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/60',
+        'inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold outline-none transition-[background-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/60',
         active
-          ? 'bg-card text-foreground shadow-sm'
+          ? 'bg-foreground text-background'
           : 'text-muted-foreground hover:text-foreground'
       )}
     >
@@ -338,9 +340,15 @@ export function getDraftBoardRoundNumbers(
 }
 
 export function DraftBoard({
+  boardHeight = 320,
+  fillsSpace = false,
   roundWindowSize,
   toolbarActions,
 }: {
+  /** Height of the scrolling pick grid, in pixels. */
+  readonly boardHeight?: number;
+  /** Grow the pick grid into all available space instead of using boardHeight. */
+  readonly fillsSpace?: boolean;
   readonly roundWindowSize?: number;
   readonly toolbarActions?: React.ReactNode;
 } = {}): React.ReactElement {
@@ -350,12 +358,6 @@ export function DraftBoard({
   const draftHistory = useDraftStore((state) => state.draftHistory);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const [mode, setMode] = React.useState<BoardMode>('current');
-  const [boardHeight, setBoardHeight] = React.useState(() => {
-    try {
-      const stored = Number(window.localStorage.getItem('draft-board-height'));
-      return stored >= 240 && stored <= 640 ? stored : 320;
-    } catch { return 320; }
-  });
   const turnIndicatorRef = React.useRef<HTMLSpanElement>(null);
   const reduceMotion = usePrefersReducedMotion();
   const [settlingPickNumber, setSettlingPickNumber] = React.useState<number | null>(null);
@@ -480,7 +482,7 @@ export function DraftBoard({
         behavior: reduceMotion ? 'auto' : 'smooth',
       });
     }
-  }, [currentPick, mode, boardHeight]);
+  }, [currentPick, mode, boardHeight, fillsSpace]);
 
   const isYourTurn = currentPick <= totalPicks && currentView.upcomingMyPickNumber === currentPick;
   const previouslyYourTurn = React.useRef(isYourTurn);
@@ -489,8 +491,8 @@ export function DraftBoard({
     previouslyYourTurn.current = isYourTurn;
     if (!justStarted || reduceMotion || !turnIndicatorRef.current) return;
     const animation = turnIndicatorRef.current.animate([
-      { backgroundColor: 'rgba(255, 227, 77, 0.24)' },
-      { backgroundColor: 'rgba(255, 227, 77, 0)' },
+      { boxShadow: '0 0 0 0 rgba(253, 224, 71, 0.6)' },
+      { boxShadow: '0 0 0 10px rgba(253, 224, 71, 0)' },
     ], { duration: 600, easing: 'ease-out' });
     return () => { animation.cancel(); };
   }, [isYourTurn, reduceMotion]);
@@ -513,19 +515,24 @@ export function DraftBoard({
   } as const;
 
   return (
-    <section className="draft-board" aria-label="Draft board" style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}>
+    <section className={cn('draft-board', fillsSpace && 'is-filling')} aria-label="Draft board" style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}>
       <div className="board-toolbar flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
-          <h2 className="text-base font-bold" title={`${String(config.totalTeams)} teams · ${String(config.totalRounds)} rounds · ${config.draftType} order`}>Draft board</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start sm:gap-5">
+          <div className="min-w-0">
+            <h2 className="board-title">Draft board</h2>
+            <p className="board-subtitle">
+              {String(config.totalTeams)}-team {config.draftType} · {String(config.totalRounds)} rounds
+            </p>
+          </div>
           {toolbarActions}
         </div>
         <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <span ref={turnIndicatorRef} role="status" className={cn("board-current-pick", isYourTurn && "is-your-turn")}><Clock3 size={14} aria-hidden="true" />
+          <span ref={turnIndicatorRef} role="status" className={cn("board-current-pick", isYourTurn && "is-your-turn", currentPick > totalPicks && "is-complete")}><Clock3 size={14} aria-hidden="true" />
             {currentPick > totalPicks
               ? 'Complete'
               : `${isYourTurn ? 'Your turn ·' : 'Pick'} ${formatRoundPick(currentPick, config.totalTeams)}`}
           </span>
-          <div className="inline-flex rounded-lg bg-muted p-0.5" role="group" aria-label="Draft board view">
+          <div className="board-view-toggle" role="group" aria-label="Draft board view">
             <BoardModeButton active={mode === 'current'} onClick={() => { setMode('current'); }}>
               <Focus className="size-3.5" />
               <span className="sm:hidden">Current</span>
@@ -538,18 +545,6 @@ export function DraftBoard({
           </div>
         </div>
       </div>
-
-      <label className="board-height-control">
-        <span>Board height</span>
-        <input type="range" min="240" max="640" step="20" value={boardHeight}
-          aria-label="Board height" aria-valuetext={`${String(boardHeight)} pixels`}
-          onChange={(event) => {
-            const height = Number(event.target.value);
-            setBoardHeight(height);
-            try { window.localStorage.setItem('draft-board-height', String(height)); } catch { /* The control still works when storage is unavailable. */ }
-          }} />
-        <span className="board-height-value" aria-hidden="true">{String(boardHeight)} px</span>
-      </label>
 
       {mode === 'current' ? (
         <>

@@ -1,73 +1,74 @@
 import * as React from 'react';
-import type { Position } from '@fantasy-draft/shared';
-import { POSITIONS } from '@fantasy-draft/shared';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { Badge } from '@/components/ui/badge';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
+import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { useDraftStore } from '@/stores/draftStore';
+import { getRosterSlots } from './roster-slots';
 
 export function DraftRosterPanel(): React.ReactElement {
   const { players } = usePlayerDataQuery();
   const myRoster = useDraftStore((state) => state.myRoster);
   const config = useDraftStore((state) => state.config);
+  const draftHistory = useDraftStore((state) => state.draftHistory);
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]
   );
-  const rosterSize = (Object.values(myRoster) as string[][]).reduce(
-    (total, playerIds) => total + playerIds.length,
-    0
+  const pickByPlayerId = React.useMemo(
+    () => new Map(draftHistory.map((pick) => [pick.playerId, pick])),
+    [draftHistory]
   );
+  const slots = React.useMemo(
+    () => getRosterSlots(myRoster, config.rosterRequirements),
+    [config.rosterRequirements, myRoster]
+  );
+  const rosterSize = slots.filter((slot) => slot.playerId).length;
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Draft slot {String(config.myPickPosition)}</span>
-        <span className="font-mono">{String(rosterSize)} / {String(config.totalRounds)} players</span>
+    <div className="draft-roster">
+      <div className="draft-roster-heading">
+        <h3>Drafted players</h3>
+        <span>Slot {String(config.myPickPosition)} · {String(rosterSize)} / {String(config.totalRounds)}</span>
       </div>
-      <div className="grid gap-x-5 gap-y-4 border-y border-border/70 bg-muted/15 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {POSITIONS.map((position: Position) => {
-          const playerIds = myRoster[position];
-          const starterCount = config.rosterRequirements[position].starters;
+      <ul className="draft-roster-slots">
+        {slots.map((slot, index) => {
+          const player = slot.playerId ? playerById.get(slot.playerId) : undefined;
+          const pick = slot.playerId ? pickByPlayerId.get(slot.playerId) : undefined;
+          const name = player?.name ?? pick?.playerName;
+          const position = player?.position ?? pick?.position;
+          const details = player ? `${player.team} · Bye ${String(player.byeWeek)}` : null;
           return (
-            <section key={position} className="border-l-2 border-border/70 pl-3">
-              <div className="mb-2 flex items-center justify-between">
-                <Badge variant="outline" className="font-mono text-[10px]">{position}</Badge>
-                <span className="text-[10px] text-muted-foreground">
-                  {String(playerIds.length)} / {String(config.rosterRequirements[position].max)}
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                {playerIds.map((playerId, index) => {
-                  const player = playerById.get(playerId);
-                  if (!player) return null;
-                  return (
-                    <div key={playerId} className="flex items-center gap-2 rounded-md bg-muted/35 p-1.5">
-                      <PlayerHeadshot
-                        playerId={player.id}
-                        name={player.name}
-                        position={player.position}
-                        className="size-7 rounded-full"
-                      />
-                      <div className="min-w-0">
-                        <div className="truncate text-[11px] font-semibold">{player.name}</div>
-                        <div className="text-[9px] text-muted-foreground">
-                          {index < starterCount ? 'Starter' : 'Bench'} · {player.team}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {playerIds.length === 0 ? (
-                  <div className="bg-muted/35 px-2 py-3 text-center text-[10px] text-muted-foreground">
-                    Empty
-                  </div>
-                ) : null}
-              </div>
-            </section>
+            <li key={`${slot.label}-${String(index)}`} className="draft-roster-slot">
+              <span className="draft-slot-badge" data-slot-label={slot.label}>{slot.label}</span>
+              {slot.playerId && name ? (
+                <>
+                  <PlayerHeadshot
+                    playerId={slot.playerId}
+                    name={name}
+                    position={position}
+                    className="size-8 shrink-0 rounded-full"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="draft-roster-name">{name}</span>
+                    {details || slot.label === 'FLEX' || slot.label === 'BN' ? (
+                      <span className="draft-roster-meta">
+                        {[slot.label === 'FLEX' || slot.label === 'BN' ? position : null, details]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    ) : null}
+                  </span>
+                  {pick ? (
+                    <span className="draft-roster-pick">{formatRoundPick(pick.pickNumber, config.totalTeams)}</span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="draft-roster-empty">{slot.playerId ? 'Player details unavailable' : 'Empty'}</span>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }

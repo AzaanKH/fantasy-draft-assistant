@@ -53,7 +53,7 @@ export function DraftDecisionBar({
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
   readonly compact?: boolean;
 }): React.ReactElement | null {
-  const { output, isLoading } = useDraftDecision();
+  const { output, isLoading, recommendationsBlocked } = useDraftDecision();
   const bestPick = output.bestPick;
   const sessionMode = useDraftSessionMode();
   const config = useDraftStore((state) => state.config);
@@ -72,7 +72,13 @@ export function DraftDecisionBar({
       <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite" aria-busy={isLoading}>
         <div className="draft-best-pick-content">
           <span className="text-xs font-semibold text-primary">Best Pick</span>
-          <p className="text-sm text-muted-foreground">{isLoading ? 'Finding your best pick…' : 'No pick available'}</p>
+          <p className="text-sm text-muted-foreground">
+            {isLoading
+              ? 'Finding your best pick…'
+              : recommendationsBlocked
+                ? 'Paused until setup is finished. See the checklist above.'
+                : 'No pick available'}
+          </p>
         </div>
       </section>
     ) : <EmptyDecisionBar isLoading={isLoading} />;

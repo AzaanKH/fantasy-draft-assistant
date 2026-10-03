@@ -69,25 +69,47 @@
 }
 
 @theme {
-  --color-background: oklch(0.995 0.002 155);
-  --color-foreground: oklch(0.17 0.008 155);
-  --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.17 0.008 155);
-  --color-popover: oklch(1 0 0);
-  --color-popover-foreground: oklch(0.17 0.008 155);
-  --color-primary: oklch(0.69 0.17 151);
-  --color-primary-foreground: oklch(0.12 0.02 153);
-  --color-secondary: oklch(0.965 0.005 155);
-  --color-secondary-foreground: oklch(0.22 0.01 155);
-  --color-muted: oklch(0.965 0.005 155);
-  --color-muted-foreground: oklch(0.48 0.012 155);
-  --color-accent: oklch(0.95 0.018 153);
-  --color-accent-foreground: oklch(0.22 0.01 155);
+  /* Light theme. The dark theme below follows docs/design-system/tokens.json. */
+  --color-background: #f3f5f3;
+  --color-foreground: #24382e;
+  --color-card: #fff;
+  --color-card-foreground: #24382e;
+  --color-popover: #fff;
+  --color-popover-foreground: #24382e;
+  --color-primary: #245944;
+  --color-primary-foreground: #fff;
+  --color-secondary: #e7eee9;
+  --color-secondary-foreground: #24382e;
+  --color-muted: #e7eee9;
+  --color-muted-foreground: #647369;
+  --color-accent: #e7eee9;
+  --color-accent-foreground: #24382e;
   --color-destructive: oklch(0.577 0.245 27.325);
   --color-destructive-foreground: oklch(0.99 0 0);
-  --color-border: oklch(0.9 0.008 155);
-  --color-input: oklch(0.9 0.008 155);
-  --color-ring: oklch(0.69 0.17 151);
+  --color-border: #d7e0da;
+  --color-input: #d7e0da;
+  --color-ring: #245944;
+
+  /* Design-system surfaces and draft states. */
+  --color-surface: #fff;
+  --color-surface-raised: #e7eee9;
+  --color-surface-inset: #f8faf8;
+  --color-primary-hover: #2d6e54;
+  --color-primary-subtle: #e1efe8;
+  --color-on-clock: #FDE047;
+  --color-timer: #FCD0CC;
+  --color-position-qb: #FF80AD;
+  --color-position-rb: #49E8CC;
+  --color-position-wr: #4AD0EE;
+  --color-position-te: #FFAF16;
+  --color-position-k: #B5A3FF;
+  --color-position-def: #B4C2D9;
+  --color-position-ink: #051827;
+  --color-success: #1d7a5f;
+  --color-warning: #8a6a00;
+  --color-danger: #b4232f;
+  --color-paused: #4f55c9;
+  --color-keeper: #6a52d6;
 
   /* Draft-specific colors */
   --color-strong-buy: oklch(0.723 0.191 142.495);
@@ -95,32 +117,59 @@
   --color-neutral: oklch(0.922 0 0);
   --color-avoid: oklch(0.577 0.245 27.325);
 
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
+  --font-sans: "DM Sans", sans-serif;
+  --font-display: "Barlow Condensed", sans-serif;
+  --tracking-label: 0.04em;
+  --container-sidebar: 360px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-xl: 0.75rem;
+  --radius-pill: 999px;
 }
 
+/* docs/design-system/tokens.json */
 .dark {
-  --color-background: oklch(0.105 0.008 155);
-  --color-foreground: oklch(0.965 0.004 155);
-  --color-card: oklch(0.135 0.008 155);
-  --color-card-foreground: oklch(0.965 0.004 155);
-  --color-popover: oklch(0.145 0.008 155);
-  --color-popover-foreground: oklch(0.965 0.004 155);
-  --color-primary: oklch(0.73 0.17 151);
-  --color-primary-foreground: oklch(0.11 0.018 153);
-  --color-secondary: oklch(0.19 0.008 155);
-  --color-secondary-foreground: oklch(0.94 0.004 155);
-  --color-muted: oklch(0.185 0.008 155);
-  --color-muted-foreground: oklch(0.68 0.01 155);
-  --color-accent: oklch(0.205 0.014 153);
-  --color-accent-foreground: oklch(0.97 0.004 155);
-  --color-destructive: oklch(0.58 0.2 27);
-  --color-destructive-foreground: oklch(0.98 0 0);
-  --color-border: oklch(0.245 0.01 155);
-  --color-input: oklch(0.245 0.01 155);
-  --color-ring: oklch(0.73 0.17 151);
+  --color-background: #05091E;
+  --color-foreground: #FFFFFF;
+  --color-card: #141B38;
+  --color-card-foreground: #FFFFFF;
+  --color-popover: #1C2643;
+  --color-popover-foreground: #FFFFFF;
+  --color-primary: #03FFFA;
+  --color-primary-foreground: #051827;
+  --color-secondary: #1C2643;
+  --color-secondary-foreground: #FFFFFF;
+  --color-muted: #1C2643;
+  --color-muted-foreground: #A5B3CB;
+  --color-accent: #1C2643;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #FF8A97;
+  --color-destructive-foreground: #051827;
+  --color-border: #34415E;
+  --color-input: #34415E;
+  --color-ring: #03FFFA;
+
+  --color-surface: #141B38;
+  --color-surface-raised: #1C2643;
+  --color-surface-inset: #0B1027;
+  --color-primary-hover: #5CFFFC;
+  --color-primary-subtle: #0A3447;
+  --color-success: #49E8CC;
+  --color-warning: #FDE047;
+  --color-danger: #FF8A97;
+  --color-paused: #A6AAFF;
+  --color-keeper: #B5A3FF;
+
+  /* Existing positive-state accents share the primary cyan range. */
+  --color-emerald-300: #5CFFFC;
+  --color-emerald-500: #03FFFA;
+  --color-emerald-600: #00D9D5;
+  --color-emerald-700: #00AAA8;
+  --color-emerald-800: #0A5C6A;
+  --color-emerald-950: #0A3447;
 }
 
 html {
@@ -132,14 +181,7 @@ body {
   min-height: 100vh;
   background: var(--color-background);
   color: var(--color-foreground);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    sans-serif,
-    "Apple Color Emoji",
-    "Segoe UI Emoji",
-    "Segoe UI Symbol",
-    "Noto Color Emoji";
+  font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   text-rendering: optimizeLegibility;
 }

@@ -2,12 +2,12 @@ import * as React from 'react';
 import { RouteSkeleton } from '@/components/skeletons';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { MockDraftControls } from '@/features/draft-board/MockDraftControls';
+import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useDraftSessionMode, useDraftStore } from '@/stores/draftStore';
-import { DraftBoard } from './DraftBoard';
-import { DraftDecisionBar } from './DraftDecisionBar';
-import { DraftDock } from './DraftDock';
+import { DraftReadinessBlockedNotice } from './DraftReadinessBlockedNotice';
+import { DraftWorkspace } from './DraftWorkspace';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 import { ManualContinuityControl } from './ManualContinuityControl';
 import { ReconciliationSummary } from './ReconciliationSummary';
@@ -23,30 +23,30 @@ export function DraftRoom({
   const sessionMode = useDraftSessionMode();
   const { sync } = useLiveDraftSync();
   const config = useDraftStore((state) => state.config);
+  const { readiness, recommendationsBlocked } = useDraftDecision();
   if (isLoading) {
     return <RouteSkeleton route="draft" />;
   }
 
   return (
-    <main className="draft-workspace w-full space-y-4 px-3 py-4 sm:px-4">
-      {sessionMode === 'live' && sync.reconciliationSummary ? (
-        <ReconciliationSummary
-          summary={sync.reconciliationSummary}
-          totalTeams={config.totalTeams}
-          onDismiss={sync.dismissReconciliationSummary}
-        />
-      ) : null}
-
-      {sessionMode === 'live' ? <ManualContinuityControl /> : null}
-
-      <div className="min-w-0 space-y-4">
-        <DraftBoard toolbarActions={sessionMode !== 'live'
-          ? <MockDraftControls players={players} isMockReady={keeperStatus.isMockReady} sessionMode={sessionMode} />
-          : undefined}
-        />
-        <DraftDecisionBar compact onOpenAssistant={onOpenAssistant} />
-        <DraftDock onOpenAssistant={onOpenAssistant} />
-      </div>
-    </main>
+    <DraftWorkspace
+      onOpenAssistant={onOpenAssistant}
+      notices={(
+        <>
+          {recommendationsBlocked && readiness ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
+          {sessionMode === 'live' && sync.reconciliationSummary ? (
+            <ReconciliationSummary
+              summary={sync.reconciliationSummary}
+              totalTeams={config.totalTeams}
+              onDismiss={sync.dismissReconciliationSummary}
+            />
+          ) : null}
+          {sessionMode === 'live' ? <ManualContinuityControl /> : null}
+        </>
+      )}
+      toolbarActions={sessionMode !== 'live'
+        ? <MockDraftControls players={players} isMockReady={keeperStatus.isMockReady} sessionMode={sessionMode} />
+        : undefined}
+    />
   );
 }

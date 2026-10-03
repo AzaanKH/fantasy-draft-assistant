@@ -18,6 +18,7 @@ import {
   Settings2,
   Unplug,
 } from 'lucide-react';
+import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { MotionExpandable } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -446,42 +447,7 @@ export function DraftConnect({
   );
 
   const liveDraftBlockerPanel = liveDraftBlocked ? (
-    <section
-      aria-labelledby="draft-readiness-heading"
-      className="rounded-lg border border-red-500/45 bg-red-500/[0.08] p-4"
-      role="alert"
-    >
-      <h3
-        id="draft-readiness-heading"
-        className="flex items-center gap-2 text-sm font-semibold text-red-800 dark:text-red-300"
-      >
-        <CircleAlert className="size-4" />
-        Core Draft Data blocks live Recommendations
-      </h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        Resolve each product-blocking failure below. Optional Signals never take the Draft Workspace offline.
-      </p>
-      <ul className="mt-3 space-y-2 text-xs">
-        {liveDraftBlockers.map((item) => (
-          <li
-            key={item.key}
-            className="rounded-md border border-red-500/20 bg-background/70 px-3 py-2"
-          >
-            <div className="font-medium">{item.label}</div>
-            <div className="mt-0.5 text-muted-foreground">
-              {item.sourceLabel} · {item.timestampLabel}{' '}
-              <span className="font-mono tabular-nums">
-                {formatDraftReadinessTimestamp(item.timestamp)}
-              </span>
-            </div>
-            <p className="mt-1 leading-relaxed text-muted-foreground">{item.message}</p>
-            <div className="mt-1 font-medium text-red-800 dark:text-red-300">
-              Action: {item.correctiveAction}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <DraftReadinessBlockedNotice readiness={readiness} showLeagueActions={false} />
   ) : null;
 
   const optionalSignalPanel = degradedOptionalData.length > 0 ? (
