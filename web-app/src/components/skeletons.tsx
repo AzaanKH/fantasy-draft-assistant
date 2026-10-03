@@ -162,7 +162,7 @@ function AssistantRouteSkeleton(): React.ReactElement {
             <SkeletonBlock className="h-64 w-full" />
           </div>
         </div>
-        <aside className="grid gap-6 rounded-md border border-border bg-card p-4 sm:grid-cols-2 min-[1100px]:grid-cols-1">
+        <aside className="grid gap-6 rounded-md border border-border bg-card p-4 sm:max-[1100px]:grid-cols-2">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="space-y-3">
               <SkeletonBlock className="h-4 w-28" />
