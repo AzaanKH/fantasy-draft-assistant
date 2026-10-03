@@ -22,7 +22,7 @@ Submit your picks in the provider's own draft room.
 
 ## Get started
 
-Requires Node 22.12+, pnpm 9.15.0, and Chrome or Chromium for the extension.
+Requires Node 22.18+, pnpm 9.15.0, and Chrome or Chromium for the extension.
 Run these commands from the repository root:
 
 ```bash

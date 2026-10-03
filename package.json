@@ -5,7 +5,7 @@
   "description": "Fantasy football draft assistant with a React web app and Chrome extension for ESPN, Yahoo, and Sleeper",
   "type": "module",
   "engines": {
-    "node": ">=22.12.0",
+    "node": ">=22.18.0",
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.15.0",
@@ -59,7 +59,7 @@
     "build:cli": "pnpm --filter @fantasy-draft/shared build && pnpm --filter @fantasy-draft/cli build"
   },
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "^5.9.0"
   },
   "pnpm": {
     "overrides": {
