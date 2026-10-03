@@ -40,7 +40,7 @@ function measureResizeBounds(
 ): { readonly current: number; readonly max: number } {
   const current = getVisibleHeight(stack, '.board-scroll') ?? fallbackHeight;
   if (!fillsViewport) {
-    return { current, max: Math.max(current, SCROLLING_MAX_BOARD_HEIGHT) };
+    return { current, max: SCROLLING_MAX_BOARD_HEIGHT };
   }
   const dockHeight = getVisibleHeight(stack, '.draft-dock') ?? MIN_DOCK_HEIGHT;
   return { current, max: Math.max(MIN_BOARD_HEIGHT, current + dockHeight - MIN_DOCK_HEIGHT) };
@@ -89,7 +89,7 @@ export function DraftWorkspace({
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setIsResizing(false);
-    storeBoardHeight(clampBoardHeight(drag.startHeight + event.clientY - drag.startY, drag.maxHeight));
+    commitHeight(clampBoardHeight(drag.startHeight + event.clientY - drag.startY, drag.maxHeight));
   };
 
   const visibleBoardHeight = Math.round(Math.min(boardHeight, maxBoardHeight));
@@ -99,7 +99,7 @@ export function DraftWorkspace({
       {notices}
       <div ref={stackRef} className="draft-workspace-stack" data-resizing={isResizing || undefined}>
         <DraftBoard
-          boardHeight={boardHeight}
+          boardHeight={fillsViewport ? boardHeight : Math.min(boardHeight, SCROLLING_MAX_BOARD_HEIGHT)}
           fillsSpace={fillsViewport && !isDockExpanded}
           roundWindowSize={roundWindowSize}
           toolbarActions={toolbarActions}

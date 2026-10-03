@@ -34,6 +34,8 @@ function runRefreshStep(step: RefreshStep): Promise<void> {
       cwd: REPO_ROOT,
       env: process.env,
       stdio: 'inherit',
+      // Node can only launch pnpm.cmd through a shell on Windows.
+      shell: process.platform === 'win32',
     });
 
     child.once('error', rejectStep);

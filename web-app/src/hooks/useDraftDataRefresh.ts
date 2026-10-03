@@ -36,6 +36,8 @@ export function useDraftDataRefresh(enabled = true): DraftDataRefresh {
   });
   const startMutation = useMutation({
     mutationFn: async () => readStatus(await fetch(REFRESH_URL, { method: 'POST' })),
+    // A status read still in flight could land after the POST and overwrite `running` with `idle`.
+    onMutate: async () => { await queryClient.cancelQueries({ queryKey: STATUS_QUERY_KEY }); },
     onSuccess: (status) => { queryClient.setQueryData(STATUS_QUERY_KEY, status); },
     onError: () => {
       toast.error('Draft data refresh could not start', {

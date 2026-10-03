@@ -28,6 +28,8 @@ export const runPnpmScript: RunRefreshScript = (script, onOutput) => {
     cwd: REPO_ROOT,
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
+    // Node can only launch pnpm.cmd through a shell on Windows.
+    shell: process.platform === 'win32',
   });
   // Mirror output in the server terminal so the refresh reads like `pnpm dev:live`.
   child.stdout.on('data', (chunk: Buffer) => { process.stdout.write(chunk); onOutput(chunk.toString('utf8')); });
