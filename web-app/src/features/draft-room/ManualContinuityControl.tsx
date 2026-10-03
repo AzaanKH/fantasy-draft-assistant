@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatRoundPick } from '@/lib/mock-draft-engine';
+import { getProviderName } from '@/lib/provider-name';
 import { cn } from '@/lib/utils';
 import {
   useDraftStore,
@@ -21,6 +22,7 @@ import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 export function ManualContinuityControl(): React.ReactElement | null {
   const {
     canEnterManualContinuity,
+    connection,
     enterManualContinuity,
     lastConfirmedPickNumber,
     provisionalPickCount,
@@ -98,6 +100,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
     ? `Provider Truth through pick #${String(lastConfirmedPickNumber)} remains loaded.`
     : 'The last confirmed Provider Truth remains loaded.';
   const isManual = synchronizationState === 'manual-continuity';
+  const providerName = getProviderName(connection?.provider ?? null);
 
   return (
     <>
@@ -123,13 +126,13 @@ export function ManualContinuityControl(): React.ReactElement | null {
                 {isManual
                   ? 'Manual Continuity is active'
                   : viewState.connectionState === 'error'
-                    ? 'Sleeper is disconnected'
-                    : 'Sleeper updates are delayed'}
+                    ? `${providerName} is disconnected`
+                    : `${providerName} updates are delayed`}
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {lastTruthLabel}{' '}
                 {isManual
-                  ? `${String(provisionalPickCount)} ${provisionalPickCount === 1 ? 'Provisional Pick is' : 'Provisional Picks are'} local only and will never be submitted or queued with Sleeper.`
+                  ? `${String(provisionalPickCount)} ${provisionalPickCount === 1 ? 'Provisional Pick is' : 'Provisional Picks are'} local only and will never be submitted or queued with ${connection ? providerName : 'the provider'}.`
                   : 'Enter Manual Continuity to record selections you observe without changing the confirmed provider history.'}
               </p>
             </div>

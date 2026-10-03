@@ -129,29 +129,47 @@ function DraftRouteSkeleton(): React.ReactElement {
   );
 }
 
+/** Mirrors the Assistant: context bar, view tabs, Best Pick card, analysis beside other options, and the rail. */
 function AssistantRouteSkeleton(): React.ReactElement {
   return (
-    <main className="w-full space-y-4 px-4 py-4">
-      <SkeletonBlock className="h-11 w-full rounded-none" />
-      <section className="overflow-hidden rounded-xl border border-border/75 bg-card">
-        <div className="flex items-center gap-4 p-5">
-          <SkeletonBlock className="size-24 shrink-0 rounded-xl" />
-          <div className="flex-1 space-y-3">
-            <SkeletonBlock className="h-6 w-64 max-w-[80%]" />
-            <SkeletonBlock className="h-4 w-96 max-w-full" />
-            <SkeletonBlock className="h-3 w-72 max-w-[90%]" />
+    <main className="assistant-workspace grid gap-4">
+      <SkeletonBlock className="h-12 w-full" />
+      <div className="flex gap-2">
+        <SkeletonBlock className="h-9 w-28" />
+        <SkeletonBlock className="h-9 w-32" />
+      </div>
+      <div className="grid items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid min-w-0 gap-4">
+          <SkeletonBlock className="h-6 w-48" />
+          <section className="rounded-md border border-border bg-card px-5 py-4">
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className="size-14 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <SkeletonBlock className="h-5 w-48 max-w-[80%]" />
+                <SkeletonBlock className="h-3 w-64 max-w-full" />
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 min-[720px]:grid-cols-4">
+              {Array.from({ length: 4 }, (_, index) => <SkeletonBlock key={index} className="h-12" />)}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <SkeletonBlock className="h-10 w-32" />
+              <SkeletonBlock className="h-10 w-36" />
+            </div>
+          </section>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <SkeletonBlock className="h-64 w-full" />
+            <SkeletonBlock className="h-64 w-full" />
           </div>
-          <SkeletonBlock className="hidden h-20 w-56 lg:block" />
         </div>
-        <div className="grid grid-cols-3 gap-px border-t border-border/70 bg-border/70">
-          <SkeletonBlock className="h-16 rounded-none bg-card" />
-          <SkeletonBlock className="h-16 rounded-none bg-card" />
-          <SkeletonBlock className="h-16 rounded-none bg-card" />
-        </div>
-      </section>
-      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <SkeletonBlock className="h-80 w-full rounded-xl" />
-        <SkeletonBlock className="h-80 w-full rounded-none" />
+        <aside className="grid gap-6 rounded-md border border-border bg-card p-4 sm:max-[1100px]:grid-cols-2">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="space-y-3">
+              <SkeletonBlock className="h-4 w-28" />
+              <SkeletonBlock className="h-24 w-full" />
+            </div>
+          ))}
+        </aside>
       </div>
     </main>
   );

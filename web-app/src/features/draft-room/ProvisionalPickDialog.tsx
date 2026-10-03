@@ -15,10 +15,12 @@ import {
   getPickNumberForTeamRound,
   getTeamIndexForPick,
 } from '@/lib/mock-draft-engine';
+import { getProviderName } from '@/lib/provider-name';
 import {
   useDraftStore,
   type RecordedDraftPick,
 } from '@/stores/draftStore';
+import { useLiveDraftSync } from './LiveDraftSyncProvider';
 
 function getTeamName(
   teamIndex: number,
@@ -78,6 +80,7 @@ function ProvisionalPickForm({
   readonly onClose: () => void;
 }): React.ReactElement {
   const { players } = usePlayerDataQuery();
+  const { connection } = useLiveDraftSync();
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
@@ -199,7 +202,7 @@ function ProvisionalPickForm({
         <DialogDescription>
           {editingPick
             ? 'Replace the observed player or draft position. Confirmed Provider Truth stays locked.'
-            : 'Record the selection you saw in Sleeper. The local draft state will update, but this action cannot submit or queue a provider pick.'}
+            : `Record the selection you saw in ${connection ? getProviderName(connection.provider) : 'your draft room'}. The local draft state will update, but this action cannot submit or queue a provider pick.`}
         </DialogDescription>
       </DialogHeader>
 
