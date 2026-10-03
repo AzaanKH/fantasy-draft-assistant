@@ -383,6 +383,133 @@ describe('durable draft sessions', () => {
     }
   });
 
+  it('recovers saves from different tabs that build on each other after one stale write', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    const tabA = openSession(storage);
+    const tabB = openSession(storage);
+    let race = false;
+    const racingStorage = memoryStorage(storage.values);
+    racingStorage.setItem.mockImplementation((storedKey: string, value: string) => {
+      // C has passed its conflict check. A saves, then B builds on A, before C's session write.
+      if (race && storedKey !== key) {
+        race = false;
+        expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+        tabB.getState().setDecisionLens('best-player');
+        expect(tabB.getState().draftHistory).toHaveLength(1);
+      }
+      storage.values.set(storedKey, value);
+    });
+    const tabC = openSession(racingStorage);
+    race = true;
+    tabC.getState().togglePlayerShortlisted('queued');
+
+    const recovered = createDraftStore({ storage, session: identity }).getState();
+    expect(recovered.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(recovered.shortlistedPlayerIds).toEqual(['queued']);
+    expect(recovered.decisionLens).toBe('best-player');
+  });
+
+  it('keeps an overwritten pick move whole when another tab took its destination', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    const tabA = openSession(storage);
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'moved'))).toBe(true);
+    let race = false;
+    const racingStorage = memoryStorage(storage.values);
+    racingStorage.setItem.mockImplementation((storedKey: string, value: string) => {
+      // B has passed its conflict check. A moves the pick before B's session write.
+      if (race && storedKey !== key) {
+        race = false;
+        expect(tabA.getState().correctProvisionalPick(1, pick(2, 'moved'))).toBe(true);
+      }
+      storage.values.set(storedKey, value);
+    });
+    const tabB = openSession(racingStorage);
+    race = true;
+    expect(tabB.getState().recordProvisionalPick(pick(2, 'other'))).toBe(true);
+
+    const recovered = createDraftStore({ storage, session: identity }).getState();
+    expect(recovered.draftHistory.map((entry) => [entry.pickNumber, entry.playerId])).toEqual([[1, 'moved'], [2, 'other']]);
+  });
+
+  it('converges when storage events arrive after both tabs have saved again', () => {
+    const values = new Map<string, string>();
+    const listeners: ((key: string | null, newValue: string | null) => void)[] = [];
+    const queued: (() => void)[] = [];
+    // Browsers deliver storage events later, so each tab may save again before it hears of the other.
+    function tab() {
+      let self: ((key: string | null, newValue: string | null) => void) | null = null;
+      const storage = memoryStorage(values);
+      storage.setItem.mockImplementation((key: string, value: string) => {
+        values.set(key, value);
+        for (const listener of listeners) if (listener !== self) queued.push(() => { listener(key, value); });
+      });
+      const store = createDraftStore({
+        storage,
+        session: identity,
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+      });
+      store.getState().setSessionMode('live');
+      return store;
+    }
+    const tabA = tab();
+    const tabB = tab();
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    tabB.getState().togglePlayerShortlisted('queued');
+    tabA.getState().setDecisionLens('best-player');
+    tabB.getState().togglePlayerShortlisted('later');
+    while (queued.length > 0) queued.shift()?.();
+
+    for (const state of [tabA.getState(), tabB.getState(), createDraftStore({ storage: memoryStorage(values), session: identity }).getState()]) {
+      expect(state.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+      expect(state.shortlistedPlayerIds).toEqual(['queued', 'later']);
+      expect(state.decisionLens).toBe('best-player');
+    }
+  });
+
+  it('keeps saving sessions when recorded saves cannot be written', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    storage.setItem.mockImplementation((storedKey: string, value: string) => {
+      if (storedKey !== key) throw new Error('Full');
+      storage.values.set(storedKey, value);
+    });
+    const tab = openSession(storage);
+
+    expect(tab.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    tab.getState().togglePlayerShortlisted('queued');
+
+    expect([...storage.values.keys()]).toEqual([key]);
+    const reloaded = createDraftStore({ storage, session: identity }).getState();
+    expect(reloaded.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(reloaded.shortlistedPlayerIds).toEqual(['queued']);
+  });
+
+  it('merges back a recorded save whose session write failed once storage accepts writes again', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    const tab = openSession(storage);
+    tab.getState().togglePlayerShortlisted('queued');
+    let sessionWritesFail = true;
+    storage.setItem.mockImplementation((storedKey: string, value: string) => {
+      if (sessionWritesFail && storedKey === key) throw new Error('Full');
+      storage.values.set(storedKey, value);
+    });
+
+    expect(tab.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    expect(parseStoredDraftSession(storage.getItem(key), identity)?.draftHistory).toEqual([]);
+
+    // The tab reloads before any later save succeeds; its recorded save still holds the pick.
+    sessionWritesFail = false;
+    const reloaded = createDraftStore({ storage, session: identity }).getState();
+    expect(reloaded.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(reloaded.shortlistedPlayerIds).toEqual(['queued']);
+    expect(parseStoredDraftSession(storage.getItem(key), identity)?.draftHistory.map((entry) => entry.playerId))
+      .toEqual(['observed']);
+  });
+
   it('reports only the reconciliation attempt that was saved after a conflict', () => {
     const storage = memoryStorage();
     const key = getDraftSessionStorageKey(identity);

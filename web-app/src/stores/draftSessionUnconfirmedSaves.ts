@@ -131,9 +131,29 @@ export function isEmptyDraftSessionChange(change: DraftSessionChange): boolean {
 }
 
 /**
+ * Groups pick changes that involve a common player, so a pick moved from one slot
+ * to another merges as one operation rather than as a separate removal and insertion.
+ */
+function groupPickChanges(picks: readonly DraftPickChange[]): DraftPickChange[][] {
+  let groups: { readonly playerIds: ReadonlySet<string>; readonly picks: readonly DraftPickChange[] }[] = [];
+  for (const pick of picks) {
+    const playerIds = [pick.before?.playerId, pick.after?.playerId].filter((id) => id !== undefined);
+    const joined = groups.filter((group) => playerIds.some((id) => group.playerIds.has(id)));
+    groups = groups.filter((group) => !joined.includes(group));
+    groups.push({
+      playerIds: new Set([...playerIds, ...joined.flatMap((group) => [...group.playerIds])]),
+      picks: [...joined.flatMap((group) => group.picks), pick],
+    });
+  }
+  return groups.map((group) => [...group.picks]);
+}
+
+/**
  * Merges an overwritten save into a newer session. Picks merge by pick number and
  * the queue by adds and removes. Where both saves changed the same pick or field,
  * the newer session wins; a later pick is still never placed behind the merged picks.
+ * Pick changes involving the same player, such as a move, apply together or not at
+ * all, so a conflicting destination never leaves the original pick deleted.
  * The result is unvalidated; callers must parse it before use.
  */
 export function applyDraftSessionChange(
@@ -141,17 +161,18 @@ export function applyDraftSessionChange(
   change: DraftSessionChange
 ): PersistedDraftSession {
   const history = new Map(session.draftHistory.map((pick) => [pick.pickNumber, pick]));
-  const applicable = change.picks.filter((pick) => isSameSessionValue(history.get(pick.pickNumber) ?? null, pick.before));
-  // Clear every changed slot first so a pick moved to another number does not collide with itself.
-  for (const pick of applicable) history.delete(pick.pickNumber);
-  const draftedPlayerIds = new Set([...history.values()].map((pick) => pick.playerId));
-  for (const { pickNumber, before, after } of applicable) {
-    if (!after) continue;
-    // A player the newer session drafted at another pick stays there; this slot keeps its pick.
-    const kept = draftedPlayerIds.has(after.playerId) ? before : after;
-    if (!kept || draftedPlayerIds.has(kept.playerId)) continue;
-    history.set(pickNumber, kept);
-    draftedPlayerIds.add(kept.playerId);
+  for (const group of groupPickChanges(change.picks)) {
+    if (!group.every((pick) => isSameSessionValue(history.get(pick.pickNumber) ?? null, pick.before))) continue;
+    const slots = new Set(group.map((pick) => pick.pickNumber));
+    // A player the newer session drafted at another pick stays there, and these slots keep their picks.
+    const draftedElsewhere = new Set(
+      [...history.values()].filter((pick) => !slots.has(pick.pickNumber)).map((pick) => pick.playerId)
+    );
+    if (group.some(({ after }) => after && draftedElsewhere.has(after.playerId))) continue;
+    for (const { pickNumber, after } of group) {
+      if (after) history.set(pickNumber, after);
+      else history.delete(pickNumber);
+    }
   }
 
   const removed = new Set(change.queueRemoved);

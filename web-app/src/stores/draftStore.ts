@@ -20,6 +20,7 @@ import {
   readDraftSessionChanges,
   removeDraftSessionChange,
   type DraftSessionChange,
+  type StoredDraftSessionChange,
 } from './draftSessionUnconfirmedSaves';
 import type { DraftStore, DraftSessionMode, SetDraftState } from './draft/types';
 import {
@@ -240,7 +241,8 @@ export function createDraftStore({
    * overwrite it, and removed once a later save builds on it. Saves older than the
    * lineage are removed too: later saves built on them, so merging them again would
    * undo edits like a queue toggle. So are saves built on a session outside its
-   * history, such as one that was corrupted and replaced.
+   * history, such as one that was corrupted and replaced. A save built on another
+   * overwritten save is kept, since merging both restores the session it built on.
    */
   function takeOverwrittenChanges(
     liveSession: DraftSessionIdentity,
@@ -250,17 +252,30 @@ export function createDraftStore({
     const included = new Set(saved.lineage);
     const newestWriteId = saved.lineage.at(-1);
     const oldestCoveredRevision = saved.revision - saved.lineage.length + 1;
-    const overwritten: DraftSessionChange[] = [];
+    let pending: StoredDraftSessionChange[] = [];
     for (const stored of readDraftSessionChanges(storage, liveSession)) {
       const { change } = stored;
       if (change.writeId === newestWriteId) continue;
-      if (included.has(change.writeId) || change.revision < oldestCoveredRevision ||
-          (change.baseWriteId !== null && !included.has(change.baseWriteId))) {
+      if (included.has(change.writeId) || change.revision < oldestCoveredRevision) {
         removeDraftSessionChange(storage, stored);
       } else {
-        overwritten.push(change);
+        pending.push(stored);
       }
     }
+    // Resolve bases through the lineage or through other overwritten saves before removing any.
+    const resolved = new Set(included);
+    const overwritten: DraftSessionChange[] = [];
+    for (let progressed = true; progressed;) {
+      const before = pending.length;
+      pending = pending.filter(({ change }) => {
+        if (change.baseWriteId !== null && !resolved.has(change.baseWriteId)) return true;
+        resolved.add(change.writeId);
+        overwritten.push(change);
+        return false;
+      });
+      progressed = pending.length < before;
+    }
+    for (const stored of pending) removeDraftSessionChange(storage, stored);
     return overwritten.sort((left, right) => left.revision - right.revision);
   }
 

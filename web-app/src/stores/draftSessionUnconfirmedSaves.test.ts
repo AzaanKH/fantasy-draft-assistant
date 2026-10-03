@@ -64,4 +64,21 @@ describe('merging an overwritten save', () => {
     const merged = applyDraftSessionChange(base, computeDraftSessionChange(base, overwritten, 'lost'));
     expect(merged.draftHistory.map((entry) => [entry.pickNumber, entry.playerId])).toEqual([[3, 'moved']]);
   });
+
+  it('keeps a moved pick at its original slot when the newer session took the destination', () => {
+    const base = session({ draftHistory: [pick(1, 'moved')] });
+    const overwritten = session({ draftHistory: [pick(2, 'moved')] });
+    const newer = session({ draftHistory: [pick(1, 'moved'), pick(2, 'other')] });
+    const merged = applyDraftSessionChange(newer, computeDraftSessionChange(base, overwritten, 'lost'));
+    expect(merged.draftHistory.map((entry) => [entry.pickNumber, entry.playerId])).toEqual([[1, 'moved'], [2, 'other']]);
+  });
+
+  it('applies a move and an unrelated pick independently', () => {
+    const base = session({ draftHistory: [pick(1, 'moved')] });
+    const overwritten = session({ draftHistory: [pick(2, 'moved'), pick(3, 'added')] });
+    const newer = session({ draftHistory: [pick(1, 'moved'), pick(2, 'other')] });
+    const merged = applyDraftSessionChange(newer, computeDraftSessionChange(base, overwritten, 'lost'));
+    expect(merged.draftHistory.map((entry) => [entry.pickNumber, entry.playerId]))
+      .toEqual([[1, 'moved'], [2, 'other'], [3, 'added']]);
+  });
 });
