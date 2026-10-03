@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DraftDataRefreshJob, type RefreshScriptRun, type RunRefreshScript } from './draft-data-refresh.js';
+import { Effect } from 'effect';
+import { DraftDataRefreshJob, type RunRefreshScript } from './draft-data-refresh.js';
 
 interface PendingRun {
   readonly script: string;
@@ -10,13 +11,9 @@ interface PendingRun {
 
 function createControlledRunner(): { readonly runner: RunRefreshScript; readonly runs: PendingRun[] } {
   const runs: PendingRun[] = [];
-  const runner: RunRefreshScript = (script, output) => {
-    let resolve!: () => void;
-    let reject!: (error: Error) => void;
-    const done = new Promise<void>((resolveRun, rejectRun) => { resolve = resolveRun; reject = rejectRun; });
-    runs.push({ script, output, resolve, reject });
-    return { done, cancel: () => { reject(new Error('cancelled')); } } satisfies RefreshScriptRun;
-  };
+  const runner: RunRefreshScript = (script, output) => Effect.callback((resume: (effect: Effect.Effect<void, Error>) => void) => {
+    runs.push({ script, output, resolve: () => { resume(Effect.void); }, reject: (error) => { resume(Effect.fail(error)); } });
+  });
   return { runner, runs };
 }
 

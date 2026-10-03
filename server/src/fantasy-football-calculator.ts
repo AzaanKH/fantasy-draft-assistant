@@ -8,7 +8,8 @@ import {
   type NFLTeam,
   type Position,
 } from '@fantasy-draft/shared';
-import type { FetchJson } from './sync-adapter.js';
+import { Effect } from 'effect';
+import { parsePayload, ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
 
 export const FFC_API_BASE = 'https://fantasyfootballcalculator.com/api/v1/adp';
 const DEFAULT_MARKET_ADP_CACHE_MS = 60 * 60 * 1000;
@@ -94,41 +95,42 @@ export class FantasyFootballCalculatorAdpProvider {
     private readonly cacheDurationMs: number = DEFAULT_MARKET_ADP_CACHE_MS
   ) {}
 
-  public async getSnapshot(
+  public getSnapshot(
     format: MarketAdpFormat,
     teams: number,
-    season: number,
-    signal: AbortSignal
-  ): Promise<MarketAdpSnapshot> {
-    if (!isMarketAdpFormat(format)) {
-      throw new Error('Unsupported Fantasy Football Calculator scoring format');
-    }
-    const normalizedTeams = Math.max(8, Math.min(14, Math.round(teams)));
-    const normalizedSeason = Math.round(season);
-    const cacheKey = `${format}:${String(normalizedTeams)}:${String(normalizedSeason)}`;
-    const now = Date.now();
-    const cached = this.cache.get(cacheKey);
-    if (cached && cached.expiresAt > now) return cached.snapshot;
+    season: number
+  ): Effect.Effect<MarketAdpSnapshot, ProviderError> {
+    return Effect.gen({ self: this }, function* () {
+      if (!isMarketAdpFormat(format)) {
+        return yield* new ProviderError({ message: 'Unsupported Fantasy Football Calculator scoring format' });
+      }
+      const normalizedTeams = Math.max(8, Math.min(14, Math.round(teams)));
+      const normalizedSeason = Math.round(season);
+      const cacheKey = `${format}:${String(normalizedTeams)}:${String(normalizedSeason)}`;
+      const now = Date.now();
+      const cached = this.cache.get(cacheKey);
+      if (cached && cached.expiresAt > now) return cached.snapshot;
 
-    const url = `${FFC_API_BASE}/${format}?teams=${String(normalizedTeams)}&year=${String(normalizedSeason)}`;
-    const payload = await this.fetchJson<unknown>(url, signal);
-    if (!isRecord(payload) || payload['status'] !== 'Success') {
-      throw new Error('Fantasy Football Calculator returned an invalid ADP payload');
-    }
+      const url = `${FFC_API_BASE}/${format}?teams=${String(normalizedTeams)}&year=${String(normalizedSeason)}`;
+      const payload = yield* requestJson<unknown>(this.fetchJson, url);
+      if (!isRecord(payload) || payload['status'] !== 'Success') {
+        return yield* new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' });
+      }
 
-    const snapshot: MarketAdpSnapshot = {
-      source: 'fantasy-football-calculator',
-      format,
-      teams: normalizedTeams,
-      season: normalizedSeason,
-      refreshedAt: new Date(now).toISOString(),
-      draftCount: getDraftCount(payload),
-      players: normalizePlayers(payload['players']),
-    };
-    this.cache.set(cacheKey, {
-      expiresAt: now + this.cacheDurationMs,
-      snapshot,
+      const snapshot: MarketAdpSnapshot = {
+        source: 'fantasy-football-calculator',
+        format,
+        teams: normalizedTeams,
+        season: normalizedSeason,
+        refreshedAt: new Date(now).toISOString(),
+        draftCount: getDraftCount(payload),
+        players: yield* parsePayload(() => normalizePlayers(payload['players'])),
+      };
+      this.cache.set(cacheKey, {
+        expiresAt: now + this.cacheDurationMs,
+        snapshot,
+      });
+      return snapshot;
     });
-    return snapshot;
   }
 }

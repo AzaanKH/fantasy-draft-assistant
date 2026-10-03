@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -462,7 +463,7 @@ describe('createSyncServer', () => {
     const server = createSyncServer({
       runRefreshScript: (script) => {
         scripts.push(script);
-        return { done: Promise.resolve(), cancel: () => undefined };
+        return Effect.void;
       },
     });
     await new Promise<void>((resolve) => server.listen(0, resolve));
