@@ -3,6 +3,8 @@ import { availableParallelism } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import { Effect, Exit } from 'effect';
+import { io } from '../effect-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -61,6 +63,27 @@ export async function connectModelDb(): Promise<DuckDBConnection> {
   });
   return instance.connect();
 }
+
+/**
+ * closeSync blocks until a running query finishes, so cancel any query left
+ * running by a failure or Ctrl-C first; otherwise a slow remote read stalls exit.
+ */
+const closeConnection = (connection: DuckDBConnection, exit: Exit.Exit<unknown, unknown>) => Effect.sync(() => {
+  if (Exit.isFailure(exit)) connection.interrupt();
+  connection.closeSync();
+});
+
+/** A model database connection that is closed when the work finishes, fails, or is interrupted. */
+export const withModelDb = <A, E>(use: (connection: DuckDBConnection) => Effect.Effect<A, E>): Effect.Effect<A, E | Error> =>
+  Effect.acquireUseRelease(io(connectModelDb), use, closeConnection);
+
+/** A throwaway in-memory database for querying remote Parquet, closed like withModelDb. */
+export const withMemoryDb = <A, E>(use: (connection: DuckDBConnection) => Effect.Effect<A, E>): Effect.Effect<A, E | Error> =>
+  Effect.acquireUseRelease(
+    io(async () => (await DuckDBInstance.create(':memory:')).connect()),
+    use,
+    closeConnection,
+  );
 
 export function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;

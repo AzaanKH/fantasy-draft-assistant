@@ -7,7 +7,9 @@
  * Usage: pnpm scrape:ecr
  */
 
-import { chromium } from 'playwright';
+import { Effect } from 'effect';
+import { io, runMain } from './effect-runtime.js';
+import { withBrowserPage } from './playwright-browser.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,16 +77,8 @@ function isValidTeam(value: string): value is NFLTeam {
 /**
  * Scrape raw data from FantasyPros ECR table
  */
-async function scrapeRawData(): Promise<RawRowData[]> {
-  console.log('Launching browser...');
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  });
-  const page = await context.newPage();
-
-  try {
+const scrapeRawData = Effect.sync(() => { console.log('Launching browser...'); }).pipe(
+  Effect.andThen(withBrowserPage((page) => io(async (): Promise<RawRowData[]> => {
     console.log(`Navigating to ${ECR_URL}...`);
     await page.goto(ECR_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
@@ -143,10 +137,8 @@ async function scrapeRawData(): Promise<RawRowData[]> {
 
     console.log(`Found ${rawData.length} players`);
     return rawData;
-  } finally {
-    await browser.close();
-  }
-}
+  }))),
+);
 
 /**
  * Parse and validate raw data into ECRPlayer objects
@@ -234,64 +226,56 @@ function parseECRData(rawData: RawRowData[], byeWeeks: ReadonlyMap<string, numbe
 /**
  * Main scraper function
  */
-async function main(): Promise<void> {
+const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('FantasyPros ECR Rankings Scraper');
   console.log('='.repeat(50));
 
-  try {
-    const snapshot: unknown = JSON.parse(
-      await readFile(join(DATA_DIR, 'fantasypros-snapshot.json'), 'utf8')
-    );
-    const byeWeeks = getTeamByeWeeks(snapshot, new Date().getFullYear());
+  const snapshot: unknown = JSON.parse(
+    yield* io(() => readFile(join(DATA_DIR, 'fantasypros-snapshot.json'), 'utf8'))
+  );
+  const byeWeeks = getTeamByeWeeks(snapshot, new Date().getFullYear());
 
-    // Scrape raw data
-    const rawData = await scrapeRawData();
+  // Scrape raw data
+  const rawData = yield* scrapeRawData;
 
-    if (rawData.length === 0) {
-      throw new Error('No data scraped from FantasyPros');
-    }
-
-    // Parse and validate
-    const players = parseECRData(rawData, byeWeeks);
-    console.log(`\nSuccessfully parsed ${players.length} players`);
-
-    // Ensure data directory exists
-    await mkdir(DATA_DIR, { recursive: true });
-
-    // Write output
-    const output = {
-      scrapedAt: new Date().toISOString(),
-      source: ECR_URL,
-      playerCount: players.length,
-      players,
-    };
-
-    await writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2));
-    console.log(`\nData written to ${OUTPUT_FILE}`);
-
-    // Summary stats
-    const positionCounts = players.reduce<Record<string, number>>(
-      (acc, p) => {
-        acc[p.position] = (acc[p.position] ?? 0) + 1;
-        return acc;
-      },
-      {}
-    );
-
-    console.log('\nPosition breakdown:');
-    const entries = Object.entries(positionCounts);
-    entries.sort((a, b) => b[1] - a[1]);
-    for (const entry of entries) {
-      console.log(`  ${entry[0]}: ${entry[1]}`);
-    }
-  } catch (error) {
-    console.error('Scraping failed:', error);
-    process.exit(1);
+  if (rawData.length === 0) {
+    return yield* Effect.fail(new Error('No data scraped from FantasyPros'));
   }
-}
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
+  // Parse and validate
+  const players = parseECRData(rawData, byeWeeks);
+  console.log(`\nSuccessfully parsed ${players.length} players`);
+
+  // Ensure data directory exists
+  yield* io(() => mkdir(DATA_DIR, { recursive: true }));
+
+  // Write output
+  const output = {
+    scrapedAt: new Date().toISOString(),
+    source: ECR_URL,
+    playerCount: players.length,
+    players,
+  };
+
+  yield* io(() => writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2)));
+  console.log(`\nData written to ${OUTPUT_FILE}`);
+
+  // Summary stats
+  const positionCounts = players.reduce<Record<string, number>>(
+    (acc, p) => {
+      acc[p.position] = (acc[p.position] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
+
+  console.log('\nPosition breakdown:');
+  const entries = Object.entries(positionCounts);
+  entries.sort((a, b) => b[1] - a[1]);
+  for (const entry of entries) {
+    console.log(`  ${entry[0]}: ${entry[1]}`);
+  }
 });
+
+runMain(program, 'Scraping failed:');

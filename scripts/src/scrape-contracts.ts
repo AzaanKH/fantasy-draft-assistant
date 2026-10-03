@@ -7,7 +7,10 @@
  * Usage: pnpm scrape:contracts
  */
 
-import { chromium, type Page } from 'playwright';
+import { Effect } from 'effect';
+import type { Page } from 'playwright';
+import { io, runMain } from './effect-runtime.js';
+import { withBrowserPage } from './playwright-browser.js';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -170,75 +173,61 @@ function parseContractData(rawData: RawContractData[]): ContractPlayer[] {
 /**
  * Main scraper function
  */
-async function main(): Promise<void> {
+const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('Spotrac Contract Year Scraper');
   console.log('='.repeat(50));
 
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  });
-  const page = await context.newPage();
-
-  try {
+  const allRawData = yield* withBrowserPage((page) => io(async () => {
     console.log(`\nScraping ${CONTRACT_END_YEAR} free agents (contract year players)...`);
-    const allRawData: RawContractData[] = [];
+    const scraped: RawContractData[] = [];
 
     // Scrape each position page
     for (const [position, url] of Object.entries(SPOTRAC_URLS)) {
       const positionData = await scrapePositionPage(page, url, position as Position);
-      allRawData.push(...positionData);
+      scraped.push(...positionData);
 
       // Small delay between requests
       await page.waitForTimeout(1000);
     }
+    return scraped;
+  }));
 
-    console.log(`\nTotal raw data: ${allRawData.length} players`);
+  console.log(`\nTotal raw data: ${allRawData.length} players`);
 
-    // Parse and validate
-    const players = parseContractData(allRawData);
-    console.log(`Successfully parsed ${players.length} contract year players`);
+  // Parse and validate
+  const players = parseContractData(allRawData);
+  console.log(`Successfully parsed ${players.length} contract year players`);
 
-    // Ensure data directory exists
-    await mkdir(DATA_DIR, { recursive: true });
+  // Ensure data directory exists
+  yield* io(() => mkdir(DATA_DIR, { recursive: true }));
 
-    // Write output
-    const output = {
-      scrapedAt: new Date().toISOString(),
-      contractYear: CONTRACT_END_YEAR,
-      playerCount: players.length,
-      players,
-    };
+  // Write output
+  const output = {
+    scrapedAt: new Date().toISOString(),
+    contractYear: CONTRACT_END_YEAR,
+    playerCount: players.length,
+    players,
+  };
 
-    await writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2));
-    console.log(`\nData written to ${OUTPUT_FILE}`);
+  yield* io(() => writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2)));
+  console.log(`\nData written to ${OUTPUT_FILE}`);
 
-    // Summary stats
-    const positionCounts = players.reduce<Record<string, number>>(
-      (acc, p) => {
-        acc[p.position] = (acc[p.position] ?? 0) + 1;
-        return acc;
-      },
-      {}
-    );
+  // Summary stats
+  const positionCounts = players.reduce<Record<string, number>>(
+    (acc, p) => {
+      acc[p.position] = (acc[p.position] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
 
-    console.log('\nPosition breakdown:');
-    const entries = Object.entries(positionCounts);
-    entries.sort((a, b) => b[1] - a[1]);
-    for (const entry of entries) {
-      console.log(`  ${entry[0]}: ${entry[1]}`);
-    }
-  } catch (error) {
-    console.error('Scraping failed:', error);
-    process.exit(1);
-  } finally {
-    await browser.close();
+  console.log('\nPosition breakdown:');
+  const entries = Object.entries(positionCounts);
+  entries.sort((a, b) => b[1] - a[1]);
+  for (const entry of entries) {
+    console.log(`  ${entry[0]}: ${entry[1]}`);
   }
-}
-
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
 });
+
+runMain(program, 'Scraping failed:');

@@ -4,15 +4,17 @@
  * Usage: pnpm --filter scripts model:duckdb:init
  */
 
+import { Effect } from 'effect';
 import {
   MODEL_DB_PATH,
   MODEL_PATHS,
-  connectModelDb,
+  withModelDb,
   ensureModelDirs,
   readJsonFile,
   runStatements,
   sqlString,
 } from './duckdb.js';
+import { io, runMain } from '../effect-runtime.js';
 
 interface ContractsJson {
   readonly players?: readonly unknown[];
@@ -38,11 +40,11 @@ interface TeamEnvironmentJson {
 const normalizeNameSql = (column: string): string =>
   `regexp_replace(lower(${column}), '[^a-z0-9]', '', 'g')`;
 
-async function main(): Promise<void> {
-  await ensureModelDirs();
+const program = Effect.gen(function* () {
+  yield* io(() => ensureModelDirs());
 
-  const contracts = await readJsonFile<ContractsJson>(MODEL_PATHS.contractsJson);
-  const teamEnvironment = await readJsonFile<TeamEnvironmentJson>(MODEL_PATHS.teamEnvironmentJson);
+  const contracts = yield* io(() => readJsonFile<ContractsJson>(MODEL_PATHS.contractsJson));
+  const teamEnvironment = yield* io(() => readJsonFile<TeamEnvironmentJson>(MODEL_PATHS.teamEnvironmentJson));
   const hasContracts = (contracts.players?.length ?? 0) > 0;
   const teamEnvironmentValues = (
     Object.values(teamEnvironment.teams)
@@ -62,9 +64,7 @@ async function main(): Promise<void> {
         ].join(', ')})`
     )
     .join(',\n          ');
-  const connection = await connectModelDb();
-
-  try {
+  yield* withModelDb((connection) => io(async () => {
     await runStatements(connection, [
       `create schema if not exists model`,
       `create or replace table model.sleeper_adp_current as
@@ -253,12 +253,7 @@ async function main(): Promise<void> {
 
     console.log(`DuckDB initialized at ${MODEL_DB_PATH}`);
     console.log(`Normalized current-player join written to ${MODEL_PATHS.normalizedPlayersParquet}`);
-  } finally {
-    connection.closeSync();
-  }
-}
-
-main().catch((error: unknown) => {
-  console.error('DuckDB initialization failed:', error);
-  process.exit(1);
+  }));
 });
+
+runMain(program, 'DuckDB initialization failed:');
