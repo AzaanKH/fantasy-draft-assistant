@@ -1,5 +1,5 @@
 import { PositionTag } from '@/components/PositionTag';
-import type { Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
+import type { DraftProvider, Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import * as React from 'react';
 
@@ -15,6 +15,7 @@ export function AssistantQueue({
   bestPick,
   nextPickLabel,
   mode,
+  provider,
   onMove,
   onRemove,
   onSelect,
@@ -25,6 +26,7 @@ export function AssistantQueue({
   readonly bestPick: Recommendation | null;
   readonly nextPickLabel: string | null;
   readonly mode: AssistantDraftMode;
+  readonly provider: DraftProvider | null;
   readonly onMove: (playerId: string, offset: number) => void;
   readonly onRemove: (playerId: string) => void;
   readonly onSelect: (playerId: string) => void;
@@ -75,7 +77,7 @@ export function AssistantQueue({
       )}
       <p className="rec-muted rec-rail-help">
         {mode === 'companion' || mode === 'manual-continuity'
-          ? 'Local to this assistant. Sleeper autopick uses your Sleeper queue. Queuing does not change recommendations.'
+          ? `Local to this assistant.${provider === 'sleeper' ? ' Sleeper autopick uses your Sleeper queue.' : ''} Queuing does not change recommendations.`
           : 'Local queue. Queuing does not change recommendations.'}
       </p>
     </section>

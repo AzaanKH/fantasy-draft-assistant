@@ -8,6 +8,7 @@ import * as React from 'react';
 
 import {
   type AssistantAnswerRow,
+  getRosterAnswer,
   getSignalValueColor,
   getWaitAnswer,
   getWhyRows,
@@ -84,23 +85,10 @@ export function RosterAnswer({ needs, recommendation, player, sameByeName }: {
   readonly player?: Player;
   readonly sameByeName: string | null;
 }): React.ReactElement {
-  const selectedNeed = needs.find((need) => need.position === recommendation.position);
-  const openStarters = needs
-    .filter((need) => need.startersFilled < need.startersNeeded && need.position !== 'K' && need.position !== 'DEF')
-    .map((need) => {
-      const open = need.startersNeeded - need.startersFilled;
-      return open > 1 ? `${need.position} ×${String(open)}` : need.position;
-    });
-  const fillsStarter = selectedNeed !== undefined && selectedNeed.startersFilled < selectedNeed.startersNeeded;
+  const answer = getRosterAnswer(needs, recommendation.position);
   const rows: AssistantAnswerRow[] = [
-    { label: 'Open starters', answer: openStarters.length > 0 ? openStarters.join(', ') : 'All fixed starter slots are filled.', tone: 'neutral' },
-    {
-      label: `${recommendation.position} slots`,
-      answer: selectedNeed
-        ? `${String(selectedNeed.startersFilled)} of ${String(selectedNeed.startersNeeded)} filled · ${selectedNeed.priority} need`
-        : 'Roster context is unavailable.',
-      tone: 'neutral',
-    },
+    { label: 'Open starters', answer: answer.openStarters, tone: 'neutral' },
+    { label: `${recommendation.position} slots`, answer: answer.slots, tone: 'neutral' },
   ];
   if (player?.byeWeek) {
     rows.push({
@@ -114,11 +102,7 @@ export function RosterAnswer({ needs, recommendation, player, sameByeName }: {
 
   return (
     <div className="min-w-0">
-      <h3 className="rec-answer-title">
-        {fillsStarter
-          ? `Fills an open ${recommendation.position} starter slot.`
-          : `${recommendation.position} starters are filled. This adds depth.`}
-      </h3>
+      <h3 className="rec-answer-title">{answer.headline}</h3>
       <AnswerRows rows={rows} />
       <React.Suspense fallback={<p role="status" className="rec-answer-footnote">Loading positional depth…</p>}>
         <PositionalDepthChart needs={needs} />

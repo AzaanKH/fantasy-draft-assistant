@@ -3,11 +3,11 @@ import { PositionTag } from '@/components/PositionTag';
 import { Button } from '@/components/ui/button';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import { formatSignedNumber } from '@/lib/utils';
-import type { Player, Position, Recommendation } from '@fantasy-draft/shared';
+import type { DraftProvider, Player, Position, Recommendation } from '@fantasy-draft/shared';
 import { Check, ListPlus } from 'lucide-react';
 import * as React from 'react';
 
-import type { AssistantDraftMode } from './assistant-context';
+import { getProviderName, type AssistantDraftMode } from './assistant-context';
 import { getWaitingCostSummary, survivalPercent } from './assistant-analysis';
 
 export interface LensDivergence {
@@ -20,15 +20,23 @@ export interface LensDivergence {
 
 export interface PickAction {
   readonly mode: AssistantDraftMode;
+  readonly provider: DraftProvider | null;
   readonly canDraft: boolean;
   readonly disabledReason: string | null;
   readonly onDraft: () => void;
   readonly onRecordPick: () => void;
 }
 
-function ActionNote({ mode, disabledReason }: { readonly mode: AssistantDraftMode; readonly disabledReason: string | null }): React.ReactElement {
+function ActionNote({ mode, provider, disabledReason }: {
+  readonly mode: AssistantDraftMode;
+  readonly provider: DraftProvider | null;
+  readonly disabledReason: string | null;
+}): React.ReactElement {
   if (disabledReason) return <p className="rec-action-note">{disabledReason}</p>;
-  if (mode === 'companion') return <p className="rec-action-note">Make the pick in Sleeper. This assistant does not submit picks.</p>;
+  if (mode === 'companion') {
+    const where = provider ? getProviderName(provider) : 'your draft room';
+    return <p className="rec-action-note">Make the pick in {where}. This assistant does not submit picks.</p>;
+  }
   if (mode === 'manual-continuity') {
     return <p className="rec-action-note"><span className="rec-alert">Provisional</span> Record each pick in the Draft Workspace as it happens. It is confirmed when sync returns.</p>;
   }
@@ -148,7 +156,7 @@ export function PreferredPickCard({
         ) : queueButton(true)}
         <Button variant="outline" className="rec-action" onClick={onCompare}>Compare options</Button>
       </div>
-      <ActionNote mode={action.mode} disabledReason={action.disabledReason} />
+      <ActionNote mode={action.mode} provider={action.provider} disabledReason={action.disabledReason} />
     </article>
   );
 }

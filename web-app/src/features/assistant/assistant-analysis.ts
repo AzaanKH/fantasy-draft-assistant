@@ -1,6 +1,6 @@
 import { type DraftDecisionView } from '@/features/recommendations/draft-decision';
 import { formatSignedNumber } from '@/lib/utils';
-import { type ExpectedNextPickAlternative, type Recommendation } from '@fantasy-draft/shared';
+import { type ExpectedNextPickAlternative, type Position, type PositionNeed, type Recommendation } from '@fantasy-draft/shared';
 
 
 export type PoolSort = 'recommendation' | 'tier';
@@ -180,6 +180,49 @@ export function getWaitAnswer(recommendation: Recommendation): {
         tone: timing.fallback ? 'neutral' : 'caution',
       },
     ],
+  };
+}
+
+/**
+ * What does my roster need? for one position. A FLEX-eligible player fills an open FLEX starter
+ * slot once the position's fixed starters are filled; only then does the pick add depth.
+ */
+export function getRosterAnswer(needs: readonly PositionNeed[], position: Position): {
+  readonly headline: string;
+  readonly openStarters: string;
+  readonly slots: string;
+} {
+  const selectedNeed = needs.find((need) => need.position === position);
+  const fixedOpen = needs
+    .filter((need) => need.startersFilled < need.startersNeeded && need.position !== 'K' && need.position !== 'DEF')
+    .map((need) => {
+      const open = need.startersNeeded - need.startersFilled;
+      return open > 1 ? `${need.position} ×${String(open)}` : need.position;
+    });
+  const flexNeed = needs.find((need) => need.isFlexEligible);
+  const flexOpen = flexNeed ? Math.max(0, flexNeed.flexSlotsNeeded - flexNeed.flexSlotsFilled) : 0;
+  const open = flexOpen > 0 ? [...fixedOpen, flexOpen > 1 ? `FLEX ×${String(flexOpen)}` : 'FLEX'] : fixedOpen;
+  const hasFlex = selectedNeed?.isFlexEligible === true && selectedNeed.flexSlotsNeeded > 0;
+
+  const headline = !selectedNeed
+    ? `Roster context for ${position} is unavailable.`
+    : selectedNeed.startersFilled < selectedNeed.startersNeeded
+      ? `Fills an open ${position} starter slot.`
+      : hasFlex && selectedNeed.flexSlotsFilled < selectedNeed.flexSlotsNeeded
+        ? 'Fills an open FLEX starter slot.'
+        : `${position}${hasFlex ? ' and FLEX' : ''} starters are filled. This adds depth.`;
+  const slots = !selectedNeed
+    ? 'Roster context is unavailable.'
+    : [
+        `${String(selectedNeed.startersFilled)} of ${String(selectedNeed.startersNeeded)} filled`,
+        ...(hasFlex ? [`FLEX ${String(selectedNeed.flexSlotsFilled)} of ${String(selectedNeed.flexSlotsNeeded)} filled`] : []),
+        `${selectedNeed.priority} need`,
+      ].join(' · ');
+
+  return {
+    headline,
+    openStarters: open.length > 0 ? open.join(', ') : 'All starter slots are filled.',
+    slots,
   };
 }
 

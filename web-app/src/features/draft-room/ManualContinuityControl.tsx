@@ -9,38 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Select } from '@/components/ui/select';
-import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import {
-  formatRoundPick,
-  getPickNumberForTeamRound,
-  getTeamIndexForPick,
-} from '@/lib/mock-draft-engine';
+import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn } from '@/lib/utils';
 import {
   useDraftStore,
   type RecordedDraftPick,
 } from '@/stores/draftStore';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
-
-function getTeamName(
-  teamIndex: number,
-  myTeamIndex: number,
-  history: ReturnType<typeof useDraftStore.getState>['draftHistory']
-): string {
-  if (teamIndex === myTeamIndex) return 'My Team';
-
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    const pick = history[index];
-    if (
-      pick?.teamIndex === teamIndex &&
-      pick.teamName.trim().length > 0
-    ) {
-      return pick.teamName;
-    }
-  }
-  return `Team ${String(teamIndex + 1)}`;
-}
+import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
 export function ManualContinuityControl(): React.ReactElement | null {
   const {
@@ -51,18 +27,8 @@ export function ManualContinuityControl(): React.ReactElement | null {
     synchronizationState,
     viewState,
   } = useLiveDraftSync();
-  const { players } = usePlayerDataQuery();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
   const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const recordProvisionalPick = useDraftStore(
-    (state) => state.recordProvisionalPick
-  );
-  const correctProvisionalPick = useDraftStore(
-    (state) => state.correctProvisionalPick
-  );
   const removeProvisionalPick = useDraftStore(
     (state) => state.removeProvisionalPick
   );
@@ -72,9 +38,6 @@ export function ManualContinuityControl(): React.ReactElement | null {
   >(null);
   const [pendingRemovalPickNumber, setPendingRemovalPickNumber] =
     React.useState<number | null>(null);
-  const [selectedPlayerId, setSelectedPlayerId] = React.useState('');
-  const [selectedPickNumber, setSelectedPickNumber] = React.useState('');
-  const [error, setError] = React.useState<string | null>(null);
   const [removalError, setRemovalError] = React.useState<string | null>(null);
 
   const provisionalPicks = React.useMemo(
@@ -93,125 +56,26 @@ export function ManualContinuityControl(): React.ReactElement | null {
     ),
     [pendingRemovalPickNumber, provisionalPicks]
   );
-  const selectablePlayers = React.useMemo(
-    () => players
-      .filter((player) =>
-        !draftedPlayerIds.has(player.id) || player.id === editingPick?.playerId
-      )
-      .sort((left, right) => left.ecrRank - right.ecrRank),
-    [draftedPlayerIds, editingPick?.playerId, players]
-  );
-  const openPickNumbers = React.useMemo(() => {
-    const occupied = new Set(draftHistory.map((pick) => pick.pickNumber));
-    for (const keeper of preloadedKeepers) {
-      occupied.add(getPickNumberForTeamRound(
-        keeper.teamIndex,
-        keeper.round,
-        config.totalTeams
-      ));
-    }
-    return Array.from(
-      { length: config.totalTeams * config.totalRounds },
-      (_, index) => index + 1
-    ).filter((pickNumber) => !occupied.has(pickNumber));
-  }, [config.totalRounds, config.totalTeams, draftHistory, preloadedKeepers]);
-  const editablePickNumbers = React.useMemo(() => {
-    const pickNumbers = [...openPickNumbers];
-    if (
-      editingPick &&
-      !pickNumbers.includes(editingPick.pickNumber)
-    ) {
-      pickNumbers.push(editingPick.pickNumber);
-    }
-    return pickNumbers.sort((left, right) => left - right);
-  }, [editingPick, openPickNumbers]);
-
-  React.useEffect(() => {
-    if (!selectablePlayers.some((player) => player.id === selectedPlayerId)) {
-      setSelectedPlayerId(selectablePlayers[0]?.id ?? '');
-    }
-  }, [selectablePlayers, selectedPlayerId]);
-
-  React.useEffect(() => {
-    if (editablePickNumbers.includes(Number(selectedPickNumber))) return;
-    const nextPick = editablePickNumbers.includes(currentPick)
-      ? currentPick
-      : editablePickNumbers[0];
-    setSelectedPickNumber(nextPick === undefined ? '' : String(nextPick));
-  }, [currentPick, editablePickNumbers, selectedPickNumber]);
 
   if (!canEnterManualContinuity && synchronizationState !== 'manual-continuity') {
     return null;
   }
 
   const openEntryDialog = (): void => {
-    setError(null);
     setEditingPickNumber(null);
-    setSelectedPlayerId(
-      players
-        .filter((player) => !draftedPlayerIds.has(player.id))
-        .sort((left, right) => left.ecrRank - right.ecrRank)[0]?.id ?? ''
-    );
-    const nextPick = openPickNumbers.includes(currentPick)
-      ? currentPick
-      : openPickNumbers[0];
-    setSelectedPickNumber(nextPick === undefined ? '' : String(nextPick));
     setIsDialogOpen(true);
   };
   const openCorrectionDialog = (pick: RecordedDraftPick): void => {
-    setError(null);
     setEditingPickNumber(pick.pickNumber);
-    setSelectedPlayerId(pick.playerId);
-    setSelectedPickNumber(String(pick.pickNumber));
     setIsDialogOpen(true);
   };
   const handleDialogOpenChange = (open: boolean): void => {
     setIsDialogOpen(open);
-    if (!open) {
-      setEditingPickNumber(null);
-      setError(null);
-    }
+    if (!open) setEditingPickNumber(null);
   };
   const handleEnterManualContinuity = (): void => {
     enterManualContinuity();
     openEntryDialog();
-  };
-  const handleSave = (): void => {
-    const player = selectablePlayers.find(
-      (candidate) => candidate.id === selectedPlayerId
-    );
-    const pickNumber = Number.parseInt(selectedPickNumber, 10);
-    if (!player || !Number.isInteger(pickNumber)) {
-      setError('Choose an available player and draft position.');
-      return;
-    }
-
-    const teamIndex = getTeamIndexForPick(pickNumber, config.totalTeams);
-    const replacement = {
-      pickNumber,
-      playerId: player.id,
-      playerName: player.name,
-      position: player.position,
-      teamIndex,
-      teamName: getTeamName(
-        teamIndex,
-        config.myPickPosition - 1,
-        draftHistory
-      ),
-    };
-    const saved = editingPick
-      ? correctProvisionalPick(editingPick.pickNumber, replacement)
-      : recordProvisionalPick(replacement);
-    if (!saved) {
-      setError(editingPick
-        ? 'Choose a different player or an open draft position.'
-        : 'That player or draft position is no longer available.');
-      return;
-    }
-
-    setError(null);
-    setIsDialogOpen(false);
-    setEditingPickNumber(null);
   };
   const openRemovalDialog = (pickNumber: number): void => {
     setRemovalError(null);
@@ -341,94 +205,11 @@ export function ManualContinuityControl(): React.ReactElement | null {
         ) : null}
       </section>
 
-      <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingPick
-                ? 'Correct a Provisional Pick'
-                : 'Record a Provisional Pick'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingPick
-                ? 'Replace the observed player or draft position. Confirmed Provider Truth stays locked.'
-                : 'Record the selection you saw in Sleeper. The local draft state will update, but this action cannot submit or queue a provider pick.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <label className="block space-y-1.5 text-sm font-semibold">
-              <span>Observed player</span>
-              <Select
-                className="w-full"
-                aria-label="Observed player"
-                value={selectedPlayerId}
-                onValueChange={setSelectedPlayerId}
-                options={selectablePlayers.map((player) => ({
-                  value: player.id,
-                  label: `${player.name} · ${player.position} ${player.team} · ECR #${String(player.ecrRank)}`,
-                }))}
-              />
-            </label>
-
-            <label className="block space-y-1.5 text-sm font-semibold">
-              <span>Team and draft position</span>
-              <Select
-                className="w-full"
-                aria-label="Team and draft position"
-                value={selectedPickNumber}
-                onValueChange={setSelectedPickNumber}
-                options={editablePickNumbers.map((pickNumber) => {
-                  const teamIndex = getTeamIndexForPick(
-                    pickNumber,
-                    config.totalTeams
-                  );
-                  return {
-                    value: String(pickNumber),
-                    label: `Pick ${formatRoundPick(pickNumber, config.totalTeams)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
-                  };
-                })}
-              />
-            </label>
-
-            <div className="rounded-md border border-amber-500/45 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:text-amber-100">
-              {editingPick
-                ? 'The corrected entry stays provisional and remains visible for later Reconciliation.'
-                : 'The board will label this as a Provisional Pick. Provider Truth stays intact for later Reconciliation.'}
-            </div>
-            {error ? (
-              <p className="text-xs font-semibold text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { handleDialogOpenChange(false); }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={
-                !selectedPlayerId ||
-                !selectedPickNumber ||
-                Boolean(
-                  editingPick &&
-                  editingPick.playerId === selectedPlayerId &&
-                  editingPick.pickNumber === Number(selectedPickNumber)
-                )
-              }
-            >
-              {editingPick
-                ? 'Save Correction'
-                : 'Record Provisional Pick'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProvisionalPickDialog
+        open={isDialogOpen}
+        onOpenChange={handleDialogOpenChange}
+        editingPick={editingPick}
+      />
 
       <Dialog
         open={pendingRemovalPickNumber !== null}

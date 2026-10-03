@@ -1,11 +1,12 @@
 import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import type { AssistantLens } from '@/features/assistant/assistant-navigation';
+import { resolveViewedPlayer, type AssistantLens } from '@/features/assistant/assistant-navigation';
 import { getPositionRecommendations } from '@/features/assistant/assistant-position-rankings';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { useLiveDraftSync } from '@/features/draft-room/LiveDraftSyncProvider';
 import { ProviderIdentityBlockedNotice } from '@/features/draft-room/ProviderIdentityBlockedNotice';
+import { ProvisionalPickDialog } from '@/features/draft-room/ProvisionalPickDialog';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
@@ -65,6 +66,7 @@ export function AssistantPage({
   const [searchQuery, setSearchQuery] = React.useState('');
   const deferredSearch = React.useDeferredValue(searchQuery.trim().toLowerCase());
   const [poolSort, setPoolSort] = React.useState<PoolSort>('recommendation');
+  const [isRecordPickOpen, setIsRecordPickOpen] = React.useState(false);
   const analysisRef = React.useRef<HTMLElement>(null);
   const collapsedPlayerCount = useCollapsedPlayerCount();
   const decision = useDraftDecision();
@@ -110,7 +112,12 @@ export function AssistantPage({
 
   const leader = overall.preferred;
   const bestPickId = decision.output.bestPick?.playerId;
-  const selectedRecommendation = (selectedPlayerId ? recommendationById.get(selectedPlayerId) : undefined) ?? leader ?? undefined;
+  const viewed = resolveViewedPlayer({ selectedPlayerId, recommendationById, playerById, draftedPlayerIds, leader });
+  const selectedRecommendation = viewed.kind === 'recommendation' ? viewed.recommendation : undefined;
+  const unavailableViewed = viewed.kind === 'unavailable' ? viewed : null;
+  const viewedPlayerId = selectedRecommendation?.playerId ?? unavailableViewed?.playerId;
+  const viewedName = selectedRecommendation?.playerName ?? unavailableViewed?.playerName;
+  const viewedPosition = selectedRecommendation?.position ?? unavailableViewed?.position ?? null;
   const otherOptions = overall.recommendations.filter((recommendation) => recommendation.playerId !== leader?.playerId).slice(0, OTHER_OPTION_COUNT);
   const availableComparisons = selectedRecommendation
     ? overall.recommendations.filter((recommendation) => recommendation.playerId !== selectedRecommendation.playerId)
@@ -171,6 +178,14 @@ export function AssistantPage({
       analysisRef.current?.scrollIntoView({ block: 'nearest' });
     });
   }, []);
+  // The clicked tier button unmounts with the tiers view, so focus moves to the analysis it opened.
+  const focusAnalysisAfterTiers = React.useRef(false);
+  React.useEffect(() => {
+    if (view !== 'suggestions' || !focusAnalysisAfterTiers.current) return;
+    focusAnalysisAfterTiers.current = false;
+    analysisRef.current?.focus({ preventScroll: true });
+    analysisRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [view]);
 
   if (decision.recommendationsBlockedByProviderIdentity) {
     return (
@@ -285,15 +300,15 @@ export function AssistantPage({
             draftedPlayerIds={draftedPlayerIds}
             recommendationById={recommendationById}
             bestPickId={bestPickId}
-            selectedPlayerId={selectedRecommendation?.playerId}
+            selectedPlayerId={viewedPlayerId}
             queuedSet={queuedSet}
             needs={needs}
             nextPickLabel={nextPickLabel}
             onSelect={(playerId) => {
               handleSelectPlayer(playerId);
               setAnalysisTab('why');
+              focusAnalysisAfterTiers.current = true;
               setView('suggestions');
-              window.requestAnimationFrame(() => { analysisRef.current?.scrollIntoView({ block: 'nearest' }); });
             }}
             onQueue={togglePlayerQueued}
           />
@@ -323,10 +338,11 @@ export function AssistantPage({
               queuePosition={queuedPlayerIds.indexOf(leader.playerId) + 1}
               action={{
                 mode,
+                provider: liveSync.connection?.provider ?? null,
                 canDraft,
                 disabledReason,
                 onDraft: () => { if (leaderPlayer) draftPlayer(leaderPlayer); },
-                onRecordPick: onReturnToDraft,
+                onRecordPick: () => { setIsRecordPickOpen(true); },
               }}
               onQueue={() => { togglePlayerQueued(leader.playerId); }}
               onViewPlayer={(playerId) => { handleSelectPlayer(playerId); openAnalysis('why'); }}
@@ -337,7 +353,7 @@ export function AssistantPage({
           )}
 
           <div className="rec-split" data-wide={analysisTab === 'compare'}>
-            <section ref={analysisRef} className="rec-analysis" aria-label="Viewed player analysis">
+            <section ref={analysisRef} className="rec-analysis" aria-label="Viewed player analysis" tabIndex={-1}>
               <div
                 className="rec-tabs"
                 role="tablist"
@@ -372,13 +388,19 @@ export function AssistantPage({
                 ))}
               </div>
               <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${analysisTab}`} className="rec-answer" aria-live="polite">
-                {selectedRecommendation ? (
+                {viewedName ? (
                   <p className="rec-answer-subject">
-                    {selectedRecommendation.playerId === leader?.playerId ? lensLabel : 'Viewing'}: {selectedRecommendation.playerName}
+                    {viewedPlayerId === leader?.playerId ? lensLabel : 'Viewing'}: {viewedName}
                   </p>
                 ) : null}
-                <DecisionSwap motionKey={`${analysisTab}:${selectedRecommendation?.playerId ?? 'none'}`}>
-                  {!selectedRecommendation ? (
+                <DecisionSwap motionKey={`${analysisTab}:${viewedPlayerId ?? 'none'}`}>
+                  {unavailableViewed ? (
+                    <p role="status" className="rec-answer-footnote">
+                      {unavailableViewed.reason === 'drafted'
+                        ? `${unavailableViewed.playerName} has been drafted. Choose an available player to see analysis.`
+                        : `Analysis unavailable. ${unavailableViewed.playerName} is outside the ${unavailableViewed.position}s ranked for this draft state.`}
+                    </p>
+                  ) : !selectedRecommendation ? (
                     <p className="rec-answer-footnote">No available recommendation for this draft state.</p>
                   ) : analysisTab === 'why' ? (
                     <WhyAnswer
@@ -436,6 +458,7 @@ export function AssistantPage({
             bestPick={decision.output.bestPick}
             nextPickLabel={nextPickLabel}
             mode={mode}
+            provider={liveSync.connection?.provider ?? null}
             onMove={moveShortlistedPlayer}
             onRemove={removePlayerFromQueue}
             onSelect={handleSelectPlayer}
@@ -444,7 +467,7 @@ export function AssistantPage({
             teams={upcomingTeams}
             pickCount={pickWindow.picksBetween.length}
             nextPickLabel={nextPickLabel}
-            viewedPosition={selectedRecommendation?.position ?? null}
+            viewedPosition={viewedPosition}
           />
           <AssistantRoster
             needs={needs}
@@ -546,6 +569,9 @@ export function AssistantPage({
       ) : null}
       </div>
       )}
+      {mode === 'manual-continuity' ? (
+        <ProvisionalPickDialog open={isRecordPickOpen} onOpenChange={setIsRecordPickOpen} initialPlayerId={leader?.playerId} />
+      ) : null}
     </main>
   );
 }

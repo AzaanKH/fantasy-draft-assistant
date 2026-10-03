@@ -167,6 +167,11 @@ export type SyncTone = 'ok' | 'pending' | 'local' | 'warn' | 'lost';
 
 const PROVIDER_NAMES: Readonly<Record<DraftProvider, string>> = { sleeper: 'Sleeper', yahoo: 'Yahoo', espn: 'ESPN' };
 
+/** Display name for the connected provider, or a generic label before one is known. */
+export function getProviderName(provider: DraftProvider | null): string {
+  return provider ? PROVIDER_NAMES[provider] : 'Provider';
+}
+
 /** Sync freshness for the context bar. Every recommendation is stale when this falls behind. */
 export function getSyncStatus({
   mode,
@@ -185,7 +190,7 @@ export function getSyncStatus({
 }): { readonly tone: SyncTone; readonly label: string } {
   if (mode === 'mock') return { tone: 'local', label: 'Local mock · no provider sync' };
   if (mode === 'preview') return { tone: 'local', label: 'Preview · no draft connected' };
-  const name = provider ? PROVIDER_NAMES[provider] : 'Provider';
+  const name = getProviderName(provider);
   if (mode === 'manual-continuity') return { tone: 'lost', label: `${name} sync unavailable · picks are provisional` };
   const age = formatDraftSyncAge(lastSyncAgeMs);
   const lastPick = lastConfirmedPickNumber > 0

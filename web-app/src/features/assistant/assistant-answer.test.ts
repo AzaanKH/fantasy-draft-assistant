@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { PositionNeed, Recommendation } from '@fantasy-draft/shared';
 import type { DraftDecisionView } from '@/features/recommendations/draft-decision';
 import {
   getComparisonHighlights,
+  getRosterAnswer,
   getWaitAnswer,
   getWaitingCostSummary,
   getWhyRows,
@@ -187,5 +188,40 @@ describe('Assistant decision answer', () => {
     const fractionalValue = recommendation('second', 'Second RB', 25.5, 0.65, 8);
     expect(getComparisonHighlights(first, fractionalValue, decision)[0]?.detail)
       .toBe('First RB has 4.5 more projected points above replacement.');
+  });
+});
+
+describe('What does my roster need?', () => {
+  const needs = (fixed: Partial<Record<'RB' | 'WR' | 'TE', number>>, flexSlotsFilled: number): PositionNeed[] =>
+    (['QB', 'RB', 'WR', 'TE'] as const).map((position) => ({
+      position,
+      priority: 'medium',
+      startersNeeded: position === 'QB' || position === 'TE' ? 1 : 2,
+      startersFilled: (position === 'QB' ? 1 : fixed[position]) ?? (position === 'TE' ? 1 : 2),
+      flexSlotsNeeded: 2,
+      flexSlotsFilled,
+      isFlexEligible: position !== 'QB',
+      scarcityScore: 5,
+    }));
+
+  it('fills an open fixed starter slot first', () => {
+    const answer = getRosterAnswer(needs({ WR: 1 }, 0), 'WR');
+    expect(answer.headline).toBe('Fills an open WR starter slot.');
+    expect(answer.openStarters).toBe('WR, FLEX ×2');
+    expect(answer.slots).toBe('1 of 2 filled · FLEX 0 of 2 filled · medium need');
+  });
+
+  it('fills an open FLEX slot once fixed starters are filled', () => {
+    const answer = getRosterAnswer(needs({}, 0), 'WR');
+    expect(answer.headline).toBe('Fills an open FLEX starter slot.');
+    expect(answer.openStarters).toBe('FLEX ×2');
+    expect(answer.slots).toBe('2 of 2 filled · FLEX 0 of 2 filled · medium need');
+  });
+
+  it('adds depth only when fixed and FLEX starters are filled', () => {
+    const answer = getRosterAnswer(needs({}, 2), 'WR');
+    expect(answer.headline).toBe('WR and FLEX starters are filled. This adds depth.');
+    expect(answer.openStarters).toBe('All starter slots are filled.');
+    expect(getRosterAnswer(needs({}, 0), 'QB').headline).toBe('QB starters are filled. This adds depth.');
   });
 });

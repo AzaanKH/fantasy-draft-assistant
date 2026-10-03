@@ -87,7 +87,6 @@
 .rec-answer { padding-top: 14px; }
 .rec-answer-subject { margin-bottom: 6px; color: var(--color-primary); font-size: 12px; font-weight: 600; }
 .rec-answer-title { margin-bottom: 8px; font-size: 15px; line-height: 22px; font-weight: 700; }
-.rec-answer-subheading { color: var(--color-muted-foreground); font-size: 12px; font-weight: 600; }
 .rec-answer-rows { display: grid; }
 .rec-answer-rows > div { display: grid; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; line-height: 20px; }
 @media (min-width: 560px) { .rec-answer-rows > div { grid-template-columns: 170px minmax(0, 1fr); } }
@@ -97,9 +96,6 @@
 .rec-details summary { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 600; }
 .rec-details summary::-webkit-details-marker { display: none; }
 .rec-details p { margin-top: 6px; color: var(--color-muted-foreground); font-size: 13px; line-height: 20px; max-width: 72ch; }
-.rec-highlight { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--color-surface-raised); }
-.rec-highlight-label { font-size: 12px; font-weight: 700; }
-.rec-highlight p { margin-top: 2px; font-size: 13px; line-height: 20px; }
 
 /* Candidate rows (Other options and the full pool) */
 .rec-candidate-head, .rec-candidate { display: grid; grid-template-columns: 22px minmax(0, 1fr) 48px 72px 40px; align-items: center; gap: 8px; }
