@@ -1,5 +1,6 @@
 import type { DraftPick, DraftProvider, DraftType, Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 import { formatDraftSyncAge, type DraftSynchronizationState } from '@/lib/draft-sync-state';
+import { getProviderName } from '@/lib/provider-name';
 import { formatRoundPick, getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
 /** Starter positions shown as team needs; K and DEF are late-round context, not planning signals. */
@@ -165,12 +166,6 @@ export function getAssistantDraftMode(
 
 export type SyncTone = 'ok' | 'pending' | 'local' | 'warn' | 'lost';
 
-const PROVIDER_NAMES: Readonly<Record<DraftProvider, string>> = { sleeper: 'Sleeper', yahoo: 'Yahoo', espn: 'ESPN' };
-
-/** Display name for the connected provider, or a generic label before one is known. */
-export function getProviderName(provider: DraftProvider | null): string {
-  return provider ? PROVIDER_NAMES[provider] : 'Provider';
-}
 
 /** Sync freshness for the context bar. Every recommendation is stale when this falls behind. */
 export function getSyncStatus({

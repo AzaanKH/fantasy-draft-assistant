@@ -211,6 +211,7 @@ describe('Assistant main action by draft mode', () => {
     expect(document.body.textContent).toContain('Record a Provisional Pick');
     const observed = document.querySelector<HTMLSelectElement>('select[aria-label="Observed player"]');
     expect(observed?.value).toBe('wr-1');
+    expect(document.body.textContent).toContain('Record the selection you saw in Sleeper.');
   });
 });
 
