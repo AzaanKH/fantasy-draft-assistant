@@ -4,6 +4,7 @@ import type {
   EspnDraftSnapshot,
 } from '@fantasy-draft/shared';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { Effect } from 'effect';
 import type {
   DetectedPick,
   DraftRoomStatus,
@@ -94,12 +95,12 @@ describe('background controller with mocked Chrome APIs', () => {
       saveStatus,
       setInstallationDefaults,
     });
-    fetchSnapshot = vi.fn(async (status: DraftRoomStatus) =>
+    fetchSnapshot = vi.fn((status: DraftRoomStatus) => Effect.succeed(
       status.draftId
         ? createSnapshot(status.provider ?? 'sleeper', status.draftId)
         : null
-    );
-    publishEspnSnapshot = vi.fn(async (snapshot: EspnDraftSnapshot) => ({
+    ));
+    publishEspnSnapshot = vi.fn((snapshot: EspnDraftSnapshot) => Effect.succeed({
       ...createSnapshot('espn', snapshot.draft.draftId),
       draft: snapshot.draft,
       picks: snapshot.picks,
@@ -256,11 +257,15 @@ describe('background controller with mocked Chrome APIs', () => {
     });
   });
 
-  it('does not let an older request overwrite a newer snapshot', async () => {
+  it('cancels an older request so it cannot overwrite a newer snapshot', async () => {
     const olderFetch = createDeferred<DraftSyncSnapshot | null>();
     const newerPublish = createDeferred<DraftSyncSnapshot>();
-    fetchSnapshot.mockImplementationOnce(() => olderFetch.promise);
-    publishEspnSnapshot.mockImplementationOnce(() => newerPublish.promise);
+    let olderAborted = false;
+    fetchSnapshot.mockImplementationOnce(() => Effect.promise((signal) => {
+      signal.addEventListener('abort', () => { olderAborted = true; });
+      return olderFetch.promise;
+    }));
+    publishEspnSnapshot.mockImplementationOnce(() => Effect.promise(() => newerPublish.promise));
     const snapshot: EspnDraftSnapshot = {
       draft: {
         provider: 'espn',
@@ -292,6 +297,7 @@ describe('background controller with mocked Chrome APIs', () => {
     });
     await flushPromises();
 
+    expect(olderAborted).toBe(true);
     expect(notifyRuntime.mock.calls.at(-1)?.[0]).toMatchObject({
       type: 'SYNC_STATE',
       data: {
