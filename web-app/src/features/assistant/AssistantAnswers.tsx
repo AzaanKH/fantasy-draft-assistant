@@ -1,31 +1,43 @@
 import {
   getRecommendationExplanation,
 } from '@/features/recommendations/recommendation-explanation';
-import { cn, formatSignedNumber } from '@/lib/utils';
-import { type PositionNeed, type Recommendation } from '@fantasy-draft/shared';
+import { cn } from '@/lib/utils';
+import { type Player, type PositionNeed, type Recommendation } from '@fantasy-draft/shared';
 import { ChevronDown } from 'lucide-react';
 import * as React from 'react';
 
 import {
-  getAssistantAnswerSections,
-  getNeedSlotSummary,
+  type AssistantAnswerRow,
+  getRosterAnswer,
   getSignalValueColor,
-  survivalPercent,
+  getWaitAnswer,
+  getWhyRows,
 } from './assistant-analysis';
 
 const PositionalDepthChart = React.lazy(() => import('./PositionalDepthChart'));
 
 export function CalculationDetails({ explanation }: { readonly explanation: string }): React.ReactElement {
   return (
-    <details className="group mt-5 border-t border-border/70 pt-4 xl:mt-6 xl:pt-5">
-      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-md text-sm font-semibold text-foreground outline-none hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:hover:text-emerald-300 [&::-webkit-details-marker]:hidden">
-        Show details
-        <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+    <details className="rec-details group">
+      <summary>
+        Show calculation
+        <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <p className="motion-expandable mt-3 max-w-4xl text-sm leading-6 text-muted-foreground xl:text-base xl:leading-7">
-        {explanation}
-      </p>
+      <p className="motion-expandable">{explanation}</p>
     </details>
+  );
+}
+
+function AnswerRows({ rows }: { readonly rows: readonly AssistantAnswerRow[] }): React.ReactElement {
+  return (
+    <dl className="rec-answer-rows">
+      {rows.map((row) => (
+        <div key={row.label}>
+          <dt>{row.label}</dt>
+          <dd className={cn(row.tone !== 'neutral' && getSignalValueColor(row.tone))}>{row.answer}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -35,101 +47,66 @@ export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredEx
   readonly positionRank?: number;
   readonly preferredExplanation?: string;
 }): React.ReactElement {
-  const sections = getAssistantAnswerSections(recommendation, isTopPick, positionRank);
-  const fullExplanation = preferredExplanation ?? getRecommendationExplanation(recommendation);
-
   return (
-    <div className="max-w-5xl">
-      <dl className="divide-y divide-border/70">
-        {sections.map((section) => (
-          <div
-            key={section.label}
-            className="grid gap-1 py-3 first:pt-0 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-5 xl:py-4"
-          >
-            <dt className={cn(
-              'text-xs font-bold uppercase tracking-[0.12em] xl:text-sm',
-              getSignalValueColor(section.tone)
-            )}>
-              {section.label}
-            </dt>
-            <dd className="text-sm font-medium leading-6 text-foreground xl:text-base xl:leading-7">
-              {section.answer}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <CalculationDetails explanation={fullExplanation} />
+    <div>
+      <AnswerRows rows={getWhyRows(recommendation, isTopPick, positionRank)} />
+      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation)} />
     </div>
   );
 }
 
-export function WaitAnswer({ recommendation }: { readonly recommendation: Recommendation }): React.ReactElement {
-  const survival = survivalPercent(recommendation);
-  const diagnostics = recommendation.diagnostics;
-  const expectedAlternative = recommendation.decisionFactors?.draftTiming.expectedAlternative
-    ?? diagnostics?.expectedNextPickAlternative;
-  if (survival === null) {
-    return <p className="text-sm text-muted-foreground xl:text-xl 2xl:text-2xl">Survival estimates are still being calculated.</p>;
+export function WaitAnswer({ recommendation, teamsNeedingPosition }: {
+  readonly recommendation: Recommendation;
+  /** Context from the picks before the manager's next turn, or null when no picks remain. */
+  readonly teamsNeedingPosition: string | null;
+}): React.ReactElement {
+  const answer = getWaitAnswer(recommendation);
+  const rows = teamsNeedingPosition
+    ? [...answer.rows, { label: 'Before your pick', answer: teamsNeedingPosition, tone: 'neutral' as const }]
+    : answer.rows;
+
+  return (
+    <div>
+      <h3 className="rec-answer-title">{answer.headline}</h3>
+      <AnswerRows rows={rows} />
+      <p className="rec-answer-footnote">
+        {recommendation.diagnostics?.survivalModelSource === 'league-history'
+          ? 'Primary League history supplies 70% of the timing estimate, current consensus market cost 25%, and Sleeper search rank 5%. '
+          : ''}
+        Team needs are roster context. An estimate is not a guarantee.
+      </p>
+    </div>
+  );
+}
+
+export function RosterAnswer({ needs, recommendation, player, sameByeName }: {
+  readonly needs: readonly PositionNeed[];
+  readonly recommendation: Recommendation;
+  readonly player?: Player;
+  readonly sameByeName: string | null;
+}): React.ReactElement {
+  const answer = getRosterAnswer(needs, recommendation.position);
+  const rows: AssistantAnswerRow[] = [
+    { label: 'Open starters', answer: answer.openStarters, tone: 'neutral' },
+    { label: `${recommendation.position} slots`, answer: answer.slots, tone: 'neutral' },
+  ];
+  if (player?.byeWeek) {
+    rows.push({
+      label: 'Bye week',
+      answer: sameByeName
+        ? `Bye ${String(player.byeWeek)}, same week as ${sameByeName}.`
+        : `Bye ${String(player.byeWeek)}. No overlap with your ${recommendation.position}s.`,
+      tone: sameByeName ? 'caution' : 'neutral',
+    });
   }
 
   return (
-    <div className="max-w-5xl">
-      <p className="text-lg font-semibold leading-snug xl:text-[1.875rem] xl:leading-[1.2] 2xl:text-4xl">
-        Return Probability for {recommendation.playerName} at pick {diagnostics?.nextPickLabel ?? 'your next selection'} is {String(survival)}%.
-      </p>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground xl:mt-6 xl:text-xl 2xl:mt-7 2xl:text-2xl">
-        {survival < 35
-          ? `Waiting on ${recommendation.playerName} is high risk; treat this as the likely decision point if the player fits your plan.`
-          : survival < 70
-            ? `${recommendation.playerName} may return, but the board still carries meaningful uncertainty.`
-            : `The model expects ${recommendation.playerName} to remain available, so waiting is a reasonable option.`}
-      </p>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground xl:mt-6 xl:text-xl 2xl:text-2xl">
-        {expectedAlternative
-          ? `If ${recommendation.playerName} is gone, ${expectedAlternative.playerName} is the expected ${recommendation.position} fallback at ${formatSignedNumber(expectedAlternative.expectedValue, 0)} expected points above replacement.`
-          : `No same-position fallback is projected for that selection.`}
-      </p>
-      {diagnostics?.survivalModelSource === 'league-history' ? (
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground xl:text-base 2xl:text-lg">
-          Primary League history supplies 70% of the timing estimate. Current consensus market cost supplies 25%; Sleeper search rank supplies 5%.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-export function RosterAnswer({ needs, recommendation }: {
-  readonly needs: readonly PositionNeed[];
-  readonly recommendation: Recommendation;
-}): React.ReactElement {
-  const selectedNeed = needs.find((need) => need.position === recommendation.position);
-  const isActionable = selectedNeed && !['filled', 'defer'].includes(selectedNeed.priority);
-
-  return (
-    <div className="roster-answer min-w-0">
-      <p className="text-lg font-semibold leading-snug xl:text-[1.875rem] xl:leading-[1.2] 2xl:text-4xl">
-        {selectedNeed
-          ? `${selectedNeed.position} is a ${selectedNeed.priority} roster need right now.`
-          : `${recommendation.position} roster context is unavailable.`}
-      </p>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground xl:mt-6 xl:text-xl 2xl:mt-7 2xl:text-2xl">
-        {selectedNeed
-          ? `${getNeedSlotSummary(selectedNeed)}, with a scarcity score of ${selectedNeed.scarcityScore.toFixed(1)}.`
-          : 'Use the remaining picks for value, upside, and bench depth.'}
-        {isActionable ? ` ${recommendation.playerName} would address that need.` : ''}
-      </p>
-      <dl className="roster-need-grid" aria-label="Roster needs by position">
-        {needs.map((need) => (
-          <div key={need.position} data-priority={need.priority}>
-            <dt>{need.position}</dt>
-            <dd>{need.priority}</dd>
-          </div>
-        ))}
-      </dl>
-      <React.Suspense fallback={<p role="status" className="mt-5 text-sm text-muted-foreground">Loading positional depth…</p>}>
+    <div className="min-w-0">
+      <h3 className="rec-answer-title">{answer.headline}</h3>
+      <AnswerRows rows={rows} />
+      <React.Suspense fallback={<p role="status" className="rec-answer-footnote">Loading positional depth…</p>}>
         <PositionalDepthChart needs={needs} />
       </React.Suspense>
     </div>
   );
 }
-

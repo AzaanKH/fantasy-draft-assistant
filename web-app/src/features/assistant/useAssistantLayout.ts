@@ -35,17 +35,3 @@ export function useCollapsedPlayerCount(): number {
     () => 3
   );
 }
-
-export function getUsesDesktopPlayerPool(): boolean {
-  return typeof window !== 'undefined' &&
-    window.matchMedia(RECOMMENDATION_GRID_MEDIA_QUERIES.large).matches;
-}
-
-export function useUsesDesktopPlayerPool(): boolean {
-  return React.useSyncExternalStore(
-    subscribeToRecommendationGrid,
-    getUsesDesktopPlayerPool,
-    () => false
-  );
-}
-

@@ -212,6 +212,8 @@ export interface DraftActions {
   setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, number>>) => void;
   togglePlayerShortlisted: (playerId: string) => void;
   removePlayerFromShortlist: (playerId: string) => void;
+  /** Moves a queued player by one or more places; out-of-range moves are ignored. */
+  moveShortlistedPlayer: (playerId: string, offset: number) => void;
 
   // UI actions
   setDecisionLens: (lens: DecisionLens) => void;

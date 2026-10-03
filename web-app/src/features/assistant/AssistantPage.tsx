@@ -1,87 +1,51 @@
-import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import {
-  DecisionSwap,
-  MotionIdentitySwap,
-  MotionMetricSwap,
-  usePrefersReducedMotion,
-} from '@/components/motion';
-import { MetricHelp } from '@/features/help/MetricHelp';
+import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import type { AssistantLens } from '@/features/assistant/assistant-navigation';
+import { resolveViewedPlayer, type AssistantLens } from '@/features/assistant/assistant-navigation';
 import { getPositionRecommendations } from '@/features/assistant/assistant-position-rankings';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
+import { useLiveDraftSync } from '@/features/draft-room/LiveDraftSyncProvider';
 import { ProviderIdentityBlockedNotice } from '@/features/draft-room/ProviderIdentityBlockedNotice';
+import { ProvisionalPickDialog } from '@/features/draft-room/ProvisionalPickDialog';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
+import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { cn, formatSignedNumber } from '@/lib/utils';
-import { useDraftStore } from '@/stores/draftStore';
-import { POSITIONS, type Position, type Recommendation } from '@fantasy-draft/shared';
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Clock3,
-  GitCompareArrows,
-  ListPlus,
-  Search,
-  ShieldQuestion,
-  Target,
-} from 'lucide-react';
+import { formatRoundPick } from '@/lib/mock-draft-engine';
+import { useDraftSessionMode, useDraftStore, useIsMyTurn } from '@/stores/draftStore';
+import { POSITIONS, type Player, type Position, type Recommendation } from '@fantasy-draft/shared';
+import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
 
+import { AssistantContextBar } from './AssistantContextBar';
+import { AssistantQueue, AssistantRoster, UpcomingPicks } from './AssistantRail';
 import { RosterAnswer, WaitAnswer, WhyAnswer } from './AssistantAnswers';
-import { AssistantComparisonSnapshot, CompareAnswer } from './AssistantComparison';
-import { RecommendationCard } from './AssistantRecommendationCard';
-import { AssistantRecommendationRow } from './AssistantRecommendationRow';
+import { CompareAnswer } from './AssistantComparison';
+import { AssistantRecommendationRow, CandidateRowHeader } from './AssistantRecommendationRow';
+import { PositionTiersView } from './PositionTiersView';
+import { PreferredPickCard, type LensDivergence } from './PreferredPickCard';
+import { PoolSort, sortRecommendationsForPool } from './assistant-analysis';
 import {
-  getAssistantPlayerCopy,
-  getNeedSlotSummary,
-  getNeedTone,
-  getSignalSurface,
-  getSignalValueColor,
-  PoolSort,
-  sortRecommendationsForPool,
-  survivalPercent,
-} from './assistant-analysis';
-import { useCollapsedPlayerCount, useUsesDesktopPlayerPool } from './useAssistantLayout';
+  countTeamsNeeding,
+  getAlertSignals,
+  getAssistantDraftMode,
+  getPickWindow,
+  getSyncStatus,
+  getUpcomingTeamPicks,
+} from './assistant-context';
+import { useCollapsedPlayerCount } from './useAssistantLayout';
+import './assistant.css';
 
 export type PositionFilter = 'ALL' | Position;
 
 const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...POSITIONS];
-const lenses: readonly {
-  readonly id: AssistantLens;
-  readonly label: string;
-  readonly description: string;
-  readonly icon: typeof ShieldQuestion;
-}[] = [
-  {
-    id: 'why',
-    label: 'Why this player?',
-    description: 'Explain the selected player',
-    icon: ShieldQuestion,
-  },
-  {
-    id: 'compare',
-    label: 'Compare options',
-    description: 'Selected player versus the best alternative',
-    icon: GitCompareArrows,
-  },
-  {
-    id: 'wait',
-    label: 'Can I wait?',
-    description: 'See if the selected player will return',
-    icon: Clock3,
-  },
-  {
-    id: 'roster',
-    label: 'What does my roster need?',
-    description: 'Balance need and scarcity',
-    icon: Target,
-  },
+const OTHER_OPTION_COUNT = 4;
+const ANALYSIS_TABS: readonly { readonly id: AssistantLens; readonly label: string }[] = [
+  { id: 'why', label: 'Why this player?' },
+  { id: 'compare', label: 'Compare options' },
+  { id: 'wait', label: 'Can I wait?' },
+  { id: 'roster', label: 'What does my roster need?' },
 ];
 
 export function AssistantPage({
@@ -93,100 +57,143 @@ export function AssistantPage({
   readonly initialSelectedPlayerId?: string | null;
   readonly onReturnToDraft: () => void;
 }): React.ReactElement {
-  const [lens, setLens] = React.useState<AssistantLens>(initialLens);
-  const reduceMotion = usePrefersReducedMotion();
+  const [view, setView] = React.useState<'suggestions' | 'tiers'>('suggestions');
+  const [analysisTab, setAnalysisTab] = React.useState<AssistantLens>(initialLens);
   const [showAllPlayers, setShowAllPlayers] = React.useState(false);
-  const [selectedPlayerId, setSelectedPlayerId] = React.useState<string | null>(
-    initialSelectedPlayerId
-  );
+  const [selectedPlayerId, setSelectedPlayerId] = React.useState<string | null>(initialSelectedPlayerId);
   const [comparisonPlayerId, setComparisonPlayerId] = React.useState<string | null>(null);
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
   const [searchQuery, setSearchQuery] = React.useState('');
   const deferredSearch = React.useDeferredValue(searchQuery.trim().toLowerCase());
   const [poolSort, setPoolSort] = React.useState<PoolSort>('recommendation');
-  const analysisPanelRef = React.useRef<HTMLElement>(null);
+  const [isRecordPickOpen, setIsRecordPickOpen] = React.useState(false);
+  const analysisRef = React.useRef<HTMLElement>(null);
   const collapsedPlayerCount = useCollapsedPlayerCount();
-  const usesDesktopPlayerPool = useUsesDesktopPlayerPool();
   const decision = useDraftDecision();
+  const liveSync = useLiveDraftSync();
   const { players } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
+  const { canDraft, isMyTurn: canPickNow, draftPlayer } = useDraftPlayerAction();
+  const isMyTurn = useIsMyTurn();
+  const sessionMode = useDraftSessionMode();
   const config = useDraftStore((state) => state.config);
+  const currentPick = useDraftStore((state) => state.currentPick);
+  const draftHistory = useDraftStore((state) => state.draftHistory);
+  const teamRosters = useDraftStore((state) => state.teamRosters);
+  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const myRoster = useDraftStore((state) => state.myRoster);
+  const decisionLens = useDraftStore((state) => state.decisionLens);
   const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
-  const { togglePlayerQueued } = useQueueActions(players);
-  const playerById = React.useMemo(
-    () => new Map(players.map((player) => [player.id, player])),
-    [players]
-  );
+  const moveShortlistedPlayer = useDraftStore((state) => state.moveShortlistedPlayer);
+  const { togglePlayerQueued, removePlayerFromQueue } = useQueueActions(players);
+
+  const playerById = React.useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
-  const activeDecision = positionFilter === 'ALL'
-    ? decision.overall
-    : decision.byPosition[positionFilter];
-  const topPick = activeDecision.preferred;
-  const filteredRecommendations = positionFilter === 'ALL'
-    ? activeDecision.recommendations
-    : getPositionRecommendations(activeDecision);
+  const overall = decision.overall;
+  const recommendationById = React.useMemo(() => {
+    const byId = new Map<string, Recommendation>();
+    overall.recommendations.forEach((recommendation) => byId.set(recommendation.playerId, recommendation));
+    POSITIONS.forEach((position) => {
+      decision.byPosition[position].recommendations.forEach((recommendation) => {
+        if (!byId.has(recommendation.playerId)) byId.set(recommendation.playerId, recommendation);
+      });
+    });
+    return byId;
+  }, [decision.byPosition, overall.recommendations]);
+
+  const poolDecision = positionFilter === 'ALL' ? overall : decision.byPosition[positionFilter];
+  const poolCandidates = positionFilter === 'ALL' ? poolDecision.recommendations : getPositionRecommendations(poolDecision);
   const poolRecommendations = React.useMemo(
-    () => sortRecommendationsForPool(filteredRecommendations, poolSort).filter((recommendation) =>
+    () => sortRecommendationsForPool(poolCandidates, poolSort).filter((recommendation) =>
       !deferredSearch || `${recommendation.playerName} ${playerById.get(recommendation.playerId)?.team ?? ''}`.toLowerCase().includes(deferredSearch)
     ),
-    [filteredRecommendations, poolSort, deferredSearch, playerById]
+    [poolCandidates, poolSort, deferredSearch, playerById]
   );
-  const modelRankByPlayerId = activeDecision.rankByPlayerId;
-  const selectedRecommendation = filteredRecommendations.find(
-    (recommendation) => recommendation.playerId === selectedPlayerId
-  ) ?? filteredRecommendations[0] ?? topPick;
+
+  const leader = overall.preferred;
+  const bestPickId = decision.output.bestPick?.playerId;
+  const viewed = resolveViewedPlayer({ selectedPlayerId, recommendationById, playerById, draftedPlayerIds, leader });
+  const selectedRecommendation = viewed.kind === 'recommendation' ? viewed.recommendation : undefined;
+  const unavailableViewed = viewed.kind === 'unavailable' ? viewed : null;
+  const viewedPlayerId = selectedRecommendation?.playerId ?? unavailableViewed?.playerId;
+  const viewedName = selectedRecommendation?.playerName ?? unavailableViewed?.playerName;
+  const viewedPosition = selectedRecommendation?.position ?? unavailableViewed?.position ?? null;
+  const otherOptions = overall.recommendations.filter((recommendation) => recommendation.playerId !== leader?.playerId).slice(0, OTHER_OPTION_COUNT);
   const availableComparisons = selectedRecommendation
-    ? filteredRecommendations.filter(
-        (recommendation) => recommendation.playerId !== selectedRecommendation.playerId
-      )
+    ? overall.recommendations.filter((recommendation) => recommendation.playerId !== selectedRecommendation.playerId)
     : [];
-  const comparisonRecommendation = availableComparisons.find(
-    (recommendation) => recommendation.playerId === comparisonPlayerId
-  ) ?? availableComparisons[0];
-  const comparisonRecommendations: readonly Recommendation[] = selectedRecommendation
-    ? comparisonRecommendation
-      ? [selectedRecommendation, comparisonRecommendation]
-      : [selectedRecommendation]
-    : [];
-  const cards = showAllPlayers
-    ? poolRecommendations
-    : poolRecommendations.slice(0, collapsedPlayerCount);
-  const hiddenPlayerCount = poolRecommendations.length - cards.length;
-  const selectedPositionNeed = positionFilter === 'ALL'
-    ? undefined
-    : needs.find((need) => need.position === positionFilter);
-  const selectedPositionIndex = selectedRecommendation
-    ? filteredRecommendations.findIndex(
-        (recommendation) => recommendation.playerId === selectedRecommendation.playerId
-      )
-    : -1;
-  const selectedPositionRank = positionFilter !== 'ALL' && selectedPositionIndex >= 0
-    ? selectedPositionIndex + 1
-    : undefined;
+  const comparisonRecommendation = availableComparisons.find((recommendation) => recommendation.playerId === comparisonPlayerId)
+    ?? (selectedRecommendation?.playerId === leader?.playerId ? availableComparisons[0] : leader ?? undefined);
+  const comparisonRecommendations: readonly Recommendation[] = selectedRecommendation && comparisonRecommendation
+    ? [selectedRecommendation, comparisonRecommendation]
+    : selectedRecommendation ? [selectedRecommendation] : [];
+
+  const pickWindow = getPickWindow(currentPick, config.totalTeams, config.totalRounds, config.myPickPosition, config.draftType);
+  const nextPickLabel = pickWindow.nextPick === null ? null : formatRoundPick(pickWindow.nextPick, config.totalTeams);
+  const upcomingTeams = getUpcomingTeamPicks({
+    picks: pickWindow.picksBetween,
+    totalTeams: config.totalTeams,
+    draftType: config.draftType,
+    teamRosters,
+    rosterRequirements: config.rosterRequirements,
+    draftHistory,
+  });
+  const mode = getAssistantDraftMode(sessionMode, liveSync.synchronizationState);
+  const sync = getSyncStatus({
+    mode,
+    provider: liveSync.connection?.provider ?? null,
+    synchronizationState: liveSync.synchronizationState,
+    lastConfirmedPickNumber: liveSync.lastConfirmedPickNumber,
+    lastSyncAgeMs: liveSync.viewState.lastSyncAgeMs,
+    totalTeams: config.totalTeams,
+  });
+
+  const rosteredPlayers = React.useMemo(
+    () => (Object.values(myRoster) as string[][]).flat().map((id) => playerById.get(id)).filter((player): player is Player => player !== undefined),
+    [myRoster, playerById]
+  );
+  const rosterNames = React.useMemo(() => {
+    const names: Partial<Record<Position, string[]>> = {};
+    rosteredPlayers.forEach((player) => { (names[player.position] ??= []).push(player.name); });
+    return names;
+  }, [rosteredPlayers]);
+  const recentPicks = React.useMemo(
+    () => [...draftHistory].sort((first, second) => first.pickNumber - second.pickNumber),
+    [draftHistory]
+  );
+  const alertsFor = (playerId: string): readonly string[] => getAlertSignals({
+    player: playerById.get(playerId),
+    rosteredPlayers,
+    recentPicks,
+    currentPick,
+  });
+
   const handleSelectPlayer = React.useCallback((playerId: string): void => {
     setSelectedPlayerId(playerId);
     setComparisonPlayerId(null);
   }, []);
-  const handleCompareFromCard = React.useCallback((playerId: string): void => {
-    setLens('compare');
-    setComparisonPlayerId(playerId);
+  const openAnalysis = React.useCallback((tab: AssistantLens): void => {
+    setAnalysisTab(tab);
     window.requestAnimationFrame(() => {
-      analysisPanelRef.current?.focus({ preventScroll: true });
-      analysisPanelRef.current?.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth', block: 'start' });
+      analysisRef.current?.scrollIntoView({ block: 'nearest' });
     });
-  }, [reduceMotion]);
+  }, []);
+  // The clicked tier button unmounts with the tiers view, so focus moves to the analysis it opened.
+  const focusAnalysisAfterTiers = React.useRef(false);
+  React.useEffect(() => {
+    if (view !== 'suggestions' || !focusAnalysisAfterTiers.current) return;
+    focusAnalysisAfterTiers.current = false;
+    analysisRef.current?.focus({ preventScroll: true });
+    analysisRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [view]);
 
   if (decision.recommendationsBlockedByProviderIdentity) {
     return (
-      <main className="assistant-workspace w-full px-4 py-4">
+      <main className="assistant-workspace rec-workspace">
         <Button variant="outline" size="sm" onClick={onReturnToDraft}>
           <ArrowLeft className="size-4" /> Return to Draft Workspace
         </Button>
-        <ProviderIdentityBlockedNotice
-          unresolvedPicks={decision.unresolvedProviderPicks}
-          totalTeams={config.totalTeams}
-          className="mx-auto mt-4 max-w-3xl"
-        />
+        <ProviderIdentityBlockedNotice unresolvedPicks={decision.unresolvedProviderPicks} totalTeams={config.totalTeams} className="mx-auto mt-4 max-w-3xl" />
       </main>
     );
   }
@@ -201,356 +208,369 @@ export function AssistantPage({
 
   if (decision.recommendationsBlocked && decision.readiness) {
     return (
-      <main className="assistant-workspace w-full px-4 py-4">
+      <main className="assistant-workspace rec-workspace">
         <Button variant="outline" size="sm" onClick={onReturnToDraft}>
           <ArrowLeft className="size-4" /> Return to Draft Workspace
         </Button>
-        <DraftReadinessBlockedNotice
-          readiness={decision.readiness}
-          className="mx-auto mt-4 max-w-3xl"
-        />
+        <DraftReadinessBlockedNotice readiness={decision.readiness} className="mx-auto mt-4 max-w-3xl" />
       </main>
     );
   }
 
-  const selectedPlayer = selectedRecommendation
-    ? playerById.get(selectedRecommendation.playerId)
-    : undefined;
-  const selectedDiagnostics = selectedRecommendation?.diagnostics;
-  const selectedSurvival = selectedRecommendation
-    ? survivalPercent(selectedRecommendation)
+  const lensLabel = decisionLens === 'best-pick' ? 'Best Pick' : 'Best Player';
+  const otherLeader = decisionLens === 'best-pick' ? decision.output.bestPlayer : decision.output.bestPick;
+  const divergence: LensDivergence | null = leader && otherLeader && otherLeader.playerId !== leader.playerId
+    ? {
+        label: decisionLens === 'best-pick' ? 'Best Player' : 'Best Pick',
+        playerId: otherLeader.playerId,
+        playerName: otherLeader.playerName,
+        position: otherLeader.position,
+        reason: decision.output.decisionDivergenceExplanation,
+      }
     : null;
-  const selectedPlayerCopy = selectedRecommendation
-    ? getAssistantPlayerCopy(selectedRecommendation, topPick)
+  const leaderPlayer = leader ? playerById.get(leader.playerId) : undefined;
+  const selectedPlayer = selectedRecommendation ? playerById.get(selectedRecommendation.playerId) : undefined;
+  const sameByeName = selectedPlayer
+    ? rosteredPlayers.find((rostered) => rostered.id !== selectedPlayer.id && rostered.position === selectedPlayer.position && rostered.byeWeek === selectedPlayer.byeWeek)?.name ?? null
     : null;
+  const teamsNeedingSelected = selectedRecommendation && upcomingTeams.length > 0
+    ? (() => {
+        const needing = countTeamsNeeding(upcomingTeams, selectedRecommendation.position);
+        return needing > 0
+          ? `${selectedRecommendation.position} is open for ${String(needing)} of ${String(upcomingTeams.length)} teams before ${nextPickLabel ?? 'your next pick'}.`
+          : `No team before ${nextPickLabel ?? 'your next pick'} has an open ${selectedRecommendation.position} starter slot.`;
+      })()
+    : null;
+  const disabledReason = mode === 'mock' && !canDraft
+    ? canPickNow ? 'A keeper occupies this pick.' : 'Waiting for your turn.'
+    : null;
+  const cards = showAllPlayers ? poolRecommendations : poolRecommendations.slice(0, collapsedPlayerCount * 2);
+  const hiddenPlayerCount = poolRecommendations.length - cards.length;
+  const selectedTabIndex = ANALYSIS_TABS.findIndex((tab) => tab.id === analysisTab);
 
   return (
-    <main className="assistant-workspace w-full px-4 py-4">
-      {selectedRecommendation ? (
-        <section className="assistant-recommendation mb-3 overflow-hidden rounded-xl border border-border/75 bg-card shadow-sm">
-          <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center xl:p-5 2xl:gap-6 2xl:p-6">
-            <MotionIdentitySwap motionKey={selectedRecommendation.playerId} className="min-w-0">
-              <div className="flex min-w-0 items-center gap-4 2xl:gap-5">
-                <PlayerHeadshot
-                  playerId={selectedRecommendation.playerId}
-                  name={selectedRecommendation.playerName}
-                  position={selectedRecommendation.position}
-                  className="size-24 rounded-xl border border-border/70 2xl:size-28"
-                />
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-xl font-bold leading-tight xl:text-2xl 2xl:text-3xl">
-                    {selectedPlayerCopy?.analysisHeading}
-                  </h1>
-                  <p className="mt-1 text-sm font-semibold text-foreground xl:text-base 2xl:mt-2 2xl:text-lg">
-                    {selectedPlayerCopy?.recommendationStatus}
-                  </p>
-                  <MotionMetricSwap
-                    motionKey={`${String(selectedSurvival)}:${selectedRecommendation.diagnostics?.nextPickLabel ?? 'none'}`}
-                    className="mt-1 text-sm text-muted-foreground xl:text-base 2xl:text-lg"
-                  >
-                    {selectedSurvival === null
-                      ? 'Availability is still being calculated.'
-                      : `Draft now or wait. Return Probability at pick ${selectedRecommendation.diagnostics?.nextPickLabel ?? 'your next selection'} is ${String(selectedSurvival)}%.`}
-                  </MotionMetricSwap>
-                  <div className="mt-2 text-sm text-muted-foreground xl:text-base 2xl:text-lg">
-                    <span className="font-mono font-bold text-sky-600 dark:text-sky-300">{selectedRecommendation.position}</span>
-                    {selectedPlayer?.team ? <span> · {selectedPlayer.team}</span> : null}
-                  </div>
-                </div>
-              </div>
-            </MotionIdentitySwap>
-            <div className="assistant-header-actions grid gap-2 2xl:gap-3">
-              <Button className="2xl:h-11 2xl:text-base" onClick={onReturnToDraft}><ArrowLeft className="size-4 rotate-180" aria-hidden="true" /> Return to draft</Button>
-              <Button
-                variant={queuedSet.has(selectedRecommendation.playerId) ? 'secondary' : 'outline'}
-                className="2xl:h-11 2xl:text-base"
-                onClick={() => { togglePlayerQueued(selectedRecommendation.playerId); }}
-              >
-                {queuedSet.has(selectedRecommendation.playerId) ? <Check className="size-4" /> : <ListPlus className="size-4" />}
-                {queuedSet.has(selectedRecommendation.playerId) ? 'In draft queue' : 'Add to queue'}
-              </Button>
-            </div>
-          </div>
-          <dl className="assistant-summary-metrics">
-            <div>
-              <dt><MetricHelp metric="vor" label="Above replacement" /></dt>
-              <dd>
-                <MotionMetricSwap motionKey={selectedDiagnostics?.valueOverReplacement ?? 'none'}>
-                  {selectedDiagnostics ? formatSignedNumber(selectedDiagnostics.valueOverReplacement, 0) : '—'}
-                </MotionMetricSwap>
-              </dd>
-            </div>
-            <div>
-              <dt>
-                <MetricHelp metric="tier" label="Position tier" />
-                {selectedDiagnostics?.isLastInTier ? <span className="summary-tier-note">Last in tier</span> : null}
-              </dt>
-              <dd>
-                <MotionMetricSwap motionKey={`${String(selectedDiagnostics?.tier)}:${String(selectedDiagnostics?.isLastInTier)}`}>
-                  Tier {String(selectedDiagnostics?.tier ?? '—')}
-                </MotionMetricSwap>
-              </dd>
-            </div>
-            <div>
-              <dt><MetricHelp metric="returnProbability" label="At next pick" /></dt>
-              <dd>
-                <MotionMetricSwap motionKey={selectedSurvival ?? 'none'}>
-                  {selectedSurvival === null ? '—' : `${String(selectedSurvival)}%`}
-                </MotionMetricSwap>
-              </dd>
-            </div>
-          </dl>
-        </section>
-      ) : null}
+    <main className="assistant-workspace rec-workspace">
+      <AssistantContextBar
+        isMyTurn={isMyTurn}
+        pickWindow={pickWindow}
+        totalTeams={config.totalTeams}
+        mode={mode}
+        sync={sync}
+        lens={decisionLens}
+        onLensChange={(lens) => {
+          decision.setSelectedLens(lens);
+          setSelectedPlayerId(null);
+          setComparisonPlayerId(null);
+        }}
+      />
 
-      <section className="assistant-decision-layout" data-lens={lens}>
-        <div className="assistant-answer-panel">
-        <aside className="assistant-question-tabs" aria-label="Assistant questions">
-          <div className="px-3 pb-2 pt-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground xl:text-sm 2xl:px-4 2xl:pb-3 2xl:text-base">
-            Decision lenses
-          </div>
-          <div className="space-y-1">
-            {lenses.map((item) => {
-              const Icon = item.icon;
-              const active = lens === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => { setLens(item.id); }}
-                  className={cn(
-                    'flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:py-4 2xl:gap-4 2xl:px-4 2xl:py-5',
-                    active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/60'
-                  )}
-                >
-                  <Icon className="mt-0.5 size-5 shrink-0 xl:size-6 2xl:size-7" />
-                  <span>
-                    <span className="block text-base font-semibold xl:text-lg 2xl:text-xl">{item.label}</span>
-                    <span className={cn(
-                      'mt-1 block text-sm leading-snug xl:text-base 2xl:mt-2 2xl:text-lg',
-                      active ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                    )}>
-                      {item.description}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+      <div
+        className="rec-tabs rec-view-tabs"
+        role="tablist"
+        aria-label="Assistant view"
+        onKeyDown={(event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = view === 'suggestions' ? 'tiers' : 'suggestions';
+          const target = event.key === 'Home' ? 'suggestions' : event.key === 'End' ? 'tiers' : next;
+          setView(target);
+          document.getElementById(`rec-view-${target}`)?.focus();
+        }}
+      >
+        {(['suggestions', 'tiers'] as const).map((item) => (
+          <button
+            key={item}
+            id={`rec-view-${item}`}
+            type="button"
+            role="tab"
+            aria-selected={view === item}
+            aria-controls={`rec-view-panel-${item}`}
+            tabIndex={view === item ? 0 : -1}
+            onClick={() => { setView(item); }}
+          >
+            {item === 'suggestions' ? 'Suggestions' : 'Position tiers'}
+          </button>
+        ))}
+      </div>
 
-        <section
-          ref={analysisPanelRef}
-          tabIndex={-1}
-          aria-label="Player analysis"
-          className="assistant-answer min-w-0 scroll-mt-20"
-          aria-live="polite"
-        >
-          <div className="mb-5 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300 xl:mb-7 xl:text-base 2xl:mb-8 2xl:gap-3 2xl:text-lg">
-            <ShieldQuestion className="size-5 xl:size-6 2xl:size-7" /> Assistant analysis
-            {selectedRecommendation ? (
-              <span className="border-l border-border pl-3 font-normal normal-case tracking-normal text-muted-foreground">
-                {lens === 'compare' && comparisonRecommendation
-                  ? 'Player comparison'
-                  : selectedRecommendation.playerName}
-              </span>
-            ) : null}
-          </div>
-          <DecisionSwap motionKey={`${lens}:${selectedRecommendation?.playerId ?? 'none'}`}>
-            {decision.isLoading ? (
-              <p className="text-sm text-muted-foreground xl:text-xl 2xl:text-2xl">Updating the decision snapshot…</p>
-            ) : !selectedRecommendation ? (
-              <p className="text-sm text-muted-foreground xl:text-xl 2xl:text-2xl">No available recommendation for this draft state.</p>
-            ) : lens === 'why' ? (
-              <WhyAnswer
-                recommendation={selectedRecommendation}
-                isTopPick={selectedRecommendation.playerId === topPick?.playerId}
-                positionRank={selectedPositionRank}
-                preferredExplanation={activeDecision.explanationByPlayerId.get(selectedRecommendation.playerId)}
-              />
-            ) : lens === 'compare' ? (
-              <CompareAnswer
-                recommendations={comparisonRecommendations}
-                availableComparisons={availableComparisons}
-                decision={activeDecision}
-                onComparisonPlayerChange={setComparisonPlayerId}
-                playerById={playerById}
-              />
-            ) : lens === 'wait' ? (
-              <WaitAnswer recommendation={selectedRecommendation} />
-            ) : (
-              <RosterAnswer needs={needs} recommendation={selectedRecommendation} />
-            )}
-          </DecisionSwap>
-          <p className="mt-5 max-w-5xl border-t pt-3 text-[11px] leading-relaxed text-muted-foreground xl:mt-7 xl:pt-5 xl:text-base 2xl:mt-8 2xl:text-lg">
-            This explanation is derived from the same rankings, roster needs, tiers, and survival estimates shown in Suggestions.
-          </p>
-        </section>
-
+      {view === 'tiers' ? (
+        <div id="rec-view-panel-tiers" role="tabpanel" aria-labelledby="rec-view-tiers">
+          <PositionTiersView
+            players={players}
+            draftedPlayerIds={draftedPlayerIds}
+            recommendationById={recommendationById}
+            bestPickId={bestPickId}
+            selectedPlayerId={viewedPlayerId}
+            queuedSet={queuedSet}
+            needs={needs}
+            nextPickLabel={nextPickLabel}
+            onSelect={(playerId) => {
+              handleSelectPlayer(playerId);
+              setAnalysisTab('why');
+              focusAnalysisAfterTiers.current = true;
+              setView('suggestions');
+            }}
+            onQueue={togglePlayerQueued}
+          />
         </div>
-        {lens !== 'compare' ? <AssistantComparisonSnapshot
-          recommendations={comparisonRecommendations}
-          playerById={playerById}
-          decision={activeDecision}
-          onOpenComparison={() => {
-            if (comparisonRecommendation) handleCompareFromCard(comparisonRecommendation.playerId);
-          }}
-        /> : null}
-      </section>
-
-      {activeDecision.recommendations.length > 0 ? (
-        <section className="assistant-player-pool mt-6">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <div>
-              <h2 className="font-bold">
-                {positionFilter === 'ALL' ? 'Recommended player pool' : `Best available ${positionFilter}s`}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {positionFilter === 'ALL'
-                  ? 'Ranked for this pick using value, roster fit, tiers, and availability.'
-                  : `Ranked within ${positionFilter} by the same league-aware policy. Select a player to update the analysis.`}
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={onReturnToDraft}>
-              Return to board
+      ) : (
+      <div id="rec-view-panel-suggestions" role="tabpanel" aria-labelledby="rec-view-suggestions" className="rec-main">
+      <div className="rec-layout">
+        <div className="rec-main">
+          <div className="rec-section-heading">
+            <h1>{decisionLens === 'best-pick' ? 'Your Best Pick' : 'Best Player available'}</h1>
+            <span className="rec-muted">
+              {decisionLens === 'best-pick' ? 'League value + roster fit + draft timing' : 'Player quality (ECR), without roster or timing'}
+            </span>
+            <Button variant="ghost" size="sm" className="rec-return" onClick={onReturnToDraft}>
+              <ArrowLeft className="size-4" aria-hidden="true" /> Draft board
             </Button>
           </div>
-          <div className="player-pool-toolbar">
-            <label className="player-search"><Search className="size-4"/><span className="sr-only">Search recommended players</span><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); }} placeholder="Search players or teams" /></label>
-            <div className="player-position-filters flex gap-1 overflow-x-auto" role="group" aria-label="Filter recommendations by position">
-              {POSITION_FILTERS.map((position) => {
-                const active = positionFilter === position;
-                const positionNeed = position === 'ALL'
-                  ? undefined
-                  : needs.find((need) => need.position === position);
-                const hasUrgentNeed = positionNeed?.priority === 'critical' || positionNeed?.priority === 'high';
 
+          {leader ? (
+            <PreferredPickCard
+              recommendation={leader}
+              player={leaderPlayer}
+              lensLabel={lensLabel}
+              alerts={alertsFor(leader.playerId)}
+              divergence={divergence}
+              isQueued={queuedSet.has(leader.playerId)}
+              queuePosition={queuedPlayerIds.indexOf(leader.playerId) + 1}
+              action={{
+                mode,
+                provider: liveSync.connection?.provider ?? null,
+                canDraft,
+                disabledReason,
+                onDraft: () => { if (leaderPlayer) draftPlayer(leaderPlayer); },
+                onRecordPick: () => { setIsRecordPickOpen(true); },
+              }}
+              onQueue={() => { togglePlayerQueued(leader.playerId); }}
+              onViewPlayer={(playerId) => { handleSelectPlayer(playerId); openAnalysis('why'); }}
+              onCompare={() => { handleSelectPlayer(leader.playerId); openAnalysis('compare'); }}
+            />
+          ) : (
+            <div className="rec-card rec-empty" role="status">No available recommendation for this draft state.</div>
+          )}
+
+          <div className="rec-split" data-wide={analysisTab === 'compare'}>
+            <section ref={analysisRef} className="rec-analysis" aria-label="Viewed player analysis" tabIndex={-1}>
+              <div
+                className="rec-tabs"
+                role="tablist"
+                aria-label="Analysis question"
+                onKeyDown={(event) => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                  event.preventDefault();
+                  const next = event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? ANALYSIS_TABS.length - 1
+                      : (selectedTabIndex + (event.key === 'ArrowRight' ? 1 : -1) + ANALYSIS_TABS.length) % ANALYSIS_TABS.length;
+                  const tab = ANALYSIS_TABS[next];
+                  if (!tab) return;
+                  setAnalysisTab(tab.id);
+                  document.getElementById(`rec-tab-${tab.id}`)?.focus();
+                }}
+              >
+                {ANALYSIS_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    id={`rec-tab-${tab.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={analysisTab === tab.id}
+                    aria-controls="rec-analysis-panel"
+                    tabIndex={analysisTab === tab.id ? 0 : -1}
+                    onClick={() => { setAnalysisTab(tab.id); }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${analysisTab}`} className="rec-answer" aria-live="polite">
+                {viewedName ? (
+                  <p className="rec-answer-subject">
+                    {viewedPlayerId === leader?.playerId ? lensLabel : 'Viewing'}: {viewedName}
+                  </p>
+                ) : null}
+                <DecisionSwap motionKey={`${analysisTab}:${viewedPlayerId ?? 'none'}`}>
+                  {unavailableViewed ? (
+                    <p role="status" className="rec-answer-footnote">
+                      {unavailableViewed.reason === 'drafted'
+                        ? `${unavailableViewed.playerName} has been drafted. Choose an available player to see analysis.`
+                        : `Analysis unavailable. ${unavailableViewed.playerName} is outside the ${unavailableViewed.position}s ranked for this draft state.`}
+                    </p>
+                  ) : !selectedRecommendation ? (
+                    <p className="rec-answer-footnote">No available recommendation for this draft state.</p>
+                  ) : analysisTab === 'why' ? (
+                    <WhyAnswer
+                      recommendation={selectedRecommendation}
+                      isTopPick={selectedRecommendation.playerId === bestPickId}
+                      preferredExplanation={overall.explanationByPlayerId.get(selectedRecommendation.playerId)}
+                    />
+                  ) : analysisTab === 'compare' ? (
+                    <CompareAnswer
+                      recommendations={comparisonRecommendations}
+                      availableComparisons={availableComparisons}
+                      decision={overall}
+                      onComparisonPlayerChange={setComparisonPlayerId}
+                      playerById={playerById}
+                    />
+                  ) : analysisTab === 'wait' ? (
+                    <WaitAnswer recommendation={selectedRecommendation} teamsNeedingPosition={teamsNeedingSelected} />
+                  ) : (
+                    <RosterAnswer needs={needs} recommendation={selectedRecommendation} player={selectedPlayer} sameByeName={sameByeName} />
+                  )}
+                </DecisionSwap>
+              </div>
+            </section>
+
+            <section className="rec-options" aria-labelledby="rec-options-heading">
+              <div className="rec-section-heading">
+                <h2 id="rec-options-heading">Other options</h2>
+                <span className="rec-muted">Select a player to view</span>
+              </div>
+              <CandidateRowHeader />
+              {otherOptions.map((recommendation, order) => (
+                <AssistantRecommendationRow
+                  key={recommendation.playerId}
+                  recommendation={recommendation}
+                  player={playerById.get(recommendation.playerId)}
+                  rank={overall.rankByPlayerId.get(recommendation.playerId) ?? order + 2}
+                  order={order}
+                  isSelected={selectedRecommendation?.playerId === recommendation.playerId}
+                  isBestPick={recommendation.playerId === bestPickId}
+                  isQueued={queuedSet.has(recommendation.playerId)}
+                  alert={alertsFor(recommendation.playerId)[0]}
+                  onSelect={handleSelectPlayer}
+                  onQueue={togglePlayerQueued}
+                />
+              ))}
+            </section>
+          </div>
+        </div>
+
+        <aside className="rec-rail" aria-label="Queue, upcoming picks and roster">
+          <AssistantQueue
+            queuedPlayerIds={queuedPlayerIds}
+            playerById={playerById}
+            recommendationById={recommendationById}
+            bestPick={decision.output.bestPick}
+            nextPickLabel={nextPickLabel}
+            mode={mode}
+            provider={liveSync.connection?.provider ?? null}
+            onMove={moveShortlistedPlayer}
+            onRemove={removePlayerFromQueue}
+            onSelect={handleSelectPlayer}
+          />
+          <UpcomingPicks
+            teams={upcomingTeams}
+            pickCount={pickWindow.picksBetween.length}
+            nextPickLabel={nextPickLabel}
+            viewedPosition={viewedPosition}
+          />
+          <AssistantRoster
+            needs={needs}
+            rosterNames={rosterNames}
+            rosterSize={rosteredPlayers.length}
+            totalRounds={config.totalRounds}
+          />
+        </aside>
+      </div>
+
+      {overall.recommendations.length > 0 ? (
+        <section className="rec-pool" aria-labelledby="rec-pool-heading">
+          <div className="rec-section-heading">
+            <h2 id="rec-pool-heading">{positionFilter === 'ALL' ? 'All recommended players' : `Best available ${positionFilter}s`}</h2>
+            <span className="rec-muted">
+              {positionFilter === 'ALL'
+                ? `Ordered by ${lensLabel}.`
+                : `Ranked within ${positionFilter} by the same policy.`}
+            </span>
+          </div>
+          <div className="rec-pool-toolbar">
+            <label className="rec-search">
+              <Search className="size-4" aria-hidden="true" />
+              <span className="sr-only">Search recommended players</span>
+              <input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); }} placeholder="Search player or team" />
+            </label>
+            <div className="rec-filters" role="group" aria-label="Filter by position">
+              {POSITION_FILTERS.map((position) => {
+                const need = position === 'ALL' ? undefined : needs.find((item) => item.position === position);
+                const filled = position === 'ALL' ? rosteredPlayers.length : need?.startersFilled ?? 0;
+                const total = position === 'ALL' ? config.totalRounds : need?.startersNeeded ?? 0;
                 return (
                   <button
                     key={position}
                     type="button"
-                    aria-pressed={active}
-                    aria-label={position === 'ALL'
-                      ? 'Show all recommended players'
-                      : `Show ${position} rankings${positionNeed ? `, ${positionNeed.priority} roster need` : ''}`}
+                    aria-pressed={positionFilter === position}
+                    aria-label={`${position === 'ALL' ? 'All' : position}, ${String(filled)} of ${String(total)} filled`}
                     onClick={() => {
                       setPositionFilter(position);
-                      setSelectedPlayerId(null);
-                      setComparisonPlayerId(null);
                       setShowAllPlayers(false);
                     }}
-                    className={cn(
-                      'inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      active
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                    )}
                   >
-                    {position}
-                    {position !== 'ALL' && hasUrgentNeed ? (
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          'size-1.5 rounded-full',
-                          positionNeed.priority === 'critical' ? 'bg-red-500' : 'bg-amber-500'
-                        )}
-                      />
-                    ) : null}
+                    <span>{position === 'ALL' ? 'All' : position}</span>
+                    <small>{String(filled)}/{String(total)}</small>
                   </button>
                 );
               })}
             </div>
-            <div className="flex items-center gap-2 px-1">
-              <span id="player-pool-sort-label" className="text-xs font-semibold text-muted-foreground">Sort</span>
+            <div className="rec-sort">
+              <span id="rec-pool-sort-label" className="rec-muted">Sort</span>
               <Select
-                aria-labelledby="player-pool-sort-label"
-                className="h-8 w-[190px] text-xs"
+                aria-labelledby="rec-pool-sort-label"
+                className="h-9 w-[180px] text-xs"
                 value={poolSort}
                 onValueChange={(value) => { setPoolSort(value as PoolSort); }}
                 options={[
-                  { value: 'recommendation', label: 'Best recommendation' },
+                  { value: 'recommendation', label: 'Recommendation' },
                   { value: 'tier', label: 'Tier first' },
                 ]}
               />
             </div>
           </div>
-          {selectedPositionNeed ? (
-            <div className={cn(
-              'mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-x-0 border-y px-3 py-2 text-xs',
-              getSignalSurface(getNeedTone(selectedPositionNeed))
-            )}>
-              <Target className={cn('size-4', getSignalValueColor(getNeedTone(selectedPositionNeed)))} />
-              <strong className={getSignalValueColor(getNeedTone(selectedPositionNeed))}>
-                {selectedPositionNeed.position} is a {selectedPositionNeed.priority} roster need
-              </strong>
-              <span className="text-muted-foreground">
-                {getNeedSlotSummary(selectedPositionNeed)}
-              </span>
-            </div>
-          ) : null}
           {cards.length > 0 ? (
-            usesDesktopPlayerPool ? (
-              <div className="assistant-scouting-list">
-                {cards.map((recommendation, order) => (
-                  <AssistantRecommendationRow
-                    key={recommendation.playerId}
-                    recommendation={recommendation}
-                    player={playerById.get(recommendation.playerId)}
-                    rank={modelRankByPlayerId.get(recommendation.playerId) ?? 0}
-                    order={order}
-                    isSelected={selectedRecommendation?.playerId === recommendation.playerId}
-                    isQueued={queuedSet.has(recommendation.playerId)}
-                    onSelect={handleSelectPlayer}
-                    onQueue={togglePlayerQueued}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2">
-                {cards.map((recommendation) => (
-                  <RecommendationCard
-                    key={recommendation.playerId}
-                    recommendation={recommendation}
-                    player={playerById.get(recommendation.playerId)}
-                    rank={modelRankByPlayerId.get(recommendation.playerId) ?? 0}
-                    rankScope={positionFilter === 'ALL' ? undefined : positionFilter}
-                    isSelected={selectedRecommendation?.playerId === recommendation.playerId}
-                    isComparisonTarget={lens === 'compare' && comparisonRecommendation?.playerId === recommendation.playerId}
-                    isQueued={queuedSet.has(recommendation.playerId)}
-                    need={needs.find((need) => need.position === recommendation.position)}
-                    compareWithPlayerName={lens === 'compare' ? selectedRecommendation?.playerName : undefined}
-                    onSelect={handleSelectPlayer}
-                    onCompare={lens === 'compare' ? handleCompareFromCard : undefined}
-                    onQueue={togglePlayerQueued}
-                  />
-                ))}
-              </div>
-            )
+            <div className="rec-pool-list">
+              <CandidateRowHeader />
+              {cards.map((recommendation, order) => (
+                <AssistantRecommendationRow
+                  key={recommendation.playerId}
+                  recommendation={recommendation}
+                  player={playerById.get(recommendation.playerId)}
+                  rank={poolDecision.rankByPlayerId.get(recommendation.playerId) ?? order + 1}
+                  order={order}
+                  isSelected={selectedRecommendation?.playerId === recommendation.playerId}
+                  isBestPick={recommendation.playerId === bestPickId}
+                  isQueued={queuedSet.has(recommendation.playerId)}
+                  alert={alertsFor(recommendation.playerId)[0]}
+                  onSelect={(playerId) => { handleSelectPlayer(playerId); openAnalysis(analysisTab); }}
+                  onQueue={togglePlayerQueued}
+                />
+              ))}
+            </div>
           ) : (
-            <div role="status" className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+            <div role="status" className="rec-empty">
               {deferredSearch
                 ? 'No players match your search and position filter.'
                 : `No available ${positionFilter === 'ALL' ? '' : `${positionFilter} `}players.`}
             </div>
           )}
-          {poolRecommendations.length > collapsedPlayerCount ? (
-            <div className="mt-4 flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-expanded={showAllPlayers}
-                onClick={() => { setShowAllPlayers((current) => !current); }}
-              >
-                {showAllPlayers ? (
-                  <><ChevronUp className="size-4" /> Show fewer players</>
-                ) : (
-                  <><ChevronDown className="size-4" /> Show {String(hiddenPlayerCount)} more players</>
-                )}
+          {hiddenPlayerCount > 0 || showAllPlayers ? (
+            <div className="rec-pool-more">
+              <Button variant="outline" size="sm" aria-expanded={showAllPlayers} onClick={() => { setShowAllPlayers((current) => !current); }}>
+                {showAllPlayers
+                  ? <><ChevronUp className="size-4" aria-hidden="true" /> Show fewer players</>
+                  : <><ChevronDown className="size-4" aria-hidden="true" /> Show {String(hiddenPlayerCount)} more players</>}
               </Button>
             </div>
           ) : null}
         </section>
+      ) : null}
+      </div>
+      )}
+      {mode === 'manual-continuity' ? (
+        <ProvisionalPickDialog open={isRecordPickOpen} onOpenChange={setIsRecordPickOpen} initialPlayerId={leader?.playerId} />
       ) : null}
     </main>
   );
