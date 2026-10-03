@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
+import { PositionLabel } from '@/components/PositionLabel';
 import { MotionReorderItem, MotionReorderList } from '@/components/motion';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
@@ -25,7 +25,7 @@ export function DraftQueuePanel(): React.ReactElement {
 
   if (queuedPlayers.length === 0) {
     return (
-      <div className="flex min-h-40 flex-col items-center justify-center border-y border-border/70 bg-muted/20 text-center">
+      <div className="draft-queue-empty">
         <GripVertical className="size-6 text-muted-foreground/50" />
         <p className="mt-2 text-sm font-medium">Your draft queue is empty</p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -36,34 +36,31 @@ export function DraftQueuePanel(): React.ReactElement {
   }
 
   return (
-    <MotionReorderList className="max-h-[310px] overflow-y-auto border-y border-border/70">
+    <MotionReorderList className="draft-queue-list">
       {queuedPlayers.map((player, index) => (
         <MotionReorderItem
           key={player.id}
           order={index}
-          className="flex items-center gap-3 border-b border-border/60 px-3 py-2 last:border-b-0 hover:bg-muted/25"
+          className="draft-queue-row"
         >
-          <span className="w-5 text-center font-mono text-xs text-muted-foreground">
+          <span className="draft-queue-index">
             {String(index + 1)}
           </span>
           <PlayerHeadshot
             playerId={player.id}
             name={player.name}
             position={player.position}
-            className="size-10 rounded-full border border-border/70"
+            className="size-9 shrink-0 rounded-full"
           />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">{player.name}</div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Badge variant="outline" className="h-5 px-1.5 font-mono text-[10px]">
-                {player.position}
-              </Badge>
-              <span>{player.team}</span>
-              <span>· ECR #{String(player.ecrRank)}</span>
+            <div className="draft-pool-name">{player.name}</div>
+            <div className="draft-pool-meta">
+              <PositionLabel position={player.position} /> · {player.team} · ECR #{String(player.ecrRank)}
             </div>
           </div>
           <Button
             size="sm"
+            className="draft-pill-action"
             disabled={!canDraft}
             onClick={() => {
               draftPlayer(player);
@@ -74,6 +71,7 @@ export function DraftQueuePanel(): React.ReactElement {
           <Button
             variant="ghost"
             size="icon-sm"
+            className="rounded-full"
             aria-label={`Remove ${player.name} from queue`}
             onClick={() => {
               removePlayerFromQueue(player.id);

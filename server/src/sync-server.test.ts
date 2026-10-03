@@ -457,6 +457,42 @@ describe('createSyncServer', () => {
     }
   });
 
+  it('starts the Core Draft Data refresh only for authorized requests and reports its progress', async () => {
+    const scripts: string[] = [];
+    const server = createSyncServer({
+      runRefreshScript: (script) => {
+        scripts.push(script);
+        return { done: Promise.resolve(), cancel: () => undefined };
+      },
+    });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}/api/draft-data/refresh`;
+
+    try {
+      const unauthorized = await fetch(url, { method: 'POST', headers: { Origin: 'http://localhost:3000' } });
+      expect(unauthorized.status).toBe(403);
+      expect(scripts).toEqual([]);
+
+      const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
+      expect(await (await fetch(url, { headers })).json()).toMatchObject({ state: 'idle' });
+      const started = await fetch(url, { method: 'POST', headers });
+      expect(started.status).toBe(202);
+      expect(await started.json()).toMatchObject({ state: 'running' });
+
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+      expect(await (await fetch(url, { headers })).json()).toMatchObject({ state: 'succeeded' });
+      expect(scripts).toEqual(['refresh:sleeper', 'refresh:fantasypros', 'data:identity']);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.shutdown((error?: Error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+  });
+
   it('serves private draft inputs through authorized API routes', async () => {
     const currentKeepers = {
       season: 2026,

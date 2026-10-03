@@ -76,3 +76,6 @@ __pycache__/
 # Python bytecode from agent skill helpers
 __pycache__/
 *.pyc
+
+# Local Claude Code settings and skill links
+.claude/

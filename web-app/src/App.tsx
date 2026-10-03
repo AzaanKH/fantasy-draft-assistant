@@ -21,6 +21,7 @@ import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
+import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
 
 const LeagueSetupDialog = React.lazy(() => import('@/features/league-setup/LeagueSetupDialog').then((module) => ({ default: module.LeagueSetupDialog })));
 
@@ -55,6 +56,10 @@ function RouteLoading({ route }: { readonly route: AppRoute }): React.ReactEleme
 export function App(): React.ReactElement {
   const [leagueSetupOpen, setLeagueSetupOpen] = React.useState(false);
   const [connectionDialogOpen, setConnectionDialogOpen] = React.useState(false);
+  const setupActions = React.useMemo<DraftSetupActions>(() => ({
+    openLeagueSetup: () => { setLeagueSetupOpen(true); },
+    openDraftConnection: () => { setConnectionDialogOpen(true); },
+  }), []);
   const [route, setRoute] = React.useState<AppRoute>(() => getAppRoute(window.location.pathname));
   const [assistantNavigationTarget, setAssistantNavigationTarget] =
     React.useState<AssistantNavigationTarget>(() =>
@@ -167,38 +172,40 @@ export function App(): React.ReactElement {
     <div className="min-h-screen bg-background text-foreground">
       <LiveDraftSyncProvider>
         <DraftDecisionProvider readiness={readiness}>
-          <DraftHeader
-            route={route}
-            onNavigate={navigate}
-            connectionControl={<DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
-            keeperStatus={keeperStatus}
-            onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
-            secondaryControls={(
-              <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
-                <DraftGlossary />
-                <RosterSettings />
-              </React.Suspense>
-            )}
-          />
-          {leagueSetupOpen ? <React.Suspense fallback={null}>
-            <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
-          </React.Suspense> : null}
-          <ShadowRecommendationObserver />
-          <React.Suspense fallback={<RouteLoading route={route} />}>
-            {route === 'assistant' ? (
-              <AssistantPage
-                key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}
-                initialLens={assistantNavigationTarget.lens}
-                initialSelectedPlayerId={assistantNavigationTarget.selectedPlayerId}
-                onReturnToDraft={() => { navigate('draft'); }}
-              />
-            ) : (
-              <DraftRoom
-                keeperStatus={keeperStatus}
-                onOpenAssistant={(target) => { navigate('assistant', target); }}
-              />
-            )}
-          </React.Suspense>
+          <DraftSetupActionsContext.Provider value={setupActions}>
+            <DraftHeader
+              route={route}
+              onNavigate={navigate}
+              connectionControl={<DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
+              keeperStatus={keeperStatus}
+              onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
+              secondaryControls={(
+                <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
+                  <DraftGlossary />
+                  <RosterSettings />
+                </React.Suspense>
+              )}
+            />
+            {leagueSetupOpen ? <React.Suspense fallback={null}>
+              <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
+            </React.Suspense> : null}
+            <ShadowRecommendationObserver />
+            <React.Suspense fallback={<RouteLoading route={route} />}>
+              {route === 'assistant' ? (
+                <AssistantPage
+                  key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}
+                  initialLens={assistantNavigationTarget.lens}
+                  initialSelectedPlayerId={assistantNavigationTarget.selectedPlayerId}
+                  onReturnToDraft={() => { navigate('draft'); }}
+                />
+              ) : (
+                <DraftRoom
+                  keeperStatus={keeperStatus}
+                  onOpenAssistant={(target) => { navigate('assistant', target); }}
+                />
+              )}
+            </React.Suspense>
+          </DraftSetupActionsContext.Provider>
         </DraftDecisionProvider>
       </LiveDraftSyncProvider>
     </div>

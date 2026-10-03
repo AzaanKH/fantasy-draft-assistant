@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { DRAFT_DATA_REFRESH_STEPS } from '@fantasy-draft/shared';
 import type {
   DraftReadinessItem,
   DraftReadinessReport,
@@ -18,11 +19,7 @@ interface RefreshStep {
 
 type PreConnectFailure = DraftReadinessItem | DraftReadinessWarning;
 
-export const LIVE_CORE_REFRESH_STEPS: readonly RefreshStep[] = [
-  { label: 'Sleeper player directory', script: 'refresh:sleeper' },
-  { label: 'FantasyPros rankings', script: 'refresh:fantasypros' },
-  { label: 'Canonical player identities', script: 'data:identity' },
-];
+export const LIVE_CORE_REFRESH_STEPS: readonly RefreshStep[] = DRAFT_DATA_REFRESH_STEPS;
 
 export const LIVE_DRAFT_PREP_REPORT_STEP: RefreshStep = {
   label: 'Draft prep report',
@@ -37,6 +34,8 @@ function runRefreshStep(step: RefreshStep): Promise<void> {
       cwd: REPO_ROOT,
       env: process.env,
       stdio: 'inherit',
+      // Node can only launch pnpm.cmd through a shell on Windows.
+      shell: process.platform === 'win32',
     });
 
     child.once('error', rejectStep);
