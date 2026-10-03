@@ -24,6 +24,11 @@ export const METRIC_HELP = {
     summary: 'The estimated chance this player is still available at your next selection.',
     detail: 'The estimate uses league draft history calibrated by the current draft market. A lower percentage means waiting is riskier. A higher percentage gives you more room to consider another player, but does not guarantee availability.',
   },
+  waitingCost: {
+    title: 'Waiting cost',
+    summary: 'Expected points lost by waiting until your next selection instead of drafting this player now.',
+    detail: 'Waiting cost compares this player with the Expected Next-Pick Alternative: the same-position fallback with the highest probability-weighted value at your next pick. It is part of Draft Timing and is an estimate, not a guarantee.',
+  },
   bestPick: {
     title: 'Best Pick',
     summary: 'The available player recommended for improving your completed roster.',

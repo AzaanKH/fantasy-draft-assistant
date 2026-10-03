@@ -1,6 +1,6 @@
 import type { Player, Recommendation } from '@fantasy-draft/shared';
-import { Check } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
+import { PositionTag } from '@/components/PositionTag';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import { comparisonBar, getComparisonMetrics, type ComparisonMetric } from './comparison-metrics';
 
@@ -14,42 +14,42 @@ function formatMetric(value: number | null, format: ComparisonMetric['format']):
   return `#${String(value)}`;
 }
 
+/** Two narrow player columns beside one label column; fits the analysis panel at every width. */
 export function PlayerComparisonMetrics({
   first,
   second,
   preferredPlayerId,
   ranks,
   playerById,
-  compact = false,
-  showPointMetrics = true,
 }: {
   readonly first: Recommendation;
   readonly second: Recommendation;
   readonly preferredPlayerId?: string;
   readonly ranks: ReadonlyMap<string, number>;
   readonly playerById?: ReadonlyMap<string, Player>;
-  readonly compact?: boolean;
-  readonly showPointMetrics?: boolean;
 }): React.ReactElement {
   const players = [first, second];
-  const rows = getComparisonMetrics(first, second, ranks)
-    .filter((metric) => (!compact || !['projectedPoints', 'ecr'].includes(metric.key)) && (showPointMetrics || !['points', 'signed-points'].includes(metric.format)));
+  const rows = getComparisonMetrics(first, second, ranks);
 
   return (
-    <table className="player-comparison" data-compact={compact}>
+    <table className="rec-compare">
       <caption className="sr-only">Compare {first.playerName} and {second.playerName}. Point bars share a zero baseline; availability uses a 0 to 100 percent scale.</caption>
-      <colgroup><col className="comparison-label-column" /><col /><col /></colgroup>
       <thead>
         <tr>
-          <th scope="col" className="comparison-signal-heading">Signal</th>
+          <th scope="col"><span className="sr-only">Signal</span></th>
           {players.map((player) => (
             <th key={player.playerId} scope="col" data-preferred={player.playerId === preferredPlayerId}>
-              <div className="comparison-player-heading">
-                <PlayerHeadshot playerId={player.playerId} name={player.playerName} position={player.position} className="comparison-avatar" />
-                <span className="comparison-player-name">{player.playerName}</span>
-                <span className="comparison-player-meta">{player.position}{playerById?.get(player.playerId)?.team ? ` · ${playerById.get(player.playerId)?.team}` : ''}</span>
-                {player.playerId === preferredPlayerId ? <span className="comparison-preferred"><Check aria-hidden="true" />Preferred</span> : null}
-              </div>
+              <span className="rec-compare-player">
+                <PlayerHeadshot playerId={player.playerId} name={player.playerName} position={player.position} className="rec-compare-avatar" />
+                <span className="min-w-0">
+                  <span className="rec-compare-name">{player.playerName}</span>
+                  <span className="rec-meta">
+                    <PositionTag position={player.position} />
+                    {playerById?.get(player.playerId)?.team ? <span>{playerById.get(player.playerId)?.team}</span> : null}
+                  </span>
+                </span>
+              </span>
+              {player.playerId === preferredPlayerId ? <span className="rec-compare-preferred">Preferred</span> : null}
             </th>
           ))}
         </tr>
@@ -59,19 +59,16 @@ export function PlayerComparisonMetrics({
           <tr key={row.key}>
             <th scope="row">
               <MetricHelp metric={row.key} label={row.label} className="justify-start text-left" />
-              {!compact ? <span className="comparison-metric-note">{row.description}</span> : null}
             </th>
             {players.map((player, index) => {
               const value = row.values[index] ?? null;
               const bar = row.scale ? comparisonBar(value, row.scale) : null;
               return (
                 <td key={player.playerId} data-preferred={player.playerId === preferredPlayerId}>
-                  <span className="comparison-value" data-unavailable={value === null}>{formatMetric(value, row.format)}</span>
-                  {row.format === 'tier' ? <span className="comparison-player-meta">{player.position}</span> : null}
+                  <span className="rec-compare-value" data-unavailable={value === null}>{formatMetric(value, row.format)}</span>
                   {bar ? (
-                    <span className="comparison-bar" aria-hidden="true">
-                      <span className="comparison-bar-fill" data-preferred={player.playerId === preferredPlayerId} style={{ left: `${String(bar.left)}%`, width: `${String(bar.width)}%` }} />
-                      <span className="comparison-bar-zero" style={{ left: `${String(bar.zero)}%` }} />
+                    <span className="rec-compare-bar" aria-hidden="true">
+                      <span className="rec-compare-bar-fill" style={{ left: `${String(bar.left)}%`, width: `${String(bar.width)}%` }} />
                     </span>
                   ) : null}
                 </td>

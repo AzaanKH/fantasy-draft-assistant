@@ -15,7 +15,8 @@ export function createPickActions(
   'resetDraft' |
   'setMockSurvivalProbabilities' |
   'togglePlayerShortlisted' |
-  'removePlayerFromShortlist'
+  'removePlayerFromShortlist' |
+  'moveShortlistedPlayer'
 > {
   return {
     markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual') =>
@@ -256,6 +257,16 @@ export function createPickActions(
         state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
           (shortlistedPlayerId) => shortlistedPlayerId !== playerId
         );
+      });
+    },
+
+    moveShortlistedPlayer: (playerId, offset) => {
+      set((state) => {
+        const index = state.shortlistedPlayerIds.indexOf(playerId);
+        const target = index + offset;
+        if (index < 0 || target < 0 || target >= state.shortlistedPlayerIds.length) return;
+        state.shortlistedPlayerIds.splice(index, 1);
+        state.shortlistedPlayerIds.splice(target, 0, playerId);
       });
     },
 

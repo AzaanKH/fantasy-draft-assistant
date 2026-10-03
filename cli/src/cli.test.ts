@@ -257,7 +257,9 @@ describe('draft CLI against a local fixture server', () => {
     expect(waiting.result.data.returnProbability).toBeLessThanOrEqual(1);
     expect(waiting.result.data.nextPickNumber).toBe(19);
     expect(waiting.result.data.expectedNextPickAlternative.playerId).toBeTruthy();
-    expect(waiting.result.data.answers).toHaveLength(4);
+    expect(waiting.result.data.answerHeadline).toMatch(/return at pick|Waiting risk is unavailable/);
+    expect(waiting.result.data.answers.map((answer: { label: string }) => answer.label))
+      .toEqual(['At next pick', 'Waiting cost', 'Expected Next-Pick Alternative']);
   });
 
   it('blocks advice for stale inputs, unconfirmed provider settings, and unresolved picks', async () => {

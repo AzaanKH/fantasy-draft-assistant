@@ -817,6 +817,21 @@ describe('draftStore shortlist', () => {
     expect(useDraftStore.getState().shortlistedPlayerIds).toEqual(['player-b']);
   });
 
+  it('reorders queued players and ignores moves past either end', () => {
+    const { moveShortlistedPlayer, togglePlayerShortlisted } = useDraftStore.getState();
+    togglePlayerShortlisted('player-a');
+    togglePlayerShortlisted('player-b');
+    togglePlayerShortlisted('player-c');
+
+    moveShortlistedPlayer('player-c', -1);
+    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual(['player-a', 'player-c', 'player-b']);
+
+    moveShortlistedPlayer('player-a', -1);
+    moveShortlistedPlayer('player-b', 1);
+    moveShortlistedPlayer('missing', 1);
+    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual(['player-a', 'player-c', 'player-b']);
+  });
+
   it('removes drafted players and does not add them back to the shortlist', () => {
     const { markPlayerDrafted, togglePlayerShortlisted } = useDraftStore.getState();
 

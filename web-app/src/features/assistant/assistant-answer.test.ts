@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { Recommendation } from '@fantasy-draft/shared';
 import type { DraftDecisionView } from '@/features/recommendations/draft-decision';
 import {
-  getAssistantAnswerSections,
   getComparisonHighlights,
+  getWaitAnswer,
+  getWaitingCostSummary,
+  getWhyRows,
 } from './assistant-analysis';
 
 function recommendation(
@@ -35,7 +37,7 @@ function recommendation(
 }
 
 describe('Assistant decision answer', () => {
-  it('leads with the four decision questions and keeps each answer concise', () => {
+  it('splits value, roster and tier from timing and states each figure once', () => {
     const base = recommendation('urgent-rb', 'Urgent RB', 24, 0.05);
     const selected: Recommendation = {
       ...base,
@@ -114,22 +116,39 @@ describe('Assistant decision answer', () => {
       },
     };
 
-    const sections = getAssistantAnswerSections(selected, true);
+    const why = getWhyRows(selected, true);
+    expect(why.map((row) => row.label)).toEqual(['Value', 'Roster fit', 'Tier', 'Why it ranks here']);
+    expect(why[0]?.answer).toBe('VOR +24. ECR #4.');
+    expect(why[1]?.answer).toBe('3 starter spots and 2 FLEX spots open, 10 selections left.');
+    expect(why[3]?.answer).toBe('Draft timing changed the order. Can I wait? shows the cost.');
+    expect(why.some((row) => row.answer.includes('17.6'))).toBe(false);
 
-    expect(sections.map((section) => section.label)).toEqual([
-      'Why now',
-      'Risk of waiting',
-      'Best fallback',
-      'What changed the recommendation',
+    const wait = getWaitAnswer(selected);
+    expect(wait.headline).toBe('Unlikely to return at pick 2.03.');
+    expect(wait.rows.map((row) => [row.label, row.answer])).toEqual([
+      ['At next pick', '5% Return Probability'],
+      ['Waiting cost', '17.6 expected points'],
+      ['Expected Next-Pick Alternative', 'Fallback RB, +6 expected points above replacement'],
     ]);
-    expect(sections[0]?.answer).toBe('Waiting costs 17.6 expected points on Urgent RB.');
-    expect(sections[1]?.answer).toBe(
-      'Only 5% Return Probability at pick 2.03. Waiting costs 17.6 expected points.'
-    );
-    expect(sections[2]?.answer).toContain('Fallback RB is the Expected Next-Pick Alternative');
-    expect(sections[3]?.answer).toBe(
-      'Draft timing changed the order because waiting costs 17.6 expected points.'
-    );
+    expect(getWaitingCostSummary(selected)).toEqual({
+      costOfWaiting: 17.6,
+      nextPickLabel: '2.03',
+      fallbackName: 'Fallback RB',
+      fallbackValue: 6.4,
+    });
+  });
+
+  it('shows missing timing as unavailable, never as zero', () => {
+    const { nextPickSurvivalProbability: _omitted, ...diagnostics } = recommendation('rb', 'Unknown RB', 10, 0.5).diagnostics ?? {};
+    const unknownTiming: Recommendation = {
+      ...recommendation('rb', 'Unknown RB', 10, 0.5),
+      diagnostics: { ...diagnostics, nextPickCostOfWaiting: 4 } as Recommendation['diagnostics'],
+    };
+    const wait = getWaitAnswer(unknownTiming);
+    expect(wait.headline).toBe('Waiting risk is unavailable.');
+    expect(wait.rows[0]?.answer).toBe('Unavailable. Timing inputs are missing.');
+    expect(wait.rows[1]?.answer).toBe('Unavailable');
+    expect(getWaitingCostSummary(unknownTiming).costOfWaiting).toBeNull();
   });
 
   it('calls out the material gaps before the full comparison', () => {

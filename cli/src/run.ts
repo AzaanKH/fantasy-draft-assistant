@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { createDefaultLeagueSettings, type DraftReadinessReport, type Recommendation } from '@fantasy-draft/shared';
 import { buildDraftReadinessReport } from '../../scripts/src/draft-readiness-report';
 import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
-import { getComparisonHighlights, getAssistantAnswerSections, getAvailabilitySignal } from '@/features/assistant/assistant-analysis';
+import { getComparisonHighlights, getAvailabilitySignal, getWaitAnswer } from '@/features/assistant/assistant-analysis';
 import { getComparisonMetrics } from '@/features/assistant/comparison-metrics';
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import { invocationMode, parseArguments, parseSession, HELP, type Arguments } from './arguments';
@@ -251,7 +251,9 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
       getAvailabilitySignal(returnProbability === null ? null : Math.round(returnProbability * 100)).status,
     expectedNextPickAlternative: timing?.expectedAlternative ?? first.diagnostics?.expectedNextPickAlternative ?? null,
     costOfWaiting: timing?.costOfWaiting ?? first.diagnostics?.nextPickCostOfWaiting ?? null,
-    answers: getAssistantAnswerSections(first, decision.selected?.playerId === first.playerId) }, exitCode: 0 };
+    // Same answer as the Assistant's Can I wait? tab.
+    answerHeadline: getWaitAnswer(first).headline,
+    answers: getWaitAnswer(first).rows }, exitCode: 0 };
 }
 
 async function replayStream(args: Arguments, io: Output, runtime: Runtime): Promise<void> {
