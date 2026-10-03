@@ -8,7 +8,7 @@ import {
   type RosterRules,
 } from './offensive-roster.js';
 
-export const SIMULATED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
+const SIMULATED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 
 export type SimulatedPosition = (typeof SIMULATED_POSITIONS)[number];
 export type CounterfactualStrategy = 'ecr' | 'model';
@@ -24,7 +24,7 @@ export interface CounterfactualPlayer {
   readonly actualVor: number;
 }
 
-export interface CounterfactualPick {
+interface CounterfactualPick {
   readonly pickNo: number;
   readonly round: number;
   readonly rosterId: number;
@@ -130,7 +130,7 @@ function addTendency(
   map.set(key, current);
 }
 
-export function buildOpponentTendencies(
+function buildOpponentTendencies(
   historicalSeasons: readonly CounterfactualSeason[]
 ): OpponentTendencies {
   const league = new Map<string, { total: number; positions: PositionCounts }>();
@@ -386,7 +386,7 @@ export function estimateMetric(values: readonly number[]): MetricEstimate {
   };
 }
 
-export function summarizeCounterfactualIterations(
+function summarizeCounterfactualIterations(
   iterations: readonly CounterfactualDraftMetrics[]
 ): CounterfactualSimulationSummary {
   return {

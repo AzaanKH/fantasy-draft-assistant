@@ -1,6 +1,6 @@
 import type { DraftType, Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 
-export type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
+type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
 
 export interface MockDraftPickLike {
   readonly pickNumber: number;
@@ -19,14 +19,14 @@ export interface MockKeeperAssignment {
   readonly round: number;
 }
 
-export interface MockManagerPositionTendency {
+interface MockManagerPositionTendency {
   readonly picks: number;
   readonly pickRate: number;
   readonly earlyPickRate: number;
   readonly leaguePickRateDelta?: number;
 }
 
-export interface MockManagerTendency {
+interface MockManagerTendency {
   readonly managerKey: string;
   readonly draftSlots: readonly number[];
   readonly sampleSize: number;
@@ -51,7 +51,7 @@ export interface MockDraftEngineConfig {
   readonly seed: number;
 }
 
-export interface CpuScoreComponents {
+interface CpuScoreComponents {
   readonly marketBehavior: number;
   readonly leagueScoredValue: number;
   readonly rosterNeed: number;
@@ -61,7 +61,7 @@ export interface CpuScoreComponents {
   readonly runMomentum: number;
 }
 
-export interface ScoredCpuCandidate {
+interface ScoredCpuCandidate {
   readonly player: Player;
   readonly score: number;
   readonly components: CpuScoreComponents;
@@ -115,7 +115,7 @@ function hashString(value: string): number {
   return hash >>> 0;
 }
 
-export function createSeededRandom(seed: number): () => number {
+function createSeededRandom(seed: number): () => number {
   let state = seed >>> 0;
   return (): number => {
     state += 0x6d2b79f5;
@@ -408,7 +408,7 @@ function buildScarcityLookup(candidates: readonly Player[]): ReadonlyMap<string,
   return lookup;
 }
 
-export function scoreCpuCandidates(input: SelectCpuPlayerInput): ScoredCpuCandidate[] {
+function scoreCpuCandidates(input: SelectCpuPlayerInput): ScoredCpuCandidate[] {
   const teamIndex = getTeamIndexForPick(input.currentPick, input.config.totalTeams);
   const roundNumber = Math.ceil(input.currentPick / input.config.totalTeams);
   const rosterCounts = getRosterCounts(teamIndex, input.history, input.keepers);

@@ -67,7 +67,7 @@ export function createEmptyTeamRosters(totalTeams: number): MutableRoster[] {
   );
 }
 
-export function copyRoster(roster: MutableRoster | undefined): MutableRoster {
+function copyRoster(roster: MutableRoster | undefined): MutableRoster {
   if (!roster) return createEmptyMutableRoster();
   return {
     QB: [...roster.QB],
@@ -104,7 +104,7 @@ export function rebuildCanonicalRosters(state: Pick<
   state.myRoster = copyRoster(teamRosters[state.config.myPickPosition - 1]);
 }
 
-export function getNextCanonicalOpenPick(
+function getNextCanonicalOpenPick(
   history: readonly RecordedDraftPick[],
   keepers: readonly PreloadedKeeper[],
   totalTeams: number,

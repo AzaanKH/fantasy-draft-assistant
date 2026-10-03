@@ -3,9 +3,9 @@ import { isPosition, type DecisionLens, type DraftProvider, type Position } from
 import { CliError } from './errors';
 import { parseDraftRoomUrl } from '../../extension/src/content/draft-url';
 
-export const COMMANDS = ['readiness', 'status', 'players', 'recommend', 'compare', 'wait', 'watch',
+const COMMANDS = ['readiness', 'status', 'players', 'recommend', 'compare', 'wait', 'watch',
   'sessions', 'connect', 'roster', 'export', 'replay'] as const;
-export type Command = typeof COMMANDS[number];
+type Command = typeof COMMANDS[number];
 export interface SessionId { readonly provider: DraftProvider; readonly draftId: string; readonly id: string }
 export interface Arguments {
   readonly command: Command;
@@ -177,7 +177,7 @@ export function parseArguments(argv: readonly string[], env: NodeJS.ProcessEnv, 
   };
 }
 
-export function parseConnectTarget(value: string): SessionId {
+function parseConnectTarget(value: string): SessionId {
   if (!value.includes('://')) return parseSession(value);
   let url: URL;
   try { url = new URL(value); } catch { return usage('The provider draft URL is invalid.'); }

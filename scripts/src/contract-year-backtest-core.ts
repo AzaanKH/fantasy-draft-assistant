@@ -1,4 +1,4 @@
-export const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
+const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 export type OffensivePosition = (typeof OFFENSIVE_POSITIONS)[number];
 export type ExpectedRole = 'high' | 'medium' | 'low' | 'rookie-unknown';
 
@@ -66,25 +66,6 @@ interface Standardizer {
   readonly means: readonly number[];
   readonly scales: readonly number[];
 }
-
-export const BASELINE_FEATURE_NAMES = [
-  'position_rb',
-  'position_wr',
-  'position_te',
-  'age',
-  'age_squared',
-  'age_missing',
-  'experience',
-  'prior_points',
-  'prior_points_per_game_3yr',
-  'prior_games',
-  'prior_opportunity_per_game',
-  'prior_target_share',
-  'is_rookie',
-  'role_high',
-  'role_medium',
-  'role_rookie_unknown',
-] as const;
 
 const REPLACEMENT_RANKS: Record<OffensivePosition, number> = {
   QB: 12,

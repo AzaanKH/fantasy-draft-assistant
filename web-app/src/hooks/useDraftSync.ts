@@ -12,8 +12,8 @@ import { useDraftSyncReconciliation } from './useDraftSyncReconciliation';
 export {
   getNextOpenPickNumber,
   resolveDraftPickImports,
-  type DraftPickImportRejection,
-  type DraftPickImportResult,
+  
+  
 } from '@/lib/draft-pick-imports';
 export {
   DRAFT_SYNC_STALE_AFTER_MS,
@@ -22,7 +22,7 @@ export {
   formatDraftSyncAge,
 } from '@/lib/draft-sync-state';
 export type {
-  DraftSyncTransportState,
+  
   DraftSyncConnectionState,
   DraftSynchronizationState,
   DraftSyncViewState,

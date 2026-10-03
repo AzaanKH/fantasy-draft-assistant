@@ -107,10 +107,10 @@ export function countTeamsNeeding(teams: readonly UpcomingTeamPicks[], position:
 }
 
 /** Picks past consensus ADP before a falling-player chip is shown. Display-only; not a policy input. */
-export const ADP_ALERT_THRESHOLD = 3;
+const ADP_ALERT_THRESHOLD = 3;
 /** A position run is this many of the most recent picks at one position. Display-only. */
-export const RUN_ALERT_MINIMUM = 3;
-export const RUN_ALERT_WINDOW = 5;
+const RUN_ALERT_MINIMUM = 3;
+const RUN_ALERT_WINDOW = 5;
 
 /**
  * Optional, text-labelled signals for a candidate. Each is omitted when its data is unavailable;

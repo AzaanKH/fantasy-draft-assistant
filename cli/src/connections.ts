@@ -3,7 +3,7 @@ import { parseSession, type SessionId } from './arguments';
 import { readBoundedJson, writePrivateJson } from './files';
 import { CliError } from './errors';
 
-export interface SavedConnection {
+interface SavedConnection {
   readonly session: string;
   readonly slot?: number;
   readonly serverUrl: string;

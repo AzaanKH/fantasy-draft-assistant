@@ -8,7 +8,7 @@ const RECOMMENDATION_GRID_MEDIA_QUERIES = {
   twoExtraLarge: '(min-width: 96rem)',
 } as const;
 
-export function getCollapsedPlayerCount(): number {
+function getCollapsedPlayerCount(): number {
   if (typeof window === 'undefined') return 3;
   if (document.documentElement.hasAttribute('data-visual-test')) return 10;
   if (window.matchMedia(RECOMMENDATION_GRID_MEDIA_QUERIES.twoExtraLarge).matches) return 5;
@@ -16,7 +16,7 @@ export function getCollapsedPlayerCount(): number {
   return 3;
 }
 
-export function subscribeToRecommendationGrid(listener: () => void): () => void {
+function subscribeToRecommendationGrid(listener: () => void): () => void {
   if (typeof window === 'undefined') return () => undefined;
 
   const mediaQueries = Object.values(RECOMMENDATION_GRID_MEDIA_QUERIES)

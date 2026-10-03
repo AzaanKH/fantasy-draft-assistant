@@ -120,7 +120,7 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-export function isPlayerIdentity(value: unknown): value is PlayerIdentityData {
+function isPlayerIdentity(value: unknown): value is PlayerIdentityData {
   return isRecord(value) &&
     isNonEmptyString(value['canonicalId']) &&
     isNonEmptyString(value['name']) &&

@@ -23,7 +23,7 @@ export type RunRefreshScript = (
   onOutput: (text: string) => void
 ) => RefreshScriptRun;
 
-export const runPnpmScript: RunRefreshScript = (script, onOutput) => {
+const runPnpmScript: RunRefreshScript = (script, onOutput) => {
   const child = spawn(PNPM_COMMAND, [script], {
     cwd: REPO_ROOT,
     env: process.env,

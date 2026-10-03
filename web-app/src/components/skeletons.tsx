@@ -85,7 +85,7 @@ export function SuggestionSkeleton(): React.ReactElement {
   );
 }
 
-export function RecommendationPanelSkeleton(): React.ReactElement {
+function RecommendationPanelSkeleton(): React.ReactElement {
   return (
     <LoadingShell label="Loading the recommendation" className="rounded-xl border border-border/75 bg-card p-4 shadow-sm">
       <SkeletonBlock className="h-4 w-40" />

@@ -8,7 +8,7 @@ export interface DraftPickImportRejection {
   readonly nflTeam: string | null;
 }
 
-export interface ImportedDraftPick {
+interface ImportedDraftPick {
   readonly pickNumber: number;
   readonly playerId: string;
   readonly playerName: string;

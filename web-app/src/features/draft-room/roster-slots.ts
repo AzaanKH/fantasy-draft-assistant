@@ -1,7 +1,7 @@
 import type { Position, RosterRequirements } from '@fantasy-draft/shared';
 import { POSITIONS } from '@fantasy-draft/shared';
 
-export type RosterSlotLabel = Position | 'FLEX' | 'BN';
+type RosterSlotLabel = Position | 'FLEX' | 'BN';
 
 export interface RosterSlot {
   readonly label: RosterSlotLabel;
