@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { Effect } from 'effect';
 import { parseSession, type SessionId } from './arguments';
 import { readBoundedJson, writePrivateJson } from './files';
 import { CliError } from './errors';
@@ -33,25 +34,27 @@ function isConnectionConfig(value: unknown): value is ConnectionConfig {
     (activeSession === null || (connections as SavedConnection[]).some(row => row.session === activeSession));
 }
 
-export async function loadConnections(root: string): Promise<ConnectionConfig> {
-  try {
-    const value = await readBoundedJson(join(root, '.local/cli-connections.json'), 64 * 1024);
-    if (!isConnectionConfig(value)) throw new Error('Invalid connection settings');
-    return value;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return EMPTY_CONNECTIONS;
-    throw new CliError('INVALID_CONNECTION_CONFIG', 'The saved CLI connections are invalid. Repair or remove .local/cli-connections.json.');
-  }
-}
+export const loadConnections = Effect.fn('loadConnections')(function* (root: string) {
+  const invalid = new CliError('INVALID_CONNECTION_CONFIG', 'The saved CLI connections are invalid. Repair or remove .local/cli-connections.json.');
+  return yield* readBoundedJson(join(root, '.local/cli-connections.json'), 64 * 1024).pipe(
+    // Validation parses each saved session, which throws for malformed IDs.
+    Effect.flatMap(value => Effect.try({
+      try: () => { if (!isConnectionConfig(value)) throw invalid; return value; },
+      catch: () => invalid,
+    })),
+    Effect.catchTag('JsonFileError', error => error.missing ? Effect.succeed(EMPTY_CONNECTIONS) : Effect.fail(invalid)),
+    Effect.mapError(() => invalid),
+  );
+});
 
-export async function saveConnection(root: string, session: SessionId, slot: number | undefined,
-  serverUrl: string, now: number): Promise<string> {
-  const config = await loadConnections(root);
+export const saveConnection = Effect.fn('saveConnection')(function* (root: string, session: SessionId,
+  slot: number | undefined, serverUrl: string, now: number) {
+  const config = yield* loadConnections(root);
   const connections = config.connections.filter(row => row.session !== session.id);
   const existing = config.connections.find(row => row.session === session.id);
   connections.push({ session: session.id, slot: slot ?? existing?.slot, serverUrl, connectedAt: new Date(now).toISOString() });
   const path = join(root, '.local/cli-connections.json');
-  await writePrivateJson(path, { schemaVersion: 1, activeSession: session.id,
+  yield* writePrivateJson(path, { schemaVersion: 1, activeSession: session.id,
     connections: connections.slice(-128) }, true);
   return path;
-}
+});

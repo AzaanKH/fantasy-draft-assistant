@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { Effect } from 'effect';
 import {
   isPosition, isNFLTeam, isNewsStatus, isTeamEnvironment, type FantasyProsSnapshot, type LeagueSettings,
   type DraftType, type MarketAdpPlayer, type NFLTeam, type Player, type Position, type TeamEnvironment,
@@ -13,7 +14,7 @@ import { isPlayerIdentityFile, isRecommendationPolicyFile, isRecord } from '@/li
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import type { RecommendationPolicyFile, SleeperDataFile } from '@/lib/player-data/types';
 import type { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
-import { CliError } from './errors';
+import { CliError, unexpected } from './errors';
 
 type KeeperStatus = Parameters<typeof evaluateWorkspaceDraftReadiness>[0]['keeperStatus'];
 interface KeeperEntry {
@@ -33,10 +34,10 @@ export interface DraftData {
   readonly policy: RecommendationPolicyFile;
 }
 
-export async function loadJson(root: string, path: string): Promise<unknown> {
-  try { return JSON.parse(await readFile(join(root, path), 'utf8')) as unknown; }
-  catch { return null; }
-}
+/** Read optional JSON, treating a missing or malformed file as absent. */
+export const loadJson = (root: string, path: string): Effect.Effect<unknown> => Effect.tryPromise(
+  async () => JSON.parse(await readFile(join(root, path), 'utf8')) as unknown,
+).pipe(Effect.orElseSucceed(() => null));
 
 function isSnapshot(value: unknown): value is FantasyProsSnapshot {
   return isRecord(value) && isRecord(value.metadata) && Array.isArray(value.rankings) &&
@@ -95,16 +96,16 @@ export function resolveKeepers(value: unknown, players: readonly Player[], teams
   };
 }
 
-export async function loadDraftData(root: string, settings: LeagueSettings, rounds: number,
-  marketAdp: readonly MarketAdpPlayer[] = [], draftType: DraftType = 'snake'): Promise<DraftData> {
-  const [snapshot, identities, sleeper, environment, keeperFile, survival, policy] = await Promise.all([
+export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string, settings: LeagueSettings, rounds: number,
+  marketAdp: readonly MarketAdpPlayer[] = [], draftType: DraftType = 'snake') {
+  const [snapshot, identities, sleeper, environment, keeperFile, survival, policy] = yield* Effect.all([
     loadJson(root, 'data/fantasypros-snapshot.json'), loadJson(root, 'data/player-identity.json'),
     loadJson(root, 'data/sleeper-adp.json'), loadJson(root, 'data/team-environment.json'),
     loadJson(root, 'data/league-history/current-keepers.json'), loadJson(root, 'data/league-history/survival-model.json'),
     loadJson(root, 'data/recommendation-policy.json'),
-  ]);
+  ], { concurrency: 'unbounded' });
   if (!isSnapshot(snapshot) || !isPlayerIdentityFile(identities)) {
-    throw new CliError('CORE_DATA_INVALID', 'Rankings or canonical player identities are missing or invalid. Run draft readiness --json for corrective actions.', 3,
+    return yield* new CliError('CORE_DATA_INVALID', 'Rankings or canonical player identities are missing or invalid. Run draft readiness --json for corrective actions.', 3,
       { invalidCoreKeys: [...(!isSnapshot(snapshot) ? ['trusted-rankings'] : []), ...(!isPlayerIdentityFile(identities) ? ['canonical-player-identities'] : [])] });
   }
   const sleeperPlayers = isRecord(sleeper) && Array.isArray(sleeper.players) && sleeper.players.every(row =>
@@ -113,29 +114,32 @@ export async function loadDraftData(root: string, settings: LeagueSettings, roun
     ? (sleeper as unknown as SleeperDataFile).players : [];
   const teamEnvironments = isRecord(environment) && isRecord(environment.teams) && Object.values(environment.teams).every(isTeamEnvironment)
     ? environment.teams as Record<NFLTeam, TeamEnvironment> : {} as Record<NFLTeam, TeamEnvironment>;
-  const merged = mergeCoreSources({
+  // Status commands report a failed merge as a warning, so keep it in the error channel.
+  const merged = yield* Effect.try({ try: () => mergeCoreSources({
     rankings: snapshot.rankings, projections: snapshot.projections, news: snapshot.news,
     sleeperPlayers, teamEnvironments, fantasyProsAdp: snapshot.adp, identities: identities.players,
     leagueContext: { marketAdp, scoringRules: settings.scoringRules, totalTeams: settings.totalTeams,
       rosterRequirements: settings.rosterRequirements },
-  }, []);
+  }, []), catch: unexpected });
   // The web merge's final fallback uses the changing ECR rank. CLI callers keep
   // IDs between refreshes, so use the source identifier when that join is absent.
   const sourceKey = (row: { name: string; position: Position; team: NFLTeam }) => `${normalizePlayerName(row.name)}:${row.position}:${row.team}`;
   const rankingsByPlayer = new Map(snapshot.rankings.map(row => [sourceKey(row), row]));
-  const players = merged.map(player => {
-    if (!player.id.startsWith('ecr-')) return player;
+  const players: Player[] = [];
+  for (const player of merged) {
+    if (!player.id.startsWith('ecr-')) { players.push(player); continue; }
     const sourceId = rankingsByPlayer.get(sourceKey(player))?.fantasyProsId;
-    if (!sourceId) throw new CliError('CORE_DATA_INVALID', `${player.name} has no stable player identifier. Refresh rankings and player identities.`, 3,
+    if (!sourceId) return yield* new CliError('CORE_DATA_INVALID', `${player.name} has no stable player identifier. Refresh rankings and player identities.`, 3,
       { invalidCoreKeys: ['canonical-player-identities'] });
-    return { ...player, id: `fantasypros:${sourceId}` };
-  });
+    players.push({ ...player, id: `fantasypros:${sourceId}` });
+  }
   if (new Set(players.map(player => player.id)).size !== players.length) {
-    throw new CliError('CORE_DATA_INVALID', 'Player identifiers are duplicated. Rebuild canonical player identities before using the CLI.', 3,
+    return yield* new CliError('CORE_DATA_INVALID', 'Player identifiers are duplicated. Rebuild canonical player identities before using the CLI.', 3,
       { invalidCoreKeys: ['canonical-player-identities'] });
   }
   const keeperResolution = resolveKeepers(keeperFile, players, settings.totalTeams, rounds, draftType);
-  return { players, keepers: keeperResolution.keepers, keeperStatus: keeperResolution.status,
+  const data: DraftData = { players, keepers: keeperResolution.keepers, keeperStatus: keeperResolution.status,
     survivalModel: isLeagueSurvivalModel(survival) ? survival : null,
     policy: isRecommendationPolicyFile(policy) ? policy : SAFE_RECOMMENDATION_POLICY };
-}
+  return data;
+});

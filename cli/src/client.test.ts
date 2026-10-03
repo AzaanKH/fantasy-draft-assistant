@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Effect, Stream } from 'effect';
 import { parseDraftEvents } from './client';
 import { fixturePick, fixtureSnapshot } from './fixtures';
 
@@ -17,13 +18,13 @@ describe('draft SSE decoding', () => {
     const data = json.split('\n').map(line => `data: ${line}\r\n`).join('');
     const heartbeat = { type: 'heartbeat', provider: 'sleeper', draftId: 'fixture',
       lastPolledAt: 100, lastSuccessfulSyncAt: 100 };
-    const events = [];
-    for await (const event of parseDraftEvents(stream(`: keep-alive\r\nevent: draft\r\n${data}\r\ndata: ${JSON.stringify(heartbeat)}\r\n\r\n`, 1))) events.push(event);
+    const events = await Effect.runPromise(Stream.runCollect(parseDraftEvents(
+      stream(`: keep-alive\r\nevent: draft\r\n${data}\r\ndata: ${JSON.stringify(heartbeat)}\r\n\r\n`, 1))));
     expect(events).toEqual([{ type: 'pick', snapshot, pick: snapshot.picks[0] }, heartbeat]);
   });
 
   it('rejects malformed JSON and invalid draft updates before emitting them', async () => {
-    const consume = async (text: string) => { for await (const _event of parseDraftEvents(stream(text))) { /* consume */ } };
+    const consume = (text: string) => Effect.runPromise(Stream.runDrain(parseDraftEvents(stream(text))));
     await expect(consume('data: {bad json}\n\n')).rejects.toMatchObject({ code: 'INVALID_STREAM' });
     await expect(consume('data: {"type":"pick","snapshot":{}}\n\n')).rejects.toMatchObject({ code: 'INVALID_STREAM' });
   });
@@ -33,7 +34,7 @@ describe('draft SSE decoding', () => {
     const body = new ReadableStream<Uint8Array>({ start(controller) {
       controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'snapshot', snapshot: fixtureSnapshot() })}\n\n`));
     }, cancel() { cancelled = true; } });
-    for await (const _event of parseDraftEvents(body)) break;
+    await Effect.runPromise(Stream.runDrain(Stream.take(parseDraftEvents(body), 1)));
     expect(cancelled).toBe(true);
   });
 });
