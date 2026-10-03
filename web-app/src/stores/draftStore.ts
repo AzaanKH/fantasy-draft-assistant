@@ -5,7 +5,7 @@ import { enableMapSet } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
 import { useDraftSyncConnectionStore } from './draftSyncStore';
 import {
-  DRAFT_SESSION_LINEAGE_LIMIT,
+  createDraftSessionWriteId,
   getBrowserDraftSessionStorage,
   getDraftSessionStorageKey,
   parseStoredDraftSession,
@@ -15,6 +15,13 @@ import {
   type DraftSessionStorage,
   type PersistedDraftSession,
 } from './draftSessionStorage';
+import {
+  applyDraftSessionChange,
+  readDraftSessionChanges,
+  removeDraftSessionChange,
+  type DraftSessionChange,
+  type StoredDraftSessionChange,
+} from './draftSessionUnconfirmedSaves';
 import type { DraftStore, DraftSessionMode, SetDraftState } from './draft/types';
 import {
   calculateIsMyTurn,
@@ -81,9 +88,7 @@ function subscribeToBrowserStorageEvents(
   });
 }
 
-type DraftTransition = Parameters<SetDraftState>[0];
-
-/** Retries before a save overwrites a tab that keeps saving first; that tab then reapplies its write. */
+/** Retries before a save overwrites a tab that keeps saving first; that tab's save is then merged back. */
 const MAX_SAVE_ATTEMPTS = 5;
 
 /**
@@ -95,15 +100,10 @@ export function createDraftStore({
   externalChanges = null,
 }: DraftStoreOptions = {}): BoundDraftStore {
   const persistence: DraftSessionPersistence = { base: EMPTY_DRAFT_SESSION_BASE };
-  // This tab's saves not yet built on by another tab. One missing from the stored
-  // lineage was overwritten by a concurrent save, so its changes are reapplied.
-  let unconfirmedWrites: {
-    readonly writeId: string;
-    readonly revision: number;
-    readonly transitions: readonly DraftTransition[];
-  }[] = [];
+  // Each page load records its saves under a new key, so a reloaded tab's last
+  // save stays in storage for any tab to merge back if it was overwritten.
+  const tabId = createDraftSessionWriteId();
   let adoptingSavedSession = false;
-  let pendingTransitions: readonly DraftTransition[] = [];
   let forceSave = false;
   let saveConflicted = false;
   const store = create<DraftStore>()(
@@ -112,20 +112,23 @@ export function createDraftStore({
   // If another tab saves between that check and this tab's write, the change is
   // reapplied to the newer session before the action reports its result.
   const set: SetDraftState = (transition) => {
+    const previousSession = get().liveSession;
     for (let attempt = 1; ; attempt += 1) {
       syncFromOtherTabs();
-      pendingTransitions = [transition];
-      // Persistent contention is not expected; the overwritten tab reapplies its own write.
+      // Persistent contention is not expected; the overwritten save is merged back later.
       forceSave = attempt >= MAX_SAVE_ATTEMPTS;
       saveConflicted = false;
       try {
         rawSet(transition);
       } finally {
-        pendingTransitions = [];
         forceSave = false;
       }
-      if (!saveConflicted) return;
+      if (!saveConflicted) break;
     }
+    // A newly loaded session may be missing a save overwritten before its tab reloaded.
+    const { liveSession } = get();
+    if (liveSession && (liveSession.provider !== previousSession?.provider ||
+        liveSession.draftId !== previousSession.draftId)) syncFromOtherTabs(true);
   };
   return {
     // Initial state
@@ -205,77 +208,113 @@ export function createDraftStore({
       if (adoptingSavedSession) return;
       const sessionChanged = state.liveSession !== previous.liveSession;
       if (!saveSession(state) && !sessionChanged) saveConflicted = true;
-      // Loading a session starts a new lineage; replaying the load would discard newer saves.
-      if (sessionChanged) unconfirmedWrites = [];
     }
   });
 
   /** Returns false when another tab saved first and nothing was written. */
-  function saveSession(state: DraftStore): boolean {
-    const result = persistDraftSession(storage, state, persistence.base, forceSave);
+  function saveSession(state: DraftStore, mergedWriteIds: readonly string[] = []): boolean {
+    const result = persistDraftSession(storage, state, persistence.base, { force: forceSave, tabId, mergedWriteIds });
     if (result.status === 'conflict') return false;
-    if (result.status === 'written') {
-      persistence.base = result.base;
-      unconfirmedWrites = [
-        ...unconfirmedWrites,
-        { writeId: result.writeId, revision: result.base.revision, transitions: pendingTransitions },
-      ].slice(-DRAFT_SESSION_LINEAGE_LIMIT);
-    }
+    if (result.status === 'written') persistence.base = result.base;
     return true;
   }
 
   function adoptSavedSession(saved: PersistedDraftSession, serialized: string | null): void {
     const { liveSession } = store.getState();
     if (!liveSession) return;
-    persistence.base = { revision: saved.revision, serialized, lineage: saved.lineage };
+    persistence.base = { revision: saved.revision, serialized, lineage: saved.lineage, session: saved };
+    showSession(liveSession, saved);
+  }
+
+  function showSession(liveSession: DraftSessionIdentity, session: PersistedDraftSession): void {
     adoptingSavedSession = true;
     try {
-      store.setState((state) => { applySavedDraftSession(state, liveSession, saved); });
+      store.setState((state) => { applySavedDraftSession(state, liveSession, session); });
     } finally {
       adoptingSavedSession = false;
     }
   }
 
-  function syncFromOtherTabs(): void {
+  /**
+   * Recorded saves, from any tab, that a concurrent save overwrote. A save the session
+   * already includes is kept while it is the newest, since a stale save could still
+   * overwrite it, and removed once a later save builds on it. Saves older than the
+   * lineage are removed too: later saves built on them, so merging them again would
+   * undo edits like a queue toggle. So are saves built on a session outside its
+   * history, such as one that was corrupted and replaced. A save built on another
+   * overwritten save is kept, since merging both restores the session it built on.
+   */
+  function takeOverwrittenChanges(
+    liveSession: DraftSessionIdentity,
+    saved: PersistedDraftSession
+  ): DraftSessionChange[] {
+    if (!storage) return [];
+    const included = new Set(saved.lineage);
+    const newestWriteId = saved.lineage.at(-1);
+    const oldestCoveredRevision = saved.revision - saved.lineage.length + 1;
+    let pending: StoredDraftSessionChange[] = [];
+    for (const stored of readDraftSessionChanges(storage, liveSession)) {
+      const { change } = stored;
+      if (change.writeId === newestWriteId) continue;
+      if (included.has(change.writeId) || change.revision < oldestCoveredRevision) {
+        removeDraftSessionChange(storage, stored);
+      } else {
+        pending.push(stored);
+      }
+    }
+    // Resolve bases through the lineage or through other overwritten saves before removing any.
+    const resolved = new Set(included);
+    const overwritten: DraftSessionChange[] = [];
+    for (let progressed = true; progressed;) {
+      const before = pending.length;
+      pending = pending.filter(({ change }) => {
+        if (change.baseWriteId !== null && !resolved.has(change.baseWriteId)) return true;
+        resolved.add(change.writeId);
+        overwritten.push(change);
+        return false;
+      });
+      progressed = pending.length < before;
+    }
+    for (const stored of pending) removeDraftSessionChange(storage, stored);
+    return overwritten.sort((left, right) => left.revision - right.revision);
+  }
+
+  /**
+   * Adopts newer saves from other tabs and merges back any recorded save that a
+   * concurrent save overwrote. Recorded saves are checked only when the stored
+   * session changed, or when `checkRecordedSaves` is set after loading a session.
+   */
+  function syncFromOtherTabs(checkRecordedSaves = false): void {
     // Runs inside action calls, which only happen after the store exists.
     const { liveSession, sessionMode } = store.getState();
     if (!storage || !liveSession || sessionMode === 'mock') return;
     for (let attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt += 1) {
       const serialized = readStoredDraftSessionText(storage, liveSession);
-      if (serialized === persistence.base.serialized) return;
-      const saved = parseStoredDraftSession(serialized, liveSession);
+      const changed = serialized !== persistence.base.serialized;
+      if (!changed && !checkRecordedSaves) return;
+      const saved = changed ? parseStoredDraftSession(serialized, liveSession) : persistence.base.session;
       // An unreadable entry is overwritten by the next save.
       if (!saved) return;
-      const builtOn = new Set(saved.lineage);
-      // The lineage covers only recent revisions. An older write dropped out of it after
-      // later saves built on it, so replaying it would undo edits like a queue toggle.
-      const oldestCoveredRevision = saved.revision - saved.lineage.length + 1;
-      const overwritten = unconfirmedWrites.filter(
-        (write) => write.revision >= oldestCoveredRevision && !builtOn.has(write.writeId)
-      );
-      unconfirmedWrites = overwritten;
-      adoptSavedSession(saved, serialized);
+      if (changed) adoptSavedSession(saved, serialized);
+      const overwritten = takeOverwrittenChanges(liveSession, saved);
       if (overwritten.length === 0) return;
 
-      // Another tab saved concurrently over this tab's writes; reapply them to its session.
-      const transitions = overwritten.flatMap((write) => write.transitions);
-      adoptingSavedSession = true;
-      try {
-        for (const transition of transitions) store.setState(transition);
-      } finally {
-        adoptingSavedSession = false;
-      }
-      unconfirmedWrites = [];
-      pendingTransitions = transitions;
+      // A change that no longer fits the newer session, such as a pick beyond a
+      // shortened draft, is dropped; the provider restores any pick it reports.
+      const merged = overwritten.reduce(
+        (session, change) =>
+          parseStoredDraftSession(JSON.stringify(applyDraftSessionChange(session, change)), liveSession) ?? session,
+        saved
+      );
+      showSession(liveSession, merged);
       forceSave = attempt === MAX_SAVE_ATTEMPTS;
       try {
-        if (saveSession(store.getState())) return;
-        // Never written, so the next pass reapplies these changes again.
-        unconfirmedWrites = [{ writeId: '', revision: Number.POSITIVE_INFINITY, transitions }];
+        if (saveSession(store.getState(), overwritten.map((change) => change.writeId))) return;
       } finally {
-        pendingTransitions = [];
         forceSave = false;
       }
+      // Another tab saved first; merge into its session on the next pass.
+      checkRecordedSaves = true;
     }
   }
 

@@ -121,6 +121,9 @@ describe('Sleeper sync ingress and reconciliation', () => {
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
       setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+      key: (index: number) => [...values.keys()][index] ?? null,
+      get length() { return values.size; },
     };
     const session = { provider: 'sleeper' as const, draftId: 'Draft_1-abc' };
     const original = createDraftStore({ storage, session });
