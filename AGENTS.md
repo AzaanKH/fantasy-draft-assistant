@@ -39,6 +39,7 @@ Every workspace depends on [Effect 4](https://effect.website/docs/v4/onboarding)
 - Start with the [onboarding path](https://effect.website/docs/v4/onboarding): [the Effect type](https://effect.website/docs/v4/getting-started/the-effect-type), [generators](https://effect.website/docs/v4/getting-started/using-generators), [expected and unexpected errors](https://effect.website/docs/v4/error-management/two-error-types), and [concurrency](https://effect.website/docs/v4/concurrency/basic-concurrency). Look up signatures in the [API reference](https://effect.website/docs/v4/api).
 - Import from `effect` (for example, `import { Effect } from "effect"`), write sequential logic with `Effect.gen`, and keep runners such as `Effect.runPromise` at entry points.
 - Follow the CLI's patterns: I/O returns `Effect` values built with `Effect.fn`, expected failures are `Data.TaggedError` classes such as `CliError` in [cli/src/errors.ts](cli/src/errors.ts), and pure helpers stay plain functions. Wrap pure helpers that throw with `attempt` so their errors stay typed, and preserve each command's existing error codes and exit codes.
+- Read an HTTP body inside the same `Effect.tryPromise` as its `fetch`, and cancel the body reader when the signal aborts, so a timeout closes a stalled connection. Parse external payloads with `Effect.try`, never inside `Effect.map`, so malformed data is an expected failure rather than a defect. Cleanup returned from `Effect.callback` must wait until the resource is actually released, such as a child process exiting.
 
 ## Local verification
 
