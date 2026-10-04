@@ -521,7 +521,8 @@ export function AssistantPage({
           ) : null}
         </div>
 
-        <aside className="rec-rail" aria-label="Queue, upcoming picks and roster">
+        {/* Focusable so keyboard users can scroll the pinned rail when it has no controls, e.g. an empty queue. */}
+        <aside className="rec-rail" aria-label="Queue, upcoming picks and roster" tabIndex={0}>
           <AssistantQueue
             queuedPlayerIds={queuedPlayerIds}
             playerById={playerById}
