@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createServer as createHttpServer } from 'node:http';
 import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
@@ -9,7 +10,7 @@ import {
   leagueFixture,
   picksFixture,
 } from './__fixtures__/sleeper-fixtures.js';
-import { createSyncServer as createServer, SLEEPER_API_BASE, type FetchJson } from './sync-server.js';
+import { createSyncServer as createServer, SLEEPER_API_BASE, syncServerInternals, type FetchJson } from './sync-server.js';
 import type {
   DraftSyncSnapshot,
   DraftSyncUpdate,
@@ -802,4 +803,27 @@ describe('createSyncServer', () => {
       await rm(temporaryDirectory, { recursive: true, force: true });
     }
   });
+});
+
+describe('provider HTTP requests', () => {
+  it('closes the connection of an error response whose body stalls', async () => {
+    let connectionClosed!: () => void;
+    const closed = new Promise<void>((resolve) => { connectionClosed = resolve; });
+    // Send the error status and part of a body, then never finish it.
+    const upstream = createHttpServer((request, response) => {
+      request.socket.once('close', connectionClosed);
+      response.writeHead(503, { 'Content-Type': 'text/plain' });
+      response.write('unavailable');
+    });
+    await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+    const { port } = upstream.address() as AddressInfo;
+    try {
+      await expect(syncServerInternals.defaultFetchJson(`http://127.0.0.1:${String(port)}/`, new AbortController().signal))
+        .rejects.toThrow('request failed: 503');
+      await closed;
+    } finally {
+      upstream.closeAllConnections();
+      await new Promise((resolve) => upstream.close(resolve));
+    }
+  }, 2000);
 });

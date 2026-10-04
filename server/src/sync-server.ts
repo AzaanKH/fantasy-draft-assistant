@@ -461,6 +461,9 @@ async function defaultFetchJson<T>(
   const response = await fetch(url, { ...init, signal });
 
   if (!response.ok) {
+    // Nothing reads an error body. Cancel it, or a stalled one holds the connection
+    // open after this rejects, when the request timeout can no longer abort it.
+    void response.body?.cancel().catch(() => undefined);
     const hostname = new URL(url).hostname;
     const provider = hostname.includes('yahoo')
       ? 'Yahoo'
@@ -472,6 +475,9 @@ async function defaultFetchJson<T>(
 
   return response.json() as Promise<T>;
 }
+
+/** Exposed for tests of provider request cleanup. */
+export const syncServerInternals = { defaultFetchJson };
 
 export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const requestToken = options.requestToken ?? randomBytes(32).toString('base64url');
