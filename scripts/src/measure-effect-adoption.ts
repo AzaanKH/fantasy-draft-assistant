@@ -16,7 +16,11 @@ const EXCLUDED_FILES = new Set(['effect-adoption-metrics.ts', 'measure-effect-ad
 const run = promisify(execFile);
 
 const listSources = (directory: string): Effect.Effect<string[]> => Effect.promise(async () => {
-  const entries = await readdir(directory, { withFileTypes: true, recursive: true }).catch(() => []);
+  // A workspace without a src directory has nothing to count; any other read failure must not look like zero.
+  const entries = await readdir(directory, { withFileTypes: true, recursive: true }).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  });
   return entries
     .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.(?:test|spec)\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts') && !EXCLUDED_FILES.has(entry.name))
     .map(entry => join(entry.parentPath, entry.name));
@@ -35,14 +39,22 @@ const measureWorkspaces = Effect.fn('measureWorkspaces')(function* (root: string
 const measureRevision = (ref: string) => Effect.acquireUseRelease(
   Effect.promise(async () => {
     const directory = await mkdtemp(join(tmpdir(), 'effect-baseline-'));
-    await run('git', ['worktree', 'add', '--detach', directory, ref], { cwd: REPO_ROOT });
+    try {
+      await run('git', ['worktree', 'add', '--detach', directory, ref], { cwd: REPO_ROOT });
+    } catch (error) {
+      // No worktree was registered, so the empty directory is safe to delete.
+      await rm(directory, { recursive: true, force: true });
+      throw error;
+    }
     return directory;
   }),
   measureWorkspaces,
-  directory => Effect.promise(async () => {
-    await run('git', ['worktree', 'remove', '--force', directory], { cwd: REPO_ROOT }).catch(() => undefined);
-    await rm(directory, { recursive: true, force: true });
-  }),
+  // Let git delete the directory so its worktree metadata goes with it.
+  directory => Effect.promise(() => run('git', ['worktree', 'remove', '--force', directory], { cwd: REPO_ROOT })
+    .then(() => undefined, (error: unknown) => {
+      const stderr = (error as { stderr?: string }).stderr ?? '';
+      if (!/is not a working tree/.test(stderr)) throw error;
+    })),
 );
 
 const LABELS: Record<AdoptionMetric | PlumbingMetric, string> = {
@@ -75,6 +87,9 @@ const program = Effect.gen(function* () {
   const args = process.argv.slice(2);
   const baselineIndex = args.indexOf('--baseline');
   const baselineRef = baselineIndex === -1 ? undefined : args[baselineIndex + 1];
+  if (baselineIndex !== -1 && (!baselineRef || baselineRef.startsWith('--'))) {
+    return yield* Effect.fail(new Error('--baseline needs a git ref, for example --baseline main'));
+  }
   const [current, baseline] = yield* Effect.all([
     measureWorkspaces(REPO_ROOT),
     baselineRef ? measureRevision(baselineRef) : Effect.succeed(undefined),
