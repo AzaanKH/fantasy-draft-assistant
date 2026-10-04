@@ -45,12 +45,15 @@ const tally = <K extends string>(patterns: Record<K, RegExp>, source: string) =>
   Object.fromEntries(Object.entries<RegExp>(patterns).map(([key, pattern]) => [key, count(source, pattern)])) as Record<K, number>;
 
 const isLiteral = (node: ts.Node) => ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ||
-  ts.isRegularExpressionLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node);
+  ts.isRegularExpressionLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node) ||
+  // JSX text is prose; expressions inside JSX are separate nodes and are still visited.
+  ts.isJsxText(node);
 
 /**
- * Parse the source, then replace literal text with underscores (keeping line
- * breaks, so line counts hold) and drop comments. A pattern spelled inside a
- * string, template, regex, or comment is then not counted as code.
+ * Parse the source, then replace literal and JSX text with underscores and
+ * comments with spaces, keeping line breaks so line counts hold. A pattern
+ * spelled inside a string, template, regex, JSX text, or comment is then not
+ * counted as code.
  */
 export function codeOnly(source: string, fileName = 'source.ts'): { readonly code: string; readonly importsEffect: boolean } {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false,
@@ -78,7 +81,8 @@ export function codeOnly(source: string, fileName = 'source.ts'): { readonly cod
   }
   blanked += source.slice(cursor);
   // Literals are blank now, so comment markers inside strings or URLs cannot confuse this.
-  const code = blanked.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  // One alternation lets whichever comment starts first win, so `// /*` stays a line comment.
+  const code = blanked.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, comment => comment.replace(/[^\n]/g, ' '));
   return { code, importsEffect };
 }
 
