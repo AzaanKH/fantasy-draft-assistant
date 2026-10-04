@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Effect, Fiber } from 'effect';
 import { DraftDataRefreshJob, refreshProcessInternals, type RunRefreshScript } from './draft-data-refresh.js';
 
@@ -116,5 +116,18 @@ describe('refresh script processes', () => {
     await Effect.runPromise(Fiber.interrupt(fiber));
     expect(isAlive(pid)).toBe(false);
     expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+  });
+
+  it('collects all output before reporting a failed script', async () => {
+    const mirror = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      let output = '';
+      const exit = await Effect.runPromiseExit(refreshProcessInternals.runCommand(process.execPath,
+        // The script exits first; a process it started still holds stderr and writes the last line.
+        ['-e', "require('child_process').spawn(process.execPath, ['-e', \"setTimeout(() => console.error('last line'), 200)\"], { stdio: 'inherit' }); process.exit(1);"],
+        (text) => { output += text; }));
+      expect(exit._tag).toBe('Failure');
+      expect(output.endsWith('last line\n')).toBe(true);
+    } finally { mirror.mockRestore(); }
   });
 });
