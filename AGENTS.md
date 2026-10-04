@@ -33,7 +33,7 @@ Read the relevant sections as needed. Routine formatting, dependency cleanup, an
 
 ## Effect
 
-Every workspace depends on [Effect 4](https://effect.website/docs/v4/onboarding) (`effect@^4`), which requires Node 22.18+ and TypeScript 5.9+. The CLI (`cli/`) is migrated. `scripts`, `server`, and the extension's background sync are next; `shared` and `web-app` stay plain TypeScript because they are pure logic and React. Outside a planned migration, adopt Effect when writing new code or substantially reworking a module, not as drive-by rewrites.
+Every workspace depends on [Effect 4](https://effect.website/docs/v4/onboarding) (`effect@^4`), which requires Node 22.18+ and TypeScript 5.9+. The CLI (`cli/`) and sync server (`server/`) are migrated. `scripts` and the extension's background sync are next; `shared` and `web-app` stay plain TypeScript because they are pure logic and React. Outside a planned migration, adopt Effect when writing new code or substantially reworking a module, not as drive-by rewrites.
 
 - Use the v4 docs under `https://effect.website/docs/v4/` only. Effect 3 APIs and examples differ and should not be copied. Append `.md` to a docs URL for a plain-text version, such as `https://effect.website/docs/v4/getting-started/installation.md`.
 - Start with the [onboarding path](https://effect.website/docs/v4/onboarding): [the Effect type](https://effect.website/docs/v4/getting-started/the-effect-type), [generators](https://effect.website/docs/v4/getting-started/using-generators), [expected and unexpected errors](https://effect.website/docs/v4/error-management/two-error-types), and [concurrency](https://effect.website/docs/v4/concurrency/basic-concurrency). Look up signatures in the [API reference](https://effect.website/docs/v4/api).

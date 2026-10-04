@@ -2,7 +2,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
+import { Cause, Deferred, Effect, Fiber } from 'effect';
+import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
   DraftSyncEngine,
   isEspnDraftSnapshot,
@@ -20,9 +21,10 @@ import {
   SleeperSyncAdapter,
   SLEEPER_API_BASE,
 } from './sleeper-adapter.js';
-import type {
-  DraftSyncAdapter,
-  FetchJson,
+import {
+  ProviderError,
+  type DraftSyncAdapter,
+  type FetchJson,
 } from './sync-adapter.js';
 import { YahooSyncAdapter } from './yahoo-adapter.js';
 import { DraftDataRefreshJob, type RunRefreshScript } from './draft-data-refresh.js';
@@ -89,8 +91,10 @@ class DraftSession {
   private readonly pollIntervalMs: number;
   private readonly requestTimeoutMs: number;
   private nextClientId = 1;
-  private pollTimer: NodeJS.Timeout | null = null;
-  private pollInFlight: Promise<boolean> | null = null;
+  private pollFiber: Fiber.Fiber<void> | null = null;
+  private pollSleeping = false;
+  // Concurrent callers share the poll in progress instead of each polling the provider.
+  private pollInFlight: Deferred.Deferred<boolean> | null = null;
   private consecutiveFailures = 0;
   private lastIngestedAt: number | null = null;
 
@@ -150,7 +154,8 @@ class DraftSession {
   }
 
   public dispose(): void {
-    this.stopPolling();
+    if (this.pollFiber) Effect.runFork(Fiber.interrupt(this.pollFiber));
+    this.pollFiber = null;
     for (const { response } of this.clients.values()) {
       if (!response.writableEnded) {
         try {
@@ -163,14 +168,18 @@ class DraftSession {
     this.clients.clear();
   }
 
-  public async refresh(): Promise<DraftSyncSnapshot> {
-    if (this.adapter) {
-      // A reconnect must verify settings even if an older poll is finishing.
-      if (this.pollInFlight) await this.pollInFlight;
-      this.adapter.invalidateSettings?.();
-      await this.pollOnce();
-    }
-    return this.engine.getSnapshot();
+  public refresh(): Effect.Effect<DraftSyncSnapshot> {
+    return Effect.gen({ self: this }, function* () {
+      if (this.adapter) {
+        // A reconnect must verify settings, so it never reuses a poll that began
+        // before it was called: wait for that one, then start or join a fresh poll.
+        const earlier = this.pollInFlight;
+        if (earlier) yield* Deferred.await(earlier);
+        this.adapter.invalidateSettings?.();
+        yield* this.pollOnce();
+      }
+      return this.engine.getSnapshot();
+    });
   }
 
   public ingest(
@@ -198,68 +207,102 @@ class DraftSession {
   }
 
   private ensurePolling(): void {
-    if (!this.adapter || this.pollTimer !== null) {
+    if (!this.adapter || this.pollFiber !== null) {
       return;
     }
-
-    void this.pollOnce().then(() => { this.scheduleNextPoll(); });
+    let finished = false;
+    const fiber: Fiber.Fiber<void> = Effect.runFork(this.pollLoop().pipe(Effect.ensuring(Effect.sync(() => {
+      finished = true;
+      // pollFiber is still null if the loop ended before runFork returned, so fiber is never read early.
+      if (this.pollFiber !== null && this.pollFiber === fiber) this.pollFiber = null;
+    }))));
+    if (!finished) this.pollFiber = fiber;
   }
 
+  /** Stop between polls; a poll in progress finishes and the loop then sees no clients. */
   private stopPolling(): void {
-    if (this.pollTimer !== null) {
-      clearTimeout(this.pollTimer);
-      this.pollTimer = null;
+    if (this.pollFiber !== null && this.pollSleeping) {
+      Effect.runFork(Fiber.interrupt(this.pollFiber));
+      this.pollFiber = null;
     }
   }
 
-  private scheduleNextPoll(): void {
-    if (!this.adapter || this.clients.size === 0 || this.pollTimer !== null) {
-      return;
-    }
-
-    const failureBackoffMs = Math.min(
-      this.pollIntervalMs * 2 ** this.consecutiveFailures,
-      30_000
-    );
-    this.pollTimer = setTimeout(() => {
-      this.pollTimer = null;
-      void this.pollOnce().then(() => { this.scheduleNextPoll(); });
-    }, failureBackoffMs);
-  }
-
-  private pollOnce(): Promise<boolean> {
-    if (this.pollInFlight) {
-      return this.pollInFlight;
-    }
-
-    this.pollInFlight = this.performPoll().finally(() => {
-      this.pollInFlight = null;
+  private pollLoop(): Effect.Effect<void> {
+    return Effect.gen({ self: this }, function* () {
+      for (;;) {
+        yield* this.pollOnce();
+        if (this.clients.size === 0) return;
+        this.pollSleeping = true;
+        yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
+          Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),
+        );
+      }
     });
-    return this.pollInFlight;
   }
 
-  private async performPoll(): Promise<boolean> {
-    const adapter = this.adapter;
-    if (!adapter) return false;
+  /**
+   * Join the poll in progress or start one. The poll runs in its own fiber, so
+   * a waiting caller that is interrupted does not cancel it for the others.
+   */
+  private pollOnce(): Effect.Effect<boolean> {
+    return Effect.suspend(() => {
+      let poll = this.pollInFlight;
+      if (!poll) {
+        const started = Deferred.makeUnsafe<boolean>();
+        poll = started;
+        this.pollInFlight = started;
+        // Clear the slot before waking waiters, so a refresh that waited for this
+        // poll starts a fresh one instead of reusing the finished result.
+        Effect.runFork(this.performPoll().pipe(
+          Effect.exit,
+          Effect.flatMap((exit) => Effect.sync(() => {
+            if (this.pollInFlight === started) this.pollInFlight = null;
+            Deferred.doneUnsafe(started, exit);
+          })),
+        ));
+      }
+      return Deferred.await(poll);
+    });
+  }
 
-    const wasSynced = this.engine.getSnapshot().status === 'synced';
-    const syncingSnapshot = this.engine.beginSync();
-    if (!wasSynced) {
-      this.broadcast({ type: 'status', snapshot: syncingSnapshot });
-    }
+  private performPoll(): Effect.Effect<boolean> {
+    return Effect.gen({ self: this }, function* () {
+      const adapter = this.adapter;
+      if (!adapter) return false;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => { controller.abort(); }, this.requestTimeoutMs);
+      const wasSynced = this.engine.getSnapshot().status === 'synced';
+      const syncingSnapshot = this.engine.beginSync();
+      if (!wasSynced) {
+        this.broadcast({ type: 'status', snapshot: syncingSnapshot });
+      }
 
-    try {
-      const adapterSnapshot = await adapter.poll(controller.signal);
-      const polledAt = Date.now();
-      const { snapshot, newPicks, changed } = this.engine.reconcile(
-        adapterSnapshot.draft,
-        adapterSnapshot.picks,
-        polledAt
+      const providerName = adapter.provider === 'yahoo' ? 'Yahoo' : 'Sleeper';
+      const polled = yield* adapter.poll().pipe(
+        Effect.timeoutOrElse({
+          duration: this.requestTimeoutMs,
+          orElse: () => Effect.fail(new ProviderError({ message: `${providerName} request timed out` })),
+        }),
+        Effect.flatMap((adapterSnapshot) => Effect.try({
+          try: () => {
+            const polledAt = Date.now();
+            return { polledAt, ...this.engine.reconcile(adapterSnapshot.draft, adapterSnapshot.picks, polledAt) };
+          },
+          catch: (cause) => new ProviderError({ message: cause instanceof Error ? cause.message : 'Unknown sync error', cause }),
+        })),
+        Effect.result,
       );
 
+      if (polled._tag === 'Failure') {
+        adapter.invalidateSettings?.();
+        this.broadcast({
+          type: 'status',
+          snapshot: this.engine.failSync(polled.failure.message),
+        });
+        this.consecutiveFailures += 1;
+        return false;
+      }
+
+      const { snapshot, newPicks, changed, polledAt } = polled.success;
       for (const pick of newPicks) {
         this.broadcast({
           type: 'pick',
@@ -281,18 +324,7 @@ class DraftSession {
       }
       this.consecutiveFailures = 0;
       return true;
-    } catch (error) {
-      adapter.invalidateSettings?.();
-      const message = error instanceof Error ? error.message : 'Unknown sync error';
-      this.broadcast({
-        type: 'status',
-        snapshot: this.engine.failSync(message),
-      });
-      this.consecutiveFailures += 1;
-      return false;
-    } finally {
-      clearTimeout(timeout);
-    }
+    });
   }
 
   private broadcast(update: DraftSyncUpdate): void {
@@ -393,25 +425,32 @@ function parseDraftRoute(pathname: string): {
   };
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<unknown> {
-  if (request.headers['content-type']?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') {
-    throw new HttpError(415, 'Content-Type must be application/json');
-  }
-  const chunks: Buffer[] = [];
-  let receivedBytes = 0;
-
-  for await (const chunk of request as AsyncIterable<Buffer | string>) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    receivedBytes += buffer.length;
-    if (receivedBytes > MAX_JSON_BODY_BYTES) {
-      throw new Error('Request body is too large');
+/** Every body problem is the client's, so report it as a 400 with the reason. */
+function readJsonBody(request: IncomingMessage): Effect.Effect<unknown, HttpError> {
+  return Effect.gen(function* () {
+    if (request.headers['content-type']?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') {
+      return yield* new HttpError(415, 'Content-Type must be application/json');
     }
-    chunks.push(buffer);
-  }
-
-  const body = Buffer.concat(chunks).toString('utf8');
-  if (!body) throw new Error('Request body is required');
-  return JSON.parse(body) as unknown;
+    const body = yield* Effect.tryPromise({
+      try: async () => {
+        const chunks: Buffer[] = [];
+        let receivedBytes = 0;
+        for await (const chunk of request as AsyncIterable<Buffer | string>) {
+          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          receivedBytes += buffer.length;
+          if (receivedBytes > MAX_JSON_BODY_BYTES) throw new Error('Request body is too large');
+          chunks.push(buffer);
+        }
+        return Buffer.concat(chunks).toString('utf8');
+      },
+      catch: (error) => new HttpError(400, error instanceof Error ? error.message : 'Invalid request body'),
+    });
+    if (!body) return yield* new HttpError(400, 'Request body is required');
+    return yield* Effect.try({
+      try: () => JSON.parse(body) as unknown,
+      catch: (error) => new HttpError(400, error instanceof Error ? error.message : 'Invalid request body'),
+    });
+  });
 }
 
 async function defaultFetchJson<T>(
@@ -465,15 +504,18 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
   }
 
-  async function loadDraftData(
+  function loadDraftData(
     kind: 'currentKeepers' | 'sportsbookSnapshot'
-  ): Promise<unknown> {
+  ): Effect.Effect<unknown, HttpError> {
     const provided = options.draftData?.[kind];
-    if (provided !== undefined) return provided;
+    if (provided !== undefined) return Effect.succeed(provided);
     const filePath = kind === 'currentKeepers'
       ? DEFAULT_CURRENT_KEEPERS_PATH
       : DEFAULT_SPORTSBOOK_SNAPSHOT_PATH;
-    return JSON.parse(await readFile(filePath, 'utf8')) as unknown;
+    return Effect.tryPromise({
+      try: async () => JSON.parse(await readFile(filePath, 'utf8')) as unknown,
+      catch: () => new HttpError(503, 'Draft data is unavailable'),
+    });
   }
 
   function getSession(
@@ -507,10 +549,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     return session;
   }
 
-  async function handleRequest(
+  const handleRequest = Effect.fn('handleRequest')(function* (
     request: IncomingMessage,
     response: ServerResponse
-  ): Promise<void> {
+  ) {
     if (!request.url || !request.method) {
       sendNotFound(request, response, allowedOrigins);
       return;
@@ -590,23 +632,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         ? 'sportsbookSnapshot'
         : null;
     if (draftDataKind && request.method === 'GET') {
-      try {
-        sendJson(
-          request,
-          response,
-          200,
-          await loadDraftData(draftDataKind),
-          allowedOrigins
-        );
-      } catch {
-        sendJson(
-          request,
-          response,
-          503,
-          { error: 'Draft data is unavailable' },
-          allowedOrigins
-        );
-      }
+      sendJson(request, response, 200, yield* loadDraftData(draftDataKind), allowedOrigins);
       return;
     }
 
@@ -627,55 +653,33 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         return;
       }
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => { controller.abort(); }, requestTimeoutMs);
-      try {
-        const snapshot = await marketAdpProvider.getSnapshot(
-          format,
-          teams,
-          season,
-          controller.signal
-        );
-        sendJson(request, response, 200, snapshot, allowedOrigins);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Market ADP request failed';
-        sendJson(request, response, 502, { error: message }, allowedOrigins);
-      } finally {
-        clearTimeout(timeout);
-      }
+      const snapshot = yield* marketAdpProvider.getSnapshot(format, teams, season).pipe(
+        Effect.timeoutOrElse({
+          duration: requestTimeoutMs,
+          orElse: () => Effect.fail(new ProviderError({ message: 'Fantasy Football Calculator request timed out' })),
+        }),
+        Effect.mapError((error) => new HttpError(502, error.message)),
+      );
+      sendJson(request, response, 200, snapshot, allowedOrigins);
       return;
     }
 
     if (url.pathname === '/api/shadow-recommendations' && request.method === 'POST') {
-      let event: unknown;
-      try {
-        event = await readJsonBody(request);
-      } catch (error) {
-        if (error instanceof HttpError) throw error;
-        const message = error instanceof Error ? error.message : 'Invalid request body';
-        sendJson(request, response, 400, { error: message }, allowedOrigins);
-        return;
-      }
+      const event = yield* readJsonBody(request);
       if (!isShadowRecommendationEvent(event)) {
         sendJson(request, response, 400, { error: 'Invalid shadow recommendation event' }, allowedOrigins);
         return;
       }
 
-      const shadowEvent = event;
-      try {
-        const eventId = shadowEvent.eventId;
-        const recorded = await shadowLogger.record(shadowEvent);
-        sendJson(
-          request,
-          response,
-          recorded ? 201 : 200,
-          { eventId, recorded },
-          allowedOrigins
-        );
-      } catch (error) {
-        if (error instanceof HttpError) throw error;
-        sendJson(request, response, 500, { error: 'Failed to persist shadow recommendation' }, allowedOrigins);
-      }
+      const recorded = yield* shadowLogger.record(event).pipe(Effect.catchTag('ShadowLogError',
+        () => Effect.fail(new HttpError(500, 'Failed to persist shadow recommendation'))));
+      sendJson(
+        request,
+        response,
+        recorded ? 201 : 200,
+        { eventId: event.eventId, recorded },
+        allowedOrigins
+      );
       return;
     }
 
@@ -719,16 +723,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         return;
       }
 
-      let payload: unknown;
-      try {
-        payload = await readJsonBody(request);
-      } catch (error) {
-        if (error instanceof HttpError) throw error;
-        const message = error instanceof Error ? error.message : 'Invalid request body';
-        sendJson(request, response, 400, { error: message }, allowedOrigins);
-        return;
-      }
-
+      const payload = yield* readJsonBody(request);
       if (!isEspnDraftSnapshot(payload)) {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
@@ -740,23 +735,23 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       }
       // Reject bogus clocks before allocating a session.
       if (Math.abs(espnPayload.observedAt - Date.now()) > 5 * 60_000) {
-        throw new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
+        return yield* new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
       }
-      const session = getSession(route.provider, route.draftId);
-      const snapshot = session.ingest(
+      const session = yield* attempt(() => getSession(route.provider, route.draftId));
+      const snapshot = yield* attempt(() => session.ingest(
         espnPayload.draft,
         espnPayload.picks,
         espnPayload.observedAt
-      );
+      ));
       sendJson(request, response, 200, snapshot, allowedOrigins);
       return;
     }
 
     if (route.isStream && request.method === 'GET') {
       const clientCount = [...sessions.values()].reduce((count, session) => count + session.clientCount, 0);
-      if (clientCount >= limits.maxClients) throw new HttpError(429, 'Too many event streams');
-      const session = getSession(route.provider, route.draftId);
-      if (session.clientCount >= limits.maxClientsPerSession) throw new HttpError(429, 'Too many streams for this draft');
+      if (clientCount >= limits.maxClients) return yield* new HttpError(429, 'Too many event streams');
+      const session = yield* attempt(() => getSession(route.provider, route.draftId));
+      if (session.clientCount >= limits.maxClientsPerSession) return yield* new HttpError(429, 'Too many streams for this draft');
       setCorsHeaders(request, response, allowedOrigins);
       response.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -775,14 +770,14 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     if (route.isRefresh && request.method === 'POST') {
-      const session = getSession(route.provider, route.draftId);
-      const snapshot = await session.refresh();
+      const session = yield* attempt(() => getSession(route.provider, route.draftId));
+      const snapshot = yield* session.refresh();
       sendJson(request, response, 200, snapshot, allowedOrigins);
       return;
     }
 
     if (route.isReset && route.provider === 'espn' && request.method === 'POST') {
-      sendJson(request, response, 200, getSession(route.provider, route.draftId).reset(), allowedOrigins);
+      sendJson(request, response, 200, (yield* attempt(() => getSession(route.provider, route.draftId))).reset(), allowedOrigins);
       return;
     }
 
@@ -793,16 +788,31 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       !route.isReset &&
       request.method === 'GET'
     ) {
-      const session = getSession(route.provider, route.draftId);
-      const snapshot = session.getSnapshot();
-      if (snapshot.status === 'idle') {
-        await session.refresh();
+      const session = yield* attempt(() => getSession(route.provider, route.draftId));
+      if (session.getSnapshot().status === 'idle') {
+        yield* session.refresh();
       }
       sendJson(request, response, 200, session.getSnapshot(), allowedOrigins);
       return;
     }
 
     sendNotFound(request, response, allowedOrigins);
+  });
+
+  function sendFailure(request: IncomingMessage, response: ServerResponse, cause: Cause.Cause<HttpError>): void {
+    if (response.destroyed || response.writableEnded) return;
+    if (response.headersSent) {
+      response.destroy();
+      return;
+    }
+    const error = Cause.squash(cause);
+    if (error instanceof HttpError) {
+      if (error.status === 429) response.setHeader('Retry-After', '60');
+      sendJson(request, response, error.status, { error: error.message }, allowedOrigins);
+      return;
+    }
+    console.error('[sync-server] Request failed', error);
+    sendJson(request, response, 500, { error: 'Internal server error' }, allowedOrigins);
   }
 
   const server = createServer((request, response) => {
@@ -819,20 +829,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     };
     response.once('close', release);
     response.once('finish', release);
-    void handleRequest(request, response).catch((error: unknown) => {
-      if (response.destroyed || response.writableEnded) return;
-      if (response.headersSent) {
-        response.destroy();
-        return;
-      }
-      if (error instanceof HttpError) {
-        if (error.status === 429) response.setHeader('Retry-After', '60');
-        sendJson(request, response, error.status, { error: error.message }, allowedOrigins);
-        return;
-      }
-      console.error('[sync-server] Request failed', error);
-      sendJson(request, response, 500, { error: 'Internal server error' }, allowedOrigins);
-    }).finally(release);
+    void Effect.runPromise(handleRequest(request, response).pipe(
+      Effect.catchCause((cause) => Effect.sync(() => { sendFailure(request, response, cause); })),
+      Effect.ensuring(Effect.sync(release)),
+    ));
   });
 
   server.requestTimeout = 10_000;

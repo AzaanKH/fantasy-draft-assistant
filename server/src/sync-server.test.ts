@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -462,7 +463,7 @@ describe('createSyncServer', () => {
     const server = createSyncServer({
       runRefreshScript: (script) => {
         scripts.push(script);
-        return { done: Promise.resolve(), cancel: () => undefined };
+        return Effect.void;
       },
     });
     await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -649,6 +650,39 @@ describe('createSyncServer', () => {
           if (error) reject(error);
           else resolve();
         });
+      });
+    }
+  });
+
+  it('coalesces concurrent refreshes into fresh shared polls', async () => {
+    const fixtureFetch = createMockFetchJson();
+    let draftPolls = 0;
+    let leagueLookups = 0;
+    const server = createSyncServer({
+      pollIntervalMs: 60_000,
+      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+        if (url.endsWith('/draft/fixture-draft')) draftPolls += 1;
+        if (url.includes('/league/')) leagueLookups += 1;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return fixtureFetch<T>(url, signal);
+      },
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const refresh = () => fetch(`http://127.0.0.1:${port}/api/sync/sleeper/drafts/fixture-draft/refresh`, {
+        method: 'POST', headers: { 'X-Sync-Token': TOKEN },
+      });
+      const responses = await Promise.all(Array.from({ length: 6 }, refresh));
+      expect(responses.every((response) => response.ok)).toBe(true);
+      // The first refresh polls; the rest wait for it, then share one poll that
+      // starts after their call, so each still verifies settings freshly.
+      expect(draftPolls).toBe(2);
+      expect(leagueLookups).toBe(2);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.shutdown((error?: Error) => { if (error) reject(error); else resolve(); });
       });
     }
   });

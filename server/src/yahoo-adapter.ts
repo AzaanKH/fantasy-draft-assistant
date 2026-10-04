@@ -6,10 +6,14 @@ import {
   type DraftType,
   type Position,
 } from '@fantasy-draft/shared';
-import type {
-  DraftAdapterSnapshot,
-  DraftSyncAdapter,
-  FetchJson,
+import { Effect } from 'effect';
+import {
+  parsePayload,
+  requestJson,
+  type DraftAdapterSnapshot,
+  type DraftSyncAdapter,
+  type FetchJson,
+  type ProviderError,
 } from './sync-adapter.js';
 
 export const YAHOO_PUBLIC_API_BASE =
@@ -334,7 +338,7 @@ export function parseYahooLeagueId(input: string): string | null {
 export class YahooSyncAdapter implements DraftSyncAdapter {
   public readonly provider = 'yahoo' as const;
   public readonly draftId: string;
-  private initialization: Promise<YahooInitialization> | null = null;
+  private initialization: YahooInitialization | null = null;
   private draftResultsRequestSequence = 0;
 
   public constructor(
@@ -348,70 +352,60 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
     this.draftId = parsedDraftId;
   }
 
-  public async poll(signal: AbortSignal): Promise<DraftAdapterSnapshot> {
-    const initialization = await this.getInitialization(signal);
-    const observedAt = Date.now();
-    const draftResultsUrl = new URL(
-      `${YAHOO_PUBLIC_READ_API_BASE}/league/${encodeURIComponent(initialization.draft.providerKey)}/draftresults`
-    );
-    draftResultsUrl.searchParams.set('format', 'json');
-    draftResultsUrl.searchParams.set(
-      '_sync',
-      `${String(observedAt)}-${String(++this.draftResultsRequestSequence)}`
-    );
-    const draftResults = await this.fetchJson<unknown>(
-      draftResultsUrl.toString(),
-      signal,
-      {
+  public poll(): Effect.Effect<DraftAdapterSnapshot, ProviderError> {
+    return Effect.gen({ self: this }, function* () {
+      const initialization = yield* this.getInitialization();
+      const observedAt = Date.now();
+      const draftResultsUrl = new URL(
+        `${YAHOO_PUBLIC_READ_API_BASE}/league/${encodeURIComponent(initialization.draft.providerKey)}/draftresults`
+      );
+      draftResultsUrl.searchParams.set('format', 'json');
+      draftResultsUrl.searchParams.set(
+        '_sync',
+        `${String(observedAt)}-${String(++this.draftResultsRequestSequence)}`
+      );
+      const draftResults = yield* requestJson<unknown>(this.fetchJson, draftResultsUrl.toString(), {
         headers: {
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
         },
-      }
-    );
-    const picks = parseYahooDraftResults(draftResults)
-      .map((result) =>
-        normalizeYahooDraftResult(
-          initialization.draft,
-          result,
-          initialization.playersByKey,
-          observedAt
-        )
-      )
-      .filter((pick): pick is DraftPickEvent => pick !== null);
-
-    return {
-      draft: updateYahooStatus(initialization.draft, picks.length),
-      picks,
-    };
-  }
-
-  private getInitialization(
-    signal: AbortSignal
-  ): Promise<YahooInitialization> {
-    if (!this.initialization) {
-      this.initialization = this.initialize(signal).catch((error: unknown) => {
-        this.initialization = null;
-        throw error;
       });
-    }
-    return this.initialization;
+      const picks = (yield* parsePayload(() => parseYahooDraftResults(draftResults)))
+        .map((result) =>
+          normalizeYahooDraftResult(
+            initialization.draft,
+            result,
+            initialization.playersByKey,
+            observedAt
+          )
+        )
+        .filter((pick): pick is DraftPickEvent => pick !== null);
+
+      return {
+        draft: updateYahooStatus(initialization.draft, picks.length),
+        picks,
+      };
+    });
   }
 
-  private async initialize(signal: AbortSignal): Promise<YahooInitialization> {
-    const settingsPayload = await this.fetchJson<unknown>(
-      `${YAHOO_PUBLIC_API_BASE}/settings/nfl/${this.draftId}?format=rawjson`,
-      signal
-    );
-    const draft = parseYahooSettings(this.draftId, settingsPayload);
-    const playersPayload = await this.fetchJson<unknown>(
-      `${YAHOO_PUBLIC_API_BASE}/players/nfl/${this.draftId}?images=0&projected=0&average=0&format=rawjson`,
-      signal
-    );
-
-    return {
-      draft,
-      playersByKey: parseYahooPlayers(playersPayload),
-    };
+  /** League settings and players are fixed for the draft, so keep them after the first success. */
+  private getInitialization(): Effect.Effect<YahooInitialization, ProviderError> {
+    return Effect.gen({ self: this }, function* () {
+      if (this.initialization) return this.initialization;
+      const settingsPayload = yield* requestJson<unknown>(
+        this.fetchJson,
+        `${YAHOO_PUBLIC_API_BASE}/settings/nfl/${this.draftId}?format=rawjson`
+      );
+      const draft = yield* parsePayload(() => parseYahooSettings(this.draftId, settingsPayload));
+      const playersPayload = yield* requestJson<unknown>(
+        this.fetchJson,
+        `${YAHOO_PUBLIC_API_BASE}/players/nfl/${this.draftId}?images=0&projected=0&average=0&format=rawjson`
+      );
+      this.initialization = {
+        draft,
+        playersByKey: yield* parsePayload(() => parseYahooPlayers(playersPayload)),
+      };
+      return this.initialization;
+    });
   }
 }

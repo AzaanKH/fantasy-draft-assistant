@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Effect } from 'effect';
 import {
   yahooDraftResultsFixture,
   yahooPlayersFixture,
@@ -76,7 +77,7 @@ describe('YahooSyncAdapter', () => {
       createYahooFetch(requests)
     );
 
-    const snapshot = await adapter.poll(new AbortController().signal);
+    const snapshot = await Effect.runPromise(adapter.poll());
 
     expect(snapshot.draft.providerKey).toBe('999.l.7428778');
     expect(snapshot.draft.settings).toEqual({
@@ -111,7 +112,7 @@ describe('YahooSyncAdapter', () => {
       createYahooFetch(requests)
     );
 
-    await adapter.poll(new AbortController().signal);
+    await Effect.runPromise(adapter.poll());
 
     expect(adapter.draftId).toBe('7428778');
     expect(requests[0]).toBe(
@@ -126,10 +127,9 @@ describe('YahooSyncAdapter', () => {
       '7428778',
       createYahooFetch(requests, requestOptions)
     );
-    const signal = new AbortController().signal;
 
-    await adapter.poll(signal);
-    await adapter.poll(signal);
+    await Effect.runPromise(adapter.poll());
+    await Effect.runPromise(adapter.poll());
 
     expect(requests.filter((url) => url.includes('/settings/'))).toHaveLength(1);
     expect(requests.filter((url) => url.includes('/players/'))).toHaveLength(1);
@@ -168,7 +168,7 @@ describe('YahooSyncAdapter', () => {
       createYahooFetch(requests, [], playersWithUnknownPosition)
     );
 
-    const snapshot = await adapter.poll(new AbortController().signal);
+    const snapshot = await Effect.runPromise(adapter.poll());
 
     expect(snapshot.picks[0]).toMatchObject({
       playerId: '999.p.101',

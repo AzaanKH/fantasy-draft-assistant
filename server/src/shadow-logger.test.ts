@@ -2,8 +2,11 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { Effect, Fiber } from 'effect';
 import type { ShadowRecommendationEvent } from '@fantasy-draft/shared';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
+
+const record = (logger: ShadowRecommendationLogger, event: ShadowRecommendationEvent) => Effect.runPromise(logger.record(event));
 
 const EVENT: ShadowRecommendationEvent = {
   eventId: '2026:sleeper:recovery-draft:1',
@@ -54,9 +57,24 @@ describe('ShadowRecommendationLogger', () => {
       const logger = new ShadowRecommendationLogger(path, {
         maxFileBytes: 4096, maxEventIds: 10, maxPending: 1,
       });
-      await logger.record(EVENT);
+      await record(logger, EVENT);
       expect((await stat(path)).mode & 0o777).toBe(0o600);
       expect((await stat(`${path}.1`)).mode & 0o777).toBe(0o600);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('finishes a started append on interruption but drops one still waiting', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-interrupt-'));
+    const path = join(directory, 'events.ndjson');
+    try {
+      const logger = new ShadowRecommendationLogger(path);
+      const writing = Effect.runFork(logger.record(EVENT));
+      const waiting = Effect.runFork(logger.record({ ...EVENT, eventId: 'waiting' }));
+      await Effect.runPromise(Fiber.interrupt(waiting));
+      await Effect.runPromise(Fiber.interrupt(writing));
+      const lines = (await readFile(path, 'utf8')).trim().split('\n');
+      expect(lines.map((line) => (JSON.parse(line) as { eventId: string }).eventId)).toEqual([EVENT.eventId]);
+      await expect(record(logger, EVENT)).resolves.toBe(false);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -67,13 +85,13 @@ describe('ShadowRecommendationLogger', () => {
     const limits = { maxFileBytes, maxEventIds: 2, maxPending: 2 };
     try {
       const logger = new ShadowRecommendationLogger(path, limits);
-      for (let i = 0; i < 4; i++) await logger.record({ ...EVENT, eventId: `event-${i}` });
+      for (let i = 0; i < 4; i++) await record(logger, { ...EVENT, eventId: `event-${i}` });
       expect((await readdir(directory)).sort()).toEqual(['events.ndjson', 'events.ndjson.1']);
       expect((await stat(path)).size).toBeLessThanOrEqual(maxFileBytes);
       expect((await stat(`${path}.1`)).size).toBeLessThanOrEqual(maxFileBytes);
       const restarted = new ShadowRecommendationLogger(path, limits);
-      expect(await restarted.record({ ...EVENT, eventId: 'event-3' })).toBe(false);
-      expect(await restarted.record({ ...EVENT, eventId: 'event-0' })).toBe(true);
+      expect(await record(restarted, { ...EVENT, eventId: 'event-3' })).toBe(false);
+      expect(await record(restarted, { ...EVENT, eventId: 'event-0' })).toBe(true);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -85,13 +103,13 @@ describe('ShadowRecommendationLogger', () => {
       await writeFile(path, 'x'.repeat(8192));
       await writeFile(`${path}.1`, 'x'.repeat(8192));
       const logger = new ShadowRecommendationLogger(path, limits);
-      const first = logger.record(EVENT);
-      await expect(logger.record({ ...EVENT, eventId: 'second' })).rejects.toThrow('queue is full');
+      const first = record(logger, EVENT);
+      await expect(record(logger, { ...EVENT, eventId: 'second' })).rejects.toThrow('queue is full');
       await first;
       expect((await stat(path)).size).toBeLessThanOrEqual(4096);
       expect((await stat(`${path}.1`)).size).toBeLessThanOrEqual(4096);
       expect(await readFile(path, 'utf8')).toContain(EVENT.eventId);
-      await expect(logger.record({ ...EVENT, eventId: 'later' })).resolves.toBe(true);
+      await expect(record(logger, { ...EVENT, eventId: 'later' })).resolves.toBe(true);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -103,11 +121,11 @@ describe('ShadowRecommendationLogger', () => {
 
     try {
       await writeFile(logDirectory, 'temporarily blocks directory creation');
-      await expect(logger.record(EVENT)).rejects.toThrow();
+      await expect(record(logger, EVENT)).rejects.toThrow();
 
       await rm(logDirectory);
       await mkdir(logDirectory);
-      await expect(logger.record(EVENT)).resolves.toBe(true);
+      await expect(record(logger, EVENT)).resolves.toBe(true);
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
     }

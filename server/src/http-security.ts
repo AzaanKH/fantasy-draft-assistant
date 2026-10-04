@@ -1,11 +1,22 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { Data, Effect } from 'effect';
 
-export class HttpError extends Error {
-  public constructor(public readonly status: number, message: string) {
-    super(message);
+/** A failure the client caused or can retry, returned with its status and message. */
+export class HttpError extends Data.TaggedError('HttpError')<{
+  readonly status: number;
+  readonly message: string;
+}> {
+  public constructor(status: number, message: string) {
+    super({ status, message });
   }
 }
+
+/** Run synchronous request logic, keeping its HttpError in the error channel and anything else as a defect. */
+export const attempt = <A>(evaluate: () => A): Effect.Effect<A, HttpError> => Effect.suspend(() => {
+  try { return Effect.succeed(evaluate()); }
+  catch (error) { return error instanceof HttpError ? Effect.fail(error) : Effect.die(error); }
+});
 
 export function hasRequestToken(request: IncomingMessage, expected: string): boolean {
   const token = request.headers['x-sync-token'];
