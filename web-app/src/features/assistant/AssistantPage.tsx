@@ -40,7 +40,6 @@ import './assistant.css';
 export type PositionFilter = 'ALL' | Position;
 
 const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...POSITIONS];
-const OTHER_OPTION_COUNT = 4;
 const ANALYSIS_TABS: readonly { readonly id: AssistantLens; readonly label: string }[] = [
   { id: 'why', label: 'Why this player?' },
   { id: 'compare', label: 'Compare options' },
@@ -118,7 +117,6 @@ export function AssistantPage({
   const viewedPlayerId = selectedRecommendation?.playerId ?? unavailableViewed?.playerId;
   const viewedName = selectedRecommendation?.playerName ?? unavailableViewed?.playerName;
   const viewedPosition = selectedRecommendation?.position ?? unavailableViewed?.position ?? null;
-  const otherOptions = overall.recommendations.filter((recommendation) => recommendation.playerId !== leader?.playerId).slice(0, OTHER_OPTION_COUNT);
   const availableComparisons = selectedRecommendation
     ? overall.recommendations.filter((recommendation) => recommendation.playerId !== selectedRecommendation.playerId)
     : [];
@@ -127,6 +125,13 @@ export function AssistantPage({
   const comparisonRecommendations: readonly Recommendation[] = selectedRecommendation && comparisonRecommendation
     ? [selectedRecommendation, comparisonRecommendation]
     : selectedRecommendation ? [selectedRecommendation] : [];
+  // In Compare both players in the pair are marked; otherwise only the viewed player.
+  const isComparing = analysisTab === 'compare';
+  const highlightedPlayerIds = new Set(
+    isComparing
+      ? comparisonRecommendations.map((recommendation) => recommendation.playerId)
+      : selectedRecommendation ? [selectedRecommendation.playerId] : []
+  );
 
   const pickWindow = getPickWindow(currentPick, config.totalTeams, config.totalRounds, config.myPickPosition, config.draftType);
   const nextPickLabel = pickWindow.nextPick === null ? null : formatRoundPick(pickWindow.nextPick, config.totalTeams);
@@ -352,102 +357,168 @@ export function AssistantPage({
             <div className="rec-card rec-empty" role="status">No available recommendation for this draft state.</div>
           )}
 
-          <div className="rec-split" data-wide={analysisTab === 'compare'}>
-            <section ref={analysisRef} className="rec-analysis" aria-label="Viewed player analysis" tabIndex={-1}>
-              <div
-                className="rec-tabs"
-                role="tablist"
-                aria-label="Analysis question"
-                onKeyDown={(event) => {
-                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                  event.preventDefault();
-                  const next = event.key === 'Home'
-                    ? 0
-                    : event.key === 'End'
-                      ? ANALYSIS_TABS.length - 1
-                      : (selectedTabIndex + (event.key === 'ArrowRight' ? 1 : -1) + ANALYSIS_TABS.length) % ANALYSIS_TABS.length;
-                  const tab = ANALYSIS_TABS[next];
-                  if (!tab) return;
-                  setAnalysisTab(tab.id);
-                  document.getElementById(`rec-tab-${tab.id}`)?.focus();
-                }}
-              >
-                {ANALYSIS_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    id={`rec-tab-${tab.id}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={analysisTab === tab.id}
-                    aria-controls="rec-analysis-panel"
-                    tabIndex={analysisTab === tab.id ? 0 : -1}
-                    onClick={() => { setAnalysisTab(tab.id); }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-              <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${analysisTab}`} className="rec-answer" aria-live="polite">
-                {viewedName ? (
-                  <p className="rec-answer-subject">
-                    {viewedPlayerId === leader?.playerId ? lensLabel : 'Viewing'}: {viewedName}
-                  </p>
-                ) : null}
-                <DecisionSwap motionKey={`${analysisTab}:${viewedPlayerId ?? 'none'}`}>
-                  {unavailableViewed ? (
-                    <p role="status" className="rec-answer-footnote">
-                      {unavailableViewed.reason === 'drafted'
-                        ? `${unavailableViewed.playerName} has been drafted. Choose an available player to see analysis.`
-                        : `Analysis unavailable. ${unavailableViewed.playerName} is outside the ${unavailableViewed.position}s ranked for this draft state.`}
-                    </p>
-                  ) : !selectedRecommendation ? (
-                    <p className="rec-answer-footnote">No available recommendation for this draft state.</p>
-                  ) : analysisTab === 'why' ? (
-                    <WhyAnswer
-                      recommendation={selectedRecommendation}
-                      isTopPick={selectedRecommendation.playerId === bestPickId}
-                      preferredExplanation={overall.explanationByPlayerId.get(selectedRecommendation.playerId)}
-                    />
-                  ) : analysisTab === 'compare' ? (
-                    <CompareAnswer
-                      recommendations={comparisonRecommendations}
-                      availableComparisons={availableComparisons}
-                      decision={overall}
-                      onComparisonPlayerChange={setComparisonPlayerId}
-                      playerById={playerById}
-                    />
-                  ) : analysisTab === 'wait' ? (
-                    <WaitAnswer recommendation={selectedRecommendation} teamsNeedingPosition={teamsNeedingSelected} />
-                  ) : (
-                    <RosterAnswer needs={needs} recommendation={selectedRecommendation} player={selectedPlayer} sameByeName={sameByeName} />
-                  )}
-                </DecisionSwap>
-              </div>
-            </section>
-
-            <section className="rec-options" aria-labelledby="rec-options-heading">
-              <div className="rec-section-heading">
-                <h2 id="rec-options-heading">Other options</h2>
-                <span className="rec-muted">Select a player to view</span>
-              </div>
-              <CandidateRowHeader />
-              {otherOptions.map((recommendation, order) => (
-                <AssistantRecommendationRow
-                  key={recommendation.playerId}
-                  recommendation={recommendation}
-                  player={playerById.get(recommendation.playerId)}
-                  rank={overall.rankByPlayerId.get(recommendation.playerId) ?? order + 2}
-                  order={order}
-                  isSelected={selectedRecommendation?.playerId === recommendation.playerId}
-                  isBestPick={recommendation.playerId === bestPickId}
-                  isQueued={queuedSet.has(recommendation.playerId)}
-                  alert={alertsFor(recommendation.playerId)[0]}
-                  onSelect={handleSelectPlayer}
-                  onQueue={togglePlayerQueued}
-                />
+          <section ref={analysisRef} className="rec-analysis" aria-label="Viewed player analysis" tabIndex={-1}>
+            <div
+              className="rec-tabs"
+              role="tablist"
+              aria-label="Analysis question"
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const next = event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? ANALYSIS_TABS.length - 1
+                    : (selectedTabIndex + (event.key === 'ArrowRight' ? 1 : -1) + ANALYSIS_TABS.length) % ANALYSIS_TABS.length;
+                const tab = ANALYSIS_TABS[next];
+                if (!tab) return;
+                setAnalysisTab(tab.id);
+                document.getElementById(`rec-tab-${tab.id}`)?.focus();
+              }}
+            >
+              {ANALYSIS_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  id={`rec-tab-${tab.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={analysisTab === tab.id}
+                  aria-controls="rec-analysis-panel"
+                  tabIndex={analysisTab === tab.id ? 0 : -1}
+                  onClick={() => { setAnalysisTab(tab.id); }}
+                >
+                  {tab.label}
+                </button>
               ))}
+            </div>
+            <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${analysisTab}`} className="rec-answer" aria-live="polite">
+              {viewedName ? (
+                <p className="rec-answer-subject">
+                  {viewedPlayerId === leader?.playerId ? lensLabel : 'Viewing'}: {viewedName}
+                </p>
+              ) : null}
+              <DecisionSwap motionKey={`${analysisTab}:${viewedPlayerId ?? 'none'}`}>
+                {unavailableViewed ? (
+                  <p role="status" className="rec-answer-footnote">
+                    {unavailableViewed.reason === 'drafted'
+                      ? `${unavailableViewed.playerName} has been drafted. Choose an available player to see analysis.`
+                      : `Analysis unavailable. ${unavailableViewed.playerName} is outside the ${unavailableViewed.position}s ranked for this draft state.`}
+                  </p>
+                ) : !selectedRecommendation ? (
+                  <p className="rec-answer-footnote">No available recommendation for this draft state.</p>
+                ) : analysisTab === 'why' ? (
+                  <WhyAnswer
+                    recommendation={selectedRecommendation}
+                    isTopPick={selectedRecommendation.playerId === bestPickId}
+                    preferredExplanation={overall.explanationByPlayerId.get(selectedRecommendation.playerId)}
+                  />
+                ) : analysisTab === 'compare' ? (
+                  <CompareAnswer
+                    recommendations={comparisonRecommendations}
+                    availableComparisons={availableComparisons}
+                    decision={overall}
+                    onComparisonPlayerChange={setComparisonPlayerId}
+                    playerById={playerById}
+                  />
+                ) : analysisTab === 'wait' ? (
+                  <WaitAnswer recommendation={selectedRecommendation} teamsNeedingPosition={teamsNeedingSelected} />
+                ) : (
+                  <RosterAnswer needs={needs} recommendation={selectedRecommendation} player={selectedPlayer} sameByeName={sameByeName} />
+                )}
+              </DecisionSwap>
+            </div>
+          </section>
+
+          {overall.recommendations.length > 0 ? (
+            <section className="rec-pool" aria-labelledby="rec-pool-heading">
+              <div className="rec-section-heading">
+                <h2 id="rec-pool-heading">{positionFilter === 'ALL' ? 'All recommended players' : `Best available ${positionFilter}s`}</h2>
+                <span className="rec-muted">
+                  {positionFilter === 'ALL'
+                    ? `Ordered by ${lensLabel}.`
+                    : `Ranked within ${positionFilter} by the same policy.`}
+                </span>
+              </div>
+              <div className="rec-pool-toolbar">
+                <label className="rec-search">
+                  <Search className="size-4" aria-hidden="true" />
+                  <span className="sr-only">Search recommended players</span>
+                  <input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); }} placeholder="Search player or team" />
+                </label>
+                <div className="rec-filters" role="group" aria-label="Filter by position">
+                  {POSITION_FILTERS.map((position) => {
+                    const need = position === 'ALL' ? undefined : needs.find((item) => item.position === position);
+                    const filled = position === 'ALL' ? rosteredPlayers.length : need?.startersFilled ?? 0;
+                    const total = position === 'ALL' ? config.totalRounds : need?.startersNeeded ?? 0;
+                    return (
+                      <button
+                        key={position}
+                        type="button"
+                        aria-pressed={positionFilter === position}
+                        aria-label={`${position === 'ALL' ? 'All' : position}, ${String(filled)} of ${String(total)} filled`}
+                        onClick={() => {
+                          setPositionFilter(position);
+                          setShowAllPlayers(false);
+                        }}
+                      >
+                        <span>{position === 'ALL' ? 'All' : position}</span>
+                        <small>{String(filled)}/{String(total)}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="rec-sort">
+                  <span id="rec-pool-sort-label" className="rec-muted">Sort</span>
+                  <Select
+                    aria-labelledby="rec-pool-sort-label"
+                    className="h-9 w-[180px] text-xs"
+                    value={poolSort}
+                    onValueChange={(value) => { setPoolSort(value as PoolSort); }}
+                    options={[
+                      { value: 'recommendation', label: 'Recommendation' },
+                      { value: 'tier', label: 'Tier first' },
+                    ]}
+                  />
+                </div>
+              </div>
+              {cards.length > 0 ? (
+                <div className="rec-pool-list">
+                  <CandidateRowHeader />
+                  {cards.map((recommendation, order) => (
+                    <AssistantRecommendationRow
+                      key={recommendation.playerId}
+                      recommendation={recommendation}
+                      player={playerById.get(recommendation.playerId)}
+                      rank={poolDecision.rankByPlayerId.get(recommendation.playerId) ?? order + 1}
+                      order={order}
+                      isSelected={highlightedPlayerIds.has(recommendation.playerId)}
+                      selectionLabel={isComparing ? 'Comparing' : 'Viewing'}
+                      isBestPick={recommendation.playerId === bestPickId}
+                      isQueued={queuedSet.has(recommendation.playerId)}
+                      alert={alertsFor(recommendation.playerId)[0]}
+                      onSelect={(playerId) => { handleSelectPlayer(playerId); openAnalysis(analysisTab); }}
+                      onQueue={togglePlayerQueued}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div role="status" className="rec-empty">
+                  {deferredSearch
+                    ? 'No players match your search and position filter.'
+                    : `No available ${positionFilter === 'ALL' ? '' : `${positionFilter} `}players.`}
+                </div>
+              )}
+              {hiddenPlayerCount > 0 || showAllPlayers ? (
+                <div className="rec-pool-more">
+                  <Button variant="outline" size="sm" aria-expanded={showAllPlayers} onClick={() => { setShowAllPlayers((current) => !current); }}>
+                    {showAllPlayers
+                      ? <><ChevronUp className="size-4" aria-hidden="true" /> Show fewer players</>
+                      : <><ChevronDown className="size-4" aria-hidden="true" /> Show {String(hiddenPlayerCount)} more players</>}
+                  </Button>
+                </div>
+              ) : null}
             </section>
-          </div>
+          ) : null}
         </div>
 
         <aside className="rec-rail" aria-label="Queue, upcoming picks and roster">
@@ -477,96 +548,6 @@ export function AssistantPage({
           />
         </aside>
       </div>
-
-      {overall.recommendations.length > 0 ? (
-        <section className="rec-pool" aria-labelledby="rec-pool-heading">
-          <div className="rec-section-heading">
-            <h2 id="rec-pool-heading">{positionFilter === 'ALL' ? 'All recommended players' : `Best available ${positionFilter}s`}</h2>
-            <span className="rec-muted">
-              {positionFilter === 'ALL'
-                ? `Ordered by ${lensLabel}.`
-                : `Ranked within ${positionFilter} by the same policy.`}
-            </span>
-          </div>
-          <div className="rec-pool-toolbar">
-            <label className="rec-search">
-              <Search className="size-4" aria-hidden="true" />
-              <span className="sr-only">Search recommended players</span>
-              <input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); }} placeholder="Search player or team" />
-            </label>
-            <div className="rec-filters" role="group" aria-label="Filter by position">
-              {POSITION_FILTERS.map((position) => {
-                const need = position === 'ALL' ? undefined : needs.find((item) => item.position === position);
-                const filled = position === 'ALL' ? rosteredPlayers.length : need?.startersFilled ?? 0;
-                const total = position === 'ALL' ? config.totalRounds : need?.startersNeeded ?? 0;
-                return (
-                  <button
-                    key={position}
-                    type="button"
-                    aria-pressed={positionFilter === position}
-                    aria-label={`${position === 'ALL' ? 'All' : position}, ${String(filled)} of ${String(total)} filled`}
-                    onClick={() => {
-                      setPositionFilter(position);
-                      setShowAllPlayers(false);
-                    }}
-                  >
-                    <span>{position === 'ALL' ? 'All' : position}</span>
-                    <small>{String(filled)}/{String(total)}</small>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="rec-sort">
-              <span id="rec-pool-sort-label" className="rec-muted">Sort</span>
-              <Select
-                aria-labelledby="rec-pool-sort-label"
-                className="h-9 w-[180px] text-xs"
-                value={poolSort}
-                onValueChange={(value) => { setPoolSort(value as PoolSort); }}
-                options={[
-                  { value: 'recommendation', label: 'Recommendation' },
-                  { value: 'tier', label: 'Tier first' },
-                ]}
-              />
-            </div>
-          </div>
-          {cards.length > 0 ? (
-            <div className="rec-pool-list">
-              <CandidateRowHeader />
-              {cards.map((recommendation, order) => (
-                <AssistantRecommendationRow
-                  key={recommendation.playerId}
-                  recommendation={recommendation}
-                  player={playerById.get(recommendation.playerId)}
-                  rank={poolDecision.rankByPlayerId.get(recommendation.playerId) ?? order + 1}
-                  order={order}
-                  isSelected={selectedRecommendation?.playerId === recommendation.playerId}
-                  isBestPick={recommendation.playerId === bestPickId}
-                  isQueued={queuedSet.has(recommendation.playerId)}
-                  alert={alertsFor(recommendation.playerId)[0]}
-                  onSelect={(playerId) => { handleSelectPlayer(playerId); openAnalysis(analysisTab); }}
-                  onQueue={togglePlayerQueued}
-                />
-              ))}
-            </div>
-          ) : (
-            <div role="status" className="rec-empty">
-              {deferredSearch
-                ? 'No players match your search and position filter.'
-                : `No available ${positionFilter === 'ALL' ? '' : `${positionFilter} `}players.`}
-            </div>
-          )}
-          {hiddenPlayerCount > 0 || showAllPlayers ? (
-            <div className="rec-pool-more">
-              <Button variant="outline" size="sm" aria-expanded={showAllPlayers} onClick={() => { setShowAllPlayers((current) => !current); }}>
-                {showAllPlayers
-                  ? <><ChevronUp className="size-4" aria-hidden="true" /> Show fewer players</>
-                  : <><ChevronDown className="size-4" aria-hidden="true" /> Show {String(hiddenPlayerCount)} more players</>}
-              </Button>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
       </div>
       )}
       {mode === 'manual-continuity' ? (

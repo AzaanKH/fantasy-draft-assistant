@@ -14,7 +14,7 @@ import { getComparisonHighlights } from './assistant-analysis';
 import { ComparisonPlayerPicker } from './ComparisonPlayerPicker';
 import { PlayerComparisonMetrics } from './PlayerComparisonMetrics';
 
-/** Verdict first, then the meaningful differences, then one compact side-by-side table. */
+/** Verdict first, then the side-by-side table beside the meaningful differences on wide screens. */
 export function CompareAnswer({
   recommendations,
   availableComparisons,
@@ -50,18 +50,21 @@ export function CompareAnswer({
           onSelect={onComparisonPlayerChange}
         />
       </div>
-      <DecisionSwap motionKey={second.playerId}>
-        <dl className="rec-answer-rows" aria-label="Meaningful differences">
-          {(highlights.length > 0 ? highlights : [{
-            label: 'No clear edge',
-            detail: 'The available signals do not show a clear difference. Review roster needs and any unavailable estimates before choosing.',
-          }]).map((highlight) => (
-            <div key={highlight.label}>
-              <dt>{highlight.label}</dt>
-              <dd>{highlight.detail}</dd>
-            </div>
-          ))}
-        </dl>
+      <DecisionSwap motionKey={second.playerId} className="rec-compare-body">
+        <div className="rec-compare-side">
+          <dl className="rec-answer-rows" aria-label="Meaningful differences">
+            {(highlights.length > 0 ? highlights : [{
+              label: 'No clear edge',
+              detail: 'The available signals do not show a clear difference. Review roster needs and any unavailable estimates before choosing.',
+            }]).map((highlight) => (
+              <div key={highlight.label}>
+                <dt>{highlight.label}</dt>
+                <dd>{highlight.detail}</dd>
+              </div>
+            ))}
+          </dl>
+          <CalculationDetails explanation={preferredExplanation} />
+        </div>
         <PlayerComparisonMetrics
           first={first}
           second={second}
@@ -69,7 +72,6 @@ export function CompareAnswer({
           ranks={decision.rankByPlayerId}
           playerById={playerById}
         />
-        <CalculationDetails explanation={preferredExplanation} />
       </DecisionSwap>
     </div>
   );
