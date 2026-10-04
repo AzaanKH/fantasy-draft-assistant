@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import {
   CORE_DRAFT_DATA_KEYS, OPTIONAL_SIGNAL_KEYS, isDraftSyncSnapshot, isPlayer, isPosition,
   type DraftSyncSnapshot, type DraftReadinessReport, type Player,
@@ -93,35 +94,40 @@ export function createArchive(snapshot: DraftSyncSnapshot, data: DraftData, read
     readiness, warnings };
 }
 
-export async function saveArchive(path: string, archive: SessionArchive, force: boolean): Promise<void> {
-  if (Buffer.byteLength(JSON.stringify(archive, null, 2)) + 1 > MAX_ARCHIVE_BYTES) throw new CliError('EXPORT_TOO_LARGE', 'The session export exceeds the 20 MiB size limit.');
-  await writePrivateJson(path, archive, force);
-}
-
-export async function readArchive(path: string): Promise<SessionArchive> {
-  let value: unknown;
-  try { value = await readBoundedJson(path, MAX_ARCHIVE_BYTES); }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new CliError('REPLAY_NOT_FOUND', 'The session archive does not exist.', 2);
-    throw new CliError('INVALID_ARCHIVE', 'The replay input must be a valid session archive within the 20 MiB size limit.', 2);
+export const saveArchive = Effect.fn('saveArchive')(function* (path: string, archive: SessionArchive, force: boolean) {
+  if (Buffer.byteLength(JSON.stringify(archive, null, 2)) + 1 > MAX_ARCHIVE_BYTES) {
+    return yield* new CliError('EXPORT_TOO_LARGE', 'The session export exceeds the 20 MiB size limit.');
   }
-  try {
-    if (!isRecord(value) || value.schemaVersion !== 1 || value.kind !== 'fantasy-draft-session' ||
-        typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
-        typeof value.session !== 'string' || !isDraftSyncSnapshot(value.snapshot) || !value.snapshot.draft ||
-        parseSession(value.session).id !== `${value.snapshot.provider}:${value.snapshot.draftId}` ||
-        value.snapshot.draft.provider !== value.snapshot.provider || value.snapshot.draft.draftId !== value.snapshot.draftId ||
-        !(value.slot === null || typeof value.slot === 'number' && value.slot >= 1 && count(value.slot, value.snapshot.draft.settings.teams)) ||
-        !validData(value.data, value.snapshot) || !validReadiness(value.readiness) || !strings(value.warnings)) throw new Error('Invalid archive');
-    const snapshot = value.snapshot;
-    const { teams } = value.snapshot.draft.settings;
-    const totalPicks = teams * value.snapshot.draft.settings.rounds;
-    if (snapshot.picks.some(pick => pick.draftId !== snapshot.draftId || pick.pickNumber > totalPicks ||
-        pick.draftSlot > teams || pick.teamIndex >= teams) ||
-        new Set(snapshot.picks.map(pick => pick.pickNumber)).size !== snapshot.picks.length ||
-        new Set(snapshot.picks.map(pick => pick.playerId)).size !== snapshot.picks.length) throw new Error('Inconsistent picks');
-    return value as unknown as SessionArchive;
-  } catch { throw new CliError('INVALID_ARCHIVE', 'The session archive has invalid or inconsistent draft data.', 2); }
+  yield* writePrivateJson(path, archive, force);
+});
+
+export const readArchive = Effect.fn('readArchive')(function* (path: string) {
+  const value = yield* readBoundedJson(path, MAX_ARCHIVE_BYTES).pipe(Effect.mapError(error =>
+    error._tag === 'JsonFileError' && error.missing
+      ? new CliError('REPLAY_NOT_FOUND', 'The session archive does not exist.', 2)
+      : new CliError('INVALID_ARCHIVE', 'The replay input must be a valid session archive within the 20 MiB size limit.', 2)));
+  return yield* Effect.try({
+    try: () => validArchive(value),
+    catch: () => new CliError('INVALID_ARCHIVE', 'The session archive has invalid or inconsistent draft data.', 2),
+  });
+});
+
+function validArchive(value: unknown): SessionArchive {
+  if (!isRecord(value) || value.schemaVersion !== 1 || value.kind !== 'fantasy-draft-session' ||
+      typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
+      typeof value.session !== 'string' || !isDraftSyncSnapshot(value.snapshot) || !value.snapshot.draft ||
+      parseSession(value.session).id !== `${value.snapshot.provider}:${value.snapshot.draftId}` ||
+      value.snapshot.draft.provider !== value.snapshot.provider || value.snapshot.draft.draftId !== value.snapshot.draftId ||
+      !(value.slot === null || typeof value.slot === 'number' && value.slot >= 1 && count(value.slot, value.snapshot.draft.settings.teams)) ||
+      !validData(value.data, value.snapshot) || !validReadiness(value.readiness) || !strings(value.warnings)) throw new Error('Invalid archive');
+  const snapshot = value.snapshot;
+  const { teams } = value.snapshot.draft.settings;
+  const totalPicks = teams * value.snapshot.draft.settings.rounds;
+  if (snapshot.picks.some(pick => pick.draftId !== snapshot.draftId || pick.pickNumber > totalPicks ||
+      pick.draftSlot > teams || pick.teamIndex >= teams) ||
+      new Set(snapshot.picks.map(pick => pick.pickNumber)).size !== snapshot.picks.length ||
+      new Set(snapshot.picks.map(pick => pick.playerId)).size !== snapshot.picks.length) throw new Error('Inconsistent picks');
+  return value as unknown as SessionArchive;
 }
 
 export function archivedData(archive: SessionArchive): DraftData {
