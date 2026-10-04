@@ -62,12 +62,20 @@ export interface FetchJsonOptions {
   readonly retries?: number;
   /** Delay before retry N (1-based) when the server gives no Retry-After. */
   readonly backoffMs?: (attempt: number) => number;
+  /** Longest Retry-After to wait for. A longer request fails instead of retrying early. */
+  readonly maxRetryAfterMs?: number;
 }
 
-const parseRetryAfter = (value: string | null): number | undefined => {
+const DEFAULT_MAX_RETRY_AFTER_MS = 10_000;
+const MIN_RETRY_DELAY_MS = 500;
+
+/** Retry-After is either delay-seconds or an HTTP date (RFC 9110, section 10.2.3). */
+export const parseRetryAfter = (value: string | null, now: number = Date.now()): number | undefined => {
   if (value === null) return undefined;
-  const seconds = Number(value);
-  return Number.isFinite(seconds) ? Math.min(10_000, Math.max(500, seconds * 1000)) : undefined;
+  const trimmed = value.trim();
+  // Every HTTP-date format names a day or month; this keeps Date.parse from reading '-5' as a year.
+  const ms = /^\d+$/.test(trimmed) ? Number(trimmed) * 1000 : /[a-z]/i.test(trimmed) ? Date.parse(trimmed) - now : NaN;
+  return Number.isFinite(ms) ? Math.max(MIN_RETRY_DELAY_MS, ms) : undefined;
 };
 
 /**
@@ -131,8 +139,9 @@ export function fetchJson<T>(url: string | URL, options: FetchJsonOptions): Effe
     }),
   );
   const backoffMs = options.backoffMs ?? ((n: number) => n * 1500);
+  const maxRetryAfterMs = options.maxRetryAfterMs ?? DEFAULT_MAX_RETRY_AFTER_MS;
   return attempt.pipe(Effect.retry({
-    while: isRetryable,
+    while: (error) => isRetryable(error) && (error.retryAfterMs ?? 0) <= maxRetryAfterMs,
     schedule: Schedule.recurs(options.retries ?? 2).pipe(
       Schedule.setInputType<HttpRequestError>(),
       Schedule.modifyDelay(({ input, attempt: n }) => Effect.succeed(Duration.millis(input.retryAfterMs ?? backoffMs(n)))),
