@@ -71,7 +71,7 @@ export function DraftQueuePanel(): React.ReactElement {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="rounded-full"
+            className="rounded-sm"
             aria-label={`Remove ${player.name} from queue`}
             onClick={() => {
               removePlayerFromQueue(player.id);

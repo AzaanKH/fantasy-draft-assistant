@@ -69,7 +69,7 @@ export function DraftDock({
   const expand = (): void => { onExpandedChange(true); };
 
   const collapseButton = (
-    <Button variant="ghost" size="sm" className="shrink-0 rounded-full" aria-expanded={isExpanded}
+    <Button variant="ghost" size="sm" className="shrink-0 rounded-sm" aria-expanded={isExpanded}
       aria-label={isExpanded ? 'Collapse player workspace' : 'Expand player workspace'}
       onClick={() => { onExpandedChange(!isExpanded); }}>
       {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}

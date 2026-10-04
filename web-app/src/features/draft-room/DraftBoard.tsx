@@ -306,7 +306,7 @@ function BoardModeButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold outline-none transition-[background-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/60',
+        'inline-flex h-8 items-center justify-center gap-1.5 rounded-xs px-3 text-xs font-semibold outline-none transition-[background-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/60',
         active
           ? 'bg-foreground text-background'
           : 'text-muted-foreground hover:text-foreground'

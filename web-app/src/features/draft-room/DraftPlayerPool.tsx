@@ -92,7 +92,7 @@ function DraftPlayerRow({
       <div role="cell" className="draft-pool-number">{formatSignedNumber(player.valueOverReplacement, 0)}</div>
       <div role="cell" className="draft-pool-number">{String(Math.round(survivalProbability * 100))}%</div>
       <div role="cell" className="draft-pool-action">
-        <Button variant={isQueued ? 'secondary' : 'ghost'} size="icon-sm" className="rounded-full"
+        <Button variant={isQueued ? 'secondary' : 'ghost'} size="icon-sm" className="rounded-sm"
           aria-label={isQueued ? `Remove ${player.name} from local shortlist` : `Add ${player.name} to local shortlist`}
           aria-pressed={isQueued} onClick={() => { onToggleQueue(player.id); }}>
           {isQueued ? <Check className="size-4" /> : <ListPlus className="size-4" />}

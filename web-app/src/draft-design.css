@@ -255,7 +255,7 @@ button,input,select {
   --position-k-ink: color-mix(in oklab, var(--color-position-k) 55%, #051827);
   --position-def-ink: color-mix(in oklab, var(--color-position-def) 45%, #051827);
 }
-.draft-workspace .draft-pill-action { min-width: 64px; border-radius: var(--radius-pill); font-weight: 700; }
+.draft-workspace .draft-pill-action { min-width: 64px; border-radius: var(--radius-sm); font-weight: 700; }
 .draft-workspace .draft-pill-action:hover:not(:disabled) { background: var(--color-primary-hover); }
 .draft-workspace .draft-pill-action:disabled { opacity: .42; }
 
@@ -279,7 +279,7 @@ button,input,select {
 .draft-workspace .player-pool-toolbar { gap: 12px; margin-bottom: 12px; padding: 0; border: 0; }
 .draft-search-input.draft-search-input { height: 40px; border-radius: var(--radius-md); background: var(--color-surface-inset); font-size: 14px; }
 .draft-position-filters { display: flex; gap: 6px; overflow-x: auto; padding-block: 2px; }
-.draft-position-filter { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; min-width: 48px; height: 44px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--color-surface-raised); color: var(--color-foreground); font-size: 12px; font-weight: 700; line-height: 14px; cursor: pointer; transition: background-color 140ms ease-out, color 140ms ease-out; }
+.draft-position-filter { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; min-width: 48px; height: 44px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-foreground); font-size: 12px; font-weight: 700; line-height: 14px; cursor: pointer; transition: background-color 140ms ease-out, color 140ms ease-out; }
 .draft-position-filter > span, .draft-position-filter > small { display: block; line-height: 16px; }
 .draft-position-filter small { color: var(--color-muted-foreground); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .draft-position-filter:hover { background: color-mix(in srgb, var(--color-surface-raised) 70%, var(--color-foreground)); }
@@ -337,7 +337,7 @@ button,input,select {
 
 .draft-workspace .draft-best-pick-inline { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: none; }
 .draft-workspace .draft-best-pick-label { color: var(--color-primary); }
-.draft-workspace .draft-best-pick-actions button { border-radius: var(--radius-pill); }
+.draft-workspace .draft-best-pick-actions button { border-radius: var(--radius-sm); }
 
 @media (max-width: 639px) {
   .draft-dock-panel { padding: 12px; }
@@ -402,7 +402,7 @@ button,input,select {
 .draft-setup-error p { color: var(--color-danger); font-weight: 600; }
 .draft-setup-error pre { max-height: 96px; margin-top: 4px; overflow: auto; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--color-surface-inset); color: var(--color-muted-foreground); font-size: 11px; line-height: 15px; white-space: pre-wrap; }
 .draft-setup-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.draft-setup-checklist .draft-setup-action { flex-shrink: 0; border-radius: var(--radius-pill); }
+.draft-setup-checklist .draft-setup-action { flex-shrink: 0; border-radius: var(--radius-sm); }
 @media (max-width: 639px) {
   .draft-setup-item { flex-wrap: wrap; }
   .draft-setup-actions, .draft-setup-item > .draft-setup-action { margin-left: 20px; justify-content: flex-start; }
