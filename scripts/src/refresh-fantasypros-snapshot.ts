@@ -2,12 +2,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
+import { Effect } from 'effect';
 import {
   isFantasyProsSnapshotSource,
   type ECRPlayer,
   type FantasyProsSnapshot,
 } from '@fantasy-draft/shared';
 import { fetchFantasyProsSnapshot } from './fantasypros-api.js';
+import { io, runMain } from './effect-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');
@@ -118,47 +120,38 @@ function buildManualSnapshot(ecrData: EcrDataFile): FantasyProsSnapshot {
   };
 }
 
-async function main(): Promise<void> {
+const program = Effect.gen(function* () {
   const apiKey = process.env['FANTASYPROS_API_KEY']?.trim();
   const snapshotMode = process.env['FANTASYPROS_SNAPSHOT_MODE']?.trim().toLowerCase();
-  const preferManual = snapshotMode === 'manual';
-  let snapshot: FantasyProsSnapshot;
-  let ecrData: EcrDataFile | undefined;
-  const existingSnapshot = await readExistingSnapshot();
+  const manualSnapshot = io(readEcrFile).pipe(Effect.map(buildManualSnapshot));
+  const existingSnapshot = yield* Effect.promise(readExistingSnapshot);
 
-  if (apiKey && !preferManual) {
-    try {
-      snapshot = await fetchFantasyProsSnapshot({
-        apiKey,
-        season: new Date().getFullYear(),
-        scoring: 'PPR',
-      });
-      snapshot = preserveUsableProjections(snapshot, existingSnapshot);
-      console.log(
-        `FantasyPros API snapshot refreshed: ${snapshot.metadata.rankingCount} rankings, ` +
-        `${snapshot.metadata.adpCount} ADP, ${snapshot.metadata.projectionCount} projections, ` +
-        `${snapshot.metadata.newsCount} news`
-      );
-    } catch (error) {
-      console.warn('FantasyPros API refresh failed, falling back to local ECR snapshot.');
-      console.warn(error);
-      ecrData = await readEcrFile();
-      snapshot = buildManualSnapshot(ecrData);
-    }
-  } else {
-    ecrData = await readEcrFile();
-    snapshot = buildManualSnapshot(ecrData);
-  }
+  const snapshot = apiKey && snapshotMode !== 'manual'
+    ? yield* fetchFantasyProsSnapshot({
+      apiKey,
+      season: new Date().getFullYear(),
+      scoring: 'PPR',
+    }).pipe(
+      Effect.map((fetched) => preserveUsableProjections(fetched, existingSnapshot)),
+      Effect.tap((fetched) => Effect.sync(() => {
+        console.log(
+          `FantasyPros API snapshot refreshed: ${fetched.metadata.rankingCount} rankings, ` +
+          `${fetched.metadata.adpCount} ADP, ${fetched.metadata.projectionCount} projections, ` +
+          `${fetched.metadata.newsCount} news`
+        );
+      })),
+      Effect.catch((error) => Effect.sync(() => {
+        console.warn('FantasyPros API refresh failed, falling back to local ECR snapshot.');
+        console.warn(error.message);
+      }).pipe(Effect.andThen(manualSnapshot))),
+    )
+    : yield* manualSnapshot;
 
-  await writeSnapshot(snapshot);
+  yield* io(() => writeSnapshot(snapshot));
 
   console.log(
     `FantasyPros snapshot written to ${OUTPUT_FILE} (${snapshot.metadata.sourceType})`
   );
-}
-
-main().catch((error: unknown) => {
-  console.error('Failed to refresh FantasyPros snapshot');
-  console.error(error);
-  process.exitCode = 1;
 });
+
+runMain(program, 'Failed to refresh FantasyPros snapshot');

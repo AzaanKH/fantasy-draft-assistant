@@ -9,6 +9,8 @@ import type {
   Position,
 } from '@fantasy-draft/shared';
 import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared';
+import { Data, Effect } from 'effect';
+import { fetchJson, type HttpRequestError } from './effect-runtime.js';
 
 const FANTASYPROS_API_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const FANTASYPROS_SPORT_PATH = 'nfl';
@@ -284,68 +286,45 @@ function normalizeFantasyProsTimestamp(value: string | null | undefined): string
   return value;
 }
 
-async function fetchFantasyProsJson<T>(
+/** FantasyPros returned JSON that does not have the expected shape. */
+export class FantasyProsPayloadError extends Data.TaggedError('FantasyProsPayloadError')<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
+/** Run a payload parser, so a malformed response is an expected failure rather than a defect. */
+const parsePayload = <A>(label: string, parse: () => A): Effect.Effect<A, FantasyProsPayloadError> => Effect.try({
+  try: parse,
+  catch: (cause) => new FantasyProsPayloadError({
+    message: `FantasyPros returned an unexpected ${label} payload: ${cause instanceof Error ? cause.message : String(cause)}`,
+    cause,
+  }),
+});
+
+function fetchFantasyProsJson<T>(
   path: string,
   apiKey: string,
   query: Record<string, string | number | undefined> = {}
-): Promise<T> {
+): Effect.Effect<T, HttpRequestError> {
   const url = new URL(`${FANTASYPROS_API_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) {
       url.searchParams.set(key, String(value));
     }
   }
-
-  let response: Response | undefined;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => { controller.abort(); }, FANTASYPROS_REQUEST_TIMEOUT_MS);
-    try {
-      response = await fetch(url, {
-        headers: {
-          'x-api-key': apiKey,
-          accept: 'application/json',
-        },
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(
-          `FantasyPros API request timed out after ${FANTASYPROS_REQUEST_TIMEOUT_MS}ms for ${url.pathname}`
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-    if (response.status !== 429 || attempt === 2) break;
-    const retryHeader = response.headers.get('retry-after');
-    const retryAfterSeconds = retryHeader === null ? Number.NaN : Number(retryHeader);
-    const delayMs = Number.isFinite(retryAfterSeconds)
-      ? Math.min(10_000, Math.max(500, retryAfterSeconds * 1000))
-      : (attempt + 1) * 1500;
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-  }
-
-  if (!response) throw new Error(`FantasyPros API returned no response for ${url.pathname}`);
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `FantasyPros API request failed (${response.status}) for ${url.pathname}: ${body.slice(0, 200)}`
-    );
-  }
-
-  return response.json() as Promise<T>;
+  return fetchJson<T>(url, {
+    label: 'FantasyPros API',
+    timeoutMs: FANTASYPROS_REQUEST_TIMEOUT_MS,
+    headers: { 'x-api-key': apiKey, accept: 'application/json' },
+  });
 }
 
-async function fetchFantasyProsPlayerIndex(
-  apiKey: string
-): Promise<Map<string, FantasyProsPlayerIndexEntry>> {
-  const payload = await fetchFantasyProsJson<FantasyProsPlayersResponse>(
-    `/${FANTASYPROS_SPORT_PATH}/players`,
-    apiKey
-  );
+const fetchFantasyProsPlayerIndex = (apiKey: string) => fetchFantasyProsJson<FantasyProsPlayersResponse>(
+  `/${FANTASYPROS_SPORT_PATH}/players`,
+  apiKey
+).pipe(Effect.flatMap((payload) => parsePayload('player index', () => buildPlayerIndex(payload))));
+
+function buildPlayerIndex(payload: FantasyProsPlayersResponse): Map<string, FantasyProsPlayerIndexEntry> {
 
   const index = new Map<string, FantasyProsPlayerIndexEntry>();
   for (const player of payload.players ?? []) {
@@ -599,19 +578,29 @@ function combineNewsWithInjuries(
   ];
 }
 
-export async function fetchFantasyProsSnapshot(
+/** Optional endpoints degrade to empty data with a warning instead of failing the refresh. */
+const optionalEndpoint = <T>(label: string, request: Effect.Effect<T, HttpRequestError>, fallback: T) =>
+  request.pipe(Effect.catch((error) => Effect.sync(() => {
+    console.warn(`FantasyPros ${label} endpoint unavailable; continuing without ${label}.`);
+    console.warn(error.message);
+    return fallback;
+  })));
+
+export const fetchFantasyProsSnapshot = Effect.fn('fetchFantasyProsSnapshot')(function* (
   options: FantasyProsApiOptions
-): Promise<FantasyProsSnapshot> {
+) {
   const scoring = options.scoring ?? 'PPR';
-  const [
+  // Five independent requests; the player index and rankings must succeed.
+  const {
     playerIndex,
     rankingsResponse,
     adpResponse,
     newsResponse,
     injuriesResponse,
-  ] = await Promise.all([
-    fetchFantasyProsPlayerIndex(options.apiKey),
-    fetchFantasyProsJson<FantasyProsConsensusResponse>(
+    projectionsResponse,
+  } = yield* Effect.all({
+    playerIndex: fetchFantasyProsPlayerIndex(options.apiKey),
+    rankingsResponse: fetchFantasyProsJson<FantasyProsConsensusResponse>(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
       options.apiKey,
       {
@@ -620,7 +609,7 @@ export async function fetchFantasyProsSnapshot(
         week: 0,
       }
     ),
-    fetchFantasyProsJson<FantasyProsConsensusResponse>(
+    adpResponse: fetchFantasyProsJson<FantasyProsConsensusResponse>(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
       options.apiKey,
       {
@@ -630,7 +619,7 @@ export async function fetchFantasyProsSnapshot(
         type: 'ADP',
       }
     ),
-    fetchFantasyProsJson<FantasyProsNewsResponse>(
+    newsResponse: fetchFantasyProsJson<FantasyProsNewsResponse>(
       `/${FANTASYPROS_SPORT_PATH}/news`,
       options.apiKey,
       {
@@ -639,23 +628,15 @@ export async function fetchFantasyProsSnapshot(
         order_by: 'updated',
       }
     ),
-    fetchFantasyProsJson<FantasyProsInjuriesResponse>(
+    injuriesResponse: optionalEndpoint('injuries', fetchFantasyProsJson<FantasyProsInjuriesResponse>(
       `/${FANTASYPROS_SPORT_PATH}/injuries`,
       options.apiKey,
       {
         year: options.season,
         week: 0,
       }
-    ).catch((error: unknown): FantasyProsInjuriesResponse => {
-      console.warn('FantasyPros injuries endpoint unavailable; continuing without injuries.');
-      console.warn(error);
-      return {};
-    }),
-  ]);
-
-  let projectionsResponse: FantasyProsProjectionResponse = {};
-  try {
-    projectionsResponse = await fetchFantasyProsJson<FantasyProsProjectionResponse>(
+    ), {}),
+    projectionsResponse: optionalEndpoint('projections', fetchFantasyProsJson<FantasyProsProjectionResponse>(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/projections`,
       options.apiKey,
       {
@@ -663,22 +644,19 @@ export async function fetchFantasyProsSnapshot(
         positions: 'QB:RB:WR:TE:K:DST',
         scoring,
       }
-    );
-  } catch (error) {
-    console.warn('FantasyPros projections endpoint unavailable; continuing without projections.');
-    console.warn(error);
-  }
+    ), {}),
+  }, { concurrency: 3 });
 
-  const rankings = buildRankings(rankingsResponse.players ?? []);
-  const adp = buildAdp(adpResponse.players ?? []);
-  const projections = buildProjections(projectionsResponse.players ?? [], scoring);
-  const news = combineNewsWithInjuries(
+  const rankings = yield* parsePayload('rankings', () => buildRankings(rankingsResponse.players ?? []));
+  const adp = yield* parsePayload('ADP', () => buildAdp(adpResponse.players ?? []));
+  const projections = yield* parsePayload('projections', () => buildProjections(projectionsResponse.players ?? [], scoring));
+  const news = yield* parsePayload('news', () => combineNewsWithInjuries(
     buildNews(newsResponse, playerIndex),
     buildInjuryNews(injuriesResponse, playerIndex)
-  );
+  ));
   const refreshedAt = new Date().toISOString();
 
-  return {
+  const snapshot: FantasyProsSnapshot = {
     metadata: {
       season: options.season,
       sourceType: 'api',
@@ -696,7 +674,8 @@ export async function fetchFantasyProsSnapshot(
     projections,
     news,
   };
-}
+  return snapshot;
+});
 
 export const fantasyProsApiInternals = {
   normalizeFantasyProsPosition,

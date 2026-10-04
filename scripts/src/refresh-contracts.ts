@@ -7,14 +7,14 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { DuckDBInstance } from '@duckdb/node-api';
+import { Effect } from 'effect';
 import type { NFLTeam, Position } from '@fantasy-draft/shared';
 import {
   isContractSourceColumn,
   resolveSeasonHistoryColumn,
 } from './contract-source-schema.js';
-import { DATA_DIR } from './model/duckdb.js';
+import { DATA_DIR, withMemoryDb } from './model/duckdb.js';
+import { io, isEntryPoint, runMain } from './effect-runtime.js';
 
 const CONTRACTS_URL =
   'https://github.com/nflverse/nflverse-data/releases/download/contracts/historical_contracts.parquet';
@@ -55,14 +55,11 @@ async function getSourceUpdatedAt(): Promise<string | null> {
     release.updated_at ?? null;
 }
 
-async function main(): Promise<void> {
+const program = Effect.gen(function* () {
   const contractYear = new Date().getFullYear();
-  const sleeper = JSON.parse(await readFile(SLEEPER_FILE, 'utf8')) as SleeperFile;
+  const sleeper = JSON.parse(yield* io(() => readFile(SLEEPER_FILE, 'utf8'))) as SleeperFile;
   const sleeperById = new Map(sleeper.players.map((player) => [player.playerId, player]));
-  const database = await DuckDBInstance.create(':memory:');
-  const connection = await database.connect();
-
-  try {
+  yield* withMemoryDb((connection) => io(async () => {
     const schemaReader = await connection.runAndReadAll(`
       describe select * from read_parquet('${CONTRACTS_URL}')
     `);
@@ -135,15 +132,9 @@ async function main(): Promise<void> {
       players: uniquePlayers,
     }, null, 2)}\n`);
     console.log(`Contract context written: ${String(uniquePlayers.length)} current Sleeper players.`);
-  } finally {
-    connection.closeSync();
-  }
-}
+  }));
+});
 
-const entryPoint = process.argv[1];
-if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
-  main().catch((error: unknown) => {
-    console.error('Contract refresh failed:', error);
-    process.exit(1);
-  });
+if (isEntryPoint(import.meta.url)) {
+  runMain(program, 'Contract refresh failed:');
 }

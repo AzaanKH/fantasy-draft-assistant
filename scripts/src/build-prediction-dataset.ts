@@ -13,10 +13,11 @@
  */
 
 import { access, writeFile } from 'node:fs/promises';
+import { Effect } from 'effect';
 import {
   BACKTESTS_MODEL_DIR,
   MODEL_PATHS,
-  connectModelDb,
+  withModelDb,
   readJsonFile,
   runStatements,
   sqlString,
@@ -31,6 +32,7 @@ import {
   type OffensivePosition,
   type PositionResidualRow,
 } from './model/position-residual-model.js';
+import { io, runMain } from './effect-runtime.js';
 
 interface FantasyProsSnapshot {
   readonly metadata?: {
@@ -257,16 +259,14 @@ function getSeasonWindow(currentSeason: number): readonly number[] {
   return range(start, end);
 }
 
-async function main(): Promise<void> {
-  const snapshot = await readJsonFile<FantasyProsSnapshot>(MODEL_PATHS.fantasyProsSnapshotJson);
+const program = Effect.gen(function* () {
+  const snapshot = yield* io(() => readJsonFile<FantasyProsSnapshot>(MODEL_PATHS.fantasyProsSnapshotJson));
   const currentSeason = snapshot.metadata?.season ?? new Date().getFullYear();
   const seasons = getSeasonWindow(currentSeason);
   const modelVersion =
     `position-ridge-v4-nested-selection-${seasons[0]}-${seasons[seasons.length - 1]}`;
-  const hasLeagueHistory = await exists(MODEL_PATHS.leagueDraftHistoryJson);
-  const connection = await connectModelDb();
-
-  try {
+  const hasLeagueHistory = yield* io(() => exists(MODEL_PATHS.leagueDraftHistoryJson));
+  yield* withModelDb((connection) => io(async () => {
     await buildHistoricalSnapshots(connection);
     await runStatements(connection, [
       `create schema if not exists source`,
@@ -1730,12 +1730,7 @@ async function main(): Promise<void> {
     console.log(`Prediction artifact written to ${MODEL_PATHS.predictionsJson}`);
     console.log(`Model report written to ${MODEL_PATHS.modelReportJson}`);
     console.log(JSON.stringify(counts, null, 2));
-  } finally {
-    connection.closeSync();
-  }
-}
-
-main().catch((error: unknown) => {
-  console.error('Prediction dataset build failed:', error);
-  process.exit(1);
+  }));
 });
+
+runMain(program, 'Prediction dataset build failed:');
