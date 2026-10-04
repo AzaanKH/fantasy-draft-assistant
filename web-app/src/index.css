@@ -32,6 +32,62 @@
   to { opacity: 0; }
 }
 
+/* Radix keeps a closing dialog mounted until its exit animation ends. */
+.dialog-overlay[data-state="open"] {
+  animation: dialog-fade-in var(--motion-duration-content) var(--motion-ease-out) both;
+}
+
+.dialog-overlay[data-state="closed"] {
+  animation: dialog-fade-out var(--motion-duration-exit) ease-in both;
+}
+
+.dialog-content[data-state="open"] {
+  animation: dialog-content-enter var(--motion-duration-content) var(--motion-ease-out) both;
+}
+
+.dialog-content[data-state="closed"] {
+  animation: dialog-content-exit var(--motion-duration-exit) ease-in both;
+}
+
+.dialog-content.dialog-sheet-right[data-state="open"] {
+  animation: dialog-sheet-enter var(--motion-duration-layout) var(--motion-ease-out) both;
+}
+
+.dialog-content.dialog-sheet-right[data-state="closed"] {
+  animation: dialog-sheet-exit var(--motion-duration-feedback) ease-in both;
+}
+
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Scale uses transform, so it composes with Tailwind's translate centering. */
+@keyframes dialog-content-enter {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes dialog-content-exit {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+@keyframes dialog-sheet-enter {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes dialog-sheet-exit {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
 .motion-expandable-grid {
   display: grid;
   grid-template-rows: 1fr;
@@ -65,6 +121,7 @@
   --motion-duration-feedback: 150ms;
   --motion-duration-content: 210ms;
   --motion-duration-layout: 280ms;
+  --motion-duration-exit: 100ms;
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 

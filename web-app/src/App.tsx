@@ -55,6 +55,9 @@ function RouteLoading({ route }: { readonly route: AppRoute }): React.ReactEleme
 
 export function App(): React.ReactElement {
   const [leagueSetupOpen, setLeagueSetupOpen] = React.useState(false);
+  // Load on first open, then stay mounted so the dialog can animate closed.
+  const [leagueSetupLoaded, setLeagueSetupLoaded] = React.useState(false);
+  if (leagueSetupOpen && !leagueSetupLoaded) setLeagueSetupLoaded(true);
   const [connectionDialogOpen, setConnectionDialogOpen] = React.useState(false);
   const setupActions = React.useMemo<DraftSetupActions>(() => ({
     openLeagueSetup: () => { setLeagueSetupOpen(true); },
@@ -186,7 +189,7 @@ export function App(): React.ReactElement {
                 </React.Suspense>
               )}
             />
-            {leagueSetupOpen ? <React.Suspense fallback={null}>
+            {leagueSetupLoaded ? <React.Suspense fallback={null}>
               <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
             </React.Suspense> : null}
             <ShadowRecommendationObserver />

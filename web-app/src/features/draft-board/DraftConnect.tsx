@@ -1054,7 +1054,7 @@ export function DraftConnect({
           }}
         >
           <DialogContent
-            className="inset-y-0 right-0 left-auto grid h-dvh w-[min(440px,100vw)] max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 rounded-none border-y-0 border-r-0 p-0 data-[state=closed]:slide-out-to-right data-[state=closed]:zoom-out-100 data-[state=open]:slide-in-from-right data-[state=open]:zoom-in-100 sm:max-w-none"
+            className="dialog-sheet-right inset-y-0 right-0 left-auto grid h-dvh w-[min(440px,100vw)] max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 rounded-none border-y-0 border-r-0 p-0 sm:max-w-none"
           >
             <DialogHeader className="border-b border-border/70 px-5 py-4 pr-12">
               <DialogTitle>Draft readiness details</DialogTitle>
