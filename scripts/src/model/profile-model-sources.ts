@@ -5,11 +5,13 @@
  */
 
 import { writeFile } from 'node:fs/promises';
+import { Effect } from 'effect';
 import {
   MODEL_DB_PATH,
   MODEL_PATHS,
-  connectModelDb,
+  withModelDb,
 } from './duckdb.js';
+import { io, runMain } from '../effect-runtime.js';
 
 interface CountRow {
   readonly table_name: string;
@@ -58,10 +60,8 @@ function normalizeDuckDbValue(value: unknown): unknown {
   return value;
 }
 
-async function main(): Promise<void> {
-  const connection = await connectModelDb();
-
-  try {
+const program = Effect.gen(function* () {
+  yield* withModelDb((connection) => io(async () => {
     const countsReader = await connection.runAndReadAll(`
       select 'sleeper_adp_current' as table_name, count(*) as row_count from model.sleeper_adp_current
       union all
@@ -139,12 +139,7 @@ async function main(): Promise<void> {
     await writeFile(MODEL_PATHS.profileReportJson, JSON.stringify(report, null, 2));
     console.log(`Profile report written to ${MODEL_PATHS.profileReportJson}`);
     console.log(JSON.stringify(report.coverage, null, 2));
-  } finally {
-    connection.closeSync();
-  }
-}
-
-main().catch((error: unknown) => {
-  console.error('Model profiling failed:', error);
-  process.exit(1);
+  }));
 });
+
+runMain(program, 'Model profiling failed:');

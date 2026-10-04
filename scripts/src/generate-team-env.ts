@@ -9,13 +9,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DuckDBInstance } from '@duckdb/node-api';
+import { Effect } from 'effect';
 import type {
   NFLTeam,
   TeamEnvironment,
   VolumeLevel,
 } from '@fantasy-draft/shared';
 import { NFL_TEAMS } from '@fantasy-draft/shared';
+import { io, runMain } from './effect-runtime.js';
+import { withMemoryDb } from './model/duckdb.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
@@ -159,44 +161,36 @@ function buildEnvironments(rows: readonly TeamStatRow[]): TeamEnvironment[] {
   });
 }
 
-async function fetchTeamStats(): Promise<TeamStatRow[]> {
-  const instance = await DuckDBInstance.create(':memory:');
-  const connection = await instance.connect();
+const fetchTeamStats = withMemoryDb((connection) => io(async () => {
+  const reader = await connection.runAndReadAll(`
+    select
+      team::varchar as team,
+      attempts::double as pass_attempts,
+      carries::double as rush_attempts,
+      (passing_yards + rushing_yards)::double as total_yards,
+      (passing_tds + rushing_tds)::double as offensive_tds,
+      passing_epa::double as passing_epa,
+      rushing_epa::double as rushing_epa
+    from read_parquet('${SOURCE_URL}')
+    where season = ${COMPLETED_SEASON}
+  `);
+  return reader.getRowObjects() as unknown as TeamStatRow[];
+}));
 
-  try {
-    const reader = await connection.runAndReadAll(`
-      select
-        team::varchar as team,
-        attempts::double as pass_attempts,
-        carries::double as rush_attempts,
-        (passing_yards + rushing_yards)::double as total_yards,
-        (passing_tds + rushing_tds)::double as offensive_tds,
-        passing_epa::double as passing_epa,
-        rushing_epa::double as rushing_epa
-      from read_parquet('${SOURCE_URL}')
-      where season = ${COMPLETED_SEASON}
-    `);
-
-    return reader.getRowObjects() as unknown as TeamStatRow[];
-  } finally {
-    connection.closeSync();
-  }
-}
-
-async function main(): Promise<void> {
+const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('Derived Team Environment Generator');
   console.log('='.repeat(50));
 
-  const environments = buildEnvironments(await fetchTeamStats());
+  const environments = buildEnvironments(yield* fetchTeamStats);
   const presentTeams = new Set(environments.map((team) => team.team));
   const missingTeams = NFL_TEAMS.filter((team: NFLTeam) => !presentTeams.has(team));
   if (missingTeams.length > 0 || environments.length !== NFL_TEAMS.length) {
-    throw new Error(`Expected 32 NFL teams. Missing: ${missingTeams.join(', ') || 'unknown'}`);
+    return yield* Effect.fail(new Error(`Expected 32 NFL teams. Missing: ${missingTeams.join(', ') || 'unknown'}`));
   }
 
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(
+  yield* io(() => mkdir(DATA_DIR, { recursive: true }));
+  yield* io(() => writeFile(
     OUTPUT_FILE,
     `${JSON.stringify(
       {
@@ -211,13 +205,10 @@ async function main(): Promise<void> {
       null,
       2
     )}\n`
-  );
+  ));
 
   console.log(`Derived ${String(environments.length)} team environments from ${String(COMPLETED_SEASON)}.`);
   console.log(`Data written to ${OUTPUT_FILE}`);
-}
-
-main().catch((error: unknown) => {
-  console.error('Team environment generation failed:', error);
-  process.exit(1);
 });
+
+runMain(program, 'Team environment generation failed:');

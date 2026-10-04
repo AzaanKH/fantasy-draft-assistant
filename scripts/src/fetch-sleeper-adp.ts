@@ -10,7 +10,9 @@
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { Effect } from 'effect';
+import { fetchJson, io, isEntryPoint, runMain } from './effect-runtime.js';
 import {
   type NFLTeam,
   type Position,
@@ -91,20 +93,11 @@ function isValidTeam(value: string | null): value is NFLTeam {
 /**
  * Fetch all players from Sleeper API
  */
-async function fetchSleeperPlayers(): Promise<Record<string, SleeperPlayer>> {
-  console.log(`Fetching from ${SLEEPER_PLAYERS_URL}...`);
-
-  const response = await fetch(SLEEPER_PLAYERS_URL);
-
-  if (!response.ok) {
-    throw new Error(`Sleeper API error: ${response.status} ${response.statusText}`);
-  }
-
-  const data = (await response.json()) as Record<string, SleeperPlayer>;
-  console.log(`Received ${Object.keys(data).length} total player records`);
-
-  return data;
-}
+// The full player catalog is several megabytes, so allow a slow but bounded download.
+const fetchSleeperPlayers = Effect.sync(() => { console.log(`Fetching from ${SLEEPER_PLAYERS_URL}...`); }).pipe(
+  Effect.andThen(fetchJson<Record<string, SleeperPlayer>>(SLEEPER_PLAYERS_URL, { label: 'Sleeper API', timeoutMs: 60_000 })),
+  Effect.tap((data) => Effect.sync(() => { console.log(`Received ${Object.keys(data).length} total player records`); })),
+);
 
 /**
  * Filter and process players for fantasy relevance
@@ -169,68 +162,62 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
 /**
  * Main function
  */
-async function main(): Promise<void> {
+const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('Sleeper ADP Fetcher');
   console.log('='.repeat(50));
 
-  try {
-    // Fetch raw data
-    const rawData = await fetchSleeperPlayers();
+  // Fetch raw data
+  const rawData = yield* fetchSleeperPlayers;
 
-    // Process and filter
-    const players = processSleeperData(rawData);
-    console.log(`\nProcessed ${players.length} fantasy-relevant players`);
+  // Process and filter
+  const players = processSleeperData(rawData);
+  console.log(`\nProcessed ${players.length} fantasy-relevant players`);
 
-    // Ensure data directory exists
-    await mkdir(DATA_DIR, { recursive: true });
+  // Ensure data directory exists
+  yield* io(() => mkdir(DATA_DIR, { recursive: true }));
 
-    // Write output
-    const output = {
-      fetchedAt: new Date().toISOString(),
-      source: SLEEPER_PLAYERS_URL,
-      signalType: 'search_rank_proxy',
-      caveat: 'Sleeper search_rank is a platform ordering proxy, not observed draft ADP.',
-      playerCount: players.length,
-      players,
-    };
+  // Write output
+  const output = {
+    fetchedAt: new Date().toISOString(),
+    source: SLEEPER_PLAYERS_URL,
+    signalType: 'search_rank_proxy',
+    caveat: 'Sleeper search_rank is a platform ordering proxy, not observed draft ADP.',
+    playerCount: players.length,
+    players,
+  };
 
-    await writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2));
-    console.log(`\nData written to ${OUTPUT_FILE}`);
+  yield* io(() => writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2)));
+  console.log(`\nData written to ${OUTPUT_FILE}`);
 
-    // Summary stats
-    const positionCounts = players.reduce<Record<string, number>>(
-      (acc, p) => {
-        acc[p.position] = (acc[p.position] ?? 0) + 1;
-        return acc;
-      },
-      {}
-    );
+  // Summary stats
+  const positionCounts = players.reduce<Record<string, number>>(
+    (acc, p) => {
+      acc[p.position] = (acc[p.position] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
 
-    console.log('\nPosition breakdown:');
-    const entries = Object.entries(positionCounts);
-    entries.sort((a, b) => b[1] - a[1]);
-    for (const entry of entries) {
-      console.log(`  ${entry[0]}: ${entry[1]}`);
-    }
-
-    // Show top 20 by ADP
-    console.log('\nTop 20 by Sleeper ADP:');
-    players.slice(0, 20).forEach((p, i) => {
-      console.log(`  ${i + 1}. ${p.name} (${p.team}) - ${p.position} - ADP: ${p.sleeperAdp}`);
-    });
-  } catch (error) {
-    console.error('Fetching failed:', error);
-    process.exit(1);
+  console.log('\nPosition breakdown:');
+  const entries = Object.entries(positionCounts);
+  entries.sort((a, b) => b[1] - a[1]);
+  for (const entry of entries) {
+    console.log(`  ${entry[0]}: ${entry[1]}`);
   }
-}
+
+  // Show top 20 by ADP
+  console.log('\nTop 20 by Sleeper ADP:');
+  players.slice(0, 20).forEach((p, i) => {
+    console.log(`  ${i + 1}. ${p.name} (${p.team}) - ${p.position} - ADP: ${p.sleeperAdp}`);
+  });
+});
 
 export const sleeperDataInternals = {
   normalizeSleeperPosition,
   isExcludedSleeperStatus,
 };
 
-const entryPoint = process.argv[1];
-if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
-  void main();
+if (isEntryPoint(import.meta.url)) {
+  runMain(program, 'Fetching failed:');
 }

@@ -7,7 +7,9 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { Effect } from 'effect';
+import { fetchJson, HttpRequestError, io, isEntryPoint, runMain } from './effect-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
@@ -316,37 +318,14 @@ function isArrayOf<T>(validator: Validator<T>): Validator<readonly T[]> {
     Array.isArray(value) && value.every((entry) => validator(entry));
 }
 
-async function fetchJson<T>(
-  path: string,
-  validator: Validator<T>,
-  timeoutMs: number = FETCH_TIMEOUT_MS
-): Promise<T> {
+function sleeperRequest<T>(path: string, validator: Validator<T>): Effect.Effect<T, HttpRequestError> {
   const url = `${SLEEPER_API_BASE}${path}`;
-  let response: Response;
-
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-  } catch (error) {
-    if (
-      error instanceof DOMException &&
-      (error.name === 'TimeoutError' || error.name === 'AbortError')
-    ) {
-      throw new Error(`Sleeper request timed out after ${timeoutMs}ms for ${url}`);
-    }
-
-    throw error;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Sleeper request failed: ${response.status} ${response.statusText} for ${url}`);
-  }
-
-  const data = (await response.json()) as unknown;
-  if (!validator(data)) {
-    throw new Error(`Sleeper response did not match expected shape for ${url}`);
-  }
-
-  return data;
+  return fetchJson<unknown>(url, { label: 'Sleeper', timeoutMs: FETCH_TIMEOUT_MS }).pipe(
+    Effect.filterOrFail(validator, () => new HttpRequestError({
+      message: `Sleeper response did not match expected shape for ${url}`,
+      url,
+    })),
+  );
 }
 
 async function writeJson(path: string, data: unknown): Promise<void> {
@@ -578,32 +557,32 @@ function buildWarnings(seasons: readonly LeagueSeasonHistory[]): readonly string
   return warnings;
 }
 
-async function importSeason(config: LeagueDraftConfig): Promise<LeagueSeasonHistory> {
-  const [draft, picks, league, rosters, users] = await Promise.all([
-    fetchJson<SleeperDraft>(`/draft/${config.draftId}`, isSleeperDraft),
-    fetchJson<readonly SleeperDraftPick[]>(
+const importSeason = Effect.fn('importSeason')(function* (config: LeagueDraftConfig) {
+  const [draft, picks, league, rosters, users] = yield* Effect.all([
+    sleeperRequest<SleeperDraft>(`/draft/${config.draftId}`, isSleeperDraft),
+    sleeperRequest<readonly SleeperDraftPick[]>(
       `/draft/${config.draftId}/picks`,
       isArrayOf(isSleeperDraftPick)
     ),
-    fetchJson<SleeperLeague>(`/league/${config.leagueId}`, isSleeperLeague),
-    fetchJson<readonly SleeperRoster[]>(
+    sleeperRequest<SleeperLeague>(`/league/${config.leagueId}`, isSleeperLeague),
+    sleeperRequest<readonly SleeperRoster[]>(
       `/league/${config.leagueId}/rosters`,
       isArrayOf(isSleeperRoster)
     ),
-    fetchJson<readonly SleeperUser[]>(
+    sleeperRequest<readonly SleeperUser[]>(
       `/league/${config.leagueId}/users`,
       isArrayOf(isSleeperUser)
     ),
-  ]);
+  ], { concurrency: 'unbounded' });
   const resolvedTeamCount = draft.settings.teams ?? league.settings.num_teams ?? null;
 
-  await Promise.all([
+  yield* io(() => Promise.all([
     writeJson(join(RAW_DIR, `${config.season}-draft.json`), sanitizeRawValue(draft)),
     writeJson(join(RAW_DIR, `${config.season}-picks.json`), sanitizeRawValue(picks)),
     writeJson(join(RAW_DIR, `${config.season}-league.json`), sanitizeRawValue(league)),
     writeJson(join(RAW_DIR, `${config.season}-rosters.json`), sanitizeRawValue(rosters)),
     writeJson(join(RAW_DIR, `${config.season}-users.json`), sanitizeRawValue(users)),
-  ]);
+  ]));
 
   const { rosterIdToOwner, rawUserIdToDisplayName, sanitizedUserIdToDisplayName } =
     buildUserMaps(rosters, users);
@@ -616,7 +595,7 @@ async function importSeason(config: LeagueDraftConfig): Promise<LeagueSeasonHist
   );
   const userPicks = cleanSeasonPicks.filter((pick) => pick.isUserPick);
 
-  return {
+  const history: LeagueSeasonHistory = {
     season: config.season,
     leagueId: league.league_id,
     leagueName: league.name,
@@ -646,13 +625,15 @@ async function importSeason(config: LeagueDraftConfig): Promise<LeagueSeasonHist
     picks: cleanSeasonPicks,
     userPicks,
   };
-}
+  return history;
+});
 
-async function main(): Promise<void> {
-  await mkdir(RAW_DIR, { recursive: true });
+const program = Effect.gen(function* () {
+  yield* io(() => mkdir(RAW_DIR, { recursive: true }));
 
   console.log('Importing historical Sleeper drafts...');
-  const seasons = await Promise.all(LEAGUE_DRAFTS.map((config) => importSeason(config)));
+  // Five requests per season; two seasons at a time keeps bursts small for Sleeper.
+  const seasons = yield* Effect.forEach(LEAGUE_DRAFTS, importSeason, { concurrency: 2 });
   const sortedSeasons = [...seasons].sort((a, b) => a.season - b.season);
   const totalPicks = sortedSeasons.reduce((sum, season) => sum + season.picks.length, 0);
   const userPicks = sortedSeasons.reduce((sum, season) => sum + season.userPicks.length, 0);
@@ -671,21 +652,13 @@ async function main(): Promise<void> {
     },
   };
 
-  await writeJson(OUTPUT_FILE, leagueDraftHistory);
+  yield* io(() => writeJson(OUTPUT_FILE, leagueDraftHistory));
 
   console.log(`Wrote ${OUTPUT_FILE}`);
   console.log(`Imported ${totalPicks} picks across ${sortedSeasons.length} seasons.`);
   console.log(`Cleaned user-pick rows: ${userPicks}.`);
-}
+});
 
-function isCliEntryPoint(): boolean {
-  const entryPoint = process.argv[1];
-  return Boolean(entryPoint && import.meta.url === pathToFileURL(entryPoint).href);
-}
-
-if (isCliEntryPoint()) {
-  main().catch((error: unknown) => {
-    console.error(error);
-    process.exit(1);
-  });
+if (isEntryPoint(import.meta.url)) {
+  runMain(program);
 }
