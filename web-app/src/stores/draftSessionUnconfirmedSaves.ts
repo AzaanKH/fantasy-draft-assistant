@@ -32,7 +32,7 @@ type FieldChanges = {
   };
 };
 
-export interface DraftPickChange {
+interface DraftPickChange {
   readonly pickNumber: number;
   readonly before: RecordedDraftPick | null;
   readonly after: RecordedDraftPick | null;
@@ -67,7 +67,7 @@ function getUnconfirmedSaveKeyPrefix(identity: DraftSessionIdentity): string {
 }
 
 /** Each tab keeps its latest save under its own key, which no other tab writes. */
-export function getUnconfirmedSaveKey(identity: DraftSessionIdentity, tabId: string): string {
+function getUnconfirmedSaveKey(identity: DraftSessionIdentity, tabId: string): string {
   return `${getUnconfirmedSaveKeyPrefix(identity)}${tabId}`;
 }
 
@@ -80,7 +80,7 @@ function isText(value: unknown): value is string {
 }
 
 /** Deep equality for JSON data; key order and undefined properties are ignored. */
-export function isSameSessionValue(left: unknown, right: unknown): boolean {
+function isSameSessionValue(left: unknown, right: unknown): boolean {
   if (left === right) return true;
   if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null ||
       Array.isArray(left) !== Array.isArray(right)) return false;

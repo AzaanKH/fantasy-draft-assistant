@@ -5,7 +5,7 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const LOCAL_SYNC_TOKEN_PATH = fileURLToPath(new URL('../../.local/sync-token', import.meta.url));
+const LOCAL_SYNC_TOKEN_PATH = fileURLToPath(new URL('../../.local/sync-token', import.meta.url));
 
 /** Shared by the Node server and Vite configuration, never imported by browser code. */
 export function getLocalSyncToken(

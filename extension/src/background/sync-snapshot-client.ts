@@ -11,7 +11,7 @@ export interface SyncSnapshotClient {
   publishEspnSnapshot(snapshot: EspnDraftSnapshot): Promise<DraftSyncSnapshot>;
 }
 
-export const DEFAULT_SYNC_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_SYNC_REQUEST_TIMEOUT_MS = 10_000;
 
 export function buildSyncSnapshotUrl(
   serverUrl: string,

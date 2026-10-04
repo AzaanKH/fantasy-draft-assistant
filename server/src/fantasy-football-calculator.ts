@@ -11,7 +11,7 @@ import {
 import type { FetchJson } from './sync-adapter.js';
 
 export const FFC_API_BASE = 'https://fantasyfootballcalculator.com/api/v1/adp';
-export const DEFAULT_MARKET_ADP_CACHE_MS = 60 * 60 * 1000;
+const DEFAULT_MARKET_ADP_CACHE_MS = 60 * 60 * 1000;
 
 interface CacheEntry {
   readonly expiresAt: number;

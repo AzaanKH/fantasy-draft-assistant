@@ -105,7 +105,7 @@ export function normalizePlayerName(name: string): string {
 /**
  * Create a lookup key for matching players
  */
-export function createPlayerKey(name: string, team: NFLTeam): string {
+function createPlayerKey(name: string, team: NFLTeam): string {
   return `${normalizePlayerName(name)}|${team}`;
 }
 

@@ -32,8 +32,8 @@ export { SLEEPER_API_BASE };
 export type { FetchJson };
 
 export const DEFAULT_POLL_INTERVAL_MS = 1000;
-export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-export const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
   new URL('../../data/shadow-logs/2026-recommendations.ndjson', import.meta.url)
 );
 const DEFAULT_CURRENT_KEEPERS_PATH = fileURLToPath(
@@ -414,7 +414,7 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   return JSON.parse(body) as unknown;
 }
 
-export async function defaultFetchJson<T>(
+async function defaultFetchJson<T>(
   url: string,
   signal: AbortSignal,
   init: RequestInit = {}

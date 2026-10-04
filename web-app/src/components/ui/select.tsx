@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-export interface SelectOption {
+interface SelectOption {
   readonly value: string;
   readonly label: string;
   readonly disabled?: boolean;

@@ -118,7 +118,7 @@ export const POSITION_MODEL_SPECIFICATIONS = [
   },
 ] as const;
 
-export type PositionModelSpecificationId =
+type PositionModelSpecificationId =
   (typeof POSITION_MODEL_SPECIFICATIONS)[number]['id'];
 
 export const POSITION_MODEL_LAMBDA_CANDIDATES = [

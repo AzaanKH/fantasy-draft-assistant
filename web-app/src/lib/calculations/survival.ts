@@ -11,13 +11,13 @@ const POSITION_LABELS: Record<Position, string> = {
 };
 
 /** Primary League history remains the largest direct input to the timing estimate. */
-export const RETURN_PROBABILITY_EVIDENCE_WEIGHTS = {
+const RETURN_PROBABILITY_EVIDENCE_WEIGHTS = {
   leagueHistory: 0.7,
   consensusMarket: 0.25,
   sleeperTiming: 0.05,
 } as const;
 
-export interface LeagueSurvivalPositionSummary {
+interface LeagueSurvivalPositionSummary {
   readonly position: Position;
   readonly leagueMedianPick: number;
   readonly sleeperMedianPick: number;
@@ -27,7 +27,7 @@ export interface LeagueSurvivalPositionSummary {
   readonly sampleSize: number;
 }
 
-export interface LeagueSurvivalAdpBucket {
+interface LeagueSurvivalAdpBucket {
   readonly label: string;
   readonly minPick: number;
   readonly maxPick: number;
@@ -38,7 +38,7 @@ export interface LeagueSurvivalAdpBucket {
   }>;
 }
 
-export interface LeagueSurvivalManagerTendency {
+interface LeagueSurvivalManagerTendency {
   readonly managerKey: string;
   readonly draftSlots: readonly number[];
   readonly sampleSize: number;

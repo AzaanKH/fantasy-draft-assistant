@@ -1,6 +1,6 @@
 import type { FantasyProsSnapshot } from '@fantasy-draft/shared';
 
-export interface FantasyProsProvider {
+interface FantasyProsProvider {
   getSnapshot(): Promise<FantasyProsSnapshot>;
 }
 
