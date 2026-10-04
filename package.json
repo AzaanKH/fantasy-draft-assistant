@@ -20,6 +20,7 @@
     "build": "pnpm --filter @fantasy-draft/shared build && pnpm -r --filter '!@fantasy-draft/shared' build",
     "build:web": "pnpm --filter web-app build",
     "measure:web-bundle": "pnpm build:web && pnpm --filter scripts measure:web-bundle",
+    "measure:effect-adoption": "pnpm --filter scripts measure:effect-adoption",
     "build:server": "pnpm --filter server build",
     "build:extension": "pnpm --filter extension build",
     "typecheck": "pnpm --filter @fantasy-draft/shared build && pnpm run -r typecheck",

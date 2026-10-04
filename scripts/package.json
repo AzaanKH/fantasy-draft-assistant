@@ -18,6 +18,7 @@
     "primary-league:release-gate": "tsx src/primary-league-release-gate.ts",
     "check:dev-ports": "tsx src/check-dev-ports.ts",
     "measure:web-bundle": "tsx src/measure-web-bundle.ts",
+    "measure:effect-adoption": "tsx src/measure-effect-adoption.ts",
     "import:league-history": "tsx src/import-league-draft-history.ts",
     "build:league-survival": "tsx src/build-league-survival-model.ts",
     "generate:team-env": "tsx src/generate-team-env.ts",
