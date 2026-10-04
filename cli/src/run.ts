@@ -1,16 +1,16 @@
-import { setTimeout as delay } from 'node:timers/promises';
 import { resolve } from 'node:path';
+import { Cause, Effect, Exit, Result, Stream } from 'effect';
 import { createDefaultLeagueSettings, type DraftReadinessReport, type Recommendation } from '@fantasy-draft/shared';
 import { buildDraftReadinessReport } from '../../scripts/src/draft-readiness-report';
 import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
 import { getComparisonHighlights, getAvailabilitySignal, getWaitAnswer } from '@/features/assistant/assistant-analysis';
 import { getComparisonMetrics } from '@/features/assistant/comparison-metrics';
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
-import { invocationMode, parseArguments, parseSession, HELP, type Arguments } from './arguments';
+import { invocationMode, parseArguments, parseSession, HELP, type Arguments, type SessionId } from './arguments';
 import { DraftClient, readPairingToken } from './client';
 import { loadDraftData, loadJson, resolveKeepers, type DraftData } from './data';
 import { connectedSettings, createSessionContext, withConnectedReadiness, withLocalKeeperReadiness, replaceCoreReadiness, requireAdvice, adviceBoard, type SessionContext } from './context';
-import { CliError, required } from './errors';
+import { attempt, CliError, required, unexpected } from './errors';
 import { EMPTY_CONNECTIONS, loadConnections, saveConnection } from './connections';
 import { archivedData, createArchive, readArchive, replayBoundaries, replaySnapshot, saveArchive, type SessionArchive } from './archive';
 import { inspectRoster } from './roster';
@@ -58,37 +58,37 @@ function playerSummary(recommendation: Recommendation) {
   };
 }
 
-async function watch(args: Arguments, client: DraftClient, io: Output, runtime: Runtime): Promise<void> {
-  const session = required(args.session, 'draft session');
+const write = (output: Output['stdout'], text: string) => Effect.promise(async () => { await output(text); });
+
+// These failures will repeat on every attempt, so reconnecting would only hide them.
+const FATAL_STREAM_ERRORS = new Set(['PAIRING_REJECTED', 'INVALID_STREAM', 'SERVER_ERROR']);
+
+const watch = Effect.fn('watch')(function* (session: SessionId, client: DraftClient, io: Output, now: () => number) {
   let sequence = 0;
   let failures = 0;
-  const now = runtime.now ?? Date.now;
-  const emit = async (event: unknown) => io.stdout(`${JSON.stringify({ schemaVersion: 1, command: 'watch',
-    session: session.id, sequence: ++sequence, receivedAt: new Date(now()).toISOString(), ...event as object })}\n`);
-  while (!runtime.signal.aborted) {
-    try {
-      for await (const update of client.events(session, runtime.signal)) {
-        failures = 0;
-        await emit(update);
-      }
-      if (runtime.signal.aborted) return;
-    } catch (error) {
-      if (runtime.signal.aborted) return;
-      if (error instanceof CliError && ['PAIRING_REJECTED', 'INVALID_STREAM', 'SERVER_ERROR'].includes(error.code)) throw error;
-    }
+  const emit = (event: object) => write(io.stdout, `${JSON.stringify({ schemaVersion: 1, command: 'watch',
+    session: session.id, sequence: ++sequence, receivedAt: new Date(now()).toISOString(), ...event })}\n`);
+  for (;;) {
+    yield* client.events(session).pipe(
+      Stream.runForEach(update => { failures = 0; return emit(update); }),
+      Effect.catchIf(error => !FATAL_STREAM_ERRORS.has(error.code), () => Effect.void),
+    );
     const retryInMs = Math.min(30_000, 1000 * 2 ** Math.min(failures++, 5));
-    await emit({ type: 'reconnecting', retryInMs });
-    await delay(retryInMs, undefined, { signal: runtime.signal }).catch((error: unknown) => {
-      if (!runtime.signal.aborted) throw error;
-    });
+    yield* emit({ type: 'reconnecting', retryInMs });
+    yield* Effect.sleep(retryInMs);
   }
-}
+});
 
-async function execute(args: Arguments, client: DraftClient | null, runtime: Runtime): Promise<{ data: unknown; exitCode: number }> {
+const buildReadiness = (now: number, root: string) => Effect.tryPromise({
+  try: () => buildDraftReadinessReport(now, root), catch: unexpected,
+});
+
+const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftClient | null, runtime: Runtime) {
   let now = (runtime.now ?? Date.now)();
   const root = resolve(runtime.root);
   if (args.command === 'sessions') {
-    const [sessions, saved] = await Promise.all([required(client, 'server client').sessions(runtime.signal), loadConnections(root)]);
+    const [sessions, saved] = yield* Effect.all([required(client, 'server client').sessions(), loadConnections(root)],
+      { concurrency: 'unbounded' });
     return { data: { serverUrl: args.serverUrl, total: sessions.length,
       activeSession: saved.activeSession, sessions: sessions.map(session => {
         const connection = saved.connections.find(row => row.session === session.session && row.serverUrl === args.serverUrl);
@@ -97,56 +97,61 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
       }) }, exitCode: 0 };
   }
   if (args.command === 'readiness' && !args.session && !args.replayFile) {
-    let readiness = await buildDraftReadinessReport(now, root);
+    let readiness = yield* buildReadiness(now, root);
     let data: DraftData | null = null;
     const warnings: string[] = [];
-    try {
-      data = await loadDraftData(root, createDefaultLeagueSettings(now), 14);
+    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14));
+    if (Result.isSuccess(loaded)) {
+      data = loaded.success;
       readiness = withLocalKeeperReadiness(readiness, data, now);
-    } catch (error) {
-      readiness = markInvalidCoreData(readiness, error);
-      warnings.push(error instanceof Error ? error.message : 'The local player pool is unavailable.');
+    } else {
+      readiness = markInvalidCoreData(readiness, loaded.failure);
+      warnings.push(loaded.failure.message);
     }
     return { data: { scope: 'local-data', readyForAdvice: null, readiness,
-      settings: await loadJson(root, 'data/primary-league-settings.json'),
+      settings: yield* loadJson(root, 'data/primary-league-settings.json'),
       keepers: data ? { ...data.keeperStatus, error: data.keeperStatus.error?.message ?? null } : null,
       warnings }, exitCode: readiness.status === 'blocked' ? 3 : 0 };
   }
   let archive: SessionArchive | null = null;
   if (args.replayFile) {
-    archive = await readArchive(args.replayFile);
+    archive = yield* readArchive(args.replayFile);
     now = Date.parse(archive.capturedAt);
     args = { ...args, session: parseSession(archive.session), slot: args.slot ?? archive.slot ?? undefined };
   }
   const session = required(args.session, 'draft session');
-  const snapshot = archive ? replaySnapshot(archive, args.pick) : await required(client, 'server client').snapshot(session, runtime.signal);
+  const replay = archive;
+  const snapshot = replay ? yield* attempt(() => replaySnapshot(replay, args.pick)) : yield* required(client, 'server client').snapshot(session);
   const settings = connectedSettings(snapshot, now);
   const rounds = snapshot.draft?.settings.rounds ?? 14;
   const warnings: string[] = [...(archive?.warnings ?? [])];
   let data: DraftData | null = archive ? archivedData(archive) : null;
-  let localReadiness = archive?.readiness ?? (['status', 'connect'].includes(args.command) ? null : await buildDraftReadinessReport(now, root));
+  let localReadiness = archive?.readiness ?? (['status', 'connect'].includes(args.command) ? null : yield* buildReadiness(now, root));
   const needsMarket = !archive && ['players', 'recommend', 'compare', 'wait', 'roster', 'export'].includes(args.command);
-  const market = needsMarket ? await required(client, 'server client').marketAdp(settings, new Date(now).getUTCFullYear(), runtime.signal) : { players: [] };
+  const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, new Date(now).getUTCFullYear()) : { players: [] };
   if (market.warning) warnings.push(market.warning);
-  try { if (!archive) data = await loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type); }
-  catch (error) {
-    if (!['status', 'readiness', 'connect'].includes(args.command)) {
-      if (error instanceof CliError) throw new CliError(error.code, error.message, error.exitCode, { readiness: localReadiness });
-      throw error;
+  if (!archive) {
+    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type));
+    if (Result.isSuccess(loaded)) data = loaded.success;
+    else {
+      const error = loaded.failure;
+      if (!['status', 'readiness', 'connect'].includes(args.command)) {
+        return yield* new CliError(error.code, error.message, error.exitCode, { readiness: localReadiness });
+      }
+      if (localReadiness) localReadiness = markInvalidCoreData(localReadiness, error);
+      warnings.push(error.message);
     }
-    if (localReadiness) localReadiness = markInvalidCoreData(localReadiness, error);
-    warnings.push(error instanceof Error ? error.message : 'The local player pool is unavailable.');
   }
-  const context = createSessionContext(snapshot, data, args.slot, now);
+  const slot = args.slot;
+  const context = yield* attempt(() => createSessionContext(snapshot, data, slot, now));
   const origin = archive ? { source: 'replay', replay: { file: resolve(required(args.replayFile, 'replay file')),
     capturedAt: archive.capturedAt, requestedPick: args.pick ?? null } } : { source: 'live' };
   if (args.command === 'connect') {
     const waitingForObservation = session.provider === 'espn' && snapshot.draft === null;
     if (!waitingForObservation && (snapshot.draft === null || context.sync.health !== 'healthy')) {
-      throw new CliError('CONNECTION_FAILED', 'The provider draft could not be connected. Check the draft ID and provider availability.', 1, { sync: context.sync });
+      return yield* new CliError('CONNECTION_FAILED', 'The provider draft could not be connected. Check the draft ID and provider availability.', 1, { sync: context.sync });
     }
-    runtime.signal.throwIfAborted();
-    const configFile = await saveConnection(root, session, args.slot, args.serverUrl, now);
+    const configFile = yield* saveConnection(root, session, args.slot, args.serverUrl, now);
     return { data: { ...statusData(context, session.id, warnings), ...origin,
       connected: !waitingForObservation, waitingForObservation, activeSession: session.id, configFile,
       ...(waitingForObservation ? { nextAction: 'Keep the signed-in ESPN draft tab open with the paired extension to provide draft observations.' } : {}) }, exitCode: 0 };
@@ -170,25 +175,24 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
       keepers: { ...readinessData.keeperStatus, error: readinessData.keeperStatus.error?.message ?? null },
       sync: context.sync, warnings }, exitCode: readyForAdvice ? 0 : 3 };
   }
-  if (!snapshot.draft) throw new CliError('SESSION_NOT_READY', 'The draft has no provider metadata yet. Check draft status and restore the provider connection.');
+  if (!snapshot.draft) return yield* new CliError('SESSION_NOT_READY', 'The draft has no provider metadata yet. Check draft status and restore the provider connection.');
   // Commands past this point rethrow player-data failures above, so the pool is always loaded.
   const pool = required(data, 'player data');
   if (args.command === 'export') {
-    runtime.signal.throwIfAborted();
     const file = resolve(required(args.outputFile, 'output file'));
     const saved = createArchive(snapshot, pool, readiness, args.slot, warnings, now);
-    await saveArchive(file, saved, args.force);
+    yield* saveArchive(file, saved, args.force);
     return { data: { ...origin, session: session.id, file, capturedAt: saved.capturedAt,
       currentPick: context.currentPick, picksRecorded: snapshot.picks.length, playersRecorded: pool.players.length,
       slot: args.slot ?? null, readinessStatus: readiness.status }, exitCode: 0 };
   }
   if (args.command === 'replay') {
     return { data: { ...statusData(context, session.id, warnings), ...origin,
-      snapshot, readiness, ...(context.slot === null ? {} : { rosterInspection: inspectRoster(context, pool) }) }, exitCode: 0 };
+      snapshot, readiness, ...(context.slot === null ? {} : { rosterInspection: yield* attempt(() => inspectRoster(context, pool)) }) }, exitCode: 0 };
   }
   if (args.command === 'roster') {
     return { data: { session: session.id, ...origin, currentPick: context.currentPick,
-      sync: context.sync, readiness, warnings, ...inspectRoster(context, pool) }, exitCode: 0 };
+      sync: context.sync, readiness, warnings, ...yield* attempt(() => inspectRoster(context, pool)) }, exitCode: 0 };
   }
   if (args.command === 'players') {
     let players = [...(args.available ? context.availablePlayers : pool.players)];
@@ -206,7 +210,7 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
         availability: context.unresolvedPicks.length > 0 ? 'unverified' : context.draftedIds.has(player.id) ? 'taken' : 'available' })),
       readiness, unresolvedPicks: context.unresolvedPicks, warnings }, exitCode: 0 };
   }
-  requireAdvice(context, readiness);
+  yield* attempt(() => { requireAdvice(context, readiness); });
   const board = adviceBoard(context, pool);
   const decision = createDraftDecisionOutput(board.recommendations.draftNow, board.recommendations.selection,
     board.recommendations.bestAvailable, args.lens);
@@ -224,17 +228,17 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
         explanation: decision.selectedView.explanationByPlayerId.get(recommendation.playerId) ?? recommendation.reason,
       })), needs: board.needs }, exitCode: 0 };
   }
-  if (!board.hasDecision) throw new CliError('NO_REMAINING_PICK', 'You have no draft selection remaining.');
-  const find = (id: string): Recommendation => {
-    if (!pool.players.some(player => player.id === id)) throw new CliError('PLAYER_NOT_FOUND', `Unknown player ID ${id}. Use draft players to find stable IDs.`, 2);
-    if (context.draftedIds.has(id)) throw new CliError('PLAYER_UNAVAILABLE', `Player ${id} is drafted or reserved as a keeper.`, 2);
+  if (!board.hasDecision) return yield* new CliError('NO_REMAINING_PICK', 'You have no draft selection remaining.');
+  const find = (id: string): Effect.Effect<Recommendation, CliError> => {
+    if (!pool.players.some(player => player.id === id)) return Effect.fail(new CliError('PLAYER_NOT_FOUND', `Unknown player ID ${id}. Use draft players to find stable IDs.`, 2));
+    if (context.draftedIds.has(id)) return Effect.fail(new CliError('PLAYER_UNAVAILABLE', `Player ${id} is drafted or reserved as a keeper.`, 2));
     const recommendation = recommendations.find(candidate => candidate.playerId === id);
-    if (!recommendation) throw new CliError('PLAYER_INELIGIBLE', `Player ${id} cannot fill a remaining roster slot under this decision lens.`, 2);
-    return recommendation;
+    if (!recommendation) return Effect.fail(new CliError('PLAYER_INELIGIBLE', `Player ${id} cannot fill a remaining roster slot under this decision lens.`, 2));
+    return Effect.succeed(recommendation);
   };
-  const first = find(required(args.playerIds[0], 'player ID'));
+  const first = yield* find(required(args.playerIds[0], 'player ID'));
   if (args.command === 'compare') {
-    const second = find(required(args.playerIds[1], 'second player ID'));
+    const second = yield* find(required(args.playerIds[1], 'second player ID'));
     const firstRank = required(decision.selectedView.rankByPlayerId.get(first.playerId), 'player rank');
     const secondRank = required(decision.selectedView.rankByPlayerId.get(second.playerId), 'player rank');
     return { data: { ...common, players: [playerSummary(first), playerSummary(second)],
@@ -254,48 +258,57 @@ async function execute(args: Arguments, client: DraftClient | null, runtime: Run
     // Same answer as the Assistant's Can I wait? tab.
     answerHeadline: getWaitAnswer(first).headline,
     answers: getWaitAnswer(first).rows }, exitCode: 0 };
-}
+});
 
-async function replayStream(args: Arguments, io: Output, runtime: Runtime): Promise<void> {
-  const archive = await readArchive(required(args.replayFile, 'replay file'));
-  const boundaries = args.pick === undefined ? replayBoundaries(archive) : [args.pick];
+const replayStream = Effect.fn('replayStream')(function* (replayFile: string, pick: number | undefined, io: Output) {
+  const archive = yield* readArchive(replayFile);
+  const boundaries = pick === undefined ? yield* attempt(() => replayBoundaries(archive)) : [pick];
   let sequence = 0;
-  for (const pick of boundaries) {
-    if (runtime.signal.aborted) return;
-    await io.stdout(`${JSON.stringify({ schemaVersion: 1, command: 'replay', session: archive.session,
-      sequence: ++sequence, source: 'replay', capturedAt: archive.capturedAt, cursorPick: pick,
-      type: 'snapshot', snapshot: replaySnapshot(archive, pick) })}\n`);
+  for (const cursorPick of boundaries) {
+    const snapshot = yield* attempt(() => replaySnapshot(archive, cursorPick));
+    yield* write(io.stdout, `${JSON.stringify({ schemaVersion: 1, command: 'replay', session: archive.session,
+      sequence: ++sequence, source: 'replay', capturedAt: archive.capturedAt, cursorPick,
+      type: 'snapshot', snapshot })}\n`);
   }
-}
+});
 
 export async function runDraft(argv: readonly string[], io: Output, runtime: Runtime): Promise<number> {
-  let args: Arguments | null = null;
+  let command: string | null = argv[0] ?? null;
   // JSON errors stay on stdout, including parser and connection failures.
   const machineOutput = argv.includes('--json') || argv.includes('--format=ndjson') ||
     argv.includes('ndjson') || argv[0] === 'watch';
-  try {
-    const mode = invocationMode(argv);
-    const connections = mode === 'live' ? await loadConnections(runtime.root) : EMPTY_CONNECTIONS;
-    args = parseArguments(argv, runtime.env, { session: connections.activeSession ?? undefined, connections: connections.connections });
-    if (!args) { await io.stdout(HELP); return 0; }
-    const token = !args.replayFile && (args.session || args.command === 'sessions') ? await readPairingToken(runtime.root, runtime.env) : null;
+  const program = Effect.gen(function* () {
+    const mode = yield* attempt(() => invocationMode(argv));
+    const connections = mode === 'live' ? yield* loadConnections(runtime.root) : EMPTY_CONNECTIONS;
+    const args = yield* attempt(() => parseArguments(argv, runtime.env,
+      { session: connections.activeSession ?? undefined, connections: connections.connections }));
+    if (!args) { yield* write(io.stdout, HELP); return 0; }
+    command = args.command;
+    const token = !args.replayFile && (args.session || args.command === 'sessions') ? yield* readPairingToken(runtime.root, runtime.env) : null;
     const client = token ? new DraftClient(args.serverUrl, token) : null;
-    if (args.command === 'watch') { await watch(args, required(client, 'server client'), io, runtime); return 0; }
-    if (args.command === 'replay' && args.format === 'ndjson') { await replayStream(args, io, runtime); return 0; }
-    const result = await execute(args, client, runtime);
-    if (runtime.signal.aborted) return 0;
-    if (args.json) await io.stdout(`${JSON.stringify(envelope(args.command, result.data))}\n`);
-    else await io.stdout(`${renderText(args.command, result.data)}\n`);
+    if (args.command === 'watch') {
+      return yield* watch(required(args.session, 'draft session'), required(client, 'server client'), io, runtime.now ?? Date.now);
+    }
+    if (args.command === 'replay' && args.format === 'ndjson') {
+      yield* replayStream(required(args.replayFile, 'replay file'), args.pick, io);
+      return 0;
+    }
+    const result = yield* execute(args, client, runtime);
+    if (args.json) yield* write(io.stdout, `${JSON.stringify(envelope(args.command, result.data))}\n`);
+    else yield* write(io.stdout, `${renderText(args.command, result.data)}\n`);
     return result.exitCode;
-  } catch (error) {
-    if (runtime.signal.aborted) return 0;
-    const failure = error instanceof CliError ? error : new CliError('COMMAND_FAILED',
-      error instanceof Error ? error.message : 'The command failed.');
-    if (machineOutput) await io.stdout(`${JSON.stringify({ schemaVersion: 1, command: args?.command ?? argv[0] ?? null,
-      error: { code: failure.code, message: failure.message, ...(failure.details === undefined ? {} : { details: failure.details }) } })}\n`);
-    else await io.stderr(`${failure.code}: ${failure.message}\n`);
-    return failure.exitCode;
-  }
+  }).pipe(Effect.catchCause(cause => {
+    if (Cause.hasInterruptsOnly(cause)) return Effect.failCause(cause);
+    const error = Cause.squash(cause);
+    const failure = error instanceof CliError ? error : unexpected(error);
+    return write(machineOutput ? io.stdout : io.stderr, machineOutput
+      ? `${JSON.stringify({ schemaVersion: 1, command, error: { code: failure.code, message: failure.message,
+        ...(failure.details === undefined ? {} : { details: failure.details }) } })}\n`
+      : `${failure.code}: ${failure.message}\n`).pipe(Effect.as(failure.exitCode));
+  }));
+  const exit = await Effect.runPromiseExit(program, { signal: runtime.signal });
+  // Stopping the command, by signal or a closed output pipe, is a clean exit.
+  return Exit.isSuccess(exit) && !runtime.signal.aborted ? exit.value : 0;
 }
 
 function renderText(command: string, value: unknown): string {
