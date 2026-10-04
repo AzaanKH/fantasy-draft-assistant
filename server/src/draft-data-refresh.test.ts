@@ -103,6 +103,11 @@ describe('DraftDataRefreshJob timeouts', () => {
 
 describe('refresh script processes', () => {
   const isAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  // A killed orphan stays visible as a zombie until init reaps it, which takes a moment.
+  const isReaped = async (pid: number) => {
+    for (let waited = 0; waited < 1000 && isAlive(pid); waited += 20) await new Promise((resolve) => setTimeout(resolve, 20));
+    return !isAlive(pid);
+  };
 
   it('escalates to SIGKILL and waits for exit when a script ignores SIGTERM', async () => {
     let output = '';
@@ -129,5 +134,19 @@ describe('refresh script processes', () => {
       expect(exit._tag).toBe('Failure');
       expect(output.endsWith('last line\n')).toBe(true);
     } finally { mirror.mockRestore(); }
+  });
+
+  it.skipIf(process.platform === 'win32')('stops descendants that outlive the child, as a script under pnpm would', async () => {
+    // The parent exits on SIGTERM like pnpm; its grandchild ignores SIGTERM and keeps running.
+    const grandchild = "process.on('SIGTERM', () => {}); console.log('grandchild', process.pid); setInterval(() => {}, 1000);";
+    const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: 'inherit' }); setInterval(() => {}, 1000);`;
+    let output = '';
+    const fiber = Effect.runFork(refreshProcessInternals.runCommand(process.execPath, ['-e', parent],
+      (text) => { output += text; }, { termGraceMs: 200, killGraceMs: 2000 }));
+    while (!/grandchild \d+/.test(output)) await new Promise((resolve) => setTimeout(resolve, 10));
+    const pid = Number(/grandchild (\d+)/.exec(output)?.[1]);
+
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    expect(await isReaped(pid)).toBe(true);
   });
 });

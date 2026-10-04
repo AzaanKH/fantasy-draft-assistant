@@ -8,13 +8,16 @@ import {
 } from '@fantasy-draft/shared';
 
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const IS_WINDOWS = process.platform === 'win32';
+const PNPM_COMMAND = IS_WINDOWS ? 'pnpm.cmd' : 'pnpm';
 const STEP_TIMEOUT_MS = 5 * 60_000;
 // After SIGTERM a script gets this long to exit before SIGKILL, then this long to be reaped.
 const TERM_GRACE_MS = 10_000;
 const KILL_GRACE_MS = 5_000;
 const MAX_OUTPUT_CHARS = 8_000;
 const DETAIL_LINES = 6;
+// How often to check whether descendants are still running after the child has exited.
+const GROUP_POLL_MS = 50;
 
 /**
  * Runs one fixed package script. The web client can only choose to start the whole refresh.
@@ -40,18 +43,50 @@ const exited = (child: ChildProcess): Effect.Effect<void> => Effect.callback((re
   return Effect.sync(() => { child.off('exit', onExit); });
 });
 
+/** Signal the child's whole process group; a pnpm script runs its work in descendants. */
+const signalTree = (child: ChildProcess, signal: NodeJS.Signals): void => {
+  if (child.pid === undefined) return;
+  if (IS_WINDOWS) {
+    // Windows has no process groups; taskkill /T ends the tree, and it is always forceful.
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }).once('error', () => undefined);
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    // ESRCH: every process in the group has already exited.
+  }
+};
+
+const treeAlive = (child: ChildProcess): boolean => {
+  if (IS_WINDOWS || child.pid === undefined) return child.exitCode === null && child.signalCode === null;
+  try {
+    process.kill(-child.pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Wait for the child and, on POSIX, every process left in its group. */
+const treeExited = (child: ChildProcess): Effect.Effect<void> => exited(child).pipe(
+  Effect.andThen(Effect.suspend(function poll(): Effect.Effect<void> {
+    return treeAlive(child) ? Effect.sleep(GROUP_POLL_MS).pipe(Effect.andThen(Effect.suspend(poll))) : Effect.void;
+  })),
+);
+
 /**
- * Stop a child and wait until it has exited, so a later refresh never overlaps
- * a script that is still writing data. SIGTERM first, then SIGKILL.
+ * Stop a child and its descendants and wait until they have exited, so a later
+ * refresh never overlaps a script that is still writing data. SIGTERM first, then SIGKILL.
  */
-const stopChild = (child: ChildProcess, grace: StopGrace): Effect.Effect<void> => Effect.sync(() => { child.kill('SIGTERM'); }).pipe(
-  Effect.andThen(exited(child).pipe(Effect.timeoutOrElse({
+const stopChild = (child: ChildProcess, grace: StopGrace): Effect.Effect<void> => Effect.sync(() => { signalTree(child, 'SIGTERM'); }).pipe(
+  Effect.andThen(treeExited(child).pipe(Effect.timeoutOrElse({
     duration: grace.termGraceMs,
-    orElse: () => Effect.sync(() => { child.kill('SIGKILL'); }).pipe(
-      Effect.andThen(exited(child).pipe(Effect.timeoutOrElse({
+    orElse: () => Effect.sync(() => { signalTree(child, 'SIGKILL'); }).pipe(
+      Effect.andThen(treeExited(child).pipe(Effect.timeoutOrElse({
         duration: grace.killGraceMs,
         orElse: () => Effect.sync(() => {
-          console.error(`[sync-server] Refresh process ${String(child.pid)} did not exit after SIGKILL`);
+          console.error(`[sync-server] Refresh process ${String(child.pid)} or a descendant did not exit after SIGKILL`);
         }),
       }))),
     ),
@@ -70,7 +105,9 @@ function runCommand(
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
       // Node can only launch pnpm.cmd through a shell on Windows.
-      shell: process.platform === 'win32',
+      shell: IS_WINDOWS,
+      // Lead a new process group on POSIX, so stopping the refresh reaches the script under pnpm.
+      detached: !IS_WINDOWS,
     });
     // Mirror output in the server terminal so the refresh reads like `pnpm dev:live`.
     child.stdout?.on('data', (chunk: Buffer) => { process.stdout.write(chunk); onOutput(chunk.toString('utf8')); });
