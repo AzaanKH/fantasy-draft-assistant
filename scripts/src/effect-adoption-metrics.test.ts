@@ -37,4 +37,20 @@ describe('effect adoption metrics', () => {
     expect(measureSource("const note = \"from 'effect'\";").filesUsingEffect).toBe(0);
     expect(measureSource("import { Stream } from 'effect/Stream';").filesUsingEffect).toBe(1);
   });
+
+  it('ignores JSX text but still counts expressions inside JSX', () => {
+    const metrics = measureSource([
+      'const view = <p>',
+      '  Wrap it in try {"{"} and throw it away',
+      '  {items.map(item => { if (!item) throw new Error(); return item; })}',
+      '</p>;',
+    ].join('\n'), 'view.tsx');
+    expect(metrics.lines).toBe(4);
+    expect(metrics.plumbing).toMatchObject({ tryBlocks: 0, thrownErrors: 1 });
+  });
+
+  it('keeps code on both sides of a multiline comment on separate lines', () => {
+    const metrics = measureSource(['first(); /* a', 'b */ second();', '// /* not a block', 'third();'].join('\n'));
+    expect(metrics.lines).toBe(3);
+  });
 });
