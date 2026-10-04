@@ -85,8 +85,20 @@ describe('parseRetryAfter', () => {
     expect(parseRetryAfter('120', now)).toBe(120_000);
   });
 
-  it('reads an HTTP date relative to now', () => {
+  it('reads each HTTP-date format as UTC', () => {
     expect(parseRetryAfter('Sat, 03 Oct 2026 12:00:30 GMT', now)).toBe(30_000);
+    expect(parseRetryAfter('Saturday, 03-Oct-26 12:00:30 GMT', now)).toBe(30_000);
+    // asctime has no zone; Date.parse would read it in the machine's local time.
+    expect(parseRetryAfter('Sat Oct  3 12:00:30 2026', now)).toBe(30_000);
+  });
+
+  it('reads an RFC 850 two-digit year more than 50 years ahead as the past century', () => {
+    expect(parseRetryAfter('Monday, 03-Oct-50 12:00:00 GMT', now)).toBe(Date.UTC(2050, 9, 3, 12) - now);
+    expect(parseRetryAfter('Sunday, 03-Oct-77 12:00:00 GMT', now)).toBe(500);
+  });
+
+  it('treats delay-seconds too large for a number as longer than any limit', () => {
+    expect(parseRetryAfter('9'.repeat(330), now)).toBe(Infinity);
   });
 
   it('waits a minimum delay for zero or past dates', () => {
@@ -99,5 +111,6 @@ describe('parseRetryAfter', () => {
     expect(parseRetryAfter('', now)).toBeUndefined();
     expect(parseRetryAfter('-5', now)).toBeUndefined();
     expect(parseRetryAfter('soon', now)).toBeUndefined();
+    expect(parseRetryAfter('Sat, 03 Foo 2026 12:00:30 GMT', now)).toBeUndefined();
   });
 });

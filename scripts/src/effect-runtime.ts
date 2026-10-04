@@ -69,13 +69,44 @@ export interface FetchJsonOptions {
 const DEFAULT_MAX_RETRY_AFTER_MS = 10_000;
 const MIN_RETRY_DELAY_MS = 500;
 
-/** Retry-After is either delay-seconds or an HTTP date (RFC 9110, section 10.2.3). */
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const TIME = String.raw`(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})`;
+const HTTP_DATE_FORMATS = [
+  // IMF-fixdate: Sun, 06 Nov 1994 08:49:37 GMT
+  new RegExp(String.raw`^[a-z]{3}, (?<day>\d{2}) (?<month>[a-z]{3}) (?<year>\d{4}) ${TIME} GMT$`, 'i'),
+  // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
+  new RegExp(String.raw`^[a-z]+, (?<day>\d{2})-(?<month>[a-z]{3})-(?<shortYear>\d{2}) ${TIME} GMT$`, 'i'),
+  // asctime: Sun Nov  6 08:49:37 1994
+  new RegExp(String.raw`^[a-z]{3} (?<month>[a-z]{3}) (?<day>[ \d]\d) ${TIME} (?<year>\d{4})$`, 'i'),
+];
+
+/**
+ * Parse the three HTTP-date formats (RFC 9110, section 5.6.7) as UTC. Date.parse
+ * reads asctime in local time and two-digit years as the 1900s, so it is not used.
+ */
+const parseHttpDate = (value: string, now: number): number => {
+  const date = HTTP_DATE_FORMATS.map((format) => format.exec(value)?.groups).find(Boolean);
+  if (!date) return NaN;
+  let year = Number(date.year);
+  if (date.shortYear !== undefined) {
+    // A two-digit year more than 50 years ahead is the most recent past year with those digits.
+    const currentYear = new Date(now).getUTCFullYear();
+    year = currentYear - (currentYear % 100) + Number(date.shortYear);
+    if (year > currentYear + 50) year -= 100;
+  }
+  const month = MONTHS.indexOf(String(date.month).toLowerCase());
+  return month < 0 ? NaN : Date.UTC(year, month, Number(date.day), Number(date.hour), Number(date.minute), Number(date.second));
+};
+
+/**
+ * Retry-After is either delay-seconds or an HTTP date (RFC 9110, section 10.2.3).
+ * Delay-seconds too large for a number become Infinity, so they still exceed any wait limit.
+ */
 export const parseRetryAfter = (value: string | null, now: number = Date.now()): number | undefined => {
   if (value === null) return undefined;
   const trimmed = value.trim();
-  // Every HTTP-date format names a day or month; this keeps Date.parse from reading '-5' as a year.
-  const ms = /^\d+$/.test(trimmed) ? Number(trimmed) * 1000 : /[a-z]/i.test(trimmed) ? Date.parse(trimmed) - now : NaN;
-  return Number.isFinite(ms) ? Math.max(MIN_RETRY_DELAY_MS, ms) : undefined;
+  const ms = /^\d+$/.test(trimmed) ? Number(trimmed) * 1000 : parseHttpDate(trimmed, now) - now;
+  return Number.isNaN(ms) ? undefined : Math.max(MIN_RETRY_DELAY_MS, ms);
 };
 
 /**
