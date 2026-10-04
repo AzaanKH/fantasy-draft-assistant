@@ -24,8 +24,9 @@ const listSources = (directory: string): Effect.Effect<string[]> => Effect.promi
 
 const measureWorkspaces = Effect.fn('measureWorkspaces')(function* (root: string) {
   const results = yield* Effect.forEach(WORKSPACES, workspace => listSources(join(root, workspace, 'src')).pipe(
-    Effect.flatMap(files => Effect.forEach(files, file => Effect.promise(() => readFile(file, 'utf8')), { concurrency: 16 })),
-    Effect.map(sources => [workspace, combineMetrics(sources.map(measureSource))] as const),
+    Effect.flatMap(files => Effect.forEach(files, file => Effect.promise(() => readFile(file, 'utf8'))
+      .pipe(Effect.map(source => measureSource(source, file))), { concurrency: 16 })),
+    Effect.map(metrics => [workspace, combineMetrics(metrics)] as const),
   ), { concurrency: 'unbounded' });
   return Object.fromEntries(results) as Record<(typeof WORKSPACES)[number], SourceMetrics>;
 });
