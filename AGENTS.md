@@ -31,6 +31,14 @@ These working conventions apply the relevant [GPT-6 Astra prompting guidance](ht
 
 Read the relevant sections as needed. Routine formatting, dependency cleanup, and test plumbing do not require a full documentation pass.
 
+## Effect
+
+Every workspace depends on [Effect 4](https://effect.website/docs/v4/onboarding) (`effect@^4`), which requires Node 22.18+ and TypeScript 5.9+. Existing code has not been migrated; adopt Effect when writing new code or substantially reworking a module, not as drive-by rewrites.
+
+- Use the v4 docs under `https://effect.website/docs/v4/` only. Effect 3 APIs and examples differ and should not be copied. Append `.md` to a docs URL for a plain-text version, such as `https://effect.website/docs/v4/getting-started/installation.md`.
+- Start with the [onboarding path](https://effect.website/docs/v4/onboarding): [the Effect type](https://effect.website/docs/v4/getting-started/the-effect-type), [generators](https://effect.website/docs/v4/getting-started/using-generators), [expected and unexpected errors](https://effect.website/docs/v4/error-management/two-error-types), and [concurrency](https://effect.website/docs/v4/concurrency/basic-concurrency). Look up signatures in the [API reference](https://effect.website/docs/v4/api).
+- Import from `effect` (for example, `import { Effect } from "effect"`), write sequential logic with `Effect.gen`, and keep runners such as `Effect.runPromise` at entry points.
+
 ## Local verification
 
 The local Vitest suites use fixtures, checked-in snapshots, mocked provider calls, and temporary local servers and files. They do not require provider credentials or live provider requests. Run them, fix failures caused by the requested change, and rerun affected tests without asking for approval at each step.
