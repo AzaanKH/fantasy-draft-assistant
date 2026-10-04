@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Effect, Stream } from 'effect';
-import { parseDraftEvents } from './client';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { DraftClient, parseDraftEvents } from './client';
 import { fixturePick, fixtureSnapshot } from './fixtures';
 
 function stream(text: string, chunkSize = 7): ReadableStream<Uint8Array> {
@@ -36,5 +38,44 @@ describe('draft SSE decoding', () => {
     }, cancel() { cancelled = true; } });
     await Effect.runPromise(Stream.runDrain(Stream.take(parseDraftEvents(body), 1)));
     expect(cancelled).toBe(true);
+  });
+});
+
+describe('draft server requests', () => {
+  const timeouts = { requestMs: 150, marketAdpMs: 150, connectMs: 150, idleMs: 150 };
+
+  /** A server that sends headers and part of a body, then never finishes it. */
+  async function stalledBodyServer(contentType = 'application/json', partialBody = '{"sessions": [') {
+    let closed = false;
+    const server = createServer((request, response) => {
+      response.writeHead(200, { 'content-type': contentType });
+      response.write(partialBody);
+      request.socket.once('close', () => { closed = true; });
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    return { url: `http://127.0.0.1:${String(port)}`, isClosed: () => closed,
+      stop: () => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => { resolve(); }); }) };
+  }
+
+  it('times out a stalled response body and closes its connection', async () => {
+    const server = await stalledBodyServer();
+    try {
+      const client = new DraftClient(server.url, 'a'.repeat(43), timeouts);
+      await expect(Effect.runPromise(client.sessions())).rejects.toMatchObject({ code: 'SERVER_UNAVAILABLE' });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(server.isClosed()).toBe(true);
+    } finally { await server.stop(); }
+  });
+
+  it('ends an idle event stream and closes its connection so watch can reconnect', async () => {
+    const server = await stalledBodyServer('text/event-stream', ': connected\n\n');
+    try {
+      const client = new DraftClient(server.url, 'a'.repeat(43), timeouts);
+      const events = await Effect.runPromise(Stream.runCollect(client.events({ id: 'sleeper:fixture', provider: 'sleeper', draftId: 'fixture' })));
+      expect(events).toEqual([]);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(server.isClosed()).toBe(true);
+    } finally { await server.stop(); }
   });
 });
