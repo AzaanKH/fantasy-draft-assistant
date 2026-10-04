@@ -20,4 +20,21 @@ describe('effect adoption metrics', () => {
     const combined = combineMetrics([measureSource('try { x() } catch { }'), measureSource("import { Stream } from 'effect'; Stream.make(1)")]);
     expect(combined).toMatchObject({ files: 2, filesUsingEffect: 1, adoption: { streams: 1 }, plumbing: { tryBlocks: 1, swallowedErrors: 1 } });
   });
+
+  it('ignores patterns spelled inside strings, templates, and regex literals', () => {
+    const metrics = measureSource([
+      "const message = 'try { throw new Error() } // not code';",
+      'const hint = `setTimeout( and AbortSignal ${String(1)} Effect.gen(`;',
+      'const pattern = /try\\s*\\{|throw new/g;',
+      'const url = "http://example.test/🏈"; throw new Error(url);',
+    ].join('\n'));
+    expect(metrics.lines).toBe(4);
+    expect(metrics.adoption.effectGenerators).toBe(0);
+    expect(metrics.plumbing).toMatchObject({ tryBlocks: 0, thrownErrors: 1, abortSignalPlumbing: 0, manualTimers: 0 });
+  });
+
+  it('detects Effect from import declarations rather than text', () => {
+    expect(measureSource("const note = \"from 'effect'\";").filesUsingEffect).toBe(0);
+    expect(measureSource("import { Stream } from 'effect/Stream';").filesUsingEffect).toBe(1);
+  });
 });

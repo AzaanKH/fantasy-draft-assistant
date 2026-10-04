@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { Cause, Effect, Fiber, Semaphore } from 'effect';
+import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
   DraftSyncEngine,
@@ -93,9 +93,8 @@ class DraftSession {
   private nextClientId = 1;
   private pollFiber: Fiber.Fiber<void> | null = null;
   private pollSleeping = false;
-  // Polls never overlap, so a reconnect's verification poll waits for any poll in progress.
-  private readonly pollPermit = Semaphore.makeUnsafe(1);
-  private pollsPending = 0;
+  // Concurrent callers share the poll in progress instead of each polling the provider.
+  private pollInFlight: Deferred.Deferred<boolean> | null = null;
   private consecutiveFailures = 0;
   private lastIngestedAt: number | null = null;
 
@@ -119,7 +118,7 @@ class DraftSession {
 
   public get clientCount(): number { return this.clients.size; }
 
-  public get canEvict(): boolean { return this.clients.size === 0 && this.pollsPending === 0; }
+  public get canEvict(): boolean { return this.clients.size === 0 && this.pollInFlight === null; }
 
   public reset(): DraftSyncSnapshot {
     const { provider, draftId } = this.engine.getSnapshot();
@@ -171,8 +170,14 @@ class DraftSession {
 
   public refresh(): Effect.Effect<DraftSyncSnapshot> {
     return Effect.gen({ self: this }, function* () {
-      // A reconnect must verify settings even if an older poll is finishing.
-      if (this.adapter) yield* this.pollOnce({ invalidateSettings: true });
+      if (this.adapter) {
+        // A reconnect must verify settings, so it never reuses a poll that began
+        // before it was called: wait for that one, then start or join a fresh poll.
+        const earlier = this.pollInFlight;
+        if (earlier) yield* Deferred.await(earlier);
+        this.adapter.invalidateSettings?.();
+        yield* this.pollOnce();
+      }
       return this.engine.getSnapshot();
     });
   }
@@ -225,7 +230,7 @@ class DraftSession {
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
       for (;;) {
-        yield* this.pollOnce({ invalidateSettings: false });
+        yield* this.pollOnce();
         if (this.clients.size === 0) return;
         this.pollSleeping = true;
         yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
@@ -235,13 +240,28 @@ class DraftSession {
     });
   }
 
-  private pollOnce(options: { readonly invalidateSettings: boolean }): Effect.Effect<boolean> {
+  /**
+   * Join the poll in progress or start one. The poll runs in its own fiber, so
+   * a waiting caller that is interrupted does not cancel it for the others.
+   */
+  private pollOnce(): Effect.Effect<boolean> {
     return Effect.suspend(() => {
-      this.pollsPending += 1;
-      return this.pollPermit.withPermits(1)(Effect.suspend(() => {
-        if (options.invalidateSettings) this.adapter?.invalidateSettings?.();
-        return this.performPoll();
-      })).pipe(Effect.ensuring(Effect.sync(() => { this.pollsPending -= 1; })));
+      let poll = this.pollInFlight;
+      if (!poll) {
+        const started = Deferred.makeUnsafe<boolean>();
+        poll = started;
+        this.pollInFlight = started;
+        // Clear the slot before waking waiters, so a refresh that waited for this
+        // poll starts a fresh one instead of reusing the finished result.
+        Effect.runFork(this.performPoll().pipe(
+          Effect.exit,
+          Effect.flatMap((exit) => Effect.sync(() => {
+            if (this.pollInFlight === started) this.pollInFlight = null;
+            Deferred.doneUnsafe(started, exit);
+          })),
+        ));
+      }
+      return Deferred.await(poll);
     });
   }
 

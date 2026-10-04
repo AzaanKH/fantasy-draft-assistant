@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Effect, Fiber } from 'effect';
 import {
@@ -10,6 +10,9 @@ import {
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const STEP_TIMEOUT_MS = 5 * 60_000;
+// After SIGTERM a script gets this long to exit before SIGKILL, then this long to be reaped.
+const TERM_GRACE_MS = 10_000;
+const KILL_GRACE_MS = 5_000;
 const MAX_OUTPUT_CHARS = 8_000;
 const DETAIL_LINES = 6;
 
@@ -22,23 +25,73 @@ export type RunRefreshScript = (
   onOutput: (text: string) => void
 ) => Effect.Effect<void, Error>;
 
-const runPnpmScript: RunRefreshScript = (script, onOutput) => Effect.callback((resume: (effect: Effect.Effect<void, Error>) => void) => {
-  const child = spawn(PNPM_COMMAND, [script], {
-    cwd: REPO_ROOT,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    // Node can only launch pnpm.cmd through a shell on Windows.
-    shell: process.platform === 'win32',
-  });
-  // Mirror output in the server terminal so the refresh reads like `pnpm dev:live`.
-  child.stdout.on('data', (chunk: Buffer) => { process.stdout.write(chunk); onOutput(chunk.toString('utf8')); });
-  child.stderr.on('data', (chunk: Buffer) => { process.stderr.write(chunk); onOutput(chunk.toString('utf8')); });
-  child.once('error', (error) => { resume(Effect.fail(error)); });
-  child.once('exit', (code, signal) => {
-    resume(code === 0 ? Effect.void : Effect.fail(new Error(signal ? `stopped by ${signal}` : `exit code ${String(code)}`)));
-  });
-  return Effect.sync(() => { child.kill('SIGTERM'); });
+interface StopGrace {
+  readonly termGraceMs: number;
+  readonly killGraceMs: number;
+}
+
+const exited = (child: ChildProcess): Effect.Effect<void> => Effect.callback((resume: (effect: Effect.Effect<void>) => void) => {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    resume(Effect.void);
+    return;
+  }
+  const onExit = () => { resume(Effect.void); };
+  child.once('exit', onExit);
+  return Effect.sync(() => { child.off('exit', onExit); });
 });
+
+/**
+ * Stop a child and wait until it has exited, so a later refresh never overlaps
+ * a script that is still writing data. SIGTERM first, then SIGKILL.
+ */
+const stopChild = (child: ChildProcess, grace: StopGrace): Effect.Effect<void> => Effect.sync(() => { child.kill('SIGTERM'); }).pipe(
+  Effect.andThen(exited(child).pipe(Effect.timeoutOrElse({
+    duration: grace.termGraceMs,
+    orElse: () => Effect.sync(() => { child.kill('SIGKILL'); }).pipe(
+      Effect.andThen(exited(child).pipe(Effect.timeoutOrElse({
+        duration: grace.killGraceMs,
+        orElse: () => Effect.sync(() => {
+          console.error(`[sync-server] Refresh process ${String(child.pid)} did not exit after SIGKILL`);
+        }),
+      }))),
+    ),
+  }))),
+);
+
+function runCommand(
+  command: string,
+  args: readonly string[],
+  onOutput: (text: string) => void,
+  grace: StopGrace = { termGraceMs: TERM_GRACE_MS, killGraceMs: KILL_GRACE_MS }
+): Effect.Effect<void, Error> {
+  return Effect.callback((resume: (effect: Effect.Effect<void, Error>) => void) => {
+    const child = spawn(command, args, {
+      cwd: REPO_ROOT,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // Node can only launch pnpm.cmd through a shell on Windows.
+      shell: process.platform === 'win32',
+    });
+    // Mirror output in the server terminal so the refresh reads like `pnpm dev:live`.
+    child.stdout?.on('data', (chunk: Buffer) => { process.stdout.write(chunk); onOutput(chunk.toString('utf8')); });
+    child.stderr?.on('data', (chunk: Buffer) => { process.stderr.write(chunk); onOutput(chunk.toString('utf8')); });
+    child.once('error', (error) => { resume(Effect.fail(error)); });
+    child.once('exit', (code, signal) => {
+      resume(code === 0 ? Effect.void : Effect.fail(new Error(signal ? `stopped by ${signal}` : `exit code ${String(code)}`)));
+    });
+    // Interruption (timeout or shutdown) completes only after the process has exited.
+    return stopChild(child, grace);
+  });
+}
+
+const runPnpmScript: RunRefreshScript = (script, onOutput) => runCommand(PNPM_COMMAND, [script], onOutput);
+
+/** Exposed for tests of process shutdown. */
+export const refreshProcessInternals = { runCommand };
+
+const describeDuration = (ms: number): string => ms % 60_000 === 0
+  ? `${String(ms / 60_000)} minute${ms === 60_000 ? '' : 's'}`
+  : `${String(ms)} ms`;
 
 function lastLines(output: string): string | null {
   const lines = output
@@ -69,7 +122,8 @@ export class DraftDataRefreshJob {
 
   constructor(
     private readonly runScript: RunRefreshScript = runPnpmScript,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    private readonly stepTimeoutMs: number = STEP_TIMEOUT_MS
   ) {}
 
   getStatus(): DraftDataRefreshStatus {
@@ -107,8 +161,8 @@ export class DraftDataRefreshJob {
         const result = yield* Effect.result(this.runScript(step.script, (text) => {
           output = (output + text).slice(-MAX_OUTPUT_CHARS);
         }).pipe(Effect.timeoutOrElse({
-          duration: STEP_TIMEOUT_MS,
-          orElse: () => Effect.fail(new Error(`timed out after ${String(STEP_TIMEOUT_MS / 60_000)} minutes`)),
+          duration: this.stepTimeoutMs,
+          orElse: () => Effect.fail(new Error(`timed out after ${describeDuration(this.stepTimeoutMs)}`)),
         })));
         if (result._tag === 'Failure') {
           this.setStep(index, 'failed');
