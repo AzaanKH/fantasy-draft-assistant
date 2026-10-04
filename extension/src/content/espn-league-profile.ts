@@ -7,7 +7,6 @@ import {
 
 /** The active 2026 ESPN league configured for this extension build. */
 export const ESPN_ACTIVE_LEAGUE_ID = '1652783544';
-export const ESPN_ACTIVE_SEASON = 2026;
 
 const ESPN_PPR_SCORING_RULES = {
   passing: {

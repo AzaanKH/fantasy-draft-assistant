@@ -78,7 +78,7 @@ function getTimingFacts(recommendation: Recommendation): TimingFacts {
 }
 
 /** States which bounded adjustment moved the order, without restating figures owned by other answers. */
-export function getRecommendationChangeAnswer(
+function getRecommendationChangeAnswer(
   recommendation: Recommendation,
   isTopPick: boolean,
   positionRank?: number

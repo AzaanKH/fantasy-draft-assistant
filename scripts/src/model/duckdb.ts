@@ -8,10 +8,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const REPO_ROOT = join(__dirname, '../../..');
 export const DATA_DIR = join(REPO_ROOT, 'data');
-export const MODEL_DIR = join(DATA_DIR, 'model');
+const MODEL_DIR = join(DATA_DIR, 'model');
 export const MODEL_DB_PATH = join(MODEL_DIR, 'fantasy-draft.duckdb');
-export const RAW_MODEL_DIR = join(MODEL_DIR, 'raw');
-export const NORMALIZED_MODEL_DIR = join(MODEL_DIR, 'normalized');
+const RAW_MODEL_DIR = join(MODEL_DIR, 'raw');
+const NORMALIZED_MODEL_DIR = join(MODEL_DIR, 'normalized');
 export const BACKTESTS_MODEL_DIR = join(MODEL_DIR, 'backtests');
 
 export interface ModelPaths {

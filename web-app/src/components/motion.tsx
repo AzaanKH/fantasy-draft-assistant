@@ -289,36 +289,3 @@ export function MotionExpandable({
     </div>
   );
 }
-
-export function StatePulseDot({
-  motionKey,
-  className,
-}: {
-  readonly motionKey: React.Key;
-  readonly className?: string;
-}): React.ReactElement {
-  const reduceMotion = usePrefersReducedMotion();
-  const pulse = React.useRef<HTMLSpanElement>(null);
-  const previousKey = React.useRef(motionKey);
-
-  React.useEffect(() => {
-    const changed = !Object.is(previousKey.current, motionKey);
-    previousKey.current = motionKey;
-    if (!changed || reduceMotion || !pulse.current) return;
-
-    pulse.current.animate(
-      [
-        { opacity: 0.55, transform: 'scale(0.75)' },
-        { opacity: 0, transform: 'scale(2.2)' },
-      ],
-      { duration: 620, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
-    );
-  }, [motionKey, reduceMotion]);
-
-  return (
-    <span className={cn('relative inline-flex size-2.5 shrink-0 text-muted-foreground', className)}>
-      <span ref={pulse} className="absolute inset-0 rounded-full border border-current opacity-0" />
-      <span className="relative size-full rounded-full bg-current" />
-    </span>
-  );
-}

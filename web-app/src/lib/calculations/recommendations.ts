@@ -84,7 +84,7 @@ export interface RecommendationBoardResult {
   readonly byPosition: Readonly<Record<Position, RecommendationResult>>;
 }
 
-export type RecommendationSelectionPolicy =
+type RecommendationSelectionPolicy =
   | 'ecr-anchor'
   | 'pick-ev-override'
   | 'league-aware-score'

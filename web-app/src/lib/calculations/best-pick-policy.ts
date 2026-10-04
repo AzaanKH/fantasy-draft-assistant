@@ -17,15 +17,15 @@ import {
 /** Normal Best Pick choices cannot move beyond this ECR neighborhood. */
 export const BEST_PICK_ECR_NEIGHBORHOOD = 8;
 /** League scoring and replacement value can add at most six policy points. */
-export const BEST_PICK_LEAGUE_VALUE_MAX = 6;
+const BEST_PICK_LEAGUE_VALUE_MAX = 6;
 /** Roster construction can add at most eight policy points. */
-export const BEST_PICK_ROSTER_FIT_MAX = 8;
+const BEST_PICK_ROSTER_FIT_MAX = 8;
 /** Bench protection can add at most four policy points. */
-export const BEST_PICK_DEPTH_VALUE_MAX = 4;
+const BEST_PICK_DEPTH_VALUE_MAX = 4;
 /** Tier supply can add at most four cost-of-waiting policy points. */
-export const BEST_PICK_TIER_SUPPLY_MAX = 4;
+const BEST_PICK_TIER_SUPPLY_MAX = 4;
 /** Next-pick timing can add at most four policy points. */
-export const BEST_PICK_DRAFT_TIMING_MAX = 4;
+const BEST_PICK_DRAFT_TIMING_MAX = 4;
 
 const LEAGUE_VOR_POINTS_PER_POLICY_POINT = 24;
 const TIER_DROPOFF_POINTS_PER_POLICY_POINT = 8;

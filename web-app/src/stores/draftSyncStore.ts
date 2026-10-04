@@ -37,7 +37,7 @@ function isDraftPosition(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 20;
 }
 
-export function isPersistedDraftSyncConnection(
+function isPersistedDraftSyncConnection(
   value: unknown
 ): value is PersistedDraftSyncConnection {
   if (typeof value !== 'object' || value === null) return false;
