@@ -4,6 +4,7 @@ import type {
   EspnDraftSnapshot,
 } from '@fantasy-draft/shared';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { Effect } from 'effect';
 import type {
   DetectedPick,
   DraftRoomStatus,
@@ -16,7 +17,7 @@ import {
   type BackgroundControllerDependencies,
 } from './background-controller';
 import type { DraftStorage } from './draft-storage';
-import type { SyncSnapshotClient } from './sync-snapshot-client';
+import { createSyncSnapshotClient, type SyncSnapshotClient } from './sync-snapshot-client';
 
 function createStorageMock(mocks: {
   savePicks: DraftStorage['savePicks'];
@@ -94,12 +95,12 @@ describe('background controller with mocked Chrome APIs', () => {
       saveStatus,
       setInstallationDefaults,
     });
-    fetchSnapshot = vi.fn(async (status: DraftRoomStatus) =>
+    fetchSnapshot = vi.fn((status: DraftRoomStatus) => Effect.succeed(
       status.draftId
         ? createSnapshot(status.provider ?? 'sleeper', status.draftId)
         : null
-    );
-    publishEspnSnapshot = vi.fn(async (snapshot: EspnDraftSnapshot) => ({
+    ));
+    publishEspnSnapshot = vi.fn((snapshot: EspnDraftSnapshot) => Effect.succeed({
       ...createSnapshot('espn', snapshot.draft.draftId),
       draft: snapshot.draft,
       picks: snapshot.picks,
@@ -256,11 +257,15 @@ describe('background controller with mocked Chrome APIs', () => {
     });
   });
 
-  it('does not let an older request overwrite a newer snapshot', async () => {
+  it('cancels an older request so it cannot overwrite a newer snapshot', async () => {
     const olderFetch = createDeferred<DraftSyncSnapshot | null>();
     const newerPublish = createDeferred<DraftSyncSnapshot>();
-    fetchSnapshot.mockImplementationOnce(() => olderFetch.promise);
-    publishEspnSnapshot.mockImplementationOnce(() => newerPublish.promise);
+    let olderAborted = false;
+    fetchSnapshot.mockImplementationOnce(() => Effect.promise((signal) => {
+      signal.addEventListener('abort', () => { olderAborted = true; });
+      return olderFetch.promise;
+    }));
+    publishEspnSnapshot.mockImplementationOnce(() => Effect.promise(() => newerPublish.promise));
     const snapshot: EspnDraftSnapshot = {
       draft: {
         provider: 'espn',
@@ -292,6 +297,7 @@ describe('background controller with mocked Chrome APIs', () => {
     });
     await flushPromises();
 
+    expect(olderAborted).toBe(true);
     expect(notifyRuntime.mock.calls.at(-1)?.[0]).toMatchObject({
       type: 'SYNC_STATE',
       data: {
@@ -301,5 +307,48 @@ describe('background controller with mocked Chrome APIs', () => {
         },
       },
     });
+  });
+});
+
+describe('background controller with the real sync client', () => {
+  it('does not let a status refresh cancel an ESPN snapshot upload', async () => {
+    const methods: string[] = [];
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      methods.push(init?.method ?? 'GET');
+      return new Response(JSON.stringify(createSnapshot('espn', '4242')), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    // A token lookup that takes a moment, like chrome.storage, leaves the upload in flight.
+    const syncClient = createSyncSnapshotClient(async () => 'http://localhost:3001', async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return 'test-token';
+    }, fetchMock);
+    const controller = createBackgroundController({
+      storage: createStorageMock({
+        savePicks: async () => undefined,
+        saveStatus: async () => undefined,
+        setInstallationDefaults: async () => undefined,
+      }),
+      syncClient,
+      queryActiveTab: async () => 17,
+      openSidePanel: async () => undefined,
+      notifyRuntime: async () => undefined,
+      logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    });
+    await controller.initialize();
+
+    controller.handleMessage({ type: 'ESPN_DRAFT_SNAPSHOT', data: {
+      draft: {
+        provider: 'espn', draftId: '4242', providerKey: '2026:4242', status: 'drafting', type: 'snake',
+        settings: { teams: 10, rounds: 16, pickTimer: 30 }, draftOrder: null,
+      },
+      picks: [],
+      observedAt: Date.now(),
+    } }, () => undefined);
+    controller.handleMessage({ type: 'DRAFT_ROOM_STATUS', data: { isInDraftRoom: true, provider: 'espn', draftId: '4242' } }, () => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(methods.sort()).toEqual(['GET', 'POST']);
   });
 });
