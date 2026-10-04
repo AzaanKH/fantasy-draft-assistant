@@ -1,6 +1,6 @@
 # Local development
 
-Run commands from the repository root with Node 22.12+ and pnpm 9.15.0.
+Run commands from the repository root with Node 22.18+ and pnpm 9.15.0.
 
 | Command | Purpose |
 | --- | --- |
