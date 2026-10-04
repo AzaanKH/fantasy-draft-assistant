@@ -76,7 +76,8 @@ function runCommand(
     child.stdout?.on('data', (chunk: Buffer) => { process.stdout.write(chunk); onOutput(chunk.toString('utf8')); });
     child.stderr?.on('data', (chunk: Buffer) => { process.stderr.write(chunk); onOutput(chunk.toString('utf8')); });
     child.once('error', (error) => { resume(Effect.fail(error)); });
-    child.once('exit', (code, signal) => {
+    // `close` waits for stdout and stderr to drain, so failure details include the last lines.
+    child.once('close', (code, signal) => {
       resume(code === 0 ? Effect.void : Effect.fail(new Error(signal ? `stopped by ${signal}` : `exit code ${String(code)}`)));
     });
     // Interruption (timeout or shutdown) completes only after the process has exited.

@@ -38,7 +38,9 @@ export class ShadowRecommendationLogger {
     return Effect.suspend(() => {
       if (this.pending >= this.limits.maxPending) return Effect.fail(new HttpError(429, 'Shadow log queue is full'));
       this.pending += 1;
-      return this.writer.withPermits(1)(this.append(event)).pipe(
+      // Waiting for the permit stays interruptible; a started append always finishes, so the
+      // byte count and dedupe set match the file.
+      return this.writer.withPermits(1)(Effect.uninterruptible(this.append(event))).pipe(
         Effect.ensuring(Effect.sync(() => { this.pending -= 1; })),
       );
     });

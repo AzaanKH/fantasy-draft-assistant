@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { Effect, Fiber } from 'effect';
 import type { ShadowRecommendationEvent } from '@fantasy-draft/shared';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
 
@@ -60,6 +60,21 @@ describe('ShadowRecommendationLogger', () => {
       await record(logger, EVENT);
       expect((await stat(path)).mode & 0o777).toBe(0o600);
       expect((await stat(`${path}.1`)).mode & 0o777).toBe(0o600);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('finishes a started append on interruption but drops one still waiting', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-interrupt-'));
+    const path = join(directory, 'events.ndjson');
+    try {
+      const logger = new ShadowRecommendationLogger(path);
+      const writing = Effect.runFork(logger.record(EVENT));
+      const waiting = Effect.runFork(logger.record({ ...EVENT, eventId: 'waiting' }));
+      await Effect.runPromise(Fiber.interrupt(waiting));
+      await Effect.runPromise(Fiber.interrupt(writing));
+      const lines = (await readFile(path, 'utf8')).trim().split('\n');
+      expect(lines.map((line) => (JSON.parse(line) as { eventId: string }).eventId)).toEqual([EVENT.eventId]);
+      await expect(record(logger, EVENT)).resolves.toBe(false);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
