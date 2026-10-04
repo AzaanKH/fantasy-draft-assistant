@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Effect } from 'effect';
 import {
   FantasyFootballCalculatorAdpProvider,
   FFC_API_BASE,
@@ -22,10 +23,9 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
       } as T;
     };
     const provider = new FantasyFootballCalculatorAdpProvider(fetchJson);
-    const signal = new AbortController().signal;
 
-    const first = await provider.getSnapshot('ppr', 10, 2026, signal);
-    const cached = await provider.getSnapshot('ppr', 10, 2026, signal);
+    const first = await Effect.runPromise(provider.getSnapshot('ppr', 10, 2026));
+    const cached = await Effect.runPromise(provider.getSnapshot('ppr', 10, 2026));
 
     expect(first).toMatchObject({
       source: 'fantasy-football-calculator',
@@ -57,7 +57,7 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
     } as T);
     const provider = new FantasyFootballCalculatorAdpProvider(fetchJson);
 
-    const snapshot = await provider.getSnapshot('ppr', 12, 2026, new AbortController().signal);
+    const snapshot = await Effect.runPromise(provider.getSnapshot('ppr', 12, 2026));
 
     expect(snapshot.players.map((player) => player.externalId)).toEqual([
       'Object Id-WR',

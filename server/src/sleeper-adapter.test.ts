@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Effect } from 'effect';
 import type { SleeperDraftMetadata } from '@fantasy-draft/shared';
 import {
   draftFixture,
@@ -35,7 +36,7 @@ describe('SleeperSyncAdapter', () => {
       }
     );
 
-    const snapshot = await adapter.poll(new AbortController().signal);
+    const snapshot = await Effect.runPromise(adapter.poll());
 
     expect(requestedUrls).toContain(
       `${SLEEPER_API_BASE}/league/${leagueFixture.league_id}`
@@ -68,7 +69,7 @@ describe('SleeperSyncAdapter', () => {
       }
     );
 
-    const snapshot = await adapter.poll(new AbortController().signal);
+    const snapshot = await Effect.runPromise(adapter.poll());
 
     expect(snapshot.draft.leagueId).toBe(leagueFixture.league_id);
     expect(snapshot.draft.leagueSettings).toBeUndefined();
@@ -97,25 +98,23 @@ describe('Sleeper settings cache', () => {
     vi.useFakeTimers();
     try {
       const test = setup();
-      const signal = new AbortController().signal;
-      const first = await test.adapter.poll(signal);
-      expect((await test.adapter.poll(signal)).draft.leagueSettings).toBe(first.draft.leagueSettings);
+      const first = await Effect.runPromise(test.adapter.poll());
+      expect((await Effect.runPromise(test.adapter.poll())).draft.leagueSettings).toBe(first.draft.leagueSettings);
       expect(test.count()).toBe(1);
       vi.advanceTimersByTime(SLEEPER_SETTINGS_CACHE_MS);
-      await test.adapter.poll(signal);
+      await Effect.runPromise(test.adapter.poll());
       expect(test.count()).toBe(2);
       test.adapter.invalidateSettings();
-      await test.adapter.poll(signal);
+      await Effect.runPromise(test.adapter.poll());
       expect(test.count()).toBe(3);
     } finally { vi.useRealTimers(); }
   });
 
   it('does not reuse settings from a different league', async () => {
     const test = setup();
-    const signal = new AbortController().signal;
-    await test.adapter.poll(signal);
+    await Effect.runPromise(test.adapter.poll());
     test.changeLeague();
-    const changed = await test.adapter.poll(signal);
+    const changed = await Effect.runPromise(test.adapter.poll());
     expect(test.count()).toBe(2);
     expect(changed.draft.leagueSettings?.leagueId).toBe('another-league');
   });
@@ -124,14 +123,13 @@ describe('Sleeper settings cache', () => {
     vi.useFakeTimers();
     try {
       const test = setup();
-      const signal = new AbortController().signal;
-      await test.adapter.poll(signal);
+      await Effect.runPromise(test.adapter.poll());
       vi.advanceTimersByTime(SLEEPER_SETTINGS_CACHE_MS);
       test.fail();
-      const failedRefresh = await test.adapter.poll(signal);
+      const failedRefresh = await Effect.runPromise(test.adapter.poll());
       expect(failedRefresh.draft.leagueSettings).toBeUndefined();
       expect(failedRefresh.picks).toHaveLength(picksFixture.length);
-      expect((await test.adapter.poll(signal)).draft.leagueSettings).toBeUndefined();
+      expect((await Effect.runPromise(test.adapter.poll())).draft.leagueSettings).toBeUndefined();
       expect(test.count()).toBe(3);
     } finally { vi.useRealTimers(); }
   });
