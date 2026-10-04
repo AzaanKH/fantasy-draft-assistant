@@ -1,3 +1,4 @@
+import { Effect, Fiber } from 'effect';
 import {
   isEspnDraftSnapshot,
   MAX_DRAFT_PICKS,
@@ -12,7 +13,7 @@ import type {
 import { getEspnLeagueSettingsProfile } from '../content/espn-league-profile';
 import type { DraftStorage } from './draft-storage';
 import { EMPTY_DRAFT_STATE, isDuplicatePick } from './draft-state';
-import type { SyncSnapshotClient } from './sync-snapshot-client';
+import type { SyncRequestError, SyncSnapshotClient } from './sync-snapshot-client';
 
 type SendResponse = (response: MessageResponse) => void;
 
@@ -42,10 +43,8 @@ function sameDraft(
   );
 }
 
-interface SnapshotRequestToken {
-  readonly key: string;
-  readonly value: number;
-}
+/** Identifies the newest request for a draft; only its result is applied. */
+type SnapshotRequest = object;
 
 /**
  * Keep the page-world bridge dependency-free so Chrome can execute it as a
@@ -79,23 +78,11 @@ export function createBackgroundController(
   let detectedPicks = [...EMPTY_DRAFT_STATE.picks];
   let draftStatus: DraftRoomStatus = EMPTY_DRAFT_STATE.status;
   let syncSnapshot: DraftSyncSnapshot | null = null;
-  const latestSnapshotRequestByDraft = new Map<string, number>();
-
-  const beginSnapshotRequest = (
-    status: DraftRoomStatus
-  ): SnapshotRequestToken => {
-    const key = `${status.provider ?? 'sleeper'}:${status.draftId ?? ''}`;
-    const value = (latestSnapshotRequestByDraft.get(key) ?? 0) + 1;
-    latestSnapshotRequestByDraft.set(key, value);
-    return { key, value };
-  };
-
-  const isCurrentSnapshotRequest = (
-    token: SnapshotRequestToken,
-    requestedStatus: DraftRoomStatus
-  ): boolean =>
-    latestSnapshotRequestByDraft.get(token.key) === token.value &&
-    sameDraft(requestedStatus, draftStatus);
+  // The newest request per draft, read or upload, decides the shown snapshot.
+  const latestRequests = new Map<string, SnapshotRequest>();
+  // Any newer request cancels a stale read's network call. Uploads are never
+  // cancelled, because each one carries draft state the server must ingest.
+  const readFibers = new Map<string, Fiber.Fiber<void>>();
 
   const reportFailure = (operation: string, error: unknown) => {
     logger.warn(`[Fantasy Draft BG] ${operation}:`, error);
@@ -127,51 +114,59 @@ export function createBackgroundController(
     }
   };
 
-  const refreshSnapshot = async (requestedStatus: DraftRoomStatus) => {
+  const runSnapshotRequest = (
+    requestedStatus: DraftRoomStatus,
+    request: Effect.Effect<DraftSyncSnapshot | null, SyncRequestError>,
+    options: { readonly failureLabel: string; readonly isRead: boolean }
+  ): void => {
+    const key = `${requestedStatus.provider ?? 'sleeper'}:${requestedStatus.draftId ?? ''}`;
+    const staleRead = readFibers.get(key);
+    if (staleRead) Effect.runFork(Fiber.interrupt(staleRead));
+    readFibers.delete(key);
+    const current: SnapshotRequest = {};
+    latestRequests.set(key, current);
+    const isCurrent = () => latestRequests.get(key) === current && sameDraft(requestedStatus, draftStatus);
+    const fiber = Effect.runFork(request.pipe(
+      Effect.match({
+        onSuccess: (snapshot) => {
+          if (isCurrent()) syncSnapshot = snapshot;
+        },
+        onFailure: (error) => {
+          if (isCurrent()) syncSnapshot = null;
+          reportFailure(options.failureLabel, error);
+        },
+      }),
+      Effect.andThen(Effect.sync(() => {
+        if (isCurrent()) notifySidePanel();
+      })),
+      Effect.ensuring(Effect.sync(() => {
+        if (latestRequests.get(key) === current) latestRequests.delete(key);
+      })),
+    ));
+    if (options.isRead) {
+      readFibers.set(key, fiber);
+      fiber.addObserver(() => {
+        if (readFibers.get(key) === fiber) readFibers.delete(key);
+      });
+    }
+  };
+
+  const refreshSnapshot = (requestedStatus: DraftRoomStatus) => {
     if (!requestedStatus.draftId) {
       syncSnapshot = null;
       notifySidePanel();
       return;
     }
-    const requestToken = beginSnapshotRequest(requestedStatus);
-
-    try {
-      const snapshot = await dependencies.syncClient.fetch(requestedStatus);
-      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
-        syncSnapshot = snapshot;
-      }
-    } catch (error) {
-      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
-        syncSnapshot = null;
-      }
-      reportFailure('Failed to refresh sync snapshot', error);
-    }
-
-    if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
-      notifySidePanel();
-    }
+    runSnapshotRequest(requestedStatus, dependencies.syncClient.fetch(requestedStatus),
+      { failureLabel: 'Failed to refresh sync snapshot', isRead: true });
   };
 
-  const publishEspnSnapshot = async (
+  const publishEspnSnapshot = (
     snapshot: EspnDraftSnapshot,
     requestedStatus: DraftRoomStatus
   ) => {
-    const requestToken = beginSnapshotRequest(requestedStatus);
-    try {
-      const published = await dependencies.syncClient.publishEspnSnapshot(snapshot);
-      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
-        syncSnapshot = published;
-      }
-    } catch (error) {
-      if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
-        syncSnapshot = null;
-      }
-      reportFailure('Failed to publish ESPN draft snapshot', error);
-    }
-
-    if (isCurrentSnapshotRequest(requestToken, requestedStatus)) {
-      notifySidePanel();
-    }
+    runSnapshotRequest(requestedStatus, dependencies.syncClient.publishEspnSnapshot(snapshot),
+      { failureLabel: 'Failed to publish ESPN draft snapshot', isRead: false });
   };
 
   const initialize = async () => {
@@ -224,7 +219,7 @@ export function createBackgroundController(
           .catch((error: unknown) => {
             reportFailure('Failed to save ESPN draft status', error);
           });
-        void publishEspnSnapshot(snapshot, requestedStatus);
+        publishEspnSnapshot(snapshot, requestedStatus);
         void openForCurrentTab();
         sendResponse({ success: true });
         break;
@@ -255,7 +250,7 @@ export function createBackgroundController(
           .catch((error: unknown) => {
             reportFailure('Failed to save draft status', error);
           });
-        void refreshSnapshot(draftStatus);
+        refreshSnapshot(draftStatus);
         if (draftStatus.isInDraftRoom) {
           void openForCurrentTab();
         }

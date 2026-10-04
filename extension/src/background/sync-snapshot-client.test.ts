@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Effect } from 'effect';
 import {
   buildSyncSnapshotUrl,
   createSyncSnapshotClient,
@@ -9,7 +10,7 @@ describe('sync snapshot I/O', () => {
     const getToken = vi.fn(async () => 'private-test-token');
     const fetchMock = vi.fn();
     const client = createSyncSnapshotClient(async () => 'https://attacker.invalid', getToken, fetchMock);
-    await expect(client.fetch({ isInDraftRoom: true, draftId: '123', provider: 'sleeper' })).rejects.toThrow('must be localhost');
+    await expect(Effect.runPromise(client.fetch({ isInDraftRoom: true, draftId: '123', provider: 'sleeper' }))).rejects.toThrow('must be localhost');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(getToken).not.toHaveBeenCalled();
   });
@@ -19,7 +20,7 @@ describe('sync snapshot I/O', () => {
     const client = createSyncSnapshotClient(async () => 'http://localhost:3001', async () => {
       throw new Error('Pair the extension');
     }, fetchMock);
-    await expect(client.fetch({ isInDraftRoom: true, draftId: '123' })).rejects.toThrow('Pair the extension');
+    await expect(Effect.runPromise(client.fetch({ isInDraftRoom: true, draftId: '123' }))).rejects.toThrow('Pair the extension');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -44,11 +45,11 @@ describe('sync snapshot I/O', () => {
     );
 
     await expect(
-      client.fetch({
+      Effect.runPromise(client.fetch({
         isInDraftRoom: true,
         provider: 'sleeper',
         draftId: '123',
-      })
+      }))
     ).rejects.toThrow('Snapshot request failed: 503');
   });
 
@@ -70,12 +71,12 @@ describe('sync snapshot I/O', () => {
     );
 
     try {
-      const request = client.fetch({
+      const request = Effect.runPromise(client.fetch({
         isInDraftRoom: true,
         provider: 'sleeper',
         draftId: '123',
-      });
-      const rejection = expect(request).rejects.toThrow();
+      }));
+      const rejection = expect(request).rejects.toThrow('Snapshot request timed out');
       await vi.advanceTimersByTimeAsync(50);
       await rejection;
       expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
@@ -107,7 +108,7 @@ describe('sync snapshot I/O', () => {
       fetchMock
     );
 
-    await client.publishEspnSnapshot({
+    await Effect.runPromise(client.publishEspnSnapshot({
       draft: {
         provider: 'espn',
         draftId: '4242',
@@ -119,7 +120,7 @@ describe('sync snapshot I/O', () => {
       },
       picks: [],
       observedAt: 1000,
-    });
+    }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:3001/api/sync/espn/drafts/4242/snapshot',
