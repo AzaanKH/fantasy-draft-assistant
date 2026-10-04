@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { Effect, Fiber } from 'effect';
 import { DraftDataRefreshJob, refreshProcessInternals, type RunRefreshScript } from './draft-data-refresh.js';
@@ -134,6 +135,17 @@ describe('refresh script processes', () => {
       expect(exit._tag).toBe('Failure');
       expect(output.endsWith('last line\n')).toBe(true);
     } finally { mirror.mockRestore(); }
+  });
+
+  it.skipIf(process.platform === 'win32')('keeps scripts in the server process group, so a supervisor killing the group stops them', async () => {
+    const pgid = (pid: number) => execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+    let output = '';
+    const fiber = Effect.runFork(refreshProcessInternals.runCommand(process.execPath,
+      ['-e', 'console.log(process.pid); setInterval(() => {}, 1000);'], (text) => { output += text; }));
+    while (!/\d+/.test(output)) await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(pgid(Number(/\d+/.exec(output)?.[0]))).toBe(pgid(process.pid));
+    await Effect.runPromise(Fiber.interrupt(fiber));
   });
 
   it.skipIf(process.platform === 'win32')('stops descendants that outlive the child, as a script under pnpm would', async () => {
