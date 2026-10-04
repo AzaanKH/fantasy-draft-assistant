@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Effect } from 'effect';
-import { DraftDataRefreshJob, type RunRefreshScript } from './draft-data-refresh.js';
+import { Effect, Fiber } from 'effect';
+import { DraftDataRefreshJob, refreshProcessInternals, type RunRefreshScript } from './draft-data-refresh.js';
 
 interface PendingRun {
   readonly script: string;
@@ -74,5 +74,47 @@ describe('DraftDataRefreshJob', () => {
     await flush();
     expect(runs).toHaveLength(3);
     expect(job.getStatus().steps.map((step) => step.state)).toEqual(['running', 'pending', 'pending']);
+  });
+});
+
+describe('DraftDataRefreshJob timeouts', () => {
+  it('stays running until a timed-out script has stopped, so a restart cannot overlap it', async () => {
+    const runs: string[] = [];
+    let stopped = false;
+    // Interruption cleanup that takes a while, like a child process slow to exit.
+    const runner: RunRefreshScript = (script) => Effect.callback(() => {
+      runs.push(script);
+      return Effect.sleep(150).pipe(Effect.andThen(Effect.sync(() => { stopped = true; })));
+    });
+    const job = new DraftDataRefreshJob(runner, () => new Date('2026-10-02T12:00:00.000Z'), 30);
+    job.start();
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(stopped).toBe(false);
+    expect(job.getStatus().state).toBe('running');
+    expect(job.start().state).toBe('running');
+    expect(runs).toHaveLength(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(stopped).toBe(true);
+    expect(job.getStatus()).toMatchObject({ state: 'failed', error: 'Sleeper player directory refresh failed (timed out after 30 ms).' });
+  });
+});
+
+describe('refresh script processes', () => {
+  const isAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+  it('escalates to SIGKILL and waits for exit when a script ignores SIGTERM', async () => {
+    let output = '';
+    const fiber = Effect.runFork(refreshProcessInternals.runCommand(process.execPath,
+      ['-e', "process.on('SIGTERM', () => {}); console.log(process.pid); setInterval(() => {}, 1000);"],
+      (text) => { output += text; }, { termGraceMs: 100, killGraceMs: 2000 }));
+    while (!/\d+/.test(output)) await new Promise((resolve) => setTimeout(resolve, 10));
+    const pid = Number(/\d+/.exec(output)?.[0]);
+
+    const started = Date.now();
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    expect(isAlive(pid)).toBe(false);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(100);
   });
 });

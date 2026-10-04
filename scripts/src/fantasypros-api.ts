@@ -9,7 +9,7 @@ import type {
   Position,
 } from '@fantasy-draft/shared';
 import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared';
-import { Effect } from 'effect';
+import { Data, Effect } from 'effect';
 import { fetchJson, type HttpRequestError } from './effect-runtime.js';
 
 const FANTASYPROS_API_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
@@ -286,6 +286,21 @@ function normalizeFantasyProsTimestamp(value: string | null | undefined): string
   return value;
 }
 
+/** FantasyPros returned JSON that does not have the expected shape. */
+export class FantasyProsPayloadError extends Data.TaggedError('FantasyProsPayloadError')<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
+/** Run a payload parser, so a malformed response is an expected failure rather than a defect. */
+const parsePayload = <A>(label: string, parse: () => A): Effect.Effect<A, FantasyProsPayloadError> => Effect.try({
+  try: parse,
+  catch: (cause) => new FantasyProsPayloadError({
+    message: `FantasyPros returned an unexpected ${label} payload: ${cause instanceof Error ? cause.message : String(cause)}`,
+    cause,
+  }),
+});
+
 function fetchFantasyProsJson<T>(
   path: string,
   apiKey: string,
@@ -307,7 +322,7 @@ function fetchFantasyProsJson<T>(
 const fetchFantasyProsPlayerIndex = (apiKey: string) => fetchFantasyProsJson<FantasyProsPlayersResponse>(
   `/${FANTASYPROS_SPORT_PATH}/players`,
   apiKey
-).pipe(Effect.map(buildPlayerIndex));
+).pipe(Effect.flatMap((payload) => parsePayload('player index', () => buildPlayerIndex(payload))));
 
 function buildPlayerIndex(payload: FantasyProsPlayersResponse): Map<string, FantasyProsPlayerIndexEntry> {
 
@@ -632,13 +647,13 @@ export const fetchFantasyProsSnapshot = Effect.fn('fetchFantasyProsSnapshot')(fu
     ), {}),
   }, { concurrency: 3 });
 
-  const rankings = buildRankings(rankingsResponse.players ?? []);
-  const adp = buildAdp(adpResponse.players ?? []);
-  const projections = buildProjections(projectionsResponse.players ?? [], scoring);
-  const news = combineNewsWithInjuries(
+  const rankings = yield* parsePayload('rankings', () => buildRankings(rankingsResponse.players ?? []));
+  const adp = yield* parsePayload('ADP', () => buildAdp(adpResponse.players ?? []));
+  const projections = yield* parsePayload('projections', () => buildProjections(projectionsResponse.players ?? [], scoring));
+  const news = yield* parsePayload('news', () => combineNewsWithInjuries(
     buildNews(newsResponse, playerIndex),
     buildInjuryNews(injuriesResponse, playerIndex)
-  );
+  ));
   const refreshedAt = new Date().toISOString();
 
   const snapshot: FantasyProsSnapshot = {
