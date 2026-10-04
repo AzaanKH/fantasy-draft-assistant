@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { fantasyProsApiInternals } from './fantasypros-api.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Effect } from 'effect';
+import { fantasyProsApiInternals, fetchFantasyProsSnapshot } from './fantasypros-api.js';
 
 describe('fantasyProsApiInternals', () => {
   it('normalizes team and position identifiers', () => {
@@ -331,5 +332,17 @@ describe('fantasyProsApiInternals', () => {
     }]);
 
     expect(rankings[0]?.fantasyProsId).toBeUndefined();
+  });
+});
+
+describe('fetchFantasyProsSnapshot', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('reports a malformed payload as an expected failure so callers can fall back', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"players": {}}', {
+      status: 200, headers: { 'content-type': 'application/json' },
+    })));
+    const result = await Effect.runPromise(Effect.result(fetchFantasyProsSnapshot({ apiKey: 'key', season: 2026 })));
+    expect(result).toMatchObject({ _tag: 'Failure', failure: { _tag: 'FantasyProsPayloadError' } });
   });
 });

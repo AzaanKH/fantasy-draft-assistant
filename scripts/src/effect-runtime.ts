@@ -70,33 +70,64 @@ const parseRetryAfter = (value: string | null): number | undefined => {
   return Number.isFinite(seconds) ? Math.min(10_000, Math.max(500, seconds * 1000)) : undefined;
 };
 
+/**
+ * Read a body and cancel its stream if the signal aborts. Aborting fetch alone
+ * does not reliably close a connection whose body is mid-read.
+ */
+async function readBody(response: Response, signal: AbortSignal): Promise<string> {
+  const body = response.body;
+  if (!body) return '';
+  const reader = body.getReader();
+  const cancel = (): void => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener('abort', cancel, { once: true });
+  const decoder = new TextDecoder();
+  let text = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    reader.releaseLock();
+  }
+}
+
 /** GET JSON with a per-attempt timeout and a retry policy that honors Retry-After. */
 export function fetchJson<T>(url: string | URL, options: FetchJsonOptions): Effect.Effect<T, HttpRequestError> {
   const href = String(url);
+  const failure = (message: string, details: { status?: number; retryAfterMs?: number } = {}) =>
+    new HttpRequestError({ message, url: href, ...details });
+  // The request and its body share one signal, so a timeout also cancels a stalled body.
   const attempt = Effect.tryPromise({
-    try: (signal) => fetch(url, { headers: options.headers, signal }),
-    catch: (cause) => new HttpRequestError({
-      message: `${options.label} request failed for ${href}: ${cause instanceof Error ? cause.message : String(cause)}`,
-      url: href,
-    }),
+    try: async (signal) => {
+      let response: Response;
+      try {
+        response = await fetch(url, { headers: options.headers, signal });
+      } catch (cause) {
+        throw failure(`${options.label} request failed for ${href}: ${cause instanceof Error ? cause.message : String(cause)}`);
+      }
+      const body = await readBody(response, signal);
+      if (!response.ok) {
+        throw failure(`${options.label} request failed (${String(response.status)}) for ${href}${body ? `: ${body.slice(0, 200)}` : ''}`, {
+          status: response.status,
+          retryAfterMs: parseRetryAfter(response.headers.get('retry-after')),
+        });
+      }
+      try {
+        return JSON.parse(body) as T;
+      } catch {
+        throw failure(`${options.label} returned invalid JSON for ${href}`);
+      }
+    },
+    catch: (cause) => cause instanceof HttpRequestError
+      ? cause
+      : failure(`${options.label} request failed for ${href}: ${cause instanceof Error ? cause.message : String(cause)}`),
   }).pipe(
-    Effect.flatMap((response) => response.ok
-      ? Effect.tryPromise({
-        try: () => response.json() as Promise<T>,
-        catch: () => new HttpRequestError({ message: `${options.label} returned invalid JSON for ${href}`, url: href }),
-      })
-      : Effect.promise(() => response.text().catch(() => '')).pipe(Effect.flatMap((body) => Effect.fail(new HttpRequestError({
-        message: `${options.label} request failed (${String(response.status)}) for ${href}${body ? `: ${body.slice(0, 200)}` : ''}`,
-        url: href,
-        status: response.status,
-        retryAfterMs: parseRetryAfter(response.headers.get('retry-after')),
-      }))))),
     Effect.timeoutOrElse({
       duration: options.timeoutMs,
-      orElse: () => Effect.fail(new HttpRequestError({
-        message: `${options.label} request timed out after ${String(options.timeoutMs)}ms for ${href}`,
-        url: href,
-      })),
+      orElse: () => Effect.fail(failure(`${options.label} request timed out after ${String(options.timeoutMs)}ms for ${href}`)),
     }),
   );
   const backoffMs = options.backoffMs ?? ((n: number) => n * 1500);

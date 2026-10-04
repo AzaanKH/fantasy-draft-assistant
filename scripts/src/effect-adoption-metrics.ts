@@ -1,7 +1,11 @@
+import ts from 'typescript';
+
 /**
- * Source-level signals for how a workspace handles effects. Counts are regex
- * approximations over non-test TypeScript, intended for comparing one revision
- * with another rather than as exact syntax analysis.
+ * Source-level signals for how a workspace handles effects. The TypeScript
+ * parser blanks comments, strings, templates, and regex literals first, so
+ * only code is counted. The patterns are still regular expressions over that
+ * code, intended for comparing one revision with another rather than as exact
+ * syntax analysis.
  */
 export const ADOPTION_PATTERNS = {
   effectFunctions: /\bEffect\.fn(?:Untraced)?\(/g,
@@ -40,16 +44,49 @@ const count = (source: string, pattern: RegExp) => source.match(pattern)?.length
 const tally = <K extends string>(patterns: Record<K, RegExp>, source: string) =>
   Object.fromEntries(Object.entries<RegExp>(patterns).map(([key, pattern]) => [key, count(source, pattern)])) as Record<K, number>;
 
-/** Strip comments so documentation that mentions a pattern is not counted as code. */
-export function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
+const isLiteral = (node: ts.Node) => ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ||
+  ts.isRegularExpressionLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node);
+
+/**
+ * Parse the source, then replace literal text with underscores (keeping line
+ * breaks, so line counts hold) and drop comments. A pattern spelled inside a
+ * string, template, regex, or comment is then not counted as code.
+ */
+export function codeOnly(source: string, fileName = 'source.ts'): { readonly code: string; readonly importsEffect: boolean } {
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false,
+    fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  // Node positions are UTF-16 offsets, so collect ranges and rebuild with slice.
+  const literals: (readonly [number, number])[] = [];
+  let importsEffect = false;
+  const visit = (node: ts.Node): void => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier &&
+        ts.isStringLiteral(node.moduleSpecifier) && /^effect(?:\/|$)/.test(node.moduleSpecifier.text)) {
+      importsEffect = true;
+    }
+    if (isLiteral(node)) {
+      literals.push([node.getStart(file), node.end]);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  let blanked = '';
+  let cursor = 0;
+  for (const [start, end] of literals) {
+    blanked += source.slice(cursor, start) + source.slice(start, end).replace(/[^\n]/g, '_');
+    cursor = end;
+  }
+  blanked += source.slice(cursor);
+  // Literals are blank now, so comment markers inside strings or URLs cannot confuse this.
+  const code = blanked.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  return { code, importsEffect };
 }
 
-export function measureSource(source: string): SourceMetrics {
-  const code = stripComments(source);
+export function measureSource(source: string, fileName?: string): SourceMetrics {
+  const { code, importsEffect } = codeOnly(source, fileName);
   return {
     files: 1,
-    filesUsingEffect: /from ['"]effect(?:\/[\w-]+)?['"]/.test(code) ? 1 : 0,
+    filesUsingEffect: importsEffect ? 1 : 0,
     lines: code.split('\n').filter(line => line.trim() !== '').length,
     adoption: tally(ADOPTION_PATTERNS, code),
     plumbing: tally(PLUMBING_PATTERNS, code),

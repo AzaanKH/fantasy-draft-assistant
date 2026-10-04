@@ -116,4 +116,4 @@ Close a T3 preview run tab separately after saving its evidence. The helper clos
 - `helpers/control.py doctor <run_id>` performs the read-only safety and readiness check.
 - `helpers/control.py stop <run_id>` closes this run's browser session and removes its process and copy while retaining proof.
 
-The helper requires Python 3, `rsync`, Node 22.12+, and pnpm 9.15.0. App mode also requires `lsof`; browser checks require an available browser driver. Test helper isolation and cleanup with `python3 -m unittest discover -s .agents/skills/verify-fantasy-draft-assistant/helpers -p 'test_*.py'`. Reprove changed helpers with an actual start, doctor, drive, and stop cycle.
+The helper requires Python 3, `rsync`, Node 22.18+, and pnpm 9.15.0. App mode also requires `lsof`; browser checks require an available browser driver. Test helper isolation and cleanup with `python3 -m unittest discover -s .agents/skills/verify-fantasy-draft-assistant/helpers -p 'test_*.py'`. Reprove changed helpers with an actual start, doctor, drive, and stop cycle.

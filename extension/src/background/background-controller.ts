@@ -43,9 +43,8 @@ function sameDraft(
   );
 }
 
-interface SnapshotRequest {
-  fiber: Fiber.Fiber<void> | null;
-}
+/** Identifies the newest request for a draft; only its result is applied. */
+type SnapshotRequest = object;
 
 /**
  * Keep the page-world bridge dependency-free so Chrome can execute it as a
@@ -79,8 +78,11 @@ export function createBackgroundController(
   let detectedPicks = [...EMPTY_DRAFT_STATE.picks];
   let draftStatus: DraftRoomStatus = EMPTY_DRAFT_STATE.status;
   let syncSnapshot: DraftSyncSnapshot | null = null;
-  // One request per draft; a newer request cancels the stale one's network call.
-  const snapshotRequests = new Map<string, SnapshotRequest>();
+  // The newest request per draft, read or upload, decides the shown snapshot.
+  const latestRequests = new Map<string, SnapshotRequest>();
+  // Any newer request cancels a stale read's network call. Uploads are never
+  // cancelled, because each one carries draft state the server must ingest.
+  const readFibers = new Map<string, Fiber.Fiber<void>>();
 
   const reportFailure = (operation: string, error: unknown) => {
     logger.warn(`[Fantasy Draft BG] ${operation}:`, error);
@@ -115,32 +117,38 @@ export function createBackgroundController(
   const runSnapshotRequest = (
     requestedStatus: DraftRoomStatus,
     request: Effect.Effect<DraftSyncSnapshot | null, SyncRequestError>,
-    failureLabel: string
+    options: { readonly failureLabel: string; readonly isRead: boolean }
   ): void => {
     const key = `${requestedStatus.provider ?? 'sleeper'}:${requestedStatus.draftId ?? ''}`;
-    const previous = snapshotRequests.get(key)?.fiber;
-    if (previous) Effect.runFork(Fiber.interrupt(previous));
-    const current: SnapshotRequest = { fiber: null };
-    snapshotRequests.set(key, current);
-    // Interruption is asynchronous, so a response that slips through is still checked against the latest request.
-    const isCurrent = () => snapshotRequests.get(key) === current && sameDraft(requestedStatus, draftStatus);
-    current.fiber = Effect.runFork(request.pipe(
+    const staleRead = readFibers.get(key);
+    if (staleRead) Effect.runFork(Fiber.interrupt(staleRead));
+    readFibers.delete(key);
+    const current: SnapshotRequest = {};
+    latestRequests.set(key, current);
+    const isCurrent = () => latestRequests.get(key) === current && sameDraft(requestedStatus, draftStatus);
+    const fiber = Effect.runFork(request.pipe(
       Effect.match({
         onSuccess: (snapshot) => {
           if (isCurrent()) syncSnapshot = snapshot;
         },
         onFailure: (error) => {
           if (isCurrent()) syncSnapshot = null;
-          reportFailure(failureLabel, error);
+          reportFailure(options.failureLabel, error);
         },
       }),
       Effect.andThen(Effect.sync(() => {
         if (isCurrent()) notifySidePanel();
       })),
       Effect.ensuring(Effect.sync(() => {
-        if (snapshotRequests.get(key) === current) snapshotRequests.delete(key);
+        if (latestRequests.get(key) === current) latestRequests.delete(key);
       })),
     ));
+    if (options.isRead) {
+      readFibers.set(key, fiber);
+      fiber.addObserver(() => {
+        if (readFibers.get(key) === fiber) readFibers.delete(key);
+      });
+    }
   };
 
   const refreshSnapshot = (requestedStatus: DraftRoomStatus) => {
@@ -149,14 +157,16 @@ export function createBackgroundController(
       notifySidePanel();
       return;
     }
-    runSnapshotRequest(requestedStatus, dependencies.syncClient.fetch(requestedStatus), 'Failed to refresh sync snapshot');
+    runSnapshotRequest(requestedStatus, dependencies.syncClient.fetch(requestedStatus),
+      { failureLabel: 'Failed to refresh sync snapshot', isRead: true });
   };
 
   const publishEspnSnapshot = (
     snapshot: EspnDraftSnapshot,
     requestedStatus: DraftRoomStatus
   ) => {
-    runSnapshotRequest(requestedStatus, dependencies.syncClient.publishEspnSnapshot(snapshot), 'Failed to publish ESPN draft snapshot');
+    runSnapshotRequest(requestedStatus, dependencies.syncClient.publishEspnSnapshot(snapshot),
+      { failureLabel: 'Failed to publish ESPN draft snapshot', isRead: false });
   };
 
   const initialize = async () => {
