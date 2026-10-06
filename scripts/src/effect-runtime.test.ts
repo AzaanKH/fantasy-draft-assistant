@@ -95,6 +95,9 @@ describe('parseRetryAfter', () => {
   it('reads an RFC 850 two-digit year more than 50 years ahead as the past century', () => {
     expect(parseRetryAfter('Monday, 03-Oct-50 12:00:00 GMT', now)).toBe(Date.UTC(2050, 9, 3, 12) - now);
     expect(parseRetryAfter('Sunday, 03-Oct-77 12:00:00 GMT', now)).toBe(500);
+    // Fifty years ahead to the second is still ahead; one second more is the past century.
+    expect(parseRetryAfter('Monday, 03-Oct-76 12:00:00 GMT', now)).toBe(Date.UTC(2076, 9, 3, 12) - now);
+    expect(parseRetryAfter('Sunday, 03-Oct-76 12:00:01 GMT', now)).toBe(500);
   });
 
   it('treats delay-seconds too large for a number as longer than any limit', () => {
@@ -112,5 +115,14 @@ describe('parseRetryAfter', () => {
     expect(parseRetryAfter('-5', now)).toBeUndefined();
     expect(parseRetryAfter('soon', now)).toBeUndefined();
     expect(parseRetryAfter('Sat, 03 Foo 2026 12:00:30 GMT', now)).toBeUndefined();
+  });
+
+  it('ignores dates with out-of-range fields instead of rolling them over', () => {
+    expect(parseRetryAfter('Sat, 03 Oct 2026 12:00:99 GMT', now)).toBeUndefined();
+    expect(parseRetryAfter('Sat, 03 Oct 2026 12:60:00 GMT', now)).toBeUndefined();
+    expect(parseRetryAfter('Sat, 03 Oct 2026 24:00:00 GMT', now)).toBeUndefined();
+    expect(parseRetryAfter('Tue, 31 Feb 2026 12:00:00 GMT', now)).toBeUndefined();
+    expect(parseRetryAfter('Monday, 31-Apr-50 12:00:00 GMT', now)).toBeUndefined();
+    expect(parseRetryAfter('Sat, 03 Oct 2026 12:00:60 GMT', now)).toBe(60_000);
   });
 });

@@ -87,15 +87,24 @@ const HTTP_DATE_FORMATS = [
 const parseHttpDate = (value: string, now: number): number => {
   const date = HTTP_DATE_FORMATS.map((format) => format.exec(value)?.groups).find(Boolean);
   if (!date) return NaN;
-  let year = Number(date.year);
-  if (date.shortYear !== undefined) {
-    // A two-digit year more than 50 years ahead is the most recent past year with those digits.
-    const currentYear = new Date(now).getUTCFullYear();
-    year = currentYear - (currentYear % 100) + Number(date.shortYear);
-    if (year > currentYear + 50) year -= 100;
-  }
   const month = MONTHS.indexOf(String(date.month).toLowerCase());
-  return month < 0 ? NaN : Date.UTC(year, month, Number(date.day), Number(date.hour), Number(date.minute), Number(date.second));
+  const [day, hour, minute, second] = [date.day, date.hour, date.minute, date.second].map(Number) as [number, number, number, number];
+  // Date.UTC rolls overflowing fields into the next unit, so a date that does not
+  // read back unchanged was invalid. Seconds go up to 60 for a leap second.
+  const toTimestamp = (year: number): number => {
+    const minuteStart = new Date(Date.UTC(year, month, day, hour, minute));
+    const valid = month >= 0 && second <= 60 && minuteStart.getUTCFullYear() === year && minuteStart.getUTCMonth() === month
+      && minuteStart.getUTCDate() === day && minuteStart.getUTCHours() === hour && minuteStart.getUTCMinutes() === minute;
+    return valid ? minuteStart.getTime() + second * 1000 : NaN;
+  };
+  if (date.shortYear === undefined) return toTimestamp(Number(date.year));
+  // A two-digit year that would put the date more than 50 years ahead is in the most recent past century.
+  const currentYear = new Date(now).getUTCFullYear();
+  const year = currentYear - (currentYear % 100) + Number(date.shortYear);
+  const fiftyYearsAhead = new Date(now);
+  fiftyYearsAhead.setUTCFullYear(currentYear + 50);
+  const timestamp = toTimestamp(year);
+  return timestamp > fiftyYearsAhead.getTime() ? toTimestamp(year - 100) : timestamp;
 };
 
 /**
