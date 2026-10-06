@@ -31,19 +31,16 @@
 .rec-lens { display: inline-flex; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-inset); }
 .rec-lens button { min-height: 34px; padding: 0 12px; border-radius: var(--radius-xs); color: var(--color-muted-foreground); font-size: 12px; font-weight: 600; }
 .rec-lens button[aria-pressed=true] { background: var(--color-surface-raised); color: var(--color-foreground); }
-.rec-lens button:focus-visible, .rec-tabs button:focus-visible, .rec-filters button:focus-visible, .rec-icon-button:focus-visible, .rec-candidate-identity:focus-visible, .rec-text-button:focus-visible, .rec-queue-identity:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.rec-lens button:focus-visible, .rec-tabs button:focus-visible, .rec-filters button:focus-visible, .rec-icon-button:focus-visible, .rec-candidate-identity:focus-visible, .rec-text-button:focus-visible, .rec-queue-identity:focus-visible, .rec-rail:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
 
 /* Layout */
 .rec-layout { display: grid; gap: 16px; align-items: start; }
 .rec-main { display: grid; gap: 16px; min-width: 0; }
-.rec-split { display: grid; gap: 20px; min-width: 0; }
 @media (min-width: 1100px) {
   .rec-layout { grid-template-columns: minmax(0, 1fr) var(--rec-rail-width); }
-}
-@media (min-width: 1280px) {
-  .rec-split { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
-  /* Compare needs two player columns; Other options moves below it. */
-  .rec-split[data-wide=true] { grid-template-columns: minmax(0, 1fr); }
+  /* Pinned beside the player list so the queue stays visible while adding players.
+     DraftHeader measures its sticky height into --draft-header-height. */
+  .rec-rail { position: sticky; top: calc(var(--draft-header-height, 0px) + 16px); max-height: calc(100dvh - var(--draft-header-height, 0px) - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 }
 .rec-section-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 8px; }
 .rec-section-heading h1, .rec-section-heading h2 { font-size: 16px; line-height: 24px; font-weight: 700; }
@@ -146,7 +143,6 @@
 .rec-filters button small { font-size: 10px; font-weight: 400; opacity: 0.72; }
 .rec-filters button[aria-pressed=true] { border-color: var(--color-foreground); background: var(--color-foreground); color: var(--color-background); }
 .rec-sort { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.rec-pool-list { max-width: 900px; }
 .rec-pool-more { display: flex; justify-content: center; margin-top: 12px; }
 
 @media (max-width: 520px) {
@@ -188,6 +184,15 @@
 /* Compare options */
 .rec-compare-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
 .rec-compare-heading .rec-answer-title { flex: 1 1 260px; }
+.rec-compare-body { display: grid; gap: 12px 28px; align-items: start; }
+.rec-compare-side { min-width: 0; }
+/* Wide screens: table on the left, differences beside it, so the list below stays close. */
+@media (min-width: 1280px) {
+  .rec-compare-body { grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); }
+  .rec-compare-side { grid-column: 2; grid-row: 1; }
+  .rec-compare-side .rec-answer-rows > div { grid-template-columns: minmax(0, 1fr); }
+  .rec-compare-body .rec-compare { margin-top: 4px; }
+}
 .rec-compare { width: 100%; max-width: 760px; margin-top: 16px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
 .rec-compare th, .rec-compare td { padding: 9px 8px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; font-weight: 400; }
 .rec-compare thead th:first-child { width: 34%; }

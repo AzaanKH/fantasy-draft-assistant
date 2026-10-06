@@ -22,6 +22,7 @@ export function AssistantRecommendationRow({
   rank,
   order,
   isSelected,
+  selectionLabel = 'Viewing',
   isBestPick,
   isQueued,
   alert,
@@ -33,6 +34,7 @@ export function AssistantRecommendationRow({
   readonly rank: number;
   readonly order: number;
   readonly isSelected: boolean;
+  readonly selectionLabel?: 'Viewing' | 'Comparing';
   readonly isBestPick: boolean;
   readonly isQueued: boolean;
   readonly alert?: string;
@@ -58,7 +60,7 @@ export function AssistantRecommendationRow({
             <span>{player?.team ?? 'FA'}</span>
             {diagnostics ? <span>Tier {String(diagnostics.tier)}</span> : null}
             {isBestPick ? <span className="rec-accent">Best Pick</span> : null}
-            {isSelected ? <span className="rec-viewing">Viewing</span> : null}
+            {isSelected ? <span className="rec-viewing">{selectionLabel}</span> : null}
           </span>
           {alert ? <span className="rec-alert">{alert}</span> : null}
         </button>
