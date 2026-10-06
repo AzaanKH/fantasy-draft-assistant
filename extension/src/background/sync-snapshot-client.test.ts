@@ -53,6 +53,22 @@ describe('sync snapshot I/O', () => {
     ).rejects.toThrow('Snapshot request failed: 503');
   });
 
+  it('cancels the unread body of a non-successful response', async () => {
+    const cancel = vi.fn();
+    // The body never finishes, as a stalled server's would.
+    const body = new ReadableStream({ cancel });
+    const client = createSyncSnapshotClient(
+      async () => 'http://localhost:3001',
+      async () => 'test-token',
+      vi.fn(async () => new Response(body, { status: 503 }))
+    );
+
+    await expect(
+      Effect.runPromise(client.fetch({ isInDraftRoom: true, provider: 'sleeper', draftId: '123' }))
+    ).rejects.toThrow('Snapshot request failed: 503');
+    expect(cancel).toHaveBeenCalled();
+  });
+
   it('aborts a snapshot request that never responds', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn(

@@ -50,6 +50,8 @@ export function createSyncSnapshotClient(
     try: async (signal) => {
       const response = await fetchImplementation(url, { ...init, signal });
       if (!response.ok) {
+        // Cancel the unread body; the timeout cannot abort it once this rejects.
+        void response.body?.cancel().catch(() => undefined);
         throw new Error(`Snapshot request failed: ${String(response.status)}`);
       }
       const parsed: unknown = await response.json();
