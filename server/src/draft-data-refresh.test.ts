@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { Effect, Fiber } from 'effect';
 import { DraftDataRefreshJob, refreshProcessInternals, type RunRefreshScript } from './draft-data-refresh.js';
@@ -103,19 +104,38 @@ describe('DraftDataRefreshJob timeouts', () => {
 
 describe('refresh script processes', () => {
   const isAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  // A killed orphan stays visible as a zombie until init reaps it, which takes a moment.
+  const isReaped = async (pid: number) => {
+    for (let waited = 0; waited < 1000 && isAlive(pid); waited += 20) await new Promise((resolve) => setTimeout(resolve, 20));
+    return !isAlive(pid);
+  };
+  // Runs a script until it prints a match, then hands the match to the test; the script is always stopped.
+  const withScript = async (
+    args: string[], pattern: RegExp, test: (match: RegExpExecArray, fiber: Fiber.Fiber<void, Error>) => Promise<void>,
+    options?: { termGraceMs: number; killGraceMs: number },
+  ) => {
+    let output = '';
+    const fiber = Effect.runFork(refreshProcessInternals.runCommand(process.execPath, args, (text) => { output += text; }, options));
+    try {
+      const deadline = Date.now() + 5000;
+      while (!pattern.test(output)) {
+        if (Date.now() > deadline) throw new Error(`Script did not print ${pattern} within 5 s: ${output}`);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      await test(pattern.exec(output)!, fiber);
+    } finally {
+      await Effect.runPromise(Fiber.interrupt(fiber));
+    }
+  };
 
   it('escalates to SIGKILL and waits for exit when a script ignores SIGTERM', async () => {
-    let output = '';
-    const fiber = Effect.runFork(refreshProcessInternals.runCommand(process.execPath,
-      ['-e', "process.on('SIGTERM', () => {}); console.log(process.pid); setInterval(() => {}, 1000);"],
-      (text) => { output += text; }, { termGraceMs: 100, killGraceMs: 2000 }));
-    while (!/\d+/.test(output)) await new Promise((resolve) => setTimeout(resolve, 10));
-    const pid = Number(/\d+/.exec(output)?.[0]);
-
-    const started = Date.now();
-    await Effect.runPromise(Fiber.interrupt(fiber));
-    expect(isAlive(pid)).toBe(false);
-    expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+    await withScript(['-e', "process.on('SIGTERM', () => {}); console.log(process.pid); setInterval(() => {}, 1000);"], /\d+/,
+      async ([pid], fiber) => {
+        const started = Date.now();
+        await Effect.runPromise(Fiber.interrupt(fiber));
+        expect(isAlive(Number(pid))).toBe(false);
+        expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+      }, { termGraceMs: 100, killGraceMs: 2000 });
   });
 
   it('collects all output before reporting a failed script', async () => {
@@ -129,5 +149,22 @@ describe('refresh script processes', () => {
       expect(exit._tag).toBe('Failure');
       expect(output.endsWith('last line\n')).toBe(true);
     } finally { mirror.mockRestore(); }
+  });
+
+  it.skipIf(process.platform === 'win32')('keeps scripts in the server process group, so a supervisor killing the group stops them', async () => {
+    const pgid = (pid: number) => execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+    await withScript(['-e', 'console.log(process.pid); setInterval(() => {}, 1000);'], /\d+/, async ([pid]) => {
+      expect(pgid(Number(pid))).toBe(pgid(process.pid));
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')('stops descendants that outlive the child, as a script under pnpm would', async () => {
+    // The parent exits on SIGTERM like pnpm; its grandchild ignores SIGTERM and keeps running.
+    const grandchild = "process.on('SIGTERM', () => {}); console.log('grandchild', process.pid); setInterval(() => {}, 1000);";
+    const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: 'inherit' }); setInterval(() => {}, 1000);`;
+    await withScript(['-e', parent], /grandchild (\d+)/, async ([, pid], fiber) => {
+      await Effect.runPromise(Fiber.interrupt(fiber));
+      expect(await isReaped(Number(pid))).toBe(true);
+    }, { termGraceMs: 200, killGraceMs: 2000 });
   });
 });
