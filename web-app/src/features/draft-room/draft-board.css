@@ -30,7 +30,7 @@
 .board-view-toggle { display: inline-flex; padding: 3px; border-radius: var(--radius-sm); background: #141B38; }
 .board-view-toggle button { border-radius: var(--radius-xs); }
 .board-toolbar .board-view-toggle button[aria-pressed=true] { background: #FFFFFF; color: #051827; }
-.board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: #FFFFFF; background: #1C2643; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: #FFFFFF; background: #1C2643; border-radius: var(--radius-xs); font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .board-current-pick.is-your-turn { color: #051827; background: #FDE047; }
 .board-current-pick.is-complete { color: #051827; background: #49E8CC; }
 .board-scroll { height: var(--draft-board-height, 320px); padding: 0 10px 10px 0; scrollbar-color: #34415E #05091E; scrollbar-width: thin; }
