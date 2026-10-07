@@ -15,6 +15,7 @@ import type { AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftBoard } from '@/features/draft-room/DraftBoard';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { DraftWorkspace } from '@/features/draft-room/DraftWorkspace';
+import { LiveDraftSyncProvider } from '@/features/draft-room/LiveDraftSyncProvider';
 import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
 import { DraftGlossary } from '@/features/help/DraftGlossary';
 import {
@@ -447,12 +448,14 @@ export function VisualApp(): React.ReactElement {
           <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
             <NotificationProvider>
               <TooltipProvider><MotionProvider>
-                <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
-                  <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
-                    <VisualRouteContent route={route} />
-                  </div>
-                  <VisualReadySignal />
-                </DraftDecisionProvider>
+                <LiveDraftSyncProvider>
+                  <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                    <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
+                      <VisualRouteContent route={route} />
+                    </div>
+                    <VisualReadySignal />
+                  </DraftDecisionProvider>
+                </LiveDraftSyncProvider>
               </MotionProvider></TooltipProvider>
             </NotificationProvider>
           </PlayerDataFixtureProvider>
