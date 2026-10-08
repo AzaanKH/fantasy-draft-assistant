@@ -132,6 +132,27 @@ describe('mock draft auto-advance', () => {
     expect(store.getState().currentPick).toBe(1);
   });
 
+  it('does not branch past the current pick', () => {
+    render({ onBoard: true });
+    advance(3000);
+    expect(store.getState().currentPick).toBe(3);
+
+    act(() => { button('Settings').click(); });
+    const input = Array.from(document.body.querySelectorAll('label'))
+      .find((label) => label.textContent?.includes('Branch at overall pick'))
+      ?.querySelector('input');
+    if (!input) throw new Error('Missing branch input');
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '96');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const create = Array.from(document.body.querySelectorAll('button'))
+      .find((element) => element.textContent?.trim() === 'Create branch');
+    act(() => { create?.click(); });
+    expect(store.getState().currentPick).toBe(3);
+    expect(store.getState().draftHistory).toHaveLength(2);
+  });
+
   it('keeps the pause when the user leaves the draft board', () => {
     render({ onBoard: true });
     act(() => { button('Pause').click(); });

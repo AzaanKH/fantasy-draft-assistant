@@ -383,7 +383,7 @@ export function MockDraftControls({
                   <Input
                     type="number"
                     min={1}
-                    max={totalPicks + 1}
+                    max={currentPick}
                     value={branchPick}
                     onChange={(event) => { setBranchPick(event.target.value); }}
                     className="h-9 w-28"
@@ -393,7 +393,11 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    draftStore.getState().branchFromPick(numericValue(branchPick, currentPick));
+                    // Branch only to the current or an earlier pick: skipping ahead leaves
+                    // CPU teams with too few picks to fill their required roster slots.
+                    draftStore.getState().branchFromPick(
+                      Math.min(currentPick, numericValue(branchPick, currentPick))
+                    );
                   }}
                 >
                   Create branch
