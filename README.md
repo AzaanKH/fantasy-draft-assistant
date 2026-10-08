@@ -41,8 +41,10 @@ all development services. Open [localhost:3000](http://localhost:3000), choose
 scoring, roster settings, and keepers against the connected draft.
 
 For development with cached inputs, run `pnpm dev`. It checks the local data
-without refreshing source snapshots. The checked-in data is a dated snapshot;
-always run the live preflight before drafting.
+without refreshing source snapshots. FantasyPros, sportsbook, and league files
+stay local and are not in the repository; a fresh clone can run
+`pnpm data:demo:install` to fill `data/` with the publishable demo dataset.
+Always run the live preflight before drafting.
 
 ## CLI
 
@@ -100,7 +102,7 @@ delay detection, one confirmed provisional pick, and a complete 150-pick board.
 Three checks remain: correcting a conflicting provisional pick, removing an
 extra provisional pick, and a complete connected run with the exact keeper-league
 profile. Run them with the [rehearsal guide](docs/primary-league-rehearsal.md),
-then rerun the [release gate](data/primary-league-release-gate-report.json). The
+then rerun the release gate (`data/primary-league-release-gate-report.json`). The
 release gate remains blocked and feature freeze pending until those checks and
 current readiness pass. The earlier
 [September 5 record](docs/provider-rehearsal-2026-09-05.md) covers settings,
@@ -130,7 +132,8 @@ instructions.
 | `shared/` | Domain types, input validation, and the shared sync engine. |
 | `scripts/` | Data refreshes, modeling, reports, and release checks. |
 | `cli/` | Authenticated terminal reads, draft advice, and NDJSON updates. |
-| `data/` | Dated source snapshots, league configuration, and generated evidence. |
+| `data/` | Local source snapshots, league configuration, and generated evidence; licensed and league files are gitignored. |
+| `demo-data/` | Publishable FantasyPros-free data with real players, used by CI and the demo. |
 | `docs/` | Setup details, draft strategy, data guides, and rehearsal records. |
 
 Vite serves an explicit allowlist of browser data from `data/` during development
@@ -149,6 +152,6 @@ behind the local API. Local audit files and scratch notes are ignored.
 | Verify a complete draft, outage recovery, or release | [Primary League rehearsal](docs/primary-league-rehearsal.md) |
 | Review preparation evidence | [Draft prep report](docs/draft-prep-report.md), [decision experiments](docs/primary-league-experiments.md) |
 
-The acceptance profile lives in [Primary League settings](data/primary-league-settings.json)
-and the [keeper list](data/league-history/current-keepers.json). Verify both
+The acceptance profile lives in Primary League settings (`data/primary-league-settings.json`)
+and the keeper list (`data/league-history/current-keepers.json`). Verify both
 against the connected provider before use.

@@ -7,8 +7,8 @@ Player, and timing terms live in [CONTEXT.md](../CONTEXT.md).
 
 ## Prepare for this league
 
-Confirm the [league settings](../data/primary-league-settings.json) and the
-complete [keeper list](../data/league-history/current-keepers.json) against the
+Confirm the league settings (`data/primary-league-settings.json`) and the
+complete keeper list (`data/league-history/current-keepers.json`) against the
 provider before relying on rankings or planning an opening sequence.
 
 The saved Primary League profile rewards receptions, rushing attempts, and TE

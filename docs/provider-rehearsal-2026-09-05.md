@@ -50,7 +50,7 @@ production draft cannot provide completion evidence before it runs. Keep
 verified, then rerun the release gate.
 
 Evidence is saved in
-[data/rehearsal-evidence/2026-09-05](../data/rehearsal-evidence/2026-09-05/report.json),
+`data/rehearsal-evidence/2026-09-05/`,
 including server snapshots and browser state before, during, and after the
 outage. The current gate result is in
-[primary-league-release-gate-report.json](../data/primary-league-release-gate-report.json).
+`data/primary-league-release-gate-report.json`.

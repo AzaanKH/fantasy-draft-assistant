@@ -50,11 +50,11 @@ Continuity picks to reconcile against the restored provider history.
 
 | File | Use it for |
 | --- | --- |
-| [primary-league-settings.json](../data/primary-league-settings.json) | The confirmed season, scoring rules, and roster configuration. |
-| [current-keepers.json](../data/league-history/current-keepers.json) | The complete confirmed keeper supply for the current season. |
-| [primary-league-rehearsal.json](../data/primary-league-rehearsal.json) | The designated draft and league IDs, schedule, and recorded real-provider outcome. |
+| `data/primary-league-settings.json` | The confirmed season, scoring rules, and roster configuration. |
+| `data/league-history/current-keepers.json` | The complete confirmed keeper supply for the current season. |
+| `data/primary-league-rehearsal.json` | The designated draft and league IDs, schedule, and recorded real-provider outcome. |
 | [primary-league-deterministic-rehearsal-report.json](../data/primary-league-deterministic-rehearsal-report.json) | Results from the latest saved deterministic run. |
-| [primary-league-release-gate-report.json](../data/primary-league-release-gate-report.json) | Recorded release checks and feature-freeze status. |
+| `data/primary-league-release-gate-report.json` | Recorded release checks and feature-freeze status. |
 
 The saved 2026 profile has 10 teams, 14 rounds, and 140 slots, including 10
 keepers. Each roster has one QB, two RBs, two WRs, one TE, two FLEX spots, one K,

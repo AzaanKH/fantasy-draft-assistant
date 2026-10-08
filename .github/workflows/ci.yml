@@ -29,6 +29,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Licensed and league data stay local, so CI builds and tests against demo-data/.
+      - run: pnpm data:demo:install
+      - run: pnpm data:demo:check
       - run: pnpm audit:security
       - run: python3 -m unittest discover -s .agents/skills/verify-fantasy-draft-assistant/helpers -p 'test_*.py'
       - run: pnpm verify

@@ -41,7 +41,7 @@ rankings.
 | `pnpm data:check:strict` | Fails on stale or invalid required artifacts. | The end of `pnpm prepare:draft`. |
 | `pnpm draft:preflight` | Refreshes the Sleeper directory and FantasyPros rankings, rebuilds canonical identities, then validates the local Core Draft Data needed before a provider connection. | Immediately before starting the live draft workspace. |
 | `pnpm dev:live` | Runs `pnpm draft:preflight`, regenerates the draft prep report without making report failure a startup blocker, and starts the local app only if Core Draft Data passes. | Starting the full app, including browser verification. |
-| `pnpm draft:readiness` | Evaluates Core Draft Data, warnings, and Optional Signal degradation separately; writes `data/draft-readiness-report.json` and exits nonzero only for Core Draft Data blockers. | Manually before draft use and in the scheduled Draft Readiness workflow. |
+| `pnpm draft:readiness` | Evaluates Core Draft Data, warnings, and Optional Signal degradation separately; writes `data/draft-readiness-report.json` and exits nonzero only for Core Draft Data blockers. | Manually before draft use. |
 | `pnpm draft:rehearsal` | Runs the deterministic 140-pick Primary League outage and reconciliation scenario. | After draft-state or Recommendation changes and before the real-provider rehearsal. |
 | `pnpm draft:release-gate` | Records build, type-check, lint, unit, integration, data-quality, product-rehearsal, and real-provider evidence separately. | Before feature freeze and after the real-provider rehearsal. |
 | `pnpm refresh:sleeper` | Refreshes `data/sleeper-adp.json` from Sleeper player `search_rank`. | Daily during draft week. |
@@ -58,13 +58,37 @@ rankings.
 | `pnpm report:draft-prep` | Rewrites the prep report from existing artifacts. | After late keeper edits. |
 | `pnpm experiment:primary-league` | Replays the seven Primary League decision experiments and rewrites their JSON and Markdown reports. | After material rankings, keeper, draft-order, opponent-model, scoring, or Best Pick policy changes. |
 
-`pnpm verify` is the deterministic code gate used by pull requests. Freshness is
-checked separately by `.github/workflows/draft-readiness.yml`, which runs daily
-during July through September and can be dispatched manually. This keeps normal
-code CI independent of the wall clock while still surfacing stale draft data.
+`pnpm verify` is the deterministic code gate used by pull requests. Freshness
+needs the local data, so run `pnpm draft:rehearsal` and `pnpm draft:readiness`
+on your machine during draft preparation; CI does not have the data to check it.
 The generated Draft Readiness report records build, type-check, lint, and test as
 separate, not-run engineering checks; those results never substitute for the
 product readiness result.
+
+## Local-only data and the demo dataset
+
+FantasyPros data, everything derived from it, sportsbook markets, and the
+Primary League's settings, IDs, draft history, keepers, and rehearsal evidence
+stay on your machine. `.gitignore` lists them. Fresh clones have none of them:
+run `pnpm dev:live` with your credentials to rebuild the refreshable ones, and
+restore league history and rehearsal evidence from your own copy.
+
+`demo-data/` is the publishable replacement. It has real players and the same
+file names as `data/`, with rankings from the FantasyPros-free model blended
+with Sleeper's order, generic league and manager names, and no news.
+
+| Command | Purpose |
+| --- | --- |
+| `MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset` | Builds the model without FantasyPros inputs into `data/model/fantasypros-free/`. See [the modeling guide](modeling-duckdb.md#fantasypros-free-profile). |
+| `pnpm data:demo:build` | Rebuilds `demo-data/` from that model, Sleeper, team environment, and anonymized league files, then runs the leak check. |
+| `pnpm data:demo:install` | Copies each demo file into `data/` only where the file is missing. CI runs it before `pnpm verify`. |
+| `pnpm data:demo:check [dir ...]` | Fails if a directory contains FantasyPros IDs or URLs, the real league name, or Sleeper user, league, or draft IDs. Defaults to `demo-data/`. |
+
+In demo rankings, each position is ordered by the model blended with Sleeper,
+and positions are compared by the model's value over replacement. Kickers and
+defenses start at pick 150. The market ADP keeps Sleeper's order within each
+position. On demo data, the mock-draft calibration test skips its real-market
+targets and keeps its roster checks.
 
 The live preflight does not update `confirmedAt` in
 `data/primary-league-settings.json`. The saved confirmation remains valid for
@@ -117,6 +141,7 @@ Primary League for the real draft to restore the provider verification gate.
 | `data/league-history/survival-model.json` | Imported league draft history plus Sleeper proxy | Room-specific timing adjustment, not player-quality training data. |
 | `data/league-history/current-keepers.json` | Manual late draft-week input | Add every keeper, mark the user's entry with `isMyKeeper`, and set `updatedAt` only when the full list is confirmed. A confirmed list remains valid for its declared season and does not expire with age. The live mock preloads this file before pick 1. |
 | `data/draft-prep-report.json` | Generated report | Machine-readable draft-week summary. |
+| `demo-data/` | `pnpm data:demo:build` | Publishable FantasyPros-free copy of the browser data, league profile, and keepers. Checked in; CI installs it into `data/`. |
 
 The web build publishes only the files listed in
 `scripts/src/browser-data.ts`. Raw sportsbook lines and the current keeper list
