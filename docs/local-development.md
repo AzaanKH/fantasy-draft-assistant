@@ -9,6 +9,7 @@ Run commands from the repository root with Node 22.18+ and pnpm 9.15.0.
 | `pnpm build` | Build all packages, including `web-app/dist` and `extension/dist`. |
 | `pnpm test` | Run the extension, web app, server, and script test suites with local fixtures and mocks. |
 | `pnpm verify` | Run type checks, lint, tests, and builds. |
+| `pnpm browser:gate` | Render every `/__visual/` fixture, check the readiness checklist at 360–400 pixels, and run a search, queue, mock pick, navigation, and page-failure flow in headless Chromium. It starts its own Vite server on port 3100 (`BROWSER_GATE_PORT`) and contacts no provider. Run `pnpm --filter scripts exec playwright install chromium` once first. |
 | `pnpm audit:security` | Check installed dependencies for advisories of moderate severity or higher. Requires network access. |
 | `pnpm measure:web-bundle` | Build the web app and check its output size and static data policy. |
 | `pnpm draft:readiness` | Check whether the cached inputs meet live draft requirements. |

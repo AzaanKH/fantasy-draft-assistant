@@ -33,7 +33,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "browser:gate": "tsx src/browser-gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.3-r.2",

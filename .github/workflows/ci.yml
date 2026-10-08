@@ -34,3 +34,7 @@ jobs:
       - run: pnpm verify
       - name: Assert web static-output policy
         run: pnpm --filter scripts measure:web-bundle
+      - name: Install Chromium for the browser gate
+        run: pnpm --filter scripts exec playwright install --with-deps chromium
+      - name: Browser gate (visual fixtures, narrow readiness, draft flow)
+        run: pnpm browser:gate
