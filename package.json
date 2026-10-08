@@ -27,6 +27,7 @@
     "lint": "pnpm run -r lint",
     "test": "pnpm --filter @fantasy-draft/shared test && pnpm --filter extension test && pnpm --filter web-app test && pnpm --filter server test && pnpm --filter scripts test && pnpm --filter @fantasy-draft/cli test",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "browser:gate": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts browser:gate",
     "draft:preflight": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts prepare:live-draft",
     "draft:readiness": "pnpm --filter @fantasy-draft/shared build && pnpm --filter scripts check:draft-readiness",
     "draft:rehearsal": "pnpm --filter web-app rehearse:primary-league",

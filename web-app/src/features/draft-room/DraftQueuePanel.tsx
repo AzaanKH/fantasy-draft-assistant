@@ -13,7 +13,7 @@ export function DraftQueuePanel(): React.ReactElement {
   const { players } = usePlayerDataQuery();
   const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
   const { removePlayerFromQueue } = useQueueActions(players);
-  const { canDraft, draftPlayer } = useDraftPlayerAction();
+  const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]
@@ -61,7 +61,8 @@ export function DraftQueuePanel(): React.ReactElement {
           <Button
             size="sm"
             className="draft-pill-action"
-            disabled={!canDraft}
+            disabled={!canDraftPlayer(player)}
+            title={canDraft && !canDraftPlayer(player) ? `${player.position} limit reached` : undefined}
             onClick={() => {
               draftPlayer(player);
             }}

@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  DRAFT_DATA_REFRESH_STEPS,
   evaluateDraftReadiness,
+  type DraftDataRefreshState,
+  type DraftDataRefreshStatus,
   type NFLTeam,
   type Player,
   type Position,
@@ -288,13 +291,44 @@ export function createVisualDraftStore(): DraftStoreApi {
   return store;
 }
 
+type VisualRefreshState = Extract<DraftDataRefreshState, 'idle' | 'running' | 'failed'>;
+
+function visualRefreshStatus(state: VisualRefreshState): DraftDataRefreshStatus {
+  const startedAt = state === 'idle' ? null : new Date(VISUAL_NOW - 20_000).toISOString();
+  return {
+    state,
+    steps: DRAFT_DATA_REFRESH_STEPS.map((step, index) => ({
+      key: step.key,
+      label: step.label,
+      state: state === 'idle' ? 'pending' : index === 0 ? 'succeeded' : index === 1 ? state : 'pending',
+    })),
+    startedAt,
+    finishedAt: state === 'failed' ? new Date(VISUAL_NOW).toISOString() : null,
+    error: state === 'failed' ? 'FantasyPros rankings failed.' : null,
+    detail: state === 'failed' ? 'Error: FantasyPros returned 503 Service Unavailable\n    at fetchRankings (scripts/src/refresh-fantasypros-snapshot.ts)' : null,
+  };
+}
+
+/**
+ * Answers the refresh API with a fixed status, so readiness fixtures show the refresh
+ * action and its progress without reaching the local server or running a refresh.
+ */
+function installVisualRefreshApi(state: VisualRefreshState): void {
+  const realFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (new URL(url, window.location.href).pathname !== '/api/draft-data/refresh') return realFetch(input, init);
+    return Promise.resolve(Response.json(visualRefreshStatus(state)));
+  };
+}
+
 export type VisualRoute =
   | { readonly screen: 'header'; readonly state: 'draft' | 'assistant' }
   | { readonly screen: 'board'; readonly state: 'mid-draft' }
   | { readonly screen: 'assistant'; readonly state: AssistantLens }
   | { readonly screen: 'mobile-draft'; readonly state: 'draft' }
   | { readonly screen: 'mobile-assistant'; readonly state: AssistantLens }
-  | { readonly screen: 'readiness'; readonly state: 'blocked' | 'ready' }
+  | { readonly screen: 'readiness'; readonly state: 'blocked' | 'ready'; readonly refresh: VisualRefreshState }
   | { readonly screen: 'not-found'; readonly state: 'not-found' };
 
 export function getVisualRoute(pathname: string, search: string): VisualRoute {
@@ -321,7 +355,12 @@ export function getVisualRoute(pathname: string, search: string): VisualRoute {
     };
   }
   if (pathname === '/__visual/readiness') {
-    return { screen: 'readiness', state: state === 'ready' ? 'ready' : 'blocked' };
+    const refresh = new URLSearchParams(search).get('refresh');
+    return {
+      screen: 'readiness',
+      state: state === 'ready' ? 'ready' : 'blocked',
+      refresh: refresh === 'running' || refresh === 'failed' ? refresh : 'idle',
+    };
   }
   return { screen: 'not-found', state: 'not-found' };
 }
@@ -430,6 +469,11 @@ export function VisualApp(): React.ReactElement {
     initialConnection: null,
     persist: () => undefined,
   }));
+  const route = React.useMemo(
+    () => getVisualRoute(window.location.pathname, window.location.search),
+    []
+  );
+  React.useState(() => { installVisualRefreshApi(route.screen === 'readiness' ? route.refresh : 'idle'); });
   const [queryClient] = React.useState(() => {
     const client = new QueryClient({
       defaultOptions: {
@@ -442,10 +486,6 @@ export function VisualApp(): React.ReactElement {
     client.setQueryData(['league-survival-model', 'primary-league'], null, { updatedAt: VISUAL_NOW });
     return client;
   });
-  const route = React.useMemo(
-    () => getVisualRoute(window.location.pathname, window.location.search),
-    []
-  );
 
   return (
     <ThemeProvider initialTheme="light" persist={false}>

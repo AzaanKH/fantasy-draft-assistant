@@ -65,7 +65,7 @@ export function DraftDock({
       0
     )
   );
-  const { output, overall } = useDraftDecision();
+  const { output, overall, recommendationsBlocked } = useDraftDecision();
   const expand = (): void => { onExpandedChange(true); };
 
   const collapseButton = (
@@ -104,7 +104,7 @@ export function DraftDock({
   return (
     <section className={cn('draft-dock', isSplit && 'is-split', !isExpanded && 'is-collapsed')} aria-label="Draft tools">
       <h2 className="sr-only">Draft workspace</h2>
-      <p className="sr-only">Player pool ordered by {output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player'}</p>
+      <p className="sr-only">Player pool ordered by {recommendationsBlocked ? 'expert rank' : output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player'}</p>
       {isSplit ? (
         <>
           <div className="draft-dock-pool">

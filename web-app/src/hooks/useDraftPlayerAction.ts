@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Player } from '@fantasy-draft/shared';
+import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 import {
   useDraftSessionMode,
   useDraftStore,
@@ -15,9 +15,20 @@ export function canDraftFromWorkspace(
   return sessionMode === 'mock' && isMyTurn && !hasKeeperAtCurrentPick;
 }
 
+/** A position whose roster maximum is reached is not a legal pick, matching the recommendation pool. */
+export function isPositionFull(
+  position: Position,
+  roster: Readonly<Record<Position, readonly string[]>>,
+  requirements: RosterRequirements
+): boolean {
+  return roster[position].length >= requirements[position].max;
+}
+
 export function useDraftPlayerAction(): {
   readonly canDraft: boolean;
   readonly isMyTurn: boolean;
+  /** `canDraft` plus the player's position limit; use it for per-player Draft actions. */
+  readonly canDraftPlayer: (player: Pick<Player, 'position'>) => boolean;
   readonly draftPlayer: (player: Player) => void;
 } {
   const sessionMode = useDraftSessionMode();
@@ -25,6 +36,7 @@ export function useDraftPlayerAction(): {
   const config = useDraftStore((state) => state.config);
   const currentPick = useDraftStore((state) => state.currentPick);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
+  const myRoster = useDraftStore((state) => state.myRoster);
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const keeperAtCurrentPick = sessionMode === 'mock'
@@ -39,8 +51,13 @@ export function useDraftPlayerAction(): {
     keeperAtCurrentPick !== undefined
   );
 
+  const canDraftPlayer = React.useCallback(
+    (player: Pick<Player, 'position'>) => canDraft && !isPositionFull(player.position, myRoster, config.rosterRequirements),
+    [canDraft, config.rosterRequirements, myRoster]
+  );
+
   const draftPlayer = React.useCallback((player: Player) => {
-    if (!canDraft) return;
+    if (!canDraftPlayer(player)) return;
     const teamIndex = getTeamIndexForPick(currentPick, config.totalTeams);
     markPlayerDrafted(
       player.id,
@@ -50,7 +67,7 @@ export function useDraftPlayerAction(): {
       'My Team'
     );
     addToMyRoster(player);
-  }, [addToMyRoster, canDraft, config.totalTeams, currentPick, markPlayerDrafted]);
+  }, [addToMyRoster, canDraftPlayer, config.totalTeams, currentPick, markPlayerDrafted]);
 
-  return { canDraft, isMyTurn, draftPlayer };
+  return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };
 }

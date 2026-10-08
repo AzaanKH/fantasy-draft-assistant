@@ -92,20 +92,26 @@ to loopback, and API requests require a pairing token. See
 [local development](docs/local-development.md#local-api-security) for token
 rotation, request limits, and ESPN session reset details.
 
-The recorded real-provider rehearsal is **incomplete**. The September 5, 2026
-Sleeper rehearsal verified settings, keepers, and recovery from a local outage,
-but the provider draft remained in pre-draft. Full live-pick confirmation,
-correction, and completion still need verification. See the
-[provider rehearsal record](docs/provider-rehearsal-2026-09-05.md) and
-[release-gate report](data/primary-league-release-gate-report.json). The release
-gate remains blocked and feature freeze pending until the real-provider rehearsal
-and current readiness checks pass.
+The recorded real-provider rehearsal is **incomplete**. In the
+[September 22, 2026 Sleeper rehearsal](docs/provider-rehearsal-2026-09-22.md),
+the designated draft's completed snapshot validated 140 unique picks, keepers,
+settings, and roster counts. A separate practice draft validated live imports,
+delay detection, one confirmed provisional pick, and a complete 150-pick board.
+Three checks remain: correcting a conflicting provisional pick, removing an
+extra provisional pick, and a complete connected run with the exact keeper-league
+profile. Run them with the [rehearsal guide](docs/primary-league-rehearsal.md),
+then rerun the [release gate](data/primary-league-release-gate-report.json). The
+release gate remains blocked and feature freeze pending until those checks and
+current readiness pass. The earlier
+[September 5 record](docs/provider-rehearsal-2026-09-05.md) covers settings,
+keepers, and local outage recovery before the draft started.
 
 ## Development
 
 ```bash
 pnpm test                 # Local fixture and mock-based suites
 pnpm verify               # Type checks, lint, tests, and builds
+pnpm browser:gate         # Visual fixtures and a draft flow in headless Chromium
 pnpm draft:readiness      # Current data blockers
 ```
 

@@ -33,6 +33,12 @@ describe('visual fixtures', () => {
     expect(getVisualRoute('/__visual/readiness', '?state=blocked')).toEqual({
       screen: 'readiness',
       state: 'blocked',
+      refresh: 'idle',
+    });
+    expect(getVisualRoute('/__visual/readiness', '?refresh=failed')).toEqual({
+      screen: 'readiness',
+      state: 'blocked',
+      refresh: 'failed',
     });
   });
 
