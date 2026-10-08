@@ -9,7 +9,9 @@ export function createConfigurationActions(
   'setConfig' |
   'applyLeagueSettings' |
   'setRosterRequirements' |
-  'setMockSettings'
+  'setMockSettings' |
+  'setMockAutoAdvancePaused' |
+  'setMockSettingsOpen'
 > {
   return {
     setConfig: (newConfig) =>
@@ -143,6 +145,10 @@ export function createConfigurationActions(
           Math.max(25, Math.round(state.mockSettings.survivalIterations))
         );
       }); },
+    setMockAutoAdvancePaused: (paused) =>
+      { set((state) => { state.mockAutoAdvance.paused = paused; }); },
+    setMockSettingsOpen: (open) =>
+      { set((state) => { state.mockAutoAdvance.settingsOpen = open; }); },
 
     // Draft actions
   };

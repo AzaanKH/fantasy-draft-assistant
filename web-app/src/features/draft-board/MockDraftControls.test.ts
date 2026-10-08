@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Player } from '@fantasy-draft/shared';
@@ -7,10 +7,7 @@ import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stor
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 
 import { MockDraftControls } from './MockDraftControls';
-
-vi.mock('@/hooks/useLeagueTimingEvidence', () => ({
-  useLeagueTimingEvidence: () => ({ model: null }),
-}));
+import { MockDraftAutoAdvance } from './mock-auto-advance';
 
 function player(index: number): Player {
   const base = VISUAL_PLAYERS[0];
@@ -20,9 +17,33 @@ function player(index: number): Player {
 
 const players = Array.from({ length: 40 }, (_, index) => player(index + 1));
 
+vi.mock('@/hooks/useLeagueTimingEvidence', () => ({
+  useLeagueTimingEvidence: () => ({ model: null }),
+}));
+vi.mock('@/hooks/usePlayerData', () => ({
+  usePlayerDataQuery: () => ({ players, isLoading: false }),
+}));
+
 let container: HTMLDivElement;
 let root: Root;
 let store: DraftStoreApi;
+
+// MockDraftAutoAdvance sits above the routes; the controls exist only on the draft board.
+function render({ onBoard }: { readonly onBoard: boolean }): void {
+  act(() => {
+    root.render(createElement(DraftStoreProvider, {
+      store,
+      children: createElement(
+        Fragment,
+        null,
+        createElement(MockDraftAutoAdvance),
+        onBoard
+          ? createElement(MockDraftControls, { players, isMockReady: true, sessionMode: 'mock' })
+          : null
+      ),
+    }));
+  });
+}
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,12 +55,6 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
-  act(() => {
-    root.render(createElement(DraftStoreProvider, {
-      store,
-      children: createElement(MockDraftControls, { players, isMockReady: true, sessionMode: 'mock' }),
-    }));
-  });
 });
 
 afterEach(() => {
@@ -69,8 +84,9 @@ function button(label: string): HTMLButtonElement {
   return match;
 }
 
-describe('MockDraftControls auto-advance', () => {
+describe('mock draft auto-advance', () => {
   it('runs CPU picks to the user slot and resumes after the user drafts', () => {
+    render({ onBoard: true });
     advance(3000);
     expect(store.getState().currentPick).toBe(3);
 
@@ -83,6 +99,7 @@ describe('MockDraftControls auto-advance', () => {
   });
 
   it('stays paused after the user pauses until they resume', () => {
+    render({ onBoard: true });
     act(() => { button('Pause').click(); });
     advance(3000);
     expect(store.getState().currentPick).toBe(1);
@@ -96,8 +113,59 @@ describe('MockDraftControls auto-advance', () => {
   });
 
   it('does not run CPU picks while the settings dialog is open', () => {
+    render({ onBoard: true });
     act(() => { button('Settings').click(); });
     advance(3000);
     expect(store.getState().currentPick).toBe(1);
+  });
+
+  it('keeps the pause when the user leaves the draft board', () => {
+    render({ onBoard: true });
+    act(() => { button('Pause').click(); });
+    render({ onBoard: false });
+    render({ onBoard: true });
+    advance(3000);
+    expect(store.getState().currentPick).toBe(1);
+  });
+
+  it('continues after a pick made away from the draft board', () => {
+    render({ onBoard: false });
+    advance(3000);
+    expect(store.getState().currentPick).toBe(3);
+
+    draftMyPick();
+    advance(3000);
+    expect(store.getState().currentPick).toBe(6);
+  });
+
+  it('holds an undone keeper slot until the user resumes', () => {
+    store.getState().preloadKeepers([{
+      playerId: 'keeper-1', playerName: 'Keeper', position: 'RB', teamIndex: 0, round: 1, isMyKeeper: false,
+    }]);
+    render({ onBoard: true });
+    advance(3000);
+    expect(store.getState().draftHistory.map((pick) => pick.source)).toEqual(['keeper', 'cpu']);
+
+    act(() => {
+      store.getState().undoLastPick();
+      store.getState().undoLastPick();
+    });
+    advance(3000);
+    expect(store.getState().currentPick).toBe(1);
+    expect(store.getState().draftHistory).toEqual([]);
+
+    act(() => { button('Resume').click(); });
+    advance(3000);
+    expect(store.getState().currentPick).toBe(3);
+  });
+
+  it('holds keeper slots while the settings dialog is open', () => {
+    store.getState().preloadKeepers([{
+      playerId: 'keeper-1', playerName: 'Keeper', position: 'RB', teamIndex: 0, round: 1, isMyKeeper: false,
+    }]);
+    render({ onBoard: true });
+    act(() => { button('Settings').click(); });
+    advance(3000);
+    expect(store.getState().draftHistory).toEqual([]);
   });
 });

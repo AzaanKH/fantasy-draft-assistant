@@ -66,6 +66,8 @@ export function createPickActions(
         } else {
           state.currentPick += 1;
         }
+        // The user's own pick resumes CPU auto-advance after an undo or pause.
+        if (source === 'manual') state.mockAutoAdvance.paused = false;
         state.mockSurvivalProbabilities = {};
       }); },
 
@@ -180,6 +182,8 @@ export function createPickActions(
           rebuildCanonicalRosters(state);
           state.currentPick = Math.max(1, lastPick.pickNumber);
           state.mockSurvivalProbabilities = {};
+          // Keep CPU auto-advance from re-drafting the restored pick.
+          state.mockAutoAdvance.paused = true;
         }
       }); },
 
@@ -206,6 +210,7 @@ export function createPickActions(
         );
         state.currentPick = branchPick;
         state.mockSurvivalProbabilities = {};
+        state.mockAutoAdvance.paused = true;
       }); },
 
     addToMyRoster: (player) =>
@@ -230,6 +235,7 @@ export function createPickActions(
         rebuildCanonicalRosters(state);
         state.shortlistedPlayerIds = [];
         state.mockSurvivalProbabilities = {};
+        state.mockAutoAdvance.paused = false;
       }); },
 
     setMockSurvivalProbabilities: (probabilities) => {

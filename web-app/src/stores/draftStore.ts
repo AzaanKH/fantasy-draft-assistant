@@ -133,6 +133,7 @@ export function createDraftStore({
     config: defaultConfig,
     leagueSettings: createDefaultLeagueSettings(),
     mockSettings: defaultMockSettings,
+    mockAutoAdvance: { paused: false, settingsOpen: false },
     currentPick: 1,
     draftedPlayerIds: new Set<string>(),
     draftHistory: [],
