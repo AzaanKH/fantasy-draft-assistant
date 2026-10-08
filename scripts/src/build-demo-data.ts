@@ -20,12 +20,15 @@ import {
   findDemoDataLeaks,
   type DemoPredictionPlayer,
   type DemoSleeperPlayer,
+  type DemoStatHistory,
+  type DemoVolume,
 } from './demo-data-core.js';
 import { DATA_DIR, REPO_ROOT, sqlString, withMemoryDb } from './model/duckdb.js';
 import { io, runMain } from './effect-runtime.js';
 
 export const DEMO_DATA_DIR = join(REPO_ROOT, 'demo-data');
 const FANTASYPROS_FREE_MODEL_DIR = join(DATA_DIR, 'model', 'fantasypros-free');
+const FANTASYPROS_FREE_MODEL_DB = join(FANTASYPROS_FREE_MODEL_DIR, 'fantasy-draft.duckdb');
 const NFLVERSE_SCHEDULES_URL =
   'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.parquet';
 
@@ -89,6 +92,75 @@ const readByeWeeks = (season: number): Effect.Effect<Partial<Record<NFLTeam, num
     ])) as Partial<Record<NFLTeam, number>>;
   }));
 
+interface ComponentRow {
+  readonly sleeper_player_id: string;
+  readonly projected_rush_attempts: number;
+  readonly projected_receptions: number;
+  readonly history_seasons: number | bigint;
+  readonly passing_yards: number | null;
+  readonly passing_tds: number | null;
+  readonly rushing_yards: number | null;
+  readonly rushing_tds: number | null;
+  readonly receiving_yards: number | null;
+  readonly receiving_tds: number | null;
+}
+
+interface ProjectionComponents {
+  readonly volumes: ReadonlyMap<string, DemoVolume>;
+  readonly histories: ReadonlyMap<string, DemoStatHistory>;
+}
+
+/**
+ * Reads the model's projected receptions and rush attempts and each player's
+ * per-game yards and touchdowns over the three seasons before this one.
+ */
+const readProjectionComponents = (season: number): Effect.Effect<ProjectionComponents, Error> =>
+  withMemoryDb((connection) => io(async () => {
+    await connection.run(`attach ${sqlString(FANTASYPROS_FREE_MODEL_DB)} as free (read_only)`);
+    const perGame = (column: string): string => `avg(${column} / games) as ${column}`;
+    const reader = await connection.runAndReadAll(`
+      with history as (
+        select
+          player_id,
+          count(*) as history_seasons,
+          ${['passing_yards', 'passing_tds', 'rushing_yards', 'rushing_tds', 'receiving_yards', 'receiving_tds']
+            .map(perGame).join(',\n          ')}
+        from free.source.nflverse_player_stats
+        where season_type = 'REG' and games > 0
+          and season between ${String(season - 3)} and ${String(season - 1)}
+        group by player_id
+      )
+      select distinct on (features.sleeper_player_id)
+        features.sleeper_player_id,
+        features.projected_rush_attempts,
+        features.projected_receptions,
+        coalesce(history.history_seasons, 0) as history_seasons,
+        history.* exclude (player_id, history_seasons)
+      from free.model.shared_prediction_features features
+      left join history on history.player_id = features.gsis_id
+      where features.sleeper_player_id is not null
+    `);
+    await connection.run('detach free');
+    const rows = reader.getRowObjects() as unknown as ComponentRow[];
+    return {
+      volumes: new Map(rows.map((row) => [row.sleeper_player_id, {
+        projectedRushAttempts: row.projected_rush_attempts,
+        projectedReceptions: row.projected_receptions,
+      }])),
+      histories: new Map(rows.flatMap((row) => Number(row.history_seasons) === 0 ? [] : [[
+        row.sleeper_player_id,
+        {
+          passingYards: row.passing_yards ?? 0,
+          passingTouchdowns: row.passing_tds ?? 0,
+          rushingYards: row.rushing_yards ?? 0,
+          rushingTouchdowns: row.rushing_tds ?? 0,
+          receivingYards: row.receiving_yards ?? 0,
+          receivingTouchdowns: row.receiving_tds ?? 0,
+        },
+      ] as const])),
+    };
+  }));
+
 const program = Effect.gen(function* () {
   const predictions = yield* readJson<PredictionsFile>(join(FANTASYPROS_FREE_MODEL_DIR, 'predictions.json'));
   if (!predictions.modelVersion.endsWith('-fantasypros-free')) {
@@ -107,6 +179,7 @@ const program = Effect.gen(function* () {
   const leagueSettings = yield* readJson<Record<string, unknown>>(join(DATA_DIR, 'primary-league-settings.json'));
   const season = modelReport.currentSeason;
   const byeWeeks = yield* readByeWeeks(season);
+  const { volumes, histories } = yield* readProjectionComponents(season);
   const generatedAt = predictions.generatedAt;
 
   const ranked = blendDemoRankings(predictions.players, sleeper.players);
@@ -116,7 +189,7 @@ const program = Effect.gen(function* () {
     identity.position === 'DEF' && rankedIds.has(identity.sleeperId)).length;
 
   const written = yield* Effect.all([
-    writeJson('fantasypros-snapshot.json', buildDemoSnapshot(ranked, byeWeeks, season, generatedAt)),
+    writeJson('fantasypros-snapshot.json', buildDemoSnapshot(ranked, byeWeeks, season, generatedAt, volumes, histories)),
     writeJson('player-identity.json', {
       generatedAt,
       season,

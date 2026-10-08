@@ -82,12 +82,16 @@ with Sleeper's order, generic league and manager names, and no news.
 | `MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset` | Builds the model without FantasyPros inputs into `data/model/fantasypros-free/`. See [the modeling guide](modeling-duckdb.md#fantasypros-free-profile). |
 | `pnpm data:demo:build` | Rebuilds `demo-data/` from that model, Sleeper, team environment, and anonymized league files, then runs the leak check. |
 | `pnpm data:demo:install` | Copies each demo file into `data/` only where the file is missing. CI runs it before `pnpm verify`. |
-| `pnpm data:demo:check [dir ...]` | Fails if a directory contains FantasyPros IDs or URLs, the real league name, or Sleeper user, league, or draft IDs. Defaults to `demo-data/`. |
+| `pnpm build:web:demo` | Builds the web app with `BROWSER_DATA_SOURCE=demo`, which serves each browser file from `demo-data/` when it has one (such as its recommendation policy) and from `data/` otherwise. CI sets the variable for the whole job. |
+| `pnpm data:demo:check [dir ...]` | Fails if a directory contains FantasyPros IDs or URLs, the real league name, or Sleeper user, league, or draft IDs, including in compiled JavaScript and source maps. Defaults to `demo-data/`; CI also checks `web-app/dist`. |
 
 In demo rankings, each position is ordered by the model blended with Sleeper,
 and positions are compared by the model's value over replacement. Kickers and
 defenses start at pick 150. The market ADP keeps Sleeper's order within each
-position. On demo data, the mock-draft calibration test skips its real-market
+position. Projections are neutral full-PPR totals with stat components, so the
+app re-scores them for the selected scoring rules: receptions and rush attempts
+are the model's, and yards and touchdowns split the rest of the total in each
+player's last three seasons' mix. On demo data, the mock-draft calibration test skips its real-market
 targets and keeps its roster checks.
 
 The live preflight does not update `confirmedAt` in

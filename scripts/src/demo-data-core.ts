@@ -24,11 +24,27 @@ export interface DemoPredictionPlayer {
   readonly name: string;
   readonly position: Position;
   readonly team: NFLTeam;
+  /** Full-PPR total before this league's bonuses. */
+  readonly baseProjectedPoints: number;
   readonly projectedPoints: number;
-  readonly floorProjectedPoints: number;
-  readonly ceilingProjectedPoints: number;
   readonly valueOverReplacement: number;
   readonly uncertaintyScore: number;
+}
+
+/** Per-game averages over the player's last three regular seasons. */
+export interface DemoStatHistory {
+  readonly passingYards: number;
+  readonly passingTouchdowns: number;
+  readonly rushingYards: number;
+  readonly rushingTouchdowns: number;
+  readonly receivingYards: number;
+  readonly receivingTouchdowns: number;
+}
+
+/** The model's own volume inputs, used for this league's bonuses. */
+export interface DemoVolume {
+  readonly projectedRushAttempts: number;
+  readonly projectedReceptions: number;
 }
 
 export interface DemoSleeperPlayer {
@@ -196,11 +212,73 @@ export function blendDemoRankings(
   }));
 }
 
+/** Full-PPR rates; the components below reproduce the neutral total under them. */
+const PPR_YARD_TOUCHDOWN_POINTS: Readonly<Record<keyof DemoStatHistory, number>> = {
+  passingYards: 0.04,
+  passingTouchdowns: 4,
+  rushingYards: 0.1,
+  rushingTouchdowns: 6,
+  receivingYards: 0.1,
+  receivingTouchdowns: 6,
+};
+
+/**
+ * The model projects totals, not yards and touchdowns. Receptions and rush
+ * attempts are the model's own inputs; the rest of the full-PPR total is split
+ * across yards and touchdowns in the player's recent per-game mix, so the
+ * components add back up to the neutral total under full-PPR rules.
+ */
+export function demoProjection(
+  player: DemoRankedPlayer,
+  prediction: DemoPredictionPlayer,
+  volume: DemoVolume | undefined,
+  history: DemoStatHistory | undefined
+): FantasyProsProjection {
+  const base = prediction.baseProjectedPoints;
+  const receptions = volume?.projectedReceptions ?? 0;
+  // Net-negative yardage counts as zero.
+  const perGame = (stat: keyof DemoStatHistory): number => Math.max(0, history?.[stat] ?? 0);
+  const historyPoints = (Object.keys(PPR_YARD_TOUCHDOWN_POINTS) as (keyof DemoStatHistory)[])
+    .reduce((sum, stat) => sum + perGame(stat) * PPR_YARD_TOUCHDOWN_POINTS[stat], 0);
+  const scale = history && historyPoints > 0 && base > receptions
+    ? (base - receptions) / historyPoints
+    : null;
+  const component = (stat: keyof DemoStatHistory): number =>
+    round(perGame(stat) * (scale ?? 0), 3);
+  // Like FantasyPros, no floor or ceiling: the app derives both from the re-scored total.
+  return {
+    fantasyProsId: demoPlayerId(player.sleeperId),
+    name: player.name,
+    position: player.position,
+    team: player.team,
+    projectedPoints: base,
+    baseProjectedPoints: base,
+    ...(volume
+      ? {
+          projectedRushAttempts: round(volume.projectedRushAttempts, 3),
+          projectedReceptions: round(receptions, 3),
+        }
+      : {}),
+    ...(scale === null
+      ? {}
+      : {
+          projectedPassingYards: component('passingYards'),
+          projectedPassingTouchdowns: component('passingTouchdowns'),
+          projectedRushingYards: component('rushingYards'),
+          projectedRushingTouchdowns: component('rushingTouchdowns'),
+          projectedReceivingYards: component('receivingYards'),
+          projectedReceivingTouchdowns: component('receivingTouchdowns'),
+        }),
+  };
+}
+
 export function buildDemoSnapshot(
   ranked: readonly DemoRankedPlayer[],
   byeWeeks: Readonly<Partial<Record<NFLTeam, number>>>,
   season: number,
-  refreshedAt: string
+  refreshedAt: string,
+  volumes: ReadonlyMap<string, DemoVolume> = new Map(),
+  histories: ReadonlyMap<string, DemoStatHistory> = new Map()
 ): FantasyProsSnapshot {
   const positionCounts = new Map<Position, number>();
   const rankings: ECRPlayer[] = ranked.map((player) => {
@@ -239,18 +317,15 @@ export function buildDemoSnapshot(
       };
     });
 
-  // The model's totals already include this league's scoring, and no stat
-  // components are supplied, so local re-scoring leaves them unchanged.
+  // Totals are neutral full PPR with stat components, so the app re-scores
+  // them for whatever scoring rules the visitor selects.
   const projections: FantasyProsProjection[] = ranked.flatMap((player) => player.prediction
-    ? [{
-        fantasyProsId: demoPlayerId(player.sleeperId),
-        name: player.name,
-        position: player.position,
-        team: player.team,
-        projectedPoints: player.prediction.projectedPoints,
-        floorPoints: player.prediction.floorProjectedPoints,
-        ceilingPoints: player.prediction.ceilingProjectedPoints,
-      }]
+    ? [demoProjection(
+        player,
+        player.prediction,
+        volumes.get(player.sleeperId),
+        histories.get(player.sleeperId)
+      )]
     : []);
 
   return {
@@ -328,13 +403,22 @@ const LEAK_PATTERNS: readonly (readonly [label: string, pattern: RegExp])[] = [
   ['a Sleeper league or draft ID', /\b\d{17,20}\b/],
 ];
 
+/**
+ * A fantasyProsId set to a string or number literal, in JSON, compiled
+ * JavaScript (unquoted or single-quoted keys), or escaped inside a source map.
+ * Assignments from variables, such as `fantasyProsId:t.id`, are not literals.
+ */
+const FANTASYPROS_ID_LITERAL =
+  /fantasyProsId\\*["'`]?\s*:\s*(?:\\*["'`]([^"'`\\$]*)\\*["'`]|(\d+)\b)/g;
+
 /** Returns a description of each leak found in one published file. */
 export function findDemoDataLeaks(fileName: string, content: string): readonly string[] {
   const leaks = LEAK_PATTERNS.flatMap(([label, pattern]) =>
     pattern.test(content) ? [`${fileName} contains ${label}`] : []);
-  for (const match of content.matchAll(/"fantasyProsId":\s*"([^"]*)"/g)) {
-    if (!match[1]?.startsWith(DEMO_ID_PREFIX)) {
-      leaks.push(`${fileName} contains a FantasyPros player ID (${match[1] ?? ''})`);
+  for (const match of content.matchAll(FANTASYPROS_ID_LITERAL)) {
+    const id = match[1] ?? match[2] ?? '';
+    if (!id.startsWith(DEMO_ID_PREFIX)) {
+      leaks.push(`${fileName} contains a FantasyPros player ID (${id})`);
       break;
     }
   }

@@ -13,6 +13,24 @@ const { webPort, apiOrigin } = localDevPorts(process.env);
 const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
 
+// BROWSER_DATA_SOURCE=demo serves demo-data/ (including its recommendation
+// policy) without changing data/; files the demo does not ship come from data/.
+const browserDataSource = process.env['BROWSER_DATA_SOURCE'] ?? 'local';
+if (browserDataSource !== 'local' && browserDataSource !== 'demo') {
+  throw new Error(`BROWSER_DATA_SOURCE must be "local" or "demo"; got "${browserDataSource}".`);
+}
+
+async function readBrowserData(fileName: string): Promise<Buffer> {
+  if (browserDataSource === 'demo') {
+    try {
+      return await readFile(path.join(repoRoot, 'demo-data', path.relative('data', fileName)));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  return readFile(path.join(repoRoot, fileName));
+}
+
 function browserDataPlugins(): Plugin[] {
   return [{
     name: 'browser-data-dev-server',
@@ -33,7 +51,7 @@ function browserDataPlugins(): Plugin[] {
           return;
         }
 
-        void readFile(path.join(repoRoot, pathname)).then((content) => {
+        void readBrowserData(pathname).then((content) => {
           response.statusCode = 200;
           response.setHeader('Content-Type', 'application/json; charset=utf-8');
           response.setHeader('Cache-Control', 'no-store');
@@ -52,7 +70,7 @@ function browserDataPlugins(): Plugin[] {
         this.emitFile({
           type: 'asset',
           fileName,
-          source: await readFile(path.join(repoRoot, fileName)),
+          source: await readBrowserData(fileName),
         });
       }
     },
