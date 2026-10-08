@@ -55,13 +55,15 @@ interface ByeWeekRow {
 const readJson = <T>(path: string): Effect.Effect<T, Error> =>
   io(async () => JSON.parse(await readFile(path, 'utf8')) as T);
 
-const writeJson = (relativePath: string, value: unknown): Effect.Effect<string, Error> =>
+const serialize = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
+
+const writeFiles = (files: Readonly<Record<string, string>>): Effect.Effect<void, Error> =>
   io(async () => {
-    const path = join(DEMO_DATA_DIR, relativePath);
-    await mkdir(dirname(path), { recursive: true });
-    const content = `${JSON.stringify(value, null, 2)}\n`;
-    await writeFile(path, content);
-    return content;
+    for (const [relativePath, content] of Object.entries(files)) {
+      const path = join(DEMO_DATA_DIR, relativePath);
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, content);
+    }
   });
 
 /** Bye weeks are the regular-season weeks a team does not play, from nflverse's schedule. */
@@ -188,9 +190,9 @@ const program = Effect.gen(function* () {
   const matchedDefenses = identities.filter((identity) =>
     identity.position === 'DEF' && rankedIds.has(identity.sleeperId)).length;
 
-  const written = yield* Effect.all([
-    writeJson('fantasypros-snapshot.json', buildDemoSnapshot(ranked, byeWeeks, season, generatedAt, volumes, histories)),
-    writeJson('player-identity.json', {
+  const payloads: Readonly<Record<string, unknown>> = {
+    'fantasypros-snapshot.json': buildDemoSnapshot(ranked, byeWeeks, season, generatedAt, volumes, histories),
+    'player-identity.json': {
       generatedAt,
       season,
       sources: { demoRankingsGeneratedAt: generatedAt, sleeperFetchedAt: sleeper.fetchedAt },
@@ -203,38 +205,38 @@ const program = Effect.gen(function* () {
         identityRecords: identities.length,
       },
       players: identities,
-    }),
-    writeJson('predictions.json', predictions),
-    writeJson('sleeper-adp.json', sleeper),
-    writeJson('team-environment.json', teamEnvironment),
-    writeJson('recommendation-policy.json', {
+    },
+    'predictions.json': predictions,
+    'sleeper-adp.json': sleeper,
+    'team-environment.json': teamEnvironment,
+    'recommendation-policy.json': {
       ...policy,
       generatedAt,
       fallback: 'fantasypros-ecr-market',
       reason: 'Demo: Best Pick uses the demo ranking, roster feasibility, and draft timing.',
       // The demo has no sync server to receive shadow logs.
       shadowLogging: { enabled: false, season, endpoint: '/api/shadow-recommendations' },
-    }),
-    writeJson('league-history/survival-model.json', anonymizeSurvivalModel(survivalModel)),
-    writeJson('primary-league-settings.json', {
+    },
+    'league-history/survival-model.json': anonymizeSurvivalModel(survivalModel),
+    'primary-league-settings.json': {
       ...leagueSettings,
       leagueName: DEMO_LEAGUE_NAME,
       draftId: 'demo-draft',
       leagueId: 'demo-league',
-    }),
+    },
     // The real keeper list stays private; the demo draft starts with no keepers.
-    writeJson('league-history/current-keepers.json', { updatedAt: generatedAt, season, keepers: [] }),
-  ]);
+    'league-history/current-keepers.json': { updatedAt: generatedAt, season, keepers: [] },
+  };
 
-  const fileNames = [
-    'fantasypros-snapshot.json', 'player-identity.json', 'predictions.json', 'sleeper-adp.json',
-    'team-environment.json', 'recommendation-policy.json', 'league-history/survival-model.json',
-    'primary-league-settings.json', 'league-history/current-keepers.json',
-  ];
-  const leaks = written.flatMap((content, index) => findDemoDataLeaks(fileNames[index] ?? '', content));
+  // Check every file before writing any, so a leak never reaches demo-data/.
+  const files = Object.fromEntries(
+    Object.entries(payloads).map(([fileName, value]) => [fileName, serialize(value)])
+  );
+  const leaks = Object.entries(files).flatMap(([fileName, content]) => findDemoDataLeaks(fileName, content));
   if (leaks.length > 0) {
     return yield* Effect.fail(new Error(`Demo data failed the leak check:\n${leaks.join('\n')}`));
   }
+  yield* writeFiles(files);
   console.log(`Demo data written to ${DEMO_DATA_DIR}: ${String(ranked.length)} ranked players, season ${String(season)}.`);
 });
 
