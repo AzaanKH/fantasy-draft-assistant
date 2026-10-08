@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useStore, type StoreApi } from 'zustand';
 import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
 import {
   createDefaultLeagueSettings,
@@ -15,6 +16,7 @@ import { useDraftStore } from '@/stores/draftStore';
 import {
   getDraftSyncSearch,
   useDraftSyncConnectionStore,
+  type DraftSyncConnectionStore,
   type PersistedDraftSyncConnection,
 } from '@/stores/draftSyncStore';
 
@@ -86,17 +88,22 @@ function syncConnectionToUrl(
 
 export function LiveDraftSyncProvider({
   children,
+  connectionStore = useDraftSyncConnectionStore,
 }: {
   readonly children: React.ReactNode;
+  /** Defaults to the persisted connection; visual fixtures pass an isolated store. */
+  readonly connectionStore?: StoreApi<DraftSyncConnectionStore>;
 }): React.ReactElement {
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
-  const persistStartConnection = useDraftSyncConnectionStore(
+  const connection = useStore(connectionStore, (state) => state.connection);
+  const persistStartConnection = useStore(
+    connectionStore,
     (state) => state.startConnection
   );
-  const persistDraftPosition = useDraftSyncConnectionStore(
+  const persistDraftPosition = useStore(
+    connectionStore,
     (state) => state.confirmDraftPosition
   );
-  const clearConnection = useDraftSyncConnectionStore((state) => state.disconnect);
+  const clearConnection = useStore(connectionStore, (state) => state.disconnect);
   const manualContinuityBaselineAt = useDraftStore((state) => state.manualContinuityBaselineAt);
   const recordManualContinuity = useDraftStore((state) => state.enterManualContinuity);
   const lastConfirmedSyncAt = useDraftStore((state) => state.lastConfirmedSyncAt);

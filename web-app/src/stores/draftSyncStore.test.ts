@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  createDraftSyncConnectionStore,
   getDraftSyncConnectionFromSearch,
   getDraftSyncSearch,
   initializeDraftSyncConnection,
@@ -171,5 +172,22 @@ describe('Quick mock connection profile', () => {
   it('rejects conflicting or unsupported persisted practice settings', () => {
     expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'quick', draftPosition: 3, settingsProfile: 'quick-mock', usePrimaryLeagueSettings: true }))).toBeNull();
     expect(parseStoredDraftSyncConnection(JSON.stringify({ provider: 'espn', draftId: '12345', draftPosition: 3, settingsProfile: 'quick-mock' }))).toBeNull();
+  });
+});
+
+describe('isolated connection store', () => {
+  afterEach(() => {
+    useDraftSyncConnectionStore.getState().disconnect();
+  });
+
+  it('starts empty and stays separate from the persisted live connection', () => {
+    useDraftSyncConnectionStore.getState().startConnection('sleeper', '1393492523179057152');
+    const isolated = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
+
+    expect(isolated.getState().connection).toBeNull();
+
+    isolated.getState().startConnection('sleeper', 'fixture-1');
+    isolated.getState().disconnect();
+    expect(useDraftSyncConnectionStore.getState().connection?.draftId).toBe('1393492523179057152');
   });
 });

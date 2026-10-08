@@ -15,6 +15,7 @@ import type { AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftBoard } from '@/features/draft-room/DraftBoard';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { DraftWorkspace } from '@/features/draft-room/DraftWorkspace';
+import { LiveDraftSyncProvider } from '@/features/draft-room/LiveDraftSyncProvider';
 import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
 import { DraftGlossary } from '@/features/help/DraftGlossary';
 import {
@@ -34,6 +35,7 @@ import {
   type DraftStoreApi,
   type RecordedDraftPick,
 } from '@/stores/draftStore';
+import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 
 export const VISUAL_NOW = Date.UTC(2026, 7, 27, 17, 0, 0);
 export const VISUAL_TIMESTAMP = new Date(VISUAL_NOW).toISOString();
@@ -423,6 +425,11 @@ function VisualReadySignal(): null {
 
 export function VisualApp(): React.ReactElement {
   const [draftStore] = React.useState(createVisualDraftStore);
+  // A persisted live draft must not reach useDraftSync or switch the mock fixture store to live.
+  const [connectionStore] = React.useState(() => createDraftSyncConnectionStore({
+    initialConnection: null,
+    persist: () => undefined,
+  }));
   const [queryClient] = React.useState(() => {
     const client = new QueryClient({
       defaultOptions: {
@@ -447,12 +454,14 @@ export function VisualApp(): React.ReactElement {
           <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
             <NotificationProvider>
               <TooltipProvider><MotionProvider>
-                <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
-                  <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
-                    <VisualRouteContent route={route} />
-                  </div>
-                  <VisualReadySignal />
-                </DraftDecisionProvider>
+                <LiveDraftSyncProvider connectionStore={connectionStore}>
+                  <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                    <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
+                      <VisualRouteContent route={route} />
+                    </div>
+                    <VisualReadySignal />
+                  </DraftDecisionProvider>
+                </LiveDraftSyncProvider>
               </MotionProvider></TooltipProvider>
             </NotificationProvider>
           </PlayerDataFixtureProvider>

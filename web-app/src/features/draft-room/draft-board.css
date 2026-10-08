@@ -1,83 +1,86 @@
 /* The board keeps the design system's night palette in either application theme. */
 .draft-board {
-  --color-background: #05091E;
-  --color-foreground: #FFFFFF;
-  --color-card: #141B38;
-  --color-card-foreground: #FFFFFF;
-  --color-muted: #1C2643;
-  --color-muted-foreground: #A5B3CB;
-  --color-border: #34415E;
-  --color-ring: #03FFFA;
-  --color-primary: #03FFFA;
-  --color-primary-foreground: #051827;
-  --board-accent: #03FFFA;
-  --board-slot: #141B38;
-  --board-slot-raised: #1C2643;
-  --board-mine: #0A3447;
-  --board-ink: #051827;
+  --color-background: var(--night-background);
+  --color-foreground: var(--night-text);
+  --color-card: var(--night-surface);
+  --color-card-foreground: var(--night-text);
+  --color-muted: var(--night-raised);
+  --color-muted-foreground: var(--night-text-muted);
+  --color-border: var(--night-border);
+  --color-ring: var(--night-accent);
+  --color-primary: var(--night-accent);
+  --color-primary-foreground: var(--night-ink);
+  --board-accent: var(--night-accent);
+  --board-accent-edge: color-mix(in srgb, var(--board-accent) 50%, transparent);
+  --board-slot: var(--night-surface);
+  --board-slot-raised: var(--night-raised);
+  --board-mine: var(--night-accent-subtle);
+  --board-ink: var(--night-ink);
   --board-ink-muted: #1D4258;
-  background: #05091E;
-  color: #FFFFFF;
+  --board-on-clock: var(--night-warning);
+  --board-complete: var(--night-success);
+  background: var(--color-background);
+  color: var(--color-foreground);
   color-scheme: dark;
   overflow: hidden;
-  border: 1px solid #1C2643;
+  border: 1px solid var(--board-slot-raised);
   border-radius: 12px;
 }
-.board-toolbar { background: #05091E; }
+.board-toolbar { background: var(--color-background); }
 .board-toolbar .board-title { font-size: 20px; line-height: 28px; font-weight: 800; letter-spacing: -.02em; }
-.board-subtitle { margin-top: 2px; color: #A5B3CB; font-size: 13px; line-height: 18px; }
+.board-subtitle { margin-top: 2px; color: var(--color-muted-foreground); font-size: 13px; line-height: 18px; }
 .board-toolbar button { font-size: 12px; }
-.board-view-toggle { display: inline-flex; padding: 3px; border-radius: var(--radius-sm); background: #141B38; }
+.board-view-toggle { display: inline-flex; padding: 3px; border-radius: var(--radius-sm); background: var(--board-slot); }
 .board-view-toggle button { border-radius: var(--radius-xs); }
-.board-toolbar .board-view-toggle button[aria-pressed=true] { background: #FFFFFF; color: #051827; }
-.board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: #FFFFFF; background: #1C2643; border-radius: var(--radius-xs); font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.board-current-pick.is-your-turn { color: #051827; background: #FDE047; }
-.board-current-pick.is-complete { color: #051827; background: #49E8CC; }
-.board-scroll { height: var(--draft-board-height, 320px); padding: 0 10px 10px 0; scrollbar-color: #34415E #05091E; scrollbar-width: thin; }
-.board-grid { gap: 4px; background: #05091E; isolation: isolate; }
-.board-corner, .board-team-header { height: 76px; background: #05091E; }
-.board-corner { display: flex; align-items: center; justify-content: center; color: #A5B3CB; font-size: 11px; }
+.board-toolbar .board-view-toggle button[aria-pressed=true] { background: var(--color-foreground); color: var(--board-ink); }
+.board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: var(--color-foreground); background: var(--board-slot-raised); border-radius: var(--radius-xs); font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.board-current-pick.is-your-turn { color: var(--board-ink); background: var(--board-on-clock); }
+.board-current-pick.is-complete { color: var(--board-ink); background: var(--board-complete); }
+.board-scroll { height: var(--draft-board-height, 320px); overscroll-behavior: contain; padding: 0 10px 10px 0; scrollbar-color: var(--color-border) var(--color-background); scrollbar-width: thin; }
+.board-grid { gap: 4px; background: var(--color-background); isolation: isolate; }
+.board-corner, .board-team-header { height: 76px; background: var(--color-background); }
+.board-corner { display: flex; align-items: center; justify-content: center; color: var(--color-muted-foreground); font-size: 11px; }
 .board-team-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 6px; }
-.board-team-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--team-color); color: #051827; font-size: 12px; font-weight: 800; box-shadow: inset 0 0 0 2px #FFFFFF40; }
-.board-team-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #A5B3CB; font-size: 12px; font-weight: 500; }
-.board-team-header.is-active-team .board-team-avatar { outline: 2px solid #FDE047; outline-offset: 3px; }
+.board-team-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--team-color); color: var(--board-ink); font-size: 12px; font-weight: 800; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-foreground) 25%, transparent); }
+.board-team-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted-foreground); font-size: 12px; font-weight: 500; }
+.board-team-header.is-active-team .board-team-avatar { outline: 2px solid var(--board-on-clock); outline-offset: 3px; }
 /* Sticky headers cover the grid gap so scrolled picks never show between them. */
-.board-team-header { box-shadow: 4px 0 0 #05091E, 0 4px 0 #05091E, 4px 4px 0 #05091E; }
-.board-round { box-shadow: 4px 0 0 #05091E, 4px 4px 0 #05091E; }
-.board-team-header.is-my-team { background: var(--board-mine); box-shadow: inset 1px 1px 0 #03FFFA80, inset -1px 0 0 #03FFFA80, 4px 0 0 #05091E, 0 4px 0 #05091E, 4px 4px 0 #05091E; }
-.board-corner { box-shadow: 4px 0 0 #05091E, 0 4px 0 #05091E, 4px 4px 0 #05091E; }
-.board-team-header.is-my-team .board-team-name { color: #FFFFFF; font-weight: 700; }
-.board-round { height: 72px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #05091E; color: #A5B3CB; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.board-round.is-active-round { color: #FDE047; }
+.board-team-header { box-shadow: 4px 0 0 var(--color-background), 0 4px 0 var(--color-background), 4px 4px 0 var(--color-background); }
+.board-round { box-shadow: 4px 0 0 var(--color-background), 4px 4px 0 var(--color-background); }
+.board-team-header.is-my-team { background: var(--board-mine); box-shadow: inset 1px 1px 0 var(--board-accent-edge), inset -1px 0 0 var(--board-accent-edge), 4px 0 0 var(--color-background), 0 4px 0 var(--color-background), 4px 4px 0 var(--color-background); }
+.board-corner { box-shadow: 4px 0 0 var(--color-background), 0 4px 0 var(--color-background), 4px 4px 0 var(--color-background); }
+.board-team-header.is-my-team .board-team-name { color: var(--color-foreground); font-weight: 700; }
+.board-round { height: 72px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--color-background); color: var(--color-muted-foreground); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.board-round.is-active-round { color: var(--board-on-clock); }
 .board-slot { position: relative; min-width: 0; height: 72px; border-radius: 6px; background: var(--board-slot); }
-.board-slot.is-my-team { background: color-mix(in srgb, var(--board-mine) 70%, var(--board-slot)); box-shadow: inset 1px 0 0 #03FFFA80, inset -1px 0 0 #03FFFA80; }
-.board-slot.is-my-team.is-last-round { box-shadow: inset 1px 0 0 #03FFFA80, inset -1px 0 0 #03FFFA80, inset 0 -1px 0 #03FFFA80; }
-.board-slot.is-next-pick:not(.is-on-clock) { background: var(--board-mine); box-shadow: inset 0 0 0 1px #03FFFA; }
-.board-slot.is-on-clock { background: #FDE047; color: var(--board-ink); box-shadow: none; }
+.board-slot.is-my-team { background: color-mix(in srgb, var(--board-mine) 70%, var(--board-slot)); box-shadow: inset 1px 0 0 var(--board-accent-edge), inset -1px 0 0 var(--board-accent-edge); }
+.board-slot.is-my-team.is-last-round { box-shadow: inset 1px 0 0 var(--board-accent-edge), inset -1px 0 0 var(--board-accent-edge), inset 0 -1px 0 var(--board-accent-edge); }
+.board-slot.is-next-pick:not(.is-on-clock) { background: var(--board-mine); box-shadow: inset 0 0 0 1px var(--board-accent); }
+.board-slot.is-on-clock { background: var(--board-on-clock); color: var(--board-ink); box-shadow: none; }
 .board-empty-pick, .board-filled-pick { position: relative; height: 100%; border-radius: inherit; overflow: hidden; padding: 8px 8px 6px 9px; }
-.board-pick-number { position: absolute; top: 6px; right: 8px; font-size: 11px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: #A5B3CB; }
+.board-pick-number { position: absolute; top: 6px; right: 8px; font-size: 11px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-muted-foreground); }
 .board-pick-direction { position: absolute; bottom: 5px; left: 9px; color: #5B6A8A; }
-.board-next-pick { position: absolute; left: 9px; right: 8px; top: 28px; color: #03FFFA; font-size: 11px; font-weight: 700; }
+.board-next-pick { position: absolute; left: 9px; right: 8px; top: 28px; color: var(--board-accent); font-size: 11px; font-weight: 700; }
 .board-clock-label { display: flex; align-items: end; justify-content: space-between; gap: 5px; padding-top: 18px; padding-bottom: 8px; }
 .board-clock-label strong { max-width: 90px; font-size: 15px; line-height: 1.05; font-weight: 800; }
 .board-clock-label svg { flex-shrink: 0; }
 .is-on-clock .board-pick-number, .is-on-clock .board-pick-direction { color: var(--board-ink-muted); }
 .board-filled-pick { color: var(--board-ink); }
-.board-position-qb { background: #FF80AD; }
-.board-position-rb { background: #49E8CC; }
-.board-position-wr { background: #4AD0EE; }
-.board-position-te { background: #FFAF16; }
-.board-position-k { background: #B5A3FF; }
-.board-position-def { background: #B4C2D9; }
-.board-filled-pick.is-keeper { box-shadow: inset 0 0 0 2px #B5A3FF; }
+.board-position-qb { background: var(--color-position-qb); }
+.board-position-rb { background: var(--color-position-rb); }
+.board-position-wr { background: var(--color-position-wr); }
+.board-position-te { background: var(--color-position-te); }
+.board-position-k { background: var(--color-position-k); }
+.board-position-def { background: var(--color-position-def); }
+.board-filled-pick.is-keeper { box-shadow: inset 0 0 0 2px var(--color-position-k); }
 .board-filled-pick .board-pick-number, .board-filled-pick .board-pick-direction { color: var(--board-ink-muted); }
 .board-player-identity { position: relative; z-index: 1; padding-right: 28px; }
 .board-player-name { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 13px; font-weight: 800; line-height: 1.1; letter-spacing: -.01em; }
 .board-player-meta { margin-top: 3px; font-size: 11px; line-height: 1.15; color: var(--board-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .board-player-photo { position: absolute; right: 0; bottom: -2px; width: 36px; height: 36px; }
-.board-player-photo > span { background: #FFFFFF2E; color: #123248; font-size: 10px; }
-.board-filled-pick.is-provisional { box-shadow: inset 0 0 0 2px #FFFFFF; }
-.board-provisional-label { display: inline-block; padding: 1px 4px; background: #05091E; color: #FDE047; border-radius: 4px; font-size: 8px; font-weight: 700; line-height: 1.2; }
+.board-player-photo > span { background: color-mix(in srgb, var(--color-foreground) 18%, transparent); color: #123248; font-size: 10px; }
+.board-filled-pick.is-provisional { box-shadow: inset 0 0 0 2px var(--color-foreground); }
+.board-provisional-label { display: inline-block; padding: 1px 4px; background: var(--color-background); color: var(--board-on-clock); border-radius: 4px; font-size: 8px; font-weight: 700; line-height: 1.2; }
 .is-provisional .board-player-name { -webkit-line-clamp: 1; }
 .is-compact .board-player-identity { padding-right: 17px; }
 .is-compact .board-player-name { font-size: 12px; }

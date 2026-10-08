@@ -123,6 +123,24 @@
   --motion-duration-layout: 280ms;
   --motion-duration-exit: 100ms;
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Night palette from docs/design-system/tokens.json, shared by the dark theme and the always-dark board. */
+  --night-background: #05091E;
+  --night-surface: #141B38;
+  --night-raised: #1C2643;
+  --night-inset: #0B1027;
+  --night-border: #34415E;
+  --night-text: #FFFFFF;
+  --night-text-muted: #A5B3CB;
+  --night-accent: #03FFFA;
+  --night-accent-hover: #5CFFFC;
+  --night-accent-subtle: #0A3447;
+  --night-ink: #051827;
+  --night-success: #49E8CC;
+  --night-warning: #FDE047;
+  --night-danger: #FF8A97;
+
+  color-scheme: light;
 }
 
 @theme {
@@ -189,34 +207,35 @@
 
 /* docs/design-system/tokens.json */
 .dark {
-  --color-background: #05091E;
-  --color-foreground: #FFFFFF;
-  --color-card: #141B38;
-  --color-card-foreground: #FFFFFF;
-  --color-popover: #1C2643;
-  --color-popover-foreground: #FFFFFF;
-  --color-primary: #03FFFA;
-  --color-primary-foreground: #051827;
-  --color-secondary: #1C2643;
-  --color-secondary-foreground: #FFFFFF;
-  --color-muted: #1C2643;
-  --color-muted-foreground: #A5B3CB;
-  --color-accent: #1C2643;
-  --color-accent-foreground: #FFFFFF;
-  --color-destructive: #FF8A97;
-  --color-destructive-foreground: #051827;
-  --color-border: #34415E;
-  --color-input: #34415E;
-  --color-ring: #03FFFA;
+  color-scheme: dark;
+  --color-background: var(--night-background);
+  --color-foreground: var(--night-text);
+  --color-card: var(--night-surface);
+  --color-card-foreground: var(--night-text);
+  --color-popover: var(--night-raised);
+  --color-popover-foreground: var(--night-text);
+  --color-primary: var(--night-accent);
+  --color-primary-foreground: var(--night-ink);
+  --color-secondary: var(--night-raised);
+  --color-secondary-foreground: var(--night-text);
+  --color-muted: var(--night-raised);
+  --color-muted-foreground: var(--night-text-muted);
+  --color-accent: var(--night-raised);
+  --color-accent-foreground: var(--night-text);
+  --color-destructive: var(--night-danger);
+  --color-destructive-foreground: var(--night-ink);
+  --color-border: var(--night-border);
+  --color-input: var(--night-border);
+  --color-ring: var(--night-accent);
 
-  --color-surface: #141B38;
-  --color-surface-raised: #1C2643;
-  --color-surface-inset: #0B1027;
-  --color-primary-hover: #5CFFFC;
-  --color-primary-subtle: #0A3447;
-  --color-success: #49E8CC;
-  --color-warning: #FDE047;
-  --color-danger: #FF8A97;
+  --color-surface: var(--night-surface);
+  --color-surface-raised: var(--night-raised);
+  --color-surface-inset: var(--night-inset);
+  --color-primary-hover: var(--night-accent-hover);
+  --color-primary-subtle: var(--night-accent-subtle);
+  --color-success: var(--night-success);
+  --color-warning: var(--night-warning);
+  --color-danger: var(--night-danger);
   --color-paused: #A6AAFF;
   --color-keeper: #B5A3FF;
 
@@ -231,11 +250,13 @@
 
 html {
   background: var(--color-background);
+  /* Keyboard and in-page scrolling stop below the sticky header instead of behind it. */
+  scroll-padding-block-start: calc(var(--draft-header-height, 56px) + 16px);
 }
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100svh;
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
@@ -248,6 +269,35 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* One focus ring for plain controls; Tailwind's outline-none and ring utilities still win for shadcn components. */
+@layer base {
+  :where(button, a, summary, select, [role=tab], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Compact controls keep their look but get a 44px touch target. */
+@layer components {
+  :where([data-slot=button][data-size=sm], [data-slot=button][data-size^=icon], [data-slot=dialog-close], .rec-icon-button, .rec-text-button) {
+    position: relative;
+  }
+}
+
+@media (pointer: coarse) {
+  :where([data-slot=button][data-size=sm], [data-slot=button][data-size^=icon], [data-slot=dialog-close], .rec-icon-button, .rec-text-button)::after {
+    position: absolute;
+    inset: min(0px, (100% - 44px) / 2);
+    content: "";
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot=button]:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 }
 
 ::selection {

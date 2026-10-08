@@ -94,7 +94,7 @@ button,input,select {
   padding-top:0
 }
 .draft-workspace>div.sticky {
-  top:64px
+  top:calc(var(--draft-header-height, 56px) + 8px)
 }
 
 @media(max-width:800px) {
@@ -179,9 +179,9 @@ button,input,select {
 .depth-matrix tr[data-selected='true'] > th { color: var(--color-primary); }
 .depth-position-button { display: flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .depth-count-button { display: block; min-width: 44px; width: 100%; height: 44px; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: background-color 140ms ease-out; }
-.depth-count-button:hover { background: var(--color-muted); }
+@media (hover: hover) and (pointer: fine) { .depth-count-button:hover { background: var(--color-muted); } }
 .depth-count-button[data-selected='true'] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
-.depth-position-button:focus-visible, .depth-count-button:focus-visible, .depth-secondary-toggle:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; border-radius: 4px; }
+.depth-position-button:focus-visible, .depth-count-button:focus-visible, .depth-secondary-toggle:focus-visible { border-radius: 4px; }
 .depth-open-slots { color: var(--color-muted-foreground); }
 .depth-secondary-toggle { display: flex; align-items: center; gap: 6px; min-height: 44px; font-size: 12px; color: var(--color-muted-foreground); cursor: pointer; }
 .positional-depth .depth-flex-note { margin-top: 12px; font-size: 12px; line-height: 1.6; color: var(--color-muted-foreground); }
@@ -238,7 +238,8 @@ button,input,select {
   .draft-best-pick-actions { justify-content: flex-end; }
 }
 
-/* Draft workspace, following docs/design-system: pill actions, position color, roster sidebar. */
+/* Draft workspace, following docs/design-system: pill actions, position color, roster sidebar.
+   Hover tints sit behind (hover: hover) so taps on touch screens don't leave controls highlighted. */
 .position-text { font-weight: 600; }
 .position-text[data-position=QB] { color: var(--position-qb-ink, var(--color-position-qb)); }
 .position-text[data-position=RB] { color: var(--position-rb-ink, var(--color-position-rb)); }
@@ -256,7 +257,7 @@ button,input,select {
   --position-def-ink: color-mix(in oklab, var(--color-position-def) 45%, #051827);
 }
 .draft-workspace .draft-pill-action { min-width: 64px; border-radius: var(--radius-sm); font-weight: 700; }
-.draft-workspace .draft-pill-action:hover:not(:disabled) { background: var(--color-primary-hover); }
+@media (hover: hover) and (pointer: fine) { .draft-workspace .draft-pill-action:hover:not(:disabled) { background: var(--color-primary-hover); } }
 .draft-workspace .draft-pill-action:disabled { opacity: .42; }
 
 .draft-dock { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
@@ -269,26 +270,25 @@ button,input,select {
 .draft-dock-tabs.draft-dock-tabs { height: 52px; min-width: 0; flex: 1; justify-content: flex-start; gap: 4px; overflow-x: auto; padding: 0 0 0 8px; border-radius: 0; background: transparent; }
 .draft-dock-side .draft-dock-tabs { flex: none; width: 100%; border-bottom: 1px solid var(--color-border); }
 .draft-dock-tab.draft-dock-tab { flex: none; height: 100%; padding: 0 12px; gap: 6px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; color: var(--color-muted-foreground); font-size: 15px; font-weight: 700; box-shadow: none; background: transparent; }
-.draft-dock-tab.draft-dock-tab:hover { color: var(--color-foreground); }
+@media (hover: hover) and (pointer: fine) { .draft-dock-tab.draft-dock-tab:hover { color: var(--color-foreground); } }
 .draft-dock-tab.draft-dock-tab[data-state=active] { border-color: var(--color-primary); color: var(--color-foreground); background: transparent; box-shadow: none; }
 .draft-dock-count { color: var(--color-muted-foreground); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .draft-dock-panel { padding: 12px 16px 14px; }
 .draft-dock-side .draft-dock-tab.draft-dock-tab { padding: 0 8px; font-size: 14px; }
-.draft-dock-side .draft-dock-panel { max-height: calc(clamp(360px, 48vh, 640px) + 118px); overflow-y: auto; padding: 12px; scrollbar-width: thin; }
+.draft-dock-side .draft-dock-panel { max-height: calc(clamp(360px, 48vh, 640px) + 118px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 12px; scrollbar-width: thin; }
 
 .draft-workspace .player-pool-toolbar { gap: 12px; margin-bottom: 12px; padding: 0; border: 0; }
 .draft-search-input.draft-search-input { height: 40px; border-radius: var(--radius-md); background: var(--color-surface-inset); font-size: 14px; }
-.draft-position-filters { display: flex; gap: 6px; overflow-x: auto; padding-block: 2px; }
+/* Inset padding gives focus outlines room inside the horizontal scroller, which would otherwise clip them. */
+.draft-position-filters { display: flex; gap: 6px; overflow-x: auto; padding: 4px; margin: -4px; }
 .draft-position-filter { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; min-width: 48px; height: 44px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-foreground); font-size: 12px; font-weight: 700; line-height: 14px; cursor: pointer; transition: background-color 140ms ease-out, color 140ms ease-out; }
 .draft-position-filter > span, .draft-position-filter > small { display: block; line-height: 16px; }
 .draft-position-filter small { color: var(--color-muted-foreground); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.draft-position-filter:hover { background: color-mix(in srgb, var(--color-surface-raised) 70%, var(--color-foreground)); }
+@media (hover: hover) and (pointer: fine) { .draft-position-filter:hover { background: color-mix(in srgb, var(--color-surface-raised) 70%, var(--color-foreground)); } }
 .draft-position-filter[aria-pressed=true] { background: var(--color-foreground); color: var(--color-background); }
 .draft-position-filter[aria-pressed=true] small { color: inherit; opacity: .72; }
-.draft-position-filter:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
 
-.draft-pool-scroll { height: clamp(360px, 48vh, 640px); overflow: auto; scrollbar-gutter: stable; border-block: 1px solid var(--color-border); }
-.draft-pool-scroll:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.draft-pool-scroll { height: clamp(360px, 48vh, 640px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-block: 1px solid var(--color-border); }
 .draft-pool-table { min-width: 620px; }
 .draft-pool-columns { display: grid; grid-template-columns: 60px minmax(220px, 1.8fr) minmax(70px, .5fr) minmax(130px, .8fr) 56px; align-items: center; column-gap: 16px; padding-inline: 12px; }
 .draft-pool-table.has-draft-action { min-width: 700px; }
@@ -299,7 +299,7 @@ button,input,select {
 .draft-pool-heading [role=columnheader]:last-child { text-align: center; }
 .draft-pool-heading .metric-help-trigger { white-space: nowrap; }
 .draft-pool-row { height: 61px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent); transition: background-color 140ms ease-out; }
-.draft-pool-row:hover { background: var(--color-surface-raised); }
+@media (hover: hover) and (pointer: fine) { .draft-pool-row:hover { background: var(--color-surface-raised); } }
 .draft-pool-rank { color: var(--color-muted-foreground); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .draft-pool-player { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .draft-pool-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; line-height: 20px; }
@@ -329,7 +329,9 @@ button,input,select {
 .draft-roster-pick { flex-shrink: 0; color: var(--color-muted-foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
 .draft-roster-empty { color: var(--color-muted-foreground); font-size: 14px; }
 
-.draft-queue-list { max-height: 420px; overflow-y: auto; display: grid; gap: 4px; }
+.draft-queue-list { max-height: 420px; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 4px; }
+/* Where the dock panel already scrolls, the queue uses it instead of nesting a second scroller. */
+.draft-dock-side .draft-queue-list, [data-layout=fill] .draft-queue-list { max-height: none; overflow-y: visible; }
 .draft-queue-row { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-surface); }
 .draft-dock:not(.is-split) .draft-queue-row { background: var(--color-surface-raised); }
 .draft-queue-index { width: 18px; flex-shrink: 0; text-align: center; color: var(--color-muted-foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -367,8 +369,8 @@ button,input,select {
 [data-layout=fill] .draft-dock-side { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 [data-layout=fill] .draft-dock .motion-expandable-grid { flex: 1 1 0; min-height: 0; }
 [data-layout=fill] .draft-dock .motion-expandable-content { display: flex; flex-direction: column; }
-[data-layout=fill] .draft-dock-panel { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; }
-[data-layout=fill] .draft-dock-panel:has(> .draft-pool) { display: flex; flex-direction: column; overflow: hidden; }
+[data-layout=fill] .draft-dock-panel { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+[data-layout=fill] .draft-dock-panel:has(> .draft-pool) { display: flex; flex-direction: column; overflow: hidden; scrollbar-gutter: auto; }
 [data-layout=fill] .draft-pool { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; }
 [data-layout=fill] .draft-pool-scroll { flex: 1 1 0; height: auto; min-height: 120px; }
 
@@ -376,10 +378,9 @@ button,input,select {
 .draft-workspace-resizer { position: relative; z-index: 31; display: flex; align-items: center; justify-content: center; height: 16px; margin-block: -14px; cursor: row-resize; touch-action: none; outline: none; }
 .draft-workspace-resizer::before { content: ""; position: absolute; inset-inline: 0; top: 50%; height: 2px; border-radius: 2px; background: transparent; transform: translateY(-50%); transition: background-color 120ms ease-out; }
 .draft-workspace-resizer-grip { position: relative; width: 44px; height: 6px; border-radius: var(--radius-pill); background: var(--color-border); transition: background-color 120ms ease-out; }
-.draft-workspace-resizer:hover::before,
+@media (hover: hover) and (pointer: fine) { .draft-workspace-resizer:hover::before, .draft-workspace-resizer:hover .draft-workspace-resizer-grip { background: var(--color-primary); } }
 .draft-workspace-resizer:focus-visible::before,
 [data-resizing] > .draft-workspace-resizer::before { background: var(--color-primary); }
-.draft-workspace-resizer:hover .draft-workspace-resizer-grip,
 .draft-workspace-resizer:focus-visible .draft-workspace-resizer-grip,
 [data-resizing] > .draft-workspace-resizer .draft-workspace-resizer-grip { background: var(--color-primary); }
 .draft-workspace-resizer:focus-visible .draft-workspace-resizer-grip { outline: 2px solid var(--color-ring); outline-offset: 3px; }
