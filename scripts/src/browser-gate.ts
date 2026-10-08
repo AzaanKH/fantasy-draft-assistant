@@ -166,11 +166,15 @@ async function checkPhoneWorkspace(browser: Browser): Promise<void> {
   }
 }
 
-/** A page that fails to load offers a way back while the draft state stays mounted. */
+/**
+ * A page that fails to load offers a way back while the draft state stays mounted,
+ * and "Reload app" loads it once the network recovers.
+ */
 async function checkRouteFailure(browser: Browser): Promise<void> {
   const page = await browser.newPage({ viewport: { width: DESKTOP, height: 900 } });
   try {
-    await page.route('**/src/features/assistant/AssistantPage.tsx*', (route) => route.abort());
+    const assistantModule = '**/src/features/assistant/AssistantPage.tsx*';
+    await page.route(assistantModule, (route) => route.abort());
     await page.goto(`${ORIGIN}/draft`);
     await page.getByRole('button', { name: 'Start mock', exact: true }).click();
     await page.getByRole('button', { name: 'Start mock draft' }).click();
@@ -182,19 +186,39 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
     await page.locator('.draft-board').waitFor();
     const restoredPick = await page.locator('.board-current-pick').first().innerText();
     assert(restoredPick === currentPick, `Route failure lost draft state: ${currentPick} became ${restoredPick}`);
+
+    await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
+    await page.getByRole('alert').getByText('This page couldn’t load').waitFor({ timeout: 20_000 });
+    // The browser keeps the failed module, so recovery is a reload that fetches it again.
+    await page.unroute(assistantModule);
+    await page.getByRole('button', { name: 'Reload app' }).click();
+    await page.locator('.rec-workspace').waitFor({ timeout: 20_000 });
   } finally {
     await page.close();
   }
 }
 
+const isListening = async (): Promise<boolean> => {
+  try {
+    await fetch(ORIGIN);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Fails if something already listens on the gate's port, so checks never run against another server. */
+const requireFreePort = io(async () => {
+  if (await isListening()) throw new Error(`${ORIGIN} is already in use; stop that server or set BROWSER_GATE_PORT`);
+});
+
 const waitForServer = (server: ChildProcess): Effect.Effect<void, Error> => io(async () => {
   const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
   while (Date.now() < deadline) {
     if (server.exitCode !== null) throw new Error(`Vite exited with code ${String(server.exitCode)}`);
-    try {
-      if ((await fetch(ORIGIN)).ok) return;
-    } catch {
-      // Not listening yet.
+    if (await isListening()) {
+      if (server.exitCode !== null) throw new Error(`Vite exited with code ${String(server.exitCode)}`);
+      return;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
@@ -231,6 +255,7 @@ const browser = Effect.acquireRelease(
 );
 
 const program = Effect.scoped(Effect.gen(function* () {
+  yield* requireFreePort;
   const server = yield* webServer;
   yield* waitForServer(server);
   const instance = yield* browser;

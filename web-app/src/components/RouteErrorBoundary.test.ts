@@ -2,12 +2,16 @@
 import { act, createElement, useEffect, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RouteErrorBoundary } from './RouteErrorBoundary';
+import { isPageImportFailure, RouteErrorBoundary } from './RouteErrorBoundary';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 function FailingPage(): ReactElement {
-  throw new Error('Failed to fetch dynamically imported module');
+  throw new Error('Failed to fetch dynamically imported module: http://localhost/src/features/assistant/AssistantPage.tsx');
+}
+
+function BrokenPage(): ReactElement {
+  throw new TypeError('Cannot read properties of undefined');
 }
 
 let root: Root;
@@ -51,11 +55,26 @@ describe('RouteErrorBoundary', () => {
     expect(onReturnToBoard).toHaveBeenCalledOnce();
   });
 
-  it('omits the board action when the board itself failed', () => {
+  it('offers a reload for a page that failed to download, since browsers keep the failed module', () => {
     act(() => {
-      root.render(createElement(RouteErrorBoundary, { children: createElement(FailingPage) }));
+      root.render(createElement(RouteErrorBoundary, { onReturnToBoard: vi.fn(), children: createElement(FailingPage) }));
+    });
+    const labels = [...container.querySelectorAll('button')].map((button) => button.textContent);
+    expect(labels).toEqual(['Back to draft board', 'Reload app']);
+  });
+
+  it('retries a render error in place and omits the board action when the board itself failed', () => {
+    act(() => {
+      root.render(createElement(RouteErrorBoundary, { children: createElement(BrokenPage) }));
     });
     const labels = [...container.querySelectorAll('button')].map((button) => button.textContent);
     expect(labels).toEqual(['Try again']);
+  });
+
+  it('recognizes each browser’s wording for a failed module download', () => {
+    expect(isPageImportFailure(new TypeError('Failed to fetch dynamically imported module: /a.js'))).toBe(true);
+    expect(isPageImportFailure(new TypeError('Importing a module script failed.'))).toBe(true);
+    expect(isPageImportFailure(new TypeError('error loading dynamically imported module: /a.js'))).toBe(true);
+    expect(isPageImportFailure(new TypeError('Cannot read properties of undefined'))).toBe(false);
   });
 });

@@ -54,6 +54,7 @@ function getFilterCounts(
 function DraftPlayerRow({
   player,
   canDraft,
+  positionFull,
   showDraftAction,
   isQueued,
   rank,
@@ -65,6 +66,8 @@ function DraftPlayerRow({
 }: {
   readonly player: Player;
   readonly canDraft: boolean;
+  /** The roster already holds the position's maximum. */
+  readonly positionFull: boolean;
   readonly showDraftAction: boolean;
   readonly isQueued: boolean;
   readonly rank: number | undefined;
@@ -78,7 +81,7 @@ function DraftPlayerRow({
     <div role="row" aria-rowindex={rowIndex} data-player-row className="draft-pool-row draft-pool-columns">
       {showDraftAction ? (
         <div role="cell" className="draft-pool-action">
-          <Button size="sm" className="draft-pill-action" disabled={!canDraft} aria-label={`Draft ${player.name}`} onClick={() => { onDraft(player); }}>Draft</Button>
+          <Button size="sm" className="draft-pill-action" disabled={!canDraft || positionFull} title={canDraft && positionFull ? `${player.position} limit reached` : undefined} aria-label={`Draft ${player.name}`} onClick={() => { onDraft(player); }}>Draft</Button>
         </div>
       ) : null}
       <div role="cell" className="draft-pool-rank">
@@ -119,7 +122,7 @@ export function DraftPlayerPool(): React.ReactElement {
   const sessionMode = useDraftStore((state) => state.sessionMode);
   const myRoster = useDraftStore((state) => state.myRoster);
   const config = useDraftStore((state) => state.config);
-  const { canDraft, draftPlayer } = useDraftPlayerAction();
+  const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 
   const rows = React.useMemo(
@@ -215,6 +218,7 @@ export function DraftPlayerPool(): React.ReactElement {
                     <DraftPlayerRow
                       player={player}
                       canDraft={canDraft}
+                      positionFull={canDraft && !canDraftPlayer(player)}
                       showDraftAction={sessionMode === 'mock'}
                       isQueued={queuedSet.has(player.id)}
                       rowIndex={virtualRow.index + 2}
