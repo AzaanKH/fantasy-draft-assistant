@@ -105,8 +105,6 @@ const program = Effect.gen(function* () {
     join(DATA_DIR, 'league-history', 'survival-model.json')
   );
   const leagueSettings = yield* readJson<Record<string, unknown>>(join(DATA_DIR, 'primary-league-settings.json'));
-  // Keepers record only player, position, team slot, and round.
-  const keepers = yield* readJson<unknown>(join(DATA_DIR, 'league-history', 'current-keepers.json'));
   const season = modelReport.currentSeason;
   const byeWeeks = yield* readByeWeeks(season);
   const generatedAt = predictions.generatedAt;
@@ -151,7 +149,8 @@ const program = Effect.gen(function* () {
       draftId: 'demo-draft',
       leagueId: 'demo-league',
     }),
-    writeJson('league-history/current-keepers.json', keepers),
+    // The real keeper list stays private; the demo draft starts with no keepers.
+    writeJson('league-history/current-keepers.json', { updatedAt: generatedAt, season, keepers: [] }),
   ]);
 
   const fileNames = [

@@ -18,7 +18,7 @@ keeps its name and schema for that reason; its contents are the demo ranking.
 | `team-environment.json` | Completed-season team offense context. | nflverse |
 | `recommendation-policy.json` | The live Best Pick policy with shadow logging off. | This repository |
 | `primary-league-settings.json` | The Primary League's scoring and roster rules as "Demo League", with placeholder IDs. | This repository |
-| `league-history/current-keepers.json` | Keepers by player, team slot, and round. | This repository |
+| `league-history/current-keepers.json` | An empty, confirmed keeper list, so the demo draft has no keepers. | This repository |
 | `league-history/survival-model.json` | Aggregate league draft timing with numbered managers. | League history, Sleeper |
 
 The projections are an experimental model that does not beat expert consensus
