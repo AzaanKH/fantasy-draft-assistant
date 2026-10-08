@@ -44,6 +44,7 @@ import { createReconciliationActions } from './draft/reconciliation';
 
 export type {
   DraftSessionMode,
+  MockCpuPickPace,
   DraftTeamRoster,
   RecordedDraftPick,
   ProvisionalPickInput,

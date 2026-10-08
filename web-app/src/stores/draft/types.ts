@@ -42,7 +42,11 @@ export interface MockDraftSettings {
   randomness: number;
   seed: number;
   survivalIterations: number;
+  /** How quickly CPU teams pick while the mock auto-advances to the user's slot. */
+  cpuPickPace: MockCpuPickPace;
 }
+
+export type MockCpuPickPace = 'watch' | 'fast' | 'instant';
 
 export type DraftSessionMode = 'setup' | 'mock' | 'live';
 

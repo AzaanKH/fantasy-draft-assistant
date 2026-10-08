@@ -209,5 +209,6 @@ export const defaultMockSettings: MockDraftSettings = {
   randomness: 0.55,
   seed: 20260810,
   survivalIterations: 250,
+  cpuPickPace: 'watch',
 };
 
