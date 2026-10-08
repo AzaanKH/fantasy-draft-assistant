@@ -6,6 +6,7 @@
 
 import { Effect } from 'effect';
 import {
+  EXCLUDES_FANTASYPROS,
   MODEL_DB_PATH,
   MODEL_PATHS,
   withModelDb,
@@ -39,6 +40,30 @@ interface TeamEnvironmentJson {
 
 const normalizeNameSql = (column: string): string =>
   `regexp_replace(lower(${column}), '[^a-z0-9]', '', 'g')`;
+
+/**
+ * Builds a FantasyPros table from the snapshot, or an empty table with the same
+ * columns when the FantasyPros-free profile must not read it.
+ */
+function fantasyProsTable(
+  table: string,
+  snapshotField: string,
+  alias: string,
+  columns: readonly (readonly [expression: string, name: string, type: string])[]
+): string {
+  if (EXCLUDES_FANTASYPROS) {
+    return `create or replace table ${table} (
+          ${columns.map(([, name, type]) => `${name} ${type}`).join(',\n          ')}
+        )`;
+  }
+  return `create or replace table ${table} as
+        select
+          ${columns.map(([expression, name]) => `${expression} as ${name}`).join(',\n          ')}
+        from (
+          select unnest(${snapshotField}) as ${alias}
+          from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
+        )`;
+}
 
 const program = Effect.gen(function* () {
   yield* io(() => ensureModelDirs());
@@ -87,60 +112,44 @@ const program = Effect.gen(function* () {
           select unnest(players) as p
           from read_json_auto(${sqlString(MODEL_PATHS.sleeperAdpJson)})
         )`,
-      `create or replace table model.fantasypros_rankings_current as
-        select
-          r.rank::integer as ecr_rank,
-          r.name::varchar as player_name,
-          ${normalizeNameSql('r.name')} as normalized_name,
-          r.position::varchar as position,
-          r.team::varchar as team,
-          r.byeWeek::integer as bye_week,
-          r.positionalRank::integer as positional_rank,
-          r.bestRank::integer as best_rank,
-          r.worstRank::integer as worst_rank,
-          r.avgRank::double as avg_rank
-        from (
-          select unnest(rankings) as r
-          from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
-        )`,
-      `create or replace table model.fantasypros_adp_current as
-        select
-          a.rank::double as consensus_adp,
-          a.name::varchar as player_name,
-          ${normalizeNameSql('a.name')} as normalized_name,
-          a.position::varchar as position,
-          a.team::varchar as team,
-          a.positionalRank::integer as positional_adp
-        from (
-          select unnest(adp) as a
-          from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
-        )`,
-      `create or replace table model.fantasypros_projections_current as
-        select
-          p.name::varchar as player_name,
-          ${normalizeNameSql('p.name')} as normalized_name,
-          p.position::varchar as position,
-          p.team::varchar as team,
-          p.projectedPoints::double as projected_points,
-          null::double as floor_points,
-          null::double as ceiling_points
-        from (
-          select unnest(projections) as p
-          from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
-        )`,
-      `create or replace table model.fantasypros_news_current as
-        select
-          n.name::varchar as player_name,
-          ${normalizeNameSql('n.name')} as normalized_name,
-          n.position::varchar as position,
-          n.team::varchar as team,
-          n.status::varchar as news_status,
-          n.headline::varchar as headline,
-          n.updatedAt::timestamp as updated_at
-        from (
-          select unnest(news) as n
-          from read_json_auto(${sqlString(MODEL_PATHS.fantasyProsSnapshotJson)})
-        )`,
+      fantasyProsTable('model.fantasypros_rankings_current', 'rankings', 'r', [
+        ['r.rank::integer', 'ecr_rank', 'integer'],
+        ['r.name::varchar', 'player_name', 'varchar'],
+        [normalizeNameSql('r.name'), 'normalized_name', 'varchar'],
+        ['r.position::varchar', 'position', 'varchar'],
+        ['r.team::varchar', 'team', 'varchar'],
+        ['r.byeWeek::integer', 'bye_week', 'integer'],
+        ['r.positionalRank::integer', 'positional_rank', 'integer'],
+        ['r.bestRank::integer', 'best_rank', 'integer'],
+        ['r.worstRank::integer', 'worst_rank', 'integer'],
+        ['r.avgRank::double', 'avg_rank', 'double'],
+      ]),
+      fantasyProsTable('model.fantasypros_adp_current', 'adp', 'a', [
+        ['a.rank::double', 'consensus_adp', 'double'],
+        ['a.name::varchar', 'player_name', 'varchar'],
+        [normalizeNameSql('a.name'), 'normalized_name', 'varchar'],
+        ['a.position::varchar', 'position', 'varchar'],
+        ['a.team::varchar', 'team', 'varchar'],
+        ['a.positionalRank::integer', 'positional_adp', 'integer'],
+      ]),
+      fantasyProsTable('model.fantasypros_projections_current', 'projections', 'p', [
+        ['p.name::varchar', 'player_name', 'varchar'],
+        [normalizeNameSql('p.name'), 'normalized_name', 'varchar'],
+        ['p.position::varchar', 'position', 'varchar'],
+        ['p.team::varchar', 'team', 'varchar'],
+        ['p.projectedPoints::double', 'projected_points', 'double'],
+        ['null::double', 'floor_points', 'double'],
+        ['null::double', 'ceiling_points', 'double'],
+      ]),
+      fantasyProsTable('model.fantasypros_news_current', 'news', 'n', [
+        ['n.name::varchar', 'player_name', 'varchar'],
+        [normalizeNameSql('n.name'), 'normalized_name', 'varchar'],
+        ['n.position::varchar', 'position', 'varchar'],
+        ['n.team::varchar', 'team', 'varchar'],
+        ['n.status::varchar', 'news_status', 'varchar'],
+        ['n.headline::varchar', 'headline', 'varchar'],
+        ['n.updatedAt::timestamp', 'updated_at', 'timestamp'],
+      ]),
       `create or replace table model.team_environment_current as
         select
           team::varchar as team,

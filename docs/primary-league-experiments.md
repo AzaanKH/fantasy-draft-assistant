@@ -2,7 +2,7 @@
 
 Generated: 2026-10-02T03:21:43.541Z
 
-FantasyPros snapshot: [data/fantasypros-snapshot.json](../data/fantasypros-snapshot.json), refreshed 2026-09-26T23:03:05.137Z. Projections refreshed 2026-09-26T23:03:05.137Z.
+FantasyPros snapshot: `data/fantasypros-snapshot.json`, refreshed 2026-09-26T23:03:05.137Z. Projections refreshed 2026-09-26T23:03:05.137Z.
 
 These experiments use draft slot 5, Javonte Williams as the round-10 keeper, the dated FantasyPros inputs above, and the Primary League opponent model. They measure the rosters acquired under those projections. They do not predict realized 2026 results.
 

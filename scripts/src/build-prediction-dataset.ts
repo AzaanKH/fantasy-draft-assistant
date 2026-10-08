@@ -13,10 +13,13 @@
  */
 
 import { access, writeFile } from 'node:fs/promises';
+import { relative } from 'node:path';
 import { Effect } from 'effect';
 import {
   BACKTESTS_MODEL_DIR,
+  EXCLUDES_FANTASYPROS,
   MODEL_PATHS,
+  REPO_ROOT,
   withModelDb,
   readJsonFile,
   runStatements,
@@ -38,6 +41,10 @@ interface FantasyProsSnapshot {
   readonly metadata?: {
     readonly season?: number;
   };
+}
+
+interface SleeperAdpFile {
+  readonly fetchedAt?: string;
 }
 
 interface CountRow {
@@ -122,6 +129,26 @@ const SOURCE_RESPONSIBILITIES = {
     'uses roster-aware recommendation inputs',
   ],
 } as const;
+
+/** The FantasyPros-free profile drops every FantasyPros-derived input. */
+const FANTASYPROS_FREE_SOURCE_RESPONSIBILITIES = {
+  ...SOURCE_RESPONSIBILITIES,
+  dynastyprocess: ['cross-platform fantasy player IDs'],
+  predictionLayer: SOURCE_RESPONSIBILITIES.predictionLayer.filter(
+    (item) => item !== 'uses DynastyProcess pre-draft ranking context'
+  ),
+  rosterAwareRecommendation: SOURCE_RESPONSIBILITIES.rosterAwareRecommendation.filter(
+    (item) => item !== 'uses current FantasyPros'
+  ),
+  excludedSources: [
+    'FantasyPros projections, rankings, ADP, and news',
+    'DynastyProcess db_fpecr rankings (FantasyPros ECR)',
+  ],
+};
+
+const MODEL_SOURCES = EXCLUDES_FANTASYPROS
+  ? FANTASYPROS_FREE_SOURCE_RESPONSIBILITIES
+  : SOURCE_RESPONSIBILITIES;
 
 const SOURCE_URLS = {
   nflversePlayers:
@@ -259,12 +286,40 @@ function getSeasonWindow(currentSeason: number): readonly number[] {
   return range(start, end);
 }
 
+/** NFL drafts run from spring to September, so January and February belong to the prior season. */
+function seasonAt(timestamp: string | undefined): number {
+  const date = timestamp ? new Date(timestamp) : new Date();
+  const time = Number.isNaN(date.getTime()) ? new Date() : date;
+  return time.getUTCMonth() < 2 ? time.getUTCFullYear() - 1 : time.getUTCFullYear();
+}
+
+function readCurrentSeason(): Effect.Effect<number, Error> {
+  if (EXCLUDES_FANTASYPROS) {
+    return io(() => readJsonFile<SleeperAdpFile>(MODEL_PATHS.sleeperAdpJson)).pipe(
+      Effect.map((sleeper) => seasonAt(sleeper.fetchedAt))
+    );
+  }
+  return io(() => readJsonFile<FantasyProsSnapshot>(MODEL_PATHS.fantasyProsSnapshotJson)).pipe(
+    Effect.map((snapshot) => snapshot.metadata?.season ?? new Date().getFullYear())
+  );
+}
+
+/**
+ * Training rows need a pre-draft relevance cut. The standard profile uses the
+ * top 250 of DynastyProcess's FantasyPros ECR; the FantasyPros-free profile uses
+ * the top 250 of the leakage-safe trailing projection instead.
+ */
+const TRAINING_RELEVANCE_FILTER = EXCLUDES_FANTASYPROS
+  ? 'and trailing_relevance_rank <= 250'
+  : `and predraft_ecr is not null
+          and predraft_ecr <= 250`;
+
 const program = Effect.gen(function* () {
-  const snapshot = yield* io(() => readJsonFile<FantasyProsSnapshot>(MODEL_PATHS.fantasyProsSnapshotJson));
-  const currentSeason = snapshot.metadata?.season ?? new Date().getFullYear();
+  const currentSeason = yield* readCurrentSeason();
   const seasons = getSeasonWindow(currentSeason);
   const modelVersion =
-    `position-ridge-v4-nested-selection-${seasons[0]}-${seasons[seasons.length - 1]}`;
+    `position-ridge-v4-nested-selection-${seasons[0]}-${seasons[seasons.length - 1]}` +
+    (EXCLUDES_FANTASYPROS ? '-fantasypros-free' : '');
   const hasLeagueHistory = yield* io(() => exists(MODEL_PATHS.leagueDraftHistoryJson));
   yield* withModelDb((connection) => io(async () => {
     await buildHistoricalSnapshots(connection);
@@ -350,9 +405,11 @@ const program = Effect.gen(function* () {
        * DynastyProcess / ffverse rankings responsibility:
        * historical pre-draft / market-style rankings and fantasy IDs.
        */
+      // Its rows are FantasyPros ECR, so the FantasyPros-free profile keeps only the columns.
       `create or replace table source.dynastyprocess_rankings as
         select *
-        from read_parquet(${sqlString(SOURCE_URLS.dynastyProcessRankings)})`,
+        from read_parquet(${sqlString(SOURCE_URLS.dynastyProcessRankings)})
+        ${EXCLUDES_FANTASYPROS ? 'limit 0' : ''}`,
       `create or replace table source.dynastyprocess_player_ids as
         select *
         from read_csv_auto(${sqlString(SOURCE_URLS.dynastyProcessPlayerIds)})`,
@@ -1196,21 +1253,32 @@ const program = Effect.gen(function* () {
           actual_points_per_game,
           trailing_player_volume_3yr,
           ${residualFeatureNames.join(',\n          ')},
-          coalesce(
-            trailing_expected_points_per_game_3yr * 17,
-            trailing_points_per_game_3yr * 17,
-            greatest(0, 300 - predraft_ecr) * 0.72
-          ) as shared_projection,
+          shared_projection,
           row_number() over (
             partition by season, sleeper_player_id, position
             order by case when ranking_type = 'redraft-overall' then 0 else 1 end,
               predraft_ecr asc nulls last
           ) as row_number
-        from model.prediction_training_dataset
-        where position in ('QB', 'RB', 'WR', 'TE')
-          and sleeper_player_id is not null
-          and predraft_ecr is not null
-          and predraft_ecr <= 250
+        from (
+          select
+            *,
+            coalesce(
+              trailing_expected_points_per_game_3yr * 17,
+              trailing_points_per_game_3yr * 17,
+              greatest(0, 300 - predraft_ecr) * 0.72
+            ) as shared_projection,
+            rank() over (
+              partition by season
+              order by coalesce(
+                trailing_expected_points_per_game_3yr * 17,
+                trailing_points_per_game_3yr * 17
+              ) desc nulls last
+            ) as trailing_relevance_rank
+          from model.prediction_training_dataset
+          where position in ('QB', 'RB', 'WR', 'TE')
+        )
+        where sleeper_player_id is not null
+          ${TRAINING_RELEVANCE_FILTER}
           and actual_points is not null
           and actual_points_per_game is not null
       )
@@ -1622,7 +1690,7 @@ const program = Effect.gen(function* () {
         {
           generatedAt: new Date().toISOString(),
           modelVersion,
-          sources: SOURCE_RESPONSIBILITIES,
+          sources: MODEL_SOURCES,
           players: predictionRows.map((row) => ({
             playerId: String(row.player_id),
             name: row.player_name,
@@ -1690,10 +1758,10 @@ const program = Effect.gen(function* () {
           modelVersion,
           seasons,
           currentSeason,
-          responsibilities: SOURCE_RESPONSIBILITIES,
+          responsibilities: MODEL_SOURCES,
           artifacts: {
-            trainingDatasetParquet: './data/model/training-dataset.parquet',
-            predictionsJson: './data/predictions.json',
+            trainingDatasetParquet: `./${relative(REPO_ROOT, MODEL_PATHS.trainingDatasetParquet)}`,
+            predictionsJson: `./${relative(REPO_ROOT, MODEL_PATHS.predictionsJson)}`,
             leagueHistorySurvivalTable: 'model.league_history_survival_training_dataset',
             draftPickTradeGraderTable: 'model.draft_pick_trade_grader_features',
           },
@@ -1723,7 +1791,7 @@ const program = Effect.gen(function* () {
 
     await writeFile(
       `${BACKTESTS_MODEL_DIR}/source-responsibilities.json`,
-      `${JSON.stringify(SOURCE_RESPONSIBILITIES, null, 2)}\n`
+      `${JSON.stringify(MODEL_SOURCES, null, 2)}\n`
     );
 
     console.log(`Training dataset written to ${MODEL_PATHS.trainingDatasetParquet}`);

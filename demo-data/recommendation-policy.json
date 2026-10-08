@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-10-08T06:59:14.067Z",
+  "modelPredictionsEnabled": false,
+  "contractSignalEnabled": false,
+  "fallback": "fantasypros-ecr-market",
+  "shadowLogging": {
+    "enabled": false,
+    "season": 2026,
+    "endpoint": "/api/shadow-recommendations"
+  },
+  "reason": "Demo: Best Pick uses the demo ranking, roster feasibility, and draft timing.",
+  "recommendationArchitecture": "best-pick-policy"
+}

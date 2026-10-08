@@ -4,9 +4,8 @@ The connected pre-draft outage exercise passed. The complete real-provider
 rehearsal remains incomplete because Sleeper still reports `pre_draft` and only
 the ten keeper picks. No selections were submitted to Sleeper.
 
-The user confirmed draft slot 5. The app connected to draft
-`1313053610426269696` in league `1313053610417872896` using its normal connection
-dialog. Provider scoring and roster settings matched the saved profile, and
+The user confirmed draft slot 5. The app connected to the designated draft in
+the Primary League using its normal connection dialog. Provider scoring and roster settings matched the saved profile, and
 all ten keeper assignments matched the current keeper file. Slot 5 has Javonte
 Williams reserved at pick 96. The app showed four picks until the user's first
 selection at pick 5.
@@ -50,7 +49,7 @@ production draft cannot provide completion evidence before it runs. Keep
 verified, then rerun the release gate.
 
 Evidence is saved in
-[data/rehearsal-evidence/2026-09-05](../data/rehearsal-evidence/2026-09-05/report.json),
+`data/rehearsal-evidence/2026-09-05/`,
 including server snapshots and browser state before, during, and after the
 outage. The current gate result is in
-[primary-league-release-gate-report.json](../data/primary-league-release-gate-report.json).
+`data/primary-league-release-gate-report.json`.

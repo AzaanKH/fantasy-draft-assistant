@@ -50,6 +50,26 @@ needed by the task and review its generated diff. Run writes sequentially
 because they share one embedded DuckDB file. A lock error is a reason to find
 the active writer, not to delete the database.
 
+## FantasyPros-free profile
+
+`MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset` builds the model
+without FantasyPros inputs so its outputs can be published in `demo-data/`.
+It writes its own database, predictions, and reports to
+`data/model/fantasypros-free/` and leaves `data/predictions.json` alone.
+
+| Input | Standard profile | FantasyPros-free profile |
+| --- | --- | --- |
+| Current projection baseline | FantasyPros projected points | Three-season expected or actual points per game × 17, then Sleeper rank |
+| Current rankings, ADP, and news | FantasyPros snapshot | Empty tables; the snapshot is not read |
+| DynastyProcess `db_fpecr` | Pre-draft ranking features and historical training baseline | Columns only, no rows |
+| Training relevance cut | Top 250 by pre-draft ECR | Top 250 by trailing projection in each season |
+| Historical snapshot universe | Pre-draft ECR players | Prior season's top 400 by PPR points |
+
+The DynastyProcess player-ID crosswalk is kept because it carries IDs, not
+rankings. Rookies have no trailing history, so the free profile projects them
+from Sleeper rank alone; `pnpm data:demo:build` gives Sleeper's order more weight
+for uncertain players for the same reason.
+
 ## Historical draft-morning snapshots
 
 `model.historical_asof_snapshots` and

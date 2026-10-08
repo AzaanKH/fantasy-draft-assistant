@@ -43,7 +43,7 @@ Every workspace depends on [Effect 4](https://effect.website/docs/v4/onboarding)
 
 ## Local verification
 
-The local Vitest suites use fixtures, checked-in snapshots, mocked provider calls, and temporary local servers and files. They do not require provider credentials or live provider requests. Run them, fix failures caused by the requested change, and rerun affected tests without asking for approval at each step.
+The local Vitest suites use fixtures, local data (or `demo-data/` in CI), mocked provider calls, and temporary local servers and files. They do not require provider credentials or live provider requests. Run them, fix failures caused by the requested change, and rerun affected tests without asking for approval at each step.
 
 - Match verification to the change. Add tests for meaningful behavior or regression risks, not tests that merely repeat the implementation. Once the relevant checks pass, broaden or repeat them only when new changes, failures, or unresolved concerns justify it.
 - Use `pnpm --filter <workspace> test <test-file>` for affected tests. Test workspaces are `web-app`, `server`, `extension`, and `scripts`.

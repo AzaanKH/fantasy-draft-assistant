@@ -139,7 +139,7 @@ function renderMarkdown(report: PrimaryLeagueExperimentReport): string {
 
 Generated: ${report.generatedAt}
 
-FantasyPros snapshot: [data/fantasypros-snapshot.json](../data/fantasypros-snapshot.json), refreshed ${report.fantasyProsSnapshot.refreshedAt}. Projections refreshed ${report.fantasyProsSnapshot.projectionRefreshedAt ?? 'at an unrecorded time'}.
+FantasyPros snapshot: \`data/fantasypros-snapshot.json\`, refreshed ${report.fantasyProsSnapshot.refreshedAt}. Projections refreshed ${report.fantasyProsSnapshot.projectionRefreshedAt ?? 'at an unrecorded time'}.
 
 These experiments use draft slot ${String(report.parameters.draftSlot)}, ${report.parameters.keeper.playerName} as the round-${String(report.parameters.keeper.round)} keeper, the dated FantasyPros inputs above, and the Primary League opponent model. They measure the rosters acquired under those projections. They do not predict realized 2026 results.
 

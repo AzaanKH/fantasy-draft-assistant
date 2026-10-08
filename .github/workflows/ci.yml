@@ -12,6 +12,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # The web build and dev server use demo-data/ files, such as its
+      # recommendation policy, over the tracked data/ copies.
+      BROWSER_DATA_SOURCE: demo
     strategy:
       fail-fast: false
       matrix:
@@ -29,9 +33,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Licensed and league data stay local, so CI builds and tests against demo-data/.
+      - run: pnpm data:demo:install
+      - run: pnpm data:demo:check
       - run: pnpm audit:security
       - run: python3 -m unittest discover -s .agents/skills/verify-fantasy-draft-assistant/helpers -p 'test_*.py'
       - run: pnpm verify
+      - name: Check the built site for FantasyPros and league data
+        run: pnpm data:demo:check web-app/dist
       - name: Assert web static-output policy
         run: pnpm --filter scripts measure:web-bundle
       - name: Install Chromium for the browser gate

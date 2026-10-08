@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { DuckDBConnection } from '@duckdb/node-api';
 
 import {
+  EXCLUDES_FANTASYPROS,
   MODEL_PATHS,
   runStatements,
   sqlString,
@@ -67,6 +68,52 @@ function seasonUrls(release: string, prefix: string, seasons: readonly number[])
 function sqlList(values: readonly string[]): string {
   return `[${values.map(sqlString).join(', ')}]`;
 }
+
+/**
+ * The player universe normally comes from DynastyProcess's FantasyPros ECR. The
+ * FantasyPros-free profile keeps that table's columns but fills it with each
+ * prior season's top 400 by PPR points, dated two days before the draft. Rookies
+ * have no prior season, so they get no as-of context in that profile.
+ */
+const FANTASYPROS_FREE_UNIVERSE_SQL = `insert into source.historical_snapshot_rankings by name
+      with ranked as (
+        select
+          stats.season + 1 as draft_season,
+          ids.fantasypros_id,
+          stats.player_display_name::varchar as player,
+          stats.position::varchar as pos,
+          stats.recent_team::varchar as team,
+          rank() over (
+            partition by stats.season
+            order by stats.fantasy_points_ppr desc
+          ) as trailing_rank
+        from source.historical_snapshot_prior_stats stats
+        join (
+          select distinct fantasypros_id::varchar as fantasypros_id, gsis_id::varchar as gsis_id
+          from source.historical_snapshot_player_ids
+          where fantasypros_id is not null and gsis_id is not null
+        ) ids
+          on ids.gsis_id = stats.player_id
+        where stats.position in ('QB', 'RB', 'WR', 'TE', 'K')
+          and stats.fantasy_points_ppr is not null
+      )
+      select
+        'fantasypros-free-trailing-points' as fp_page,
+        'redraft-overall' as page_type,
+        ranked.player,
+        ranked.fantasypros_id as id,
+        ranked.pos,
+        ranked.team,
+        ranked.team as tm,
+        ranked.trailing_rank::double as ecr,
+        0::double as sd,
+        ranked.trailing_rank::double as best,
+        ranked.trailing_rank::double as worst,
+        strftime(cast(drafts.draft_timestamp as date) - interval 2 day, '%Y-%m-%d') as scrape_date
+      from ranked
+      join model.historical_draft_dates drafts
+        on drafts.season = ranked.draft_season
+      where ranked.trailing_rank <= 400`;
 
 async function loadDraftCutoffs(): Promise<readonly DraftCutoff[]> {
   const fileNames = (await readdir(MODEL_PATHS.leagueDraftRawDir))
@@ -188,11 +235,13 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
         ${draftValuesSql(cutoffs)}
       ) as drafts(season, draft_id, league_id, draft_timestamp)`,
     `create or replace table source.historical_snapshot_rankings as
-      select * from read_parquet(${sqlString(RANKINGS_URL)})`,
+      select * from read_parquet(${sqlString(RANKINGS_URL)})
+      ${EXCLUDES_FANTASYPROS ? 'limit 0' : ''}`,
     `create or replace table source.historical_snapshot_player_ids as
       select * from read_csv_auto(${sqlString(PLAYER_IDS_URL)})`,
     `create or replace table source.historical_snapshot_prior_stats as
       select * from read_parquet(${sqlList(seasonUrls('stats_player', 'stats_player_reg', priorSeasons))})`,
+    ...(EXCLUDES_FANTASYPROS ? [FANTASYPROS_FREE_UNIVERSE_SQL] : []),
     `create or replace table source.historical_snapshot_schedules as
       select * from read_parquet(${sqlString(SCHEDULES_URL)})
       where season in (${priorSeasons.join(', ')})`,

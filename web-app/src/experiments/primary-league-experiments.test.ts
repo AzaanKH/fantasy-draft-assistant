@@ -8,6 +8,9 @@ import {
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+// CI runs on demo-data/, which has no keepers; the experiments model the Primary League's.
+const usesDemoData = fantasyProsJson.metadata.sourceType === 'fixture';
+
 describe('Primary League experiments', () => {
   it('includes material depth value while preserving audit factor order', () => {
     const flags = { leagueValue: true, rosterFit: true, depthValue: true, tierSupply: true, draftTiming: true };
@@ -27,7 +30,7 @@ describe('Primary League experiments', () => {
     });
   });
 
-  it('runs every requested experiment and keeps Best Pick inside its boundary', () => {
+  it.skipIf(usesDemoData)('runs every requested experiment and keeps Best Pick inside its boundary', () => {
     const recommend = vi.spyOn(recommendations, 'getRecommendations');
     const report = runPrimaryLeagueExperiments({
       seed: 77,
