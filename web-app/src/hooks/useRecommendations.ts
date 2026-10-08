@@ -25,8 +25,8 @@ import {
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
+import { useDraftedPlayers } from './useUndraftedPlayers';
 import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
-import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
 
 const EMPTY_SELECTION: RecommendationSelection = {
   policy: 'league-aware-score',
@@ -79,22 +79,8 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const config = useDraftStore((state) => state.config);
-  const effectiveKeepers = useMemo(
-    () => getEffectiveKeeperAssignments(
-      preloadedKeepers,
-      draftHistory,
-      config.totalTeams,
-      config.draftType
-    ),
-    [config.totalTeams, config.draftType, draftHistory, preloadedKeepers]
-  );
-  const draftedPlayers = useMemo(
-    () => [...draftHistory, ...effectiveKeepers],
-    [draftHistory, effectiveKeepers]
-  );
+  const draftedPlayers = useDraftedPlayers();
   const currentPick = useDraftStore((state) => state.currentPick);
   const myRoster = useDraftStore((state) => state.myRoster);
   const sessionMode = useDraftStore((state) => state.sessionMode);

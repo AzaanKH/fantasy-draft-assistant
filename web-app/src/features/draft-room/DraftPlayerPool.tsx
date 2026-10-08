@@ -12,12 +12,12 @@ import { useDraftDecision } from '@/features/recommendations/DraftDecisionContex
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
+import { useUndraftedPlayers } from '@/hooks/useUndraftedPlayers';
 import { cn, formatSignedNumber } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
+import { describePausedAdvice, getPlayerPoolRows, type PositionFilter } from './player-pool-rows';
 import { getRosterSlots } from './roster-slots';
 
-type PositionFilter = Position | 'ALL' | 'FLEX';
-const FLEX_POSITIONS: readonly Position[] = ['RB', 'WR', 'TE'];
 const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF'];
 
 interface FilterCount {
@@ -57,6 +57,7 @@ function DraftPlayerRow({
   showDraftAction,
   isQueued,
   rank,
+  rankLabel,
   rowIndex,
   survivalProbability,
   onDraft,
@@ -66,7 +67,8 @@ function DraftPlayerRow({
   readonly canDraft: boolean;
   readonly showDraftAction: boolean;
   readonly isQueued: boolean;
-  readonly rank: number;
+  readonly rank: number | undefined;
+  readonly rankLabel: string;
   readonly rowIndex: number;
   readonly survivalProbability: number;
   readonly onDraft: (player: Player) => void;
@@ -79,7 +81,9 @@ function DraftPlayerRow({
           <Button size="sm" className="draft-pill-action" disabled={!canDraft} aria-label={`Draft ${player.name}`} onClick={() => { onDraft(player); }}>Draft</Button>
         </div>
       ) : null}
-      <div role="cell" className="draft-pool-rank">{String(rank)}</div>
+      <div role="cell" className="draft-pool-rank">
+        {rank === undefined ? <span aria-label={`Not ranked by ${rankLabel}`}>–</span> : String(rank)}
+      </div>
       <div role="cell" className="draft-pool-player">
         <PlayerHeadshot playerId={player.id} name={player.name} position={player.position} className="size-9 shrink-0 rounded-full" />
         <div className="min-w-0">
@@ -104,7 +108,8 @@ function DraftPlayerRow({
 
 export function DraftPlayerPool(): React.ReactElement {
   const { players: basePlayers } = usePlayerDataQuery();
-  const { output, overall } = useDraftDecision();
+  const { output, overall, readiness, recommendationsBlocked, recommendationsBlockedByProviderIdentity } = useDraftDecision();
+  const undraftedPlayers = useUndraftedPlayers();
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
   const [searchQuery, setSearchQuery] = React.useState('');
   const playerListRef = React.useRef<HTMLDivElement>(null);
@@ -116,37 +121,22 @@ export function DraftPlayerPool(): React.ReactElement {
   const config = useDraftStore((state) => state.config);
   const { canDraft, draftPlayer } = useDraftPlayerAction();
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
-  const playerById = React.useMemo(
-    () => new Map(basePlayers.map((player) => [player.id, player])),
-    [basePlayers]
-  );
 
-  const recommendations = React.useMemo(() => overall.recommendations
-    .filter((recommendation) => {
-      const player = playerById.get(recommendation.playerId);
-      if (!player) return false;
-      if (positionFilter === 'FLEX' && !FLEX_POSITIONS.includes(player.position)) return false;
-      if (positionFilter !== 'ALL' && positionFilter !== 'FLEX' && player.position !== positionFilter) return false;
-      if (!deferredSearchQuery) return true;
-      return player.name.toLowerCase().includes(deferredSearchQuery) ||
-        player.team.toLowerCase().includes(deferredSearchQuery);
-    })
-    .slice(0, 60), [
-      deferredSearchQuery,
-      overall.recommendations,
-      playerById,
-      positionFilter,
-    ]);
+  const rows = React.useMemo(
+    () => getPlayerPoolRows(undraftedPlayers, overall.recommendations, positionFilter, deferredSearchQuery),
+    [deferredSearchQuery, overall.recommendations, positionFilter, undraftedPlayers]
+  );
   const filterCounts = React.useMemo(
     () => getFilterCounts(myRoster, config.rosterRequirements, config.totalRounds),
     [config.rosterRequirements, config.totalRounds, myRoster]
   );
   const rankLabel = output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player';
+  const orderLabel = recommendationsBlocked ? 'expert rank' : rankLabel;
   const rowVirtualizer = useVirtualizer({
-    count: recommendations.length,
+    count: rows.length,
     getScrollElement: () => playerListRef.current,
     estimateSize: () => 61,
-    getItemKey: (index) => recommendations[index]?.playerId ?? index,
+    getItemKey: (index) => rows[index]?.player.id ?? index,
     scrollMargin: 44,
     overscan: 10,
   });
@@ -188,30 +178,32 @@ export function DraftPlayerPool(): React.ReactElement {
         </label>
       </div>
 
+      {recommendationsBlocked ? (
+        <p className="draft-pool-paused" role="status">{describePausedAdvice(readiness, recommendationsBlockedByProviderIdentity)}</p>
+      ) : null}
       <div className="draft-pool-scroll" ref={playerListRef} tabIndex={0} role="region" aria-label="Available players, scroll for more">
-        <div role="table" aria-label={`Available players ordered by ${rankLabel}`} aria-rowcount={recommendations.length + 1}
+        <div role="table" aria-label={`Available players ordered by ${orderLabel}`} aria-rowcount={rows.length + 1}
           className={cn('draft-pool-table', sessionMode === 'mock' && 'has-draft-action')}>
           <div role="rowgroup" className="draft-pool-heading">
             <div role="row" aria-rowindex={1} className="draft-pool-columns">
               {sessionMode === 'mock' ? <div role="columnheader"><span className="sr-only">Draft</span></div> : null}
-              <div role="columnheader"><MetricHelp metric="recommendationRank" label="Rank" context={<p>Ordered by {rankLabel}.</p>} /></div>
+              <div role="columnheader"><MetricHelp metric="recommendationRank" label="Rank" context={<p>Ordered by {orderLabel}.</p>} /></div>
               <div role="columnheader">Player</div>
               <div role="columnheader"><MetricHelp metric="vor" label="Value" /></div>
               <div role="columnheader"><MetricHelp metric="returnProbability" label="Available next pick" /></div>
               <div role="columnheader">Queue</div>
             </div>
           </div>
-          {recommendations.length > 0 ? (
+          {rows.length > 0 ? (
             <div
               role="rowgroup"
               className="relative w-full"
               style={{ height: `${String(rowVirtualizer.getTotalSize())}px` }}
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const recommendation = recommendations[virtualRow.index];
-                if (!recommendation) return null;
-                const player = playerById.get(recommendation.playerId);
-                if (!player) return null;
+                const row = rows[virtualRow.index];
+                if (!row) return null;
+                const { player, recommendation } = row;
                 return (
                   <div
                     key={player.id}
@@ -226,9 +218,10 @@ export function DraftPlayerPool(): React.ReactElement {
                       showDraftAction={sessionMode === 'mock'}
                       isQueued={queuedSet.has(player.id)}
                       rowIndex={virtualRow.index + 2}
-                      rank={overall.rankByPlayerId.get(player.id) ?? 0}
+                      rank={overall.rankByPlayerId.get(player.id)}
+                      rankLabel={rankLabel}
                       survivalProbability={
-                        recommendation.diagnostics?.nextPickSurvivalProbability
+                        recommendation?.diagnostics?.nextPickSurvivalProbability
                           ?? player.nextPickSurvivalProbability
                       }
                       onDraft={draftPlayer}
@@ -247,9 +240,9 @@ export function DraftPlayerPool(): React.ReactElement {
         <span>
           {sessionMode === 'mock' && !canDraft
             ? 'Draft actions are unavailable until your pick.'
-            : `${String(recommendations.length)} players shown`}
+            : `${String(rows.length)} players shown`}
         </span>
-        <span>Ordered by {rankLabel}</span>
+        <span>Ordered by {orderLabel}</span>
       </div>
     </div>
   );

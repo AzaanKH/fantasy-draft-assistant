@@ -4,6 +4,7 @@ import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { DraftHeader } from '@/components/DraftHeader';
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import { RouteSkeleton } from '@/components/skeletons';
 import {
   DEFAULT_ASSISTANT_NAVIGATION_TARGET,
@@ -163,9 +164,11 @@ export function App(): React.ReactElement {
     return (
       <div className="min-h-screen bg-background text-foreground">
         <DraftDecisionProvider readiness={readiness}>
-          <React.Suspense fallback={<RouteLoading route="sidepanel" />}>
-            <SidePanelPage />
-          </React.Suspense>
+          <RouteErrorBoundary>
+            <React.Suspense fallback={<RouteLoading route="sidepanel" />}>
+              <SidePanelPage />
+            </React.Suspense>
+          </RouteErrorBoundary>
         </DraftDecisionProvider>
       </div>
     );
@@ -193,21 +196,23 @@ export function App(): React.ReactElement {
               <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
             </React.Suspense> : null}
             <ShadowRecommendationObserver />
-            <React.Suspense fallback={<RouteLoading route={route} />}>
-              {route === 'assistant' ? (
-                <AssistantPage
-                  key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}
-                  initialLens={assistantNavigationTarget.lens}
-                  initialSelectedPlayerId={assistantNavigationTarget.selectedPlayerId}
-                  onReturnToDraft={() => { navigate('draft'); }}
-                />
-              ) : (
-                <DraftRoom
-                  keeperStatus={keeperStatus}
-                  onOpenAssistant={(target) => { navigate('assistant', target); }}
-                />
-              )}
-            </React.Suspense>
+            <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
+              <React.Suspense fallback={<RouteLoading route={route} />}>
+                {route === 'assistant' ? (
+                  <AssistantPage
+                    key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}
+                    initialLens={assistantNavigationTarget.lens}
+                    initialSelectedPlayerId={assistantNavigationTarget.selectedPlayerId}
+                    onReturnToDraft={() => { navigate('draft'); }}
+                  />
+                ) : (
+                  <DraftRoom
+                    keeperStatus={keeperStatus}
+                    onOpenAssistant={(target) => { navigate('assistant', target); }}
+                  />
+                )}
+              </React.Suspense>
+            </RouteErrorBoundary>
           </DraftSetupActionsContext.Provider>
         </DraftDecisionProvider>
       </LiveDraftSyncProvider>
