@@ -10,7 +10,29 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const REPO_ROOT = join(__dirname, '../../..');
 export const DATA_DIR = join(REPO_ROOT, 'data');
-const MODEL_DIR = join(DATA_DIR, 'model');
+
+const MODEL_SOURCE_PROFILES = ['standard', 'fantasypros-free'] as const;
+export type ModelSourceProfile = (typeof MODEL_SOURCE_PROFILES)[number];
+
+function readModelSourceProfile(): ModelSourceProfile {
+  const value = process.env['MODEL_SOURCE_PROFILE'] ?? 'standard';
+  if (!(MODEL_SOURCE_PROFILES as readonly string[]).includes(value)) {
+    throw new Error(`MODEL_SOURCE_PROFILE must be one of ${MODEL_SOURCE_PROFILES.join(', ')}; received ${value}`);
+  }
+  return value as ModelSourceProfile;
+}
+
+/**
+ * `fantasypros-free` builds the model without FantasyPros projections, rankings,
+ * ADP, news, or DynastyProcess's FantasyPros-derived rankings, so its outputs can
+ * be published in the demo. It writes to its own directory and database.
+ */
+export const MODEL_SOURCE_PROFILE = readModelSourceProfile();
+export const EXCLUDES_FANTASYPROS = MODEL_SOURCE_PROFILE === 'fantasypros-free';
+
+const MODEL_DIR = EXCLUDES_FANTASYPROS
+  ? join(DATA_DIR, 'model', 'fantasypros-free')
+  : join(DATA_DIR, 'model');
 export const MODEL_DB_PATH = join(MODEL_DIR, 'fantasy-draft.duckdb');
 const RAW_MODEL_DIR = join(MODEL_DIR, 'raw');
 const NORMALIZED_MODEL_DIR = join(MODEL_DIR, 'normalized');
@@ -39,10 +61,16 @@ export const MODEL_PATHS: ModelPaths = {
   contractsJson: join(DATA_DIR, 'contracts.json'),
   leagueDraftHistoryJson: join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'),
   leagueDraftRawDir: join(DATA_DIR, 'league-history', 'raw'),
-  historicalSnapshotReportJson: join(DATA_DIR, 'historical-snapshot-report.json'),
+  historicalSnapshotReportJson: EXCLUDES_FANTASYPROS
+    ? join(MODEL_DIR, 'historical-snapshot-report.json')
+    : join(DATA_DIR, 'historical-snapshot-report.json'),
   historicalSnapshotsParquet: join(MODEL_DIR, 'historical-asof-snapshots.parquet'),
-  predictionsJson: join(DATA_DIR, 'predictions.json'),
-  modelReportJson: join(DATA_DIR, 'model-report.json'),
+  predictionsJson: EXCLUDES_FANTASYPROS
+    ? join(MODEL_DIR, 'predictions.json')
+    : join(DATA_DIR, 'predictions.json'),
+  modelReportJson: EXCLUDES_FANTASYPROS
+    ? join(MODEL_DIR, 'model-report.json')
+    : join(DATA_DIR, 'model-report.json'),
   normalizedPlayersParquet: join(NORMALIZED_MODEL_DIR, 'current-player-join.parquet'),
   trainingDatasetParquet: join(MODEL_DIR, 'training-dataset.parquet'),
   profileReportJson: join(MODEL_DIR, 'profile-report.json'),
