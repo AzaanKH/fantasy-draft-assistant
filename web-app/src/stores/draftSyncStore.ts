@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type { DraftProvider } from '@fantasy-draft/shared';
 
 export const DRAFT_SYNC_STORAGE_KEY = 'fantasy-draft-live-sync-v1';
@@ -11,7 +11,7 @@ export interface PersistedDraftSyncConnection {
   readonly settingsProfile?: 'quick-mock';
 }
 
-interface DraftSyncConnectionStore {
+export interface DraftSyncConnectionStore {
   readonly connection: PersistedDraftSyncConnection | null;
   startConnection: (provider: DraftProvider, draftId: string) => void;
   confirmDraftPosition: (draftPosition: number) => void;
@@ -142,9 +142,19 @@ function persistConnection(connection: PersistedDraftSyncConnection | null): voi
   }
 }
 
-export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
-  (set, get) => ({
-    connection: readStoredConnection(),
+export type DraftSyncConnectionStoreHook = UseBoundStore<StoreApi<DraftSyncConnectionStore>>;
+
+interface DraftSyncConnectionStoreOptions {
+  readonly initialConnection: PersistedDraftSyncConnection | null;
+  readonly persist: (connection: PersistedDraftSyncConnection | null) => void;
+}
+
+export function createDraftSyncConnectionStore({
+  initialConnection,
+  persist,
+}: DraftSyncConnectionStoreOptions): DraftSyncConnectionStoreHook {
+  return create<DraftSyncConnectionStore>((set, get) => ({
+    connection: initialConnection,
     startConnection: (provider, draftId) => {
       const normalizedDraftId = draftId.trim();
       if (!isDraftProvider(provider) || !isValidDraftSyncId(provider, normalizedDraftId)) return;
@@ -162,7 +172,7 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
             ? current.draftPosition
             : null,
       };
-      persistConnection(connection);
+      persist(connection);
       set({ connection });
     },
     confirmDraftPosition: (draftPosition) => {
@@ -170,12 +180,12 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
       if (!current || !isDraftPosition(draftPosition)) return;
 
       const connection = { ...current, draftPosition };
-      persistConnection(connection);
+      persist(connection);
       set({ connection });
     },
     restoreConnection: (connection) => {
       if (!isPersistedDraftSyncConnection(connection)) return;
-      persistConnection(connection);
+      persist(connection);
       set({ connection });
     },
     setPrimaryLeagueSettings: (enabled) => {
@@ -187,7 +197,7 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
         delete connection.settingsProfile;
       }
       else delete connection.usePrimaryLeagueSettings;
-      persistConnection(connection);
+      persist(connection);
       set({ connection });
     },
     setQuickMockSettings: (enabled) => {
@@ -196,15 +206,20 @@ export const useDraftSyncConnectionStore = create<DraftSyncConnectionStore>(
       const connection = { ...current };
       if (enabled) { connection.settingsProfile = 'quick-mock'; delete connection.usePrimaryLeagueSettings; }
       else delete connection.settingsProfile;
-      persistConnection(connection);
+      persist(connection);
       set({ connection });
     },
     disconnect: () => {
-      persistConnection(null);
+      persist(null);
       set({ connection: null });
     },
-  })
-);
+  }));
+}
+
+export const useDraftSyncConnectionStore = createDraftSyncConnectionStore({
+  initialConnection: readStoredConnection(),
+  persist: persistConnection,
+});
 
 export function initializeDraftSyncConnection(search: string): void {
   const urlConnection = getDraftSyncConnectionFromSearch(search);
