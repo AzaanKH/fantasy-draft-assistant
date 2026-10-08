@@ -10,7 +10,7 @@ import {
 } from '@/stores/draftStore';
 import {
   getKeeperAtPick,
-  getTeamIndexForPick,
+  getTeamIndexForDraftPick,
   selectCpuPlayer,
 } from '@/lib/mock-draft-engine';
 
@@ -37,7 +37,8 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     const keeper = getKeeperAtPick(
       state.preloadedKeepers,
       state.currentPick,
-      state.config.totalTeams
+      state.config.totalTeams,
+      state.config.draftType
     );
     if (keeper) {
       state.consumeKeeperAtCurrentPick();
@@ -47,7 +48,8 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     if (calculateIsMyTurn(
       state.currentPick,
       state.config.myPickPosition,
-      state.config.totalTeams
+      state.config.totalTeams,
+      state.config.draftType
     )) {
       return false;
     }
@@ -62,6 +64,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
         totalTeams: state.config.totalTeams,
         totalRounds: state.config.totalRounds,
         myPickPosition: state.config.myPickPosition,
+        draftType: state.config.draftType,
         rosterRequirements: state.config.rosterRequirements,
         randomness: state.mockSettings.randomness,
         seed: state.mockSettings.seed,
@@ -70,7 +73,11 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     });
     if (!selection) return false;
 
-    const teamIndex = getTeamIndexForPick(state.currentPick, state.config.totalTeams);
+    const teamIndex = getTeamIndexForDraftPick(
+      state.currentPick,
+      state.config.totalTeams,
+      state.config.draftType
+    );
     state.markPlayerDrafted(
       selection.player.id,
       selection.player.name,
@@ -109,12 +116,14 @@ export function MockDraftAutoAdvance(): null {
     const keeper = getKeeperAtPick(
       state.preloadedKeepers,
       state.currentPick,
-      state.config.totalTeams
+      state.config.totalTeams,
+      state.config.draftType
     );
     if (!keeper && calculateIsMyTurn(
       state.currentPick,
       state.config.myPickPosition,
-      state.config.totalTeams
+      state.config.totalTeams,
+      state.config.draftType
     )) {
       return;
     }

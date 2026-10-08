@@ -5,7 +5,7 @@ import {
   useDraftStore,
   useIsMyTurn,
 } from '@/stores/draftStore';
-import { getKeeperAtPick, getTeamIndexForPick } from '@/lib/mock-draft-engine';
+import { getKeeperAtPick, getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
 export function canDraftFromWorkspace(
   sessionMode: ReturnType<typeof useDraftSessionMode>,
@@ -40,7 +40,7 @@ export function useDraftPlayerAction(): {
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
   const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const keeperAtCurrentPick = sessionMode === 'mock'
-    ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams)
+    ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams, config.draftType)
     : undefined;
   // The Draft Workspace is read-only for connected provider drafts. Local pick
   // mutation is reserved for deterministic mock rehearsal; provider picks are
@@ -58,7 +58,7 @@ export function useDraftPlayerAction(): {
 
   const draftPlayer = React.useCallback((player: Player) => {
     if (!canDraftPlayer(player)) return;
-    const teamIndex = getTeamIndexForPick(currentPick, config.totalTeams);
+    const teamIndex = getTeamIndexForDraftPick(currentPick, config.totalTeams, config.draftType);
     markPlayerDrafted(
       player.id,
       player.name,
@@ -67,7 +67,7 @@ export function useDraftPlayerAction(): {
       'My Team'
     );
     addToMyRoster(player);
-  }, [addToMyRoster, canDraftPlayer, config.totalTeams, currentPick, markPlayerDrafted]);
+  }, [addToMyRoster, canDraftPlayer, config.draftType, config.totalTeams, currentPick, markPlayerDrafted]);
 
   return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };
 }

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
-import type { Player } from '@fantasy-draft/shared';
+import type { DraftType, Player } from '@fantasy-draft/shared';
 import { Pause, Play, RotateCcw, Settings2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +23,7 @@ import {
   estimateMockSurvivalProbabilities,
   formatRoundPick,
   getKeeperAtPick,
-  getTeamIndexForPick,
+  getTeamIndexForDraftPick,
   type MockDraftEngineConfig,
 } from '@/lib/mock-draft-engine';
 import { useSimulateNextCpuPick } from './mock-auto-advance';
@@ -43,11 +43,12 @@ function getNextUserPick(
   currentPick: number,
   myPickPosition: number,
   totalTeams: number,
-  totalRounds: number
+  totalRounds: number,
+  draftType: DraftType
 ): number | null {
   const totalPicks = totalTeams * totalRounds;
   for (let pickNumber = currentPick + 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (getTeamIndexForPick(pickNumber, totalTeams) === myPickPosition - 1) {
+    if (getTeamIndexForDraftPick(pickNumber, totalTeams, draftType) === myPickPosition - 1) {
       return pickNumber;
     }
   }
@@ -83,6 +84,7 @@ export function MockDraftControls({
     totalTeams: config.totalTeams,
     totalRounds: config.totalRounds,
     myPickPosition: config.myPickPosition,
+    draftType: config.draftType,
     rosterRequirements: config.rosterRequirements,
     randomness: mockSettings.randomness,
     seed: mockSettings.seed,
@@ -168,18 +170,21 @@ export function MockDraftControls({
   const isMyTurn = calculateIsMyTurn(
     currentPick,
     config.myPickPosition,
-    config.totalTeams
+    config.totalTeams,
+    config.draftType
   );
   const keeperAtCurrentPick = getKeeperAtPick(
     preloadedKeepers,
     currentPick,
-    config.totalTeams
+    config.totalTeams,
+    config.draftType
   );
   const nextUserPick = getNextUserPick(
     currentPick,
     config.myPickPosition,
     config.totalTeams,
-    config.totalRounds
+    config.totalRounds,
+    config.draftType
   );
   const survivalLeaders = players
     .filter((player) => !draftedPlayerIds.has(player.id))

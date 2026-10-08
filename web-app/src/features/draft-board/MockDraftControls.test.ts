@@ -98,6 +98,19 @@ describe('mock draft auto-advance', () => {
       .toEqual(['cpu', 'cpu', 'manual', 'cpu', 'cpu']);
   });
 
+  it('follows linear draft order', () => {
+    store.getState().setConfig({ draftType: 'linear' });
+    render({ onBoard: true });
+    advance(3000);
+    expect(store.getState().currentPick).toBe(3);
+
+    draftMyPick();
+    advance(3000);
+    // Linear order repeats round one, so slot 3 picks again at 7, not 6.
+    expect(store.getState().currentPick).toBe(7);
+    expect(store.getState().draftHistory.at(-1)?.teamIndex).toBe(1);
+  });
+
   it('stays paused after the user pauses until they resume', () => {
     render({ onBoard: true });
     act(() => { button('Pause').click(); });
