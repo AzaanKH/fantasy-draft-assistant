@@ -12,6 +12,7 @@ import { evaluateDraftReadiness } from '@fantasy-draft/shared';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 
+import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import {
   fetchContractData,
@@ -25,6 +26,10 @@ import {
   fetchTeamEnvData,
   getMarketAdpFormat,
 } from '@/lib/player-data/queries';
+
+const TRUSTED_RANKING_SOURCE_TYPES: readonly string[] = IS_DEMO
+  ? [DEMO_RANKINGS_SOURCE_TYPE]
+  : ['api', 'manual-refresh'];
 
 /**
  * Hook to load and merge all player data sources
@@ -54,10 +59,12 @@ function useLivePlayerDataQuery() {
   });
 
   const connection = useDraftSyncConnectionStore((state) => state.connection);
+  // The static demo ships no contract context and has no API server.
   const contractQuery = useQuery({
     queryKey: ['contracts'],
     queryFn: fetchContractData,
     staleTime: Infinity,
+    enabled: !IS_DEMO,
   });
 
   const identityQuery = useQuery({
@@ -82,6 +89,7 @@ function useLivePlayerDataQuery() {
     queryKey: ['sportsbook-snapshot'],
     queryFn: fetchSportsbookSnapshot,
     staleTime: Infinity,
+    enabled: !IS_DEMO,
   });
   const marketAdpFormat = getMarketAdpFormat(
     leagueSettings.scoringRules.receiving.reception
@@ -103,11 +111,15 @@ function useLivePlayerDataQuery() {
     ),
     staleTime: 60 * 60 * 1000,
     retry: 1,
+    enabled: !IS_DEMO,
   });
 
   const effectiveRecommendationPolicy =
     recommendationPolicyQuery.data ?? SAFE_RECOMMENDATION_POLICY;
-  const currentSeason = new Date().getFullYear();
+  // The demo is a fixed snapshot, so it stays valid after its season ends.
+  const currentSeason = IS_DEMO
+    ? fantasyProsQuery.data?.metadata.season ?? new Date().getFullYear()
+    : new Date().getFullYear();
   const rankingsTimestamp = fantasyProsQuery.data?.metadata.refreshedAt;
   const identityTimestamp = identityQuery.data?.generatedAt;
   const sleeperTimestamp = sleeperQuery.data?.fetchedAt;
@@ -119,14 +131,15 @@ function useLivePlayerDataQuery() {
         : fantasyProsQuery.data &&
             fantasyProsQuery.data.metadata.season === currentSeason &&
             fantasyProsQuery.data.rankings.length >= 350 &&
-            ['api', 'manual-refresh'].includes(fantasyProsQuery.data.metadata.sourceType)
+            TRUSTED_RANKING_SOURCE_TYPES.includes(fantasyProsQuery.data.metadata.sourceType)
           ? 'available'
           : fantasyProsQuery.data
             ? 'invalid'
             : 'missing',
       timestamp: rankingsTimestamp,
-      detail: fantasyProsQuery.error?.message ??
-        'Expected at least 350 current-season rankings from the FantasyPros API or reviewed manual refresh.',
+      detail: fantasyProsQuery.error?.message ?? (IS_DEMO
+        ? 'Expected at least 350 demo rankings from the bundled demo dataset.'
+        : 'Expected at least 350 current-season rankings from the FantasyPros API or reviewed manual refresh.'),
     },
     'canonical-player-identities': {
       availability: identityQuery.isError
@@ -249,6 +262,7 @@ function useLivePlayerDataQuery() {
       'primary-league-settings': { availability: 'available', timestamp: new Date().toISOString() },
       'confirmed-keeper-supply': { availability: 'available', timestamp: new Date().toISOString() },
     },
+    enforceMaxAge: !IS_DEMO,
   });
   const predictionsReady = optionalReadiness.optionalSignals.find(
     (item) => item.key === 'experimental-predictions'
@@ -260,7 +274,7 @@ function useLivePlayerDataQuery() {
   const dataFreshness = useMemo<readonly DataFreshnessItem[]>(() => [
     createDataFreshnessItem({
       key: 'fantasypros',
-      label: 'FantasyPros rankings and projections',
+      label: IS_DEMO ? `Rankings and projections (${RANKING_LABELS.source})` : 'FantasyPros rankings and projections',
       timestamp: fantasyProsQuery.data?.metadata.refreshedAt,
       maxAgeHours: 24,
       refreshCommand: 'pnpm refresh:fantasypros',

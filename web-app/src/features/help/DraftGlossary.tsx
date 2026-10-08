@@ -1,3 +1,4 @@
+import { IS_DEMO } from '@/lib/demo-mode';
 import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,10 +36,11 @@ const TERMS = [
       'The player\'s expected total fantasy points for the season in your scoring format. This measures total output, while VOR measures how much better that output is than an available fallback at the same position.',
   },
   {
-    term: 'Expert rank and draft spot',
-    short: 'ECR / ADP',
-    definition:
-      'ECR is the expert consensus rank. ADP is the player\'s typical draft position. If experts rank a player earlier than the typical draft spot, waiting may offer value—but only if the player is likely to remain available.',
+    term: IS_DEMO ? 'Model rank and draft spot' : 'Expert rank and draft spot',
+    short: IS_DEMO ? 'Rank / ADP' : 'ECR / ADP',
+    definition: IS_DEMO
+      ? 'Model rank orders players by an experimental projection model blended with Sleeper rank. ADP is the player\'s typical draft position. If the model ranks a player earlier than the typical draft spot, waiting may offer value—but only if the player is likely to remain available.'
+      : 'ECR is the expert consensus rank. ADP is the player\'s typical draft position. If experts rank a player earlier than the typical draft spot, waiting may offer value—but only if the player is likely to remain available.',
   },
   {
     term: 'Risk',

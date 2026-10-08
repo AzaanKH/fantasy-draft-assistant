@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
@@ -55,7 +56,7 @@ export function DraftQueuePanel(): React.ReactElement {
           <div className="min-w-0 flex-1">
             <div className="draft-pool-name">{player.name}</div>
             <div className="draft-pool-meta">
-              <PositionLabel position={player.position} /> · {player.team} · ECR #{String(player.ecrRank)}
+              <PositionLabel position={player.position} /> · {player.team} · {RANKING_LABELS.short} #{String(player.ecrRank)}
             </div>
           </div>
           <Button

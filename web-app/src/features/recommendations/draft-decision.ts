@@ -1,3 +1,4 @@
+import { RANKING_LABELS, IS_DEMO, LEAGUE_LABEL } from '@/lib/demo-mode';
 import type {
   DecisionDivergenceFactor,
   DecisionLens,
@@ -237,8 +238,8 @@ function getDecisionDivergence(
   );
   const ecrRank = bestPlayer.diagnostics?.expertRank;
   const bestPlayerMeaning = ecrRank === undefined
-    ? 'under the trusted ECR Anchor'
-    : `at ECR #${String(ecrRank)}`;
+    ? IS_DEMO ? `under the ${RANKING_LABELS.anchor.toLowerCase()}` : 'under the trusted ECR Anchor'
+    : `at ${RANKING_LABELS.inline} #${String(ecrRank)}`;
 
   return {
     factor,
@@ -347,8 +348,8 @@ export function getRecommendationPolicyLabel(
   selection: RecommendationSelection
 ): string {
   if (selection.policy === 'roster-feasibility') return 'Roster feasibility';
-  if (selection.policy === 'primary-league-policy') return 'Primary League policy';
+  if (selection.policy === 'primary-league-policy') return `${LEAGUE_LABEL} policy`;
   if (selection.policy === 'pick-ev-override') return 'PickEV override';
-  if (selection.policy === 'ecr-anchor') return 'ECR anchor';
+  if (selection.policy === 'ecr-anchor') return RANKING_LABELS.anchor;
   return 'League-aware score';
 }

@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import type { Recommendation } from '@fantasy-draft/shared';
 import type { HelpMetric } from '@/features/help/metric-help-content';
 import { getWaitingCostSummary, survivalPercent } from './assistant-analysis';
@@ -57,7 +58,7 @@ export function getComparisonMetrics(
     { key: 'returnProbability', label: 'At next pick', description: 'Availability estimate, not player quality.', values: [probability(first), probability(second)], format: 'percent', scale: { min: 0, max: 100 } },
     { key: 'waitingCost', label: 'Waiting cost', description: 'Expected points lost by waiting; lower is safer to wait on.', values: [getWaitingCostSummary(first).costOfWaiting, getWaitingCostSummary(second).costOfWaiting], format: 'points' },
     { key: 'tier', label: 'Position tier', description: first.position === second.position ? `Within ${first.position}; lower tiers are stronger.` : 'Tiers are relative to each position.', values: [finite(first.diagnostics?.tier), finite(second.diagnostics?.tier)], format: 'tier' },
-    { key: 'ecr', label: 'ECR anchor', description: 'Expert rank; lower is better.', values: [finite(first.diagnostics?.expertRank), finite(second.diagnostics?.expertRank)], format: 'rank' },
+    { key: 'ecr', label: RANKING_LABELS.anchor, description: `${RANKING_LABELS.title}; lower is better.`, values: [finite(first.diagnostics?.expertRank), finite(second.diagnostics?.expertRank)], format: 'rank' },
     { key: 'recommendationRank', label: 'Recommendation rank', description: 'Order in the current decision lens.', values: [finite(ranks.get(first.playerId)), finite(ranks.get(second.playerId))], format: 'rank' },
   ];
 }

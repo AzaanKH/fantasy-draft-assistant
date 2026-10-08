@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
   Bot,
@@ -474,7 +475,7 @@ function HeadToHead({
     ['Value over replacement', firstDiagnostics ? formatSignedNumber(firstDiagnostics.valueOverReplacement, 0) : '—', secondDiagnostics ? formatSignedNumber(secondDiagnostics.valueOverReplacement, 0) : '—'],
     ['Position tier', `Tier ${String(firstDiagnostics?.tier ?? '—')}`, `Tier ${String(secondDiagnostics?.tier ?? '—')}`],
     ['At your next pick', getSurvival(first) === null ? '—' : `${String(getSurvival(first))}%`, getSurvival(second) === null ? '—' : `${String(getSurvival(second))}%`],
-    ['Overall ECR', `#${String(firstDiagnostics?.expertRank ?? '—')}`, `#${String(secondDiagnostics?.expertRank ?? '—')}`],
+    [`Overall ${RANKING_LABELS.short}`, `#${String(firstDiagnostics?.expertRank ?? '—')}`, `#${String(secondDiagnostics?.expertRank ?? '—')}`],
   ] as const;
   const firstPlayer = playerById.get(first.playerId);
   const secondPlayer = playerById.get(second.playerId);

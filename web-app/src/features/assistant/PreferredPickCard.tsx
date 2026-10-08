@@ -1,3 +1,4 @@
+import { RANKING_LABELS, IS_DEMO } from '@/lib/demo-mode';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionTag } from '@/components/PositionTag';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ function ActionNote({ mode, provider, disabledReason }: {
   if (mode === 'manual-continuity') {
     return <p className="rec-action-note"><span className="rec-alert">Provisional</span> Record each pick in the Draft Workspace as it happens. It is confirmed when sync returns.</p>;
   }
-  if (mode === 'preview') return <p className="rec-action-note">Preview. Connect a draft or start a mock to make picks.</p>;
+  if (mode === 'preview') return <p className="rec-action-note">{IS_DEMO ? 'Preview. Start a mock to make picks.' : 'Preview. Connect a draft or start a mock to make picks.'}</p>;
   return <p className="rec-action-note">Quick Mock. Picks are made here.</p>;
 }
 
@@ -98,7 +99,7 @@ export function PreferredPickCard({
           <div className="rec-meta">
             <PositionTag position={recommendation.position} />
             {player?.team ? <span>{player.team}</span> : null}
-            {diagnostics ? <span>ECR {String(diagnostics.expertRank)}</span> : null}
+            {diagnostics ? <span>{RANKING_LABELS.short} {String(diagnostics.expertRank)}</span> : null}
             {player?.consensusAdp ? <span>ADP {player.consensusAdp.toFixed(1)}</span> : null}
             {player?.byeWeek ? <span>Bye {String(player.byeWeek)}</span> : null}
           </div>

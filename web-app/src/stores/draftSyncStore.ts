@@ -1,5 +1,6 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type { DraftProvider } from '@fantasy-draft/shared';
+import { IS_DEMO } from '@/lib/demo-mode';
 
 export const DRAFT_SYNC_STORAGE_KEY = 'fantasy-draft-live-sync-v1';
 
@@ -114,7 +115,7 @@ export function getDraftSyncSearch(
 }
 
 function readStoredConnection(): PersistedDraftSyncConnection | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || IS_DEMO) return null;
 
   try {
     return parseStoredDraftSyncConnection(
@@ -222,6 +223,8 @@ export const useDraftSyncConnectionStore = createDraftSyncConnectionStore({
 });
 
 export function initializeDraftSyncConnection(search: string): void {
+  // The static demo has no sync server to connect to.
+  if (IS_DEMO) return;
   const urlConnection = getDraftSyncConnectionFromSearch(search);
   if (!urlConnection) return;
 

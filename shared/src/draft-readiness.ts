@@ -91,6 +91,11 @@ export interface DraftReadinessReport {
 export interface EvaluateDraftReadinessInput {
   readonly sources: Readonly<Partial<Record<DraftReadinessKey, DraftReadinessSourceObservation>>>;
   readonly warnings?: readonly DraftReadinessWarningInput[];
+  /**
+   * False for a fixed published snapshot, such as the static demo, whose data
+   * stays usable after the live age limits pass. Defaults to true.
+   */
+  readonly enforceMaxAge?: boolean;
 }
 
 const CORE_DEFINITIONS = [
@@ -190,7 +195,8 @@ export function formatDraftReadinessAge(ageHours: number | null): string {
 function getProblem(
   definition: DraftReadinessDefinition,
   observation: DraftReadinessSourceObservation | undefined,
-  now: number
+  now: number,
+  enforceMaxAge: boolean
 ): {
   readonly problem: DraftReadinessProblem | null;
   readonly timestamp: string | null;
@@ -227,6 +233,7 @@ function getProblem(
   }
 
   if (
+    enforceMaxAge &&
     definition.maxAgeHours !== null &&
     ageHours > definition.maxAgeHours
   ) {
@@ -239,9 +246,10 @@ function getProblem(
 function createItem(
   definition: DraftReadinessDefinition,
   observation: DraftReadinessSourceObservation | undefined,
-  now: number
+  now: number,
+  enforceMaxAge: boolean
 ): DraftReadinessItem {
-  const result = getProblem(definition, observation, now);
+  const result = getProblem(definition, observation, now, enforceMaxAge);
   const status: DraftReadinessItemStatus = result.problem === null
     ? 'ready'
     : definition.classification === 'core-draft-data'
@@ -286,10 +294,10 @@ export function evaluateDraftReadiness(
   }
 
   const coreDraftData = CORE_DEFINITIONS.map((definition) =>
-    createItem(definition, input.sources[definition.key], now)
+    createItem(definition, input.sources[definition.key], now, input.enforceMaxAge ?? true)
   );
   const optionalSignals = OPTIONAL_DEFINITIONS.map((definition) =>
-    createItem(definition, input.sources[definition.key], now)
+    createItem(definition, input.sources[definition.key], now, input.enforceMaxAge ?? true)
   );
   const productBlockingFailures = coreDraftData.filter(
     (item) => item.status === 'blocking'

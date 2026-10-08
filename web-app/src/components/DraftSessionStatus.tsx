@@ -9,6 +9,7 @@ import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { KeeperStatus } from '@/features/draft-room/KeeperStatus';
+import { IS_DEMO } from '@/lib/demo-mode';
 
 export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
   readonly keeperStatus?: KeeperPreloadStatus;
@@ -58,7 +59,7 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
             {quickMock ? 'Local practice rules · No keepers' : settingsReady ? settingsSource === 'default' ? 'Practice settings selected' : 'Provider settings verified' : 'Needs verification'}
           </p>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {quickMock ? 'Your mock uses its own scoring and roster rules. No Primary League connection is required.' : settingsReady
+            {quickMock ? IS_DEMO ? 'This demo mock uses its own scoring and roster rules. Change them in League setup before the first pick.' : 'Your mock uses its own scoring and roster rules. No Primary League connection is required.' : settingsReady
               ? settingsSource === 'default'
                 ? 'These local settings are for practice. Connect your Primary League draft to verify its scoring and roster settings.'
                 : primarySettings.message

@@ -5,7 +5,7 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-import { BROWSER_DATA_FILES } from '../scripts/src/browser-data';
+import { BROWSER_DATA_FILES, DEMO_BROWSER_DATA_FILES } from '../scripts/src/browser-data';
 import { localApiSecurity } from '../server/src/vite-security';
 
 const { webPort, apiOrigin } = localDevPorts(process.env);
@@ -14,21 +14,42 @@ const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
 
 // BROWSER_DATA_SOURCE=demo serves demo-data/ (including its recommendation
-// policy) without changing data/; files the demo does not ship come from data/.
+// policy) without changing data/. The dev server falls back to data/ for files
+// the demo does not ship; a demo build emits only demo-data/ files and fails if
+// one it needs is missing, so local data never reaches a published demo.
 const browserDataSource = process.env['BROWSER_DATA_SOURCE'] ?? 'local';
 if (browserDataSource !== 'local' && browserDataSource !== 'demo') {
   throw new Error(`BROWSER_DATA_SOURCE must be "local" or "demo"; got "${browserDataSource}".`);
+}
+// VITE_DEMO_MODE=true also switches the app to its static demo runtime.
+if (process.env['VITE_DEMO_MODE'] === 'true' && browserDataSource !== 'demo') {
+  throw new Error('VITE_DEMO_MODE=true requires BROWSER_DATA_SOURCE=demo.');
+}
+
+function demoDataPath(fileName: string): string {
+  return path.join(repoRoot, 'demo-data', path.relative('data', fileName));
 }
 
 async function readBrowserData(fileName: string): Promise<Buffer> {
   if (browserDataSource === 'demo') {
     try {
-      return await readFile(path.join(repoRoot, 'demo-data', path.relative('data', fileName)));
+      return await readFile(demoDataPath(fileName));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
   }
   return readFile(path.join(repoRoot, fileName));
+}
+
+async function readDemoBuildData(fileName: string): Promise<Buffer> {
+  try {
+    return await readFile(demoDataPath(fileName));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    throw new Error(
+      `Demo build is missing demo-data/${path.relative('data', fileName)}. Run \`pnpm data:demo:build\` to regenerate demo-data/.`
+    );
+  }
 }
 
 function browserDataPlugins(): Plugin[] {
@@ -66,11 +87,12 @@ function browserDataPlugins(): Plugin[] {
     name: 'browser-data-build',
     apply: 'build',
     async buildStart() {
-      for (const fileName of BROWSER_DATA_FILES) {
+      const demoBuild = browserDataSource === 'demo';
+      for (const fileName of demoBuild ? DEMO_BROWSER_DATA_FILES : BROWSER_DATA_FILES) {
         this.emitFile({
           type: 'asset',
           fileName,
-          source: await readBrowserData(fileName),
+          source: await (demoBuild ? readDemoBuildData(fileName) : readBrowserData(fileName)),
         });
       }
     },

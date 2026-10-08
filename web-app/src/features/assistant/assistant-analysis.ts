@@ -1,3 +1,4 @@
+import { RANKING_LABELS, LEAGUE_LABEL } from '@/lib/demo-mode';
 import { type DraftDecisionView } from '@/features/recommendations/draft-decision';
 import { formatSignedNumber } from '@/lib/utils';
 import { type ExpectedNextPickAlternative, type Position, type PositionNeed, type Recommendation } from '@fantasy-draft/shared';
@@ -85,18 +86,18 @@ function getRecommendationChangeAnswer(
 ): string {
   const factors = recommendation.decisionFactors;
   const unchanged = isTopPick
-    ? 'No bounded adjustment changed the ECR order. The policy confirmed this player as Best Pick.'
+    ? `No bounded adjustment changed the ${RANKING_LABELS.inline} order. The policy confirmed this player as Best Pick.`
     : `The bounded adjustments did not move this player to Best Pick${positionRank === undefined
       ? '.'
       : `; this player ranks #${String(positionRank)} at ${recommendation.position}.`}`;
   if (!factors) return unchanged;
 
   if (factors.conservativeBoundary.feasibilityException) {
-    return 'Roster feasibility changed the order because the normal ECR window could not complete a legal roster.';
+    return `Roster feasibility changed the order because the normal ${RANKING_LABELS.inline} window could not complete a legal roster.`;
   }
 
   const changedFactors = [
-    { changed: factors.leagueValue.materiallyChangedOrdering === true, score: factors.leagueValue.score, answer: 'Primary League value changed the order.' },
+    { changed: factors.leagueValue.materiallyChangedOrdering === true, score: factors.leagueValue.score, answer: `${LEAGUE_LABEL} value changed the order.` },
     { changed: factors.rosterFit.materiallyChangedOrdering === true, score: factors.rosterFit.score, answer: 'Roster fit changed the order.' },
     { changed: factors.depthValue.materiallyChangedOrdering, score: factors.depthValue.score, answer: `Depth Value changed the order: ${String(factors.depthValue.reserveCount)} ${recommendation.position} reserves against a target of ${String(factors.depthValue.targetReserveCount)}.` },
     { changed: factors.tierSupply.materiallyChangedOrdering, score: factors.tierSupply.score, answer: 'Tier supply changed the order.' },
@@ -120,7 +121,7 @@ export function getWhyRows(
     ? ''
     : ` #${String(positionRank)} among available ${recommendation.position}s.`;
   const value = diagnostics
-    ? `VOR ${formatSignedNumber(diagnostics.valueOverReplacement, 0)}. ECR #${String(diagnostics.expertRank)}.${positionPlace}`
+    ? `VOR ${formatSignedNumber(diagnostics.valueOverReplacement, 0)}. ${RANKING_LABELS.short} #${String(diagnostics.expertRank)}.${positionPlace}`
     : 'League value is not available for this player.';
   const rosterFit = factors
     ? `${pluralize(factors.rosterFit.fixedStartersOpen, 'starter spot', 'starter spots')} and ${pluralize(factors.rosterFit.flexSlotsOpen, 'FLEX spot', 'FLEX spots')} open, ${pluralize(factors.rosterFit.selectionsRemaining, 'selection', 'selections')} left.`
@@ -304,7 +305,7 @@ export function getComparisonHighlights(
     const difference = Math.abs(firstEcr - secondEcr);
     highlights.push({
       label: 'Player quality',
-      detail: `${leader.playerName} is ECR #${String(leaderRank)}, ${String(difference)} place${difference === 1 ? '' : 's'} ahead.`,
+      detail: `${leader.playerName} is ${RANKING_LABELS.inline} #${String(leaderRank)}, ${String(difference)} place${difference === 1 ? '' : 's'} ahead.`,
     });
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Player, Position } from '@fantasy-draft/shared';
 import { normalizePlayerName } from '@/lib/calculations';
+import { IS_DEMO } from '@/lib/demo-mode';
 import {
   canonicalizeKeeperSupply,
   isKeeperSupplyComplete,
@@ -131,7 +132,8 @@ export function useKeeperPreload(
   const query = useQuery({
     queryKey: ['current-keepers'],
     queryFn: fetchCurrentKeepers,
-    enabled: keepersEnabled !== false,
+    // Demo mocks have no keepers and no API server to load them from.
+    enabled: keepersEnabled !== false && !IS_DEMO,
     staleTime: Infinity,
   });
 

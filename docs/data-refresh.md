@@ -82,8 +82,45 @@ with Sleeper's order, generic league and manager names, and no news.
 | `MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset` | Builds the model without FantasyPros inputs into `data/model/fantasypros-free/`. See [the modeling guide](modeling-duckdb.md#fantasypros-free-profile). |
 | `pnpm data:demo:build` | Rebuilds `demo-data/` from that model, Sleeper, team environment, and anonymized league files, then runs the leak check. |
 | `pnpm data:demo:install` | Copies each demo file into `data/` only where the file is missing. CI runs it before `pnpm verify`. |
-| `pnpm build:web:demo` | Builds the web app with `BROWSER_DATA_SOURCE=demo`, which serves each browser file from `demo-data/` when it has one (such as its recommendation policy) and from `data/` otherwise. CI sets the variable for the whole job. |
+| `pnpm build:web:demo` | Builds the static demo (`BROWSER_DATA_SOURCE=demo VITE_DEMO_MODE=true`). See [the static demo](#static-demo). |
+| `pnpm dev:web:demo` | Serves the static demo from the Vite dev server, without the live preflight or sync server. |
 | `pnpm data:demo:check [dir ...]` | Fails if a directory contains FantasyPros IDs or URLs, the real league name, or Sleeper user, league, or draft IDs, including in compiled JavaScript and source maps. Defaults to `demo-data/`; CI also checks `web-app/dist`. |
+
+`BROWSER_DATA_SOURCE=demo` on its own only switches data files: the dev server
+serves each browser file from `demo-data/` when it has one and from `data/`
+otherwise. Any build with it, including CI's, emits only `demo-data/` files and
+fails if one is missing; it leaves out `contracts.json`, which the demo does not
+ship. CI sets the variable for the whole job.
+
+### Static demo
+
+`VITE_DEMO_MODE=true` (set by `pnpm build:web:demo`) turns on the demo runtime,
+which needs no local server:
+
+- Readiness accepts the demo snapshot (`sourceType: "fixture"`) and its season,
+  and ignores the live age limits, so the demo keeps recommending after the
+  snapshot ages.
+- Visitors start a generic no-keeper quick mock. Live provider connections,
+  Primary League setup, and data refresh controls are hidden, and the app makes
+  no requests for sportsbook markets, Fantasy Football Calculator ADP, contract
+  context, keepers, or draft sync.
+- Rankings are labeled as the experimental model blended with Sleeper rank
+  rather than FantasyPros ECR. The file keeps its `fantasypros-snapshot.json`
+  name.
+
+To deploy on Cloudflare Pages, use the repository root (the directory with
+`pnpm-workspace.yaml`), output directory `web-app/dist`, and the environment
+variables `NODE_VERSION=22.21.1` and `PNPM_VERSION=9.15.0`. Build command:
+
+```sh
+pnpm data:demo:install &&
+pnpm --filter @fantasy-draft/shared build &&
+pnpm build:web:demo &&
+pnpm data:demo:check web-app/dist
+```
+
+Pages serves `index.html` for `/draft` and `/assistant` because the build has no
+top-level `404.html`.
 
 In demo rankings, each position is ordered by the model blended with Sleeper,
 and positions are compared by the model's value over replacement. Kickers and

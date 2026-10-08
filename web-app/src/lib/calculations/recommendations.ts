@@ -5,6 +5,7 @@
  * team needs, and positional scarcity.
  */
 
+import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 import {
   POSITIONS,
   type Position,
@@ -407,7 +408,7 @@ function buildPickEvRecommendation(
   const selectionText = selection?.playerId === player.id
     ? selection.overridden
       ? `PickEV override +${selection.overrideAdvantage.toFixed(1)}`
-      : 'ECR champion'
+      : `${RANKING_LABELS.short} champion`
     : `PickEV ${pickEv.score.toFixed(1)}`;
 
   return {
@@ -450,8 +451,8 @@ function buildBestPickPolicyRecommendation(
   const feasibilityLabel = factors.conservativeBoundary.feasibilityException
     ? 'Legal-roster requirement'
     : factors.conservativeBoundary.withinBoundary
-      ? 'Conservative ECR adjustment'
-      : 'Outside normal ECR window';
+      ? `Conservative ${RANKING_LABELS.inline} adjustment`
+      : `Outside normal ${RANKING_LABELS.inline} window`;
 
   return {
     playerId: player.id,
@@ -459,7 +460,7 @@ function buildBestPickPolicyRecommendation(
     position: player.position,
     reason: [
       feasibilityLabel,
-      `ECR #${String(player.ecrRank)}`,
+      `${RANKING_LABELS.short} #${String(player.ecrRank)}`,
       `league value +${factors.leagueValue.score.toFixed(1)}/${factors.leagueValue.maxScore.toFixed(0)}`,
       `roster fit +${factors.rosterFit.score.toFixed(1)}/${factors.rosterFit.maxScore.toFixed(0)}`,
       ...(factors.depthValue.score > 0
@@ -502,7 +503,9 @@ function buildBestAvailableRecommendation(
     playerId: player.id,
     playerName: player.name,
     position: player.position,
-    reason: `Trusted ECR Anchor #${String(player.ecrRank)} among available players`,
+    reason: IS_DEMO
+      ? `${RANKING_LABELS.anchor} #${String(player.ecrRank)} among available players`
+      : `Trusted ECR Anchor #${String(player.ecrRank)} among available players`,
     // This score is intentionally ECR-only. Diagnostics remain available for
     // comparison, but roster, timing, market, and model signals cannot reorder it.
     score: -player.ecrRank,
