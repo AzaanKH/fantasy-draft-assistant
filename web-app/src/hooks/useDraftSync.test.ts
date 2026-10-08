@@ -11,6 +11,7 @@ import {
   getDraftSyncConnectionState,
   getDraftSynchronizationState,
   getNextOpenPickNumber,
+  getSyncedDraftId,
   isRequestedDraftSnapshot,
   resolveDraftPickImports,
 } from './useDraftSync';
@@ -457,5 +458,16 @@ describe('requested draft snapshot validation', () => {
       picks: [{}],
     }, 'sleeper', 'draft-123')).toBe(false);
     expect(isRequestedDraftSnapshot(null, 'sleeper', 'draft-123')).toBe(false);
+  });
+});
+
+describe('getSyncedDraftId', () => {
+  it('syncs a valid draft ID outside the demo', () => {
+    expect(getSyncedDraftId('sleeper', '123', false)).toBe('123');
+    expect(getSyncedDraftId('espn', 'not-a-number', false)).toBeNull();
+  });
+
+  it('never syncs in the static demo, even when a route passes a draft ID', () => {
+    expect(getSyncedDraftId('sleeper', '123', true)).toBeNull();
   });
 });
