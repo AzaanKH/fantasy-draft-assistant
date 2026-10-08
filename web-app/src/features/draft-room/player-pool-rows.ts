@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import {
   formatDraftReadinessAge,
   type DraftReadinessReport,
@@ -52,9 +53,9 @@ export function describePausedAdvice(
   readiness: DraftReadinessReport | null,
   blockedByProviderIdentity: boolean
 ): string {
-  if (blockedByProviderIdentity) return 'Recommendations are paused until provider picks are matched. Browse by expert rank meanwhile.';
+  if (blockedByProviderIdentity) return `Recommendations are paused until provider picks are matched. Browse by ${RANKING_LABELS.long} meanwhile.`;
   const rankings = readiness?.coreDraftData.find((item) => item.key === 'trusted-rankings');
-  if (rankings?.problem !== 'stale' || !rankings.timestamp) return 'Recommendations are paused until setup is finished. Browse by expert rank meanwhile.';
+  if (rankings?.problem !== 'stale' || !rankings.timestamp) return `Recommendations are paused until setup is finished. Browse by ${RANKING_LABELS.long} meanwhile.`;
   const date = new Date(rankings.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return `Recommendations are paused because rankings are out of date. Browsing rankings from ${date} (${formatDraftReadinessAge(rankings.ageHours)}) by expert rank.`;
+  return `Recommendations are paused because rankings are out of date. Browsing rankings from ${date} (${formatDraftReadinessAge(rankings.ageHours)}) by ${RANKING_LABELS.long}.`;
 }

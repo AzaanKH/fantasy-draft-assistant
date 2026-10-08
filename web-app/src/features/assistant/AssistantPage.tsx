@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -325,7 +326,7 @@ export function AssistantPage({
           <div className="rec-section-heading">
             <h1>{decisionLens === 'best-pick' ? 'Your Best Pick' : 'Best Player available'}</h1>
             <span className="rec-muted">
-              {decisionLens === 'best-pick' ? 'League value + roster fit + draft timing' : 'Player quality (ECR), without roster or timing'}
+              {decisionLens === 'best-pick' ? 'League value + roster fit + draft timing' : `Player quality (${RANKING_LABELS.short}), without roster or timing`}
             </span>
             <Button variant="ghost" size="sm" className="rec-return" onClick={onReturnToDraft}>
               <ArrowLeft className="size-4" aria-hidden="true" /> Draft board

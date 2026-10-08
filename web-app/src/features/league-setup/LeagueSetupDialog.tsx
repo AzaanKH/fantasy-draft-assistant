@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { IS_DEMO } from '@/lib/demo-mode';
 import { DEFAULT_QUICK_MOCK, isQuickMockPreferences } from '@/lib/quick-mock-settings';
 import { useLeagueSetupStore, type LocalLeagueProfile } from '@/stores/leagueSetupStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
@@ -54,17 +55,17 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
       }}>
         <DialogHeader>
           <DialogTitle>League setup</DialogTitle>
-          <DialogDescription>Choose the rules for this draft. Quick mocks work without a Primary League connection.</DialogDescription>
+          <DialogDescription>{IS_DEMO ? 'Choose the teams, rounds, and scoring for this mock draft.' : 'Choose the rules for this draft. Quick mocks work without a Primary League connection.'}</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3" role="group" aria-label="League setup path">
+        {IS_DEMO ? null : <div className="grid grid-cols-2 gap-3" role="group" aria-label="League setup path">
           {(['quick-mock', 'primary-league'] as const).map((value) => <Button key={value} variant={profile === value ? 'secondary' : 'outline'} aria-pressed={profile === value} onClick={() => { setProfile(value); }}>
             {value === 'quick-mock' ? 'Quick mock' : 'Primary League'}
           </Button>)}
-        </div>
+        </div>}
         {profile === 'quick-mock' ? <section className="space-y-4" aria-label="Quick mock settings">
           <div>
             <h3 className="text-sm font-semibold">Start with standard rules</h3>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">No keepers, TE premium, or rush-attempt bonus. Your Primary League configuration stays separate.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{IS_DEMO ? 'No keepers, TE premium, or rush-attempt bonus.' : 'No keepers, TE premium, or rush-attempt bonus. Your Primary League configuration stays separate.'}</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <label className="space-y-2 text-sm">Teams<Input type="number" min={2} max={20} value={connection ? config.totalTeams : preferences.totalTeams} disabled={!!connection} onChange={(event) => { setPreferences({ ...preferences, totalTeams: Number(event.target.value) }); }} /></label>

@@ -1,3 +1,5 @@
+import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
+
 export const METRIC_HELP = {
   projectedPoints: {
     title: 'Projected points',
@@ -5,9 +7,13 @@ export const METRIC_HELP = {
     detail: 'Projected points measure total scoring. Above replacement compares that total with a replacement-level player at the same position, which makes positional value easier to compare.',
   },
   ecr: {
-    title: 'ECR anchor',
-    summary: 'Expert consensus rank: the player-quality baseline for recommendations. Lower ranks are better.',
-    detail: 'ECR combines expert rankings. Best Pick starts from this baseline and also considers your roster, league value, tiers, and draft timing.',
+    title: RANKING_LABELS.anchor,
+    summary: IS_DEMO
+      ? 'Model rank: the player-quality baseline for recommendations. Lower ranks are better.'
+      : 'Expert consensus rank: the player-quality baseline for recommendations. Lower ranks are better.',
+    detail: IS_DEMO
+      ? 'Model rank blends an experimental projection model with Sleeper rank. Best Pick starts from this baseline and also considers your roster, league value, tiers, and draft timing.'
+      : 'ECR combines expert rankings. Best Pick starts from this baseline and also considers your roster, league value, tiers, and draft timing.',
   },
   tier: {
     title: 'Position tier',
@@ -32,7 +38,7 @@ export const METRIC_HELP = {
   bestPick: {
     title: 'Best Pick',
     summary: 'The available player recommended for improving your completed roster.',
-    detail: 'The decision considers expert rankings, league value, roster needs, useful reserves, tier supply, and next-pick timing. Best Pick can differ from Best Player, which follows the trusted player-quality ranking without roster or timing adjustments.',
+    detail: `The decision considers ${IS_DEMO ? 'model rankings' : 'expert rankings'}, league value, roster needs, useful reserves, tier supply, and next-pick timing. Best Pick can differ from Best Player, which follows the trusted player-quality ranking without roster or timing adjustments.`,
   },
   recommendationRank: {
     title: 'Recommendation rank',

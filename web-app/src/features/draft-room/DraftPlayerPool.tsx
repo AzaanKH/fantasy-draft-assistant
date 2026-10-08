@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 import { POSITIONS } from '@fantasy-draft/shared';
@@ -135,8 +136,8 @@ export function DraftPlayerPool(): React.ReactElement {
   );
   const rankLabel = output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player';
   const orderLabel = recommendationsBlocked
-    ? 'expert rank'
-    : `${rankLabel} for recommended players, then expert rank`;
+    ? RANKING_LABELS.long
+    : `${rankLabel} for recommended players, then ${RANKING_LABELS.long}`;
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => playerListRef.current,
@@ -225,7 +226,7 @@ export function DraftPlayerPool(): React.ReactElement {
                       isQueued={queuedSet.has(player.id)}
                       rowIndex={virtualRow.index + 2}
                       rank={recommendation ? overall.rankByPlayerId.get(player.id) : player.ecrRank}
-                      rankLabel={recommendation ? rankLabel : 'expert rank'}
+                      rankLabel={recommendation ? rankLabel : RANKING_LABELS.long}
                       survivalProbability={
                         recommendation?.diagnostics?.nextPickSurvivalProbability
                           ?? player.nextPickSurvivalProbability

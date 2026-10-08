@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -216,7 +217,7 @@ function ProvisionalPickForm({
             onValueChange={setSelectedPlayerId}
             options={selectablePlayers.map((player) => ({
               value: player.id,
-              label: `${player.name} · ${player.position} ${player.team} · ECR #${String(player.ecrRank)}`,
+              label: `${player.name} · ${player.position} ${player.team} · ${RANKING_LABELS.short} #${String(player.ecrRank)}`,
             }))}
           />
         </label>

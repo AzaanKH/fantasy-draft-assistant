@@ -2,7 +2,9 @@
 
 Publishable draft data with real players and no FantasyPros data. CI installs
 it into `data/` with `pnpm data:demo:install`, and `BROWSER_DATA_SOURCE=demo`
-builds serve it ahead of tracked `data/` files.
+builds publish only these files; a build fails if one is missing.
+`pnpm build:web:demo` builds the static demo site; see
+[the static demo](../docs/data-refresh.md#static-demo).
 Rebuild it with `pnpm data:demo:build` after
 `MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset`; see
 [the data refresh guide](../docs/data-refresh.md#local-only-data-and-the-demo-dataset).

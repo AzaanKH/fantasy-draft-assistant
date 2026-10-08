@@ -286,3 +286,31 @@ describe('Quick mock readiness', () => {
     );
   });
 });
+
+describe('Static demo readiness', () => {
+  const MONTHS_LATER = NOW + 90 * 24 * 60 * 60 * 1000;
+  const input = {
+    sources, warnings: [], leagueSettings: createQuickMockSettings(undefined, NOW),
+    totalRounds: 15, useQuickMockSettings: true,
+    keeperStatus: { ...readyKeepers, season: undefined, confirmedAt: null,
+      configuredCount: 0, resolvedCount: 0, canonicalCount: 0 },
+  };
+
+  it('keeps the bundled snapshot usable after the live age limits pass', () => {
+    expect(evaluateWorkspaceDraftReadiness(input, MONTHS_LATER).productBlockingFailures.map((item) => item.key))
+      .toEqual(['trusted-rankings', 'canonical-player-identities']);
+    const report = evaluateWorkspaceDraftReadiness({ ...input, demo: true }, MONTHS_LATER);
+    expect(report.status).toBe('ready');
+    expect(blocksRecommendations('mock', report, true)).toBe(false);
+  });
+
+  it('names the demo ranking source instead of FantasyPros', () => {
+    const report = evaluateWorkspaceDraftReadiness({ ...input, demo: true, demoRankingsSource: 'Demo rankings',
+      sources: { ...sources, 'trusted-rankings': { availability: 'invalid', timestamp: FRESH } },
+    }, NOW);
+    const rankings = report.productBlockingFailures.find((item) => item.key === 'trusted-rankings');
+    expect(rankings?.sourceLabel).toBe('Demo rankings');
+    expect(rankings?.message).not.toContain('FantasyPros');
+    expect(rankings?.correctiveAction).not.toContain('refresh:fantasypros');
+  });
+});

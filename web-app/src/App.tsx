@@ -19,6 +19,7 @@ import { useKeeperPreload } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
 import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
+import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
@@ -62,7 +63,7 @@ export function App(): React.ReactElement {
   const [connectionDialogOpen, setConnectionDialogOpen] = React.useState(false);
   const setupActions = React.useMemo<DraftSetupActions>(() => ({
     openLeagueSetup: () => { setLeagueSetupOpen(true); },
-    openDraftConnection: () => { setConnectionDialogOpen(true); },
+    ...(IS_DEMO ? {} : { openDraftConnection: () => { setConnectionDialogOpen(true); } }),
   }), []);
   const [route, setRoute] = React.useState<AppRoute>(() => getAppRoute(window.location.pathname));
   const [assistantNavigationTarget, setAssistantNavigationTarget] =
@@ -98,6 +99,8 @@ export function App(): React.ReactElement {
     keeperStatus,
     usePrimaryLeagueSettings,
     useQuickMockSettings,
+    demo: IS_DEMO,
+    demoRankingsSource: `Demo rankings (${RANKING_LABELS.source})`,
   }, readinessNow), [
     dataInfo.readinessSources,
     dataInfo.readinessWarnings,
@@ -184,7 +187,7 @@ export function App(): React.ReactElement {
               <DraftHeader
                 route={route}
                 onNavigate={navigate}
-                connectionControl={<DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
+                connectionControl={IS_DEMO ? undefined : <DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
                 keeperStatus={keeperStatus}
                 onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
                 secondaryControls={(

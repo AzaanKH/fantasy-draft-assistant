@@ -7,6 +7,7 @@ import {
 } from '@fantasy-draft/shared';
 import { Button } from '@/components/ui/button';
 import { useDraftDataRefresh } from '@/hooks/useDraftDataRefresh';
+import { IS_DEMO } from '@/lib/demo-mode';
 import { cn } from '@/lib/utils';
 import { useDraftSetupActions } from './draft-setup-actions';
 
@@ -65,6 +66,23 @@ function DraftDataRefreshRow({ items }: { readonly items: readonly DraftReadines
   );
 }
 
+/** The static demo has no refresh server; its data ships with the page. */
+function DemoDataRow({ items }: { readonly items: readonly DraftReadinessItem[] }): React.ReactElement {
+  return (
+    <li className="draft-setup-item">
+      <span className="draft-setup-marker" aria-hidden="true" />
+      <div className="draft-setup-body">
+        <h3>Demo data did not load</h3>
+        <p>{items.map(describeDataItem).join(' · ')}.</p>
+        <p className="draft-setup-hint">Reload the page to try again.</p>
+      </div>
+      <Button size="sm" className="draft-setup-action" onClick={() => { window.location.reload(); }}>
+        <RefreshCw className="size-4" /> Reload
+      </Button>
+    </li>
+  );
+}
+
 function LeagueSettingsRow({
   item,
   showLeagueActions,
@@ -82,7 +100,9 @@ function LeagueSettingsRow({
         <h3>{item.label}</h3>
         {item.problem === 'missing' && canAct ? null : <p>{item.message}</p>}
         <p className="draft-setup-hint">
-          {canAct
+          {canAct && IS_DEMO
+            ? 'Open League setup and choose mock rules that fit this draft.'
+            : canAct
             ? 'For a Sleeper mock, choose Primary League practice settings or a quick mock. For your real draft, connect the Primary League.'
             : item.correctiveAction}
         </p>
@@ -153,7 +173,7 @@ export function DraftReadinessBlockedNotice({
         </div>
       </div>
       <ul>
-        {dataItems.length > 0 ? <DraftDataRefreshRow items={dataItems} /> : null}
+        {dataItems.length > 0 ? IS_DEMO ? <DemoDataRow items={dataItems} /> : <DraftDataRefreshRow items={dataItems} /> : null}
         {otherItems.map((item) => item.key === 'primary-league-settings'
           ? <LeagueSettingsRow key={item.key} item={item} showLeagueActions={showLeagueActions} />
           : <InstructionRow key={item.key} item={item} />)}

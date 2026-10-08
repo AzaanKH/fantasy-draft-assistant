@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import { PositionTag } from '@/components/PositionTag';
 import type { Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
 import { Check, Plus, Search } from 'lucide-react';
@@ -41,7 +42,7 @@ function TierRow({
   const survival = recommendation ? survivalPercent(recommendation) : null;
   return (
     <li className="rec-tier-row" data-drafted={drafted} data-selected={isSelected}>
-      <span className="rec-candidate-rank" aria-label={`ECR ${String(player.ecrRank)}`}>{String(player.ecrRank)}</span>
+      <span className="rec-candidate-rank" aria-label={`${RANKING_LABELS.short} ${String(player.ecrRank)}`}>{String(player.ecrRank)}</span>
       <button type="button" className="rec-candidate-identity" disabled={drafted} onClick={() => { onSelect(player.id); }}>
         <span className="rec-candidate-name">{player.name}</span>
         <span className="rec-meta">

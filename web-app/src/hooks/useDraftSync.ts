@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DraftProvider } from '@fantasy-draft/shared';
+import { IS_DEMO } from '@/lib/demo-mode';
 import { isValidDraftSyncId } from '@/stores/draftSyncStore';
 import {
   getDraftSyncConnectionState,
@@ -28,9 +29,21 @@ export type {
 } from '@/lib/draft-sync-state';
 export { isRequestedDraftSnapshot, applyDraftSyncHeartbeat } from './useDraftSyncTransport';
 
+/**
+ * The draft to sync, or null when there is none. The static demo has no sync
+ * server, so it never syncs, whichever route (board or side panel) asks.
+ */
+export function getSyncedDraftId(
+  provider: DraftProvider,
+  requestedDraftId: string | null,
+  demo: boolean = IS_DEMO
+): string | null {
+  return !demo && isValidDraftSyncId(provider, requestedDraftId) ? requestedDraftId : null;
+}
+
 /** Compose provider transport, canonical reconciliation, and connection status. */
 export function useDraftSync(provider: DraftProvider, requestedDraftId: string | null, shouldImportPicks: boolean = true): DraftSyncController {
-  const draftId = isValidDraftSyncId(provider, requestedDraftId) ? requestedDraftId : null;
+  const draftId = getSyncedDraftId(provider, requestedDraftId);
   const { snapshot, snapshotQuery, transportState, refresh } = useDraftSyncTransport(provider, draftId);
   const { importResult, importWarning, lastReconciledSnapshotAt, reconciliationSummary, dismissReconciliationSummary } = useDraftSyncReconciliation(provider, draftId, snapshot, shouldImportPicks);
   const [now, setNow] = useState(() => Date.now());

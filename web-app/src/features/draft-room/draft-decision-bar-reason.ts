@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import type {
   DecisionDivergenceFactor,
   Recommendation,
@@ -61,5 +62,5 @@ export function getDraftDecisionBarReason(
     return `League value moves this pick first at ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
   }
 
-  return `ECR #${String(factors.playerQuality.ecrRank)} with ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
+  return `${RANKING_LABELS.short} #${String(factors.playerQuality.ecrRank)} with ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points versus replacement.`;
 }

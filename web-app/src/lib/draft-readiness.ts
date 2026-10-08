@@ -18,6 +18,12 @@ interface WorkspaceDraftReadinessInput {
   readonly usePrimaryLeagueSettings?: boolean;
   readonly useQuickMockSettings?: boolean;
   readonly keeperStatus: KeeperPreloadStatus;
+  /**
+   * The static demo: its bundled snapshot does not expire, and its rankings
+   * come from the experimental model rather than FantasyPros.
+   */
+  readonly demo?: boolean;
+  readonly demoRankingsSource?: string;
 }
 
 function hasPrimaryLeagueSettings(
@@ -126,14 +132,25 @@ export function evaluateWorkspaceDraftReadiness(
       } : keeperObservation,
     },
     warnings: input.warnings,
+    enforceMaxAge: input.demo !== true,
   }, now);
-  if (!quickMock) return report;
+  const demoSource = input.demo === true ? input.demoRankingsSource : undefined;
+  const relabelDemo = (item: DraftReadinessReport['coreDraftData'][number]) => demoSource && item.key === 'trusted-rankings'
+    ? {
+      ...item,
+      sourceLabel: demoSource,
+      message: item.message.replaceAll(item.sourceLabel, demoSource),
+      correctiveAction: 'Reload the page. If the demo rankings still fail to load, rebuild the demo with `pnpm build:web:demo`.',
+    }
+    : item;
+  if (!quickMock && !demoSource) return report;
   const relabel = (item: DraftReadinessReport['coreDraftData'][number]) => item.key === 'primary-league-settings'
     ? { ...item, label: 'Quick mock settings', sourceLabel: 'Local mock settings', correctiveAction: 'Open League setup and choose quick mock rules that fit the draft size.', message: validQuickMock ? 'Quick mock settings are ready.' : 'The selected mock rules do not fit this draft. Review its teams, rounds, and roster.' }
     : item.key === 'confirmed-keeper-supply'
       ? { ...item, label: 'Mock keeper rules', sourceLabel: 'No-keeper mock', correctiveAction: 'Select Quick mock in League setup to clear Primary League keeper reservations.', message: item.status === 'ready' ? 'No keepers are reserved for this mock.' : 'Waiting for Primary League keeper reservations to clear.' }
       : item;
-  return { ...report, coreDraftData: report.coreDraftData.map(relabel), productBlockingFailures: report.productBlockingFailures.map(relabel) };
+  const relabelItem = (item: DraftReadinessReport['coreDraftData'][number]) => relabelDemo(quickMock ? relabel(item) : item);
+  return { ...report, coreDraftData: report.coreDraftData.map(relabelItem), productBlockingFailures: report.productBlockingFailures.map(relabelItem) };
 }
 
 export function blocksLiveRecommendations(

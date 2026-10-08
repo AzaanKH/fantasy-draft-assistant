@@ -7,3 +7,7 @@ interface Window {
 interface Window {
   __VISUAL_READY__?: boolean;
 }
+
+interface ImportMetaEnv {
+  readonly VITE_DEMO_MODE?: string;
+}

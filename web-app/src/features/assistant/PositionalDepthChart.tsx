@@ -1,3 +1,4 @@
+import { RANKING_LABELS } from '@/lib/demo-mode';
 import { useId, useMemo, useRef, useState } from 'react';
 import { POSITIONS, type Player, type Position, type PositionNeed } from '@fantasy-draft/shared';
 import { Check, ChevronDown, ChevronRight, ListPlus, X } from 'lucide-react';
@@ -73,7 +74,7 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
           <MotionFade motionKey={players.map((player) => player.id).join(':')}>
             <div className="depth-player-scroll">
               <table className="depth-player-table">
-                <caption className="sr-only">Available {position} players in {tierLabel(tier)}, ordered by expert rank</caption>
+                <caption className="sr-only">Available {position} players in {tierLabel(tier)}, ordered by {RANKING_LABELS.long}</caption>
                 <thead><tr>
                   <th scope="col">Player</th>
                   <th scope="col"><MetricHelp metric="vor" label="Value" /></th>
@@ -84,7 +85,7 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
                   const queued = queuedIds.includes(player.id);
                   const chance = timing.get(player.id);
                   return <tr key={player.id}>
-                    <th scope="row"><span className="depth-player-name">{player.name}</span><span className="depth-player-meta">{player.team} · {tierLabel(depthTier(player.tier))} · ECR #{String(player.ecrRank)}</span></th>
+                    <th scope="row"><span className="depth-player-name">{player.name}</span><span className="depth-player-meta">{player.team} · {tierLabel(depthTier(player.tier))} · {RANKING_LABELS.short} #{String(player.ecrRank)}</span></th>
                     <td>{Number.isFinite(player.valueOverReplacement) ? formatSignedNumber(player.valueOverReplacement, 0) : '—'}</td>
                     <td>{chance == null ? <span title="No next-pick estimate available">—</span> : `${String(chance)}%`}</td>
                     <td><Button variant={queued ? 'secondary' : 'ghost'} size="icon-sm" aria-pressed={queued}

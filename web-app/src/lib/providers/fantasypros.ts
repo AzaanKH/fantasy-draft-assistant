@@ -1,3 +1,4 @@
+import { IS_DEMO } from '@/lib/demo-mode';
 import type { FantasyProsSnapshot } from '@fantasy-draft/shared';
 
 interface FantasyProsProvider {
@@ -10,7 +11,7 @@ export class CachedFantasyProsProvider implements FantasyProsProvider {
   async getSnapshot(): Promise<FantasyProsSnapshot> {
     const response = await fetch(this.snapshotPath);
     if (!response.ok) {
-      throw new Error(`Failed to load FantasyPros snapshot: ${response.status}`);
+      throw new Error(`Failed to load ${IS_DEMO ? 'demo rankings' : 'FantasyPros snapshot'}: ${response.status}`);
     }
 
     return response.json() as Promise<FantasyProsSnapshot>;

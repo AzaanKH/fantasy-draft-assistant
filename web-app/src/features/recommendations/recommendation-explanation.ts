@@ -1,3 +1,4 @@
+import { RANKING_LABELS, LEAGUE_LABEL } from '@/lib/demo-mode';
 import type { Recommendation } from '@fantasy-draft/shared';
 import { formatSignedNumber } from '@/lib/utils';
 
@@ -13,10 +14,10 @@ export function getRecommendationExplanation(
   if (factors) {
     const scoringDetail = factors.leagueValue.scoringAdjustment !== undefined &&
       Math.abs(factors.leagueValue.scoringAdjustment) >= 0.5
-      ? `, including ${formatSignedNumber(factors.leagueValue.scoringAdjustment, 1)} from Primary League scoring`
+      ? `, including ${formatSignedNumber(factors.leagueValue.scoringAdjustment, 1)} from ${LEAGUE_LABEL} scoring`
       : '';
     const valueSentence =
-      `Primary League value adds ${factors.leagueValue.score.toFixed(1)} policy points from ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points above replacement${scoringDetail}.`;
+      `${LEAGUE_LABEL} value adds ${factors.leagueValue.score.toFixed(1)} policy points from ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} points above replacement${scoringDetail}.`;
     const fixedStarterLabel = factors.rosterFit.fixedStartersOpen === 1
       ? 'fixed starter spot'
       : 'fixed starter spots';
@@ -44,10 +45,10 @@ export function getRecommendationExplanation(
           : `No same-position fallback is projected for that selection.`} Waiting costs ${factors.draftTiming.costOfWaiting.toFixed(1)} expected points, worth ${factors.draftTiming.score.toFixed(1)} policy points.${factors.draftTiming.materiallyChangedOrdering ? ' That next-pick tradeoff changed Best Pick.' : ''}`
         : '';
     const feasibilitySentence = factors.conservativeBoundary.feasibilityException
-      ? `The normal ECR window had no pick that could still complete a legal roster, so the policy used its roster-feasibility exception. `
+      ? `The normal ${RANKING_LABELS.inline} window had no pick that could still complete a legal roster, so the policy used its roster-feasibility exception. `
       : '';
 
-    return `${recommendation.playerName} is anchored at ECR #${String(factors.playerQuality.ecrRank)}. ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
+    return `${recommendation.playerName} is anchored at ${RANKING_LABELS.inline} #${String(factors.playerQuality.ecrRank)}. ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
       .replace(/\s+/g, ' ')
       .trim();
   }
