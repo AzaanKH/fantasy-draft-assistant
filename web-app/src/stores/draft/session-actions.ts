@@ -70,6 +70,7 @@ export function createSessionActions(
     setSessionMode: (mode) =>
       { set((state) => {
         state.sessionMode = mode;
+        state.mockAutoAdvance.paused = false;
         if (mode === 'mock') {
           state.liveSession = null;
           state.manualContinuityBaselineAt = null;

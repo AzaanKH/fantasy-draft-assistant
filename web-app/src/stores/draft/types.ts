@@ -42,6 +42,18 @@ export interface MockDraftSettings {
   randomness: number;
   seed: number;
   survivalIterations: number;
+  /** How quickly CPU teams pick while the mock auto-advances to the user's slot. */
+  cpuPickPace: MockCpuPickPace;
+}
+
+export type MockCpuPickPace = 'watch' | 'fast' | 'instant';
+
+/** Tab-local controls for CPU auto-advance; never saved with the draft session. */
+export interface MockAutoAdvanceState {
+  /** Set by Pause, undo, and branching; cleared by Resume, a manual pick, or a new mock. */
+  paused: boolean;
+  /** Holds CPU picks while the mock settings dialog is open. */
+  settingsOpen: boolean;
 }
 
 export type DraftSessionMode = 'setup' | 'mock' | 'live';
@@ -137,6 +149,7 @@ export interface DraftState {
   config: DraftConfig;
   leagueSettings: LeagueSettings;
   mockSettings: MockDraftSettings;
+  mockAutoAdvance: MockAutoAdvanceState;
 
   // Draft progress
   currentPick: number;
@@ -177,6 +190,8 @@ export interface DraftActions {
   applyLeagueSettings: (settings: LeagueSettings) => void;
   setRosterRequirements: (requirements: RosterRequirements) => void;
   setMockSettings: (settings: Partial<MockDraftSettings>) => void;
+  setMockAutoAdvancePaused: (paused: boolean) => void;
+  setMockSettingsOpen: (open: boolean) => void;
 
   // Draft actions
   markPlayerDrafted: (

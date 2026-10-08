@@ -13,6 +13,7 @@ import {
 } from '@/features/assistant/assistant-navigation';
 import { DraftRoom } from '@/features/draft-room/DraftRoom';
 import { LiveDraftSyncProvider } from '@/features/draft-room/LiveDraftSyncProvider';
+import { MockDraftAutoAdvance } from '@/features/draft-board/mock-auto-advance';
 import { ShadowRecommendationObserver } from '@/features/draft-room/ShadowRecommendationObserver';
 import { DraftDecisionProvider } from '@/features/recommendations/DraftDecisionContext';
 import { useKeeperPreload } from '@/hooks/useKeeperPreload';
@@ -201,6 +202,7 @@ export function App(): React.ReactElement {
                 <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
               </React.Suspense> : null}
               <ShadowRecommendationObserver />
+              <MockDraftAutoAdvance />
               <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
                 <React.Suspense fallback={<RouteLoading route={route} />}>
                   {route === 'assistant' ? (

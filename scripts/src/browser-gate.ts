@@ -133,8 +133,8 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
     await queue.waitFor();
 
     await page.getByRole('button', { name: 'Start mock', exact: true }).click();
+    // CPU teams pick automatically until the user's slot.
     await page.getByRole('button', { name: 'Start mock draft' }).click();
-    await page.getByRole('button', { name: 'To my pick' }).click();
     const draft = pool.getByRole('button', { name: `Draft ${target}` });
     await draft.and(page.locator(':enabled')).waitFor({ timeout: MOCK_TIMEOUT_MS });
     await draft.click();
@@ -180,7 +180,8 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
     await page.goto(`${ORIGIN}/draft`);
     await page.getByRole('button', { name: 'Start mock', exact: true }).click();
     await page.getByRole('button', { name: 'Start mock draft' }).click();
-    await page.getByRole('button', { name: 'CPU pick' }).click();
+    // Pause so CPU picks cannot move the current pick between the two reads.
+    await page.getByRole('button', { name: 'Pause' }).click();
     const currentPick = await page.locator('.board-current-pick').first().innerText();
     await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
     await page.getByRole('alert').getByText('This page couldn’t load').waitFor({ timeout: 20_000 });

@@ -484,7 +484,9 @@ export function DraftBoard({
     }
   }, [currentPick, mode, boardHeight, fillsSpace]);
 
-  const isYourTurn = currentPick <= totalPicks && currentView.upcomingMyPickNumber === currentPick;
+  // A keeper slot is filled automatically, so it is never the user's selection.
+  const isKeeperOnClock = picksByNumber.get(currentPick)?.source === 'reserved';
+  const isYourTurn = !isKeeperOnClock && currentPick <= totalPicks && currentView.upcomingMyPickNumber === currentPick;
   const previouslyYourTurn = React.useRef(isYourTurn);
   React.useEffect(() => {
     const justStarted = isYourTurn && !previouslyYourTurn.current;
@@ -530,7 +532,7 @@ export function DraftBoard({
           <span ref={turnIndicatorRef} role="status" className={cn("board-current-pick", isYourTurn && "is-your-turn", currentPick > totalPicks && "is-complete")}><Clock3 size={14} aria-hidden="true" />
             {currentPick > totalPicks
               ? 'Complete'
-              : `${isYourTurn ? 'Your turn ·' : 'Pick'} ${formatRoundPick(currentPick, config.totalTeams)}`}
+              : `${isYourTurn ? 'Your turn ·' : isKeeperOnClock ? 'Keeper ·' : 'Pick'} ${formatRoundPick(currentPick, config.totalTeams)}`}
           </span>
           <div className="board-view-toggle" role="group" aria-label="Draft board view">
             <BoardModeButton active={mode === 'current'} onClick={() => { setMode('current'); }}>

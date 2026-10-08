@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
-import type { Player } from '@fantasy-draft/shared';
+import type { DraftType, Player } from '@fantasy-draft/shared';
 import { Pause, Play, RotateCcw, Settings2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,15 +17,22 @@ import {
   useDraftStore,
   useDraftStoreApi,
   type DraftSessionMode,
+  type MockCpuPickPace,
 } from '@/stores/draftStore';
 import {
   estimateMockSurvivalProbabilities,
   formatRoundPick,
   getKeeperAtPick,
-  getTeamIndexForPick,
-  selectCpuPlayer,
+  getTeamIndexForDraftPick,
   type MockDraftEngineConfig,
 } from '@/lib/mock-draft-engine';
+import { useSimulateNextCpuPick } from './mock-auto-advance';
+
+const CPU_PICK_PACE_OPTIONS: readonly { value: MockCpuPickPace; label: string }[] = [
+  { value: 'watch', label: 'Watch' },
+  { value: 'fast', label: 'Fast' },
+  { value: 'instant', label: 'Instant' },
+];
 
 function numericValue(value: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
@@ -36,11 +43,12 @@ function getNextUserPick(
   currentPick: number,
   myPickPosition: number,
   totalTeams: number,
-  totalRounds: number
+  totalRounds: number,
+  draftType: DraftType
 ): number | null {
   const totalPicks = totalTeams * totalRounds;
   for (let pickNumber = currentPick + 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (getTeamIndexForPick(pickNumber, totalTeams) === myPickPosition - 1) {
+    if (getTeamIndexForDraftPick(pickNumber, totalTeams, draftType) === myPickPosition - 1) {
       return pickNumber;
     }
   }
@@ -58,7 +66,6 @@ export function MockDraftControls({
 }): React.ReactElement | null {
   const draftStore = useDraftStoreApi();
   const [isOpen, setIsOpen] = React.useState(false);
-  const [isRunning, setIsRunning] = React.useState(false);
   const [isEstimating, setIsEstimating] = React.useState(false);
   const [branchPick, setBranchPick] = React.useState('1');
   const draftHistory = useDraftStore((state) => state.draftHistory);
@@ -67,6 +74,7 @@ export function MockDraftControls({
   const currentPick = useDraftStore((state) => state.currentPick);
   const config = useDraftStore((state) => state.config);
   const mockSettings = useDraftStore((state) => state.mockSettings);
+  const isPaused = useDraftStore((state) => state.mockAutoAdvance.paused);
   const survivalProbabilities = useDraftStore(
     (state) => state.mockSurvivalProbabilities
   );
@@ -76,94 +84,21 @@ export function MockDraftControls({
     totalTeams: config.totalTeams,
     totalRounds: config.totalRounds,
     myPickPosition: config.myPickPosition,
+    draftType: config.draftType,
     rosterRequirements: config.rosterRequirements,
     randomness: mockSettings.randomness,
     seed: mockSettings.seed,
   }), [config, mockSettings.randomness, mockSettings.seed]);
 
-  const simulateNextCpuPick = React.useCallback((): boolean => {
-    const state = draftStore.getState();
-    const totalPicks = state.config.totalTeams * state.config.totalRounds;
-    if (state.currentPick > totalPicks) return false;
+  const simulateNextCpuPick = useSimulateNextCpuPick(players);
 
-    const keeper = getKeeperAtPick(
-      state.preloadedKeepers,
-      state.currentPick,
-      state.config.totalTeams
-    );
-    if (keeper) {
-      state.consumeKeeperAtCurrentPick();
-      return true;
-    }
-
-    if (calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams
-    )) {
-      return false;
-    }
-
-    const selection = selectCpuPlayer({
-      players,
-      draftedPlayerIds: state.draftedPlayerIds,
-      history: state.draftHistory,
-      keepers: state.preloadedKeepers,
-      currentPick: state.currentPick,
-      config: {
-        totalTeams: state.config.totalTeams,
-        totalRounds: state.config.totalRounds,
-        myPickPosition: state.config.myPickPosition,
-        rosterRequirements: state.config.rosterRequirements,
-        randomness: state.mockSettings.randomness,
-        seed: state.mockSettings.seed,
-      },
-      historyModel: timingEvidence.model,
-    });
-    if (!selection) return false;
-
-    const teamIndex = getTeamIndexForPick(state.currentPick, state.config.totalTeams);
-    state.markPlayerDrafted(
-      selection.player.id,
-      selection.player.name,
-      selection.player.position,
-      teamIndex,
-      `Team ${String(teamIndex + 1)}`,
-      undefined,
-      'cpu'
-    );
-    return true;
-  }, [draftStore, timingEvidence.model, players]);
-
+  // The settings dialog holds CPU picks; MockDraftAutoAdvance reads this from the store.
   React.useEffect(() => {
-    if (sessionMode !== 'mock') return;
-    const keeper = getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams);
-    if (keeper) {
-      draftStore.getState().consumeKeeperAtCurrentPick();
-    }
-  }, [config.totalTeams, currentPick, draftStore, preloadedKeepers, sessionMode]);
-
-  React.useEffect(() => {
-    if (!isRunning || sessionMode !== 'mock') return;
-    const timer = window.setTimeout(() => {
-      const state = draftStore.getState();
-      const keeper = getKeeperAtPick(
-        state.preloadedKeepers,
-        state.currentPick,
-        state.config.totalTeams
-      );
-      if (!keeper && calculateIsMyTurn(
-        state.currentPick,
-        state.config.myPickPosition,
-        state.config.totalTeams
-      )) {
-        setIsRunning(false);
-        return;
-      }
-      if (!simulateNextCpuPick()) setIsRunning(false);
-    }, 120);
-    return () => { window.clearTimeout(timer); };
-  }, [currentPick, draftStore, isRunning, sessionMode, simulateNextCpuPick]);
+    draftStore.getState().setMockSettingsOpen(isOpen);
+  }, [draftStore, isOpen]);
+  React.useEffect(() => () => {
+    draftStore.getState().setMockSettingsOpen(false);
+  }, [draftStore]);
 
   React.useEffect(() => {
     if (sessionMode !== 'mock' || players.length === 0) return;
@@ -235,18 +170,21 @@ export function MockDraftControls({
   const isMyTurn = calculateIsMyTurn(
     currentPick,
     config.myPickPosition,
-    config.totalTeams
+    config.totalTeams,
+    config.draftType
   );
   const keeperAtCurrentPick = getKeeperAtPick(
     preloadedKeepers,
     currentPick,
-    config.totalTeams
+    config.totalTeams,
+    config.draftType
   );
   const nextUserPick = getNextUserPick(
     currentPick,
     config.myPickPosition,
     config.totalTeams,
-    config.totalRounds
+    config.totalRounds,
+    config.draftType
   );
   const survivalLeaders = players
     .filter((player) => !draftedPlayerIds.has(player.id))
@@ -263,25 +201,27 @@ export function MockDraftControls({
       {sessionMode === 'mock' ? (
         <>
           <Button
-            variant="outline"
+            variant={isPaused ? 'default' : 'outline'}
             size="sm"
             className="text-xs"
-            onClick={() => { simulateNextCpuPick(); }}
-            disabled={(isMyTurn && !keeperAtCurrentPick) || currentPick > totalPicks}
+            onClick={() => { draftStore.getState().setMockAutoAdvancePaused(!isPaused); }}
+            disabled={currentPick > totalPicks}
           >
-            <SkipForward className="size-3.5" />
-            CPU pick
+            {isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+            {isPaused ? 'Resume' : 'Pause'}
           </Button>
-          <Button
-            variant={isRunning ? 'destructive' : 'default'}
-            size="sm"
-            className="text-xs"
-            onClick={() => { setIsRunning((running) => !running); }}
-            disabled={(isMyTurn && !keeperAtCurrentPick) || currentPick > totalPicks}
-          >
-            {isRunning ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-            {isRunning ? 'Pause' : 'To my pick'}
-          </Button>
+          {isPaused ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => { simulateNextCpuPick(); }}
+              disabled={(isMyTurn && !keeperAtCurrentPick) || currentPick > totalPicks}
+            >
+              <SkipForward className="size-3.5" />
+              CPU pick
+            </Button>
+          ) : null}
         </>
       ) : null}
       <Button
@@ -389,6 +329,25 @@ export function MockDraftControls({
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="mr-1">CPU pick speed</span>
+            {CPU_PICK_PACE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={mockSettings.cpuPickPace === option.value ? 'default' : 'outline'}
+                size="sm"
+                className="h-8 text-xs"
+                aria-pressed={mockSettings.cpuPickPace === option.value}
+                onClick={() => {
+                  draftStore.getState().setMockSettings({ cpuPickPace: option.value });
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+            <span className="ml-auto">CPU teams pick automatically and stop at your selection.</span>
+          </div>
+
           {sessionMode === 'mock' ? (
             <>
               <div className="flex flex-wrap items-center gap-2 border-t pt-4">
@@ -401,7 +360,6 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setIsRunning(false);
                     draftStore.getState().undoLastPick();
                   }}
                   disabled={draftHistory.length === 0}
@@ -412,7 +370,6 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setIsRunning(false);
                     draftStore.getState().resetDraft();
                   }}
                 >
@@ -426,7 +383,7 @@ export function MockDraftControls({
                   <Input
                     type="number"
                     min={1}
-                    max={totalPicks + 1}
+                    max={currentPick}
                     value={branchPick}
                     onChange={(event) => { setBranchPick(event.target.value); }}
                     className="h-9 w-28"
@@ -436,8 +393,11 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setIsRunning(false);
-                    draftStore.getState().branchFromPick(numericValue(branchPick, currentPick));
+                    // Branch only to the current or an earlier pick: skipping ahead leaves
+                    // CPU teams with too few picks to fill their required roster slots.
+                    draftStore.getState().branchFromPick(
+                      Math.min(currentPick, numericValue(branchPick, currentPick))
+                    );
                   }}
                 >
                   Create branch
@@ -482,7 +442,6 @@ export function MockDraftControls({
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    setIsRunning(false);
                     draftStore.getState().resetDraft();
                     draftStore.getState().setSessionMode('setup');
                     setIsOpen(false);

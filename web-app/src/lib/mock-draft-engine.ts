@@ -45,6 +45,8 @@ export interface MockDraftEngineConfig {
   readonly totalTeams: number;
   readonly totalRounds: number;
   readonly myPickPosition: number;
+  /** Pick order; omitted means snake. Linear repeats round-one order every round. */
+  readonly draftType?: DraftType;
   readonly rosterRequirements: RosterRequirements;
   /** 0 is nearly deterministic and 1 is the widest plausible top-15 sampler. */
   readonly randomness: number;
@@ -174,11 +176,14 @@ export function formatRoundPick(pickNumber: number, totalTeams: number): string 
 export function getKeeperAtPick(
   keepers: readonly MockKeeperAssignment[],
   pickNumber: number,
-  totalTeams: number
+  totalTeams: number,
+  draftType: DraftType = 'snake'
 ): MockKeeperAssignment | undefined {
   return keepers.find((keeper) =>
     keeper.teamIndex < totalTeams &&
-    getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams) === pickNumber
+    (draftType === 'linear'
+      ? (keeper.round - 1) * totalTeams + keeper.teamIndex + 1
+      : getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams)) === pickNumber
   );
 }
 
@@ -409,7 +414,7 @@ function buildScarcityLookup(candidates: readonly Player[]): ReadonlyMap<string,
 }
 
 function scoreCpuCandidates(input: SelectCpuPlayerInput): ScoredCpuCandidate[] {
-  const teamIndex = getTeamIndexForPick(input.currentPick, input.config.totalTeams);
+  const teamIndex = getTeamIndexForDraftPick(input.currentPick, input.config.totalTeams, input.config.draftType ?? 'snake');
   const roundNumber = Math.ceil(input.currentPick / input.config.totalTeams);
   const rosterCounts = getRosterCounts(teamIndex, input.history, input.keepers);
   const candidates = input.players.filter((player) =>
@@ -508,7 +513,7 @@ function getNextUserPickAfter(
 ): number | null {
   const totalPicks = config.totalTeams * config.totalRounds;
   for (let pickNumber = currentPick + 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (getTeamIndexForPick(pickNumber, config.totalTeams) === config.myPickPosition - 1) {
+    if (getTeamIndexForDraftPick(pickNumber, config.totalTeams, config.draftType ?? 'snake') === config.myPickPosition - 1) {
       return pickNumber;
     }
   }
@@ -542,12 +547,12 @@ export function estimateMockSurvivalProbabilities(input: {
     for (let pickNumber = input.currentPick; pickNumber < nextUserPick; pickNumber += 1) {
       if (
         pickNumber === input.currentPick &&
-        getTeamIndexForPick(pickNumber, input.config.totalTeams) ===
+        getTeamIndexForDraftPick(pickNumber, input.config.totalTeams, input.config.draftType ?? 'snake') ===
           input.config.myPickPosition - 1
       ) {
         continue;
       }
-      const keeper = getKeeperAtPick(input.keepers, pickNumber, input.config.totalTeams);
+      const keeper = getKeeperAtPick(input.keepers, pickNumber, input.config.totalTeams, input.config.draftType);
       if (keeper) {
         drafted.add(keeper.playerId);
         history.push({
@@ -577,7 +582,7 @@ export function estimateMockSurvivalProbabilities(input: {
         playerId: selection.player.id,
         playerName: selection.player.name,
         position: selection.player.position,
-        teamIndex: getTeamIndexForPick(pickNumber, input.config.totalTeams),
+        teamIndex: getTeamIndexForDraftPick(pickNumber, input.config.totalTeams, input.config.draftType ?? 'snake'),
         source: 'cpu',
       });
     }
@@ -610,7 +615,7 @@ export function simulateCpuDraft(input: {
   let freshSelections = 0;
 
   for (let pickNumber = 1; pickNumber <= totalPicks; pickNumber += 1) {
-    const keeper = getKeeperAtPick(input.keepers, pickNumber, input.config.totalTeams);
+    const keeper = getKeeperAtPick(input.keepers, pickNumber, input.config.totalTeams, input.config.draftType);
     if (keeper) {
       history.push({
         pickNumber,
@@ -644,7 +649,7 @@ export function simulateCpuDraft(input: {
       playerId: selection.player.id,
       playerName: selection.player.name,
       position: selection.player.position,
-      teamIndex: getTeamIndexForPick(pickNumber, input.config.totalTeams),
+      teamIndex: getTeamIndexForDraftPick(pickNumber, input.config.totalTeams, input.config.draftType ?? 'snake'),
       source: 'cpu',
     });
     freshSelections += 1;
