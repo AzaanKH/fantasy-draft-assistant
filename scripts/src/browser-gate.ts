@@ -4,6 +4,7 @@
  * contacts a draft provider. Usage: `pnpm browser:gate` (needs `playwright install chromium`).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createConnection } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Effect } from 'effect';
@@ -12,6 +13,7 @@ import { io, runMain } from './effect-runtime.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const WEB_PORT = Number(process.env['BROWSER_GATE_PORT'] ?? 3100);
+const API_PORT = WEB_PORT + 1;
 const ORIGIN = `http://localhost:${String(WEB_PORT)}`;
 const SERVER_START_TIMEOUT_MS = 60_000;
 const MOCK_TIMEOUT_MS = 60_000;
@@ -207,9 +209,20 @@ const isListening = async (): Promise<boolean> => {
   }
 };
 
-/** Fails if something already listens on the gate's port, so checks never run against another server. */
-const requireFreePort = io(async () => {
-  if (await isListening()) throw new Error(`${ORIGIN} is already in use; stop that server or set BROWSER_GATE_PORT`);
+const acceptsConnections = (port: number): Promise<boolean> => new Promise((resolve) => {
+  const socket = createConnection({ host: 'localhost', port });
+  socket.once('connect', () => { socket.destroy(); resolve(true); });
+  socket.once('error', () => { resolve(false); });
+});
+
+/**
+ * Fails if something already listens on the gate's web or API port, so checks never run
+ * against another server and the app's API proxy never reaches a running sync server.
+ */
+const requireFreePorts = io(async () => {
+  for (const port of [WEB_PORT, API_PORT]) {
+    if (await acceptsConnections(port)) throw new Error(`Port ${String(port)} is already in use; stop that server or set BROWSER_GATE_PORT`);
+  }
 });
 
 const waitForServer = (server: ChildProcess): Effect.Effect<void, Error> => io(async () => {
@@ -229,7 +242,7 @@ const webServer = Effect.acquireRelease(
   Effect.sync(() => spawn('pnpm', ['--filter', 'web-app', 'exec', 'vite', '--port', String(WEB_PORT), '--strictPort'], {
     cwd: REPO_ROOT,
     // The API port points at nothing, so no request can reach a running sync server.
-    env: { ...process.env, DRAFT_WEB_PORT: String(WEB_PORT), DRAFT_API_PORT: String(WEB_PORT + 1) },
+    env: { ...process.env, DRAFT_WEB_PORT: String(WEB_PORT), DRAFT_API_PORT: String(API_PORT) },
     // Its proxy logs every request to the absent API server, so output is dropped; a failed start shows as an exit code.
     stdio: 'ignore',
     detached: process.platform !== 'win32',
@@ -255,7 +268,7 @@ const browser = Effect.acquireRelease(
 );
 
 const program = Effect.scoped(Effect.gen(function* () {
-  yield* requireFreePort;
+  yield* requireFreePorts;
   const server = yield* webServer;
   yield* waitForServer(server);
   const instance = yield* browser;

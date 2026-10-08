@@ -179,39 +179,42 @@ export function App(): React.ReactElement {
       <LiveDraftSyncProvider>
         <DraftDecisionProvider readiness={readiness}>
           <DraftSetupActionsContext.Provider value={setupActions}>
-            <DraftHeader
-              route={route}
-              onNavigate={navigate}
-              connectionControl={<DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
-              keeperStatus={keeperStatus}
-              onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
-              secondaryControls={(
-                <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
-                  <DraftGlossary />
-                  <RosterSettings />
-                </React.Suspense>
-              )}
-            />
-            {leagueSetupLoaded ? <React.Suspense fallback={null}>
-              <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
-            </React.Suspense> : null}
-            <ShadowRecommendationObserver />
-            <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
-              <React.Suspense fallback={<RouteLoading route={route} />}>
-                {route === 'assistant' ? (
-                  <AssistantPage
-                    key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}
-                    initialLens={assistantNavigationTarget.lens}
-                    initialSelectedPlayerId={assistantNavigationTarget.selectedPlayerId}
-                    onReturnToDraft={() => { navigate('draft'); }}
-                  />
-                ) : (
-                  <DraftRoom
-                    keeperStatus={keeperStatus}
-                    onOpenAssistant={(target) => { navigate('assistant', target); }}
-                  />
+            {/* Catches the lazy header controls and setup dialog; the sync provider above stays mounted. */}
+            <RouteErrorBoundary>
+              <DraftHeader
+                route={route}
+                onNavigate={navigate}
+                connectionControl={<DraftConnectionControl readiness={readiness} open={connectionDialogOpen} onOpenChange={setConnectionDialogOpen} />}
+                keeperStatus={keeperStatus}
+                onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
+                secondaryControls={(
+                  <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
+                    <DraftGlossary />
+                    <RosterSettings />
+                  </React.Suspense>
                 )}
-              </React.Suspense>
+              />
+              {leagueSetupLoaded ? <React.Suspense fallback={null}>
+                <LeagueSetupDialog open={leagueSetupOpen} onOpenChange={setLeagueSetupOpen} onConnectPrimary={() => { setConnectionDialogOpen(true); }} />
+              </React.Suspense> : null}
+              <ShadowRecommendationObserver />
+              <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
+                <React.Suspense fallback={<RouteLoading route={route} />}>
+                  {route === 'assistant' ? (
+                    <AssistantPage
+                      key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}
+                      initialLens={assistantNavigationTarget.lens}
+                      initialSelectedPlayerId={assistantNavigationTarget.selectedPlayerId}
+                      onReturnToDraft={() => { navigate('draft'); }}
+                    />
+                  ) : (
+                    <DraftRoom
+                      keeperStatus={keeperStatus}
+                      onOpenAssistant={(target) => { navigate('assistant', target); }}
+                    />
+                  )}
+                </React.Suspense>
+              </RouteErrorBoundary>
             </RouteErrorBoundary>
           </DraftSetupActionsContext.Provider>
         </DraftDecisionProvider>

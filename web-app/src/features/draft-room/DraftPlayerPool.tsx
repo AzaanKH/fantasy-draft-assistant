@@ -134,7 +134,9 @@ export function DraftPlayerPool(): React.ReactElement {
     [config.rosterRequirements, config.totalRounds, myRoster]
   );
   const rankLabel = output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player';
-  const orderLabel = recommendationsBlocked ? 'expert rank' : rankLabel;
+  const orderLabel = recommendationsBlocked
+    ? 'expert rank'
+    : `${rankLabel} for recommended players, then expert rank`;
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => playerListRef.current,
@@ -222,8 +224,8 @@ export function DraftPlayerPool(): React.ReactElement {
                       showDraftAction={sessionMode === 'mock'}
                       isQueued={queuedSet.has(player.id)}
                       rowIndex={virtualRow.index + 2}
-                      rank={overall.rankByPlayerId.get(player.id)}
-                      rankLabel={rankLabel}
+                      rank={recommendation ? overall.rankByPlayerId.get(player.id) : player.ecrRank}
+                      rankLabel={recommendation ? rankLabel : 'expert rank'}
                       survivalProbability={
                         recommendation?.diagnostics?.nextPickSurvivalProbability
                           ?? player.nextPickSurvivalProbability

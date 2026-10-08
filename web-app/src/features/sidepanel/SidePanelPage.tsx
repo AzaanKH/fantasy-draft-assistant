@@ -21,6 +21,7 @@ import {
   type Recommendation,
 } from '@fantasy-draft/shared';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import { DecisionSwap, MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
 import { RouteSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
@@ -743,12 +744,27 @@ function BottomNavigation({
   );
 }
 
+/** Keeps the draft connection alive while the panel content shows an error fallback. */
 export function SidePanelPage(): React.ReactElement {
   const [connection] = React.useState(readConnection);
+  const sync = useSidePanelSync(connection);
+  return (
+    <RouteErrorBoundary>
+      <SidePanelContent connection={connection} sync={sync} />
+    </RouteErrorBoundary>
+  );
+}
+
+function SidePanelContent({
+  connection,
+  sync,
+}: {
+  readonly connection: SidePanelConnection;
+  readonly sync: ReturnType<typeof useSidePanelSync>;
+}): React.ReactElement {
   const [view, setView] = React.useState<SidePanelView>('draft');
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
   const [selectedPlayerIds, setSelectedPlayerIds] = React.useState<readonly string[] | null>(null);
-  const sync = useSidePanelSync(connection);
   const decision = useDraftDecision();
   const { players, isLoading, isError } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
