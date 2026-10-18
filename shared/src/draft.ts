@@ -235,13 +235,7 @@ export interface Recommendation {
     readonly leagueAdjustedMarketRank?: number;
     readonly leagueMarketDelta?: number;
     readonly leaguePositionTendency?: string;
-    readonly pickEv?: number;
-    readonly ecrAnchorValue?: number;
-    readonly projectionResidualValue?: number;
-    readonly marginalRosterValue?: number;
     readonly costOfWaiting?: number;
-    readonly lateRoundOptionValue?: number;
-    readonly riskAdjustedLoss?: number;
     readonly replacementPoints?: number;
     readonly expectedNextPickAlternativeValue?: number;
     readonly expectedNextPickAlternative?: ExpectedNextPickAlternative;
@@ -263,13 +257,6 @@ export interface Recommendation {
     readonly needMultiplier?: number;
     readonly scarcityMultiplier?: number;
     readonly tePremiumBoost?: number;
-    readonly pickEv?: number;
-    readonly ecrAnchorValue?: number;
-    readonly projectionResidualValue?: number;
-    readonly marginalRosterValue?: number;
-    readonly costOfWaiting?: number;
-    readonly lateRoundOptionValue?: number;
-    readonly riskAdjustedLoss?: number;
   };
 }
 

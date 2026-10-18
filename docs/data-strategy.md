@@ -51,7 +51,7 @@ probabilities are calculated in
 
 ## Live Decision Policy
 
-The live hook selects `best-pick-policy`. Best Pick combines the ECR Anchor
+The live recommendation engine runs only Best Pick policy. Best Pick combines the ECR Anchor
 with bounded league value, roster fit, tier supply, and Draft Timing over the
 Next-Pick Horizon. Conservative overrides stay near the ECR leader or within
 the permitted tier boundary, except when a legal completed roster requires an
@@ -60,8 +60,9 @@ exception. Best Player remains available as the player-quality comparison.
 Use [best-pick-policy.ts](../web-app/src/lib/calculations/best-pick-policy.ts)
 for score bounds and selection rules, and
 [useRecommendations.ts](../web-app/src/hooks/useRecommendations.ts) for the
-live draft inputs. PickEV remains an implementation used by experimental and
-comparison paths; it is not the architecture selected by the live hook.
+live draft inputs. Historical PickEV scoring lives in
+[scripts/src/research/pick-ev.ts](../scripts/src/research/pick-ev.ts) and is used
+only by backtest comparisons.
 
 The live player pool uses current rankings, league-scored FantasyPros
 projections, news/status, identities, team environment, and market context.

@@ -55,6 +55,13 @@ async function demoPlayers(): Promise<Player[]> {
   }, []).sort((a, b) => a.ecrRank - b.ecrRank);
 }
 
+function serialize(value: unknown): string {
+  return JSON.stringify(value, (_key, field: unknown) => {
+    if (field === null || typeof field !== 'object' || Array.isArray(field)) return field;
+    return Object.fromEntries(Object.entries(field).sort(([left], [right]) => left.localeCompare(right)));
+  });
+}
+
 describe('live Best Pick and Best Player demo boards', () => {
   it.each([
     { name: 'snake-pick-1', currentPick: 1, draftType: 'snake', keepers: false },
@@ -117,10 +124,10 @@ describe('live Best Pick and Best Player demo boards', () => {
     });
     const lines: string[] = [];
     const record = (scope: string, result: RecommendationResult): void => {
-      lines.push(JSON.stringify({ scope, selection: result.selection }));
-      for (const lens of ['draftNow', 'bestAvailable'] as const) {
+      lines.push(serialize({ scope, selection: result.selection }));
+      for (const lens of ['draftNow', 'bestAvailable', 'rbIntentionalReaches', 'marketValues', 'marketStashes', 'byNeed'] as const) {
         result[lens].forEach((recommendation, rank) => {
-          lines.push(JSON.stringify({ scope, lens, rank: rank + 1, ...recommendation }));
+          lines.push(serialize({ scope, lens, rank: rank + 1, ...recommendation }));
         });
       }
     };

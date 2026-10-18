@@ -178,10 +178,7 @@ function getTierReason(
   return `${String(tierAvailability.remaining)} left in ${player.position} T${String(player.tier)}`;
 }
 
-function getBaseSubScores(
-  player: Player,
-  replacementValue: number = getGuardedValueOverReplacement(player)
-): RecommendationSubScores {
+function getBaseSubScores(player: Player): RecommendationSubScores {
   const predictionSourceBoost = player.predictionSource === 'model'
     ? 5
     : player.predictionSource === 'fantasypros'
@@ -192,7 +189,7 @@ function getBaseSubScores(
     expertRankScore: Math.max(0, 120 - player.ecrRank),
     marketValueScore: player.valueScore * 0.75,
     projectionScore: Math.max(0, (player.projectedPoints - PROJECTION_BASELINES[player.position]) * 0.18) + predictionSourceBoost,
-    replacementScore: replacementValue * 3.75,
+    replacementScore: getGuardedValueOverReplacement(player) * 3.75,
     upsideScore: player.upsideScore * 1.8,
     tierUrgencyScore: player.tierDropoffScore * 8,
     survivalScore: (1 - player.nextPickSurvivalProbability) * 18,

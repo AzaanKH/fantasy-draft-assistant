@@ -76,7 +76,6 @@ export const DEFAULT_PICK_EV_LAYERS: PickEvLayers = {
 
 /** PickEV is a tie-breaker around ECR, not permission to make large reaches. */
 export const PICK_EV_ECR_GUARDRAIL = 8;
-/** Minimum PickEV advantage required for a historical ECR override. */
 export const PICK_EV_OVERRIDE_THRESHOLD = 4;
 
 function clamp(value: number, min: number, max: number): number {

@@ -735,7 +735,7 @@ describe('getRecommendations', () => {
       expect(rbIntentionalReaches[0]?.subScores?.draftStateScore).toBeGreaterThan(0);
     });
 
-    it('caps malformed special-teams VOR before scoring recommendations', () => {
+    it('caps malformed special-teams VOR in recommendation diagnostics', () => {
       const players = [
         {
           ...createPlayer('bad-kicker', 'K', 403),
