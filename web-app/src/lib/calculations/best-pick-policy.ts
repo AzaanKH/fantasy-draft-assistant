@@ -3,7 +3,7 @@ import {
   POSITIONS,
   optimizeLineupUtility,
   type Player,
-  type PickEvRosterPlayer,
+  type LineupPlayer,
   type Position,
   type RecommendationDecisionFactors,
   type RosterRequirements,
@@ -35,7 +35,7 @@ const DEPTH_POINTS_PER_POLICY_POINT = 8;
 export interface BestPickPolicyContext {
   readonly requirements?: RosterRequirements;
   readonly rosterCounts?: Readonly<Partial<Record<Position, number>>>;
-  readonly rosterPlayers?: readonly PickEvRosterPlayer[];
+  readonly rosterPlayers?: readonly LineupPlayer[];
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
   readonly draftTimingAlternatives?: DraftTimingAlternatives;
@@ -50,11 +50,11 @@ export type DraftTimingAlternatives = ReadonlyMap<
 >;
 
 function getOptimalStarters(
-  roster: readonly PickEvRosterPlayer[],
+  roster: readonly LineupPlayer[],
   requirements: RosterRequirements
-): PickEvRosterPlayer[] {
+): LineupPlayer[] {
   const used = new Set<string>();
-  const starters: PickEvRosterPlayer[] = [];
+  const starters: LineupPlayer[] = [];
 
   for (const position of POSITIONS) {
     const fixed = roster
@@ -93,7 +93,7 @@ function getTargetReserveCount(
 
 function getDepthValueFactor(
   player: Player,
-  roster: readonly PickEvRosterPlayer[],
+  roster: readonly LineupPlayer[],
   requirements: RosterRequirements,
   before: RosterAnalysis
 ): RecommendationDecisionFactors['depthValue'] {

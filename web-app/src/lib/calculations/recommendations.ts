@@ -15,12 +15,9 @@ import type {
   Player,
   PositionNeed,
   Recommendation,
-  PickEvScore,
-  PickEvRosterPlayer,
-  PickEvSelection,
+  LineupPlayer,
   RosterRequirements,
 } from '@fantasy-draft/shared';
-import { scorePickEvBoard, selectPickEvRecommendation } from '@fantasy-draft/shared';
 import { calculateAllScarcityScores } from './scarcity';
 import {
   calculateTierAvailability,
@@ -28,10 +25,8 @@ import {
   type TierAvailability,
 } from './tiers';
 import {
-  getDraftProgress,
   isSpecialTeamsPosition,
   shouldDeferSpecialTeams,
-  SPECIAL_TEAMS_LATE_DRAFT_PROGRESS,
 } from './draft-stage';
 import {
   BEST_PICK_ECR_NEIGHBORHOOD,
@@ -49,15 +44,11 @@ export interface RecommendationContext {
   readonly totalPicks?: number;
   readonly isMyTurn?: boolean;
   readonly totalTeams?: number;
-  /** Legacy and PickEV support historical comparisons. Live callers share Best Pick. */
-  readonly architecture?: 'legacy' | 'pick-ev' | 'best-pick-policy';
   readonly requirements?: RosterRequirements;
-  readonly rosterPlayers?: readonly PickEvRosterPlayer[];
+  readonly rosterPlayers?: readonly LineupPlayer[];
   readonly rosterCounts?: Readonly<Partial<Record<Position, number>>>;
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
-  readonly allowPickEvOverrides?: boolean;
-  readonly pickEvOverrideThreshold?: number;
 }
 
 /**
@@ -87,7 +78,6 @@ export interface RecommendationBoardResult {
 
 type RecommendationSelectionPolicy =
   | 'ecr-anchor'
-  | 'pick-ev-override'
   | 'league-aware-score'
   | 'primary-league-policy'
   | 'roster-feasibility';
@@ -95,8 +85,6 @@ type RecommendationSelectionPolicy =
 export interface RecommendationSelection {
   readonly preferredPlayerId?: string;
   readonly policy: RecommendationSelectionPolicy;
-  readonly overrideThreshold?: number;
-  readonly overrideAdvantage?: number;
   readonly ecrNeighborhood?: number;
   readonly feasibilityException?: boolean;
 }
@@ -126,36 +114,10 @@ function round(value: number, digits: number = 1): number {
   return Number(value.toFixed(digits));
 }
 
-function interpolate(start: number, end: number, progress: number): number {
-  return start + (end - start) * progress;
-}
-
 function getGuardedValueOverReplacement(player: Player): number {
   return player.position === 'K' || player.position === 'DEF'
     ? Math.min(player.valueOverReplacement, SPECIAL_TEAMS_MAX_VOR)
     : player.valueOverReplacement;
-}
-
-function getRosterAdjustedValueOverReplacement(
-  player: Player,
-  need: PositionNeed | undefined,
-  context: RecommendationContext | undefined
-): number {
-  const replacementValue = getGuardedValueOverReplacement(player);
-  if (!need || need.priority !== 'low') {
-    return replacementValue;
-  }
-
-  const draftProgress = getDraftProgress(context);
-  // Positional VOR overstates the FLEX or bench utility of a second QB or TE.
-  if (player.position === 'QB') {
-    return replacementValue * interpolate(0.2, 0.65, draftProgress);
-  }
-  if (player.position === 'TE') {
-    return replacementValue * interpolate(0.45, 0.8, draftProgress);
-  }
-
-  return replacementValue;
 }
 
 function isSpecialTeams(player: Player): boolean {
@@ -278,11 +240,20 @@ function getMarketReachCost(
 }
 
 function buildRbIntentionalReachRecommendation(
-  recommendation: Recommendation,
   player: Player,
+  need: PositionNeed | undefined,
+  poolScarcityScore: number,
   context: RecommendationContext | undefined,
   tierAvailability: TierAvailability | undefined
 ): Recommendation {
+  const subScores: RecommendationSubScores = {
+    ...getBaseSubScores(player),
+    rosterNeedScore: NEED_SCORES[need?.priority ?? 'low'],
+    scarcityScore: round(poolScarcityScore * 2.1 + player.tierDropoffScore * 5),
+    draftStateScore: round(context?.isMyTurn
+      ? (1 - player.nextPickSurvivalProbability) * 4
+      : 0),
+  };
   const marketReachCost = getMarketReachCost(player, context);
   const survivalPercent = Math.round(player.nextPickSurvivalProbability * 100);
   const label = marketReachCost > 0
@@ -290,156 +261,22 @@ function buildRbIntentionalReachRecommendation(
     : 'At market price and correct for roster/scarcity';
 
   return {
-    ...recommendation,
+    playerId: player.id,
+    playerName: player.name,
+    position: player.position,
+    score: round(sumBaseSubScores(subScores)),
+    subScores,
     reason: [
       label,
-      `custom VOR ${recommendation.diagnostics?.valueOverReplacement.toFixed(1) ?? '0.0'}`,
+      `custom VOR ${getGuardedValueOverReplacement(player).toFixed(1)}`,
       getTierReason(player, tierAvailability),
       `${String(survivalPercent)}% to next pick`,
       `market reach cost ${marketReachCost.toFixed(1)} picks`,
     ].join(' · '),
     diagnostics: {
       ...getDiagnostics(player, tierAvailability),
-      ...recommendation.diagnostics,
       marketReachCost,
     },
-  };
-}
-
-function getDraftStateScore(player: Player, context: RecommendationContext | undefined): number {
-  const draftProgress = getDraftProgress(context);
-  const isLateDraft = draftProgress >= SPECIAL_TEAMS_LATE_DRAFT_PROGRESS;
-  const earlyKickerDefensePenalty = isSpecialTeams(player)
-    ? isLateDraft
-      ? 0
-      : -140 * (1 - draftProgress)
-    : 0;
-  const turnUrgencyBoost = context?.isMyTurn
-    ? (1 - player.nextPickSurvivalProbability) * 4
-    : 0;
-  const lateKickerDefenseBoost = isLateDraft && isSpecialTeams(player)
-    ? 8
-    : 0;
-
-  return round(earlyKickerDefensePenalty + turnUrgencyBoost + lateKickerDefenseBoost);
-}
-
-function getNeedReason(need: PositionNeed | undefined): string {
-  if (!need) {
-    return 'roster context unavailable';
-  }
-  if (need.priority === 'filled') {
-    return 'roster slot filled';
-  }
-  if (need.priority === 'low') {
-    return 'depth fit';
-  }
-  if (need.priority === 'defer') {
-    return 'defer until late rounds';
-  }
-  return `${need.priority} roster need`;
-}
-
-function buildDraftNowRecommendation(
-  player: Player,
-  need: PositionNeed | undefined,
-  poolScarcityScore: number,
-  context: RecommendationContext | undefined,
-  tierAvailability: TierAvailability | undefined
-): Recommendation {
-  const rosterNeedScore = NEED_SCORES[need?.priority ?? 'low'];
-  const replacementValue = getRosterAdjustedValueOverReplacement(player, need, context);
-  const scarcityScore = poolScarcityScore * 2.1 + player.tierDropoffScore * 5;
-  const draftStateScore = getDraftStateScore(player, context);
-  const subScores: RecommendationSubScores = {
-    ...getBaseSubScores(player, replacementValue),
-    rosterNeedScore,
-    scarcityScore: round(scarcityScore),
-    draftStateScore,
-  };
-  const survivalPercent = Math.round(player.nextPickSurvivalProbability * 100);
-  const survivalText = player.nextPickSurvivalProbability <= 0.35
-    ? 'unlikely to survive'
-    : `${String(survivalPercent)}% to next pick`;
-
-  return {
-    playerId: player.id,
-    playerName: player.name,
-    position: player.position,
-    reason: [
-      getNeedReason(need),
-      getTierReason(player, tierAvailability),
-      `VOR ${getGuardedValueOverReplacement(player).toFixed(1)}`,
-      formatMarketDelta(player.valueScore),
-      survivalText,
-    ].join(' · '),
-    score: round(sumBaseSubScores(subScores)),
-    diagnostics: getDiagnostics(player, tierAvailability),
-    subScores,
-  };
-}
-
-function buildPickEvRecommendation(
-  player: Player,
-  need: PositionNeed | undefined,
-  pickEv: PickEvScore,
-  selection: PickEvSelection | undefined,
-  tierAvailability: TierAvailability | undefined
-): Recommendation {
-  const survivalPercent = Math.round(player.nextPickSurvivalProbability * 100);
-  const subScores: RecommendationSubScores = {
-    expertRankScore: pickEv.ecrAnchorValue,
-    marketValueScore: 0,
-    projectionScore: pickEv.projectionResidualValue,
-    replacementScore: pickEv.marginalRosterValue,
-    upsideScore: 0,
-    tierUrgencyScore: 0,
-    survivalScore: pickEv.costOfWaiting,
-    riskPenalty: pickEv.riskAdjustedLoss,
-    uncertaintyPenalty: 0,
-    pickEv: pickEv.score,
-    ecrAnchorValue: pickEv.ecrAnchorValue,
-    projectionResidualValue: pickEv.projectionResidualValue,
-    marginalRosterValue: pickEv.marginalRosterValue,
-    costOfWaiting: pickEv.costOfWaiting,
-    lateRoundOptionValue: pickEv.lateRoundOptionValue,
-    riskAdjustedLoss: pickEv.riskAdjustedLoss,
-  };
-  const selectionText = selection?.playerId === player.id
-    ? selection.overridden
-      ? `PickEV override +${selection.overrideAdvantage.toFixed(1)}`
-      : `${RANKING_LABELS.short} champion`
-    : `PickEV ${pickEv.score.toFixed(1)}`;
-
-  return {
-    playerId: player.id,
-    playerName: player.name,
-    position: player.position,
-    reason: [
-      selectionText,
-      getTierReason(player, tierAvailability),
-      getNeedReason(need),
-      `dynamic VOR ${pickEv.dynamicValueOverReplacement.toFixed(1)}`,
-      `${String(survivalPercent)}% to next pick`,
-      `wait cost ${pickEv.costOfWaiting.toFixed(1)}`,
-      `option ${pickEv.lateRoundOptionValue.toFixed(1)}`,
-      `risk info ${pickEv.riskAdjustedLoss.toFixed(1)}`,
-    ].join(' · '),
-    score: pickEv.score,
-    diagnostics: {
-      ...getDiagnostics(player, tierAvailability),
-      valueOverReplacement: pickEv.dynamicValueOverReplacement,
-      pickEv: pickEv.score,
-      ecrAnchorValue: pickEv.ecrAnchorValue,
-      projectionResidualValue: pickEv.projectionResidualValue,
-      marginalRosterValue: pickEv.marginalRosterValue,
-      costOfWaiting: pickEv.costOfWaiting,
-      lateRoundOptionValue: pickEv.lateRoundOptionValue,
-      riskAdjustedLoss: pickEv.riskAdjustedLoss,
-      replacementPoints: pickEv.replacementPoints,
-      expectedNextPickAlternativeValue: pickEv.expectedNextPickAlternativeValue,
-    },
-    subScores,
   };
 }
 
@@ -645,9 +482,7 @@ export function getRecommendationBoard(
   context?: RecommendationContext
 ): RecommendationBoardResult {
   const legalPlayers = getLegalPlayers(availablePlayers, context);
-  const draftTimingAlternatives = context?.architecture === 'best-pick-policy'
-    ? prepareDraftTimingAlternatives(legalPlayers)
-    : undefined;
+  const draftTimingAlternatives = prepareDraftTimingAlternatives(legalPlayers);
   const playersByPosition = {} as Record<Position, Player[]>;
   const legalByPosition = {} as Record<Position, Player[]>;
   for (const position of POSITIONS) {
@@ -697,86 +532,26 @@ function calculateRecommendations(
   const recommendationPool = shouldDeferSpecialTeams(context) && hasOffensivePlayers
     ? legalPlayers.filter((player) => !isSpecialTeams(player))
     : legalPlayers;
-  const bestPickCandidatePool = context?.architecture === 'best-pick-policy'
-    ? legalPlayers
-    : recommendationPool;
-  const tierAvailability = calculateTierAvailability(bestPickCandidatePool);
+  const tierAvailability = calculateTierAvailability(legalPlayers);
   const availableTierAvailability = calculateTierAvailability(availablePlayers);
   const getPlayerTierAvailability = (player: Player): TierAvailability | undefined =>
     tierAvailability.get(getTierKey(player.position, player.tier));
 
-  const pickEvPool = context?.architecture === 'pick-ev'
-    ? recommendationPool.filter((player) =>
-        needsByPosition.get(player.position)?.priority !== 'filled'
-      )
-    : recommendationPool;
-  const pickEvScores = context?.architecture === 'pick-ev'
-    ? scorePickEvBoard(pickEvPool, teamNeeds, {
-        currentPick: context.currentPick ?? 1,
-        totalPicks: context.totalPicks ?? 150,
-        totalTeams: context.totalTeams ?? 10,
-        requirements: context.requirements,
-        rosterPlayers: context.rosterPlayers,
-        rosterCounts: context.rosterCounts,
-      })
-    : null;
-  const pickEvSelection = pickEvScores
-    ? selectPickEvRecommendation(
-        pickEvPool,
-        pickEvScores,
-        context?.allowPickEvOverrides ?? false,
-        context?.pickEvOverrideThreshold
-      )
-    : undefined;
-  const bestPickPolicy = context?.architecture === 'best-pick-policy'
-    ? evaluateBestPickPolicy(availablePlayers, bestPickCandidatePool, {
-        requirements: context.requirements,
-        rosterCounts: context.rosterCounts,
-        rosterPlayers: context.rosterPlayers,
-        selectionsRemaining: context.selectionsRemaining,
-        draftTimingAlternatives,
-      })
-    : undefined;
-  const policyEvaluationById = new Map(
-    bestPickPolicy?.evaluations.map((evaluation) => [
-      evaluation.player.id,
+  const bestPickPolicy = evaluateBestPickPolicy(availablePlayers, legalPlayers, {
+    requirements: context?.requirements,
+    rosterCounts: context?.rosterCounts,
+    rosterPlayers: context?.rosterPlayers,
+    selectionsRemaining: context?.selectionsRemaining,
+    draftTimingAlternatives,
+  });
+  const draftNow = bestPickPolicy.evaluations
+    .map((evaluation) => buildBestPickPolicyRecommendation(
       evaluation,
-    ]) ?? []
-  );
-  const draftNowPool = bestPickPolicy
-    ? bestPickPolicy.evaluations.map((evaluation) => evaluation.player)
-    : context?.architecture === 'pick-ev'
-      ? pickEvPool
-      : recommendationPool;
-  const draftNow = [...draftNowPool]
-    .map((player) => {
-      const policyEvaluation = policyEvaluationById.get(player.id);
-      if (policyEvaluation) {
-        return buildBestPickPolicyRecommendation(
-          policyEvaluation,
-          getPlayerTierAvailability(player)
-        );
-      }
-      const pickEv = pickEvScores?.get(player.id);
-      return pickEv
-        ? buildPickEvRecommendation(
-            player,
-            needsByPosition.get(player.position),
-            pickEv,
-            pickEvSelection,
-            getPlayerTierAvailability(player)
-          )
-        : buildDraftNowRecommendation(
-            player,
-            needsByPosition.get(player.position),
-            scarcityScores.get(player.position) ?? 5,
-            context,
-            getPlayerTierAvailability(player)
-          );
-    })
+      getPlayerTierAvailability(evaluation.player)
+    ))
     .sort((a, b) =>
-      Number(b.playerId === (bestPickPolicy?.preferredPlayerId ?? pickEvSelection?.playerId)) -
-        Number(a.playerId === (bestPickPolicy?.preferredPlayerId ?? pickEvSelection?.playerId)) ||
+      Number(b.playerId === bestPickPolicy.preferredPlayerId) -
+        Number(a.playerId === bestPickPolicy.preferredPlayerId) ||
       b.score - a.score ||
       (a.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) -
         (b.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) ||
@@ -788,26 +563,11 @@ function calculateRecommendations(
   const rbIntentionalReaches = [...recommendationPool]
     .filter((player) => player.position === 'RB')
     .map((player) => {
-      const pickEv = pickEvScores?.get(player.id);
       const availability = getPlayerTierAvailability(player);
-      const recommendation = pickEv
-        ? buildPickEvRecommendation(
-            player,
-            needsByPosition.get(player.position),
-            pickEv,
-            pickEvSelection,
-            availability
-          )
-        : buildDraftNowRecommendation(
-            player,
-            needsByPosition.get(player.position),
-            scarcityScores.get(player.position) ?? 5,
-            context,
-            availability
-          );
       return buildRbIntentionalReachRecommendation(
-        recommendation,
         player,
+        needsByPosition.get(player.position),
+        scarcityScores.get(player.position) ?? 5,
         context,
         availability
       );
@@ -886,25 +646,12 @@ function calculateRecommendations(
     marketStashes,
     byNeed,
     selection: {
-      preferredPlayerId:
-        bestPickPolicy?.preferredPlayerId ??
-        pickEvSelection?.playerId ??
-        draftNow[0]?.playerId,
-      policy: bestPickPolicy
-        ? bestPickPolicy.feasibilityException
-          ? 'roster-feasibility'
-          : 'primary-league-policy'
-        : pickEvSelection
-          ? pickEvSelection.overridden
-            ? 'pick-ev-override'
-            : 'ecr-anchor'
-          : 'league-aware-score',
-      overrideThreshold: pickEvSelection?.overrideThreshold,
-      overrideAdvantage: pickEvSelection?.overrideAdvantage,
-      ecrNeighborhood: bestPickPolicy
-        ? BEST_PICK_ECR_NEIGHBORHOOD
-        : undefined,
-      feasibilityException: bestPickPolicy?.feasibilityException,
+      preferredPlayerId: bestPickPolicy.preferredPlayerId ?? draftNow[0]?.playerId,
+      policy: bestPickPolicy.feasibilityException
+        ? 'roster-feasibility'
+        : 'primary-league-policy',
+      ecrNeighborhood: BEST_PICK_ECR_NEIGHBORHOOD,
+      feasibilityException: bestPickPolicy.feasibilityException,
     },
   };
 }

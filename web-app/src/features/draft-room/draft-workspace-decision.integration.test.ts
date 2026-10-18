@@ -99,7 +99,6 @@ function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
     totalPicks: state.config.totalTeams * state.config.totalRounds,
     totalTeams: state.config.totalTeams,
     isMyTurn: state.isMyTurn,
-    architecture: 'best-pick-policy',
     requirements: state.config.rosterRequirements,
     rosterCounts: {
       QB: state.myRoster.QB.length,

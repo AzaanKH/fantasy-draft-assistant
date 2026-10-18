@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
 import {
   DEFAULT_PICK_EV_LAYERS,
-  DEFAULT_ROSTER_REQUIREMENTS,
-  optimizeLineupUtility,
   scorePickEvBoard,
   selectPickEvRecommendation,
   type PickEvPlayer,
   type PickEvScore,
-} from '@fantasy-draft/shared';
+} from './pick-ev.js';
 
 function player(
   id: string,
@@ -29,21 +28,7 @@ function player(
   };
 }
 
-describe('PickEV lineup utility', () => {
-  it('optimizes fixed and FLEX starters from the configured requirements', () => {
-    const utility = optimizeLineupUtility([
-      player('rb-1', 'RB', 1, 250),
-      player('rb-2', 'RB', 2, 225),
-      player('rb-3', 'RB', 3, 210),
-      player('wr-1', 'WR', 4, 240),
-      player('wr-2', 'WR', 5, 220),
-      player('wr-3', 'WR', 6, 205),
-      player('te-1', 'TE', 7, 190),
-    ], DEFAULT_ROSTER_REQUIREMENTS);
-
-    expect(utility).toBe(1540);
-  });
-
+describe('PickEV scoring layers', () => {
   it('keeps risk informational in the default scoring layer', () => {
     const safe = player('safe', 'RB', 10, 240);
     const risky = { ...safe, id: 'risky', injuryRiskScore: 9 };

@@ -1,4 +1,3 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
@@ -413,7 +412,6 @@ export function runPrimaryLeagueRehearsal(
       totalPicks: TOTAL_PICKS,
       totalTeams: TOTAL_TEAMS,
       isMyTurn: managerIsOnTheClock,
-      architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
       requirements: state.config.rosterRequirements,
       rosterPlayers,
       selectionsRemaining: TOTAL_ROUNDS - myRosterSize,

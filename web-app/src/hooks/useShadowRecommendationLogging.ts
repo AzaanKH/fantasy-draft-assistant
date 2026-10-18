@@ -1,4 +1,3 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import type { DraftProvider, Recommendation } from '@fantasy-draft/shared';
@@ -120,7 +119,6 @@ export function useShadowRecommendationLogging(
             totalPicks: config.totalTeams * config.totalRounds,
             totalTeams: config.totalTeams,
             isMyTurn,
-            architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
             requirements: config.rosterRequirements,
             rosterPlayers,
             selectionsRemaining: Math.max(0, config.totalRounds - rosterPlayers.length),

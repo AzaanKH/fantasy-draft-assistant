@@ -1,5 +1,5 @@
 import {
-  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, LIVE_RECOMMENDATION_ARCHITECTURE, POSITIONS, type DraftSyncSnapshot,
+  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, POSITIONS, type DraftSyncSnapshot,
   type DraftReadinessReport, type LeagueSettings, type Player, type Roster,
 } from '@fantasy-draft/shared';
 import { resolveDraftPickImports, getNextOpenPickNumber } from '@/lib/draft-pick-imports';
@@ -127,7 +127,7 @@ export function adviceBoard(context: SessionContext, data: DraftData) {
   const selectionsRemaining = Math.max(0, context.totalRounds - rosterPlayers.length);
   const recommendationContext: RecommendationContext = {
     currentPick, totalPicks: context.totalPicks, totalTeams: context.totalTeams, isMyTurn: context.isMyTurn,
-    architecture: LIVE_RECOMMENDATION_ARCHITECTURE, requirements: context.settings.rosterRequirements,
+    requirements: context.settings.rosterRequirements,
     rosterPlayers, selectionsRemaining,
     rosterCounts: Object.fromEntries(POSITIONS.map(position => [position, context.roster[position].length])),
   };

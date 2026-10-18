@@ -123,7 +123,6 @@ describe('getRecommendations', () => {
       ];
 
       const result = getRecommendations(players, [], 10, {
-        architecture: 'best-pick-policy',
         requirements: DEFAULT_ROSTER_REQUIREMENTS,
         rosterCounts: {},
         selectionsRemaining: 14,
@@ -181,7 +180,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: { QB: 1, RB: 3, WR: 2, TE: 1, K: 1, DEF: 0 },
           selectionsRemaining: 6,
@@ -229,7 +227,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: { QB: 1, RB: 2, WR: 5, TE: 1, K: 0, DEF: 0 },
           rosterPlayers,
@@ -280,7 +277,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: {},
           selectionsRemaining: 14,
@@ -347,7 +343,6 @@ describe('getRecommendations', () => {
         },
       ];
       const result = getRecommendations(players, [], 10, {
-        architecture: 'best-pick-policy',
         requirements: DEFAULT_ROSTER_REQUIREMENTS,
         rosterCounts: {},
         selectionsRemaining: 14,
@@ -387,7 +382,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: {},
           selectionsRemaining: 14,
@@ -441,7 +435,6 @@ describe('getRecommendations', () => {
       };
       const players = [ecrAnchor, urgentRunningBack, fallbackOne, fallbackTwo];
       const context = {
-        architecture: 'best-pick-policy' as const,
         requirements: DEFAULT_ROSTER_REQUIREMENTS,
         rosterCounts: {},
         selectionsRemaining: 14,
@@ -500,7 +493,6 @@ describe('getRecommendations', () => {
           nextPickNumber: 30 },
       ];
       const context = {
-        architecture: 'best-pick-policy' as const,
         requirements: DEFAULT_ROSTER_REQUIREMENTS,
         rosterCounts: { TE: DEFAULT_ROSTER_REQUIREMENTS.TE.max },
         selectionsRemaining: 8,
@@ -542,7 +534,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: {},
           selectionsRemaining: 1,
@@ -583,7 +574,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: { WR: 4 },
           selectionsRemaining: 10,
@@ -619,7 +609,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
           rosterCounts: {},
           selectionsRemaining: 14,
@@ -646,7 +635,6 @@ describe('getRecommendations', () => {
         [],
         10,
         {
-          architecture: 'best-pick-policy',
           currentPick: 140,
           totalPicks: 140,
           requirements: DEFAULT_ROSTER_REQUIREMENTS,
@@ -679,73 +667,7 @@ describe('getRecommendations', () => {
     });
   });
 
-  describe('PickEV architecture', () => {
-    it('uses ADP through survival rather than adding market rank to player quality', () => {
-      const base = {
-        ...createPlayer('same-quality-a', 'WR', 20),
-        projectedPoints: 220,
-        marketRank: 20,
-        nextPickSurvivalProbability: 0.5,
-      };
-      const marketOnlyDifference = {
-        ...base,
-        id: 'same-quality-b',
-        marketRank: 80,
-      };
-      const needs = createNeeds([{ position: 'WR', priority: 'critical' }]);
-
-      const { draftNow } = getRecommendations(
-        [base, marketOnlyDifference],
-        needs,
-        10,
-        {
-          architecture: 'pick-ev',
-          currentPick: 20,
-          totalPicks: 150,
-          totalTeams: 10,
-          rosterCounts: { WR: 0 },
-        }
-      );
-
-      expect(draftNow[0]?.score).toBe(draftNow[1]?.score);
-      expect(draftNow[0]?.subScores?.marketValueScore).toBe(0);
-    });
-
-    it('turns a likely tier loss into cost of waiting and reports risk as lost utility', () => {
-      const urgent = {
-        ...createPlayer('urgent-rb', 'RB', 20),
-        projectedPoints: 260,
-        nextPickSurvivalProbability: 0.1,
-        injuryRiskScore: 7,
-        uncertaintyScore: 6,
-      };
-      const fallback = {
-        ...createPlayer('fallback-rb', 'RB', 28),
-        projectedPoints: 200,
-        nextPickSurvivalProbability: 0.9,
-      };
-      const needs = createNeeds([{ position: 'RB', priority: 'critical' }]);
-
-      const { draftNow, selection } = getRecommendations([urgent, fallback], needs, 10, {
-        architecture: 'pick-ev',
-        currentPick: 25,
-        totalPicks: 150,
-        totalTeams: 10,
-        rosterCounts: { RB: 0 },
-      });
-      const recommendation = draftNow.find((candidate) => candidate.playerId === 'urgent-rb');
-
-      expect(recommendation?.subScores?.costOfWaiting).toBeGreaterThan(0);
-      expect(recommendation?.subScores?.riskAdjustedLoss).toBeGreaterThan(0);
-      expect(recommendation?.reason).toContain('ECR champion');
-      expect(recommendation?.reason).toContain('risk info');
-      expect(recommendation?.diagnostics?.replacementPoints).toBeDefined();
-      expect(selection).toMatchObject({
-        preferredPlayerId: draftNow[0]?.playerId,
-        policy: 'ecr-anchor',
-      });
-    });
-
+  describe('legal policy pool', () => {
     it('removes positions disabled by user requirements from policy lists without redefining Best Player', () => {
       const result = getRecommendations(
         [createPlayer('defense', 'DEF', 1), createPlayer('receiver', 'WR', 20)],
@@ -755,7 +677,6 @@ describe('getRecommendations', () => {
         ]),
         10,
         {
-          architecture: 'pick-ev',
           currentPick: 130,
           totalPicks: 150,
           totalTeams: 10,
@@ -777,8 +698,8 @@ describe('getRecommendations', () => {
     });
   });
 
-  describe('draftNow', () => {
-    it('combines prediction value, roster need, scarcity, market value, and survival', () => {
+  describe('live recommendation details', () => {
+    it('keeps roster, scarcity, and timing scores for intentional RB reaches', () => {
       const players = [
         {
           ...createPlayer('value-rb', 'RB', 35),
@@ -801,45 +722,17 @@ describe('getRecommendations', () => {
         { position: 'WR', priority: 'low', scarcityScore: 2 },
       ]);
 
-      const { draftNow } = getRecommendations(players, needs, 10, {
+      const { rbIntentionalReaches } = getRecommendations(players, needs, 10, {
         currentPick: 25,
         totalPicks: 150,
         isMyTurn: true,
       });
 
-      expect(draftNow[0]?.playerName).toBe('Player value-rb');
-      expect(draftNow[0]?.reason).toContain('critical roster need');
-      expect(draftNow[0]?.reason).toContain('VOR 25.0');
-      expect(draftNow[0]?.reason).toContain('Steal +14');
-      expect(draftNow[0]?.reason).toContain('unlikely to survive');
-      expect(draftNow[0]?.subScores?.rosterNeedScore).toBe(34);
-      expect(draftNow[0]?.subScores?.scarcityScore).toBeGreaterThan(0);
-      expect(draftNow[0]?.subScores?.draftStateScore).toBeGreaterThan(0);
-    });
-
-    it('penalizes kicker and defense recommendations before the late rounds', () => {
-      const players = [
-        createPlayer('k1', 'K', 5),
-        createPlayer('rb1', 'RB', 45),
-      ];
-      const needs = createNeeds([
-        { position: 'K', priority: 'critical', scarcityScore: 8 },
-        { position: 'RB', priority: 'medium', scarcityScore: 5 },
-      ]);
-
-      const early = getRecommendations(players, needs, 10, {
-        currentPick: 20,
-        totalPicks: 150,
-      }).draftNow;
-      const late = getRecommendations(players, needs, 10, {
-        currentPick: 125,
-        totalPicks: 150,
-      }).draftNow;
-
-      expect(early[0]?.position).toBe('RB');
-      expect(early.some((rec) => rec.position === 'K')).toBe(false);
-      expect(late.find((rec) => rec.position === 'K')?.subScores?.draftStateScore)
-        .toBeGreaterThan(0);
+      expect(rbIntentionalReaches[0]?.playerName).toBe('Player value-rb');
+      expect(rbIntentionalReaches[0]?.reason).toContain('VOR 25.0');
+      expect(rbIntentionalReaches[0]?.subScores?.rosterNeedScore).toBe(34);
+      expect(rbIntentionalReaches[0]?.subScores?.scarcityScore).toBeGreaterThan(0);
+      expect(rbIntentionalReaches[0]?.subScores?.draftStateScore).toBeGreaterThan(0);
     });
 
     it('caps malformed special-teams VOR before scoring recommendations', () => {
@@ -863,12 +756,10 @@ describe('getRecommendations', () => {
       }).draftNow;
       const kicker = draftNow.find((recommendation) => recommendation.playerId === 'bad-kicker');
 
-      expect(kicker?.subScores?.replacementScore).toBe(75);
       expect(kicker?.diagnostics?.valueOverReplacement).toBe(20);
-      expect(kicker?.reason).toContain('VOR 20.0');
     });
 
-    it('defers special teams from policy lists but preserves the ECR-only Best Player order', () => {
+    it('defers special teams from value and need lists while Best Player stays ECR-only', () => {
       const players = [
         {
           ...createPlayer('k1', 'K', 186),
@@ -901,8 +792,6 @@ describe('getRecommendations', () => {
         totalPicks: 150,
       });
 
-      expect(recommendations.draftNow.some((rec) => rec.position === 'K')).toBe(false);
-      expect(recommendations.draftNow.some((rec) => rec.position === 'DEF')).toBe(false);
       expect(recommendations.bestAvailable.map((rec) => rec.position)).toEqual([
         'RB',
         'WR',
@@ -917,24 +806,24 @@ describe('getRecommendations', () => {
       expect(recommendations.byNeed.some((rec) => rec.position === 'DEF')).toBe(false);
     });
 
-    it('applies a smaller uncertainty penalty separately from availability risk', () => {
+    it('reports uncertainty and availability risk separately for intentional RB reaches', () => {
       const players = [
         {
-          ...createPlayer('stable-wr', 'WR', 20),
+          ...createPlayer('stable-rb', 'RB', 20),
           uncertaintyScore: 2,
           injuryRiskScore: 4,
         },
         {
-          ...createPlayer('uncertain-wr', 'WR', 20),
+          ...createPlayer('uncertain-rb', 'RB', 20),
           uncertaintyScore: 8,
           injuryRiskScore: 4,
         },
       ];
-      const needs = createNeeds([{ position: 'WR', priority: 'medium' }]);
+      const needs = createNeeds([{ position: 'RB', priority: 'medium' }]);
 
-      const { draftNow } = getRecommendations(players, needs, 10);
-      const stable = draftNow.find((rec) => rec.playerId === 'stable-wr');
-      const uncertain = draftNow.find((rec) => rec.playerId === 'uncertain-wr');
+      const { rbIntentionalReaches } = getRecommendations(players, needs, 10);
+      const stable = rbIntentionalReaches.find((rec) => rec.playerId === 'stable-rb');
+      const uncertain = rbIntentionalReaches.find((rec) => rec.playerId === 'uncertain-rb');
 
       expect(stable?.subScores?.riskPenalty).toBe(4);
       expect(stable?.subScores?.uncertaintyPenalty).toBe(0.7);
@@ -942,36 +831,6 @@ describe('getRecommendations', () => {
       expect(stable?.score).toBeGreaterThan(uncertain?.score ?? 0);
     });
 
-    it('discounts an early luxury TE after the starting TE slot is filled', () => {
-      const players = [
-        {
-          ...createPlayer('luxury-te', 'TE', 25),
-          projectedPoints: 290,
-          valueOverReplacement: 121,
-        },
-        {
-          ...createPlayer('starter-rb', 'RB', 36),
-          projectedPoints: 287,
-          valueOverReplacement: 94,
-        },
-      ];
-      const needs = createNeeds([
-        { position: 'TE', priority: 'low', scarcityScore: 2 },
-        { position: 'RB', priority: 'critical', scarcityScore: 5 },
-      ]);
-
-      const recommendations = getRecommendations(players, needs, 10, {
-        currentPick: 27,
-        totalPicks: 150,
-      });
-      const luxuryTe = recommendations.draftNow.find((rec) => rec.playerId === 'luxury-te');
-
-      expect(recommendations.draftNow[0]?.playerId).toBe('starter-rb');
-      expect(luxuryTe?.reason).toContain('depth fit');
-      expect(luxuryTe?.subScores?.replacementScore).toBeLessThan(121 * 3.75);
-      expect(recommendations.bestAvailable[0]?.playerId).toBe('luxury-te');
-      expect(recommendations.bestAvailable[0]?.subScores).toBeUndefined();
-    });
   });
 
   describe('bestAvailable', () => {
@@ -1044,7 +903,6 @@ describe('getRecommendations', () => {
         needs,
         10,
         {
-          architecture: 'pick-ev',
           currentPick: 100,
           totalPicks: 150,
           isMyTurn: true,

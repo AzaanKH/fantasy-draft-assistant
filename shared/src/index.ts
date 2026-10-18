@@ -180,25 +180,8 @@ export type {
   ShadowRecommendationEvent,
 } from './shadow.js';
 
-// ECR-anchored pick expected-value scoring
-export {
-  DEFAULT_PICK_EV_LAYERS,
-  PICK_EV_ECR_GUARDRAIL,
-  PICK_EV_OVERRIDE_THRESHOLD,
-  optimizeLineupUtility,
-  scorePickEvBoard,
-  selectPickEvRecommendation,
-} from './pick-ev.js';
-
-export type {
-  PickEvPlayer,
-  PickEvRosterPlayer,
-  PickEvNeed,
-  PickEvContext,
-  PickEvLayers,
-  PickEvScore,
-  PickEvSelection,
-} from './pick-ev.js';
+export { optimizeLineupUtility } from './lineup-utility.js';
+export type { LineupPlayer } from './lineup-utility.js';
 
 // Sportsbook market snapshots and projection adjustments
 export {

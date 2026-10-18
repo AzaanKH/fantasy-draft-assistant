@@ -15,7 +15,7 @@ function createRecommendation(
     playerId,
     playerName: playerId,
     position: 'WR',
-    reason: expertRank === 2 ? 'PickEV override +5.0' : 'ECR champion',
+    reason: expertRank === 2 ? 'League value +5.0' : 'ECR champion',
     score,
     diagnostics: {
       expertRank,
@@ -36,9 +36,7 @@ describe('getPositionRecommendations', () => {
       [leaguePreferred, ecrLeader],
       {
         preferredPlayerId: leaguePreferred.playerId,
-        policy: 'pick-ev-override',
-        overrideAdvantage: 5,
-        overrideThreshold: 4,
+        policy: 'primary-league-policy',
       }
     );
 
@@ -51,7 +49,7 @@ describe('getPositionRecommendations', () => {
     ]);
     expect(decision.preferredPlayerId).toBe('league-preferred');
     expect(decision.rankByPlayerId.get('league-preferred')).toBe(1);
-    expect(decision.selection.policy).toBe('pick-ev-override');
+    expect(decision.selection.policy).toBe('primary-league-policy');
     expect(decision.explanationByPlayerId.get('league-preferred')).toContain('league-preferred');
   });
 
@@ -63,8 +61,6 @@ describe('getPositionRecommendations', () => {
       {
         preferredPlayerId: ecrChampion.playerId,
         policy: 'ecr-anchor',
-        overrideAdvantage: 10,
-        overrideThreshold: 4,
       }
     );
 

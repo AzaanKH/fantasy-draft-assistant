@@ -1,4 +1,3 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 /**
  * Recommendations Hook
  *
@@ -145,7 +144,6 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       totalPicks: config.totalTeams * config.totalRounds,
       totalTeams: config.totalTeams,
       isMyTurn,
-      architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
       requirements: config.rosterRequirements,
       rosterPlayers,
       selectionsRemaining: Math.max(0, config.totalRounds - rosterSize),

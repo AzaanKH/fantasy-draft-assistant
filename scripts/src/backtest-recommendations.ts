@@ -2,12 +2,13 @@ import { readContractSignalEvidence, writeRecommendationEvaluation } from './rec
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { PickEvLayers, Position, RosterRequirements } from '@fantasy-draft/shared';
+import type { Position, RosterRequirements } from '@fantasy-draft/shared';
 import {
   PICK_EV_OVERRIDE_THRESHOLD,
   scorePickEvBoard,
   selectPickEvRecommendation,
-} from '@fantasy-draft/shared';
+  type PickEvLayers,
+} from './research/pick-ev.js';
 import {
   BACKTESTS_MODEL_DIR,
   DATA_DIR,

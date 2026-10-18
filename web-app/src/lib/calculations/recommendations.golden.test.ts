@@ -72,26 +72,28 @@ describe('live Best Pick and Best Player demo boards', () => {
     expect(players.length).toBeGreaterThan(400);
     const rosters = Array.from({ length: 10 }, () => createEmptyRoster());
     const drafted = new Set<string>();
-    // Reserve future-round keepers before replaying ordinary picks.
     if (state.keepers) {
       for (const { team, playerIndex } of [{ team: 0, playerIndex: 25 }, { team: 1, playerIndex: 35 }]) {
         const player = players[playerIndex];
         if (!player) throw new Error('Demo keeper is missing');
-        const roster = rosters[team]!;
+        const roster = rosters[team];
+        if (!roster) throw new Error('Demo keeper team is missing');
         rosters[team] = { ...roster, [player.position]: [...roster[player.position], player.id] };
         drafted.add(player.id);
       }
     }
     for (let pick = 1; pick < state.currentPick; pick += 1) {
       const team = getTeamIndexForDraftPick(pick, 10, state.draftType);
-      const roster = rosters[team]!;
+      const roster = rosters[team];
+      if (!roster) throw new Error('Demo draft team is missing');
       const player = players.find((candidate) => !drafted.has(candidate.id) &&
         roster[candidate.position].length < DEFAULT_ROSTER_REQUIREMENTS[candidate.position].max);
       if (!player) throw new Error('Demo draft pool is exhausted');
       rosters[team] = { ...roster, [player.position]: [...roster[player.position], player.id] };
       drafted.add(player.id);
     }
-    const roster = rosters[0]!;
+    const roster = rosters[0];
+    if (!roster) throw new Error('Demo manager team is missing');
     const rosterIds = new Set(Object.values(roster).flat());
     const rosterPlayers = players.filter((player) => rosterIds.has(player.id));
     const available = applyLeagueSurvivalModel(players, null, {
@@ -104,7 +106,6 @@ describe('live Best Pick and Best Player demo boards', () => {
     const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS,
       calculateAllScarcityScores(available), { currentPick: state.currentPick, totalPicks: 150, totalRounds: 15 });
     const board = getRecommendationBoard(available, needs, 5, {
-      architecture: 'best-pick-policy',
       currentPick: state.currentPick,
       totalPicks: 150,
       totalTeams: 10,

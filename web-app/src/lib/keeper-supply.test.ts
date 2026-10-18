@@ -239,7 +239,6 @@ describe('Primary League keeper supply end-to-end', () => {
       { position: 'WR', priority: 'critical' },
     ]);
     const bestPick = getRecommendations(availablePlayers(), needs, 10, {
-      architecture: 'pick-ev',
       currentPick: useDraftStore.getState().currentPick,
       totalPicks: TOTAL_TEAMS * TOTAL_ROUNDS,
       totalTeams: TOTAL_TEAMS,

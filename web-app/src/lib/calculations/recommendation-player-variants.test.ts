@@ -257,7 +257,6 @@ function buildScenario(scenario: Scenario) {
   };
   const variants = buildRecommendationPlayerVariants(sources, optionalSignals);
   const recommendations = getRecommendations(variants.players, [], 5, {
-    architecture: 'best-pick-policy',
     requirements: DEFAULT_ROSTER_REQUIREMENTS,
     rosterCounts: { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 },
     selectionsRemaining: 14,
@@ -303,7 +302,6 @@ describe('recommendation player product boundary', () => {
       [],
       5,
       {
-        architecture: 'best-pick-policy',
         requirements: DEFAULT_ROSTER_REQUIREMENTS,
         rosterCounts: { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 },
         selectionsRemaining: 14,

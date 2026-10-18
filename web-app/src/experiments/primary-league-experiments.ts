@@ -1,4 +1,3 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
 import type {
   FantasyProsSnapshot,
   NFLTeam,
@@ -690,7 +689,6 @@ function runDraft(input: {
         totalPicks,
         totalTeams: config.totalTeams,
         isMyTurn: true,
-        architecture: LIVE_RECOMMENDATION_ARCHITECTURE,
         requirements: config.rosterRequirements,
         rosterCounts: counts,
         rosterPlayers: POSITIONS.flatMap((position) => roster[position])

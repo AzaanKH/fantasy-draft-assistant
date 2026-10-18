@@ -1,7 +1,12 @@
-import type { NeedPriority, RosterRequirements } from './draft.js';
-import { DEFAULT_ROSTER_REQUIREMENTS } from './draft.js';
-import type { Position } from './player.js';
-import { POSITIONS } from './player.js';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
+  POSITIONS,
+  optimizeLineupUtility,
+  type LineupPlayer,
+  type NeedPriority,
+  type Position,
+  type RosterRequirements,
+} from '@fantasy-draft/shared';
 
 export interface PickEvPlayer {
   readonly id: string;
@@ -16,13 +21,6 @@ export interface PickEvPlayer {
   readonly injuryRiskScore: number;
 }
 
-export interface PickEvRosterPlayer {
-  readonly id: string;
-  readonly position: Position;
-  readonly projectedPoints: number;
-  readonly ceilingScore: number;
-}
-
 export interface PickEvNeed {
   readonly position: Position;
   readonly priority: NeedPriority;
@@ -33,7 +31,7 @@ export interface PickEvContext {
   readonly totalPicks: number;
   readonly totalTeams: number;
   readonly requirements?: RosterRequirements;
-  readonly rosterPlayers?: readonly PickEvRosterPlayer[];
+  readonly rosterPlayers?: readonly LineupPlayer[];
   readonly rosterCounts?: Readonly<Partial<Record<Position, number>>>;
 }
 
@@ -78,7 +76,7 @@ export const DEFAULT_PICK_EV_LAYERS: PickEvLayers = {
 
 /** PickEV is a tie-breaker around ECR, not permission to make large reaches. */
 export const PICK_EV_ECR_GUARDRAIL = 8;
-/** Candidate threshold; live overrides remain gated by the backtest policy. */
+/** Minimum PickEV advantage required for a historical ECR override. */
 export const PICK_EV_OVERRIDE_THRESHOLD = 4;
 
 function clamp(value: number, min: number, max: number): number {
@@ -141,7 +139,7 @@ function getReplacementPoints(
   return positionPlayers[Math.min(positionPlayers.length, replacementIndex) - 1]?.projectedPoints ?? 0;
 }
 
-function getRosterPlayers(context: PickEvContext): PickEvRosterPlayer[] {
+function getRosterPlayers(context: PickEvContext): LineupPlayer[] {
   if (context.rosterPlayers) return [...context.rosterPlayers];
 
   return POSITIONS.flatMap((position) =>
@@ -154,39 +152,9 @@ function getRosterPlayers(context: PickEvContext): PickEvRosterPlayer[] {
   );
 }
 
-/** Maximum projected starter points permitted by the configured fixed and FLEX slots. */
-export function optimizeLineupUtility(
-  roster: readonly PickEvRosterPlayer[],
-  requirements: RosterRequirements
-): number {
-  const used = new Set<string>();
-  let utility = 0;
-
-  for (const position of POSITIONS) {
-    const fixed = roster
-      .filter((player) => player.position === position)
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)
-      .slice(0, requirements[position].starters);
-    for (const player of fixed) {
-      used.add(player.id);
-      utility += player.projectedPoints;
-    }
-  }
-
-  const flex = roster
-    .filter((player) =>
-      !used.has(player.id) && requirements.FLEX.eligiblePositions.includes(player.position)
-    )
-    .sort((a, b) => b.projectedPoints - a.projectedPoints)
-    .slice(0, requirements.FLEX.starters);
-  for (const player of flex) utility += player.projectedPoints;
-
-  return utility;
-}
-
 function getMarginalLineupUtility(
   player: PickEvPlayer,
-  roster: readonly PickEvRosterPlayer[],
+  roster: readonly LineupPlayer[],
   requirements: RosterRequirements,
   baselineUtility: number
 ): number {
