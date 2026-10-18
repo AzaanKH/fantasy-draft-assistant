@@ -50,6 +50,24 @@ function createYahooFetch(
 }
 
 describe('YahooSyncAdapter', () => {
+  it('uses the winning team key for auction picks even when nomination order differs', async () => {
+    const fetchFixture = createYahooFetch([]);
+    const fetchAuction: FetchJson = async <T>(url: string, signal: AbortSignal, init?: RequestInit): Promise<T> => {
+      if (url.includes('/settings/')) return {
+        service: { ...yahooSettingsFixture.service, settings: {
+          ...yahooSettingsFixture.service.settings, is_auction_draft: 1,
+        } },
+      } as T;
+      if (url.includes('/draftresults')) return {
+        draft_result: { pick: '3', round: '2', team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
+      } as T;
+      return fetchFixture<T>(url, signal, init);
+    };
+    const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fetchAuction).poll());
+    expect(snapshot.draft.type).toBe('auction');
+    expect(snapshot.picks[0]).toMatchObject({ pickNumber: 3, draftSlot: 1, teamIndex: 0 });
+  });
+
   it('extracts a league ID from Yahoo league and draft room URLs', () => {
     expect(parseYahooLeagueId('7428778')).toBe('7428778');
     expect(

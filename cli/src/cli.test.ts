@@ -85,6 +85,15 @@ async function withSecondRoundKeeper(run: () => Promise<void>) {
 }
 
 describe('draft CLI against a local fixture server', () => {
+  it.each(['auction', 'linear'] as const)('keeps %s status available and rejects advice', async type => {
+    snapshot = fixtureSnapshot({ draft: { ...fixtureSnapshot().draft!, type } });
+    const status = await command(['status', '--session', 'fixture', '--json']);
+    expect(status.code).toBe(0);
+    if (type === 'auction') expect(status.result.data).toMatchObject({ onTheClockSlot: null, yourNextTurn: null });
+    const advice = await command(['recommend', '--session', 'fixture', '--json']);
+    expect(advice.result.error.code).toBe('UNSUPPORTED_DRAFT_TYPE');
+  });
+
   it('uses the next unreserved turn for live and replay waiting advice', async () => {
     await withSecondRoundKeeper(async () => {
       const waiting = await command(['wait', 'p3', '--session', 'fixture', '--json']);

@@ -8,6 +8,7 @@ import {
 import {
   estimateMockSurvivalProbabilities,
   getKeeperAtPick,
+  getTeamIndexForDraftPick,
   getPickNumberForTeamRound,
   selectCpuPlayer,
   simulateCpuDraft,
@@ -87,6 +88,13 @@ const javonte: MockKeeperAssignment = {
 };
 
 describe('mock draft engine', () => {
+  it('presents auction nominations and keeper reservations in legacy snake order', () => {
+    expect([10, 11, 20, 21].map(pick => getTeamIndexForDraftPick(pick, 10, 'auction')))
+      .toEqual([9, 9, 0, 0]);
+    expect(getKeeperAtPick([javonte], 96, 10, 'auction')).toEqual(javonte);
+    expect(getKeeperAtPick([javonte], 95, 10, 'auction')).toBeUndefined();
+  });
+
   it('keeps the exact custom scoring and two-FLEX league rules', () => {
     expect(DEFAULT_SCORING_RULES.rushing.attemptBonus).toBe(0.2);
     expect(DEFAULT_SCORING_RULES.receiving.tePremium).toBe(0.5);
