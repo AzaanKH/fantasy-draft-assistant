@@ -7,9 +7,7 @@ import {
   type Position,
 } from '@fantasy-draft/shared/league';
 import {
-  isTeamEnvironment,
   type MarketAdpPlayer,
-  type TeamEnvironment,
 } from '@fantasy-draft/shared/catalog';
 import {
   type LeagueSettings,
@@ -18,7 +16,7 @@ import {
   type DraftType,
 } from '@fantasy-draft/shared/sync';
 import { mergeCoreSources, normalizePlayerName, type LeagueSurvivalModel, canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry, type evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
-import { isLeagueSurvivalModel, decodePlayerIdentityFile, decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeKeeperFile, decodeOrNull, CATALOG, catalogPath, isRecommendationPolicyFile, isRecord, SAFE_RECOMMENDATION_POLICY, type RecommendationPolicyFile, type DecodeOptions, type SleeperDataFile } from '@fantasy-draft/shared/catalog';
+import { decodeLeagueSurvivalModel, decodeTeamEnvDataFile, decodeRecommendationPolicyFile, decodePlayerIdentityFile, decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeKeeperFile, decodeOrNull, CATALOG, catalogPath, SAFE_RECOMMENDATION_POLICY, type RecommendationPolicyFile, type DecodeOptions, type SleeperDataFile } from '@fantasy-draft/shared/catalog';
 import { CliError, unexpected } from './errors';
 
 type KeeperStatus = Parameters<typeof evaluateWorkspaceDraftReadiness>[0]['keeperStatus'];
@@ -82,13 +80,13 @@ export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string,
     return yield* new CliError('CORE_DATA_INVALID', 'Rankings or canonical player identities are missing or invalid. Run draft readiness --json for corrective actions.', 3,
       { invalidCoreKeys: [...(!snapshot ? ['trusted-rankings'] : []), ...(!identities ? ['canonical-player-identities'] : [])] });
   }
-  let sleeperPlayers: SleeperDataFile['players'] = [];
-  if (sleeper !== null) {
-    try { sleeperPlayers = decodeSleeperDataFile(sleeper).players; }
-    catch (error) { options.onWarning?.(`Sleeper player directory is unavailable: ${String(error)}`); }
+  function optional<A>(raw: unknown, decode: (value: unknown, options?: DecodeOptions) => A, label: string): A | null {
+    if (raw === null) return null;
+    try { return decode(raw, options); }
+    catch (error) { options.onWarning?.(`${label} is unavailable: ${String(error)}`); return null; }
   }
-  const teamEnvironments = isRecord(environment) && isRecord(environment.teams) && Object.values(environment.teams).every(isTeamEnvironment)
-    ? environment.teams as Record<NFLTeam, TeamEnvironment> : {} as Record<NFLTeam, TeamEnvironment>;
+  const sleeperPlayers: SleeperDataFile['players'] = optional(sleeper, decodeSleeperDataFile, 'Sleeper player directory')?.players ?? [];
+  const teamEnvironments = optional(environment, decodeTeamEnvDataFile, 'Team environment')?.teams ?? {};
   // Status commands report a failed merge as a warning, so keep it in the error channel.
   const merged = yield* Effect.try({ try: () => mergeCoreSources({
     onWarning: (message) => { console.warn(message); },
@@ -115,7 +113,7 @@ export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string,
   }
   const keeperResolution = resolveKeepers(keeperFile, players, settings.totalTeams, rounds, draftType);
   const data: DraftData = { players, keepers: keeperResolution.keepers, keeperStatus: keeperResolution.status,
-    survivalModel: isLeagueSurvivalModel(survival) ? survival : null,
-    policy: isRecommendationPolicyFile(policy) ? policy : SAFE_RECOMMENDATION_POLICY };
+    survivalModel: optional(survival, decodeLeagueSurvivalModel, 'League survival model'),
+    policy: optional(policy, value => decodeRecommendationPolicyFile(value), 'Recommendation policy') ?? SAFE_RECOMMENDATION_POLICY };
   return data;
 });

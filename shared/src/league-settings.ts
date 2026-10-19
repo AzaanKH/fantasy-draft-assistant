@@ -1,12 +1,15 @@
-import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
+import { Schema } from 'effect';
+import { MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   type RosterRequirements,
 } from './draft.js';
-import { isPosition, type Position } from './player.js';
+import { isPosition, POSITIONS, type Position } from './player.js';
 import { DEFAULT_SCORING_RULES, type ScoringRules } from './scoring.js';
 
-type LeagueSettingsSource = 'default' | 'sleeper' | 'espn';
+const leagueSettingsSourceSchema = /* @__PURE__ */ Schema.Literals(['default', 'sleeper', 'espn']);
+
+type LeagueSettingsSource = typeof leagueSettingsSourceSchema.Type;
 
 interface LeagueSettingsInput {
   readonly source: LeagueSettingsSource;
@@ -21,148 +24,119 @@ interface LeagueSettingsInput {
   readonly keepersEnabled: boolean | null;
 }
 
-export interface SleeperLeague {
-  readonly league_id: string;
-  readonly total_rosters: number;
-  readonly roster_positions: readonly string[];
-  readonly scoring_settings: Readonly<Record<string, number>>;
-  readonly settings?: Readonly<Record<string, unknown>>;
-}
-
-/** The subset of league configuration that changes player value. */
-export interface LeagueSettings {
-  readonly source: LeagueSettingsSource;
-  readonly leagueId: string | null;
-  readonly totalTeams: number;
-  readonly scoringRules: ScoringRules;
-  readonly rosterRequirements: RosterRequirements;
-  readonly rawScoringSettings: Readonly<Record<string, number>>;
-  readonly unsupportedScoringKeys: readonly string[];
-  readonly unsupportedRosterSlots: readonly string[];
-  /** Null when the provider does not expose a reliable keeper setting. */
-  readonly keepersEnabled: boolean | null;
-  /** Stable hash of scoring, roster, and team-count inputs. */
-  readonly fingerprint: string;
-  readonly updatedAt: number;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isFiniteNumberRecord(value: unknown): value is Record<string, number> {
-  return isRecord(value) && Object.values(value).every(isFiniteNumber);
-}
-
-function isPositionRequirement(value: unknown): value is { starters: number; max: number } {
-  return (
-    isRecord(value) &&
-    isBoundedInteger(value['starters'], 0, MAX_ROSTER_SPOTS) &&
-    isBoundedInteger(value['max'], 0, MAX_ROSTER_SPOTS)
-  );
-}
+const recordSchema = /* @__PURE__ */ Schema.Record(Schema.String, Schema.Unknown);
+const isFiniteNumber = /* @__PURE__ */ Schema.is(Schema.Finite);
+const finiteNumberRecord = /* @__PURE__ */ Schema.Record(Schema.String, Schema.Finite);
+const teamCount = /* @__PURE__ */ Schema.Int.check(/* @__PURE__ */ Schema.isBetween({ minimum: 2, maximum: MAX_DRAFT_TEAMS }));
+const rosterCount = /* @__PURE__ */ Schema.Int.check(/* @__PURE__ */ Schema.isBetween({ minimum: 0, maximum: MAX_ROSTER_SPOTS }));
+const positionRequirement = /* @__PURE__ */ Schema.Struct({ starters: rosterCount, max: rosterCount });
+const rosterRequirementsSchema = /* @__PURE__ */ Schema.Struct({
+  QB: positionRequirement,
+  RB: positionRequirement,
+  WR: positionRequirement,
+  TE: positionRequirement,
+  K: positionRequirement,
+  DEF: positionRequirement,
+  FLEX: /* @__PURE__ */ Schema.Struct({
+    starters: rosterCount,
+    eligiblePositions: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Literals(POSITIONS)).check(/* @__PURE__ */ Schema.isMaxLength(6)),
+  }),
+  BENCH: /* @__PURE__ */ Schema.Struct({ spots: rosterCount }),
+}).check(/* @__PURE__ */ Schema.makeFilter(value =>
+  value.QB.starters + value.RB.starters + value.WR.starters + value.TE.starters +
+  value.K.starters + value.DEF.starters + value.FLEX.starters + value.BENCH.spots <= MAX_ROSTER_SPOTS
+));
+const rosterRequirementsPredicate = /* @__PURE__ */ Schema.is(rosterRequirementsSchema);
 
 export function isRosterRequirements(value: unknown): value is RosterRequirements {
-  if (!isRecord(value) || !isRecord(value['FLEX']) || !isRecord(value['BENCH'])) {
-    return false;
-  }
-
-  const fixedRequirements = FIXED_POSITIONS.map((position) => value[position]);
-  if (!(
-    fixedRequirements.every(isPositionRequirement) &&
-    isBoundedInteger(value['FLEX']['starters'], 0, MAX_ROSTER_SPOTS) &&
-    Array.isArray(value['FLEX']['eligiblePositions']) &&
-    value['FLEX']['eligiblePositions'].length <= 6 &&
-    value['FLEX']['eligiblePositions'].every(isPosition) &&
-    isBoundedInteger(value['BENCH']['spots'], 0, MAX_ROSTER_SPOTS)
-  )) {
-    return false;
-  }
-
-  const fixedStarters = fixedRequirements.reduce((total, requirement) => total + requirement.starters, 0);
-  return fixedStarters + value['FLEX']['starters'] + value['BENCH']['spots'] <= MAX_ROSTER_SPOTS;
+  return rosterRequirementsPredicate(value);
 }
 
-function isScoringRules(value: unknown): value is ScoringRules {
-  if (
-    !isRecord(value) ||
-    !isRecord(value['passing']) ||
-    !isRecord(value['rushing']) ||
-    !isRecord(value['receiving']) ||
-    !isRecord(value['kicking']) ||
-    !isRecord(value['defense']) ||
-    !isRecord(value['misc']) ||
-    !isRecord(value['defense']['pointsAllowed'])
-  ) {
-    return false;
-  }
-
-  const allFinite = (record: Record<string, unknown>): boolean =>
-    Object.values(record).every(isFiniteNumber);
-
-  return (
-    allFinite(value['passing']) &&
-    allFinite(value['rushing']) &&
-    allFinite(value['receiving']) &&
-    allFinite(value['kicking']) &&
-    allFinite(value['defense']['pointsAllowed']) &&
-    allFinite(value['misc']) &&
-    Object.entries(value['defense'])
-      .filter(([key]) => key !== 'pointsAllowed')
-      .every(([, item]) => isFiniteNumber(item))
-  );
+function scoringGroup<const Fields extends Schema.Struct.Fields>(fields: Fields) {
+  return /* @__PURE__ */ Schema.StructWithRest(/* @__PURE__ */ Schema.Struct(fields), [finiteNumberRecord]);
 }
+
+const scoringRulesSchema = /* @__PURE__ */ Schema.Struct({
+  passing: /* @__PURE__ */ scoringGroup({
+    yardsPerPoint: Schema.Finite, touchdown: Schema.Finite,
+    interception: Schema.Finite, twoPointConversion: Schema.Finite,
+  }),
+  rushing: /* @__PURE__ */ scoringGroup({
+    yardsPerPoint: Schema.Finite, touchdown: Schema.Finite,
+    attemptBonus: Schema.Finite, twoPointConversion: Schema.Finite,
+  }),
+  receiving: /* @__PURE__ */ scoringGroup({
+    reception: Schema.Finite, yardsPerPoint: Schema.Finite, touchdown: Schema.Finite,
+    tePremium: Schema.Finite, twoPointConversion: Schema.Finite,
+  }),
+  kicking: /* @__PURE__ */ scoringGroup({
+    fieldGoal0_39: Schema.Finite, fieldGoal40_49: Schema.Finite, fieldGoal50Plus: Schema.Finite,
+    extraPoint: Schema.Finite, missedFieldGoal: Schema.Finite, missedExtraPoint: Schema.Finite,
+  }),
+  defense: /* @__PURE__ */ Schema.StructWithRest(/* @__PURE__ */ Schema.Struct({
+    touchdown: Schema.Finite, sack: Schema.Finite, interception: Schema.Finite,
+    fumbleRecovery: Schema.Finite, safety: Schema.Finite, blockedKick: Schema.Finite,
+    pointsAllowed: /* @__PURE__ */ scoringGroup({
+      shutout: Schema.Finite, tier1_6: Schema.Finite, tier7_13: Schema.Finite,
+      tier14_20: Schema.Finite, tier21_27: Schema.Finite, tier28_34: Schema.Finite,
+      tier35Plus: Schema.Finite,
+    }),
+  }), [/* @__PURE__ */ Schema.Record(/* @__PURE__ */ Schema.String.check(/* @__PURE__ */ Schema.makeFilter(key => key !== 'pointsAllowed')), Schema.Finite)]),
+  misc: /* @__PURE__ */ scoringGroup({ fumbleLost: Schema.Finite, fumbleRecoveryTD: Schema.Finite }),
+});
+
+const sleeperLeagueSchema = /* @__PURE__ */ Schema.Struct({
+  league_id: Schema.String,
+  total_rosters: teamCount,
+  roster_positions: /* @__PURE__ */ Schema.Array(Schema.String).check(/* @__PURE__ */ Schema.isMaxLength(MAX_ROSTER_SPOTS)),
+  scoring_settings: finiteNumberRecord,
+  settings: /* @__PURE__ */ Schema.optional(recordSchema),
+});
+const sleeperLeaguePredicate = /* @__PURE__ */ Schema.is(sleeperLeagueSchema);
+
+export type SleeperLeague = typeof sleeperLeagueSchema.Type;
 
 export function isSleeperLeague(value: unknown): value is SleeperLeague {
-  return (
-    isRecord(value) &&
-    typeof value['league_id'] === 'string' &&
-    isBoundedInteger(value['total_rosters'], 2, MAX_DRAFT_TEAMS) &&
-    Array.isArray(value['roster_positions']) && value['roster_positions'].length <= MAX_ROSTER_SPOTS &&
-    value['roster_positions'].every((slot) => typeof slot === 'string') &&
-    isFiniteNumberRecord(value['scoring_settings']) &&
-    (value['settings'] === undefined || isRecord(value['settings']))
-  );
+  return sleeperLeaguePredicate(value);
 }
 
+const leagueSettingsSchema = /* @__PURE__ */ Schema.Struct({
+  source: leagueSettingsSourceSchema,
+  leagueId: /* @__PURE__ */ Schema.NullOr(Schema.String),
+  totalTeams: teamCount,
+  scoringRules: scoringRulesSchema,
+  rosterRequirements: rosterRequirementsSchema,
+  rawScoringSettings: finiteNumberRecord,
+  unsupportedScoringKeys: /* @__PURE__ */ Schema.Array(Schema.String),
+  unsupportedRosterSlots: /* @__PURE__ */ Schema.Array(Schema.String),
+  /** Null when the provider does not expose a reliable keeper setting. */
+  keepersEnabled: /* @__PURE__ */ Schema.NullOr(Schema.Boolean),
+  /** Stable hash of scoring, roster, and team-count inputs. */
+  fingerprint: Schema.String,
+  updatedAt: Schema.Finite,
+});
+const leagueSettingsPredicate = /* @__PURE__ */ Schema.is(leagueSettingsSchema);
+
+/** The subset of league configuration that changes player value. */
+export type LeagueSettings = Omit<typeof leagueSettingsSchema.Type, 'scoringRules'> & {
+  readonly scoringRules: ScoringRules;
+};
+
 export function isLeagueSettings(value: unknown): value is LeagueSettings {
-  return (
-    isRecord(value) &&
-    (
-      value['source'] === 'default' ||
-      value['source'] === 'sleeper' ||
-      value['source'] === 'espn'
-    ) &&
-    (value['leagueId'] === null || typeof value['leagueId'] === 'string') &&
-    isBoundedInteger(value['totalTeams'], 2, MAX_DRAFT_TEAMS) &&
-    isScoringRules(value['scoringRules']) &&
-    isRosterRequirements(value['rosterRequirements']) &&
-    isFiniteNumberRecord(value['rawScoringSettings']) &&
-    Array.isArray(value['unsupportedScoringKeys']) &&
-    value['unsupportedScoringKeys'].every((key) => typeof key === 'string') &&
-    Array.isArray(value['unsupportedRosterSlots']) &&
-    value['unsupportedRosterSlots'].every((slot) => typeof slot === 'string') &&
-    (
-      value['keepersEnabled'] === null ||
-      typeof value['keepersEnabled'] === 'boolean'
-    ) &&
-    typeof value['fingerprint'] === 'string' &&
-    isFiniteNumber(value['updatedAt'])
-  );
+  return leagueSettingsPredicate(value);
 }
 
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableSerialize).join(',')}]`;
   }
-  if (isRecord(value)) {
+  if (typeof value === 'object' && value !== null) {
     return `{${Object.keys(value)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
+      .map((key) => {
+        const item: unknown = Reflect.get(value, key);
+        return `${JSON.stringify(key)}:${stableSerialize(item)}`;
+      })
       .join(',')}}`;
   }
   return JSON.stringify(value) ?? 'null';
@@ -370,8 +344,6 @@ function normalizeScoringRules(values: Readonly<Record<string, number>>): Scorin
   };
 }
 
-const FIXED_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
-
 function getConfiguredMax(
   settings: Readonly<Record<string, unknown>> | undefined,
   position: Position,
@@ -403,8 +375,8 @@ function normalizeRosterRequirements(league: SleeperLeague): {
     const slot = rawSlot.toUpperCase();
     if (slot === 'DST' || slot === 'D/ST') {
       fixedStarters.DEF += 1;
-    } else if (FIXED_POSITIONS.includes(slot as Position)) {
-      fixedStarters[slot as Position] += 1;
+    } else if (isPosition(slot)) {
+      fixedStarters[slot] += 1;
     } else if (slot === 'FLEX' || slot === 'WRRB_FLEX' || slot === 'RB_WR_TE') {
       flexStarters += 1;
       flexEligibilityGroups.add('RB,WR,TE');

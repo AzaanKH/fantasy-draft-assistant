@@ -495,6 +495,18 @@ describe('createSyncServer', () => {
     }
   });
 
+  it.each(['current-keepers', 'sportsbook'])('rejects malformed %s files at the data endpoint', async (name) => {
+    const server = createSyncServer({ draftData: { currentKeepers: {}, sportsbookSnapshot: {} } });
+    await new Promise<void>(resolve => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/draft-data/${name}`, {
+        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+      });
+      expect(response.status).toBe(503);
+    } finally { await new Promise<void>(resolve => { server.shutdown(() => { resolve(); }); }); }
+  });
+
   it('serves private draft inputs through authorized API routes', async () => {
     const currentKeepers = {
       season: 2026,
@@ -502,9 +514,9 @@ describe('createSyncServer', () => {
       keepers: [{ playerName: 'Example Runner', position: 'RB', team: 5, round: 10 }],
     };
     const sportsbookSnapshot = {
-      metadata: { season: 2026, capturedAt: '2026-08-12T00:00:00.000Z' },
+      metadata: { season: 2026, capturedAt: '2026-08-12T00:00:00.000Z', importedAt: '2026-08-12T00:00:00.000Z', sourceDirectory: 'fixture', overUnderCount: 0, milestoneCount: 0 },
       overUnder: [],
-      milestones: [],
+      milestones: [], warnings: [],
     };
     const server = createSyncServer({
       draftData: { currentKeepers, sportsbookSnapshot },

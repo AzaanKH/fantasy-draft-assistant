@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import type { Position, SurvivalModelSource, TierSource } from './player.js';
 
 /**
@@ -89,7 +90,10 @@ export interface DraftPick {
  */
 const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'defer', 'filled'] as const;
 
-export type NeedPriority = (typeof NEED_PRIORITIES)[number];
+const needPrioritySchema = /* @__PURE__ */ Schema.Literals(NEED_PRIORITIES);
+const needPriorityPredicate = /* @__PURE__ */ Schema.is(needPrioritySchema);
+
+export type NeedPriority = typeof needPrioritySchema.Type;
 
 /**
  * Positional need assessment for team building
@@ -290,5 +294,5 @@ export interface DecisionOutput {
  * Type guard to check if a value is a valid NeedPriority
  */
 export function isNeedPriority(value: unknown): value is NeedPriority {
-  return typeof value === 'string' && NEED_PRIORITIES.includes(value as NeedPriority);
+  return needPriorityPredicate(value);
 }

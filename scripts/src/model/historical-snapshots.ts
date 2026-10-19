@@ -8,14 +8,8 @@ import {
   runStatements,
   sqlString,
 } from './duckdb.js';
+import { decodeHistoricalDraft } from '../script-file-schemas.js';
 import { assertInformationCutoff } from './historical-snapshot-core.js';
-
-interface RawSleeperDraft {
-  readonly draft_id?: string;
-  readonly league_id?: string;
-  readonly season?: string;
-  readonly start_time?: number;
-}
 
 interface DraftCutoff {
   readonly season: number;
@@ -122,9 +116,9 @@ async function loadDraftCutoffs(): Promise<readonly DraftCutoff[]> {
 
   const cutoffs = await Promise.all(
     fileNames.map(async (fileName): Promise<DraftCutoff> => {
-      const draft = JSON.parse(
+      const draft = decodeHistoricalDraft(JSON.parse(
         await readFile(join(MODEL_PATHS.leagueDraftRawDir, fileName), 'utf8')
-      ) as RawSleeperDraft;
+      ));
       const season = Number(draft.season);
       if (
         !Number.isInteger(season) ||

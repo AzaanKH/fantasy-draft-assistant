@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Schema } from 'effect';
+import { decodeReadinessEvidence, decodeRehearsalEvidence, decodeOperationalEvidence } from './script-file-schemas.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const RELEASE_REPORT_PATH = join(
@@ -49,12 +51,6 @@ export interface ReleaseCheckOutcome {
   readonly label: string;
   readonly status: 'passed' | 'failed';
   readonly commands: readonly CommandOutcome[];
-}
-
-interface ReadinessEvidence {
-  readonly productBlockingFailures: readonly unknown[];
-  readonly actionableWarnings?: readonly unknown[];
-  readonly optionalSignalDegradations?: readonly unknown[];
 }
 
 interface RehearsalEvidence {
@@ -225,9 +221,9 @@ async function runCheck(
   };
 }
 
-async function readJson<T>(path: string): Promise<T | null> {
+async function readJson<A>(path: string, decode: (value: unknown) => A): Promise<A | null> {
   try {
-    return JSON.parse(await readFile(path, 'utf8')) as T;
+    return decode(JSON.parse(await readFile(path, 'utf8')));
   } catch {
     return null;
   }
@@ -245,12 +241,11 @@ function unavailableOutcome(
   };
 }
 
-function isReadinessEvidence(value: unknown): value is ReadinessEvidence {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  if (!('productBlockingFailures' in value) || !Array.isArray(value.productBlockingFailures)) return false;
-  return (!('actionableWarnings' in value) || Array.isArray(value.actionableWarnings)) &&
-    (!('optionalSignalDegradations' in value) || Array.isArray(value.optionalSignalDegradations));
-}
+const isReadinessEvidence = Schema.is(Schema.Struct({
+  productBlockingFailures: Schema.Array(Schema.Unknown),
+  actionableWarnings: Schema.optional(Schema.Array(Schema.Unknown)),
+  optionalSignalDegradations: Schema.optional(Schema.Array(Schema.Unknown)),
+}));
 
 export function buildPrimaryLeagueReleaseGateReport(input: {
   readonly now: number;
@@ -337,9 +332,9 @@ async function main(): Promise<void> {
     outcomes.push(await runCheck(definition));
   }
   const [readiness, rehearsal, operational] = await Promise.all([
-    readJson<ReadinessEvidence>(READINESS_REPORT_PATH),
-    readJson<RehearsalEvidence>(REHEARSAL_REPORT_PATH),
-    readJson<OperationalEvidence>(OPERATION_PATH),
+    readJson(READINESS_REPORT_PATH, decodeReadinessEvidence),
+    readJson(REHEARSAL_REPORT_PATH, decodeRehearsalEvidence),
+    readJson(OPERATION_PATH, decodeOperationalEvidence),
   ]);
   const report = buildPrimaryLeagueReleaseGateReport({
     now: Date.now(),

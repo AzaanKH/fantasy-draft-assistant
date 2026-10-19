@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeSleeperLeagueSettings,
   isRosterRequirements,
+  isLeagueSettings,
+  isSleeperLeague,
   type SleeperLeague,
 } from './league-settings.js';
 import {
@@ -116,5 +118,78 @@ describe('isRosterRequirements', () => {
     expect(isRosterRequirements({ ...atCapacity, QB: { starters: 1, max: invalid } })).toBe(false);
     expect(isRosterRequirements({ ...atCapacity, FLEX: { ...atCapacity.FLEX, starters: invalid } })).toBe(false);
     expect(isRosterRequirements({ ...atCapacity, BENCH: { spots: invalid } })).toBe(false);
+  });
+});
+
+
+describe('league boundary predicates', () => {
+  it('validates supported Sleeper roster and scoring bounds', () => {
+    expect(isSleeperLeague(createLeague())).toBe(true);
+    expect(isSleeperLeague(createLeague({ total_rosters: 32, roster_positions: Array(40).fill('BN') }))).toBe(true);
+    for (const total_rosters of [1, 33, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(isSleeperLeague({ ...createLeague(), total_rosters })).toBe(false);
+    }
+    expect(isSleeperLeague(createLeague({ roster_positions: Array(41).fill('BN') }))).toBe(false);
+    expect(isSleeperLeague({ ...createLeague(), roster_positions: ['QB', 1] })).toBe(false);
+    expect(isSleeperLeague({ ...createLeague(), settings: [] })).toBe(false);
+    expect(isSleeperLeague({ ...createLeague(), scoring_settings: { unknown: Number.NaN } })).toBe(false);
+    expect(isSleeperLeague({ ...createLeague(), scoring_settings: { unknown: 3 } })).toBe(true);
+  });
+
+  it('retains finite checks on known and unknown scoring fields', () => {
+    const settings = normalizeSleeperLeagueSettings(createLeague(), 1000);
+    expect(isLeagueSettings(settings)).toBe(true);
+    for (const group of ['passing', 'rushing', 'receiving', 'kicking', 'misc'] as const) {
+      expect(isLeagueSettings({ ...settings, scoringRules: {
+        ...settings.scoringRules, [group]: { ...settings.scoringRules[group], extra: 1 },
+      } })).toBe(true);
+      for (const extra of [Number.NaN, Number.POSITIVE_INFINITY, '1']) {
+        expect(isLeagueSettings({ ...settings, scoringRules: {
+          ...settings.scoringRules, [group]: { ...settings.scoringRules[group], extra },
+        } })).toBe(false);
+      }
+    }
+    for (const extra of [Number.NaN, Number.POSITIVE_INFINITY, '1']) {
+      expect(isLeagueSettings({ ...settings, scoringRules: {
+        ...settings.scoringRules, defense: { ...settings.scoringRules.defense, extra },
+      } })).toBe(false);
+      expect(isLeagueSettings({ ...settings, scoringRules: {
+        ...settings.scoringRules, defense: { ...settings.scoringRules.defense,
+          pointsAllowed: { ...settings.scoringRules.defense.pointsAllowed, extra },
+        },
+      } })).toBe(false);
+    }
+    expect(isLeagueSettings({ ...settings, scoringRules: {
+      ...settings.scoringRules, defense: { ...settings.scoringRules.defense, extra: 1,
+        pointsAllowed: { ...settings.scoringRules.defense.pointsAllowed, extra: 1 },
+      },
+    } })).toBe(true);
+  });
+
+  it('rejects each missing scoring field promised by LeagueSettings', () => {
+    const settings = normalizeSleeperLeagueSettings(createLeague(), 1000);
+    for (const [group, rules] of Object.entries(settings.scoringRules)) {
+      for (const key of Object.keys(rules)) {
+        const incomplete = Object.fromEntries(Object.entries(rules).filter(([name]) => name !== key));
+        expect(isLeagueSettings({ ...settings, scoringRules: {
+          ...settings.scoringRules, [group]: incomplete,
+        } }), `${group}.${key}`).toBe(false);
+      }
+    }
+    for (const key of Object.keys(settings.scoringRules.defense.pointsAllowed)) {
+      const incomplete = Object.fromEntries(Object.entries(settings.scoringRules.defense.pointsAllowed)
+        .filter(([name]) => name !== key));
+      expect(isLeagueSettings({ ...settings, scoringRules: {
+        ...settings.scoringRules, defense: { ...settings.scoringRules.defense, pointsAllowed: incomplete },
+      } }), `defense.pointsAllowed.${key}`).toBe(false);
+    }
+  });
+
+  it('preserves roster eligibility membership and length without inventing uniqueness or max rules', () => {
+    const requirements = normalizeSleeperLeagueSettings(createLeague()).rosterRequirements;
+    expect(isRosterRequirements({ ...requirements, QB: { starters: 2, max: 1 } })).toBe(true);
+    expect(isRosterRequirements({ ...requirements, FLEX: { starters: 0, eligiblePositions: Array(6).fill('QB') } })).toBe(true);
+    expect(isRosterRequirements({ ...requirements, FLEX: { starters: 0, eligiblePositions: Array(7).fill('QB') } })).toBe(false);
+    expect(isRosterRequirements({ ...requirements, FLEX: { starters: 0, eligiblePositions: ['FLEX'] } })).toBe(false);
   });
 });

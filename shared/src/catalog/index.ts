@@ -1,8 +1,8 @@
-export { CATALOG, catalogPath, browserDataFiles } from './manifest.js';
-export { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeSleeperDataFile, decodePredictionsDataFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodeOrNull } from './decoders.js';
+export { CATALOG, catalogPath, browserDataFiles, catalogDataClassification } from './manifest.js';
+export { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeSleeperDataFile, decodePredictionsDataFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodeTeamEnvDataFile, decodeContractDataFile, decodeRecommendationPolicyFile, decodeMarketAdpSnapshot, decodeSportsbookSnapshot, decodeLeagueSurvivalModel, decodeOrNull } from './decoders.js';
 export type { DecodeOptions, KeeperFile } from './decoders.js';
 export { createSafeRecommendationPolicy, SAFE_RECOMMENDATION_POLICY } from './player-data/policy.js';
-export { isRecord, isTeamEnvDataFile, isContractDataFile, isRecommendationPolicyFile } from './player-data/validators.js';
+export { isRecommendationPolicyFile } from './decoders.js';
 export type { SleeperDataFile, TeamEnvDataFile, ContractDataFile, PredictionsDataFile, PlayerIdentityFile, RecommendationPolicyFile } from './player-data/types.js';
 export { isLeagueSurvivalModel } from './league-survival-model.js';
 export { areKeepersValid, buildDraftReadinessReport } from './draft-readiness-report.js';

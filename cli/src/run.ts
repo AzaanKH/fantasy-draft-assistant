@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
-import { CATALOG, catalogPath, decodePrimaryLeagueSettingsFile, decodeOrNull, type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
+import { CATALOG, catalogPath, decodePrimaryLeagueSettingsFile, type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { type Recommendation } from '@fantasy-draft/shared/draft';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { buildDraftReadinessReport } from './readiness';
@@ -114,8 +114,12 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
       readiness = markInvalidCoreData(readiness, loaded.failure);
       warnings.push(loaded.failure.message);
     }
+    let settings: ReturnType<typeof decodePrimaryLeagueSettingsFile> | null = null;
+    const settingsPath = catalogPath(CATALOG.settings);
+    try { settings = decodePrimaryLeagueSettingsFile(yield* loadJson(root, settingsPath)); }
+    catch (error) { warnings.push(`${settingsPath} decode failed: ${String(error)}`); }
     return { data: { scope: 'local-data', readyForAdvice: null, readiness,
-      settings: decodeOrNull(decodePrimaryLeagueSettingsFile, yield* loadJson(root, catalogPath(CATALOG.settings))),
+      settings,
       keepers: data ? { ...data.keeperStatus, error: data.keeperStatus.error?.message ?? null } : null,
       warnings }, exitCode: readiness.status === 'blocked' ? 3 : 0 };
   }

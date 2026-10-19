@@ -3,14 +3,11 @@ import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
 import { useDraftStore } from '@/stores/draftStore';
 import {
-  type NFLTeam,
-} from '@fantasy-draft/shared/league';
-import {
   type DraftReadinessSourceObservation,
   type DraftReadinessWarningInput,
-  type TeamEnvironment,
   evaluateDraftReadiness,
 } from '@fantasy-draft/shared/catalog';
+import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -223,6 +220,7 @@ function useLivePlayerDataQuery() {
     rankingsTimestamp, identityTimestamp, sleeperTimestamp, teamEnvironmentTimestamp,
   ]);
 
+  const timingEvidence = useLeagueTimingEvidence(false);
   const readinessWarnings = useMemo(() => {
     const warnings: DraftReadinessWarningInput[] = [];
     if (sleeperQuery.isError) {
@@ -252,13 +250,20 @@ function useLivePlayerDataQuery() {
         correctiveAction: 'Restore the recommendation policy configuration.',
       });
     }
-    for (const message of predictionQuery.data?.warnings ?? []) {
-      warnings.push({ key: 'experimental-predictions', label: 'Experimental predictions',
-        sourceLabel: 'Experimental prediction artifact', message });
+    for (const [key, label, messages] of [
+      ['experimental-predictions', 'Experimental predictions', predictionQuery.data?.warnings],
+      ['sleeper-player-directory', 'Sleeper player directory', sleeperQuery.data?.warnings],
+      ['team-environment', 'Team environment', teamEnvQuery.data?.warnings],
+      ['contract-context', 'Contract context', contractQuery.data?.warnings],
+      ['sportsbook-context', 'Sportsbook context', sportsbookQuery.data?.warnings],
+      ['market-adp', 'Market ADP', marketAdpQuery.data?.warnings],
+      ['league-survival-model', 'League survival model', timingEvidence.warnings],
+    ] as const) {
+      for (const message of messages ?? []) warnings.push({ key, label, sourceLabel: label, message });
     }
     return warnings;
   }, [
-    predictionQuery.data,
+    predictionQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, sportsbookQuery.data, marketAdpQuery.data, timingEvidence.warnings,
     sleeperQuery.error, sleeperQuery.isError,
     teamEnvQuery.error, teamEnvQuery.isError,
     recommendationPolicyQuery.error, recommendationPolicyQuery.isError,
@@ -375,7 +380,7 @@ function useLivePlayerDataQuery() {
       projections: fantasyProsQuery.data.projections,
       news: fantasyProsQuery.data.news,
       sleeperPlayers: sleeperQuery.data?.players ?? [],
-      teamEnvironments: teamEnvQuery.data?.teams ?? {} as Record<NFLTeam, TeamEnvironment>,
+      teamEnvironments: teamEnvQuery.data?.teams ?? {},
       fantasyProsAdp: fantasyProsQuery.data.adp ?? [],
       identities: identityQuery.data.players,
       leagueContext: {

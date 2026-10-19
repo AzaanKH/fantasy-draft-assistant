@@ -18,51 +18,8 @@ const RETURN_PROBABILITY_EVIDENCE_WEIGHTS = {
   sleeperTiming: 0.05,
 } as const;
 
-interface LeagueSurvivalPositionSummary {
-  readonly position: Position;
-  readonly leagueMedianPick: number;
-  readonly sleeperMedianPick: number;
-  readonly pickPremium: number;
-  readonly top50RateDelta: number;
-  readonly top100RateDelta: number;
-  readonly sampleSize: number;
-}
-
-interface LeagueSurvivalAdpBucket {
-  readonly label: string;
-  readonly minPick: number;
-  readonly maxPick: number;
-  readonly positions: Record<Position, {
-    readonly leaguePickRate: number;
-    readonly sleeperPickRate: number;
-    readonly rateDelta: number;
-  }>;
-}
-
-interface LeagueSurvivalManagerTendency {
-  readonly managerKey: string;
-  readonly draftSlots: readonly number[];
-  readonly sampleSize: number;
-  readonly positions: Record<Position, {
-    readonly picks: number;
-    readonly pickRate: number;
-    readonly earlyPickRate: number;
-    readonly leaguePickRateDelta?: number;
-  }>;
-}
-
-export interface LeagueSurvivalModel {
-  readonly generatedAt: string;
-  readonly modelVersion: string;
-  readonly leagueName: string;
-  readonly seasons: readonly number[];
-  readonly sampleSize: number;
-  readonly positions: Record<Position, LeagueSurvivalPositionSummary>;
-  /** Empirical overall pick numbers for each position across Primary League seasons. */
-  readonly historicalPickNumbers?: Record<Position, readonly number[]>;
-  readonly adpBuckets?: readonly LeagueSurvivalAdpBucket[];
-  readonly managerTendencies?: readonly LeagueSurvivalManagerTendency[];
-}
+export type { LeagueSurvivalModel } from '../../catalog/decoders.js';
+import type { LeagueSurvivalModel, LeagueSurvivalPositionSummary } from '../../catalog/decoders.js';
 
 interface SurvivalContext {
   readonly currentPick: number;
@@ -182,7 +139,8 @@ function getHistoricalExpectedPick(
   player: Player,
   playerPool: readonly Player[],
   model: LeagueSurvivalModel,
-  consensusMarketPick: number
+  consensusMarketPick: number,
+  summary: LeagueSurvivalPositionSummary
 ): number {
   const empiricalPicks = model.historicalPickNumbers?.[player.position]
     ?.filter((pick) => isPositiveFinite(pick));
@@ -195,7 +153,6 @@ function getHistoricalExpectedPick(
 
   // Version-one artifacts do not contain empirical samples. Preserve a
   // deterministic history-led fallback until the local model is regenerated.
-  const summary = model.positions[player.position];
   const bucketPressure = getAdpBucketPressure(
     model,
     player.position,
@@ -298,7 +255,7 @@ function estimateAtNextSlot(
   const consensusMarketPick = getConsensusMarketPick(player);
   const sleeperTimingPick = getSleeperTimingPick(player);
   const historicalExpectedPick = clamp(
-    getHistoricalExpectedPick(player, playerPool, model, consensusMarketPick),
+    getHistoricalExpectedPick(player, playerPool, model, consensusMarketPick, summary),
     1,
     context.totalTeams * context.totalRounds
   );

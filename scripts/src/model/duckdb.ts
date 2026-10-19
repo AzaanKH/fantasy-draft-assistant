@@ -117,8 +117,8 @@ export function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-export async function readJsonFile<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(path, 'utf8')) as T;
+export async function readJsonFile<A>(path: string, decode: (value: unknown) => A): Promise<A> {
+  return decode(JSON.parse(await readFile(path, 'utf8')));
 }
 
 export async function runStatements(

@@ -1,3 +1,5 @@
+import { CATALOG, catalogPath, decodeFantasyProsSnapshot, decodeSportsbookSnapshot, decodeSleeperDataFile, decodePlayerIdentityFile, decodeTeamEnvDataFile, decodeContractDataFile, decodePredictionsDataFile, decodeLeagueSurvivalModel, decodePrimaryLeagueSettingsFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
+import { isRecommendationEvaluation } from './recommendation-evaluation.js';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +10,7 @@ const strict = process.argv.includes('--strict');
 interface ArtifactRule {
   readonly label: string;
   readonly path: string;
+  readonly decode: (value: unknown) => unknown;
   readonly timestampPath: readonly string[];
   readonly maxAgeHours: number | null;
   readonly required: boolean;
@@ -17,7 +20,8 @@ interface ArtifactRule {
 const ARTIFACTS: readonly ArtifactRule[] = [
   {
     label: 'Trusted rankings',
-    path: 'data/fantasypros-snapshot.json',
+    path: catalogPath(CATALOG.snapshot),
+    decode: decodeFantasyProsSnapshot,
     timestampPath: ['metadata', 'refreshedAt'],
     maxAgeHours: 24,
     required: true,
@@ -25,7 +29,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Sportsbook context',
-    path: 'data/sportsbook-snapshot.json',
+    path: catalogPath(CATALOG.sportsbook),
+    decode: value => decodeSportsbookSnapshot(value, { onWarning: console.warn }),
     timestampPath: ['metadata', 'capturedAt'],
     maxAgeHours: 48,
     required: false,
@@ -33,7 +38,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Sleeper platform proxy',
-    path: 'data/sleeper-adp.json',
+    path: catalogPath(CATALOG.sleeper),
+    decode: value => decodeSleeperDataFile(value, { onWarning: console.warn }),
     timestampPath: ['fetchedAt'],
     maxAgeHours: 24,
     required: false,
@@ -41,7 +47,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Canonical player identities',
-    path: 'data/player-identity.json',
+    path: catalogPath(CATALOG.identities),
+    decode: decodePlayerIdentityFile,
     timestampPath: ['generatedAt'],
     maxAgeHours: 24,
     required: true,
@@ -49,7 +56,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Derived team environment',
-    path: 'data/team-environment.json',
+    path: catalogPath(CATALOG.environment),
+    decode: value => decodeTeamEnvDataFile(value, { onWarning: console.warn }),
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 14,
     required: false,
@@ -57,7 +65,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Contract context',
-    path: 'data/contracts.json',
+    path: catalogPath(CATALOG.contracts),
+    decode: value => decodeContractDataFile(value, { onWarning: console.warn }),
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
     required: false,
@@ -65,7 +74,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Experimental predictions',
-    path: 'data/predictions.json',
+    path: catalogPath(CATALOG.predictions),
+    decode: value => decodePredictionsDataFile(value, { onWarning: console.warn }),
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
     required: false,
@@ -73,7 +83,11 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Recommendation evaluation',
-    path: 'data/recommendation-evaluation.json',
+    path: catalogPath(CATALOG.evaluation),
+    decode: value => {
+      if (!isRecommendationEvaluation(value)) throw new Error('Invalid recommendation evaluation evidence');
+      return value;
+    },
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 7,
     required: false,
@@ -81,7 +95,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'League survival model',
-    path: 'data/league-history/survival-model.json',
+    path: catalogPath(CATALOG.survival),
+    decode: value => decodeLeagueSurvivalModel(value, { onWarning: console.warn }),
     timestampPath: ['generatedAt'],
     maxAgeHours: 24 * 30,
     required: false,
@@ -89,7 +104,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Primary League settings',
-    path: 'data/primary-league-settings.json',
+    path: catalogPath(CATALOG.settings),
+    decode: decodePrimaryLeagueSettingsFile,
     timestampPath: ['confirmedAt'],
     maxAgeHours: null,
     required: true,
@@ -97,7 +113,8 @@ const ARTIFACTS: readonly ArtifactRule[] = [
   },
   {
     label: 'Confirmed keeper supply',
-    path: 'data/league-history/current-keepers.json',
+    path: catalogPath(CATALOG.keepers),
+    decode: decodeKeeperFile,
     timestampPath: ['updatedAt'],
     maxAgeHours: null,
     required: true,
@@ -108,7 +125,7 @@ const ARTIFACTS: readonly ArtifactRule[] = [
 function getNestedValue(value: unknown, path: readonly string[]): unknown {
   return path.reduce<unknown>((current, key) => {
     if (typeof current !== 'object' || current === null) return undefined;
-    return (current as Record<string, unknown>)[key];
+    return Reflect.get(current, key);
   }, value);
 }
 
@@ -122,9 +139,9 @@ async function main(): Promise<void> {
 
   for (const artifact of ARTIFACTS) {
     try {
-      const parsed = JSON.parse(
+      const parsed = artifact.decode(JSON.parse(
         await readFile(join(REPO_ROOT, artifact.path), 'utf8')
-      ) as unknown;
+      ));
       const timestamp = getNestedValue(parsed, artifact.timestampPath);
       const timestampMs = typeof timestamp === 'string' ? Date.parse(timestamp) : Number.NaN;
       const ageHours = (Date.now() - timestampMs) / (60 * 60 * 1000);

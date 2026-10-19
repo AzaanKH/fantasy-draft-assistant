@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATALOG, catalogPath, browserDataFiles } from '@fantasy-draft/shared/catalog';
+import { CATALOG, catalogPath, browserDataFiles, catalogDataClassification } from '@fantasy-draft/shared/catalog';
 
 const baseFiles = [
   'data/contracts.json', 'data/fantasypros-snapshot.json', 'data/league-history/survival-model.json',
@@ -17,5 +17,20 @@ describe('catalog exposure', () => {
     for (const handle of Object.values(CATALOG)) expect(typeof handle).toBe('symbol');
     expect(catalogPath(CATALOG.identities)).toBe('data/player-identity.json');
     expect(() => Reflect.apply(catalogPath, undefined, [Symbol('unknown')])).toThrow('Unknown catalog file');
+  });
+});
+
+
+describe('catalog retention policy', () => {
+  it('classifies generated reports, private modeling artifacts and demo fixtures', () => {
+    expect(catalogDataClassification('data/web-bundle-report.json')).toBe('tracked');
+    expect(catalogDataClassification('data/primary-league-deterministic-rehearsal-report.json')).toBe('tracked');
+    expect(catalogDataClassification('data/primary-league-rehearsal.json')).toBe('private');
+    expect(catalogDataClassification('data/model/raw/contracts.parquet')).toBe('private');
+    expect(catalogDataClassification('data/model/.gitkeep')).toBe('tracked');
+    expect(catalogDataClassification('data/league-history/raw/2025-draft.json')).toBe('private');
+    expect(catalogDataClassification('demo-data/fantasypros-snapshot.json')).toBe('tracked');
+    expect(catalogDataClassification('data/unregistered.json')).toBeNull();
+    expect(catalogDataClassification('data/model/../secret.json')).toBeNull();
   });
 });

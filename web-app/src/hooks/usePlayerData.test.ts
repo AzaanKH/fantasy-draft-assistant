@@ -54,6 +54,20 @@ describe('player data loading boundaries', () => {
       .toContain('Dropped 1 invalid prediction');
   });
 
+  it.each([
+    ['sleeper-adp', 'sleeper-player-directory', { players: [] }],
+    ['team-environment', 'team-environment', { teams: {} }],
+    ['contracts', 'contract-context', { players: [] }],
+    ['sportsbook-snapshot', 'sportsbook-context', { metadata: {}, overUnder: [], milestones: [] }],
+    ['fantasy-football-calculator-adp', 'market-adp', { players: [] }],
+    ['league-survival-model', 'league-survival-model', { positions: {} }],
+  ] as const)('shows %s decoder warnings in readiness', (query, key, data) => {
+    draftState.connection = { provider: 'sleeper', draftId: 'test', draftPosition: 1, usePrimaryLeagueSettings: true };
+    loadedData[query] = { ...data, warnings: ['Dropped 1 invalid optional rows.'] };
+    render();
+    expect(result.dataInfo.readinessWarnings).toContainEqual(expect.objectContaining({ key, message: 'Dropped 1 invalid optional rows.' }));
+  });
+
   it('does not hold the core loading state open for pending optional queries', () => {
     render();
     expect(result.isLoading).toBe(false);

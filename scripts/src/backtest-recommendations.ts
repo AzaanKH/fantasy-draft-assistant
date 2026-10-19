@@ -1,3 +1,4 @@
+import { decodeBacktestLeagueHistory } from './script-file-schemas.js';
 import { readContractSignalEvidence, writeRecommendationEvaluation } from './recommendation-evaluation.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -75,27 +76,6 @@ const REPLACEMENT_POSITION_RANKS: Record<OffensivePosition, number> = {
   WR: 30,
   TE: 14,
 };
-interface LeaguePick {
-  readonly pickNo: number;
-  readonly round: number;
-  readonly rosterId: number;
-  readonly playerId: string;
-  readonly playerName: string;
-  readonly position: Position;
-  readonly isUserPick: boolean;
-  readonly isKeeper: boolean;
-}
-
-interface LeagueSeason {
-  readonly season: number;
-  readonly rosterPositions: readonly string[];
-  readonly rosterIdToOwner: Readonly<Record<string, string>>;
-  readonly picks: readonly LeaguePick[];
-}
-
-interface LeagueHistory {
-  readonly seasons: readonly LeagueSeason[];
-}
 
 interface TrainingRow {
   readonly season: number;
@@ -706,9 +686,9 @@ function formatEstimate(estimate: {
 }
 
 async function main(): Promise<void> {
-  const history = JSON.parse(
+  const history = decodeBacktestLeagueHistory(JSON.parse(
     await readFile(join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'), 'utf8')
-  ) as LeagueHistory;
+  ));
   const connection = await connectModelDb();
 
   try {

@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import {
   isPlayer,
   isPosition,
@@ -13,7 +13,7 @@ import {
   isDraftSyncSnapshot,
   type DraftSyncSnapshot,
 } from '@fantasy-draft/shared/sync';
-import { isRecord, isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
+import { isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
 import { getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { createSessionContext } from './context';
 import { parseSession } from './arguments';
@@ -36,6 +36,7 @@ export interface SessionArchive {
   readonly warnings: readonly string[];
 }
 
+const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 const MAX_ARCHIVE_BYTES = 20 * 1024 * 1024;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 5000 && value.every(item => typeof item === 'string');
 const count = (value: unknown, max = 5000): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max;
@@ -48,7 +49,7 @@ function validReadiness(value: unknown): value is DraftReadinessReport {
       !Array.isArray(value.productBlockingFailures) || !Array.isArray(value.optionalSignalDegradations) ||
       !Array.isArray(value.actionableWarnings)) return false;
   const items: unknown[] = [...(value.coreDraftData as unknown[]), ...(value.optionalSignals as unknown[])];
-  if (!items.every(item => isRecord(item) && typeof item.key === 'string' &&
+  if (!items.every((item: unknown) => isRecord(item) && typeof item.key === 'string' &&
       ['ready', 'blocking', 'degraded'].includes(String(item.status)) &&
       ['label', 'sourceLabel', 'timestampLabel', 'correctiveAction', 'message'].every(key => typeof item[key] === 'string') &&
       (item.timestamp === null || typeof item.timestamp === 'string') &&
@@ -63,8 +64,8 @@ function validReadiness(value: unknown): value is DraftReadinessReport {
     optional.every(item => item.status === 'ready' || item.status === 'degraded') &&
     value.status === (failures.length > 0 ? 'blocked' : 'ready') && value.summary.productBlockingFailures === failures.length &&
     value.productBlockingFailures.length === failures.length &&
-    value.productBlockingFailures.every(item => isRecord(item) && failures.some(failure => failure.key === item.key)) &&
-    value.actionableWarnings.every(item => isRecord(item) && typeof item.message === 'string') &&
+    value.productBlockingFailures.every((item: unknown) => isRecord(item) && failures.some(failure => failure.key === item.key)) &&
+    value.actionableWarnings.every((item: unknown) => isRecord(item) && typeof item.message === 'string') &&
     value.engineeringChecks.status === 'not-run';
 }
 
@@ -86,7 +87,7 @@ function validData(value: unknown, snapshot: DraftSyncSnapshot): value is Archiv
   if (!draft) return false;
   const { teams, rounds } = draft.settings;
   const byId = new Map((value.players as Player[]).map(player => [player.id, player]));
-  return value.keepers.every(keeper => isRecord(keeper) && typeof keeper.playerId === 'string' &&
+  return value.keepers.every((keeper: unknown) => isRecord(keeper) && typeof keeper.playerId === 'string' &&
     typeof keeper.playerName === 'string' && isPosition(keeper.position) && typeof keeper.isMyKeeper === 'boolean' &&
     count(keeper.teamIndex, teams - 1) && typeof keeper.round === 'number' && keeper.round >= 1 && count(keeper.round, rounds) &&
     keeper.pickNumber === getKeeperPickNumber({ teamIndex: keeper.teamIndex, round: keeper.round }, teams, draft.type) &&

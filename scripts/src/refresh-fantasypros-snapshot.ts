@@ -2,10 +2,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import {
   decodeFantasyProsSnapshot,
-  type ECRPlayer,
   type FantasyProsSnapshot,
 } from '@fantasy-draft/shared/catalog';
 import { fetchFantasyProsSnapshot } from './fantasypros-api.js';
@@ -20,17 +19,22 @@ const OUTPUT_FILE = join(DATA_DIR, 'fantasypros-snapshot.json');
 loadEnv({ path: join(REPO_ROOT, '.env.local') });
 loadEnv({ path: join(REPO_ROOT, '.env') });
 
-interface EcrDataFile {
-  readonly season?: number;
-  readonly scrapedAt: string;
-  readonly source: string;
-  readonly playerCount: number;
-  readonly players: readonly ECRPlayer[];
-}
+const ecrSourceFile = Schema.Struct({
+  season: Schema.optional(Schema.Finite), scrapedAt: Schema.String, source: Schema.String,
+  playerCount: Schema.Finite, players: Schema.Array(Schema.Unknown),
+});
+const decodeEcrSourceFile = Schema.decodeUnknownSync(ecrSourceFile);
 
-async function readEcrFile(): Promise<EcrDataFile> {
-  const raw = await readFile(INPUT_FILE, 'utf8');
-  return JSON.parse(raw) as EcrDataFile;
+async function readEcrFile(): Promise<FantasyProsSnapshot> {
+  const data = decodeEcrSourceFile(JSON.parse(await readFile(INPUT_FILE, 'utf8')));
+  return decodeFantasyProsSnapshot({
+    metadata: {
+      season: data.season ?? new Date(data.scrapedAt).getFullYear(),
+      sourceType: 'manual-refresh', source: data.source, refreshedAt: data.scrapedAt,
+      rankingCount: data.players.length, adpCount: 0, projectionCount: 0, newsCount: 0,
+    },
+    rankings: data.players, adp: [], projections: [], news: [],
+  });
 }
 
 async function writeSnapshot(snapshot: FantasyProsSnapshot): Promise<void> {
@@ -38,11 +42,12 @@ async function writeSnapshot(snapshot: FantasyProsSnapshot): Promise<void> {
   await writeFile(OUTPUT_FILE, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
 }
 
-async function readExistingSnapshot(): Promise<FantasyProsSnapshot | undefined> {
+export async function readExistingSnapshot(path = OUTPUT_FILE): Promise<FantasyProsSnapshot | undefined> {
   try {
-    const parsed: unknown = JSON.parse(await readFile(OUTPUT_FILE, 'utf8'));
+    const parsed: unknown = JSON.parse(await readFile(path, 'utf8'));
     return decodeFantasyProsSnapshot(parsed);
   } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined;
     console.warn(`Existing FantasyPros snapshot cannot be reused: ${String(error)}`);
     return undefined;
   }
@@ -72,33 +77,11 @@ function preserveUsableProjections(
   };
 }
 
-function buildManualSnapshot(ecrData: EcrDataFile): FantasyProsSnapshot {
-  const derivedSeason = ecrData.season ?? new Date(ecrData.scrapedAt).getFullYear();
-  const rankingCount = ecrData.players?.length ?? ecrData.playerCount;
-
-  return {
-    metadata: {
-      season: derivedSeason,
-      sourceType: 'manual-refresh',
-      source: ecrData.source,
-      refreshedAt: ecrData.scrapedAt,
-      rankingCount,
-      adpCount: 0,
-      projectionCount: 0,
-      newsCount: 0,
-    },
-    rankings: ecrData.players,
-    adp: [],
-    projections: [],
-    news: [],
-  };
-}
-
 const program = Effect.gen(function* () {
   const apiKey = process.env['FANTASYPROS_API_KEY']?.trim();
   const snapshotMode = process.env['FANTASYPROS_SNAPSHOT_MODE']?.trim().toLowerCase();
-  const manualSnapshot = io(readEcrFile).pipe(Effect.map(buildManualSnapshot));
-  const existingSnapshot = yield* Effect.promise(readExistingSnapshot);
+  const manualSnapshot = io(readEcrFile);
+  const existingSnapshot = yield* Effect.promise(() => readExistingSnapshot());
 
   const snapshot = apiKey && snapshotMode !== 'manual'
     ? yield* fetchFantasyProsSnapshot({

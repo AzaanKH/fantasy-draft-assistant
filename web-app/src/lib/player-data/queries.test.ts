@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchPlayerIdentityData, fetchPredictionData, fetchSleeperData, fetchTeamEnvData } from './queries';
+import { fetchContractData, fetchMarketAdp, fetchSportsbookSnapshot, fetchPlayerIdentityData, fetchPredictionData, fetchSleeperData, fetchTeamEnvData } from './queries';
 import { decodePlayerIdentityFile } from '@fantasy-draft/shared/catalog';
 
 const identity = {
@@ -172,11 +172,6 @@ describe('Sleeper and team environment response validation', () => {
     null, {}, { ...sleeperFile, fetchedAt: null }, { ...sleeperFile, source: 1 },
     { ...sleeperFile, playerCount: Infinity }, { ...sleeperFile, playerCount: 2 },
     { ...sleeperFile, players: {} },
-    ...[null, {}, { ...sleeperPlayer, playerId: 123 }, { ...sleeperPlayer, name: null },
-      { ...sleeperPlayer, position: 'INVALID' }, { ...sleeperPlayer, team: 'INVALID' },
-      { ...sleeperPlayer, sleeperAdp: NaN }, { ...sleeperPlayer, age: '25' },
-      { ...sleeperPlayer, yearsExp: false }, { ...sleeperPlayer, status: null },
-    ].map((player) => ({ ...sleeperFile, playerCount: 2, players: [sleeperPlayer, player] })),
   ])('rejects malformed Sleeper data: %j', async (data) => {
     mockJsonResponse(data);
     await expect(fetchSleeperData()).rejects.toThrow('Invalid Sleeper data format');
@@ -186,7 +181,7 @@ describe('Sleeper and team environment response validation', () => {
     const defense = { playerId: 'DAL', name: 'DAL Defense', position: 'DEF', team: 'DAL', sleeperAdp: 999 };
     const data = { ...sleeperFile, playerCount: 2, players: [sleeperPlayer, defense] };
     mockJsonResponse(data);
-    await expect(fetchSleeperData()).resolves.toEqual(data);
+    await expect(fetchSleeperData()).resolves.toEqual({ ...data, warnings: [] });
   });
 
   it.each([
@@ -194,12 +189,6 @@ describe('Sleeper and team environment response validation', () => {
     { ...teamEnvironmentFile, season: '2026' }, { ...teamEnvironmentFile, teamCount: NaN },
     { ...teamEnvironmentFile, teamCount: 31 },
     { ...teamEnvironmentFile, teams: [] }, { ...teamEnvironmentFile, teams: {} },
-    ...[null, {}, { ...teamEnvironment, team: 'INVALID' }, { ...teamEnvironment, team: 'NYG' },
-      { ...teamEnvironment, name: null }, { ...teamEnvironment, offenseScore: Infinity },
-      { ...teamEnvironment, passVolume: 'INVALID' }, { ...teamEnvironment, rushVolume: 3 },
-      { ...teamEnvironment, pointsRank: '16' }, { ...teamEnvironment, passAttemptsRank: NaN },
-      { ...teamEnvironment, rushAttemptsRank: null }, { ...teamEnvironment, coachingStability: 'true' },
-    ].map(withTeamEnvironment),
   ])('rejects malformed team environment data: %j', async (data) => {
     mockJsonResponse(data);
     await expect(fetchTeamEnvData()).rejects.toThrow('Invalid team environment data format');
@@ -220,5 +209,50 @@ describe('Sleeper and team environment response validation', () => {
       expect(warnings).toEqual([]);
       expect(payload).toEqual(data);
     } else expect(loaded).toEqual(data);
+  });
+});
+
+
+describe('optional boundary row recovery', () => {
+  it('keeps usable Sleeper rows and reports discarded rows', async () => {
+    mockJsonResponse({ ...sleeperFile, playerCount: 2, players: [sleeperPlayer, null] });
+    await expect(fetchSleeperData()).resolves.toMatchObject({
+      players: [sleeperPlayer], playerCount: 1, warnings: ['Dropped 1 invalid Sleeper rows.'],
+    });
+  });
+
+  it('keeps other team environments when one team is malformed', async () => {
+    mockJsonResponse(withTeamEnvironment({ ...teamEnvironment, offenseScore: Infinity }));
+    const data = await fetchTeamEnvData();
+    expect(data.teams.DAL).toBeUndefined();
+    expect(Object.keys(data.teams)).toHaveLength(31);
+    expect(data).toHaveProperty('warnings', ['Dropped 1 invalid team environment rows.']);
+  });
+
+  it('keeps usable contracts and reports discarded rows', async () => {
+    const player = { name: 'Fixture', position: 'WR', team: 'DAL', contractEndYear: 2026, isContractYear: true };
+    mockJsonResponse({ contractYear: 2026, playerCount: 2, players: [player, { ...player, contractEndYear: null }] });
+    await expect(fetchContractData()).resolves.toMatchObject({
+      players: [player], playerCount: 1, warnings: ['Dropped 1 invalid contract rows.'],
+    });
+  });
+
+  it('keeps usable market ADP rows and reports discarded rows', async () => {
+    const player = { externalId: '1', name: 'Fixture', position: 'WR', team: 'DAL', adp: 10 };
+    mockJsonResponse({ source: 'fantasy-football-calculator', format: 'ppr', teams: 10, season: 2026,
+      refreshedAt: '2026-09-05', draftCount: null, players: [player, { ...player, adp: 0 }] });
+    await expect(fetchMarketAdp('ppr', 10, 2026)).resolves.toMatchObject({
+      players: [player], warnings: ['Dropped 1 invalid market ADP rows.'],
+    });
+  });
+
+  it('keeps usable sportsbook lines and exposes recovery warnings', async () => {
+    const line = { sportsbook: 'draftkings', playerName: 'Fixture', market: 'receivingYards', line: 900,
+      overOdds: -110, underOdds: -110, sourceFile: 'fixture.csv' };
+    mockJsonResponse({ metadata: { season: 2026, capturedAt: '2026-09-05', importedAt: '2026-09-05',
+      sourceDirectory: 'fixture', overUnderCount: 2, milestoneCount: 0 }, overUnder: [line, null], milestones: [], warnings: [] });
+    await expect(fetchSportsbookSnapshot()).resolves.toMatchObject({
+      overUnder: [line], metadata: { overUnderCount: 1 }, warnings: ['Dropped 1 invalid sportsbook over/under rows.'],
+    });
   });
 });

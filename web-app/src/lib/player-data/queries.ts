@@ -1,8 +1,8 @@
-import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
+import { type DecodeOptions, CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { fantasyProsProvider } from '@/lib/providers/fantasypros';
-import { type FantasyProsSnapshot, type MarketAdpFormat, type MarketAdpSnapshot, type SportsbookSnapshot, isMarketAdpSnapshot, isSportsbookSnapshot } from '@fantasy-draft/shared/catalog';
+import { type FantasyProsSnapshot, type MarketAdpFormat, type MarketAdpSnapshot, type SportsbookSnapshot, decodeMarketAdpSnapshot, decodeSportsbookSnapshot } from '@fantasy-draft/shared/catalog';
 
-import { type ContractDataFile, type PlayerIdentityFile, type PredictionsDataFile, type RecommendationPolicyFile, type SleeperDataFile, type TeamEnvDataFile, isContractDataFile, decodePlayerIdentityFile, decodePredictionsDataFile, isRecommendationPolicyFile, decodeSleeperDataFile, isTeamEnvDataFile } from '@fantasy-draft/shared/catalog';
+import { type ContractDataFile, type PlayerIdentityFile, type PredictionsDataFile, type RecommendationPolicyFile, type SleeperDataFile, type TeamEnvDataFile, decodeContractDataFile, decodePlayerIdentityFile, decodePredictionsDataFile, decodeRecommendationPolicyFile, decodeSleeperDataFile, decodeTeamEnvDataFile } from '@fantasy-draft/shared/catalog';
 
 async function fetchCatalogFile(file: Parameters<typeof catalogPath>[0], label: string): Promise<unknown> {
   const response = await fetch(`/${catalogPath(file)}`);
@@ -10,9 +10,15 @@ async function fetchCatalogFile(file: Parameters<typeof catalogPath>[0], label: 
   return response.json();
 }
 
-function decodeFile<A>(value: unknown, decode: (value: unknown) => A, label: string): A {
+function decodeFile<A>(value: unknown, decode: (value: unknown) => A, label: string, formatError = `Invalid ${label} data format`): A {
   try { return decode(value); }
-  catch (error) { throw new Error(`Invalid ${label} data format: ${String(error)}`); }
+  catch (error) { throw new Error(`${formatError}: ${String(error)}`); }
+}
+
+function decodeOptionalFile<A>(value: unknown, decode: (value: unknown, options?: DecodeOptions) => A, label: string): A & { readonly warnings: readonly string[] } {
+  const warnings: string[] = [];
+  const data = decodeFile(value, input => decode(input, { onWarning: message => warnings.push(message) }), label);
+  return { ...data, warnings };
 }
 
 /**
@@ -25,31 +31,25 @@ export async function fetchFantasyProsSnapshot(): Promise<FantasyProsSnapshot> {
 /**
  * Fetch Sleeper ADP data
  */
-export async function fetchSleeperData(): Promise<SleeperDataFile> {
+export async function fetchSleeperData(): Promise<SleeperDataFile & { readonly warnings: readonly string[] }> {
   const parsed = await fetchCatalogFile(CATALOG.sleeper, 'Sleeper data');
-  return decodeFile(parsed, decodeSleeperDataFile, 'Sleeper');
+  return decodeOptionalFile(parsed, decodeSleeperDataFile, 'Sleeper');
 }
 
 /**
  * Fetch team environment data
  */
-export async function fetchTeamEnvData(): Promise<TeamEnvDataFile> {
+export async function fetchTeamEnvData(): Promise<TeamEnvDataFile & { readonly warnings: readonly string[] }> {
   const parsed = await fetchCatalogFile(CATALOG.environment, 'team environment data');
-  if (!isTeamEnvDataFile(parsed)) {
-    throw new Error('Invalid team environment data format');
-  }
-  return parsed;
+  return decodeOptionalFile(parsed, decodeTeamEnvDataFile, 'team environment');
 }
 
 /**
  * Fetch contract year data
  */
-export async function fetchContractData(): Promise<ContractDataFile> {
+export async function fetchContractData(): Promise<ContractDataFile & { readonly warnings: readonly string[] }> {
   const parsed = await fetchCatalogFile(CATALOG.contracts, 'contract data');
-  if (!isContractDataFile(parsed)) {
-    throw new Error('Invalid contract data format');
-  }
-  return parsed;
+  return decodeOptionalFile(parsed, decodeContractDataFile, 'contract');
 }
 
 export async function fetchPredictionData(): Promise<PredictionsDataFile & { readonly warnings: readonly string[] }> {
@@ -75,22 +75,18 @@ export async function fetchPlayerIdentityData(): Promise<PlayerIdentityFile> {
 
 export async function fetchRecommendationPolicy(): Promise<RecommendationPolicyFile> {
   const parsed = await fetchCatalogFile(CATALOG.policy, 'recommendation policy');
-  if (!isRecommendationPolicyFile(parsed)) {
-    throw new Error('Invalid recommendation policy format');
-  }
-  return parsed;
+  return decodeFile(parsed, decodeRecommendationPolicyFile, 'recommendation policy', 'Invalid recommendation policy format');
 }
 
-export async function fetchSportsbookSnapshot(): Promise<SportsbookSnapshot> {
+export async function fetchSportsbookSnapshot(): Promise<SportsbookSnapshot & { readonly warnings: readonly string[] }> {
   const response = await fetch('/api/draft-data/sportsbook');
   if (!response.ok) {
     throw new Error(`Failed to load sportsbook data: ${String(response.status)}`);
   }
   const parsed: unknown = await response.json();
-  if (!isSportsbookSnapshot(parsed)) {
-    throw new Error('Invalid sportsbook data format');
-  }
-  return parsed;
+  const warnings: string[] = [];
+  const data = decodeFile(parsed, value => decodeSportsbookSnapshot(value, { onWarning: message => warnings.push(message) }), 'sportsbook');
+  return { ...data, warnings: [...(data.warnings ?? []), ...warnings] };
 }
 
 export function getMarketAdpFormat(receptions: number): MarketAdpFormat {
@@ -103,7 +99,7 @@ export async function fetchMarketAdp(
   format: MarketAdpFormat,
   teams: number,
   season: number
-): Promise<MarketAdpSnapshot> {
+): Promise<MarketAdpSnapshot & { readonly warnings: readonly string[] }> {
   const params = new URLSearchParams({
     format,
     teams: String(teams),
@@ -114,9 +110,8 @@ export async function fetchMarketAdp(
     throw new Error(`Failed to load Fantasy Football Calculator ADP: ${String(response.status)}`);
   }
   const parsed: unknown = await response.json();
-  if (!isMarketAdpSnapshot(parsed)) {
-    throw new Error('Invalid Fantasy Football Calculator ADP format');
-  }
-  return parsed;
+  const warnings: string[] = [];
+  const data = decodeFile(parsed, value => decodeMarketAdpSnapshot(value, { onWarning: message => warnings.push(message) }), 'Fantasy Football Calculator ADP', 'Invalid Fantasy Football Calculator ADP format');
+  return { ...data, warnings: [...(data.warnings ?? []), ...warnings] };
 }
 

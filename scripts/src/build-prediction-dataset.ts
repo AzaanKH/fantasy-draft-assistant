@@ -15,6 +15,7 @@
 import { access, writeFile } from 'node:fs/promises';
 import { relative } from 'node:path';
 import { Effect } from 'effect';
+import { decodeFantasyProsSnapshot, decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
 import {
   BACKTESTS_MODEL_DIR,
   EXCLUDES_FANTASYPROS,
@@ -36,16 +37,6 @@ import {
   type PositionResidualRow,
 } from './model/position-residual-model.js';
 import { io, runMain } from './effect-runtime.js';
-
-interface FantasyProsSnapshot {
-  readonly metadata?: {
-    readonly season?: number;
-  };
-}
-
-interface SleeperAdpFile {
-  readonly fetchedAt?: string;
-}
 
 interface CountRow {
   readonly table_name: string;
@@ -295,11 +286,11 @@ function seasonAt(timestamp: string | undefined): number {
 
 function readCurrentSeason(): Effect.Effect<number, Error> {
   if (EXCLUDES_FANTASYPROS) {
-    return io(() => readJsonFile<SleeperAdpFile>(MODEL_PATHS.sleeperAdpJson)).pipe(
+    return io(() => readJsonFile(MODEL_PATHS.sleeperAdpJson, value => decodeSleeperDataFile(value, { onWarning: console.warn }))).pipe(
       Effect.map((sleeper) => seasonAt(sleeper.fetchedAt))
     );
   }
-  return io(() => readJsonFile<FantasyProsSnapshot>(MODEL_PATHS.fantasyProsSnapshotJson)).pipe(
+  return io(() => readJsonFile(MODEL_PATHS.fantasyProsSnapshotJson, decodeFantasyProsSnapshot)).pipe(
     Effect.map((snapshot) => snapshot.metadata?.season ?? new Date().getFullYear())
   );
 }

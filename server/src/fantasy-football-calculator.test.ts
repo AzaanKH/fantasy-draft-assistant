@@ -69,3 +69,15 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
     expect(snapshot.players.some((player) => player.externalId.includes('[object'))).toBe(false);
   });
 });
+
+describe('optional market row warnings', () => {
+  it('reports rejected provider rows alongside retained market players', async () => {
+    const fetchJson: FetchJson = async <T>(): Promise<T> => ({ status: 'Success', players: [
+      { player_id: 1, name: 'Valid', position: 'RB', team: 'DET', adp: 10 },
+      { player_id: 2, name: 'Invalid', position: 'INVALID', adp: 20 }, null,
+    ] } as T);
+    const snapshot = await Effect.runPromise(new FantasyFootballCalculatorAdpProvider(fetchJson).getSnapshot('ppr', 10, 2026));
+    expect(snapshot.players).toHaveLength(1);
+    expect(snapshot).toHaveProperty('warnings', ['Dropped 2 invalid Fantasy Football Calculator rows.']);
+  });
+});

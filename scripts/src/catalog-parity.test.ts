@@ -51,6 +51,12 @@ describe('P7 acceptance corpus', () => {
     it(`${entry.shape}: ${entry.label}`, () => {
       const old = baseline[index];
       if (!old) throw new Error('Missing P7 baseline row');
+      if (entry.shape === 'sleeper' && entry.label.startsWith('invalid row ')) {
+        const warnings: string[] = [];
+        expect(decodeSleeperDataFile(entry.value, { onWarning: message => warnings.push(message) })).toMatchObject({ players: [], playerCount: 0 });
+        expect(warnings).toEqual(['Dropped 1 invalid Sleeper rows.']);
+        return;
+      }
       const accepted = tightenings.has(entry.label) ? false : old.accepted;
       if (accepted) expect(entry.decode(entry.value)).toEqual(entry.value);
       else expect(() => entry.decode(entry.value)).toThrow();

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Stream } from 'effect';
-import { isMarketAdpSnapshot, type MarketAdpPlayer } from '@fantasy-draft/shared/catalog';
+import { decodeMarketAdpSnapshot, type MarketAdpPlayer } from '@fantasy-draft/shared/catalog';
 import { isDraftSyncSnapshot, isDraftSyncUpdate, isDraftSessionSummary, type DraftSessionSummary, type DraftSyncSnapshot, type DraftSyncUpdate } from '@fantasy-draft/shared/sync';
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
 import type { SessionId } from './arguments';
@@ -177,7 +177,12 @@ export class DraftClient {
     const params = new URLSearchParams({ format, teams: String(Math.max(8, Math.min(14, settings.totalTeams))), season: String(season) });
     const invalid = new CliError('INVALID_MARKET_ADP', 'Invalid ADP data');
     return this.json(`/api/market-adp?${params.toString()}`, 'GET', this.timeouts.marketAdpMs, invalid).pipe(
-      Effect.flatMap(value => isMarketAdpSnapshot(value) ? Effect.succeed({ players: value.players }) : Effect.fail(invalid)),
+      Effect.flatMap(value => Effect.try({ try: () => {
+        const warnings: string[] = [];
+        const snapshot = decodeMarketAdpSnapshot(value, { onWarning: message => warnings.push(message) });
+        warnings.unshift(...(snapshot.warnings ?? []));
+        return { players: snapshot.players, ...(warnings.length ? { warning: warnings.join(' ') } : {}) };
+      }, catch: () => invalid })),
       // ADP is optional, but a rejected token means every later request will fail too.
       Effect.catchIf(error => error.code !== 'PAIRING_REJECTED', () => Effect.succeed({ players: [],
         warning: 'Fantasy Football Calculator ADP is unavailable. Using the FantasyPros market fallback.' })),

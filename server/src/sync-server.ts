@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
-  isMarketAdpFormat,
+  isMarketAdpFormat, CATALOG, catalogPath, decodeKeeperFile, decodeSportsbookSnapshot,
 } from '@fantasy-draft/shared/catalog';
 import {
   isShadowRecommendationEvent,
@@ -43,10 +43,10 @@ const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
   new URL('../../data/shadow-logs/2026-recommendations.ndjson', import.meta.url)
 );
 const DEFAULT_CURRENT_KEEPERS_PATH = fileURLToPath(
-  new URL('../../data/league-history/current-keepers.json', import.meta.url)
+  new URL(`../../${catalogPath(CATALOG.keepers)}`, import.meta.url)
 );
 const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
-  new URL('../../data/sportsbook-snapshot.json', import.meta.url)
+  new URL(`../../${catalogPath(CATALOG.sportsbook)}`, import.meta.url)
 );
 const MAX_JSON_BODY_BYTES = 256 * 1024;
 
@@ -518,12 +518,18 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     kind: 'currentKeepers' | 'sportsbookSnapshot'
   ): Effect.Effect<unknown, HttpError> {
     const provided = options.draftData?.[kind];
-    if (provided !== undefined) return Effect.succeed(provided);
+    const decode = (value: unknown): unknown => {
+      if (kind === 'currentKeepers') return decodeKeeperFile(value);
+      const warnings: string[] = [];
+      const snapshot = decodeSportsbookSnapshot(value, { onWarning: message => warnings.push(message) });
+      return { ...snapshot, warnings: [...snapshot.warnings, ...warnings] };
+    };
+    if (provided !== undefined) return Effect.try({ try: () => decode(provided), catch: () => new HttpError(503, 'Draft data is unavailable') });
     const filePath = kind === 'currentKeepers'
       ? DEFAULT_CURRENT_KEEPERS_PATH
       : DEFAULT_SPORTSBOOK_SNAPSHOT_PATH;
     return Effect.tryPromise({
-      try: async () => JSON.parse(await readFile(filePath, 'utf8')) as unknown,
+      try: async () => decode(JSON.parse(await readFile(filePath, 'utf8'))),
       catch: () => new HttpError(503, 'Draft data is unavailable'),
     });
   }

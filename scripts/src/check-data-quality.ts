@@ -1,3 +1,7 @@
+import { Schema } from 'effect';
+import { decodeFantasyProsSnapshot, decodeSportsbookSnapshot, decodeSleeperDataFile, decodePlayerIdentityFile, decodeTeamEnvDataFile, decodePredictionsDataFile, decodeRecommendationPolicyFile, decodeLeagueSurvivalModel, decodeContractDataFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
+import { decodeModelReport, decodeHistoricalSnapshotReport } from './script-file-schemas.js';
+import { isRecommendationEvaluation } from './recommendation-evaluation.js';
 import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared/draft';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -20,13 +24,7 @@ interface QualityCheck {
   readonly expected?: number | string;
 }
 
-interface JsonRecord {
-  readonly [key: string]: unknown;
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 
 function asArray(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
@@ -46,7 +44,26 @@ function timestamp(value: unknown): number {
 }
 
 async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(join(DATA_DIR, path), 'utf8')) as unknown;
+  const value: unknown = JSON.parse(await readFile(join(DATA_DIR, path), 'utf8'));
+  const options = { onWarning: (message: string) => { console.warn(`${path}: ${message}`); } };
+  switch (path) {
+    case 'fantasypros-snapshot.json': return decodeFantasyProsSnapshot(value);
+    case 'sportsbook-snapshot.json': return decodeSportsbookSnapshot(value, options);
+    case 'sleeper-adp.json': return decodeSleeperDataFile(value, options);
+    case 'player-identity.json': return decodePlayerIdentityFile(value);
+    case 'team-environment.json': return decodeTeamEnvDataFile(value, options);
+    case 'predictions.json': return decodePredictionsDataFile(value, options);
+    case 'model-report.json': return decodeModelReport(value);
+    case 'recommendation-policy.json': return decodeRecommendationPolicyFile(value);
+    case 'recommendation-evaluation.json':
+      if (!isRecommendationEvaluation(value)) throw new Error('Invalid recommendation evaluation evidence');
+      return value;
+    case 'league-history/survival-model.json': return decodeLeagueSurvivalModel(value, options);
+    case 'contracts.json': return decodeContractDataFile(value, options);
+    case 'historical-snapshot-report.json': return decodeHistoricalSnapshotReport(value);
+    case 'league-history/current-keepers.json': return decodeKeeperFile(value);
+    default: throw new Error(`Unsupported data quality file: ${path}`);
+  }
 }
 
 function add(
@@ -60,9 +77,7 @@ function add(
   checks.push({ id, status, message, actual, expected });
 }
 
-function finiteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
+const finiteNumber = Schema.is(Schema.Finite);
 
 async function main(): Promise<void> {
   const checks: QualityCheck[] = [];

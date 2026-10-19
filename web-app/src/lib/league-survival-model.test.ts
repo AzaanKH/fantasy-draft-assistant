@@ -31,7 +31,7 @@ describe('fetchLeagueSurvivalModel', () => {
   it('returns a runtime-validated model', async () => {
     const model = createModel();
     respond(model);
-    await expect(fetchLeagueSurvivalModel()).resolves.toEqual(model);
+    await expect(fetchLeagueSurvivalModel()).resolves.toEqual({ ...model, warnings: [] });
     expect(fetch).toHaveBeenCalledWith('/data/league-history/survival-model.json');
   });
 
@@ -48,11 +48,23 @@ describe('fetchLeagueSurvivalModel', () => {
   it.each([
     null,
     {},
-    { ...createModel(), positions: {} },
-    { ...createModel(), historicalPickNumbers: { QB: ['invalid'] } },
   ])('rejects invalid shapes instead of caching them', async (payload) => {
     respond(payload);
     await expect(fetchLeagueSurvivalModel()).rejects.toThrow('Invalid league survival model shape');
+  });
+
+  it('drops malformed summaries and samples while retaining usable league evidence', async () => {
+    const model = createModel();
+    respond({ ...model, positions: { ...model.positions, QB: {} }, historicalPickNumbers: { QB: ['invalid'], RB: [15, 20] },
+      adpBuckets: [{}], managerTendencies: [{}] });
+    const data = await fetchLeagueSurvivalModel();
+    expect(data?.positions.QB).toBeUndefined();
+    expect(data?.positions.RB).toEqual(model.positions.RB);
+    expect(data?.historicalPickNumbers).toEqual({ RB: [15, 20] });
+    expect(data?.adpBuckets).toEqual([]);
+    expect(data?.managerTendencies).toEqual([]);
+    expect(data?.warnings).toEqual(['Dropped 1 invalid survival QB rows.', 'Dropped 1 invalid historical QB rows.',
+      'Dropped 1 invalid survival bucket rows.', 'Dropped 1 invalid survival manager rows.']);
   });
 
   it('propagates JSON parsing failures', async () => {

@@ -187,7 +187,7 @@ describe('estimateLeagueSurvivalProbability', () => {
       ...model,
       historicalPickNumbers: {
         ...historicalPickNumbers,
-        QB: historicalPickNumbers.QB.map((pick) => pick + 30),
+        QB: historicalPickNumbers.QB?.map((pick) => pick + 30),
       },
     }, { draftType: 'snake' as const,
       currentPick: 18,

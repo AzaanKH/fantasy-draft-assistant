@@ -22,6 +22,7 @@ export function useLeagueTimingEvidence(enabled: boolean = true) {
   return {
     // Disabled queries can still return cached data. Gate consumption too.
     model: historyProfile === null ? null : query.data,
+    warnings: historyProfile === null ? [] : query.data?.warnings ?? [],
     isLoading: enabled && historyProfile !== null && query.isLoading,
   };
 }

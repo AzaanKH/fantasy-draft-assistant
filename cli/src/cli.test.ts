@@ -222,6 +222,19 @@ describe('draft CLI against a local fixture server', () => {
     expect(requestCount).toBe(0);
   });
 
+  it('warns about the settings decode failure while preserving invalid readiness', async () => {
+    const path = join(root, 'data/primary-league-settings.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await writeFile(path, JSON.stringify({ ...JSON.parse(original), confirmedAt: 123 }));
+      const result = await command(['readiness', '--json']);
+      expect(result.code).toBe(3);
+      expect(result.result.data.settings).toBeNull();
+      expect(result.result.data.readiness.productBlockingFailures).toContainEqual(expect.objectContaining({ key: 'primary-league-settings', problem: 'invalid' }));
+      expect(result.result.data.warnings).toContainEqual(expect.stringMatching(/primary-league-settings\.json.*decode.*confirmedAt/s));
+    } finally { await writeFile(path, original); }
+  });
+
   it('warns when a malformed Sleeper file is excluded from CLI data', async () => {
     const path = join(root, 'data/sleeper-adp.json');
     const original = await readFile(path, 'utf8');
