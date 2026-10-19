@@ -2,7 +2,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { buildDraftReadinessReport as buildReport, type LoadedArtifact } from '@fantasy-draft/shared/catalog';
-import type { DraftReadinessReport } from '@fantasy-draft/shared';
+import type { DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 
 export function buildDraftReadinessReport(now: number, repoRoot: string = resolve(fileURLToPath(new URL('../..', import.meta.url)))): Promise<DraftReadinessReport> {
   return buildReport(now, async (path): Promise<LoadedArtifact> => {

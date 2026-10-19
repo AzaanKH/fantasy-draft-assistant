@@ -7,7 +7,7 @@ import {
   isFantasyProsSnapshotSource,
   type ECRPlayer,
   type FantasyProsSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { fetchFantasyProsSnapshot } from './fantasypros-api.js';
 import { io, runMain } from './effect-runtime.js';
 

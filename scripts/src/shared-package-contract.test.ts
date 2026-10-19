@@ -111,36 +111,20 @@ console.log(JSON.stringify({
   });
 
   it('closes every completed wave runtime name on the root and loads its exact subpath', () => {
-    const groups = {
-      draft: [
-        'isNeedPriority', 'isShadowRecommendationEvent', 'optimizeLineupUtility',
-        'LIVE_RECOMMENDATION_ARCHITECTURE', 'createSlotSequence', 'deriveDraft',
-      ],
-      sync: [
-        'isDraftSessionSummary', 'DraftSyncEngine', 'isDraftProvider', 'isDraftMetadata',
-        'isEspnDraftSnapshot', 'isDraftSyncSnapshot', 'isDraftSyncUpdate',
-        'isSleeperDraftMetadata', 'isSleeperDraftPick', 'isSleeperDraftPickList',
-        'normalizeSleeperDraftMetadata', 'normalizeSleeperPick', 'resolveSleeperDraftLeagueId',
-      ],
-      units: [
-        'MAX_DRAFT_TEAMS', 'MAX_DRAFT_ROUNDS', 'MAX_DRAFT_PICKS', 'MAX_ROSTER_SPOTS',
-        'isBoundedInteger', 'isDraftSize',
-      ],
-      node: ['localDevPorts'],
-      league: [
-        'DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'DEFAULT_SCORING_RULES',
-        'createDefaultLeagueSettings', 'createLeagueSettings', 'isLeagueSettings',
-        'isSleeperLeague', 'normalizeSleeperLeagueSettings', 'isRosterRequirements',
-      ],
-    };
+    const closed: Record<string, string> = JSON.parse(readFileSync(
+      join(SCRIPTS_DIR, 'shared-closed-exports.json'), 'utf8'
+    ));
+    const runtimeNames: string[] = JSON.parse(readFileSync(
+      join(SCRIPTS_DIR, 'shared-closed-runtime-exports.json'), 'utf8'
+    ));
+    const entries = runtimeNames.map(name => [name, closed[name]]);
+    expect(entries.every(([, subpath]) => typeof subpath === 'string')).toBe(true);
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
 const root = await import('@fantasy-draft/shared');
 const failures = [];
-for (const [target, names] of Object.entries(${JSON.stringify(groups)})) {
-  const subpath = await import('@fantasy-draft/shared/' + target);
-  for (const name of names) {
-    if (name in root || !(name in subpath)) failures.push(target + '/' + name);
-  }
+for (const [name, target] of ${JSON.stringify(entries)}) {
+  const subpath = await import(target);
+  if (name in root || !(name in subpath)) failures.push(target + '/' + name);
 }
 console.log(JSON.stringify(failures));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });

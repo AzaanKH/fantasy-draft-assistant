@@ -3,13 +3,15 @@ import {
   isNFLTeam,
   isPlayer,
   isPosition,
+  NFL_TEAMS,
+  type Player,
+} from './index.js';
+import {
   isTeamEnvironment,
   isTopOffense,
   isDecentOffense,
-  NFL_TEAMS,
-  type Player,
   type TeamEnvironment,
-} from './index.js';
+} from './team-environment.js';
 
 const player: Player = {
   id: 'p1',

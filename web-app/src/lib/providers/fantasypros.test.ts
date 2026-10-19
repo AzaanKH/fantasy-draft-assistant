@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FantasyProsSnapshot } from '@fantasy-draft/shared';
+import type { FantasyProsSnapshot } from '@fantasy-draft/shared/catalog';
 import { CachedFantasyProsProvider } from './fantasypros';
 
 describe('CachedFantasyProsProvider', () => {

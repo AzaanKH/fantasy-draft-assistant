@@ -1,13 +1,15 @@
 import {
-  isMarketAdpFormat,
   isNFLTeam,
   isPosition,
-  type MarketAdpFormat,
-  type MarketAdpPlayer,
-  type MarketAdpSnapshot,
   type NFLTeam,
   type Position,
 } from '@fantasy-draft/shared';
+import {
+  isMarketAdpFormat,
+  type MarketAdpFormat,
+  type MarketAdpPlayer,
+  type MarketAdpSnapshot,
+} from '@fantasy-draft/shared/catalog';
 import { Effect } from 'effect';
 import { parsePayload, ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
 

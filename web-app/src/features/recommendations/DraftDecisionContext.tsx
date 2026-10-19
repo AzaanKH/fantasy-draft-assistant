@@ -2,9 +2,11 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
   POSITIONS,
-  type DraftReadinessReport,
   type Position,
 } from '@fantasy-draft/shared';
+import {
+  type DraftReadinessReport,
+} from '@fantasy-draft/shared/catalog';
 import {
   type DecisionLens,
 } from '@fantasy-draft/shared/draft';

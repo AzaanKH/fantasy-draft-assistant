@@ -14,15 +14,17 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  type ECRPlayer,
   type NFLTeam,
   type Position,
   POSITIONS,
   NFL_TEAMS,
+} from '@fantasy-draft/shared';
+import {
+  type ECRPlayer,
   getTeamByeWeeks,
   parsePlayerNameAndTeam,
   parsePositionString,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');

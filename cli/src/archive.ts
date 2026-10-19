@@ -1,12 +1,14 @@
 import { Effect } from 'effect';
 import {
-  CORE_DRAFT_DATA_KEYS,
-  OPTIONAL_SIGNAL_KEYS,
   isPlayer,
   isPosition,
-  type DraftReadinessReport,
   type Player,
 } from '@fantasy-draft/shared';
+import {
+  CORE_DRAFT_DATA_KEYS,
+  OPTIONAL_SIGNAL_KEYS,
+  type DraftReadinessReport,
+} from '@fantasy-draft/shared/catalog';
 import {
   isDraftSyncSnapshot,
   type DraftSyncSnapshot,

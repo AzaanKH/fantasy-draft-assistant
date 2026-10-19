@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { isDraftDataRefreshStatus, type DraftDataRefreshStatus } from '@fantasy-draft/shared';
+import { isDraftDataRefreshStatus, type DraftDataRefreshStatus } from '@fantasy-draft/shared/catalog';
 import { toast } from 'sonner';
 
 const REFRESH_URL = '/api/draft-data/refresh';

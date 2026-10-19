@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
-import { type DraftReadinessReport } from '@fantasy-draft/shared';
+import { type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { type Recommendation } from '@fantasy-draft/shared/draft';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { buildDraftReadinessReport } from './readiness';

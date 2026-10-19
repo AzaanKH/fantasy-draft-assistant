@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { ESLint, Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
@@ -49,6 +50,21 @@ describe('agent lint rules', () => {
 });
 
 describe('closed shared root exports', () => {
+  const catalogNames = Object.entries(JSON.parse(readFileSync(new URL('./shared-closed-exports.json', import.meta.url), 'utf8')))
+    .filter(([, target]) => target === '@fantasy-draft/shared/catalog').map(([name]) => name);
+  it.each(catalogNames)('closes catalog name %s across named import forms', (name) => {
+    for (const source of [
+      `import { ${name} as local } from '@fantasy-draft/shared';`,
+      `export type { ${name} as Public } from '@fantasy-draft/shared';`,
+      `type Local = import('@fantasy-draft/shared').${name};`,
+    ]) {
+      expect(messages(source)).toEqual([expect.objectContaining({
+        ruleId: 'agent/no-closed-root-import',
+        message: expect.stringContaining('@fantasy-draft/shared/catalog'),
+      })]);
+    }
+    expect(messages(`import type { ${name} } from '@fantasy-draft/shared/catalog';`)).toEqual([]);
+  });
   it.each(['web-app/__bench__/probe.ts', 'scripts/probe.mjs'])('checks closed names outside src in %s', async (filePath) => {
     const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
     const results = await eslint.lintText("import { deriveDraft } from '@fantasy-draft/shared';", { filePath });

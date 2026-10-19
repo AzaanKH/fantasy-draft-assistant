@@ -1,13 +1,15 @@
 import type {
+  NFLTeam,
+  NewsStatus,
+  Position,
+} from '@fantasy-draft/shared';
+import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
   FantasyProsNewsItem,
   FantasyProsProjection,
   FantasyProsSnapshot,
-  NFLTeam,
-  NewsStatus,
-  Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared';
 import { Data, Effect } from 'effect';
 import { fetchJson, type HttpRequestError } from './effect-runtime.js';

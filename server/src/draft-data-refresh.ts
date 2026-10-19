@@ -5,7 +5,7 @@ import {
   DRAFT_DATA_REFRESH_STEPS,
   type DraftDataRefreshStatus,
   type DraftDataRefreshStepState,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const IS_WINDOWS = process.platform === 'win32';

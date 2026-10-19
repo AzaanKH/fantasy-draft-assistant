@@ -2,14 +2,16 @@ import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  DRAFT_DATA_REFRESH_STEPS,
-  evaluateDraftReadiness,
-  type DraftDataRefreshState,
-  type DraftDataRefreshStatus,
   type NFLTeam,
   type Player,
   type Position,
 } from '@fantasy-draft/shared';
+import {
+  DRAFT_DATA_REFRESH_STEPS,
+  evaluateDraftReadiness,
+  type DraftDataRefreshState,
+  type DraftDataRefreshStatus,
+} from '@fantasy-draft/shared/catalog';
 import { DraftHeader } from '@/components/DraftHeader';
 import { MotionProvider } from '@/components/motion';
 import { TooltipProvider } from '@/components/ui/tooltip';

@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { DRAFT_DATA_REFRESH_STEPS } from '@fantasy-draft/shared';
+import { DRAFT_DATA_REFRESH_STEPS } from '@fantasy-draft/shared/catalog';
 import type {
   DraftReadinessItem,
   DraftReadinessReport,
   DraftReadinessWarning,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { buildDraftReadinessReport } from './check-draft-readiness.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));

@@ -1,5 +1,5 @@
 import { IS_DEMO } from '@/lib/demo-mode';
-import type { FantasyProsSnapshot } from '@fantasy-draft/shared';
+import type { FantasyProsSnapshot } from '@fantasy-draft/shared/catalog';
 
 interface FantasyProsProvider {
   getSnapshot(): Promise<FantasyProsSnapshot>;

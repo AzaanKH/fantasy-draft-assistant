@@ -5,14 +5,16 @@ import {
   isPosition,
   isNFLTeam,
   isNewsStatus,
-  isTeamEnvironment,
-  type FantasyProsSnapshot,
-  type MarketAdpPlayer,
   type NFLTeam,
   type Player,
   type Position,
-  type TeamEnvironment,
 } from '@fantasy-draft/shared';
+import {
+  isTeamEnvironment,
+  type FantasyProsSnapshot,
+  type MarketAdpPlayer,
+  type TeamEnvironment,
+} from '@fantasy-draft/shared/catalog';
 import {
   type LeagueSettings,
 } from '@fantasy-draft/shared/league';

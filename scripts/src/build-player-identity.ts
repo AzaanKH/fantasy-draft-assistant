@@ -2,12 +2,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type {
-  ECRPlayer,
-  FantasyProsAdpPlayer,
-  FantasyProsSnapshot,
   NFLTeam,
   Position,
 } from '@fantasy-draft/shared';
+import type {
+  ECRPlayer,
+  FantasyProsAdpPlayer,
+  FantasyProsSnapshot,
+} from '@fantasy-draft/shared/catalog';
 
 const DATA_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../data');
 const FANTASYPROS_FILE = join(DATA_DIR, 'fantasypros-snapshot.json');

@@ -4,7 +4,7 @@ import {
   calculateSportsbookProjectionAdjustment,
   normalizeSportsbookPlayerName,
   type SportsbookOverUnderLine,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import {
   DEFAULT_SCORING_RULES,
 } from '@fantasy-draft/shared/league';

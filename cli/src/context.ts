@@ -1,8 +1,10 @@
 import {
   POSITIONS,
-  type DraftReadinessReport,
   type Player,
 } from '@fantasy-draft/shared';
+import {
+  type DraftReadinessReport,
+} from '@fantasy-draft/shared/catalog';
 import {
   createSlotSequence,
 } from '@fantasy-draft/shared/draft';

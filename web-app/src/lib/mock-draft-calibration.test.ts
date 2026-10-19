@@ -1,11 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  type FantasyProsSnapshot,
   type NFLTeam,
   type Player,
   type Position,
-  type TeamEnvironment,
 } from '@fantasy-draft/shared';
+import {
+  type FantasyProsSnapshot,
+  type TeamEnvironment,
+} from '@fantasy-draft/shared/catalog';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
 } from '@fantasy-draft/shared/league';

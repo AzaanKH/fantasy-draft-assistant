@@ -3,12 +3,14 @@ import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
 import { useDraftStore } from '@/stores/draftStore';
 import {
+  type NFLTeam,
+} from '@fantasy-draft/shared';
+import {
   type DraftReadinessSourceObservation,
   type DraftReadinessWarningInput,
-  type NFLTeam,
   type TeamEnvironment,
   evaluateDraftReadiness,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';

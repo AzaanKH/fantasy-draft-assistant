@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Stream } from 'effect';
-import { isMarketAdpSnapshot, type MarketAdpPlayer } from '@fantasy-draft/shared';
+import { isMarketAdpSnapshot, type MarketAdpPlayer } from '@fantasy-draft/shared/catalog';
 import { isDraftSyncSnapshot, isDraftSyncUpdate, isDraftSessionSummary, type DraftSessionSummary, type DraftSyncSnapshot, type DraftSyncUpdate } from '@fantasy-draft/shared/sync';
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
 import type { SessionId } from './arguments';

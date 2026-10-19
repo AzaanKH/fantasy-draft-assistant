@@ -1,12 +1,14 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  type FantasyProsSnapshot,
   type NFLTeam,
   type Player,
   type Position,
-  type TeamEnvironment,
   POSITIONS,
 } from '@fantasy-draft/shared';
+import {
+  type FantasyProsSnapshot,
+  type TeamEnvironment,
+} from '@fantasy-draft/shared/catalog';
 import {
   createSlotSequence,
 } from '@fantasy-draft/shared/draft';
