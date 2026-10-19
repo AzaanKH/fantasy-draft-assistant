@@ -32,7 +32,7 @@ const TIER_DROPOFF_POINTS_PER_POLICY_POINT = 8;
 const TIMING_VALUE_POINTS_PER_POLICY_POINT = 8;
 const DEPTH_POINTS_PER_POLICY_POINT = 8;
 
-export interface BestPickPolicyContext {
+interface BestPickPolicyContext {
   readonly requirements?: RosterRequirements;
   readonly rosterCounts?: Readonly<Partial<Record<Position, number>>>;
   readonly rosterPlayers?: readonly LineupPlayer[];
@@ -187,7 +187,7 @@ export interface BestPickPolicyEvaluation {
   readonly factors: RecommendationDecisionFactors;
 }
 
-export interface BestPickPolicyResult {
+interface BestPickPolicyResult {
   readonly evaluations: readonly BestPickPolicyEvaluation[];
   readonly preferredPlayerId?: string;
   readonly feasibilityException: boolean;

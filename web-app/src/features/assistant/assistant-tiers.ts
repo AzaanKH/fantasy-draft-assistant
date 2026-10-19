@@ -11,7 +11,7 @@ export interface TierGroup {
   readonly players: readonly TierPlayer[];
 }
 
-export interface PositionTiers {
+interface PositionTiers {
   readonly position: Position;
   /** First tier that still has an available player. */
   readonly activeTier: number | null;

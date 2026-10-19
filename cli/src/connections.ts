@@ -10,7 +10,7 @@ interface SavedConnection {
   readonly serverUrl: string;
   readonly connectedAt: string;
 }
-export interface ConnectionConfig {
+interface ConnectionConfig {
   readonly schemaVersion: 1;
   readonly activeSession: string | null;
   readonly connections: readonly SavedConnection[];

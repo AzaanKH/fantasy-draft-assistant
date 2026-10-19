@@ -17,7 +17,7 @@ const REHEARSAL_REPORT_PATH = join(
 );
 const OPERATION_PATH = join(REPO_ROOT, 'data', 'primary-league-rehearsal.json');
 
-export type ReleaseCheckKey =
+type ReleaseCheckKey =
   | 'build'
   | 'type-check'
   | 'lint'
@@ -31,13 +31,13 @@ interface CommandSpec {
   readonly args: readonly string[];
 }
 
-export interface ReleaseCheckDefinition {
+interface ReleaseCheckDefinition {
   readonly key: ReleaseCheckKey;
   readonly label: string;
   readonly commands: readonly CommandSpec[];
 }
 
-export interface CommandOutcome {
+interface CommandOutcome {
   readonly command: string;
   readonly status: 'passed' | 'failed';
   readonly exitCode: number | null;
@@ -84,7 +84,7 @@ interface OperationalEvidence {
   };
 }
 
-export interface PrimaryLeagueReleaseGateReport {
+interface PrimaryLeagueReleaseGateReport {
   readonly generatedAt: string;
   readonly status: 'blocked' | 'feature-freeze';
   readonly outcomes: Readonly<Record<ReleaseCheckKey, ReleaseCheckOutcome>>;

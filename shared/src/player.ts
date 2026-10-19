@@ -17,7 +17,7 @@ export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
 
 export type Position = (typeof POSITIONS)[number];
 
-export const NEWS_STATUSES = [
+const NEWS_STATUSES = [
   'healthy',
   'limited',
   'questionable',
@@ -34,19 +34,19 @@ export type NewsStatus = (typeof NEWS_STATUSES)[number];
  * - neutral: Default state
  * - avoid: Value <= -15 (significantly overvalued)
  */
-export const HIGHLIGHT_LEVELS = ['strong-buy', 'good-value', 'neutral', 'avoid'] as const;
+const HIGHLIGHT_LEVELS = ['strong-buy', 'good-value', 'neutral', 'avoid'] as const;
 
 export type HighlightLevel = (typeof HIGHLIGHT_LEVELS)[number];
 
-export const PREDICTION_SOURCES = ['model', 'fantasypros', 'heuristic'] as const;
+const PREDICTION_SOURCES = ['model', 'fantasypros', 'heuristic'] as const;
 
 export type PredictionSource = (typeof PREDICTION_SOURCES)[number];
 
-export const TIER_SOURCES = ['league-projection', 'ecr-fallback'] as const;
+const TIER_SOURCES = ['league-projection', 'ecr-fallback'] as const;
 
 export type TierSource = (typeof TIER_SOURCES)[number];
 
-export const SURVIVAL_MODEL_SOURCES = ['league-history', 'heuristic'] as const;
+const SURVIVAL_MODEL_SOURCES = ['league-history', 'heuristic'] as const;
 
 export type SurvivalModelSource = (typeof SURVIVAL_MODEL_SOURCES)[number];
 
@@ -205,7 +205,7 @@ export function isNFLTeam(value: unknown): value is NFLTeam {
 /**
  * Type guard to check if a value is a valid HighlightLevel
  */
-export function isHighlightLevel(value: unknown): value is HighlightLevel {
+function isHighlightLevel(value: unknown): value is HighlightLevel {
   return typeof value === 'string' && HIGHLIGHT_LEVELS.includes(value as HighlightLevel);
 }
 
@@ -213,7 +213,7 @@ export function isPredictionSource(value: unknown): value is PredictionSource {
   return typeof value === 'string' && PREDICTION_SOURCES.includes(value as PredictionSource);
 }
 
-export function isTierSource(value: unknown): value is TierSource {
+function isTierSource(value: unknown): value is TierSource {
   return typeof value === 'string' && TIER_SOURCES.includes(value as TierSource);
 }
 

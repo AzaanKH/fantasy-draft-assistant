@@ -38,7 +38,7 @@ export interface OptionalPlayerSignals {
   readonly sportsbookContextReady: boolean;
 }
 
-export interface RecommendationPlayerVariants {
+interface RecommendationPlayerVariants {
   /** The only player records allowed to feed live Best Pick and Best Player. */
   readonly players: Player[];
   /** Experimental records used only to produce Shadow Recommendations. */

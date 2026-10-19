@@ -63,7 +63,7 @@ export interface LeagueSurvivalModel {
   readonly managerTendencies?: readonly LeagueSurvivalManagerTendency[];
 }
 
-export interface SurvivalContext {
+interface SurvivalContext {
   readonly currentPick: number;
   readonly myPickPosition: number;
   readonly totalTeams: number;

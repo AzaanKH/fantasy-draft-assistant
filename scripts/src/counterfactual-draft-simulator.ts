@@ -11,7 +11,7 @@ import {
 const SIMULATED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 
 export type SimulatedPosition = (typeof SIMULATED_POSITIONS)[number];
-export type CounterfactualStrategy = 'ecr' | 'model';
+type CounterfactualStrategy = 'ecr' | 'model';
 
 export interface CounterfactualPlayer {
   readonly id: string;
@@ -69,7 +69,7 @@ export interface CounterfactualDraftMetrics {
   readonly opponentPlayerIds: readonly string[];
 }
 
-export interface MetricEstimate {
+interface MetricEstimate {
   readonly mean: number;
   readonly confidenceInterval: {
     readonly level: 0.95;

@@ -3,7 +3,7 @@ import { POSITIONS } from '@fantasy-draft/shared';
 
 type RosterSlotLabel = Position | 'FLEX' | 'BN';
 
-export interface RosterSlot {
+interface RosterSlot {
   readonly label: RosterSlotLabel;
   readonly playerId: string | null;
 }

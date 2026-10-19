@@ -1,12 +1,12 @@
 import { DEFAULT_SCORING_RULES, type Position } from '@fantasy-draft/shared';
 
-export interface LeagueScoringAdjustmentInput {
+interface LeagueScoringAdjustmentInput {
   readonly position: Position;
   readonly rushAttempts: number;
   readonly receptions: number;
 }
 
-export interface LeagueScoringAdjustmentRules {
+interface LeagueScoringAdjustmentRules {
   readonly rushAttemptBonus: number;
   readonly teReceptionBonus: number;
 }

@@ -30,7 +30,7 @@ export function getAssistantNavigationTarget(value: unknown): AssistantNavigatio
 }
 
 /** The player the analysis panel describes. A selection keeps its identity even when no recommendation exists for it. */
-export type ViewedPlayer =
+type ViewedPlayer =
   | { readonly kind: 'recommendation'; readonly recommendation: Recommendation }
   | {
       readonly kind: 'unavailable';

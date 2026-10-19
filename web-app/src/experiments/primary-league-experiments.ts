@@ -175,7 +175,7 @@ interface ExperimentScale {
   readonly waitMapIterations: number;
 }
 
-export interface PrimaryLeagueExperimentOptions {
+interface PrimaryLeagueExperimentOptions {
   readonly seed?: number;
   readonly scale?: Partial<ExperimentScale>;
 }

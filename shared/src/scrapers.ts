@@ -38,18 +38,6 @@ export interface ContractPlayer {
 }
 
 /**
- * Raw scraped data before validation
- */
-export interface RawECRData {
-  readonly rank: string;
-  readonly playerCell: string;
-  readonly position: string;
-  readonly best: string;
-  readonly worst: string;
-  readonly avg: string;
-}
-
-/**
  * Parse player name and team from combined string
  * Format: "Ja'Marr Chase (CIN)"
  */

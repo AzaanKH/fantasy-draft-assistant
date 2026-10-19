@@ -13,11 +13,11 @@ export const REFRESHABLE_CORE_DRAFT_DATA_KEYS: readonly CoreDraftDataKey[] = [
   'canonical-player-identities',
 ];
 
-export type DraftDataRefreshStepKey = (typeof DRAFT_DATA_REFRESH_STEPS)[number]['key'];
+type DraftDataRefreshStepKey = (typeof DRAFT_DATA_REFRESH_STEPS)[number]['key'];
 export type DraftDataRefreshState = 'idle' | 'running' | 'succeeded' | 'failed';
 export type DraftDataRefreshStepState = 'pending' | 'running' | 'succeeded' | 'failed';
 
-export interface DraftDataRefreshStepStatus {
+interface DraftDataRefreshStepStatus {
   readonly key: DraftDataRefreshStepKey;
   readonly label: string;
   readonly state: DraftDataRefreshStepState;

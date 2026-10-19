@@ -66,7 +66,7 @@ interface ScheduledPick {
   readonly isKeeper: boolean;
 }
 
-export interface PrimaryLeagueRehearsalResult {
+interface PrimaryLeagueRehearsalResult {
   readonly generatedAt: string;
   readonly status: 'passed' | 'failed';
   readonly configuration: {

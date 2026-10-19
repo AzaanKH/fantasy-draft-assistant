@@ -9,7 +9,7 @@ interface StoredShadowRecommendationEvent extends ShadowRecommendationEvent {
 }
 
 /** The log could not be read or written; the request fails without blocking later events. */
-export class ShadowLogError extends Data.TaggedError('ShadowLogError')<{ readonly cause: unknown }> {
+class ShadowLogError extends Data.TaggedError('ShadowLogError')<{ readonly cause: unknown }> {
   public override get message(): string {
     return this.cause instanceof Error ? this.cause.message : 'Shadow log I/O failed';
   }

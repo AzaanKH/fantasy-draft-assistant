@@ -217,7 +217,7 @@ export interface DraftSessionBase {
   readonly session: PersistedDraftSession | null;
 }
 
-export interface DraftSessionWriteOptions {
+interface DraftSessionWriteOptions {
   /** Skips the conflict check, leaving the overwritten tab's save to be merged back. */
   readonly force?: boolean;
   /** Records this save under the tab's own key so any tab can merge it back. */
@@ -226,7 +226,7 @@ export interface DraftSessionWriteOptions {
   readonly mergedWriteIds?: readonly string[];
 }
 
-export type DraftSessionWriteResult =
+type DraftSessionWriteResult =
   | { readonly status: 'written'; readonly writeId: string; readonly base: DraftSessionBase }
   | { readonly status: 'conflict' }
   | { readonly status: 'skipped' };

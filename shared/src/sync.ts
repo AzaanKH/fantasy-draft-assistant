@@ -62,14 +62,14 @@ export interface DraftMetadata {
   readonly draftOrder: Record<string, number> | null;
 }
 
-export type DraftSyncSource =
+type DraftSyncSource =
   | 'sleeper-api'
   | 'yahoo-public'
   | 'espn-extension'
   | 'extension-dom'
   | 'manual';
 
-export type DraftPickConfidence = 'confirmed' | 'probable';
+type DraftPickConfidence = 'confirmed' | 'probable';
 
 export interface DraftPickEvent {
   readonly draftId: string;
@@ -367,7 +367,7 @@ export function isDraftSyncUpdate(value: unknown): value is DraftSyncUpdate {
   );
 }
 
-export function normalizePosition(value: string | undefined): Position | null {
+function normalizePosition(value: string | undefined): Position | null {
   switch (value?.toUpperCase()) {
     case 'QB':
       return 'QB';

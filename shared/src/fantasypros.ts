@@ -1,13 +1,13 @@
 import type { NewsStatus, NFLTeam, Position } from './player.js';
 import type { ECRPlayer } from './scrapers.js';
 
-export const FANTASYPROS_SNAPSHOT_SOURCES = [
+const FANTASYPROS_SNAPSHOT_SOURCES = [
   'manual-refresh',
   'fixture',
   'api',
 ] as const;
 
-export type FantasyProsSnapshotSource = (typeof FANTASYPROS_SNAPSHOT_SOURCES)[number];
+type FantasyProsSnapshotSource = (typeof FANTASYPROS_SNAPSHOT_SOURCES)[number];
 
 export interface FantasyProsProjection {
   readonly fantasyProsId?: string;
@@ -61,7 +61,7 @@ export interface FantasyProsAdpPlayer {
   readonly averageRank: number;
 }
 
-export interface FantasyProsSnapshotMetadata {
+interface FantasyProsSnapshotMetadata {
   readonly season: number;
   readonly sourceType: FantasyProsSnapshotSource;
   readonly source: string;

@@ -92,7 +92,7 @@ const asCliError = (error: unknown): CliError => error instanceof CliError ? err
 const serverTimeout = (serverUrl: string) => new CliError('SERVER_UNAVAILABLE', `${serverUrl} did not respond in time. Check that the local server is running with pnpm dev:live.`);
 
 /** Deadlines for whole request/response exchanges; tests shorten them. */
-export interface DraftClientTimeouts {
+interface DraftClientTimeouts {
   readonly requestMs: number;
   readonly marketAdpMs: number;
   readonly connectMs: number;

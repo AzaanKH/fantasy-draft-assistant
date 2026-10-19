@@ -38,7 +38,7 @@ interface PredictionInput {
   readonly informationalRiskPrediction?: PlayerPrediction;
 }
 
-export interface PredictionLayerResult {
+interface PredictionLayerResult {
   readonly projectedPoints: number;
   readonly valueOverReplacement: number;
   readonly ceilingScore: number;

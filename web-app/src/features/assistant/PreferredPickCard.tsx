@@ -20,7 +20,7 @@ export interface LensDivergence {
   readonly reason: string | null;
 }
 
-export interface PickAction {
+interface PickAction {
   readonly mode: AssistantDraftMode;
   readonly provider: DraftProvider | null;
   readonly canDraft: boolean;

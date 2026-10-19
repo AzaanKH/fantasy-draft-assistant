@@ -17,7 +17,7 @@ const FANTASYPROS_SPORT_PATH = 'nfl';
 const FANTASYPROS_SPORT_NAME = 'NFL';
 const FANTASYPROS_REQUEST_TIMEOUT_MS = 10_000;
 
-export interface FantasyProsApiOptions {
+interface FantasyProsApiOptions {
   readonly apiKey: string;
   readonly season: number;
   readonly scoring?: 'STD' | 'PPR' | 'HALF';
@@ -287,7 +287,7 @@ function normalizeFantasyProsTimestamp(value: string | null | undefined): string
 }
 
 /** FantasyPros returned JSON that does not have the expected shape. */
-export class FantasyProsPayloadError extends Data.TaggedError('FantasyProsPayloadError')<{
+class FantasyProsPayloadError extends Data.TaggedError('FantasyProsPayloadError')<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}

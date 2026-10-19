@@ -26,7 +26,7 @@ export interface Arguments {
   readonly format?: 'ndjson';
 }
 
-export interface ArgumentDefaults {
+interface ArgumentDefaults {
   readonly session?: string;
   readonly connections?: readonly { session: string; slot?: number; serverUrl: string }[];
 }

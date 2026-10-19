@@ -55,7 +55,7 @@ const isLiteral = (node: ts.Node) => ts.isStringLiteral(node) || ts.isNoSubstitu
  * spelled inside a string, template, regex, JSX text, or comment is then not
  * counted as code.
  */
-export function codeOnly(source: string, fileName = 'source.ts'): { readonly code: string; readonly importsEffect: boolean } {
+function codeOnly(source: string, fileName = 'source.ts'): { readonly code: string; readonly importsEffect: boolean } {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false,
     fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   // Node positions are UTF-16 offsets, so collect ranges and rebuild with slice.

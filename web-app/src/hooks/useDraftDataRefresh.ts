@@ -16,7 +16,7 @@ async function readStatus(response: Response): Promise<DraftDataRefreshStatus> {
   return body;
 }
 
-export interface DraftDataRefresh {
+interface DraftDataRefresh {
   readonly status: DraftDataRefreshStatus | undefined;
   /** False when the local API server is not reachable, so only the terminal command can help. */
   readonly isAvailable: boolean;

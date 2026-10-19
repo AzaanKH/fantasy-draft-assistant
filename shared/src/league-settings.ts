@@ -6,9 +6,9 @@ import {
 import { isPosition, type Position } from './player.js';
 import { DEFAULT_SCORING_RULES, type ScoringRules } from './scoring.js';
 
-export type LeagueSettingsSource = 'default' | 'sleeper' | 'espn';
+type LeagueSettingsSource = 'default' | 'sleeper' | 'espn';
 
-export interface LeagueSettingsInput {
+interface LeagueSettingsInput {
   readonly source: LeagueSettingsSource;
   readonly leagueId: string | null;
   readonly totalTeams: number;

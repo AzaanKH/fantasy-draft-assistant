@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export interface RecommendationEvaluation {
+interface RecommendationEvaluation {
   readonly generatedAt: string;
   readonly modelVersion: string;
   readonly evaluatedArchitecture: 'pick-ev-v1';

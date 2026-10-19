@@ -3,16 +3,9 @@ export { MAX_DRAFT_TEAMS, MAX_DRAFT_ROUNDS, MAX_DRAFT_PICKS, MAX_ROSTER_SPOTS, i
 export {
   NFL_TEAMS,
   POSITIONS,
-  NEWS_STATUSES,
-  HIGHLIGHT_LEVELS,
-  PREDICTION_SOURCES,
-  TIER_SOURCES,
-  SURVIVAL_MODEL_SOURCES,
   isPosition,
   isNFLTeam,
-  isHighlightLevel,
   isPredictionSource,
-  isTierSource,
   isNewsStatus,
   isPlayer,
 } from './player.js';
@@ -31,18 +24,13 @@ export type {
 
 // Draft types
 export {
-  NEED_PRIORITIES,
   DEFAULT_ROSTER_REQUIREMENTS,
   createEmptyRoster,
   isNeedPriority,
-  DECISION_LENSES,
-  DECISION_DIVERGENCE_FACTORS,
 } from './draft.js';
 
 export type {
   Roster,
-  PositionRequirement,
-  FlexRequirement,
   RosterRequirements,
   DraftPick,
   NeedPriority,
@@ -57,8 +45,6 @@ export type {
 
 // Team environment types
 export {
-  VOLUME_LEVELS,
-  isVolumeLevel,
   isTeamEnvironment,
   isTopOffense,
   isDecentOffense,
@@ -73,13 +59,6 @@ export type {
 export { DEFAULT_SCORING_RULES } from './scoring.js';
 
 export type {
-  PassingScoringRules,
-  RushingScoringRules,
-  ReceivingScoringRules,
-  KickingScoringRules,
-  PointsAllowedTiers,
-  DefenseScoringRules,
-  MiscScoringRules,
   ScoringRules,
 } from './scoring.js';
 
@@ -94,8 +73,6 @@ export {
 
 export type {
   LeagueSettings,
-  LeagueSettingsInput,
-  LeagueSettingsSource,
   SleeperLeague,
 } from './league-settings.js';
 
@@ -118,21 +95,17 @@ export {
 export type {
   ECRPlayer,
   ContractPlayer,
-  RawECRData,
 } from './scrapers.js';
 
 // FantasyPros snapshot types
 export {
-  FANTASYPROS_SNAPSHOT_SOURCES,
   isFantasyProsSnapshotSource,
 } from './fantasypros.js';
 
 export type {
-  FantasyProsSnapshotSource,
   FantasyProsProjection,
   FantasyProsAdpPlayer,
   FantasyProsNewsItem,
-  FantasyProsSnapshotMetadata,
   FantasyProsSnapshot,
 } from './fantasypros.js';
 
@@ -142,7 +115,6 @@ export type { DraftSessionSummary } from './sessions.js';
 export {
   DraftSyncEngine,
   isDraftProvider,
-  normalizePosition,
   isDraftMetadata,
   isEspnDraftSnapshot,
   isDraftSyncSnapshot,
@@ -162,8 +134,6 @@ export type {
   DraftStatus,
   DraftType,
   DraftMetadata,
-  DraftSyncSource,
-  DraftPickConfidence,
   DraftPickEvent,
   EspnDraftSnapshot,
   DraftSyncState,
@@ -176,7 +146,6 @@ export { isShadowRecommendationEvent } from './shadow.js';
 
 export type {
   ShadowRecommendation,
-  ShadowPositionNeed,
   ShadowRecommendationEvent,
 } from './shadow.js';
 
@@ -185,25 +154,16 @@ export type { LineupPlayer } from './lineup-utility.js';
 
 // Sportsbook market snapshots and projection adjustments
 export {
-  SPORTSBOOKS,
-  SPORTSBOOK_MARKETS,
   americanOddsToImpliedProbability,
   calculateSportsbookProjectionAdjustment,
-  getLeagueScoringValue,
   isSportsbookSnapshot,
   normalizeSportsbookPlayerName,
 } from './sportsbook.js';
 
 export type {
-  Sportsbook,
-  SportsbookMarket,
   SportsbookOverUnderLine,
-  SportsbookMilestoneLine,
-  SportsbookSnapshotMetadata,
   SportsbookSnapshot,
   FantasyProsMarketStats,
-  SportsbookMarketConsensus,
-  SportsbookProjectionAdjustment,
 } from './sportsbook.js';
 
 // Product Draft Readiness: Core Draft Data blocks; Optional Signals degrade.
@@ -218,12 +178,7 @@ export {
 
 export type {
   CoreDraftDataKey,
-  OptionalSignalKey,
   DraftReadinessKey,
-  DraftReadinessClassification,
-  DraftReadinessAvailability,
-  DraftReadinessProblem,
-  DraftReadinessItemStatus,
   DraftReadinessDefinition,
   DraftReadinessDependencyObservation,
   DraftReadinessSourceObservation,
@@ -231,7 +186,6 @@ export type {
   DraftReadinessWarning,
   DraftReadinessItem,
   DraftReadinessReport,
-  EvaluateDraftReadinessInput,
 } from './draft-readiness.js';
 
 export { isRosterRequirements } from './league-settings.js';
@@ -248,9 +202,7 @@ export {
 } from './draft-data-refresh.js';
 
 export type {
-  DraftDataRefreshStepKey,
   DraftDataRefreshState,
   DraftDataRefreshStepState,
-  DraftDataRefreshStepStatus,
   DraftDataRefreshStatus,
 } from './draft-data-refresh.js';

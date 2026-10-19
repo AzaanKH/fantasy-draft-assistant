@@ -6,7 +6,7 @@ export interface DraftStageContext {
   readonly totalRounds?: number;
 }
 
-export const SPECIAL_TEAMS_LATE_DRAFT_PROGRESS = 0.72;
+const SPECIAL_TEAMS_LATE_DRAFT_PROGRESS = 0.72;
 
 export function getDraftProgress(context: DraftStageContext | undefined): number {
   if (!context?.currentPick || !context.totalPicks || context.totalPicks <= 0) {

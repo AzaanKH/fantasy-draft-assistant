@@ -1,10 +1,10 @@
 import type { Position } from './player.js';
 import type { ScoringRules } from './scoring.js';
 
-export const SPORTSBOOKS = ['draftkings', 'fanduel'] as const;
-export type Sportsbook = (typeof SPORTSBOOKS)[number];
+const SPORTSBOOKS = ['draftkings', 'fanduel'] as const;
+type Sportsbook = (typeof SPORTSBOOKS)[number];
 
-export const SPORTSBOOK_MARKETS = [
+const SPORTSBOOK_MARKETS = [
   'passingYards',
   'passingTouchdowns',
   'rushingYards',
@@ -13,7 +13,7 @@ export const SPORTSBOOK_MARKETS = [
   'receivingTouchdowns',
   'receptions',
 ] as const;
-export type SportsbookMarket = (typeof SPORTSBOOK_MARKETS)[number];
+type SportsbookMarket = (typeof SPORTSBOOK_MARKETS)[number];
 
 export interface SportsbookOverUnderLine {
   readonly sportsbook: Sportsbook;
@@ -25,7 +25,7 @@ export interface SportsbookOverUnderLine {
   readonly sourceFile: string;
 }
 
-export interface SportsbookMilestoneLine {
+interface SportsbookMilestoneLine {
   readonly sportsbook: Sportsbook;
   readonly playerName: string;
   readonly market: SportsbookMarket;
@@ -34,7 +34,7 @@ export interface SportsbookMilestoneLine {
   readonly sourceFile: string;
 }
 
-export interface SportsbookSnapshotMetadata {
+interface SportsbookSnapshotMetadata {
   readonly season: number;
   readonly capturedAt: string;
   readonly importedAt: string;
@@ -54,7 +54,7 @@ export type FantasyProsMarketStats = Readonly<
   Partial<Record<SportsbookMarket, number>>
 >;
 
-export interface SportsbookMarketConsensus {
+interface SportsbookMarketConsensus {
   readonly market: SportsbookMarket;
   readonly consensusStat: number;
   readonly fantasyProsStat: number;
@@ -65,7 +65,7 @@ export interface SportsbookMarketConsensus {
   readonly sportsbooks: readonly Sportsbook[];
 }
 
-export interface SportsbookProjectionAdjustment {
+interface SportsbookProjectionAdjustment {
   readonly existingProjection: number;
   readonly marketAdjustment: number;
   readonly adjustedProjection: number;
@@ -179,7 +179,7 @@ export function americanOddsToImpliedProbability(americanOdds: number): number {
     : -americanOdds / (-americanOdds + 100);
 }
 
-export function getLeagueScoringValue(
+function getLeagueScoringValue(
   market: SportsbookMarket,
   position: Position,
   scoringRules: ScoringRules

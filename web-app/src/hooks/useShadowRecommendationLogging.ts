@@ -13,7 +13,7 @@ import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 
-export interface ShadowRecommendationLoggingInput {
+interface ShadowRecommendationLoggingInput {
   readonly draftId: string | null;
   readonly draftProvider: DraftProvider | null;
   readonly draftReady: boolean;

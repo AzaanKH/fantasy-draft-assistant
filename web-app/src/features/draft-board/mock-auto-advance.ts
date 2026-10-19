@@ -14,7 +14,7 @@ import {
   selectCpuPlayer,
 } from '@/lib/mock-draft-engine';
 
-export const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
+const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
   watch: 600,
   fast: 200,
   instant: 0,

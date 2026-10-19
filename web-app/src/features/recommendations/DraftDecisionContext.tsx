@@ -20,7 +20,7 @@ import {
 
 type RecommendationState = ReturnType<typeof useRecommendations>;
 
-export interface DraftDecisionSnapshot extends RecommendationState {
+interface DraftDecisionSnapshot extends RecommendationState {
   readonly currentPick: number;
   readonly snapshotKey: string;
   readonly output: DraftDecisionOutput;

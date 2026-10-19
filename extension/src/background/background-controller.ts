@@ -26,7 +26,7 @@ export interface BackgroundControllerDependencies {
   readonly logger?: Pick<Console, 'log' | 'warn' | 'error'>;
 }
 
-export interface BackgroundController {
+interface BackgroundController {
   initialize(): Promise<void>;
   handleMessage(message: ExtensionMessage, sendResponse: SendResponse): boolean;
   handleActionClick(tabId: number | undefined): Promise<void>;

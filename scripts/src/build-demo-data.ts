@@ -26,7 +26,7 @@ import {
 import { DATA_DIR, REPO_ROOT, sqlString, withMemoryDb } from './model/duckdb.js';
 import { io, runMain } from './effect-runtime.js';
 
-export const DEMO_DATA_DIR = join(REPO_ROOT, 'demo-data');
+const DEMO_DATA_DIR = join(REPO_ROOT, 'demo-data');
 const FANTASYPROS_FREE_MODEL_DIR = join(DATA_DIR, 'model', 'fantasypros-free');
 const FANTASYPROS_FREE_MODEL_DB = join(FANTASYPROS_FREE_MODEL_DIR, 'fantasy-draft.duckdb');
 const NFLVERSE_SCHEDULES_URL =

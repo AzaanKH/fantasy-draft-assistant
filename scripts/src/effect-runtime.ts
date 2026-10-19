@@ -51,10 +51,10 @@ export class HttpRequestError extends Data.TaggedError('HttpRequestError')<{
 }> {}
 
 /** Rate limits and server errors are worth retrying; client errors and timeouts are not. */
-export const isRetryable = (error: HttpRequestError): boolean =>
+const isRetryable = (error: HttpRequestError): boolean =>
   error.status === 429 || (error.status !== undefined && error.status >= 500);
 
-export interface FetchJsonOptions {
+interface FetchJsonOptions {
   readonly label: string;
   readonly timeoutMs: number;
   readonly headers?: Record<string, string>;

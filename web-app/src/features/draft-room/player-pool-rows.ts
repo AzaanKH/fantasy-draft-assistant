@@ -11,7 +11,7 @@ export type PositionFilter = Position | 'ALL' | 'FLEX';
 
 const FLEX_POSITIONS: readonly Position[] = ['RB', 'WR', 'TE'];
 
-export interface PlayerPoolRow {
+interface PlayerPoolRow {
   readonly player: Player;
   /** Present only for players on the current recommendation list. */
   readonly recommendation: Recommendation | undefined;

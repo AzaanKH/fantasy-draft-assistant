@@ -10,7 +10,7 @@ export const IS_DEMO = env?.VITE_DEMO_MODE === 'true';
 /** The demo snapshot's source type; live readiness accepts only API or reviewed manual refreshes. */
 export const DEMO_RANKINGS_SOURCE_TYPE = 'fixture';
 
-export interface RankingLabels {
+interface RankingLabels {
   /** Prefix for a single rank, as in "ECR #12". */
   readonly short: string;
   /** The same name inside a sentence. */

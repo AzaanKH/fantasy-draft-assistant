@@ -18,7 +18,7 @@ export class ProviderError extends Data.TaggedError('ProviderError')<{
   readonly cause?: unknown;
 }> {}
 
-export const providerError = (cause: unknown, fallback = 'Unknown sync error'): ProviderError =>
+const providerError = (cause: unknown, fallback = 'Unknown sync error'): ProviderError =>
   cause instanceof ProviderError ? cause : new ProviderError({
     message: cause instanceof Error ? cause.message : fallback,
     cause,

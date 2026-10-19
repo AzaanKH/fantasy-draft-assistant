@@ -5,7 +5,7 @@ import { Data, Effect } from 'effect';
 import { CliError, unexpected } from './errors';
 
 /** Callers choose their own message, so keep whether the file was simply absent. */
-export class JsonFileError extends Data.TaggedError('JsonFileError')<{
+class JsonFileError extends Data.TaggedError('JsonFileError')<{
   readonly path: string;
   readonly missing: boolean;
   readonly cause: unknown;

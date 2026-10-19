@@ -167,7 +167,7 @@ function getNewsStatus(status: string | undefined): Player['newsStatus'] {
   return 'unknown';
 }
 
-export interface MergePlayerDataOptions {
+interface MergePlayerDataOptions {
   readonly contractPlayers?: readonly ContractPlayerData[];
   readonly modelPredictions?: readonly PlayerPrediction[];
   readonly fantasyProsAdp?: readonly FantasyProsAdpPlayer[];

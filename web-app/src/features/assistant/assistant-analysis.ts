@@ -5,7 +5,7 @@ import { type ExpectedNextPickAlternative, type Position, type PositionNeed, typ
 
 
 export type PoolSort = 'recommendation' | 'tier';
-export type SignalTone = 'positive' | 'caution' | 'urgent' | 'neutral';
+type SignalTone = 'positive' | 'caution' | 'urgent' | 'neutral';
 
 function pluralize(value: number, singular: string, plural: string): string {
   return `${String(value)} ${value === 1 ? singular : plural}`;
@@ -245,7 +245,7 @@ export function getWaitingCostSummary(recommendation: Recommendation): {
   };
 }
 
-export interface ComparisonHighlight {
+interface ComparisonHighlight {
   readonly label: string;
   readonly detail: string;
 }

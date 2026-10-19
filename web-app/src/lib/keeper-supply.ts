@@ -14,7 +14,7 @@ export interface CanonicalKeeperAssignment extends KeeperSupplyEntry {
   readonly pickNumber: number;
 }
 
-export interface CanonicalKeeperSupply {
+interface CanonicalKeeperSupply {
   /** Deterministic keeper assignments ordered by draft pick number. */
   readonly assignments: readonly CanonicalKeeperAssignment[];
   /** Player ids that appeared on more than one keeper entry. */
@@ -46,7 +46,7 @@ export function getKeeperPickNumber(
     : getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams);
 }
 
-export interface KeeperSupplyCompletenessInput {
+interface KeeperSupplyCompletenessInput {
   readonly keepersEnabled: boolean | null;
   readonly season: number | undefined;
   readonly expectedSeason: number;

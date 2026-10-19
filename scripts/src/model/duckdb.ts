@@ -12,7 +12,7 @@ export const REPO_ROOT = join(__dirname, '../../..');
 export const DATA_DIR = join(REPO_ROOT, 'data');
 
 const MODEL_SOURCE_PROFILES = ['standard', 'fantasypros-free'] as const;
-export type ModelSourceProfile = (typeof MODEL_SOURCE_PROFILES)[number];
+type ModelSourceProfile = (typeof MODEL_SOURCE_PROFILES)[number];
 
 function readModelSourceProfile(): ModelSourceProfile {
   const value = process.env['MODEL_SOURCE_PROFILE'] ?? 'standard';
@@ -27,7 +27,7 @@ function readModelSourceProfile(): ModelSourceProfile {
  * ADP, news, or DynastyProcess's FantasyPros-derived rankings, so its outputs can
  * be published in the demo. It writes to its own directory and database.
  */
-export const MODEL_SOURCE_PROFILE = readModelSourceProfile();
+const MODEL_SOURCE_PROFILE = readModelSourceProfile();
 export const EXCLUDES_FANTASYPROS = MODEL_SOURCE_PROFILE === 'fantasypros-free';
 
 const MODEL_DIR = EXCLUDES_FANTASYPROS
@@ -38,7 +38,7 @@ const RAW_MODEL_DIR = join(MODEL_DIR, 'raw');
 const NORMALIZED_MODEL_DIR = join(MODEL_DIR, 'normalized');
 export const BACKTESTS_MODEL_DIR = join(MODEL_DIR, 'backtests');
 
-export interface ModelPaths {
+interface ModelPaths {
   readonly fantasyProsSnapshotJson: string;
   readonly sleeperAdpJson: string;
   readonly teamEnvironmentJson: string;

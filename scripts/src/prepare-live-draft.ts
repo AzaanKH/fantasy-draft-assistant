@@ -88,7 +88,7 @@ function renderFailures(failures: readonly PreConnectFailure[]): void {
   }
 }
 
-export async function prepareLiveDraft(): Promise<void> {
+async function prepareLiveDraft(): Promise<void> {
   for (const step of LIVE_CORE_REFRESH_STEPS) {
     await runRefreshStep(step);
   }

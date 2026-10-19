@@ -17,7 +17,7 @@ function compactRecommendation(
   };
 }
 
-export interface BuildShadowRecommendationEventInput {
+interface BuildShadowRecommendationEventInput {
   readonly season: number;
   readonly draftId: string;
   readonly draftProvider: DraftProvider;

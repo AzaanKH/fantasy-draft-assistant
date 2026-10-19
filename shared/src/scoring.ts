@@ -1,7 +1,7 @@
 /**
  * Passing scoring rules
  */
-export interface PassingScoringRules {
+interface PassingScoringRules {
   /** Points per passing yard (typically 0.04 = 25 yards per point) */
   readonly yardsPerPoint: number;
   /** Points per passing touchdown */
@@ -15,7 +15,7 @@ export interface PassingScoringRules {
 /**
  * Rushing scoring rules
  */
-export interface RushingScoringRules {
+interface RushingScoringRules {
   /** Points per rushing yard (typically 0.1 = 10 yards per point) */
   readonly yardsPerPoint: number;
   /** Points per rushing touchdown */
@@ -29,7 +29,7 @@ export interface RushingScoringRules {
 /**
  * Receiving scoring rules
  */
-export interface ReceivingScoringRules {
+interface ReceivingScoringRules {
   /** Points per reception (PPR) */
   readonly reception: number;
   /** Points per receiving yard (typically 0.1 = 10 yards per point) */
@@ -45,7 +45,7 @@ export interface ReceivingScoringRules {
 /**
  * Kicking scoring rules
  */
-export interface KickingScoringRules {
+interface KickingScoringRules {
   /** Points for field goal 0-39 yards */
   readonly fieldGoal0_39: number;
   /** Points for field goal 40-49 yards */
@@ -63,7 +63,7 @@ export interface KickingScoringRules {
 /**
  * Points allowed tiers for defense scoring
  */
-export interface PointsAllowedTiers {
+interface PointsAllowedTiers {
   /** Shutout (0 points allowed) */
   readonly shutout: number;
   /** 1-6 points allowed */
@@ -83,7 +83,7 @@ export interface PointsAllowedTiers {
 /**
  * Defense/Special Teams scoring rules
  */
-export interface DefenseScoringRules {
+interface DefenseScoringRules {
   /** Points per defensive touchdown */
   readonly touchdown: number;
   /** Points per sack */
@@ -103,7 +103,7 @@ export interface DefenseScoringRules {
 /**
  * Miscellaneous scoring rules
  */
-export interface MiscScoringRules {
+interface MiscScoringRules {
   /** Points per fumble lost (negative) */
   readonly fumbleLost: number;
   /** Points per fumble recovery touchdown */

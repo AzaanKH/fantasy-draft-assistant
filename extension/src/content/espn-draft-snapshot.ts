@@ -11,7 +11,7 @@ interface UnknownRecord {
   readonly [key: string]: unknown;
 }
 
-export type EspnDraftFrameCommand =
+type EspnDraftFrameCommand =
   | 'INIT'
   | 'SELECTED'
   | 'SOLD'

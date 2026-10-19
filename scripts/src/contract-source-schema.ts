@@ -1,8 +1,8 @@
-export interface ContractSourceColumn {
+interface ContractSourceColumn {
   readonly column_name: string;
 }
 
-export type SeasonHistoryColumn = 'season_history' | 'cols';
+type SeasonHistoryColumn = 'season_history' | 'cols';
 
 export function isContractSourceColumn(value: unknown): value is ContractSourceColumn {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;

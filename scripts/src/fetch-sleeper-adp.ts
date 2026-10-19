@@ -48,7 +48,7 @@ interface SleeperPlayer {
 /**
  * Processed Sleeper ADP data
  */
-export interface SleeperADPPlayer {
+interface SleeperADPPlayer {
   readonly playerId: string;
   readonly name: string;
   readonly position: Position;

@@ -2,7 +2,7 @@ import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
 import type { DraftType } from '@fantasy-draft/shared';
 import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
-export interface DraftBoardCurrentView {
+interface DraftBoardCurrentView {
   readonly activeRound: number | null;
   readonly activeTeamIndex: number;
   readonly mobileTeamIndices: readonly number[];

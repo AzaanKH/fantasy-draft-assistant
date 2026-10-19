@@ -22,7 +22,7 @@ export interface DraftRoomLifecycleEnvironment {
   readonly now: () => number;
 }
 
-export interface DraftRoomLifecycle {
+interface DraftRoomLifecycle {
   start(): void;
   stop(): void;
 }

@@ -15,7 +15,7 @@ const PPR_BASELINE = {
   receivingTouchdown: 6,
 } as const;
 
-export interface LeagueProjectionResult {
+interface LeagueProjectionResult {
   readonly projectedPoints: number;
   readonly adjustment: number;
 }

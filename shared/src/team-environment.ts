@@ -3,7 +3,7 @@ import type { NFLTeam } from './player.js';
 /**
  * Volume classification for pass/rush attempts
  */
-export const VOLUME_LEVELS = ['high', 'medium', 'low'] as const;
+const VOLUME_LEVELS = ['high', 'medium', 'low'] as const;
 
 export type VolumeLevel = (typeof VOLUME_LEVELS)[number];
 
@@ -33,7 +33,7 @@ export interface TeamEnvironment {
 /**
  * Type guard to check if a value is a valid VolumeLevel
  */
-export function isVolumeLevel(value: unknown): value is VolumeLevel {
+function isVolumeLevel(value: unknown): value is VolumeLevel {
   return typeof value === 'string' && VOLUME_LEVELS.includes(value as VolumeLevel);
 }
 

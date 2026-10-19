@@ -57,7 +57,7 @@ export function hasRemainingDraftDecision(
  * @param limit - Maximum number of recommendations per list (default: 5)
  * @returns Object with bestAvailable and byNeed recommendation arrays
  */
-export interface PositionRecommendationDecision {
+interface PositionRecommendationDecision {
   readonly recommendations: readonly Recommendation[];
   readonly bestAvailable: readonly Recommendation[];
   readonly selection: RecommendationSelection;

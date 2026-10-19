@@ -15,11 +15,11 @@ import { EMPTY_CONNECTIONS, loadConnections, saveConnection } from './connection
 import { archivedData, createArchive, readArchive, replayBoundaries, replaySnapshot, saveArchive, type SessionArchive } from './archive';
 import { inspectRoster } from './roster';
 
-export interface Output {
+interface Output {
   stdout: (text: string) => void | Promise<void>;
   stderr: (text: string) => void | Promise<void>;
 }
-export interface Runtime {
+interface Runtime {
   readonly root: string;
   readonly env: NodeJS.ProcessEnv;
   readonly signal: AbortSignal;

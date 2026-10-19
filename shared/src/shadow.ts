@@ -9,7 +9,7 @@ export interface ShadowRecommendation {
   readonly score: number;
 }
 
-export interface ShadowPositionNeed {
+interface ShadowPositionNeed {
   readonly position: Position;
   readonly priority: NeedPriority;
 }
