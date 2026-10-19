@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import agent from './agent-lint-rules.mjs';
 
 function messages(source, file = 'cli/src/probe.ts') {
-  return new Linter().verify(source, [{
+  return new Linter({ cwd: new URL('..', import.meta.url).pathname }).verify(source, [{
     files: ['**/*.ts'],
     languageOptions: { parser: tseslint.parser },
     plugins: { agent, '@typescript-eslint': tseslint.plugin },
