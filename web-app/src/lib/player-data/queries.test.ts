@@ -246,13 +246,21 @@ describe('optional boundary row recovery', () => {
     });
   });
 
+  it('keeps sportsbook importer notes out of decoder warnings', async () => {
+    mockJsonResponse({ metadata: { season: 2026, capturedAt: '2026-09-05', importedAt: '2026-09-05',
+      sourceDirectory: 'fixture', overUnderCount: 0, milestoneCount: 0 }, overUnder: [], milestones: [], warnings: ['importer note'] });
+    const data = await fetchSportsbookSnapshot();
+    expect(data.warnings).toEqual(['importer note']);
+    expect(data).toHaveProperty('decodeWarnings', []);
+  });
+
   it('keeps usable sportsbook lines and exposes recovery warnings', async () => {
     const line = { sportsbook: 'draftkings', playerName: 'Fixture', market: 'receivingYards', line: 900,
       overOdds: -110, underOdds: -110, sourceFile: 'fixture.csv' };
     mockJsonResponse({ metadata: { season: 2026, capturedAt: '2026-09-05', importedAt: '2026-09-05',
       sourceDirectory: 'fixture', overUnderCount: 2, milestoneCount: 0 }, overUnder: [line, null], milestones: [], warnings: [] });
     await expect(fetchSportsbookSnapshot()).resolves.toMatchObject({
-      overUnder: [line], metadata: { overUnderCount: 1 }, warnings: ['Dropped 1 invalid sportsbook over/under rows.'],
+      overUnder: [line], metadata: { overUnderCount: 1 }, decodeWarnings: ['Dropped 1 invalid sportsbook over/under rows.'],
     });
   });
 });

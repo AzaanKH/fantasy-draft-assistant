@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { decodeContractRows, decodeContractRelease, decodeContractBacktestRows, isContractSourceColumn } from './contract-source-schema.js';
 
 describe('contract source schemas', () => {
@@ -18,4 +18,17 @@ describe('contract source schemas', () => {
   it('rejects malformed release timestamps before using contract freshness', () => {
     expect(() => decodeContractRelease({ assets: [{ name: 'historical_contracts.parquet', updated_at: 123 }] })).toThrow();
   });
+});
+
+
+vi.mock('./effect-runtime.js', async importOriginal => ({
+  ...await importOriginal<typeof import('./effect-runtime.js')>(), runMain: vi.fn(),
+}));
+
+it('keeps malformed optional contract provenance unavailable with a warning', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updated_at: 123 }))));
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const { getSourceUpdatedAt } = await import('./refresh-contracts.js');
+  await expect(getSourceUpdatedAt()).resolves.toBeNull();
+  expect(warning).toHaveBeenCalledWith(expect.stringContaining('Contract source provenance is unavailable'));
 });

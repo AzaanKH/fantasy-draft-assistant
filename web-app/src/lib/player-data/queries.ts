@@ -78,7 +78,7 @@ export async function fetchRecommendationPolicy(): Promise<RecommendationPolicyF
   return decodeFile(parsed, decodeRecommendationPolicyFile, 'recommendation policy', 'Invalid recommendation policy format');
 }
 
-export async function fetchSportsbookSnapshot(): Promise<SportsbookSnapshot & { readonly warnings: readonly string[] }> {
+export async function fetchSportsbookSnapshot(): Promise<SportsbookSnapshot & { readonly decodeWarnings: readonly string[] }> {
   const response = await fetch('/api/draft-data/sportsbook');
   if (!response.ok) {
     throw new Error(`Failed to load sportsbook data: ${String(response.status)}`);
@@ -86,7 +86,7 @@ export async function fetchSportsbookSnapshot(): Promise<SportsbookSnapshot & { 
   const parsed: unknown = await response.json();
   const warnings: string[] = [];
   const data = decodeFile(parsed, value => decodeSportsbookSnapshot(value, { onWarning: message => warnings.push(message) }), 'sportsbook');
-  return { ...data, warnings: [...(data.warnings ?? []), ...warnings] };
+  return { ...data, decodeWarnings: [...(data.decodeWarnings ?? []), ...warnings] };
 }
 
 export function getMarketAdpFormat(receptions: number): MarketAdpFormat {

@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { Schema } from 'effect';
 import { decodeFantasyProsSnapshot, decodeSportsbookSnapshot, decodeSleeperDataFile, decodePlayerIdentityFile, decodeTeamEnvDataFile, decodePredictionsDataFile, decodeRecommendationPolicyFile, decodeLeagueSurvivalModel, decodeContractDataFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
 import { decodeModelReport, decodeHistoricalSnapshotReport } from './script-file-schemas.js';
@@ -10,7 +11,7 @@ import { MIN_TRAINING_ROWS } from './model/position-residual-model.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DATA_DIR = join(REPO_ROOT, 'data');
-const OUTPUT_FILE = join(DATA_DIR, 'data-quality-report.json');
+const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.qualityReport));
 const strict = process.argv.includes('--strict');
 const CURRENT_SEASON = new Date().getFullYear();
 
@@ -43,9 +44,12 @@ function timestamp(value: unknown): number {
   return typeof value === 'string' ? Date.parse(value) : Number.NaN;
 }
 
-async function readJson(path: string): Promise<unknown> {
+async function readJson(path: string, checks: QualityCheck[]): Promise<unknown> {
   const value: unknown = JSON.parse(await readFile(join(DATA_DIR, path), 'utf8'));
-  const options = { onWarning: (message: string) => { console.warn(`${path}: ${message}`); } };
+  const options = { onWarning: (message: string) => {
+    add(checks, `rows.${path}`, path === 'sportsbook-snapshot.json' ? 'fail' : 'warn', message);
+    console.warn(`${path}: ${message}`);
+  } };
   switch (path) {
     case 'fantasypros-snapshot.json': return decodeFantasyProsSnapshot(value);
     case 'sportsbook-snapshot.json': return decodeSportsbookSnapshot(value, options);
@@ -100,7 +104,7 @@ async function main(): Promise<void> {
 
   for (const file of files) {
     try {
-      loaded.set(file, await readJson(file));
+      loaded.set(file, await readJson(file, checks));
       add(checks, `json.${file}`, 'pass', `${file} is valid JSON.`);
     } catch (error) {
       add(
@@ -170,21 +174,7 @@ async function main(): Promise<void> {
   const overUnderLines = asArray(nested(sportsbook, 'overUnder'));
   const milestoneLines = asArray(nested(sportsbook, 'milestones'));
   const sportsbookSeason = nested(sportsbook, 'metadata', 'season');
-  const invalidOverUnderLines = overUnderLines.filter((entry) =>
-    !isRecord(entry) ||
-    typeof entry['playerName'] !== 'string' ||
-    typeof entry['market'] !== 'string' ||
-    !finiteNumber(entry['line']) ||
-    !finiteNumber(entry['overOdds']) ||
-    !finiteNumber(entry['underOdds'])
-  ).length;
-  const invalidMilestoneLines = milestoneLines.filter((entry) =>
-    !isRecord(entry) ||
-    typeof entry['playerName'] !== 'string' ||
-    typeof entry['market'] !== 'string' ||
-    !finiteNumber(entry['threshold']) ||
-    !finiteNumber(entry['americanOdds'])
-  ).length;
+  const sportsbookRowWarnings = checks.filter(check => check.id === 'rows.sportsbook-snapshot.json');
   add(checks, 'sportsbook.season',
     sportsbookSeason === CURRENT_SEASON ? 'pass' : 'fail',
     'Sportsbook snapshot season matches the draft season.',
@@ -198,9 +188,9 @@ async function main(): Promise<void> {
     'Sportsbook snapshot contains a usable milestone price set.',
     milestoneLines.length, '>= 800');
   add(checks, 'sportsbook.lines.valid',
-    invalidOverUnderLines + invalidMilestoneLines === 0 ? 'pass' : 'fail',
+    sportsbookRowWarnings.length === 0 ? 'pass' : 'fail',
     'All sportsbook lines contain finite prices and thresholds.',
-    invalidOverUnderLines + invalidMilestoneLines, '0 invalid');
+    sportsbookRowWarnings.length ? sportsbookRowWarnings.map(check => check.message).join(' ') : 0, '0 invalid');
 
   const sleeper = loaded.get('sleeper-adp.json');
   const sleeperPlayers = asArray(nested(sleeper, 'players'));

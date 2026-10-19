@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, relative, sep } from 'node:path';
@@ -6,7 +7,7 @@ import { decodeSourceMap } from './script-file-schemas.js';
 import { REPO_ROOT } from './model/duckdb.js';
 
 const DIST_DIR = join(REPO_ROOT, 'web-app', 'dist');
-const OUTPUT_FILE = join(REPO_ROOT, 'data', 'web-bundle-report.json');
+const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.bundleReport));
 // Includes Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
 const JS_GZIP_BUDGET = 384 * 1024;
 const CSS_GZIP_BUDGET = 24 * 1024;

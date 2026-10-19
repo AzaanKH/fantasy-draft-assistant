@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { CATALOG, catalogPath, browserDataFiles, catalogDataClassification } from '@fantasy-draft/shared/catalog';
 
@@ -33,4 +35,14 @@ describe('catalog retention policy', () => {
     expect(catalogDataClassification('data/unregistered.json')).toBeNull();
     expect(catalogDataClassification('data/model/../secret.json')).toBeNull();
   });
+});
+
+
+it('classifies tracked fixtures as tracked and private catalog paths as ignored', () => {
+  const cwd = fileURLToPath(new URL('../..', import.meta.url));
+  const tracked = execFileSync('git', ['ls-files', '-z', 'data', 'demo-data'], { cwd, encoding: 'utf8' }).split('\0').filter(Boolean);
+  for (const path of tracked) expect(catalogDataClassification(path), path).toBe('tracked');
+  const privatePaths = Object.values(CATALOG).map(catalogPath).filter(path => catalogDataClassification(path) === 'private');
+  const ignored = execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { cwd, encoding: 'utf8', input: privatePaths.join('\n') + '\n' }).trim().split('\n');
+  expect(ignored).toEqual(privatePaths);
 });

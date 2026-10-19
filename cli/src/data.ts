@@ -16,7 +16,7 @@ import {
   type DraftType,
 } from '@fantasy-draft/shared/sync';
 import { mergeCoreSources, normalizePlayerName, type LeagueSurvivalModel, canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry, type evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
-import { decodeLeagueSurvivalModel, decodeTeamEnvDataFile, decodeRecommendationPolicyFile, decodePlayerIdentityFile, decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeKeeperFile, decodeOrNull, CATALOG, catalogPath, SAFE_RECOMMENDATION_POLICY, type RecommendationPolicyFile, type DecodeOptions, type SleeperDataFile } from '@fantasy-draft/shared/catalog';
+import { decodePrimaryLeagueSettingsFile, decodeLeagueSurvivalModel, decodeTeamEnvDataFile, decodeRecommendationPolicyFile, decodePlayerIdentityFile, decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeKeeperFile, decodeOrNull, CATALOG, catalogPath, SAFE_RECOMMENDATION_POLICY, type RecommendationPolicyFile, type DecodeOptions, type SleeperDataFile } from '@fantasy-draft/shared/catalog';
 import { CliError, unexpected } from './errors';
 
 type KeeperStatus = Parameters<typeof evaluateWorkspaceDraftReadiness>[0]['keeperStatus'];
@@ -32,6 +32,19 @@ export interface DraftData {
 export const loadJson = (root: string, path: string): Effect.Effect<unknown> => Effect.tryPromise(
   async (): Promise<unknown> => JSON.parse(await readFile(join(root, path), 'utf8')),
 ).pipe(Effect.orElseSucceed(() => null));
+
+export function loadPrimaryLeagueSettings(root: string, options: DecodeOptions = {}): Effect.Effect<ReturnType<typeof decodePrimaryLeagueSettingsFile> | null> {
+  const path = catalogPath(CATALOG.settings);
+  return Effect.tryPromise({
+    try: async () => decodePrimaryLeagueSettingsFile(JSON.parse(await readFile(join(root, path), 'utf8'))),
+    catch: (error: unknown) => error,
+  }).pipe(Effect.catch(error => Effect.sync(() => {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+      options.onWarning?.(`${path} decode failed: ${String(error)}`);
+    }
+    return null;
+  })));
+}
 
 export function resolveKeepers(value: unknown, players: readonly Player[], teams: number, rounds: number,
   draftType: DraftType | null): {

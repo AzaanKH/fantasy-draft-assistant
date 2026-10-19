@@ -27,14 +27,19 @@ const PLAYER_IDS_URL =
 const OUTPUT_FILE = join(DATA_DIR, 'contracts.json');
 const SLEEPER_FILE = join(DATA_DIR, 'sleeper-adp.json');
 
-async function getSourceUpdatedAt(): Promise<string | null> {
+export async function getSourceUpdatedAt(): Promise<string | null> {
   const response = await fetch(CONTRACTS_RELEASE_API_URL, {
     headers: { accept: 'application/vnd.github+json', 'user-agent': 'fantasy-draft-contract-refresh' },
   });
   if (!response.ok) return null;
-  const release = decodeContractRelease(await response.json());
-  return release.assets?.find((asset) => asset.name === 'historical_contracts.parquet')?.updated_at ??
-    release.updated_at ?? null;
+  try {
+    const release = decodeContractRelease(await response.json());
+    return release.assets?.find((asset) => asset.name === 'historical_contracts.parquet')?.updated_at ??
+      release.updated_at ?? null;
+  } catch (error) {
+    console.warn(`Contract source provenance is unavailable: ${String(error)}`);
+    return null;
+  }
 }
 
 const program = Effect.gen(function* () {

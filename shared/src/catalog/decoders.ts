@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';
-import { NFL_TEAMS, POSITIONS, NEWS_STATUSES, PREDICTION_SOURCES } from '../player.js';
+import { isPosition, NFL_TEAMS, POSITIONS, NEWS_STATUSES, PREDICTION_SOURCES } from '../player.js';
 
 function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
   return /* @__PURE__ */ Schema.StructWithRest(/* @__PURE__ */ Schema.Struct(fields), [/* @__PURE__ */ Schema.Record(Schema.String, Schema.Unknown)]);
@@ -185,9 +185,21 @@ function decodeRows<A>(rows: readonly unknown[], decode: (row: unknown) => A, la
 }
 
 const teamEnvironment = /* @__PURE__ */ openStruct({
-  team, name: Schema.String, offenseScore: Schema.Finite,
-  passVolume: /* @__PURE__ */ Schema.Literals(['high', 'medium', 'low']), rushVolume: /* @__PURE__ */ Schema.Literals(['high', 'medium', 'low']),
-  pointsRank: Schema.Finite, passAttemptsRank: Schema.Finite, rushAttemptsRank: Schema.Finite, coachingStability: Schema.Boolean,
+  team, name: Schema.String,
+  /** Composite offensive score on a 1-10 scale. */
+  offenseScore: Schema.Finite,
+  /** Pass-attempt volume classification. */
+  passVolume: /* @__PURE__ */ Schema.Literals(['high', 'medium', 'low']),
+  /** Rush-attempt volume classification. */
+  rushVolume: /* @__PURE__ */ Schema.Literals(['high', 'medium', 'low']),
+  /** Points scored rank, 1-32. A rank of 1 is the most points. */
+  pointsRank: Schema.Finite,
+  /** Pass attempts rank, 1-32. A rank of 1 is the most attempts. */
+  passAttemptsRank: Schema.Finite,
+  /** Rush attempts rank, 1-32. A rank of 1 is the most attempts. */
+  rushAttemptsRank: Schema.Finite,
+  /** Whether the coaching staff is stable from the previous year. */
+  coachingStability: Schema.Boolean,
 });
 const teamEnvEnvelope = /* @__PURE__ */ openStruct({
   generatedAt: Schema.String, season: Schema.Finite, teamCount: Schema.Finite,
@@ -270,6 +282,7 @@ const sportsbookFields = {
   metadata: /* @__PURE__ */ openStruct({ season: Schema.Finite, capturedAt: Schema.String, importedAt: Schema.String, sourceDirectory: Schema.String,
     overUnderCount: Schema.Finite, milestoneCount: Schema.Finite }),
   overUnder: /* @__PURE__ */ Schema.Array(Schema.Unknown), milestones: /* @__PURE__ */ Schema.Array(Schema.Unknown), warnings: /* @__PURE__ */ Schema.Array(Schema.String),
+  decodeWarnings: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Array(Schema.String)),
 };
 const sportsbookEnvelope = /* @__PURE__ */ openStruct(sportsbookFields);
 const decodeSportsbookEnvelope = /* @__PURE__ */ Schema.decodeUnknownSync(sportsbookEnvelope);
@@ -325,6 +338,10 @@ export const isLeagueSurvivalModel = /* @__PURE__ */ Schema.is(/* @__PURE__ */ o
 }));
 export function decodeLeagueSurvivalModel(value: unknown, options: DecodeOptions = {}): LeagueSurvivalModel {
   const envelope = decodeSurvivalEnvelope(value);
+  for (const [rows, label] of [[envelope.positions, 'survival position'], [envelope.historicalPickNumbers, 'historical position']] as const) {
+    const dropped = Object.keys(rows ?? {}).filter(key => !isPosition(key)).length;
+    if (dropped) options.onWarning?.(`Dropped ${dropped} invalid ${label} rows.`);
+  }
   const positions: LeagueSurvivalModel['positions'] = {};
   const historicalPickNumbers: NonNullable<LeagueSurvivalModel['historicalPickNumbers']> = {};
   for (const key of POSITIONS) {

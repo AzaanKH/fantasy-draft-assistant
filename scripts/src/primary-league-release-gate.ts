@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { spawn } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -11,13 +12,13 @@ const RELEASE_REPORT_PATH = join(
   'data',
   'primary-league-release-gate-report.json'
 );
-const READINESS_REPORT_PATH = join(REPO_ROOT, 'data', 'draft-readiness-report.json');
+const READINESS_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.readinessReport));
 const REHEARSAL_REPORT_PATH = join(
   REPO_ROOT,
   'data',
   'primary-league-deterministic-rehearsal-report.json'
 );
-const OPERATION_PATH = join(REPO_ROOT, 'data', 'primary-league-rehearsal.json');
+const OPERATION_PATH = join(REPO_ROOT, catalogPath(CATALOG.rehearsal));
 
 type ReleaseCheckKey =
   | 'build'

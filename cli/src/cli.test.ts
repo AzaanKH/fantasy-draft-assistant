@@ -222,6 +222,30 @@ describe('draft CLI against a local fixture server', () => {
     expect(requestCount).toBe(0);
   });
 
+  it('keeps a missing settings file quiet while readiness reports it missing', async () => {
+    const path = join(root, 'data/primary-league-settings.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await rm(path);
+      const result = await command(['readiness', '--json']);
+      expect(result.code).toBe(3);
+      expect(result.result.data.settings).toBeNull();
+      expect(result.result.data.warnings).not.toContainEqual(expect.stringContaining('primary-league-settings.json'));
+      expect(result.result.data.readiness.productBlockingFailures).toContainEqual(expect.objectContaining({ key: 'primary-league-settings', problem: 'missing' }));
+    } finally { await writeFile(path, original); }
+  });
+
+  it.each(['{broken', 'null'])('warns about malformed settings JSON %s', async content => {
+    const path = join(root, 'data/primary-league-settings.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await writeFile(path, content);
+      const result = await command(['readiness', '--json']);
+      expect(result.result.data.settings).toBeNull();
+      expect(result.result.data.warnings).toContainEqual(expect.stringContaining('data/primary-league-settings.json decode failed:'));
+    } finally { await writeFile(path, original); }
+  });
+
   it('warns about the settings decode failure while preserving invalid readiness', async () => {
     const path = join(root, 'data/primary-league-settings.json');
     const original = await readFile(path, 'utf8');

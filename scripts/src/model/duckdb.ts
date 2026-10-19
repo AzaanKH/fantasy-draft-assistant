@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { mkdir, readFile } from 'node:fs/promises';
 import { availableParallelism } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -55,22 +56,22 @@ interface ModelPaths {
 }
 
 export const MODEL_PATHS: ModelPaths = {
-  fantasyProsSnapshotJson: join(DATA_DIR, 'fantasypros-snapshot.json'),
-  sleeperAdpJson: join(DATA_DIR, 'sleeper-adp.json'),
-  teamEnvironmentJson: join(DATA_DIR, 'team-environment.json'),
-  contractsJson: join(DATA_DIR, 'contracts.json'),
-  leagueDraftHistoryJson: join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'),
+  fantasyProsSnapshotJson: join(REPO_ROOT, catalogPath(CATALOG.snapshot)),
+  sleeperAdpJson: join(REPO_ROOT, catalogPath(CATALOG.sleeper)),
+  teamEnvironmentJson: join(REPO_ROOT, catalogPath(CATALOG.environment)),
+  contractsJson: join(REPO_ROOT, catalogPath(CATALOG.contracts)),
+  leagueDraftHistoryJson: join(REPO_ROOT, catalogPath(CATALOG.leagueHistory)),
   leagueDraftRawDir: join(DATA_DIR, 'league-history', 'raw'),
   historicalSnapshotReportJson: EXCLUDES_FANTASYPROS
     ? join(MODEL_DIR, 'historical-snapshot-report.json')
-    : join(DATA_DIR, 'historical-snapshot-report.json'),
+    : join(REPO_ROOT, catalogPath(CATALOG.historicalReport)),
   historicalSnapshotsParquet: join(MODEL_DIR, 'historical-asof-snapshots.parquet'),
   predictionsJson: EXCLUDES_FANTASYPROS
     ? join(MODEL_DIR, 'predictions.json')
-    : join(DATA_DIR, 'predictions.json'),
+    : join(REPO_ROOT, catalogPath(CATALOG.predictions)),
   modelReportJson: EXCLUDES_FANTASYPROS
     ? join(MODEL_DIR, 'model-report.json')
-    : join(DATA_DIR, 'model-report.json'),
+    : join(REPO_ROOT, catalogPath(CATALOG.modelReport)),
   normalizedPlayersParquet: join(NORMALIZED_MODEL_DIR, 'current-player-join.parquet'),
   trainingDatasetParquet: join(MODEL_DIR, 'training-dataset.parquet'),
   profileReportJson: join(MODEL_DIR, 'profile-report.json'),

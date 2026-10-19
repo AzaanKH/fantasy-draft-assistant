@@ -522,7 +522,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       if (kind === 'currentKeepers') return decodeKeeperFile(value);
       const warnings: string[] = [];
       const snapshot = decodeSportsbookSnapshot(value, { onWarning: message => warnings.push(message) });
-      return { ...snapshot, warnings: [...snapshot.warnings, ...warnings] };
+      return { ...snapshot, decodeWarnings: warnings };
     };
     if (provided !== undefined) return Effect.try({ try: () => decode(provided), catch: () => new HttpError(503, 'Draft data is unavailable') });
     const filePath = kind === 'currentKeepers'

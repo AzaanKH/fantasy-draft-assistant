@@ -516,7 +516,7 @@ describe('createSyncServer', () => {
     const sportsbookSnapshot = {
       metadata: { season: 2026, capturedAt: '2026-08-12T00:00:00.000Z', importedAt: '2026-08-12T00:00:00.000Z', sourceDirectory: 'fixture', overUnderCount: 0, milestoneCount: 0 },
       overUnder: [],
-      milestones: [], warnings: [],
+      milestones: [], warnings: ['importer note'], decodeWarnings: ['spoof'],
     };
     const server = createSyncServer({
       draftData: { currentKeepers, sportsbookSnapshot },
@@ -538,7 +538,7 @@ describe('createSyncServer', () => {
       expect(keeperResponse.ok).toBe(true);
       expect(await keeperResponse.json()).toEqual(currentKeepers);
       expect(sportsbookResponse.ok).toBe(true);
-      expect(await sportsbookResponse.json()).toEqual(sportsbookSnapshot);
+      expect(await sportsbookResponse.json()).toEqual({ ...sportsbookSnapshot, decodeWarnings: [] });
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.shutdown((error?: Error) => {

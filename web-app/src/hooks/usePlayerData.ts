@@ -255,7 +255,7 @@ function useLivePlayerDataQuery() {
       ['sleeper-player-directory', 'Sleeper player directory', sleeperQuery.data?.warnings],
       ['team-environment', 'Team environment', teamEnvQuery.data?.warnings],
       ['contract-context', 'Contract context', contractQuery.data?.warnings],
-      ['sportsbook-context', 'Sportsbook context', sportsbookQuery.data?.warnings],
+      ['sportsbook-context', 'Sportsbook context', sportsbookQuery.data?.decodeWarnings],
       ['market-adp', 'Market ADP', marketAdpQuery.data?.warnings],
       ['league-survival-model', 'League survival model', timingEvidence.warnings],
     ] as const) {

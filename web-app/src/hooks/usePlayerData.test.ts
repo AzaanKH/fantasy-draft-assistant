@@ -63,9 +63,15 @@ describe('player data loading boundaries', () => {
     ['league-survival-model', 'league-survival-model', { positions: {} }],
   ] as const)('shows %s decoder warnings in readiness', (query, key, data) => {
     draftState.connection = { provider: 'sleeper', draftId: 'test', draftPosition: 1, usePrimaryLeagueSettings: true };
-    loadedData[query] = { ...data, warnings: ['Dropped 1 invalid optional rows.'] };
+    loadedData[query] = { ...data, [query === 'sportsbook-snapshot' ? 'decodeWarnings' : 'warnings']: ['Dropped 1 invalid optional rows.'] };
     render();
     expect(result.dataInfo.readinessWarnings).toContainEqual(expect.objectContaining({ key, message: 'Dropped 1 invalid optional rows.' }));
+  });
+
+  it('does not display sportsbook importer metadata as decoder warnings', () => {
+    loadedData['sportsbook-snapshot'] = { metadata: {}, overUnder: [], milestones: [], warnings: ['importer note'] };
+    render();
+    expect(result.dataInfo.readinessWarnings).not.toContainEqual(expect.objectContaining({ key: 'sportsbook-context', message: 'importer note' }));
   });
 
   it('does not hold the core loading state open for pending optional queries', () => {

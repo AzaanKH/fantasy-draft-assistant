@@ -159,8 +159,9 @@ async function main(): Promise<void> {
         `(${artifact.refreshCommand})`
       );
       if (stale && artifact.required) staleRequiredArtifacts += 1;
-    } catch {
-      console.log(`MISS  ${artifact.label.padEnd(26)} (${artifact.refreshCommand})`);
+    } catch (error) {
+      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT';
+      console.log(`${missing ? 'MISS ' : 'INVALID'} ${artifact.label.padEnd(26)} (${artifact.refreshCommand})${missing ? '' : `: ${String(error)}`}`);
       if (artifact.required) staleRequiredArtifacts += 1;
     }
   }

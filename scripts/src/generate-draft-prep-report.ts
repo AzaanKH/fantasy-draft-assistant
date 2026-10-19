@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -6,8 +7,7 @@ import { decodeFantasyProsSnapshot, decodeLeagueSurvivalModel, decodeTeamEnvData
 import { decodeLeagueHistory } from './script-file-schemas.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const DATA_DIR = join(REPO_ROOT, 'data');
-const JSON_OUTPUT = join(DATA_DIR, 'draft-prep-report.json');
+const JSON_OUTPUT = join(REPO_ROOT, catalogPath(CATALOG.prepReport));
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'draft-prep-report.md');
 const POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const satisfies readonly Position[];
 
@@ -51,13 +51,13 @@ function markdownTable(headers: readonly string[], rows: readonly (readonly unkn
 async function main(): Promise<void> {
   const [history, survival, fantasyPros, teamEnvironment, predictions, currentKeepers] =
     await Promise.all([
-      readJson(join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'), decodeLeagueHistory),
-      readJson(join(DATA_DIR, 'league-history', 'survival-model.json'), value => decodeLeagueSurvivalModel(value, { onWarning: console.warn })),
-      readJson(join(DATA_DIR, 'fantasypros-snapshot.json'), decodeFantasyProsSnapshot),
-      readJson(join(DATA_DIR, 'team-environment.json'), value => decodeTeamEnvDataFile(value, { onWarning: console.warn })),
-      readJson(join(DATA_DIR, 'predictions.json'), value => decodePredictionsDataFile(value, { onWarning: console.warn })),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.leagueHistory)), decodeLeagueHistory),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.survival)), value => decodeLeagueSurvivalModel(value, { onWarning: console.warn })),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.snapshot)), decodeFantasyProsSnapshot),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.environment)), value => decodeTeamEnvDataFile(value, { onWarning: console.warn })),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.predictions)), value => decodePredictionsDataFile(value, { onWarning: console.warn })),
       readOptionalJson(
-        join(DATA_DIR, 'league-history', 'current-keepers.json')
+        join(REPO_ROOT, catalogPath(CATALOG.keepers))
       ),
     ]);
 

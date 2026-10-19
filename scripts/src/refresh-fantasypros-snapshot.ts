@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,9 +13,8 @@ import { io, runMain } from './effect-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');
-const DATA_DIR = join(REPO_ROOT, 'data');
-const INPUT_FILE = join(DATA_DIR, 'ecr-rankings.json');
-const OUTPUT_FILE = join(DATA_DIR, 'fantasypros-snapshot.json');
+const INPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.ecr));
+const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.snapshot));
 
 loadEnv({ path: join(REPO_ROOT, '.env.local') });
 loadEnv({ path: join(REPO_ROOT, '.env') });
