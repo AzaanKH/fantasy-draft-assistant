@@ -5,8 +5,12 @@ import { sourceCondition } from '../source-condition.js';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-import { BROWSER_DATA_FILES, DEMO_BROWSER_DATA_FILES } from '../scripts/src/browser-data';
+import { browserDataFiles } from '../shared/src/catalog/manifest';
+
 import { localApiSecurity } from '../server/src/vite-security';
+
+const BROWSER_DATA_FILES = browserDataFiles('local');
+const DEMO_BROWSER_DATA_FILES = browserDataFiles('demo');
 
 const { webPort, apiOrigin } = localDevPorts(process.env);
 

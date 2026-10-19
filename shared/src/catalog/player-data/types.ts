@@ -1,17 +1,9 @@
-import { type ContractPlayerData, type PlayerIdentityData, type SleeperADPPlayer } from '../../draft/calculations/player-value.js';
-import { type NFLTeam, type PlayerPrediction } from '../../player.js';
+import { type ContractPlayerData } from '../../draft/calculations/player-value.js';
+import { type NFLTeam } from '../../player.js';
 import { type TeamEnvironment } from '../../team-environment.js';
 
 
-/**
- * Sleeper ADP JSON file structure
- */
-export interface SleeperDataFile {
-  fetchedAt: string;
-  source: string;
-  playerCount: number;
-  players: SleeperADPPlayer[];
-}
+export type { SleeperDataFile, PlayerIdentityFile, PredictionsDataFile } from '../decoders.js';
 
 /**
  * Team environment JSON file structure
@@ -32,22 +24,6 @@ export interface ContractDataFile {
   contractYear: number;
   playerCount: number;
   players: ContractPlayerData[];
-}
-
-export interface PredictionsDataFile {
-  generatedAt: string | null;
-  modelVersion: string;
-  players: PlayerPrediction[];
-}
-
-export interface PlayerIdentityFile {
-  generatedAt: string;
-  season: number;
-  coverage: {
-    fantasyProsRankingMatchRate: number;
-    matchedDefenses: number;
-  };
-  players: PlayerIdentityData[];
 }
 
 export interface RecommendationPolicyFile {

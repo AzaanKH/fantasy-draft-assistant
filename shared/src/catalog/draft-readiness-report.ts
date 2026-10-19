@@ -1,3 +1,5 @@
+import { CATALOG, catalogPath } from './manifest.js';
+import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile } from './decoders.js';
 import { evaluateDraftReadiness, formatDraftReadinessTimestamp, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
 
 
@@ -5,6 +7,7 @@ export interface LoadedArtifact {
   readonly path: string;
   readonly value: unknown;
   readonly error: string | null;
+  readonly validationError?: string;
 }
 
 type JsonRecord = Readonly<Record<string, unknown>>;
@@ -34,6 +37,12 @@ function timestamp(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
+function decodedArtifact(artifact: LoadedArtifact, decode: (value: unknown) => unknown): LoadedArtifact {
+  if (artifact.error) return artifact;
+  try { return { ...artifact, value: decode(artifact.value) }; }
+  catch (error) { return { ...artifact, validationError: `Invalid ${artifact.path}: ${String(error)}` }; }
+}
+
 function unavailableObservation(artifact: LoadedArtifact): DraftReadinessSourceObservation {
   return {
     availability: 'missing',
@@ -50,6 +59,7 @@ function observation(
   dependencies: readonly DraftReadinessDependencyObservation[] = []
 ): DraftReadinessSourceObservation {
   if (artifact.error) return unavailableObservation(artifact);
+  if (artifact.validationError) return { availability: 'invalid', timestamp: observedAt, detail: artifact.validationError, dependencies };
   return {
     availability: observedAt === null ? 'missing' : valid ? 'available' : 'invalid',
     timestamp: observedAt,
@@ -155,20 +165,29 @@ function createSupportWarning(
 }
 
 export async function buildDraftReadinessReport(now: number, loadArtifact: (path: string) => Promise<LoadedArtifact>): Promise<DraftReadinessReport> {
-  const [rankings, identities, leagueSettings, keepers, predictions, contracts, sportsbook,
+  const [rawRankings, rawIdentities, rawLeagueSettings, rawKeepers, rawPredictions, contracts, sportsbook,
     sleeper, teamEnvironment, recommendationEvaluation, survivalModel] = await Promise.all([
-      loadArtifact('data/fantasypros-snapshot.json'),
-      loadArtifact('data/player-identity.json'),
-      loadArtifact('data/primary-league-settings.json'),
-      loadArtifact('data/league-history/current-keepers.json'),
-      loadArtifact('data/predictions.json'),
-      loadArtifact('data/contracts.json'),
-      loadArtifact('data/sportsbook-snapshot.json'),
-      loadArtifact('data/sleeper-adp.json'),
-      loadArtifact('data/team-environment.json'),
-      loadArtifact('data/recommendation-evaluation.json'),
-      loadArtifact('data/league-history/survival-model.json'),
+      loadArtifact(catalogPath(CATALOG.snapshot)),
+      loadArtifact(catalogPath(CATALOG.identities)),
+      loadArtifact(catalogPath(CATALOG.settings)),
+      loadArtifact(catalogPath(CATALOG.keepers)),
+      loadArtifact(catalogPath(CATALOG.predictions)),
+      loadArtifact(catalogPath(CATALOG.contracts)),
+      loadArtifact(catalogPath(CATALOG.sportsbook)),
+      loadArtifact(catalogPath(CATALOG.sleeper)),
+      loadArtifact(catalogPath(CATALOG.environment)),
+      loadArtifact(catalogPath(CATALOG.evaluation)),
+      loadArtifact(catalogPath(CATALOG.survival)),
     ]);
+  const decodeWarnings: DraftReadinessWarningInput[] = [];
+  const rankings = decodedArtifact(rawRankings, decodeFantasyProsSnapshot);
+  const identities = decodedArtifact(rawIdentities, decodePlayerIdentityFile);
+  const leagueSettings = decodedArtifact(rawLeagueSettings, decodePrimaryLeagueSettingsFile);
+  const keepers = decodedArtifact(rawKeepers, decodeKeeperFile);
+  const predictions = decodedArtifact(rawPredictions, value => decodePredictionsDataFile(value, {
+    onWarning: message => decodeWarnings.push({ key: 'prediction-decode', label: 'Experimental predictions',
+      sourceLabel: 'Prediction data', message, correctiveAction: 'Regenerate the experimental prediction data.' }),
+  }));
   const season = new Date(now).getUTCFullYear();
   const rankingsTimestamp = timestamp(nested(rankings.value, 'metadata', 'refreshedAt'));
   const identityTimestamp = timestamp(nested(identities.value, 'generatedAt'));
@@ -256,6 +275,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
   };
 
   const warnings = [
+    ...decodeWarnings,
     createSupportWarning(
       sleeper,
       'Sleeper player directory',

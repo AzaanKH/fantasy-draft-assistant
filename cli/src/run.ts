@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
-import { type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
+import { CATALOG, catalogPath, decodePrimaryLeagueSettingsFile, decodeOrNull, type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { type Recommendation } from '@fantasy-draft/shared/draft';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { buildDraftReadinessReport } from './readiness';
@@ -106,7 +106,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
     let readiness = yield* buildReadiness(now, root);
     let data: DraftData | null = null;
     const warnings: string[] = [];
-    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14, [], 'snake'));
+    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14, [], 'snake', { onWarning: message => warnings.push(message) }));
     if (Result.isSuccess(loaded)) {
       data = loaded.success;
       readiness = withLocalKeeperReadiness(readiness, data, now);
@@ -115,7 +115,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
       warnings.push(loaded.failure.message);
     }
     return { data: { scope: 'local-data', readyForAdvice: null, readiness,
-      settings: yield* loadJson(root, 'data/primary-league-settings.json'),
+      settings: decodeOrNull(decodePrimaryLeagueSettingsFile, yield* loadJson(root, catalogPath(CATALOG.settings))),
       keepers: data ? { ...data.keeperStatus, error: data.keeperStatus.error?.message ?? null } : null,
       warnings }, exitCode: readiness.status === 'blocked' ? 3 : 0 };
   }
@@ -137,7 +137,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, new Date(now).getUTCFullYear()) : { players: [] };
   if (market.warning) warnings.push(market.warning);
   if (!archive) {
-    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null));
+    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null, { onWarning: message => warnings.push(message) }));
     if (Result.isSuccess(loaded)) data = loaded.success;
     else {
       const error = loaded.failure;

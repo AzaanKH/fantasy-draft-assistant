@@ -1,12 +1,12 @@
 import { IS_DEMO } from '@/lib/demo-mode';
-import type { FantasyProsSnapshot } from '@fantasy-draft/shared/catalog';
+import { CATALOG, catalogPath, decodeFantasyProsSnapshot, type FantasyProsSnapshot } from '@fantasy-draft/shared/catalog';
 
 interface FantasyProsProvider {
   getSnapshot(): Promise<FantasyProsSnapshot>;
 }
 
 export class CachedFantasyProsProvider implements FantasyProsProvider {
-  constructor(private readonly snapshotPath: string = '/data/fantasypros-snapshot.json') {}
+  constructor(private readonly snapshotPath: string = `/${catalogPath(CATALOG.snapshot)}`) {}
 
   async getSnapshot(): Promise<FantasyProsSnapshot> {
     const response = await fetch(this.snapshotPath);
@@ -14,7 +14,8 @@ export class CachedFantasyProsProvider implements FantasyProsProvider {
       throw new Error(`Failed to load ${IS_DEMO ? 'demo rankings' : 'FantasyPros snapshot'}: ${response.status}`);
     }
 
-    return response.json() as Promise<FantasyProsSnapshot>;
+    const parsed: unknown = await response.json();
+    return decodeFantasyProsSnapshot(parsed);
   }
 }
 

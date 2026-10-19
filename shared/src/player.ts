@@ -17,7 +17,7 @@ export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
 
 export type Position = (typeof POSITIONS)[number];
 
-const NEWS_STATUSES = [
+export const NEWS_STATUSES = [
   'healthy',
   'limited',
   'questionable',
@@ -38,7 +38,7 @@ const HIGHLIGHT_LEVELS = ['strong-buy', 'good-value', 'neutral', 'avoid'] as con
 
 export type HighlightLevel = (typeof HIGHLIGHT_LEVELS)[number];
 
-const PREDICTION_SOURCES = ['model', 'fantasypros', 'heuristic'] as const;
+export const PREDICTION_SOURCES = ['model', 'fantasypros', 'heuristic'] as const;
 
 export type PredictionSource = (typeof PREDICTION_SOURCES)[number];
 

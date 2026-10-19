@@ -12,12 +12,6 @@
       "@typescript-eslint/explicit-module-boundary-types": 2
     }
   },
-  "cli/src/data.ts": {
-    "reason": "Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-json-cast": 1
-    }
-  },
   "cli/src/files.ts": {
     "reason": "Existing payloads migrate to shared decoders in the catalog units.",
     "counts": {
@@ -218,14 +212,13 @@
   "web-app/src/lib/player-data/queries.ts": {
     "reason": "Existing calls migrate to the shared HTTP runner in unit 8.",
     "counts": {
-      "agent/no-bare-fetch": 8
+      "agent/no-bare-fetch": 4
     }
   },
   "web-app/src/lib/providers/fantasypros.ts": {
     "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
     "counts": {
-      "agent/no-bare-fetch": 1,
-      "agent/no-json-cast": 1
+      "agent/no-bare-fetch": 1
     }
   },
   "web-app/src/stores/draftStore.ts": {

@@ -1,5 +1,8 @@
+export { CATALOG, catalogPath, browserDataFiles } from './manifest.js';
+export { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeSleeperDataFile, decodePredictionsDataFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodeOrNull } from './decoders.js';
+export type { DecodeOptions, KeeperFile } from './decoders.js';
 export { createSafeRecommendationPolicy, SAFE_RECOMMENDATION_POLICY } from './player-data/policy.js';
-export { isRecord, isSleeperDataFile, isTeamEnvDataFile, isContractDataFile, isPredictionsDataFile, isPlayerIdentityFile, isRecommendationPolicyFile } from './player-data/validators.js';
+export { isRecord, isTeamEnvDataFile, isContractDataFile, isRecommendationPolicyFile } from './player-data/validators.js';
 export type { SleeperDataFile, TeamEnvDataFile, ContractDataFile, PredictionsDataFile, PlayerIdentityFile, RecommendationPolicyFile } from './player-data/types.js';
 export { isLeagueSurvivalModel } from './league-survival-model.js';
 export { areKeepersValid, buildDraftReadinessReport } from './draft-readiness-report.js';
@@ -20,7 +23,6 @@ export { parsePlayerNameAndTeam } from '../scrapers.js';
 export { parsePositionString } from '../scrapers.js';
 export type { ECRPlayer } from '../scrapers.js';
 export type { ContractPlayer } from '../scrapers.js';
-export { isFantasyProsSnapshotSource } from '../fantasypros.js';
 export type { FantasyProsProjection } from '../fantasypros.js';
 export type { FantasyProsAdpPlayer } from '../fantasypros.js';
 export type { FantasyProsNewsItem } from '../fantasypros.js';

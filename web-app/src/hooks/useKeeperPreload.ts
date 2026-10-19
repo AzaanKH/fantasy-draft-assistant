@@ -8,71 +8,18 @@ import {
   type PreloadedKeeper,
 } from '@/stores/draftStore';
 
-interface CurrentKeeperEntry {
-  readonly playerId?: string;
-  readonly playerName: string;
-  readonly position: Position;
-  /** One-based league team number. */
-  readonly team: number;
-  readonly round: number;
-  readonly isMyKeeper?: boolean;
-}
-
-interface CurrentKeepersFile {
-  readonly updatedAt: string | null;
-  readonly season: number;
-  readonly keepers: readonly CurrentKeeperEntry[];
-}
+import { decodeKeeperFile, type KeeperFile } from '@fantasy-draft/shared/catalog';
 
 export type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 
-const POSITIONS: readonly Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isPosition(value: unknown): value is Position {
-  return typeof value === 'string' && POSITIONS.includes(value as Position);
-}
-
-function isCurrentKeeperEntry(value: unknown): value is CurrentKeeperEntry {
-  return (
-    isRecord(value) &&
-    (value['playerId'] === undefined || typeof value['playerId'] === 'string') &&
-    typeof value['playerName'] === 'string' &&
-    isPosition(value['position']) &&
-    typeof value['team'] === 'number' &&
-    Number.isInteger(value['team']) &&
-    value['team'] >= 1 &&
-    typeof value['round'] === 'number' &&
-    Number.isInteger(value['round']) &&
-    value['round'] >= 1 &&
-    (value['isMyKeeper'] === undefined || typeof value['isMyKeeper'] === 'boolean')
-  );
-}
-
-function isCurrentKeepersFile(value: unknown): value is CurrentKeepersFile {
-  return (
-    isRecord(value) &&
-    (value['updatedAt'] === null || typeof value['updatedAt'] === 'string') &&
-    typeof value['season'] === 'number' &&
-    Number.isFinite(value['season']) &&
-    Array.isArray(value['keepers']) &&
-    value['keepers'].every(isCurrentKeeperEntry)
-  );
-}
-
-async function fetchCurrentKeepers(): Promise<CurrentKeepersFile> {
+async function fetchCurrentKeepers(): Promise<KeeperFile> {
   const response = await fetch('/api/draft-data/current-keepers');
   if (!response.ok) {
     throw new Error(`Failed to load current keepers: ${String(response.status)}`);
   }
   const parsed: unknown = await response.json();
-  if (!isCurrentKeepersFile(parsed)) {
-    throw new Error('Invalid current keeper data format');
-  }
-  return parsed;
+  try { return decodeKeeperFile(parsed); }
+  catch (error) { throw new Error('Invalid current keeper data format: ' + String(error)); }
 }
 
 function getKeeperKey(name: string, position: Position): string {

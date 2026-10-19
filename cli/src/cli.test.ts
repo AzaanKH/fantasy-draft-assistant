@@ -222,6 +222,18 @@ describe('draft CLI against a local fixture server', () => {
     expect(requestCount).toBe(0);
   });
 
+  it('warns when a malformed Sleeper file is excluded from CLI data', async () => {
+    const path = join(root, 'data/sleeper-adp.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await writeFile(path, JSON.stringify({ fetchedAt: new Date(FIXTURE_NOW).toISOString(), source: 'fixture',
+        playerCount: 2, players: [{ playerId: 'p1', name: 'Player 1', position: 'RB', team: 'DET', sleeperAdp: 1 }] }));
+      const result = await command(['readiness', '--json']);
+      expect(result.code).toBe(0);
+      expect(result.result.data.warnings).toContainEqual(expect.stringContaining('Sleeper player directory is unavailable'));
+    } finally { await writeFile(path, original); }
+  });
+
   it('reports current pick, your next turn, roster reservations, and sync health', async () => {
     const result = await command(['status', '--session', 'sleeper:fixture', '--json']);
     expect(result.code).toBe(0);

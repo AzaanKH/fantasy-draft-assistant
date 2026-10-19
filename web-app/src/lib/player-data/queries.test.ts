@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchPlayerIdentityData, fetchPredictionData, fetchSleeperData, fetchTeamEnvData } from './queries';
-import { isPlayerIdentityFile } from '@fantasy-draft/shared/catalog';
+import { decodePlayerIdentityFile } from '@fantasy-draft/shared/catalog';
 
 const identity = {
   canonicalId: 'sleeper:123',
@@ -54,13 +54,13 @@ describe('player data loading', () => {
     const data: unknown = JSON.parse(readFileSync(
       new URL('../../../../data/player-identity.json', import.meta.url), 'utf8'
     ));
-    expect(isPlayerIdentityFile(data)).toBe(true);
+    expect(decodePlayerIdentityFile(data)).toEqual(data);
   });
 
   it('keeps missing experimental predictions optional', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
     await expect(fetchPredictionData()).resolves.toEqual({
-      generatedAt: null, modelVersion: 'none', players: [],
+      generatedAt: null, modelVersion: 'none', players: [], warnings: [],
     });
   });
 
@@ -92,16 +92,42 @@ function predictionsFile(player: unknown) {
 }
 
 describe('prediction response validation', () => {
-  it.each(optionalPredictionNumbers)('rejects invalid optional numeric field %s', async (field) => {
+  it.each(optionalPredictionNumbers)('drops a row with invalid optional numeric field %s', async (field) => {
     for (const value of ['200', null, true, {}, NaN, Infinity, -Infinity]) {
       mockJsonResponse(predictionsFile({ ...prediction, [field]: value }));
-      await expect(fetchPredictionData()).rejects.toThrow('Invalid prediction data format');
+      const data = await fetchPredictionData();
+      expect(data.players).toEqual([]);
+      expect(data.warnings?.[0]).toContain('Dropped 1 invalid prediction');
     }
   });
 
-  it.each(optionalPredictionStrings)('rejects invalid optional string field %s', async (field) => {
+  it.each(optionalPredictionStrings)('drops a row with invalid optional string field %s', async (field) => {
     for (const value of [123, null, true, {}]) {
       mockJsonResponse(predictionsFile({ ...prediction, [field]: value }));
+      const data = await fetchPredictionData();
+      expect(data.players).toEqual([]);
+      expect(data.warnings?.[0]).toContain('Dropped 1 invalid prediction');
+    }
+  });
+
+  it('keeps good prediction rows and warns about only the dropped rows', async () => {
+    mockJsonResponse({ generatedAt: null, modelVersion: 'fixture',
+      players: [prediction, { ...prediction, team: 'INVALID' }, prediction] });
+    const data = await fetchPredictionData();
+    expect(data.players).toEqual([prediction, prediction]);
+    expect(data.warnings).toEqual(['Dropped 1 invalid prediction rows.']);
+    expect(data.warnings).toHaveLength(1);
+  });
+
+  it('replaces untrusted warning metadata with warnings from this decode', async () => {
+    mockJsonResponse({ generatedAt: null, modelVersion: 'fixture', players: [prediction], warnings: 123 });
+    expect((await fetchPredictionData()).warnings).toEqual([]);
+  });
+
+  it('rejects malformed prediction envelopes', async () => {
+    for (const data of [null, {}, { generatedAt: null, modelVersion: '', players: [] },
+      { generatedAt: null, modelVersion: 'fixture', players: {} }]) {
+      mockJsonResponse(data);
       await expect(fetchPredictionData()).rejects.toThrow('Invalid prediction data format');
     }
   });
@@ -114,7 +140,7 @@ describe('prediction response validation', () => {
     }]) {
       const data = predictionsFile(player);
       mockJsonResponse(data);
-      await expect(fetchPredictionData()).resolves.toEqual(data);
+      await expect(fetchPredictionData()).resolves.toEqual({ ...data, warnings: [] });
     }
   });
 });
@@ -188,6 +214,11 @@ describe('Sleeper and team environment response validation', () => {
       new URL(`../../../../data/${file}.json`, import.meta.url), 'utf8'
     ));
     mockJsonResponse(data);
-    await expect(fetchData()).resolves.toEqual(data);
+    const loaded = await fetchData();
+    if ('warnings' in loaded) {
+      const { warnings, ...payload } = loaded;
+      expect(warnings).toEqual([]);
+      expect(payload).toEqual(data);
+    } else expect(loaded).toEqual(data);
   });
 });

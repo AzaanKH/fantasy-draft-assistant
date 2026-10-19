@@ -46,6 +46,14 @@ beforeEach(() => {
 });
 
 describe('player data loading boundaries', () => {
+  it('passes dropped prediction rows into the existing visible readiness warning channel', () => {
+    loadedData.predictions = { generatedAt: null, modelVersion: 'fixture', players: [],
+      warnings: ['Dropped 1 invalid prediction row(s). players[1]: invalid position'] };
+    render();
+    expect(result.dataInfo.readinessWarnings.find(warning => warning.key === 'experimental-predictions')?.message)
+      .toContain('Dropped 1 invalid prediction');
+  });
+
   it('does not hold the core loading state open for pending optional queries', () => {
     render();
     expect(result.isLoading).toBe(false);

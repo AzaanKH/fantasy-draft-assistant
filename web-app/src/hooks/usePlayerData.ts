@@ -82,7 +82,7 @@ function useLivePlayerDataQuery() {
   });
   const predictionQuery = useQuery({
     queryKey: ['predictions'],
-    queryFn: fetchPredictionData,
+    queryFn: () => fetchPredictionData(),
     staleTime: Infinity,
     enabled: recommendationPolicyQuery.data?.shadowLogging.enabled === true &&
       connection?.draftPosition != null &&
@@ -252,8 +252,13 @@ function useLivePlayerDataQuery() {
         correctiveAction: 'Restore the recommendation policy configuration.',
       });
     }
+    for (const message of predictionQuery.data?.warnings ?? []) {
+      warnings.push({ key: 'experimental-predictions', label: 'Experimental predictions',
+        sourceLabel: 'Experimental prediction artifact', message });
+    }
     return warnings;
   }, [
+    predictionQuery.data,
     sleeperQuery.error, sleeperQuery.isError,
     teamEnvQuery.error, teamEnvQuery.isError,
     recommendationPolicyQuery.error, recommendationPolicyQuery.isError,
