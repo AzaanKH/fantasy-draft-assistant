@@ -1,3 +1,4 @@
+import '@/stores/draft/derive-shadow.setup';
 import { DEFAULT_QUICK_MOCK } from './quick-mock-settings';
 import { describe, expect, it } from 'vitest';
 import { createDefaultLeagueSettings, createLeagueSettings } from '@fantasy-draft/shared';

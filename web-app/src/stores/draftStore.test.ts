@@ -1,3 +1,4 @@
+import '@/stores/draft/derive-shadow.setup';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';

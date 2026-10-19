@@ -1,0 +1,242 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`10 by 14 mock with keepers at 1, 70, and 140 > replays every CPU pick and keeper consumption through the real store > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 1,
+      },
+    ],
+    "step": 4,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 1,
+      },
+    ],
+    "step": 5,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 1,
+      },
+    ],
+    "step": 6,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 1,
+      },
+    ],
+    "step": 7,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 11,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 22,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 31,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 42,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 51,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 62,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 71,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 71,
+        "field": "currentPick",
+        "stored": 70,
+      },
+    ],
+    "step": 76,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 82,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 91,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 102,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 111,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 122,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 131,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 142,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 141,
+        "field": "currentPick",
+        "stored": 140,
+      },
+    ],
+    "step": 146,
+    "store": 1,
+  },
+]
+`;
+
+exports[`exposes an explicit branch cursor that the proposed source facts cannot reconstruct > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 96,
+      },
+    ],
+    "step": 4,
+    "store": 2,
+  },
+]
+`;

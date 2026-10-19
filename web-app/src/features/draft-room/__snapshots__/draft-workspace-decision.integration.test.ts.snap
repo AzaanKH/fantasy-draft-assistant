@@ -1,0 +1,105 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Draft Workspace decision integration > confirms a perfect manual match without replaying the Recommendation transition > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Draft Workspace decision integration > keeps Recommendations coherent after sync loss and a Provisional Pick > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Draft Workspace decision integration > rebuilds both Decision Lenses after replacing a provisional player and team > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 11,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Draft Workspace decision integration > reconciles every Provider Truth outcome before restoring live Recommendations > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Draft Workspace decision integration > restores local draft decisions after removing an accidental Provisional Pick > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 11,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Draft Workspace decision integration > updates recommendations when the decision lens or confirmed picks change > documented deriveDraft mismatches 1`] = `[]`;

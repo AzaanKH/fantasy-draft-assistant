@@ -1,3 +1,4 @@
+import '@/stores/draft/derive-shadow.setup';
 import { createSlotSequence } from '@fantasy-draft/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {

@@ -209,3 +209,6 @@ export type {
 
 export { createSlotSequence } from './draft-order.js';
 export type { DraftFormat, SlotRef, SlotSequence } from './draft-order.js';
+
+export { deriveDraft } from './derive-draft.js';
+export type { DraftSource, DraftSelection, DraftKeeper, DerivedDraft } from './derive-draft.js';

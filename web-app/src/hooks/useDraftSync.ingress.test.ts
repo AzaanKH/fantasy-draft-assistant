@@ -1,3 +1,4 @@
+import '@/stores/draft/derive-shadow.setup';
 import { createElement, type EffectCallback, type SetStateAction } from 'react';
 import { renderToString } from 'react-dom/server';
 import { QueryClient } from '@tanstack/react-query';

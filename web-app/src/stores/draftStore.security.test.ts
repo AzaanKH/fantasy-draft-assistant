@@ -1,3 +1,4 @@
+import '@/stores/draft/derive-shadow.setup';
 import { describe, expect, it } from 'vitest';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
 import { createDraftStore } from './draftStore';

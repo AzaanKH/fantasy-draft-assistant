@@ -1,3 +1,4 @@
+import '@/stores/draft/derive-shadow.setup';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, type ProvisionalPickInput, type SyncedImportedPick } from './draftStore';
 import {

@@ -1,0 +1,586 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`draftStore shortlist > assigns even-round linear picks to round-one order > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > branches from any completed pick while preserving keeper reservations > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 96,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 96,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 96,
+      },
+    ],
+    "step": 3,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > confirms a matching Provisional Pick once across repeated Provider Truth snapshots > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 8,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > consumes a keeper at its assigned snake-draft selection > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 96,
+      },
+    ],
+    "step": 5,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 97,
+      },
+    ],
+    "step": 6,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 96,
+      },
+    ],
+    "step": 7,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > corrects and removes only Provisional Picks without creating duplicate draft state > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 12,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 13,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > deduplicates a synced keeper on my roster > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 36,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 36,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 40,
+      },
+    ],
+    "step": 6,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > defaults to Best Pick and changes only the Decision Lens > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > distinguishes setup, mock, and live draft sessions > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > initializes canonical keeper supply identically across repeated preloads > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > keeps a manual pick canonical through roster rebuild, undo, and provider reconciliation > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 5,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 11,
+    "store": 1,
+  },
+]
+`;
+
+exports[`draftStore shortlist > keeps an explicitly incomplete empty supply uninitialized > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > keeps imperative callbacks scoped to the same provider as selectors > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 4,
+      },
+    ],
+    "step": 7,
+    "store": 1,
+  },
+]
+`;
+
+exports[`draftStore shortlist > keeps linear keeper reservations consistent through imports, corrections, and resets > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 13,
+      },
+    ],
+    "step": 9,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 13,
+      },
+    ],
+    "step": 10,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 12,
+      },
+    ],
+    "step": 11,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 13,
+      },
+    ],
+    "step": 12,
+    "store": 1,
+  },
+]
+`;
+
+exports[`draftStore shortlist > keeps linear keeper slots reserved when a provisional pick rebuilds the board > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 5,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 6,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 7,
+    "store": 1,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 8,
+    "store": 1,
+  },
+]
+`;
+
+exports[`draftStore shortlist > keeps players in the order they were starred and toggles them off > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > lets Provider Truth override a stale keeper assignment > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 39,
+      },
+    ],
+    "step": 5,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > preserves Provider Truth when keeper initialization finishes after sync > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 40,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 40,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 40,
+      },
+    ],
+    "step": 3,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 39,
+      },
+    ],
+    "step": 6,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 39,
+      },
+    ],
+    "step": 7,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > rebuilds canonical state and reports conflicts, removals, provider corrections, and unresolved identities > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 8,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 10,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > reconciles the Rashee Rice and Omarion Hampton keeper conflict from Provider Truth > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 39,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 39,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 36,
+      },
+    ],
+    "step": 5,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > records a Provisional Pick in the canonical sequence and every affected roster > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 6,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > rejects duplicate and conflicting keeper supply instead of applying a partial baseline > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > rejects provisional entries outside live mode or assigned to the wrong snake slot > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > removes drafted players and does not add them back to the shortlist > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > removes shortlisted players when importing a pick > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 4,
+      },
+    ],
+    "step": 5,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > reorders queued players and ignores moves past either end > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > replaces imported Sleeper picks when the canonical snapshot changes > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 5,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > reserves keepers before the draft and preserves them on reset > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`draftStore shortlist > restores a shortlisted player in the same position when undoing a pick > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 4,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 1,
+        "field": "currentPick",
+        "stored": 4,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+]
+`;
+
+exports[`draftStore shortlist > retains preloaded keepers when synced draft picks are reconciled > documented deriveDraft mismatches 1`] = `[]`;

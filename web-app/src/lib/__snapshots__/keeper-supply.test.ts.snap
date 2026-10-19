@@ -1,0 +1,175 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Primary League keeper supply end-to-end > places each keeper exactly once at its configured slot as the cursor advances > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 9,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 8,
+        "field": "currentPick",
+        "stored": 7,
+      },
+    ],
+    "step": 11,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 10,
+        "field": "currentPick",
+        "stored": 9,
+      },
+    ],
+    "step": 13,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 20,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 21,
+        "field": "currentPick",
+        "stored": 20,
+      },
+    ],
+    "step": 24,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": true,
+        "field": "isMyTurn",
+        "stored": false,
+      },
+    ],
+    "step": 29,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 27,
+        "field": "currentPick",
+        "stored": 26,
+      },
+    ],
+    "step": 30,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 31,
+        "field": "currentPick",
+        "stored": 30,
+      },
+    ],
+    "step": 34,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Primary League keeper supply end-to-end > preserves the confirmed keeper baseline across resets and mode changes > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 10,
+      },
+    ],
+    "step": 1,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 10,
+      },
+    ],
+    "step": 2,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 10,
+      },
+    ],
+    "step": 3,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Primary League keeper supply end-to-end > prevents a provider snapshot containing reserved keepers from importing them again > documented deriveDraft mismatches 1`] = `
+[
+  {
+    "fields": [
+      {
+        "derived": 7,
+        "field": "currentPick",
+        "stored": 31,
+      },
+    ],
+    "step": 3,
+    "store": 0,
+  },
+  {
+    "fields": [
+      {
+        "derived": 2,
+        "field": "currentPick",
+        "stored": 10,
+      },
+    ],
+    "step": 6,
+    "store": 0,
+  },
+]
+`;
+
+exports[`Primary League keeper supply end-to-end > reserves every confirmed keeper before ordinary picks and hides them from both lenses > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`canonicalizeKeeperSupply > assigns each keeper its exact snake-draft selection at the configured round cost > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`canonicalizeKeeperSupply > drops entries outside the draft and resolves same-slot conflicts deterministically > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`canonicalizeKeeperSupply > keeps one deterministic assignment per kept player when entries duplicate a player > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`canonicalizeKeeperSupply > requires the full current-season supply before mock recommendations can run > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`canonicalizeKeeperSupply > uses linear pick order when assigning and reconciling keeper reservations > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`keeper supply after a league size change > invalidates reservations outside the new config { totalRounds: 14 } > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`keeper supply after a league size change > invalidates reservations outside the new config { totalTeams: 10 } > documented deriveDraft mismatches 1`] = `[]`;
