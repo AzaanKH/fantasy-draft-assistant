@@ -6,8 +6,10 @@ import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
   isMarketAdpFormat,
-  isShadowRecommendationEvent,
 } from '@fantasy-draft/shared';
+import {
+  isShadowRecommendationEvent,
+} from '@fantasy-draft/shared/draft';
 import {
   DraftSyncEngine,
   isEspnDraftSnapshot,

@@ -1,8 +1,14 @@
-export { createEmptyRoster, DEFAULT_ROSTER_REQUIREMENTS, isNeedPriority } from '../draft.js';
+export { isNeedPriority } from '../draft.js';
 export type {
-  Roster, RosterRequirements, DraftPick, NeedPriority, PositionNeed,
-  ExpectedNextPickAlternative, RecommendationDecisionFactors, Recommendation,
-  DecisionLens, DecisionDivergenceFactor, DecisionOutput,
+  DraftPick,
+  NeedPriority,
+  PositionNeed,
+  ExpectedNextPickAlternative,
+  RecommendationDecisionFactors,
+  Recommendation,
+  DecisionLens,
+  DecisionDivergenceFactor,
+  DecisionOutput,
 } from '../draft.js';
 
 export {
@@ -102,3 +108,9 @@ export type { KeeperSupplyEntry, CanonicalKeeperAssignment } from './keeper-supp
 export { getKeeperAtPick, selectCpuPlayer, estimateMockSurvivalProbabilities, simulateCpuDraft } from './mock-draft-engine.js';
 export type { MockDraftPickLike, MockKeeperAssignment, MockLeagueHistoryModel, MockDraftEngineConfig, SelectCpuPlayerInput, CpuSelection, SimulatedMockPick } from './mock-draft-engine.js';
 export type { KeeperPreloadStatus } from './keeper-preload-status.js';
+
+export { isShadowRecommendationEvent } from '../shadow.js';
+export type { ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.js';
+export { optimizeLineupUtility } from '../lineup-utility.js';
+export type { LineupPlayer } from '../lineup-utility.js';
+export { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';

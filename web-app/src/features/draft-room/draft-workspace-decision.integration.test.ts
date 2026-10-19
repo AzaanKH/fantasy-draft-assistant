@@ -3,7 +3,8 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Player, PositionNeed } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared';
+import type { PositionNeed } from '@fantasy-draft/shared/draft';
 import {
   calculateTeamNeeds,
   filterDrafted,

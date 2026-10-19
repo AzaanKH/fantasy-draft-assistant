@@ -2,8 +2,10 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   POSITIONS,
   type Player,
-  type PositionNeed,
 } from '@fantasy-draft/shared';
+import {
+  type PositionNeed,
+} from '@fantasy-draft/shared/draft';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
 } from '@fantasy-draft/shared/league';

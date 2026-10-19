@@ -1,4 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {

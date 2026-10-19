@@ -1,4 +1,4 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared/draft';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

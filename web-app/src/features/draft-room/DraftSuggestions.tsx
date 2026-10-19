@@ -1,5 +1,6 @@
 import * as React from 'react';
-import type { Player, Recommendation } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { ArrowRight, ListPlus } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { SuggestionSkeleton } from '@/components/skeletons';

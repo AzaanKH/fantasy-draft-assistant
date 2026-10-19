@@ -1,4 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import {
   isPosition,
   type Position,

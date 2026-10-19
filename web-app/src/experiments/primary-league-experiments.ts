@@ -1,6 +1,5 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  createSlotSequence,
   type FantasyProsSnapshot,
   type NFLTeam,
   type Player,
@@ -8,6 +7,9 @@ import {
   type TeamEnvironment,
   POSITIONS,
 } from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
+} from '@fantasy-draft/shared/draft';
 import {
   type Roster,
   type RosterRequirements,

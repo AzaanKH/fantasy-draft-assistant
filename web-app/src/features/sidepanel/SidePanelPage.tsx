@@ -1,12 +1,14 @@
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
 import {
-  createSlotSequence,
   POSITIONS,
   type Player,
   type Position,
+} from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
   type PositionNeed,
   type Recommendation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import {
   type DraftProvider,
 } from '@fantasy-draft/shared/sync';

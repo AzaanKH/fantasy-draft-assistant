@@ -3,7 +3,7 @@ import {
   isShadowRecommendationEvent,
   type PositionNeed,
   type Recommendation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import {
   buildShadowRecommendationEvent,
   postShadowRecommendation,

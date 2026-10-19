@@ -1,4 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';

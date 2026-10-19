@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DraftReadinessItem, DraftReadinessReport, Player, Recommendation } from '@fantasy-draft/shared';
+import type { DraftReadinessItem, DraftReadinessReport, Player } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { filterDrafted } from '@fantasy-draft/shared/draft';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { describePausedAdvice, getPlayerPoolRows } from './player-pool-rows';

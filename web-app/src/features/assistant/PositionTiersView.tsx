@@ -1,6 +1,7 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { PositionTag } from '@/components/PositionTag';
-import type { Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
+import type { Player, Position } from '@fantasy-draft/shared';
+import type { PositionNeed, Recommendation } from '@fantasy-draft/shared/draft';
 import { Check, Plus, Search } from 'lucide-react';
 import * as React from 'react';
 import { survivalPercent } from '@fantasy-draft/shared/draft';

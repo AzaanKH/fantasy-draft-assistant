@@ -12,8 +12,10 @@ import { useMemo } from 'react';
 import {
   POSITIONS,
   type Position,
-  type Recommendation,
 } from '@fantasy-draft/shared';
+import {
+  type Recommendation,
+} from '@fantasy-draft/shared/draft';
 import {
   applyLeagueSurvivalModel,
   filterDrafted,

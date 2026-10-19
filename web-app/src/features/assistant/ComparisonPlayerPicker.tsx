@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
-import type { Player, Recommendation } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

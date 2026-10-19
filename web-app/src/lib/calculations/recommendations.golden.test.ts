@@ -1,9 +1,11 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  createSlotSequence,
   POSITIONS,
   type Player,
 } from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
+} from '@fantasy-draft/shared/draft';
 import {
   createEmptyRoster,
   DEFAULT_ROSTER_REQUIREMENTS,

@@ -1,4 +1,4 @@
-import type { DraftFormat, DraftSource } from '@fantasy-draft/shared';
+import type { DraftFormat, DraftSource } from '@fantasy-draft/shared/draft';
 import type { DraftState } from './types';
 
 type SourceState = Pick<DraftState, 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds' | 'unresolvedProviderPicks'>;

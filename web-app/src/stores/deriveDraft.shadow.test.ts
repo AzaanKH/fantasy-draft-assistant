@@ -2,7 +2,7 @@ import './draft/derive-shadow.setup';
 import { describe, expect, it } from 'vitest';
 import { createDraftStore } from './draftStore';
 import { shadowFormat, shadowSource } from './draft/derive-shadow-source';
-import { deriveDraft } from '@fantasy-draft/shared';
+import { deriveDraft } from '@fantasy-draft/shared/draft';
 import { createShadowMock, shadowMockFormat } from './draft/derive-shadow-fixture';
 
 describe('10 by 14 mock with keepers at 1, 70, and 140', () => {

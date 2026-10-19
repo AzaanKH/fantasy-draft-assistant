@@ -1,4 +1,4 @@
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import type { DraftDecisionView } from '@fantasy-draft/shared/draft';
 
 /**

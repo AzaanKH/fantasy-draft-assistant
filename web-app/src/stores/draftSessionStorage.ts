@@ -1,4 +1,5 @@
-import { createSlotSequence, isPosition } from '@fantasy-draft/shared';
+import { isPosition } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { isBoundedInteger, isDraftSize, MAX_DRAFT_PICKS } from '@fantasy-draft/shared/units';
 import { isLeagueSettings, isRosterRequirements, type LeagueSettings } from '@fantasy-draft/shared/league';
 import { type DraftProvider, type DraftType } from '@fantasy-draft/shared/sync';

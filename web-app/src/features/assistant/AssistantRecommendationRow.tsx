@@ -1,7 +1,8 @@
 import { MotionReorderItem } from '@/components/motion';
 import { PositionTag } from '@/components/PositionTag';
 import { formatSignedNumber, survivalPercent } from '@fantasy-draft/shared/draft';
-import { type Player, type Recommendation } from '@fantasy-draft/shared';
+import { type Player } from '@fantasy-draft/shared';
+import { type Recommendation } from '@fantasy-draft/shared/draft';
 import { Check, Plus } from 'lucide-react';
 import * as React from 'react';
 

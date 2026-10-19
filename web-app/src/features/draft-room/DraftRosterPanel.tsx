@@ -1,4 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';

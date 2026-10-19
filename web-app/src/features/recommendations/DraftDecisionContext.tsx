@@ -2,10 +2,12 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
   POSITIONS,
-  type DecisionLens,
   type DraftReadinessReport,
   type Position,
 } from '@fantasy-draft/shared';
+import {
+  type DecisionLens,
+} from '@fantasy-draft/shared/draft';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { blocksRecommendations, createDraftDecisionOutput, type DraftDecisionOutput, type DraftDecisionView } from '@fantasy-draft/shared/draft';
 import { useDraftStore, type DraftSessionMode, type UnresolvedProviderPick } from '@/stores/draftStore';

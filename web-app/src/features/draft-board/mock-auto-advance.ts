@@ -1,4 +1,5 @@
-import { createSlotSequence, type Player } from '@fantasy-draft/shared';
+import { type Player } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';

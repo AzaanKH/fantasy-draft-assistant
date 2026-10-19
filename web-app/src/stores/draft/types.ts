@@ -1,8 +1,10 @@
 import type {
-  DecisionLens,
   Position,
-  DraftPick,
 } from '@fantasy-draft/shared';
+import type {
+  DecisionLens,
+  DraftPick,
+} from '@fantasy-draft/shared/draft';
 import type {
   DraftType,
 } from '@fantasy-draft/shared/sync';

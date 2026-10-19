@@ -4,8 +4,10 @@ import {
   type DraftReadinessReport,
   type Player,
   type Position,
-  type Recommendation,
 } from '@fantasy-draft/shared';
+import {
+  type Recommendation,
+} from '@fantasy-draft/shared/draft';
 
 export type PositionFilter = Position | 'ALL' | 'FLEX';
 

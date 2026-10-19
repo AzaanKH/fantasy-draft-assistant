@@ -1,5 +1,5 @@
 import { DRAFT_DISPLAY, IS_DEMO } from '@/lib/demo-mode';
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CircleAlert, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';

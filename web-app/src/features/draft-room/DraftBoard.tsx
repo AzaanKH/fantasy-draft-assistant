@@ -1,4 +1,5 @@
-import { createSlotSequence, type Player, type Position, type SlotRef } from '@fantasy-draft/shared';
+import { type Player, type Position } from '@fantasy-draft/shared';
+import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3 } from 'lucide-react';

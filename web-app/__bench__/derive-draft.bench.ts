@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { cpus, loadavg } from 'node:os';
 import { performance } from 'node:perf_hooks';
-import { deriveDraft, type DerivedDraft } from '@fantasy-draft/shared';
+import { deriveDraft, type DerivedDraft } from '@fantasy-draft/shared/draft';
 import { createShadowMock, shadowMockFormat } from '../src/stores/draft/derive-shadow-fixture';
 
 const batchSize = 2000;

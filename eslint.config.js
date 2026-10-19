@@ -41,7 +41,8 @@ export default tseslint.config(
     },
   })),
   {
-    files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    languageOptions: { parser: tseslint.parser },
     plugins: { agent: agentRules },
     rules: { 'agent/no-closed-root-import': 'error' },
   },

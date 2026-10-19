@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { afterAll, afterEach, beforeEach, expect, vi } from 'vitest';
-import { deriveDraft, type DerivedDraft } from '@fantasy-draft/shared';
+import { deriveDraft, type DerivedDraft } from '@fantasy-draft/shared/draft';
 import type { DraftStoreApi } from '../draftStore';
 import type { DraftStore } from './types';
 import { shadowFormat, shadowSource } from './derive-shadow-source';

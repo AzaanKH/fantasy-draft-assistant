@@ -1,9 +1,11 @@
 import {
-  createSlotSequence,
   POSITIONS,
   type DraftReadinessReport,
   type Player,
 } from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
+} from '@fantasy-draft/shared/draft';
 import {
   createDefaultLeagueSettings,
   createLeagueSettings,

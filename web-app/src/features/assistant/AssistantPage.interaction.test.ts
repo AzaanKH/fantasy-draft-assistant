@@ -5,10 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type Player,
   type Position,
-  type PositionNeed,
-  type Recommendation,
   POSITIONS,
 } from '@fantasy-draft/shared';
+import {
+  type PositionNeed,
+  type Recommendation,
+} from '@fantasy-draft/shared/draft';
 import {
   type DraftProvider,
 } from '@fantasy-draft/shared/sync';

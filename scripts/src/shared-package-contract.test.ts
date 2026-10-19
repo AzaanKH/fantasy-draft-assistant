@@ -110,9 +110,12 @@ console.log(JSON.stringify({
     });
   });
 
-
-  it('closes every wave 1 runtime name on the root and loads its exact subpath', () => {
+  it('closes every completed wave runtime name on the root and loads its exact subpath', () => {
     const groups = {
+      draft: [
+        'isNeedPriority', 'isShadowRecommendationEvent', 'optimizeLineupUtility',
+        'LIVE_RECOMMENDATION_ARCHITECTURE', 'createSlotSequence', 'deriveDraft',
+      ],
       sync: [
         'isDraftSessionSummary', 'DraftSyncEngine', 'isDraftProvider', 'isDraftMetadata',
         'isEspnDraftSnapshot', 'isDraftSyncSnapshot', 'isDraftSyncUpdate',
@@ -158,6 +161,21 @@ console.log(JSON.stringify(failures));
     }
     const subpathSource = entries.map(([name, subpath]) => `import type { ${name} } from '${subpath}';`).join('\n');
     expect(consumerDiagnostics(subpathSource)).toEqual([]);
+  });
+
+  it('closes duplicate roster exports on draft in Node and NodeNext', () => {
+    const names = ['DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'Roster', 'RosterRequirements'];
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const draft = await import('@fantasy-draft/shared/draft');
+console.log(JSON.stringify(${JSON.stringify(names)}.filter(name => name in draft)));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+    expect(JSON.parse(output)).toEqual([]);
+    const diagnostics = consumerDiagnostics(names.map(name => `import type { ${name} } from '@fantasy-draft/shared/draft';`).join('\n'));
+    expect(diagnostics).toHaveLength(names.length);
+    for (const [index, name] of names.entries()) {
+      expect(diagnostics[index]?.code).toBeOneOf([2305, 2724]);
+      expect(diagnostics[index]?.message).toContain(name);
+    }
   });
 
   it('type-checks consumers under NodeNext and rejects nonexistent DraftSyncEngine methods', () => {

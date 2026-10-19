@@ -1,4 +1,4 @@
-import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared';
+import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import type {
   Position,
 } from '@fantasy-draft/shared';

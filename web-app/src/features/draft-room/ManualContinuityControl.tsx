@@ -1,4 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CircleAlert, PenLine, ShieldAlert, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

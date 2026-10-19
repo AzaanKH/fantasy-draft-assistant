@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   Recommendation,
   RecommendationDecisionFactors,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';

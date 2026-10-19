@@ -1,10 +1,12 @@
 import {
-  createSlotSequence,
   POSITIONS,
   type Player,
   type Position,
-  type Recommendation,
 } from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
+  type Recommendation,
+} from '@fantasy-draft/shared/draft';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';

@@ -1,4 +1,4 @@
-import { createSlotSequence, type DecisionLens } from '@fantasy-draft/shared';
+import { createSlotSequence, type DecisionLens } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 

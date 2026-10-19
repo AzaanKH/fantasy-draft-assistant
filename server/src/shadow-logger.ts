@@ -1,7 +1,7 @@
 import { appendFile, mkdir, open, rename, rm, writeFile, type FileHandle } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { Data, Effect, Semaphore } from 'effect';
-import type { ShadowRecommendationEvent } from '@fantasy-draft/shared';
+import type { ShadowRecommendationEvent } from '@fantasy-draft/shared/draft';
 import { HttpError } from './http-security.js';
 
 interface StoredShadowRecommendationEvent extends ShadowRecommendationEvent {

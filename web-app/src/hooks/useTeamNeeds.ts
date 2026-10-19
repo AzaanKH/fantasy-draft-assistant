@@ -8,7 +8,8 @@
  */
 
 import { useMemo } from 'react';
-import type { Position, PositionNeed } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared';
+import type { PositionNeed } from '@fantasy-draft/shared/draft';
 import {
   calculateAllScarcityScores,
   calculateTeamNeeds,

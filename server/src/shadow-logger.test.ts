@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Effect, Fiber } from 'effect';
-import type { ShadowRecommendationEvent } from '@fantasy-draft/shared';
+import type { ShadowRecommendationEvent } from '@fantasy-draft/shared/draft';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
 
 const record = (logger: ShadowRecommendationLogger, event: ShadowRecommendationEvent) => Effect.runPromise(logger.record(event));

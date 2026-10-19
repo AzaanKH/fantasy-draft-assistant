@@ -1,6 +1,7 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { useId, useMemo, useRef, useState } from 'react';
-import { POSITIONS, type Player, type Position, type PositionNeed } from '@fantasy-draft/shared';
+import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared';
+import { type PositionNeed } from '@fantasy-draft/shared/draft';
 import { Check, ChevronDown, ChevronRight, ListPlus, X } from 'lucide-react';
 import { MotionFade } from '@/components/motion';
 import { Button } from '@/components/ui/button';

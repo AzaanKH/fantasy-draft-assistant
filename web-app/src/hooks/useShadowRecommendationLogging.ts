@@ -1,7 +1,7 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import {
   applyLeagueSurvivalModel,

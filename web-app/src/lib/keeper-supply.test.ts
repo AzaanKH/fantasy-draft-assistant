@@ -1,10 +1,12 @@
 import '@/stores/draft/derive-shadow.setup';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  createSlotSequence,
   type Player,
-  type PositionNeed,
 } from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
+  type PositionNeed,
+} from '@fantasy-draft/shared/draft';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
 } from '@fantasy-draft/shared/league';

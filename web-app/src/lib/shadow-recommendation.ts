@@ -3,7 +3,7 @@ import type {
   Recommendation,
   ShadowRecommendation,
   ShadowRecommendationEvent,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import type {
   DraftProvider,
 } from '@fantasy-draft/shared/sync';

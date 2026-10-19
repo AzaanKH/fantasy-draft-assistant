@@ -21,23 +21,6 @@ export type {
   Player,
 } from './player.js';
 
-// Draft types
-export {
-  isNeedPriority,
-} from './draft.js';
-
-export type {
-  DraftPick,
-  NeedPriority,
-  PositionNeed,
-  RecommendationDecisionFactors,
-  ExpectedNextPickAlternative,
-  Recommendation,
-  DecisionLens,
-  DecisionDivergenceFactor,
-  DecisionOutput,
-} from './draft.js';
-
 // Team environment types
 export {
   isTeamEnvironment,
@@ -83,17 +66,6 @@ export type {
   FantasyProsSnapshot,
 } from './fantasypros.js';
 
-// Experimental model shadow-evaluation types
-export { isShadowRecommendationEvent } from './shadow.js';
-
-export type {
-  ShadowRecommendation,
-  ShadowRecommendationEvent,
-} from './shadow.js';
-
-export { optimizeLineupUtility } from './lineup-utility.js';
-export type { LineupPlayer } from './lineup-utility.js';
-
 // Sportsbook market snapshots and projection adjustments
 export {
   americanOddsToImpliedProbability,
@@ -130,8 +102,6 @@ export type {
   DraftReadinessReport,
 } from './draft-readiness.js';
 
-export { LIVE_RECOMMENDATION_ARCHITECTURE } from './recommendation-policy.js';
-
 // One-click Core Draft Data refresh, shared by the preflight, local API and workspace.
 export {
   DRAFT_DATA_REFRESH_STEPS,
@@ -144,9 +114,3 @@ export type {
   DraftDataRefreshStepState,
   DraftDataRefreshStatus,
 } from './draft-data-refresh.js';
-
-export { createSlotSequence } from './draft-order.js';
-export type { DraftFormat, SlotRef, SlotSequence } from './draft-order.js';
-
-export { deriveDraft } from './derive-draft.js';
-export type { DraftSource, DraftSelection, DraftKeeper, DerivedDraft } from './derive-draft.js';

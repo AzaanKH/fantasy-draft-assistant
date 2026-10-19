@@ -1,4 +1,4 @@
-import { Linter } from 'eslint';
+import { ESLint, Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
 import agent from './agent-lint-rules.mjs';
@@ -49,11 +49,21 @@ describe('agent lint rules', () => {
 });
 
 describe('closed shared root exports', () => {
+  it.each(['web-app/__bench__/probe.ts', 'scripts/probe.mjs'])('checks closed names outside src in %s', async (filePath) => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    const results = await eslint.lintText("import { deriveDraft } from '@fantasy-draft/shared';", { filePath });
+    expect(results[0].messages).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
+  });
   it.each([
     ["import { DraftSyncEngine } from '@fantasy-draft/shared';", 'sync'],
     ["import type { DraftMetadata as Metadata } from '@fantasy-draft/shared';", 'sync'],
     ["export { createLeagueSettings as settings } from '@fantasy-draft/shared';", 'league'],
     ["import { MAX_DRAFT_TEAMS } from '@fantasy-draft/shared';", 'units'],
+    ["type Roster = import('@fantasy-draft/shared/draft').Roster;", 'league'],
+    ["import { deriveDraft } from '@fantasy-draft/shared';", 'draft'],
+    ["import type { Recommendation } from '@fantasy-draft/shared';", 'draft'],
+    ["import { createEmptyRoster } from '@fantasy-draft/shared/draft';", 'league'],
+    ["export type { Roster as TeamRoster } from '@fantasy-draft/shared/draft';", 'league'],
     ["import { localDevPorts } from '@fantasy-draft/shared';", 'node'],
   ])('names the replacement for %s', (source, target) => {
     expect(messages(source)).toEqual([expect.objectContaining({
@@ -68,6 +78,9 @@ describe('closed shared root exports', () => {
     "type Metadata = import('@fantasy-draft/shared').DraftMetadata;",
   ])('rejects namespace access to closed groups: %s', (source) => {
     expect(messages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
+  });
+  it('allows namespace and type access to valid draft exports', () => {
+    expect(messages("import * as draft from '@fantasy-draft/shared/draft'; type Pick = import('@fantasy-draft/shared/draft').DraftPick;")).toEqual([]);
   });
   it('allows open root names and closed names on their exact subpaths', () => {
     expect(messages("import type { Player } from '@fantasy-draft/shared'; import { DraftSyncEngine } from '@fantasy-draft/shared/sync';")).toEqual([]);
