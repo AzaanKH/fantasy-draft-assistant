@@ -47,7 +47,7 @@ function timestamp(value: unknown): number {
 async function readJson(path: string, checks: QualityCheck[]): Promise<unknown> {
   const value: unknown = JSON.parse(await readFile(join(DATA_DIR, path), 'utf8'));
   const options = { onWarning: (message: string) => {
-    add(checks, `rows.${path}`, path === 'sportsbook-snapshot.json' ? 'fail' : 'warn', message);
+    add(checks, `rows.${path}`, path === 'sportsbook-snapshot.json' || path === 'predictions.json' ? 'fail' : 'warn', message);
     console.warn(`${path}: ${message}`);
   } };
   switch (path) {
@@ -247,13 +247,16 @@ async function main(): Promise<void> {
 
   const predictions = loaded.get('predictions.json');
   const predictionPlayers = asArray(nested(predictions, 'players'));
+  const predictionRowWarnings = checks.filter(check => check.id === 'rows.predictions.json');
+  const predictionRowsValid = predictionRowWarnings.length === 0;
   const invalidPredictions = predictionPlayers.filter((entry) =>
     !isRecord(entry) || !finiteNumber(entry['projectedPoints'])
   ).length;
   add(checks, 'predictions.count', predictionPlayers.length >= 800 ? 'pass' : 'fail',
     'Prediction output meets the minimum usable count.', predictionPlayers.length, '>= 800');
-  add(checks, 'predictions.finite', invalidPredictions === 0 ? 'pass' : 'fail',
-    'All projected point values are finite.', invalidPredictions, '0 invalid');
+  add(checks, 'predictions.finite', predictionRowsValid && invalidPredictions === 0 ? 'pass' : 'fail',
+    'All projected point values are finite.',
+    predictionRowsValid ? invalidPredictions : predictionRowWarnings.map(check => check.message).join(' '), '0 invalid');
   const invalidCommonOutputs = predictionPlayers.filter((entry) => {
     if (!isRecord(entry)) return true;
     const projected = entry['projectedPoints'];
@@ -265,9 +268,9 @@ async function main(): Promise<void> {
       !finiteNumber(entry['valueOverReplacement']) || floor > projected || projected > ceiling ||
       percentile < 0 || percentile > 100 || typeof entry['modelFamily'] !== 'string';
   }).length;
-  add(checks, 'predictions.common-output-contract', invalidCommonOutputs === 0 ? 'pass' : 'fail',
+  add(checks, 'predictions.common-output-contract', predictionRowsValid && invalidCommonOutputs === 0 ? 'pass' : 'fail',
     'Every model emits league points, floor, ceiling, uncertainty, position percentile, and VOR.',
-    invalidCommonOutputs, '0 invalid');
+    predictionRowsValid ? invalidCommonOutputs : predictionRowWarnings.map(check => check.message).join(' '), '0 invalid');
   const offensiveModelFamilies = new Set(
     predictionPlayers
       .filter((entry) => isRecord(entry) && ['QB', 'RB', 'WR', 'TE'].includes(String(entry['position'])))
