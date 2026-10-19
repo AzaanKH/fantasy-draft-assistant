@@ -3,6 +3,7 @@ import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DraftType, Player, Recommendation } from '@fantasy-draft/shared';
+import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidePanelPage } from '@/features/sidepanel/SidePanelPage';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
@@ -191,5 +192,25 @@ describe('legacy auction presentation', () => {
       createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }), createElement(SidePanelPage)));
     expect(container.textContent).toContain('2 picks away');
     expect(container.textContent).toContain('Your pick in 2');
+  });
+});
+
+
+function DraftActionProbe(): ReactElement {
+  const { canDraft, draftPlayer } = useDraftPlayerAction();
+  return createElement('button', { disabled: !canDraft, onClick: () => { draftPlayer(player); } }, 'Draft probe');
+}
+
+describe('completed mock draft actions', () => {
+  it.each(['snake', 'linear'] as const)('does not offer a phantom %s turn after the final round', draftType => {
+    store.getState().setConfig({ draftType, myPickPosition: draftType === 'linear' ? 1 : 4 });
+    store.getState().setSessionMode('mock');
+    store.setState({ currentPick: 13 });
+    render(createElement(DraftActionProbe));
+    const button = container.querySelector('button');
+    expect(button?.disabled).toBe(true);
+    act(() => { button?.click(); });
+    expect(store.getState().draftHistory).toEqual([]);
+    expect(store.getState().myRoster.WR).toEqual([]);
   });
 });
