@@ -25,6 +25,26 @@
       "@fantasy-draft/source": "./src/draft-url.ts",
       "types": "./dist/draft-url.d.ts",
       "import": "./dist/draft-url.js"
+    },
+    "./league": {
+      "@fantasy-draft/source": "./src/league/index.ts",
+      "types": "./dist/league/index.d.ts",
+      "import": "./dist/league/index.js"
+    },
+    "./node": {
+      "@fantasy-draft/source": "./src/node/index.ts",
+      "types": "./dist/node/index.d.ts",
+      "import": "./dist/node/index.js"
+    },
+    "./sync": {
+      "@fantasy-draft/source": "./src/sync/index.ts",
+      "types": "./dist/sync/index.d.ts",
+      "import": "./dist/sync/index.js"
+    },
+    "./units": {
+      "@fantasy-draft/source": "./src/units/index.ts",
+      "types": "./dist/units/index.d.ts",
+      "import": "./dist/units/index.js"
     }
   },
   "scripts": {

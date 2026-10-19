@@ -3,7 +3,7 @@ import type {
   DraftMetadata,
   DraftPickEvent,
   DraftProvider,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 
 /** The network boundary, injected by tests; Effect supplies the signal and aborts it on interruption. */
 export type FetchJson = <T>(

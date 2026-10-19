@@ -6,7 +6,7 @@ import {
   type DraftProvider,
   type DraftSyncSnapshot,
   type DraftSyncUpdate,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import type { DraftSyncTransportState } from '@/lib/draft-sync-state';
 
 function getSyncPath(provider: DraftProvider, draftId: string): string {

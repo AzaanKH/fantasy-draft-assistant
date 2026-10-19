@@ -1,8 +1,16 @@
 import { Effect } from 'effect';
 import {
-  CORE_DRAFT_DATA_KEYS, OPTIONAL_SIGNAL_KEYS, isDraftSyncSnapshot, isPlayer, isPosition,
-  type DraftSyncSnapshot, type DraftReadinessReport, type Player,
+  CORE_DRAFT_DATA_KEYS,
+  OPTIONAL_SIGNAL_KEYS,
+  isPlayer,
+  isPosition,
+  type DraftReadinessReport,
+  type Player,
 } from '@fantasy-draft/shared';
+import {
+  isDraftSyncSnapshot,
+  type DraftSyncSnapshot,
+} from '@fantasy-draft/shared/sync';
 import { isRecord, isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
 import { getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { createSessionContext } from './context';

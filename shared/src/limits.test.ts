@@ -5,7 +5,7 @@ import {
   MAX_DRAFT_PICKS,
   MAX_DRAFT_ROUNDS,
   MAX_DRAFT_TEAMS,
-} from './index.js';
+} from './limits.js';
 
 describe('resource limits', () => {
   it('derives the pick ceiling from the team and round ceilings', () => {

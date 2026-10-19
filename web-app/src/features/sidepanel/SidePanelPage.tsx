@@ -2,12 +2,14 @@ import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
 import {
   createSlotSequence,
   POSITIONS,
-  type DraftProvider,
   type Player,
   type Position,
   type PositionNeed,
   type Recommendation,
 } from '@fantasy-draft/shared';
+import {
+  type DraftProvider,
+} from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import {
   Bot,

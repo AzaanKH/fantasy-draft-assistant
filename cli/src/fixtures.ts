@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { createDefaultLeagueSettings, createLeagueSettings, type DraftPickEvent, type DraftSyncSnapshot, type Position } from '@fantasy-draft/shared';
+import { type Position } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings, createLeagueSettings } from '@fantasy-draft/shared/league';
+import { type DraftPickEvent, type DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 
 export const FIXTURE_NOW = Date.parse('2026-09-10T12:00:00.000Z');
 const timestamp = new Date(FIXTURE_NOW).toISOString();

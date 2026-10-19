@@ -11,7 +11,7 @@ import {
   type SleeperDraftMetadata,
   type DraftPickEvent,
   type SleeperDraftPick,
-} from './index.js';
+} from './sync.js';
 
 function createDraft(): SleeperDraftMetadata {
   return {

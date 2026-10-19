@@ -1,4 +1,5 @@
-import type { Position, RosterRequirements } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared';
+import type { RosterRequirements } from '@fantasy-draft/shared/league';
 import { POSITIONS } from '@fantasy-draft/shared';
 
 type RosterSlotLabel = Position | 'FLEX' | 'BN';

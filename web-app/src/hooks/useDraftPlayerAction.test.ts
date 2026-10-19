@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared/league';
 import { canDraftFromWorkspace, isPositionFull } from './useDraftPlayerAction';
 
 describe('canDraftFromWorkspace', () => {

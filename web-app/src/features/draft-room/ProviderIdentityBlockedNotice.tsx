@@ -1,4 +1,5 @@
-import { type DraftType, createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared';
+import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import { CircleAlert } from 'lucide-react';
 import type { UnresolvedProviderPick } from '@/stores/draftStore';

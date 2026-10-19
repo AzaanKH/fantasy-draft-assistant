@@ -1,13 +1,15 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   createSlotSequence,
+  type Player,
+  type Position,
+} from '@fantasy-draft/shared';
+import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
   createLeagueSettings,
-  type Player,
-  type Position,
   type Roster,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {

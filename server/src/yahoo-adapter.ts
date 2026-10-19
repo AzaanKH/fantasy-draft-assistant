@@ -1,12 +1,14 @@
 import { createSlotSequence } from '@fantasy-draft/shared';
 import {
   isPosition,
+  type Position,
+} from '@fantasy-draft/shared';
+import {
   type DraftMetadata,
   type DraftPickEvent,
   type DraftStatus,
   type DraftType,
-  type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import { Effect } from 'effect';
 import {
   parsePayload,

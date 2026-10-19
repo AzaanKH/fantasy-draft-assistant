@@ -1,12 +1,14 @@
 import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared';
 import type {
+  Position,
+} from '@fantasy-draft/shared';
+import type {
   DraftMetadata,
   DraftPickEvent,
   DraftStatus,
   DraftType,
   EspnDraftSnapshot,
-  Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 
 interface UnknownRecord {
   readonly [key: string]: unknown;

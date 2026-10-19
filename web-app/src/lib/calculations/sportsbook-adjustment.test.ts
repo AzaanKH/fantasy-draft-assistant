@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SCORING_RULES,
   americanOddsToImpliedProbability,
   calculateSportsbookProjectionAdjustment,
   normalizeSportsbookPlayerName,
   type SportsbookOverUnderLine,
 } from '@fantasy-draft/shared';
+import {
+  DEFAULT_SCORING_RULES,
+} from '@fantasy-draft/shared/league';
 
 describe('sportsbook projection adjustment', () => {
   it('converts positive and negative American odds to raw implied probability', () => {

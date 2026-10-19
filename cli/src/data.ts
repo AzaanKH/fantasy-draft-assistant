@@ -2,9 +2,23 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect } from 'effect';
 import {
-  isPosition, isNFLTeam, isNewsStatus, isTeamEnvironment, type FantasyProsSnapshot, type LeagueSettings,
-  type DraftType, type MarketAdpPlayer, type NFLTeam, type Player, type Position, type TeamEnvironment,
+  isPosition,
+  isNFLTeam,
+  isNewsStatus,
+  isTeamEnvironment,
+  type FantasyProsSnapshot,
+  type MarketAdpPlayer,
+  type NFLTeam,
+  type Player,
+  type Position,
+  type TeamEnvironment,
 } from '@fantasy-draft/shared';
+import {
+  type LeagueSettings,
+} from '@fantasy-draft/shared/league';
+import {
+  type DraftType,
+} from '@fantasy-draft/shared/sync';
 import { mergeCoreSources, normalizePlayerName, type LeagueSurvivalModel, canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry, type evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
 import { isLeagueSurvivalModel, isPlayerIdentityFile, isRecommendationPolicyFile, isRecord, SAFE_RECOMMENDATION_POLICY, type RecommendationPolicyFile, type SleeperDataFile } from '@fantasy-draft/shared/catalog';
 import { CliError, unexpected } from './errors';

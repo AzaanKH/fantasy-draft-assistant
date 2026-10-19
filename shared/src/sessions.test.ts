@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isDraftSessionSummary, type DraftSessionSummary } from './index.js';
+import { isDraftSessionSummary, type DraftSessionSummary } from './sessions.js';
 
 const summary: DraftSessionSummary = {
   session: 'sleeper:draft-1',

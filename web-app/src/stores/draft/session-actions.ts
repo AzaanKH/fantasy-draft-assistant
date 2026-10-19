@@ -1,5 +1,5 @@
 import { castDraft, type Draft } from 'immer';
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';
 import {
   isDraftSessionIdentity,

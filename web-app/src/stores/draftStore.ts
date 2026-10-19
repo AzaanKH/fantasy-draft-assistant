@@ -2,7 +2,7 @@ import { createContext, createElement, useContext, type ReactNode, type ReactEle
 import { create, useStore, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { useDraftSyncConnectionStore } from './draftSyncStore';
 import {
   createDraftSessionWriteId,

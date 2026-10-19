@@ -1,10 +1,12 @@
 import type {
-  DraftProvider,
   PositionNeed,
   Recommendation,
   ShadowRecommendation,
   ShadowRecommendationEvent,
 } from '@fantasy-draft/shared';
+import type {
+  DraftProvider,
+} from '@fantasy-draft/shared/sync';
 
 function compactRecommendation(
   recommendation: Recommendation

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Effect } from 'effect';
-import type { SleeperDraftMetadata } from '@fantasy-draft/shared';
+import type { SleeperDraftMetadata } from '@fantasy-draft/shared/sync';
 import {
   draftFixture,
   leagueFixture,

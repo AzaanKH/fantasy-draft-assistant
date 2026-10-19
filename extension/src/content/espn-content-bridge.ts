@@ -1,4 +1,4 @@
-import type { EspnDraftSnapshot } from '@fantasy-draft/shared';
+import type { EspnDraftSnapshot } from '@fantasy-draft/shared/sync';
 import type { ExtensionMessageSender } from './chrome-messenger';
 
 const ESPN_BRIDGE_SOURCE = 'fantasy-draft-assistant:espn';

@@ -5,14 +5,16 @@ import {
   type NFLTeam,
   type Player,
   type Position,
+  type TeamEnvironment,
+  POSITIONS,
+} from '@fantasy-draft/shared';
+import {
   type Roster,
   type RosterRequirements,
   type ScoringRules,
-  type TeamEnvironment,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
-  POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import identityJson from '../../../data/player-identity.json';
 import keeperJson from '../../../data/league-history/current-keepers.json';

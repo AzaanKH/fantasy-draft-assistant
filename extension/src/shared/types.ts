@@ -11,7 +11,7 @@ import {
   isEspnDraftSnapshot,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 
 /**
  * Draft pick detected from Sleeper DOM

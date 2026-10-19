@@ -1,4 +1,5 @@
-import { isDraftSize, isLeagueSettings, isRosterRequirements } from '@fantasy-draft/shared';
+import { isDraftSize } from '@fantasy-draft/shared/units';
+import { isLeagueSettings, isRosterRequirements } from '@fantasy-draft/shared/league';
 import { canonicalizeKeeperSupply } from '@fantasy-draft/shared/draft';
 import { rebuildCanonicalRosters } from './state';
 import type { DraftActions, DraftState, SetDraftState } from './types';

@@ -1,4 +1,5 @@
-import { createSlotSequence, type DraftType } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared';
+import { type DraftType } from '@fantasy-draft/shared/sync';
 
 export function getPicksUntilMyTurn(
   currentPick: number,

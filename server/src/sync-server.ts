@@ -5,17 +5,19 @@ import { randomBytes } from 'node:crypto';
 import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
-  DraftSyncEngine,
-  isEspnDraftSnapshot,
   isMarketAdpFormat,
   isShadowRecommendationEvent,
+} from '@fantasy-draft/shared';
+import {
+  DraftSyncEngine,
+  isEspnDraftSnapshot,
   type DraftMetadata,
   type DraftSessionSummary,
   type DraftPickEvent,
   type DraftProvider,
   type DraftSyncSnapshot,
   type DraftSyncUpdate,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
 import {
   SleeperSyncAdapter,

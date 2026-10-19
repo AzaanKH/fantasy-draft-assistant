@@ -2,10 +2,14 @@ import type {
   DecisionLens,
   Position,
   DraftPick,
+} from '@fantasy-draft/shared';
+import type {
   DraftType,
+} from '@fantasy-draft/shared/sync';
+import type {
   LeagueSettings,
   RosterRequirements,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type { Draft } from 'immer';
 import type { DraftSessionIdentity } from '../draftSessionStorage';
 

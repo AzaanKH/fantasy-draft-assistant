@@ -6,7 +6,7 @@
  * logic, and theme preferences stay identical across both surfaces.
  */
 
-import type { DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { localWebAppBase } from '../shared/local-urls';
 import {
   DEFAULT_WEB_APP_URL,

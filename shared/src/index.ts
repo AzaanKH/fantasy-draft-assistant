@@ -1,5 +1,4 @@
 // Player types
-export { MAX_DRAFT_TEAMS, MAX_DRAFT_ROUNDS, MAX_DRAFT_PICKS, MAX_ROSTER_SPOTS, isBoundedInteger, isDraftSize } from './limits.js';
 export {
   NFL_TEAMS,
   POSITIONS,
@@ -24,14 +23,10 @@ export type {
 
 // Draft types
 export {
-  DEFAULT_ROSTER_REQUIREMENTS,
-  createEmptyRoster,
   isNeedPriority,
 } from './draft.js';
 
 export type {
-  Roster,
-  RosterRequirements,
   DraftPick,
   NeedPriority,
   PositionNeed,
@@ -54,27 +49,6 @@ export type {
   VolumeLevel,
   TeamEnvironment,
 } from './team-environment.js';
-
-// Scoring types
-export { DEFAULT_SCORING_RULES } from './scoring.js';
-
-export type {
-  ScoringRules,
-} from './scoring.js';
-
-// Normalized league scoring and roster configuration
-export {
-  createDefaultLeagueSettings,
-  createLeagueSettings,
-  isLeagueSettings,
-  isSleeperLeague,
-  normalizeSleeperLeagueSettings,
-} from './league-settings.js';
-
-export type {
-  LeagueSettings,
-  SleeperLeague,
-} from './league-settings.js';
 
 // Observed market ADP
 export { isMarketAdpFormat, isMarketAdpSnapshot } from './market-adp.js';
@@ -108,38 +82,6 @@ export type {
   FantasyProsNewsItem,
   FantasyProsSnapshot,
 } from './fantasypros.js';
-
-// Sync types
-export { isDraftSessionSummary } from './sessions.js';
-export type { DraftSessionSummary } from './sessions.js';
-export {
-  DraftSyncEngine,
-  isDraftProvider,
-  isDraftMetadata,
-  isEspnDraftSnapshot,
-  isDraftSyncSnapshot,
-  isDraftSyncUpdate,
-  isSleeperDraftMetadata,
-  isSleeperDraftPick,
-  isSleeperDraftPickList,
-  normalizeSleeperDraftMetadata,
-  normalizeSleeperPick,
-  resolveSleeperDraftLeagueId,
-} from './sync.js';
-
-export type {
-  SleeperDraftPick,
-  SleeperDraftMetadata,
-  DraftProvider,
-  DraftStatus,
-  DraftType,
-  DraftMetadata,
-  DraftPickEvent,
-  EspnDraftSnapshot,
-  DraftSyncState,
-  DraftSyncSnapshot,
-  DraftSyncUpdate,
-} from './sync.js';
 
 // Experimental model shadow-evaluation types
 export { isShadowRecommendationEvent } from './shadow.js';
@@ -187,10 +129,6 @@ export type {
   DraftReadinessItem,
   DraftReadinessReport,
 } from './draft-readiness.js';
-
-export { isRosterRequirements } from './league-settings.js';
-
-export { localDevPorts } from './local-dev.js';
 
 export { LIVE_RECOMMENDATION_ARCHITECTURE } from './recommendation-policy.js';
 

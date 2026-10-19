@@ -1,6 +1,6 @@
 import '@/stores/draft/derive-shadow.setup';
 import { describe, expect, it } from 'vitest';
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { createDraftStore } from './draftStore';
 
 describe('draft store resource bounds', () => {

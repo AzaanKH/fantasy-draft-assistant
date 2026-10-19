@@ -1,5 +1,5 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
-import type { DraftProvider } from '@fantasy-draft/shared';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { IS_DEMO } from '@/lib/demo-mode';
 
 export const DRAFT_SYNC_STORAGE_KEY = 'fantasy-draft-live-sync-v1';

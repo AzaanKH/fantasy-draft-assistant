@@ -1,10 +1,12 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  DEFAULT_ROSTER_REQUIREMENTS,
   POSITIONS,
   type Player,
   type PositionNeed,
 } from '@fantasy-draft/shared';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
+} from '@fantasy-draft/shared/league';
 import { getRecommendationBoard } from '@fantasy-draft/shared/draft';
 
 // Synthetic 600-player calculation profile matching the hook's overall and

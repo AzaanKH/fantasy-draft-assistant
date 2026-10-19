@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DraftProvider, DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftProvider, DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { useDraftStore } from '@/stores/draftStore';

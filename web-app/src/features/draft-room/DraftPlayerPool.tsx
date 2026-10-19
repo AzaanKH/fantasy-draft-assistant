@@ -3,9 +3,11 @@ import * as React from 'react';
 import {
   type Player,
   type Position,
-  type RosterRequirements,
   POSITIONS,
 } from '@fantasy-draft/shared';
+import {
+  type RosterRequirements,
+} from '@fantasy-draft/shared/league';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, ListPlus, Search } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';

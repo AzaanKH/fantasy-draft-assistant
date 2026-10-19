@@ -1,5 +1,6 @@
 import { PositionTag } from '@/components/PositionTag';
-import type { DraftProvider, Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
+import type { Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import * as React from 'react';
 import { type AssistantDraftMode, type UpcomingTeamPicks, countTeamsNeeding } from './assistant-context';

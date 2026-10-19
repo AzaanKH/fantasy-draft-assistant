@@ -1,4 +1,5 @@
-import { isEspnDraftSnapshot, MAX_DRAFT_TEAMS } from '@fantasy-draft/shared';
+import { isEspnDraftSnapshot } from '@fantasy-draft/shared/sync';
+import { MAX_DRAFT_TEAMS } from '@fantasy-draft/shared/units';
 import type { ExtensionMessage } from '../shared/types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {

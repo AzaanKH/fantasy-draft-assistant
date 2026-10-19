@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -8,6 +9,38 @@ import { describe, expect, it } from 'vitest';
 // under plain Node, and its types must actually resolve (not silently become `any`).
 const SCRIPTS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+function consumerDiagnostics(source: string): { code: number; message: string }[] {
+  const fileName = join(SCRIPTS_DIR, 'src', '__shared-contract-probe__.ts');
+  const options: ts.CompilerOptions = {
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: ts.ScriptTarget.ES2022,
+    strict: true,
+    noEmit: true,
+    skipLibCheck: true,
+    types: [],
+  };
+  const baseHost = ts.createCompilerHost(options);
+  const host: ts.CompilerHost = {
+    ...baseHost,
+    fileExists: (path) => path === fileName || baseHost.fileExists(path),
+    readFile: (path) => (path === fileName ? source : baseHost.readFile(path)),
+    getSourceFile: (path, languageVersion, ...rest) =>
+      path === fileName
+        ? ts.createSourceFile(path, source, languageVersion)
+        : baseHost.getSourceFile(path, languageVersion, ...rest),
+  };
+
+  const program = ts.createProgram([fileName], options, host);
+  return ts
+    .getPreEmitDiagnostics(program)
+    .filter((diagnostic) => diagnostic.file?.fileName === fileName)
+    .map((diagnostic) => ({
+      code: diagnostic.code,
+      message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+    }));
+}
+
 describe('@fantasy-draft/shared package contract', () => {
   it('imports the built package under plain Node ESM resolution', () => {
     const output = execFileSync(
@@ -15,7 +48,7 @@ describe('@fantasy-draft/shared package contract', () => {
       [
         '--input-type=module',
         '-e',
-        "const shared = await import('@fantasy-draft/shared'); console.log(typeof shared.DraftSyncEngine);",
+        "const shared = await import('@fantasy-draft/shared'); console.log(typeof shared.isPlayer);",
       ],
       { cwd: SCRIPTS_DIR, encoding: 'utf8' }
     );
@@ -77,42 +110,64 @@ console.log(JSON.stringify({
     });
   });
 
+
+  it('closes every wave 1 runtime name on the root and loads its exact subpath', () => {
+    const groups = {
+      sync: [
+        'isDraftSessionSummary', 'DraftSyncEngine', 'isDraftProvider', 'isDraftMetadata',
+        'isEspnDraftSnapshot', 'isDraftSyncSnapshot', 'isDraftSyncUpdate',
+        'isSleeperDraftMetadata', 'isSleeperDraftPick', 'isSleeperDraftPickList',
+        'normalizeSleeperDraftMetadata', 'normalizeSleeperPick', 'resolveSleeperDraftLeagueId',
+      ],
+      units: [
+        'MAX_DRAFT_TEAMS', 'MAX_DRAFT_ROUNDS', 'MAX_DRAFT_PICKS', 'MAX_ROSTER_SPOTS',
+        'isBoundedInteger', 'isDraftSize',
+      ],
+      node: ['localDevPorts'],
+      league: [
+        'DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'DEFAULT_SCORING_RULES',
+        'createDefaultLeagueSettings', 'createLeagueSettings', 'isLeagueSettings',
+        'isSleeperLeague', 'normalizeSleeperLeagueSettings', 'isRosterRequirements',
+      ],
+    };
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const root = await import('@fantasy-draft/shared');
+const failures = [];
+for (const [target, names] of Object.entries(${JSON.stringify(groups)})) {
+  const subpath = await import('@fantasy-draft/shared/' + target);
+  for (const name of names) {
+    if (name in root || !(name in subpath)) failures.push(target + '/' + name);
+  }
+}
+console.log(JSON.stringify(failures));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+    expect(JSON.parse(output)).toEqual([]);
+  });
+
+  it('rejects all closed root names in NodeNext and resolves their subpath types', () => {
+    const closed: Record<string, string> = JSON.parse(readFileSync(
+      join(SCRIPTS_DIR, 'shared-closed-exports.json'), 'utf8'
+    ));
+    const entries = Object.entries(closed);
+    const rootSource = entries.map(([name]) => `import type { ${name} } from '@fantasy-draft/shared';`).join('\n');
+    const diagnostics = consumerDiagnostics(rootSource);
+    expect(diagnostics).toHaveLength(entries.length);
+    for (const [index, [name]] of entries.entries()) {
+      expect(diagnostics[index]?.code).toBeOneOf([2305, 2724]);
+      expect(diagnostics[index]?.message).toContain(name);
+    }
+    const subpathSource = entries.map(([name, subpath]) => `import type { ${name} } from '${subpath}';`).join('\n');
+    expect(consumerDiagnostics(subpathSource)).toEqual([]);
+  });
+
   it('type-checks consumers under NodeNext and rejects nonexistent DraftSyncEngine methods', () => {
-    const fileName = join(SCRIPTS_DIR, 'src', '__shared-contract-probe__.ts');
     const source = `
-import { DraftSyncEngine } from '@fantasy-draft/shared';
+import { DraftSyncEngine } from '@fantasy-draft/shared/sync';
 const engine = new DraftSyncEngine('sleeper', 'draft-1');
 engine.getSnapshot();
 engine.notARealMethod();
 `;
-    const options: ts.CompilerOptions = {
-      module: ts.ModuleKind.NodeNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeNext,
-      target: ts.ScriptTarget.ES2022,
-      strict: true,
-      noEmit: true,
-      skipLibCheck: true,
-      types: [],
-    };
-    const baseHost = ts.createCompilerHost(options);
-    const host: ts.CompilerHost = {
-      ...baseHost,
-      fileExists: (path) => path === fileName || baseHost.fileExists(path),
-      readFile: (path) => (path === fileName ? source : baseHost.readFile(path)),
-      getSourceFile: (path, languageVersion, ...rest) =>
-        path === fileName
-          ? ts.createSourceFile(path, source, languageVersion)
-          : baseHost.getSourceFile(path, languageVersion, ...rest),
-    };
-
-    const program = ts.createProgram([fileName], options, host);
-    const diagnostics = ts
-      .getPreEmitDiagnostics(program)
-      .filter((diagnostic) => diagnostic.file?.fileName === fileName)
-      .map((diagnostic) => ({
-        code: diagnostic.code,
-        message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-      }));
+    const diagnostics = consumerDiagnostics(source);
 
     expect(diagnostics).toEqual([
       {

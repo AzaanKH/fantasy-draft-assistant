@@ -1,13 +1,17 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   createSlotSequence,
+  POSITIONS,
+  type Player,
+} from '@fantasy-draft/shared';
+import {
   createEmptyRoster,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
-  POSITIONS,
+} from '@fantasy-draft/shared/league';
+import {
   type DraftType,
-  type Player,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

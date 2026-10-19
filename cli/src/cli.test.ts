@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
-import type { DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { runDraft } from './run';
 import { fixturePick, fixtureSettings, fixtureSnapshot, FIXTURE_NOW, writeFixtureData } from './fixtures';
 

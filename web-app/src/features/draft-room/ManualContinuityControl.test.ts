@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { DraftProvider } from '@fantasy-draft/shared';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { ManualContinuityControl } from './ManualContinuityControl';
 
 const sync = vi.hoisted(() => ({

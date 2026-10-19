@@ -2,7 +2,8 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DraftType, Player, Recommendation } from '@fantasy-draft/shared';
+import type { Player, Recommendation } from '@fantasy-draft/shared';
+import type { DraftType } from '@fantasy-draft/shared/sync';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidePanelPage } from '@/features/sidepanel/SidePanelPage';

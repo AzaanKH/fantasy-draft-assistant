@@ -3,7 +3,7 @@ import {
   isDraftSyncSnapshot,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import type { DraftRoomStatus } from '../shared/types';
 import { localSyncBase } from '../shared/local-urls';
 

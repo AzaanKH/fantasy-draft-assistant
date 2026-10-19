@@ -41,6 +41,11 @@ export default tseslint.config(
     },
   })),
   {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-closed-root-import': 'error' },
+  },
+  {
     files: ['web-app/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,

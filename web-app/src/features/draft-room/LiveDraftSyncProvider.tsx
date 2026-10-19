@@ -3,8 +3,10 @@ import { useStore, type StoreApi } from 'zustand';
 import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
 import {
   createDefaultLeagueSettings,
+} from '@fantasy-draft/shared/league';
+import {
   type DraftProvider,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import {
   getDraftSynchronizationState,
   useDraftSync,

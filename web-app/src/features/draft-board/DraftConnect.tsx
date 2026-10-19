@@ -35,9 +35,11 @@ import {
 import { Select } from '@/components/ui/select';
 import {
   formatDraftReadinessTimestamp,
-  type DraftProvider,
   type DraftReadinessReport,
 } from '@fantasy-draft/shared';
+import {
+  type DraftProvider,
+} from '@fantasy-draft/shared/sync';
 import { formatDraftSyncAge } from '@/hooks/useDraftSync';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';

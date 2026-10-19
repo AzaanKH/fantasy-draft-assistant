@@ -1,4 +1,5 @@
 import path from 'node:path';
+import closedExports from './shared-closed-exports.json' with { type: 'json' };
 import { gateWorkspaces } from '../gate-workspaces.js';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -13,6 +14,43 @@ export const baselineRuleIds = [
 
 export default {
   rules: {
+    'no-closed-root-import': {
+      meta: {
+        type: 'problem', schema: [],
+        messages: {
+          closed: '{{name}} is closed on the shared root. Import it from {{subpath}}.',
+          namespace: 'Root namespace imports can access closed exports. Use the exact shared subpath: {{subpaths}}.',
+        },
+      },
+      create(context) {
+        function check(node) {
+          if (node.source?.value !== '@fantasy-draft/shared') return;
+          if (node.type === 'ImportExpression' || node.type === 'ExportAllDeclaration' ||
+              node.specifiers.some((specifier) => specifier.type !== 'ImportSpecifier' && specifier.type !== 'ExportSpecifier')) {
+            context.report({ node, messageId: 'namespace', data: { subpaths: [...new Set(Object.values(closedExports))].join(', ') } });
+            return;
+          }
+          for (const specifier of node.specifiers) {
+            const imported = specifier.type === 'ImportSpecifier' ? specifier.imported : specifier.local;
+            const name = imported.name ?? imported.value;
+            if (Object.hasOwn(closedExports, name)) {
+              context.report({ node: specifier, messageId: 'closed', data: { name, subpath: closedExports[name] } });
+            }
+          }
+        }
+        return {
+          ImportDeclaration: check,
+          ExportNamedDeclaration: check,
+          ExportAllDeclaration: check,
+          ImportExpression: check,
+          TSImportType(node) {
+            if (node.source.value === '@fantasy-draft/shared') {
+              context.report({ node, messageId: 'namespace', data: { subpaths: [...new Set(Object.values(closedExports))].join(', ') } });
+            }
+          },
+        };
+      },
+    },
     'no-json-cast': {
       meta: { type: 'problem', schema: [], messages: { decode: decoderMessage } },
       create(context) {

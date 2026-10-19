@@ -15,7 +15,7 @@ import type {
   DraftSyncSnapshot,
   DraftSyncUpdate,
   EspnDraftSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import {
   yahooDraftResultsFixture,
   yahooPlayersFixture,

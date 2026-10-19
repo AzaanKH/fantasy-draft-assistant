@@ -1,12 +1,14 @@
 import {
-  DEFAULT_ROSTER_REQUIREMENTS,
   POSITIONS,
   optimizeLineupUtility,
   type LineupPlayer,
   type NeedPriority,
   type Position,
-  type RosterRequirements,
 } from '@fantasy-draft/shared';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
+  type RosterRequirements,
+} from '@fantasy-draft/shared/league';
 
 export interface PickEvPlayer {
   readonly id: string;

@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeSleeperLeagueSettings,
   isRosterRequirements,
-  MAX_ROSTER_SPOTS,
-  type RosterRequirements,
   type SleeperLeague,
-} from './index.js';
+} from './league-settings.js';
+import {
+  MAX_ROSTER_SPOTS,
+} from './limits.js';
+import {
+  type RosterRequirements,
+} from './draft.js';
 
 function createLeague(overrides: Partial<SleeperLeague> = {}): SleeperLeague {
   return {

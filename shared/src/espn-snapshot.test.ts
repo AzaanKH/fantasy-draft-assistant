@@ -5,7 +5,7 @@ import {
   type DraftMetadata,
   type DraftPickEvent,
   type EspnDraftSnapshot,
-} from './index.js';
+} from './sync.js';
 
 const draft: DraftMetadata = {
   provider: 'espn',

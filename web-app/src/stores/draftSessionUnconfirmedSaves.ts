@@ -1,4 +1,4 @@
-import { isBoundedInteger, MAX_DRAFT_PICKS } from '@fantasy-draft/shared';
+import { isBoundedInteger, MAX_DRAFT_PICKS } from '@fantasy-draft/shared/units';
 import type { RecordedDraftPick } from './draft/types';
 import type {
   DraftSessionIdentity,

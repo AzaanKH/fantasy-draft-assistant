@@ -1,4 +1,5 @@
-import { type DraftType, createSlotSequence, type DecisionLens } from '@fantasy-draft/shared';
+import { createSlotSequence, type DecisionLens } from '@fantasy-draft/shared';
+import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 
 import type { AssistantDraftMode, PickWindow, SyncTone } from './assistant-context';

@@ -2,7 +2,7 @@ import '@/stores/draft/derive-shadow.setup';
 import { createElement, type EffectCallback, type SetStateAction } from 'react';
 import { renderToString } from 'react-dom/server';
 import { QueryClient } from '@tanstack/react-query';
-import type { DraftPickEvent, DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftPickEvent, DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
 import { useDraftSync } from './useDraftSync';

@@ -1,15 +1,17 @@
 import {
   isSleeperDraftMetadata,
   isSleeperDraftPickList,
-  isSleeperLeague,
   normalizeSleeperDraftMetadata,
-  normalizeSleeperLeagueSettings,
   resolveSleeperDraftLeagueId,
-  type SleeperLeague,
   normalizeSleeperPick,
   type SleeperDraftMetadata,
   type SleeperDraftPick,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
+import {
+  isSleeperLeague,
+  normalizeSleeperLeagueSettings,
+  type SleeperLeague,
+} from '@fantasy-draft/shared/league';
 import { Effect } from 'effect';
 import {
   ProviderError,

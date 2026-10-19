@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
-import { isPosition, type DecisionLens, type DraftProvider, type Position } from '@fantasy-draft/shared';
+import { isPosition, type DecisionLens, type Position } from '@fantasy-draft/shared';
+import { type DraftProvider } from '@fantasy-draft/shared/sync';
 import { CliError } from './errors';
 import { parseDraftRoomUrl } from '@fantasy-draft/shared/draft-url';
 

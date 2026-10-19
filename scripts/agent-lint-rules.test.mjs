@@ -9,6 +9,7 @@ function messages(source, file = 'cli/src/probe.ts') {
     languageOptions: { parser: tseslint.parser },
     plugins: { agent, '@typescript-eslint': tseslint.plugin },
     rules: {
+      'agent/no-closed-root-import': 'error',
       'agent/no-json-cast': 'error',
       'agent/no-bare-fetch': 'error',
       'agent/no-cross-package-import': 'error',
@@ -44,5 +45,31 @@ describe('agent lint rules', () => {
   it('requires exported function annotations', () => {
     expect(messages('export function read() { return 1; }')).toEqual([expect.objectContaining({ ruleId: '@typescript-eslint/explicit-module-boundary-types' })]);
     expect(messages('export function read(): number { return 1; }')).toEqual([]);
+  });
+});
+
+describe('closed shared root exports', () => {
+  it.each([
+    ["import { DraftSyncEngine } from '@fantasy-draft/shared';", 'sync'],
+    ["import type { DraftMetadata as Metadata } from '@fantasy-draft/shared';", 'sync'],
+    ["export { createLeagueSettings as settings } from '@fantasy-draft/shared';", 'league'],
+    ["import { MAX_DRAFT_TEAMS } from '@fantasy-draft/shared';", 'units'],
+    ["import { localDevPorts } from '@fantasy-draft/shared';", 'node'],
+  ])('names the replacement for %s', (source, target) => {
+    expect(messages(source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-closed-root-import',
+      message: expect.stringContaining(`@fantasy-draft/shared/${target}`),
+    })]);
+  });
+  it.each([
+    "import * as shared from '@fantasy-draft/shared';",
+    "export * from '@fantasy-draft/shared';",
+    "const shared = import('@fantasy-draft/shared');",
+    "type Metadata = import('@fantasy-draft/shared').DraftMetadata;",
+  ])('rejects namespace access to closed groups: %s', (source) => {
+    expect(messages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
+  });
+  it('allows open root names and closed names on their exact subpaths', () => {
+    expect(messages("import type { Player } from '@fantasy-draft/shared'; import { DraftSyncEngine } from '@fantasy-draft/shared/sync';")).toEqual([]);
   });
 });

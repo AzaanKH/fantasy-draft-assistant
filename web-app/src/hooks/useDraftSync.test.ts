@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  DraftPickEvent,
-  DraftSyncSnapshot,
   Player,
 } from '@fantasy-draft/shared';
+import type {
+  DraftPickEvent,
+  DraftSyncSnapshot,
+} from '@fantasy-draft/shared/sync';
 import {
   applyDraftSyncHeartbeat,
   DRAFT_SYNC_STALE_AFTER_MS,

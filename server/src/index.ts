@@ -1,4 +1,4 @@
-import { localDevPorts } from '@fantasy-draft/shared';
+import { localDevPorts } from '@fantasy-draft/shared/node';
 import { createSyncServer, DEFAULT_POLL_INTERVAL_MS } from './sync-server.js';
 import { getLocalSyncToken } from './local-auth.js';
 

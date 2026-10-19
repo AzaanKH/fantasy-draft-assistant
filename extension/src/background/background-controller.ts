@@ -1,10 +1,12 @@
 import { Effect, Fiber } from 'effect';
 import {
   isEspnDraftSnapshot,
-  MAX_DRAFT_PICKS,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
+import {
+  MAX_DRAFT_PICKS,
+} from '@fantasy-draft/shared/units';
 import type {
   ExtensionMessage,
   MessageResponse,

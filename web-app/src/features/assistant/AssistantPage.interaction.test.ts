@@ -3,13 +3,15 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  type DraftProvider,
   type Player,
   type Position,
   type PositionNeed,
   type Recommendation,
   POSITIONS,
 } from '@fantasy-draft/shared';
+import {
+  type DraftProvider,
+} from '@fantasy-draft/shared/sync';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { DraftDecisionView } from '@fantasy-draft/shared/draft';
 import type { DraftSynchronizationState } from '@/lib/draft-sync-state';

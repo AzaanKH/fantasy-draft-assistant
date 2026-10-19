@@ -1,4 +1,4 @@
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { createQuickMockSettings, evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 import * as React from 'react';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { defaultConfig } from './draft/state';
 import type { RecordedDraftPick } from './draft/types';
 import { applyDraftSessionChange, computeDraftSessionChange } from './draftSessionUnconfirmedSaves';
