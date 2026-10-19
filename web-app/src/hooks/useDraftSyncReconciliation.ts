@@ -9,7 +9,7 @@ import {
   resolveDraftPickImports,
   type DraftPickImportRejection,
   type DraftPickImportResult,
-} from '@/lib/draft-pick-imports';
+} from '@fantasy-draft/shared/draft';
 import type { DraftReconciliationSummary } from '@/lib/draft-sync-state';
 import { usePlayerDataQuery } from './usePlayerData';
 

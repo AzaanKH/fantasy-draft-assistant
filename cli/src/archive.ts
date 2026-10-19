@@ -3,9 +3,9 @@ import {
   CORE_DRAFT_DATA_KEYS, OPTIONAL_SIGNAL_KEYS, isDraftSyncSnapshot, isPlayer, isPosition,
   type DraftSyncSnapshot, type DraftReadinessReport, type Player,
 } from '@fantasy-draft/shared';
-import { isRecord, isRecommendationPolicyFile } from '@/lib/player-data/validators';
-import { isLeagueSurvivalModel } from '@/lib/league-survival-model';
-import { getKeeperPickNumber } from '@/lib/keeper-supply';
+import { isRecord, isRecommendationPolicyFile } from '@fantasy-draft/shared/catalog';
+import { isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
+import { getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { createSessionContext } from './context';
 import { parseSession } from './arguments';
 import type { DraftData } from './data';

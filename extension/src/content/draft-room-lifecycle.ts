@@ -1,6 +1,6 @@
 import type { DraftRoomStatus } from '../shared/types';
 import type { ExtensionMessageSender } from './chrome-messenger';
-import { parseDraftRoomUrl } from './draft-url';
+import { parseDraftRoomUrl } from '@fantasy-draft/shared/draft-url';
 import {
   extractPicksFromDocument,
   getPickKey,

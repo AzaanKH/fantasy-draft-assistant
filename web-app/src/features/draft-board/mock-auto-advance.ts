@@ -9,7 +9,7 @@ import {
   useDraftStoreApi,
   type MockCpuPickPace,
 } from '@/stores/draftStore';
-import { getKeeperAtPick, selectCpuPlayer } from '@/lib/mock-draft-engine';
+import { getKeeperAtPick, selectCpuPlayer } from '@fantasy-draft/shared/draft';
 
 const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
   watch: 600,

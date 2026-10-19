@@ -1,4 +1,7 @@
-import { createSlotSequence, type DraftType, type Player, type Position, type RosterRequirements, type SlotRef } from '@fantasy-draft/shared';
+import { createSlotSequence, type SlotRef } from '../draft-order.js';
+import { type DraftType } from '../sync.js';
+import { type Player, type Position } from '../player.js';
+import { type RosterRequirements } from '../draft.js';
 
 type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
 

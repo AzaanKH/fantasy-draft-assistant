@@ -1,4 +1,4 @@
-import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
+import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import {
   getKeeperPickNumbers,
   advancePastKeeperSlots,

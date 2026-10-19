@@ -1,12 +1,9 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '../draft-order.js';
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_ROSTER_REQUIREMENTS,
-  DEFAULT_SCORING_RULES,
-  type Player,
-  type Position,
-} from '@fantasy-draft/shared';
-import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment } from './mock-draft-engine';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
+import { DEFAULT_SCORING_RULES } from '../scoring.js';
+import { type Player, type Position } from '../player.js';
+import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment } from './mock-draft-engine.js';
 
 function player(
   id: string,

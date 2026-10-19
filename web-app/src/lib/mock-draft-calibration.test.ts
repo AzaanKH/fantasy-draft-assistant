@@ -18,7 +18,7 @@ import {
   type MockDraftEngineConfig,
   type MockKeeperAssignment,
   type MockLeagueHistoryModel,
-} from './mock-draft-engine';
+} from '@fantasy-draft/shared/draft';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import sleeperJson from '../../../data/sleeper-adp.json';
 import teamEnvironmentJson from '../../../data/team-environment.json';

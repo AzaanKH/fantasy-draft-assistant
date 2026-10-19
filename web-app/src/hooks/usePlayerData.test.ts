@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQuery } from '@tanstack/react-query';
 import { LivePlayerDataProvider, usePlayerDataQuery, type PlayerDataQueryResult } from './usePlayerData';
 import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
-import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
+import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
 const draftState = vi.hoisted(() => ({ connection: null as PersistedDraftSyncConnection | null }));

@@ -1,6 +1,6 @@
 import { castDraft, type Draft } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
-import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
+import { getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';
 import {
   isDraftSessionIdentity,
   parseStoredDraftSession,

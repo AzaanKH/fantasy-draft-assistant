@@ -10,7 +10,7 @@ import {
   type DraftType,
   type LeagueSettings,
 } from '@fantasy-draft/shared';
-import { canonicalizeKeeperSupply } from '@/lib/keeper-supply';
+import { canonicalizeKeeperSupply } from '@fantasy-draft/shared/draft';
 import { isValidDraftSyncId } from './draftSyncStore';
 import {
   computeDraftSessionChange,

@@ -51,6 +51,32 @@ console.log(JSON.stringify({
     });
   });
 
+  it('loads catalog and draft URL exports without exposing them through the root', () => {
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const catalog = await import('@fantasy-draft/shared/catalog');
+const { parseDraftRoomUrl } = await import('@fantasy-draft/shared/draft-url');
+const draft = await import('@fantasy-draft/shared/draft');
+const root = await import('@fantasy-draft/shared');
+console.log(JSON.stringify({
+  validator: typeof catalog.isPlayerIdentityFile,
+  readiness: typeof catalog.buildDraftReadinessReport,
+  mock: typeof draft.simulateCpuDraft,
+  route: parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo'),
+  rootCatalog: typeof root.isPlayerIdentityFile,
+  rootUrl: typeof root.parseDraftRoomUrl,
+}));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+
+    expect(JSON.parse(output)).toEqual({
+      validator: 'function',
+      readiness: 'function',
+      mock: 'function',
+      route: { isInDraftRoom: true, provider: 'sleeper', draftId: 'demo' },
+      rootCatalog: 'undefined',
+      rootUrl: 'undefined',
+    });
+  });
+
   it('type-checks consumers under NodeNext and rejects nonexistent DraftSyncEngine methods', () => {
     const fileName = join(SCRIPTS_DIR, 'src', '__shared-contract-probe__.ts');
     const source = `

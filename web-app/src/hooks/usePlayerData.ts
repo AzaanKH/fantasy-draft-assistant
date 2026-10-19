@@ -11,8 +11,8 @@ import {
 } from '@fantasy-draft/shared';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
-import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
-import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
+import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
+import { createSafeRecommendationPolicy } from '@fantasy-draft/shared/catalog';
 import {
   fetchContractData,
   fetchFantasyProsSnapshot,
@@ -25,6 +25,8 @@ import {
   fetchTeamEnvData,
   getMarketAdpFormat,
 } from '@/lib/player-data/queries';
+
+const SAFE_RECOMMENDATION_POLICY = createSafeRecommendationPolicy(DRAFT_DISPLAY);
 
 const TRUSTED_RANKING_SOURCE_TYPES: readonly string[] = IS_DEMO
   ? [DEMO_RANKINGS_SOURCE_TYPE]

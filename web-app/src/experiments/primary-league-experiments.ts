@@ -30,7 +30,7 @@ import {
   type LeagueSurvivalModel,
   calculateTeamNeeds,
 } from '@fantasy-draft/shared/draft';
-import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '../lib/mock-draft-engine';
+import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
 
 type CorePosition = 'QB' | 'RB' | 'WR' | 'TE';
 

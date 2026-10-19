@@ -15,6 +15,16 @@
       "@fantasy-draft/source": "./src/draft/index.ts",
       "types": "./dist/draft/index.d.ts",
       "import": "./dist/draft/index.js"
+    },
+    "./catalog": {
+      "@fantasy-draft/source": "./src/catalog/index.ts",
+      "types": "./dist/catalog/index.d.ts",
+      "import": "./dist/catalog/index.js"
+    },
+    "./draft-url": {
+      "@fantasy-draft/source": "./src/draft-url.ts",
+      "types": "./dist/draft-url.d.ts",
+      "import": "./dist/draft-url.js"
     }
   },
   "scripts": {

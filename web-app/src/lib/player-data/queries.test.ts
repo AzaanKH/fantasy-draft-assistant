@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchPlayerIdentityData, fetchPredictionData, fetchSleeperData, fetchTeamEnvData } from './queries';
-import { isPlayerIdentityFile } from './validators';
+import { isPlayerIdentityFile } from '@fantasy-draft/shared/catalog';
 
 const identity = {
   canonicalId: 'sleeper:123',

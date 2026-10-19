@@ -13,7 +13,7 @@ import { useDraftSyncReconciliation } from './useDraftSyncReconciliation';
 export {
   getNextOpenPickNumber,
   resolveDraftPickImports,
-} from '@/lib/draft-pick-imports';
+} from '@fantasy-draft/shared/draft';
 export {
   DRAFT_SYNC_STALE_AFTER_MS,
   getDraftSyncConnectionState,

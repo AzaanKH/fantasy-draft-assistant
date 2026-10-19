@@ -1,14 +1,6 @@
-import {
-  evaluateDraftReadiness,
-  createDefaultLeagueSettings,
-  isLeagueSettings,
-  type DraftReadinessKey,
-  type DraftReadinessReport,
-  type DraftReadinessSourceObservation,
-  type DraftReadinessWarningInput,
-  type LeagueSettings,
-} from '@fantasy-draft/shared';
-import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
+import { evaluateDraftReadiness, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
+import { createDefaultLeagueSettings, isLeagueSettings, type LeagueSettings } from '../league-settings.js';
+import type { KeeperPreloadStatus } from './keeper-preload-status.js';
 
 interface WorkspaceDraftReadinessInput {
   readonly sources: Readonly<Partial<Record<DraftReadinessKey, DraftReadinessSourceObservation>>>;

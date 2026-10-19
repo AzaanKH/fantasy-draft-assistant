@@ -91,3 +91,14 @@ export {
   type DraftKeeper,
   type DerivedDraft,
 } from '../derive-draft.js';
+
+export { DEFAULT_QUICK_MOCK, isQuickMockPreferences, createQuickMockSettings } from './quick-mock-settings.js';
+export type { QuickMockPreferences } from './quick-mock-settings.js';
+export { getNextOpenPickNumber, resolveDraftPickImports } from './draft-pick-imports.js';
+export type { DraftPickImportRejection, DraftPickImportResult } from './draft-pick-imports.js';
+export { evaluateWorkspaceDraftReadiness, blocksLiveRecommendations, blocksRecommendations } from './draft-readiness.js';
+export { getKeeperPickNumber, isKeeperSupplyComplete, getEffectiveKeeperAssignments, canonicalizeKeeperSupply } from './keeper-supply.js';
+export type { KeeperSupplyEntry, CanonicalKeeperAssignment } from './keeper-supply.js';
+export { getKeeperAtPick, selectCpuPlayer, estimateMockSurvivalProbabilities, simulateCpuDraft } from './mock-draft-engine.js';
+export type { MockDraftPickLike, MockKeeperAssignment, MockLeagueHistoryModel, MockDraftEngineConfig, SelectCpuPlayerInput, CpuSelection, SimulatedMockPick } from './mock-draft-engine.js';
+export type { KeeperPreloadStatus } from './keeper-preload-status.js';

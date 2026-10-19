@@ -8,7 +8,6 @@ import {
   isDraftProvider,
   isDraftSyncSnapshot,
   isEspnDraftSnapshot,
-  type DraftProvider,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
 } from '@fantasy-draft/shared';
@@ -28,13 +27,8 @@ export interface DetectedPick {
 /**
  * Draft room status
  */
-export interface DraftRoomStatus {
-  isInDraftRoom: boolean;
-  provider?: DraftProvider;
-  draftId?: string;
-  myDraftSlot?: number;
-  status?: 'pre_draft' | 'drafting' | 'paused' | 'complete';
-}
+import type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
+export type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
 
 export interface ExtensionState {
   readonly picks: DetectedPick[];

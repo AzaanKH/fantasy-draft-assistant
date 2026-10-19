@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
 import { createDefaultLeagueSettings, type DraftReadinessReport, type Recommendation } from '@fantasy-draft/shared';
-import { buildDraftReadinessReport } from '../../scripts/src/draft-readiness-report';
+import { buildDraftReadinessReport } from './readiness';
 import {
   createDraftDecisionOutput,
   getComparisonHighlights,
@@ -9,7 +9,7 @@ import {
   getWaitAnswer,
   getComparisonMetrics,
 } from '@fantasy-draft/shared/draft';
-import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
+import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 import { invocationMode, parseArguments, parseSession, HELP, type Arguments, type SessionId } from './arguments';
 import { DraftClient, readPairingToken } from './client';
 import { loadDraftData, loadJson, resolveKeepers, type DraftData } from './data';

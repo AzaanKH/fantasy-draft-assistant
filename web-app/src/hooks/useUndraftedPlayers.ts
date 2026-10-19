@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Player } from '@fantasy-draft/shared';
 import { filterDrafted } from '@fantasy-draft/shared/draft';
-import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
+import { getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';
 import { useDraftStore } from '@/stores/draftStore';
 import { usePlayerDataQuery } from './usePlayerData';
 

@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { isPosition, type DecisionLens, type DraftProvider, type Position } from '@fantasy-draft/shared';
 import { CliError } from './errors';
-import { parseDraftRoomUrl } from '../../extension/src/content/draft-url';
+import { parseDraftRoomUrl } from '@fantasy-draft/shared/draft-url';
 
 const COMMANDS = ['readiness', 'status', 'players', 'recommend', 'compare', 'wait', 'watch',
   'sessions', 'connect', 'roster', 'export', 'replay'] as const;

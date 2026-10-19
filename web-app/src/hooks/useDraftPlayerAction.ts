@@ -6,7 +6,7 @@ import {
   useDraftStore,
   useIsMyTurn,
 } from '@/stores/draftStore';
-import { getKeeperAtPick } from '@/lib/mock-draft-engine';
+import { getKeeperAtPick } from '@fantasy-draft/shared/draft';
 
 export function canDraftFromWorkspace(
   sessionMode: ReturnType<typeof useDraftSessionMode>,

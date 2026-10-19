@@ -1,4 +1,6 @@
-import { createSlotSequence, type DraftType, type Position } from '@fantasy-draft/shared';
+import { createSlotSequence } from '../draft-order.js';
+import { type DraftType } from '../sync.js';
+import { type Position } from '../player.js';
 
 export interface KeeperSupplyEntry {
   readonly playerId: string;

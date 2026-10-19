@@ -6,7 +6,7 @@ import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { isMotionDisabled, usePrefersReducedMotion } from '@/components/motion';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
+import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
 import { useDraftStore, type RecordedDraftPick } from '@/stores/draftStore';
 import { getDraftBoardScrollTarget } from './draft-board-scroll';

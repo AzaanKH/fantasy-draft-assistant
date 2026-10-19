@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDraftRoomUrl } from './draft-url';
+import { parseDraftRoomUrl } from './draft-url.js';
 
 describe('parseDraftRoomUrl', () => {
   it.each([

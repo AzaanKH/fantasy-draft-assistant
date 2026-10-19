@@ -7,7 +7,7 @@ import {
   type Position,
 } from '@fantasy-draft/shared';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { blocksRecommendations } from '@/lib/draft-readiness';
+import { blocksRecommendations } from '@fantasy-draft/shared/draft';
 import { useDraftStore, type DraftSessionMode, type UnresolvedProviderPick } from '@/stores/draftStore';
 import {
   createDraftDecisionOutput,

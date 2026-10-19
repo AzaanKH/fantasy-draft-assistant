@@ -1,12 +1,7 @@
-import {
-  LIVE_RECOMMENDATION_ARCHITECTURE,
-  isNFLTeam,
-  isPosition,
-  isPredictionSource,
-  isTeamEnvironment,
-  NFL_TEAMS,
-} from '@fantasy-draft/shared';
-import type { PlayerIdentityData } from '@fantasy-draft/shared/draft';
+import { LIVE_RECOMMENDATION_ARCHITECTURE } from '../../recommendation-policy.js';
+import { isNFLTeam, isPosition, isPredictionSource, NFL_TEAMS } from '../../player.js';
+import { isTeamEnvironment } from '../../team-environment.js';
+import { type PlayerIdentityData } from '../../draft/calculations/player-value.js';
 import type {
   ContractDataFile,
   PlayerIdentityFile,
@@ -14,7 +9,7 @@ import type {
   RecommendationPolicyFile,
   SleeperDataFile,
   TeamEnvDataFile,
-} from './types';
+} from './types.js';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -169,4 +164,3 @@ export function isRecommendationPolicyFile(value: unknown): value is Recommendat
     typeof value['reason'] === 'string'
   );
 }
-

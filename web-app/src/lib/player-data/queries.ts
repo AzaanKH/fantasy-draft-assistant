@@ -14,7 +14,7 @@ import type {
   RecommendationPolicyFile,
   SleeperDataFile,
   TeamEnvDataFile,
-} from './types';
+} from '@fantasy-draft/shared/catalog';
 import {
   isContractDataFile,
   isPlayerIdentityFile,
@@ -22,7 +22,7 @@ import {
   isRecommendationPolicyFile,
   isSleeperDataFile,
   isTeamEnvDataFile,
-} from './validators';
+} from '@fantasy-draft/shared/catalog';
 
 /**
  * Fetch FantasyPros snapshot data

@@ -1,4 +1,4 @@
-import { createQuickMockSettings, type QuickMockPreferences } from './quick-mock-settings';
+import { createQuickMockSettings, type QuickMockPreferences } from '@fantasy-draft/shared/draft';
 import { createDefaultLeagueSettings, createLeagueSettings, type DraftProvider, type LeagueSettings } from '@fantasy-draft/shared';
 
 /** Practice rules never claim to be provider-confirmed league settings. */

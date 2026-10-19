@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { IS_DEMO } from '@/lib/demo-mode';
-import { DEFAULT_QUICK_MOCK, isQuickMockPreferences, type QuickMockPreferences } from '@/lib/quick-mock-settings';
+import { DEFAULT_QUICK_MOCK, isQuickMockPreferences, type QuickMockPreferences } from '@fantasy-draft/shared/draft';
 
 const LEAGUE_SETUP_STORAGE_KEY = 'fantasy-draft-league-setup-v1';
 export type LocalLeagueProfile = 'quick-mock' | 'primary-league';

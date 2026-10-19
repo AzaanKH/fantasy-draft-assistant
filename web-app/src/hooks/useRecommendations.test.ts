@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { POSITIONS, type Player } from '@fantasy-draft/shared';
 import { useRecommendations } from './useRecommendations';
 import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
-import { createQuickMockSettings } from '@/lib/quick-mock-settings';
+import { createQuickMockSettings } from '@fantasy-draft/shared/draft';
 import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
 import type { LocalLeagueProfile } from '@/stores/leagueSetupStore';
 import type { LeagueSurvivalModel } from '@fantasy-draft/shared/draft';

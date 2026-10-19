@@ -1,9 +1,6 @@
-import {
-  type ContractPlayerData,
-  type PlayerIdentityData,
-  type SleeperADPPlayer,
-} from '@fantasy-draft/shared/draft';
-import type { NFLTeam, PlayerPrediction, TeamEnvironment } from '@fantasy-draft/shared';
+import { type ContractPlayerData, type PlayerIdentityData, type SleeperADPPlayer } from '../../draft/calculations/player-value.js';
+import { type NFLTeam, type PlayerPrediction } from '../../player.js';
+import { type TeamEnvironment } from '../../team-environment.js';
 
 
 /**
@@ -55,7 +52,7 @@ export interface PlayerIdentityFile {
 
 export interface RecommendationPolicyFile {
   generatedAt: string;
-  recommendationArchitecture: typeof import('@fantasy-draft/shared').LIVE_RECOMMENDATION_ARCHITECTURE;
+  recommendationArchitecture: typeof import('../../recommendation-policy.js').LIVE_RECOMMENDATION_ARCHITECTURE;
   modelPredictionsEnabled: boolean;
   contractSignalEnabled: boolean;
   fallback: 'model' | 'fantasypros-ecr-market';
@@ -66,4 +63,3 @@ export interface RecommendationPolicyFile {
   };
   reason: string;
 }
-

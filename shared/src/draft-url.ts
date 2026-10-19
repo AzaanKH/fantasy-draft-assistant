@@ -1,5 +1,11 @@
-import type { DraftProvider } from '@fantasy-draft/shared';
-import type { DraftRoomStatus } from '../shared/types';
+import { type DraftProvider } from './sync.js';
+export interface DraftRoomStatus {
+  isInDraftRoom: boolean;
+  provider?: DraftProvider;
+  draftId?: string;
+  myDraftSlot?: number;
+  status?: 'pre_draft' | 'drafting' | 'paused' | 'complete';
+}
 
 const SLEEPER_HOSTS = new Set(['sleeper.app', 'www.sleeper.app', 'sleeper.com', 'www.sleeper.com']);
 const YAHOO_HOSTS = new Set([

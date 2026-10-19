@@ -1,4 +1,4 @@
-import { canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
+import { canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { addPlayerToRoster, advancePastKeeperSlots, rebuildCanonicalRosters } from './state';
 import type { DraftActions, SetDraftState } from './types';
 

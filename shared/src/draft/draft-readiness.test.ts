@@ -1,19 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_ROSTER_REQUIREMENTS,
-  DEFAULT_SCORING_RULES,
-  createDefaultLeagueSettings,
-  createLeagueSettings,
-  type DraftReadinessKey,
-  type DraftReadinessSourceObservation,
-} from '@fantasy-draft/shared';
-import { createQuickMockSettings } from './quick-mock-settings';
-import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
+import { DEFAULT_SCORING_RULES } from '../scoring.js';
+import { createDefaultLeagueSettings, createLeagueSettings } from '../league-settings.js';
+import { type DraftReadinessKey, type DraftReadinessSourceObservation } from '../draft-readiness.js';
+import { createQuickMockSettings } from './quick-mock-settings.js';
+import type { KeeperPreloadStatus } from './keeper-preload-status.js';
 import {
   blocksRecommendations,
   blocksLiveRecommendations,
   evaluateWorkspaceDraftReadiness,
-} from './draft-readiness';
+} from './draft-readiness.js';
 
 const NOW = Date.parse('2026-08-20T12:00:00.000Z');
 const FRESH = '2026-08-20T11:00:00.000Z';

@@ -20,7 +20,7 @@ import {
   type DraftSessionMode,
   type MockCpuPickPace,
 } from '@/stores/draftStore';
-import { estimateMockSurvivalProbabilities, getKeeperAtPick, type MockDraftEngineConfig } from '@/lib/mock-draft-engine';
+import { estimateMockSurvivalProbabilities, getKeeperAtPick, type MockDraftEngineConfig } from '@fantasy-draft/shared/draft';
 import { useSimulateNextCpuPick } from './mock-auto-advance';
 
 const CPU_PICK_PACE_OPTIONS: readonly { value: MockCpuPickPace; label: string }[] = [

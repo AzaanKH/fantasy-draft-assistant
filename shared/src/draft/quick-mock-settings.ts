@@ -1,4 +1,4 @@
-import { createDefaultLeagueSettings, createLeagueSettings, type LeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings, createLeagueSettings, type LeagueSettings } from '../league-settings.js';
 
 export interface QuickMockPreferences {
   readonly totalTeams: number;

@@ -1,5 +1,6 @@
-import type { DraftPickEvent, DraftType, Player, Position } from '@fantasy-draft/shared';
-import { getKeeperPickNumber, type KeeperSupplyEntry } from './keeper-supply';
+import { type DraftPickEvent, type DraftType } from '../sync.js';
+import { type Player, type Position } from '../player.js';
+import { getKeeperPickNumber, type KeeperSupplyEntry } from './keeper-supply.js';
 
 export interface DraftPickImportRejection {
   readonly pickNumber: number;

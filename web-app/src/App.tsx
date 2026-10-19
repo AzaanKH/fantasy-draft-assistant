@@ -1,5 +1,5 @@
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
-import { createQuickMockSettings } from '@/lib/quick-mock-settings';
+import { createQuickMockSettings } from '@fantasy-draft/shared/draft';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import { DraftDecisionProvider } from '@/features/recommendations/DraftDecisionC
 import { useKeeperPreload } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
-import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
+import { evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
 import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';

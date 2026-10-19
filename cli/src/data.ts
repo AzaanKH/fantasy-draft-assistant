@@ -6,12 +6,12 @@ import {
   type DraftType, type MarketAdpPlayer, type NFLTeam, type Player, type Position, type TeamEnvironment,
 } from '@fantasy-draft/shared';
 import { mergeCoreSources, normalizePlayerName, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
-import { canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry } from '@/lib/keeper-supply';
-import { isLeagueSurvivalModel } from '@/lib/league-survival-model';
-import { isPlayerIdentityFile, isRecommendationPolicyFile, isRecord } from '@/lib/player-data/validators';
-import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
-import type { RecommendationPolicyFile, SleeperDataFile } from '@/lib/player-data/types';
-import type { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
+import { canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry } from '@fantasy-draft/shared/draft';
+import { isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
+import { isPlayerIdentityFile, isRecommendationPolicyFile, isRecord } from '@fantasy-draft/shared/catalog';
+import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
+import type { RecommendationPolicyFile, SleeperDataFile } from '@fantasy-draft/shared/catalog';
+import type { evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
 import { CliError, unexpected } from './errors';
 
 type KeeperStatus = Parameters<typeof evaluateWorkspaceDraftReadiness>[0]['keeperStatus'];
