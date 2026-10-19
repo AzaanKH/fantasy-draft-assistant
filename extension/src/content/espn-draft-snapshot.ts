@@ -1,3 +1,4 @@
+import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared';
 import type {
   DraftMetadata,
   DraftPickEvent,
@@ -339,18 +340,14 @@ function buildTeamSlots(teams: readonly UnknownRecord[], teamCount: number): Map
   return slots;
 }
 
-function getStandardDraftSlot(
+function getStandardDraftPick(
   pickNumber: number,
   teamCount: number,
   draftType: DraftType
-): number {
-  const zeroBasedPick = Math.max(0, pickNumber - 1);
-  const roundIndex = Math.floor(zeroBasedPick / teamCount);
-  const roundSelection = zeroBasedPick % teamCount;
-  if (draftType === 'snake' && roundIndex % 2 === 1) {
-    return teamCount - roundSelection;
-  }
-  return roundSelection + 1;
+): SlotRef {
+  const pick = Math.max(1, pickNumber);
+  return createSlotSequence({ type: draftType === 'auction' ? 'linear' : draftType,
+    teams: teamCount, rounds: Math.ceil(pick / teamCount) }).at(pick);
 }
 
 function getDraftStatus(
@@ -464,11 +461,12 @@ export function buildEspnDraftSnapshot(
       firstDefined(read(pick, 'draftSlot'), getExplicitTeamSlot(winningTeam))
     );
     const teamIdSlot = teamId !== null && teamId <= teamCount ? teamId : null;
+    const standardPick = getStandardDraftPick(pickNumber, teamCount, draftType);
     const draftSlot =
       mappedSlot ??
       directSlot ??
       teamIdSlot ??
-      getStandardDraftSlot(pickNumber, teamCount, draftType);
+      standardPick.teamIndex + 1;
     const position = getPlayerPosition(player, pick);
     const playerId = String(numericPlayerId);
     const explicitRound = toPositiveInteger(
@@ -482,7 +480,7 @@ export function buildEspnDraftSnapshot(
     normalizedPicks.push({
       draftId,
       pickNumber,
-      round: explicitRound ?? Math.floor((pickNumber - 1) / teamCount) + 1,
+      round: explicitRound ?? standardPick.round,
       rosterId: teamId,
       draftSlot,
       teamIndex: draftSlot - 1,

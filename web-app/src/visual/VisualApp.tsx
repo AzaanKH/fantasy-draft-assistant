@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -31,7 +32,6 @@ import {
   type PlayerDataQueryResult,
 } from '@/hooks/usePlayerData';
 import { createDataFreshnessItem } from '@/lib/data-freshness';
-import { getTeamIndexForPick } from '@/lib/mock-draft-engine';
 import {
   createDraftStore,
   DraftStoreProvider,
@@ -254,7 +254,7 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
 function createFixtureHistory(): RecordedDraftPick[] {
   return Array.from({ length: 46 }, (_, index) => {
     const pickNumber = index + 1;
-    const teamIndex = getTeamIndexForPick(pickNumber, 10);
+    const teamIndex = createSlotSequence({ type: 'snake', teams: 10, rounds: Math.ceil(pickNumber / 10) }).at(pickNumber).teamIndex;
     const position = (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
     return {
       pickNumber,

@@ -1,7 +1,7 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { useDraftStore } from '@/stores/draftStore';
 import { getRosterSlots } from './roster-slots';
 
@@ -59,7 +59,7 @@ export function DraftRosterPanel(): React.ReactElement {
                     ) : null}
                   </span>
                   {pick ? (
-                    <span className="draft-roster-pick">{formatRoundPick(pick.pickNumber, config.totalTeams)}</span>
+                    <span className="draft-roster-pick">{createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)}</span>
                   ) : null}
                 </>
               ) : (

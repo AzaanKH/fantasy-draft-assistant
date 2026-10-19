@@ -1,6 +1,6 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { DEFAULT_ROSTER_REQUIREMENTS, type DraftType, type Position } from '@fantasy-draft/shared';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import type {
   MutableRoster,
   PreloadedKeeper,
@@ -181,9 +181,9 @@ export function calculateIsMyTurn(
   currentPick: number,
   myPickPosition: number,
   totalTeams: number,
-  draftType: DraftType = 'snake'
+  draftType: DraftType
 ): boolean {
-  return getTeamIndexForDraftPick(currentPick, totalTeams, draftType) === myPickPosition - 1;
+  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(currentPick / totalTeams) }).at(currentPick).teamIndex === myPickPosition - 1;
 }
 
 /**

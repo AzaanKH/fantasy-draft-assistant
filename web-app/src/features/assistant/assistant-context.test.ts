@@ -97,7 +97,7 @@ describe('draft mode and sync status', () => {
   });
 
   it('names the provider, the last confirmed pick and its age', () => {
-    const base = { provider: 'sleeper' as const, lastConfirmedPickNumber: 15, lastSyncAgeMs: 2_000, totalTeams: 10 };
+    const base = { draftType: 'snake' as const, provider: 'sleeper' as const, lastConfirmedPickNumber: 15, lastSyncAgeMs: 2_000, totalTeams: 10 };
     expect(getSyncStatus({ ...base, mode: 'companion', synchronizationState: 'confirmed' }))
       .toEqual({ tone: 'ok', label: 'Synced with Sleeper · last pick 2.05 · 2s ago' });
     expect(getSyncStatus({ ...base, mode: 'companion', synchronizationState: 'delayed' }).tone).toBe('warn');

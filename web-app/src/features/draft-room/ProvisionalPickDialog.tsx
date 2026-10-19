@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,11 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import {
-  formatRoundPick,
-  getPickNumberForTeamRound,
-  getTeamIndexForPick,
-} from '@/lib/mock-draft-engine';
 import { getProviderName } from '@/lib/provider-name';
 import {
   useDraftStore,
@@ -102,20 +98,19 @@ function ProvisionalPickForm({
       .sort((left, right) => left.ecrRank - right.ecrRank),
     [draftedPlayerIds, editingPick?.playerId, players]
   );
+  const order = React.useMemo(() => createSlotSequence({
+    type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds,
+  }), [config.draftType, config.totalTeams, config.totalRounds]);
   const openPickNumbers = React.useMemo(() => {
     const occupied = new Set(draftHistory.map((pick) => pick.pickNumber));
     for (const keeper of preloadedKeepers) {
-      occupied.add(getPickNumberForTeamRound(
-        keeper.teamIndex,
-        keeper.round,
-        config.totalTeams
-      ));
+      occupied.add(order.forTeamRound(keeper.teamIndex, keeper.round).pick);
     }
     return Array.from(
       { length: config.totalTeams * config.totalRounds },
       (_, index) => index + 1
     ).filter((pickNumber) => !occupied.has(pickNumber));
-  }, [config.totalRounds, config.totalTeams, draftHistory, preloadedKeepers]);
+  }, [config.totalRounds, config.totalTeams, order, draftHistory, preloadedKeepers]);
   const editablePickNumbers = React.useMemo(() => {
     const pickNumbers = [...openPickNumbers];
     if (
@@ -166,7 +161,7 @@ function ProvisionalPickForm({
       return;
     }
 
-    const teamIndex = getTeamIndexForPick(pickNumber, config.totalTeams);
+    const teamIndex = order.at(pickNumber).teamIndex;
     const replacement = {
       pickNumber,
       playerId: player.id,
@@ -230,13 +225,10 @@ function ProvisionalPickForm({
             value={selectedPickNumber}
             onValueChange={setSelectedPickNumber}
             options={editablePickNumbers.map((pickNumber) => {
-              const teamIndex = getTeamIndexForPick(
-                pickNumber,
-                config.totalTeams
-              );
+              const teamIndex = order.at(pickNumber).teamIndex;
               return {
                 value: String(pickNumber),
-                label: `Pick ${formatRoundPick(pickNumber, config.totalTeams)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
+                label: `Pick ${order.label(pickNumber)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
               };
             })}
           />

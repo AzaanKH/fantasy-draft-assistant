@@ -206,3 +206,6 @@ export type {
   DraftDataRefreshStepState,
   DraftDataRefreshStatus,
 } from './draft-data-refresh.js';
+
+export { createSlotSequence } from './draft-order.js';
+export type { DraftFormat, SlotRef, SlotSequence } from './draft-order.js';

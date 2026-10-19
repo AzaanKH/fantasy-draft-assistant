@@ -90,9 +90,9 @@ export function resolveDraftPickImports(
   picks: readonly DraftPickEvent[],
   players: readonly Player[],
   myPickPosition: number,
-  preloadedKeepers: readonly KeeperSupplyEntry[] = [],
-  totalTeams: number = 0,
-  draftType: DraftType = 'snake'
+  preloadedKeepers: readonly KeeperSupplyEntry[],
+  totalTeams: number,
+  draftType: DraftType | null
 ): DraftPickImportResult {
   const playersById = new Map<string, Player>();
   const playersByNameTeam = new Map<string, Player>();
@@ -101,7 +101,7 @@ export function resolveDraftPickImports(
   const importedPicks: ImportedDraftPick[] = [];
   const rejectedPicks: DraftPickImportRejection[] = [];
   const preloadedKeeperKeys = new Set(
-    totalTeams > 0
+    totalTeams > 0 && draftType !== null
       ? preloadedKeepers.map((keeper) => `${keeper.playerId}:${String(
         getKeeperPickNumber(keeper, totalTeams, draftType)
       )}`)

@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import type {
   FantasyProsSnapshot,
   NFLTeam,
@@ -29,17 +30,7 @@ import {
 } from '../lib/calculations/player-value';
 import { applyLeagueSurvivalModel, type LeagueSurvivalModel } from '../lib/calculations/survival';
 import { calculateTeamNeeds } from '../lib/calculations/team-needs';
-import {
-  estimateMockSurvivalProbabilities,
-  formatRoundPick,
-  getKeeperAtPick,
-  getTeamIndexForPick,
-  selectCpuPlayer,
-  type MockDraftEngineConfig,
-  type MockDraftPickLike,
-  type MockKeeperAssignment,
-  type MockLeagueHistoryModel,
-} from '../lib/mock-draft-engine';
+import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '../lib/mock-draft-engine';
 
 type CorePosition = 'QB' | 'RB' | 'WR' | 'TE';
 
@@ -449,7 +440,7 @@ function createInputs(players: readonly Player[] = buildPlayers(DEFAULT_SCORING_
     players,
     keepers,
     historyModel: survivalModelJson as unknown as LeagueSurvivalModel & MockLeagueHistoryModel,
-    config: {
+    config: { draftType: 'snake',
       totalTeams: 10,
       totalRounds: 14,
       myPickPosition: myKeeperEntry.team,
@@ -485,7 +476,7 @@ function getLeagueAdjustedPlayers(
   const adjusted = applyLeagueSurvivalModel(
     experiment.players,
     experiment.historyModel,
-    {
+    { draftType: 'snake',
       currentPick,
       myPickPosition: experiment.config.myPickPosition,
       totalTeams: experiment.config.totalTeams,
@@ -628,7 +619,7 @@ function runDraft(input: {
   const totalPicks = config.totalTeams * config.totalRounds;
 
   for (let pickNumber = 1; pickNumber <= totalPicks; pickNumber += 1) {
-    const keeper = getKeeperAtPick(experiment.keepers, pickNumber, config.totalTeams);
+    const keeper = getKeeperAtPick(experiment.keepers, pickNumber, config.totalTeams, config.draftType);
     if (keeper) {
       history.push({
         pickNumber,
@@ -641,7 +632,7 @@ function runDraft(input: {
       continue;
     }
 
-    const teamIndex = getTeamIndexForPick(pickNumber, config.totalTeams);
+    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(pickNumber).teamIndex;
     if (teamIndex !== experiment.myTeamIndex) {
       const selection = selectCpuPlayer({
         players: opponentPlayers,
@@ -721,7 +712,7 @@ function runDraft(input: {
     };
     audit.push({
       pickNumber,
-      roundPick: formatRoundPick(pickNumber, config.totalTeams),
+      roundPick: createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pickNumber),
       bestPickId: bestPickPlayer.id,
       bestPickName: bestPickPlayer.name,
       bestPickPosition: bestPickPlayer.position,
@@ -779,7 +770,7 @@ function runDraft(input: {
         });
       input.waitMap.decisions.push({
         pickNumber,
-        roundPick: formatRoundPick(pickNumber, config.totalTeams),
+        roundPick: createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pickNumber),
         selectedPlayer: bestPickPlayer.name,
         selectedPosition: bestPickPlayer.position,
         nextPickNumber: nextUserPick,

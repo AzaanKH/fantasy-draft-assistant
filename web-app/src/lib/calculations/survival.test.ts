@@ -118,7 +118,7 @@ const model: LeagueSurvivalModel = {
 
 describe('getNextUserPick', () => {
   it('finds the next pick in a snake draft', () => {
-    expect(getNextUserPick({
+    expect(getNextUserPick({ draftType: 'snake' as const,
       currentPick: 8,
       myPickPosition: 8,
       totalTeams: 10,
@@ -137,7 +137,7 @@ describe('getNextUserPick', () => {
   });
 
   it('returns null after the final user pick', () => {
-    expect(getNextUserPick({
+    expect(getNextUserPick({ draftType: 'snake' as const,
       currentPick: 138,
       myPickPosition: 8,
       totalTeams: 10,
@@ -146,7 +146,7 @@ describe('getNextUserPick', () => {
   });
 
   it('skips occupied turns, including when every later turn is reserved', () => {
-    const context = { currentPick: 2, myPickPosition: 2, totalTeams: 10, totalRounds: 3 };
+    const context = { draftType: 'snake' as const, currentPick: 2, myPickPosition: 2, totalTeams: 10, totalRounds: 3 };
     expect(getNextUserPick({ ...context, occupiedPickNumbers: new Set([19]) })).toBe(22);
     expect(getNextUserPick({ ...context, occupiedPickNumbers: new Set([19, 22]) })).toBeNull();
   });
@@ -155,7 +155,7 @@ describe('getNextUserPick', () => {
 describe('estimateLeagueSurvivalProbability', () => {
   it('recalculates probability and timing for the next unreserved selection', () => {
     const player = createPlayer();
-    const context = { currentPick: 2, myPickPosition: 2, totalTeams: 10, totalRounds: 14 };
+    const context = { draftType: 'snake' as const, currentPick: 2, myPickPosition: 2, totalTeams: 10, totalRounds: 14 };
     const ordinary = estimateLeagueSurvivalProbability(player, model, context);
     const reserved = { ...context, occupiedPickNumbers: new Set([19]) };
     const later = estimateLeagueSurvivalProbability(player, model, reserved);
@@ -177,7 +177,7 @@ describe('estimateLeagueSurvivalProbability', () => {
   it('lowers survival when the league takes the player position early', () => {
     const player = createPlayer({ position: 'QB', sleeperAdp: 40 });
 
-    const result = estimateLeagueSurvivalProbability(player, model, {
+    const result = estimateLeagueSurvivalProbability(player, model, { draftType: 'snake' as const,
       currentPick: 18,
       myPickPosition: 8,
       totalTeams: 10,
@@ -189,7 +189,7 @@ describe('estimateLeagueSurvivalProbability', () => {
         ...historicalPickNumbers,
         QB: historicalPickNumbers.QB.map((pick) => pick + 30),
       },
-    }, {
+    }, { draftType: 'snake' as const,
       currentPick: 18,
       myPickPosition: 8,
       totalTeams: 10,
@@ -206,7 +206,7 @@ describe('estimateLeagueSurvivalProbability', () => {
   });
 
   it('keeps Primary League history dominant over current consensus and Sleeper timing', () => {
-    const context = {
+    const context = { draftType: 'snake' as const,
       currentPick: 18,
       myPickPosition: 8,
       totalTeams: 10,
@@ -263,7 +263,7 @@ describe('estimateLeagueSurvivalProbability', () => {
   });
 
   it('uses current consensus market cost to calibrate the historical estimate', () => {
-    const context = {
+    const context = { draftType: 'snake' as const,
       currentPick: 18,
       myPickPosition: 8,
       totalTeams: 10,
@@ -297,7 +297,7 @@ describe('estimateLeagueSurvivalProbability', () => {
   });
 
   it('keeps Sleeper search rank as a smaller timing-only calibration', () => {
-    const context = {
+    const context = { draftType: 'snake' as const,
       currentPick: 18,
       myPickPosition: 8,
       totalTeams: 10,
@@ -328,13 +328,13 @@ describe('estimateLeagueSurvivalProbability', () => {
 
   it('reconditions the same next-pick horizon after each live pick', () => {
     const player = createPlayer();
-    const atPick18 = estimateLeagueSurvivalProbability(player, model, {
+    const atPick18 = estimateLeagueSurvivalProbability(player, model, { draftType: 'snake' as const,
       currentPick: 18,
       myPickPosition: 8,
       totalTeams: 10,
       totalRounds: 14,
     });
-    const atPick19 = estimateLeagueSurvivalProbability(player, model, {
+    const atPick19 = estimateLeagueSurvivalProbability(player, model, { draftType: 'snake' as const,
       currentPick: 19,
       myPickPosition: 8,
       totalTeams: 10,
@@ -356,7 +356,7 @@ describe('estimateLeagueSurvivalProbability', () => {
       survivalModelSource: 'league-history',
     });
 
-    const result = estimateLeagueSurvivalProbability(player, null, {
+    const result = estimateLeagueSurvivalProbability(player, null, { draftType: 'snake' as const,
       currentPick: 28,
       myPickPosition: 8,
       totalTeams: 10,
@@ -372,7 +372,7 @@ describe('estimateLeagueSurvivalProbability', () => {
   });
 
   it('uses market cost and the actual next-pick distance without league history', () => {
-    const context = { currentPick: 12, myPickPosition: 12, totalTeams: 12, totalRounds: 15 };
+    const context = { draftType: 'snake' as const, currentPick: 12, myPickPosition: 12, totalTeams: 12, totalRounds: 15 };
     const player = createPlayer({ consensusAdp: 30, sleeperAdp: undefined });
     const near = estimateLeagueSurvivalProbability(player, null, context);
     const far = estimateLeagueSurvivalProbability(player, null, { ...context, myPickPosition: 1 });
@@ -396,7 +396,7 @@ describe('estimateLeagueSurvivalProbability', () => {
     const result = estimateLeagueSurvivalProbability(
       createPlayer({ consensusAdp: 5, marketAdp: 5, marketRank: 5, sleeperAdp: undefined }),
       null,
-      { currentPick: 100, myPickPosition: 1, totalTeams: 12, totalRounds: 15 }
+      { draftType: 'snake' as const, currentPick: 100, myPickPosition: 1, totalTeams: 12, totalRounds: 15 }
     );
 
     // P(next | now) is about e^(-20 / 7), not the clamped 0.03 floor.
@@ -406,7 +406,7 @@ describe('estimateLeagueSurvivalProbability', () => {
 
   it('stops at the manager\'s final selection instead of extending the horizon', () => {
     const player = createPlayer();
-    const result = estimateLeagueSurvivalProbability(player, model, {
+    const result = estimateLeagueSurvivalProbability(player, model, { draftType: 'snake' as const,
       currentPick: 138,
       myPickPosition: 8,
       totalTeams: 10,

@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import {
   isPosition,
   type DraftMetadata,
@@ -245,11 +246,8 @@ function getDraftSlot(
   teams: number,
   type: DraftType
 ): number {
-  const pickInRound = result.pickNumber - teams * (result.round - 1);
-  if (type === 'snake' && result.round % 2 === 0) {
-    return teams - pickInRound + 1;
-  }
-  if (type !== 'auction') return pickInRound;
+  if (type !== 'auction') return createSlotSequence({ type, teams, rounds: result.round })
+    .at(result.pickNumber).teamIndex + 1;
 
   const teamId = getNumber(result.teamKey.match(/\.t\.(\d+)$/)?.[1]);
   return teamId !== null && teamId >= 1 && teamId <= teams ? teamId : 1;
@@ -370,7 +368,7 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
           Pragma: 'no-cache',
         },
       });
-      const picks = (yield* parsePayload(() => parseYahooDraftResults(draftResults)))
+      const picks = yield* parsePayload(() => parseYahooDraftResults(draftResults)
         .map((result) =>
           normalizeYahooDraftResult(
             initialization.draft,
@@ -379,7 +377,7 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
             observedAt
           )
         )
-        .filter((pick): pick is DraftPickEvent => pick !== null);
+        .filter((pick): pick is DraftPickEvent => pick !== null));
 
       return {
         draft: updateYahooStatus(initialization.draft, picks.length),

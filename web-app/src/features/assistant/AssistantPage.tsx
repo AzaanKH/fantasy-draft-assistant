@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
@@ -13,12 +14,10 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { useDraftSessionMode, useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { POSITIONS, type Player, type Position, type Recommendation } from '@fantasy-draft/shared';
 import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
-
 import { AssistantContextBar } from './AssistantContextBar';
 import { AssistantQueue, AssistantRoster, UpcomingPicks } from './AssistantRail';
 import { RosterAnswer, WaitAnswer, WhyAnswer } from './AssistantAnswers';
@@ -135,7 +134,7 @@ export function AssistantPage({
   );
 
   const pickWindow = getPickWindow(currentPick, config.totalTeams, config.totalRounds, config.myPickPosition, config.draftType);
-  const nextPickLabel = pickWindow.nextPick === null ? null : formatRoundPick(pickWindow.nextPick, config.totalTeams);
+  const nextPickLabel = pickWindow.nextPick === null ? null : createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pickWindow.nextPick);
   const upcomingTeams = getUpcomingTeamPicks({
     picks: pickWindow.picksBetween,
     totalTeams: config.totalTeams,
@@ -151,6 +150,7 @@ export function AssistantPage({
     synchronizationState: liveSync.synchronizationState,
     lastConfirmedPickNumber: liveSync.lastConfirmedPickNumber,
     lastSyncAgeMs: liveSync.viewState.lastSyncAgeMs,
+    draftType: config.draftType,
     totalTeams: config.totalTeams,
   });
 
@@ -199,7 +199,7 @@ export function AssistantPage({
         <Button variant="outline" size="sm" onClick={onReturnToDraft}>
           <ArrowLeft className="size-4" /> Return to Draft Workspace
         </Button>
-        <ProviderIdentityBlockedNotice unresolvedPicks={decision.unresolvedProviderPicks} totalTeams={config.totalTeams} className="mx-auto mt-4 max-w-3xl" />
+        <ProviderIdentityBlockedNotice unresolvedPicks={decision.unresolvedProviderPicks} totalTeams={config.totalTeams} draftType={config.draftType} className="mx-auto mt-4 max-w-3xl" />
       </main>
     );
   }
@@ -259,7 +259,7 @@ export function AssistantPage({
       <AssistantContextBar
         isMyTurn={isMyTurn}
         pickWindow={pickWindow}
-        totalTeams={config.totalTeams}
+        totalTeams={config.totalTeams} draftType={config.draftType}
         mode={mode}
         sync={sync}
         lens={decisionLens}

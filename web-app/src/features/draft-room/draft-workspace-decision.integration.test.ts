@@ -373,7 +373,7 @@ describe('Draft Workspace decision integration', () => {
     expect(draftTransitions).toBe(1);
 
     const summaryMarkup = renderToStaticMarkup(
-      React.createElement(ReconciliationSummary, {
+      React.createElement(ReconciliationSummary, { draftType: 'snake',
         summary: {
           confirmedAt: 200,
           confirmations: confirmation.confirmations,
@@ -527,7 +527,7 @@ describe('Draft Workspace decision integration', () => {
     )).toBe(true);
 
     const summaryMarkup = renderToStaticMarkup(
-      React.createElement(ReconciliationSummary, {
+      React.createElement(ReconciliationSummary, { draftType: 'snake',
         summary: {
           confirmedAt: 300,
           confirmations: reconciliation.confirmations,
@@ -547,7 +547,7 @@ describe('Draft Workspace decision integration', () => {
     expect(summaryMarkup).toContain('unmapped-player-7');
 
     const blockedMarkup = renderToStaticMarkup(
-      React.createElement(ProviderIdentityBlockedNotice, {
+      React.createElement(ProviderIdentityBlockedNotice, { draftType: 'snake',
         unresolvedPicks: reconciled.unresolvedProviderPicks,
         totalTeams: 10,
       })

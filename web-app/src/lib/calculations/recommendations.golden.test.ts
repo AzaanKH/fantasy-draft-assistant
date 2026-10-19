@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -8,7 +9,6 @@ import {
   type DraftType,
   type Player,
 } from '@fantasy-draft/shared';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import {
   fetchFantasyProsSnapshot,
   fetchPlayerIdentityData,
@@ -90,7 +90,7 @@ describe('live Best Pick and Best Player demo boards', () => {
       }
     }
     for (let pick = 1; pick < state.currentPick; pick += 1) {
-      const team = getTeamIndexForDraftPick(pick, 10, state.draftType);
+      const team = createSlotSequence({ type: state.draftType, teams: 10, rounds: Math.ceil(pick / 10) }).at(pick).teamIndex;
       const roster = rosters[team];
       if (!roster) throw new Error('Demo draft team is missing');
       const player = players.find((candidate) => !drafted.has(candidate.id) &&
@@ -116,7 +116,7 @@ describe('live Best Pick and Best Player demo boards', () => {
       currentPick: state.currentPick,
       totalPicks: 150,
       totalTeams: 10,
-      isMyTurn: getTeamIndexForDraftPick(state.currentPick, 10, state.draftType) === 0,
+      isMyTurn: createSlotSequence({ type: state.draftType, teams: 10, rounds: Math.ceil(state.currentPick / 10) }).at(state.currentPick).teamIndex === 0,
       requirements: DEFAULT_ROSTER_REQUIREMENTS,
       rosterCounts: Object.fromEntries(POSITIONS.map((position) => [position, roster[position].length])),
       rosterPlayers,

@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import {
   isBoundedInteger,
   isDraftSize,
@@ -10,7 +11,6 @@ import {
   type LeagueSettings,
 } from '@fantasy-draft/shared';
 import { canonicalizeKeeperSupply } from '@/lib/keeper-supply';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 import { isValidDraftSyncId } from './draftSyncStore';
 import {
   computeDraftSessionChange,
@@ -104,7 +104,7 @@ function isRecordedPick(value: unknown, config: DraftConfig): value is RecordedD
     isBoundedInteger(value.teamIndex, 0, config.totalTeams - 1) && isText(value.teamName) &&
     isTimestamp(value.timestamp) &&
     (value.source === 'sync' || value.source === 'manual' || value.source === 'provisional' || value.source === 'keeper') &&
-    (value.source !== 'provisional' || value.teamIndex === getTeamIndexForDraftPick(value.pickNumber, config.totalTeams, config.draftType)) &&
+    (value.source !== 'provisional' || value.teamIndex === createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(value.pickNumber).teamIndex) &&
     (value.shortlistIndex === undefined || isBoundedInteger(value.shortlistIndex, 0, MAX_DRAFT_PICKS)) &&
     (value.provisionalRevision === undefined || isBoundedInteger(value.provisionalRevision, 0, Number.MAX_SAFE_INTEGER)) &&
     (value.provisionalUpdatedAt === undefined || isTimestamp(value.provisionalUpdatedAt));
@@ -140,6 +140,7 @@ export function parseStoredDraftSession(
     const config: DraftConfig = {
       totalTeams: Number(value.config.totalTeams),
       totalRounds: Number(value.config.totalRounds),
+      // eslint-disable-next-line no-restricted-syntax -- Version 1 sessions predating draftType used snake order.
       draftType: (value.config.draftType as DraftType | undefined) ?? 'snake',
       myPickPosition: value.config.myPickPosition,
       rosterRequirements: value.config.rosterRequirements,

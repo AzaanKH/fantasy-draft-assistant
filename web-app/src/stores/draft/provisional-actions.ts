@@ -1,4 +1,4 @@
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
+import { createSlotSequence } from '@fantasy-draft/shared';
 import {
   getKeeperPickNumbers,
   restoreShortlistedPlayer,
@@ -21,11 +21,8 @@ export function createProvisionalActions(
         // A save conflict replays this transition on another tab's newer session.
         recorded = false;
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const expectedTeamIndex = getTeamIndexForDraftPick(
-          pick.pickNumber,
-          state.config.totalTeams,
-          state.config.draftType
-        );
+        if (!Number.isInteger(pick.pickNumber) || pick.pickNumber < 1 || pick.pickNumber > totalPicks) return;
+        const expectedTeamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(pick.pickNumber).teamIndex;
         const reservedKeeperPickNumbers = getKeeperPickNumbers(
           state.preloadedKeepers,
           state.config.totalTeams,
@@ -33,9 +30,6 @@ export function createProvisionalActions(
         );
         const invalidPick =
           state.sessionMode !== 'live' ||
-          !Number.isInteger(pick.pickNumber) ||
-          pick.pickNumber < 1 ||
-          pick.pickNumber > totalPicks ||
           pick.teamIndex !== expectedTeamIndex ||
           state.draftedPlayerIds.has(pick.playerId) ||
           reservedKeeperPickNumbers.has(pick.pickNumber) ||
@@ -74,11 +68,8 @@ export function createProvisionalActions(
         if (!original || state.sessionMode !== 'live') return;
 
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const expectedTeamIndex = getTeamIndexForDraftPick(
-          replacement.pickNumber,
-          state.config.totalTeams,
-          state.config.draftType
-        );
+        if (!Number.isInteger(replacement.pickNumber) || replacement.pickNumber < 1 || replacement.pickNumber > totalPicks) return;
+        const expectedTeamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(replacement.pickNumber).teamIndex;
         const keeperPlayerIds = new Set(
           state.preloadedKeepers.map((keeper) => keeper.playerId)
         );
@@ -96,9 +87,6 @@ export function createProvisionalActions(
             )
         );
         const invalidReplacement =
-          !Number.isInteger(replacement.pickNumber) ||
-          replacement.pickNumber < 1 ||
-          replacement.pickNumber > totalPicks ||
           replacement.teamIndex !== expectedTeamIndex ||
           keeperPlayerIds.has(replacement.playerId) ||
           reservedKeeperPickNumbers.has(replacement.pickNumber) ||

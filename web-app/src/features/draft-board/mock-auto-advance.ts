@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import type { Player } from '@fantasy-draft/shared';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
@@ -8,11 +9,7 @@ import {
   useDraftStoreApi,
   type MockCpuPickPace,
 } from '@/stores/draftStore';
-import {
-  getKeeperAtPick,
-  getTeamIndexForDraftPick,
-  selectCpuPlayer,
-} from '@/lib/mock-draft-engine';
+import { getKeeperAtPick, selectCpuPlayer } from '@/lib/mock-draft-engine';
 
 const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
   watch: 600,
@@ -73,11 +70,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     });
     if (!selection) return false;
 
-    const teamIndex = getTeamIndexForDraftPick(
-      state.currentPick,
-      state.config.totalTeams,
-      state.config.draftType
-    );
+    const teamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(state.currentPick).teamIndex;
     state.markPlayerDrafted(
       selection.player.id,
       selection.player.name,

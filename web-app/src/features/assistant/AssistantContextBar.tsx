@@ -1,7 +1,5 @@
-import type { DecisionLens } from '@fantasy-draft/shared';
+import { type DraftType, createSlotSequence, type DecisionLens } from '@fantasy-draft/shared';
 import * as React from 'react';
-
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 
 import type { AssistantDraftMode, PickWindow, SyncTone } from './assistant-context';
 
@@ -17,6 +15,7 @@ export function AssistantContextBar({
   isMyTurn,
   pickWindow,
   totalTeams,
+  draftType,
   mode,
   sync,
   lens,
@@ -25,13 +24,14 @@ export function AssistantContextBar({
   readonly isMyTurn: boolean;
   readonly pickWindow: PickWindow;
   readonly totalTeams: number;
+  readonly draftType: DraftType;
   readonly mode: AssistantDraftMode;
   readonly sync: { readonly tone: SyncTone; readonly label: string };
   readonly lens: DecisionLens;
   readonly onLensChange: (lens: DecisionLens) => void;
 }): React.ReactElement {
-  const currentLabel = formatRoundPick(pickWindow.currentPick, totalTeams);
-  const nextLabel = pickWindow.nextPick === null ? null : formatRoundPick(pickWindow.nextPick, totalTeams);
+  const currentLabel = createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(pickWindow.currentPick / totalTeams) }).label(pickWindow.currentPick);
+  const nextLabel = pickWindow.nextPick === null ? null : createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(pickWindow.nextPick / totalTeams) }).label(pickWindow.nextPick);
   const between = `${String(pickWindow.picksBetween.length)} ${pickWindow.picksBetween.length === 1 ? 'pick' : 'picks'}`;
 
   return (

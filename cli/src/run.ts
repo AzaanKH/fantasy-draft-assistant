@@ -100,7 +100,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
     let readiness = yield* buildReadiness(now, root);
     let data: DraftData | null = null;
     const warnings: string[] = [];
-    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14));
+    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14, [], 'snake'));
     if (Result.isSuccess(loaded)) {
       data = loaded.success;
       readiness = withLocalKeeperReadiness(readiness, data, now);
@@ -131,7 +131,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, new Date(now).getUTCFullYear()) : { players: [] };
   if (market.warning) warnings.push(market.warning);
   if (!archive) {
-    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type));
+    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null));
     if (Result.isSuccess(loaded)) data = loaded.success;
     else {
       const error = loaded.failure;
@@ -160,7 +160,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
     return { data: { ...statusData(context, session.id, warnings), ...origin }, exitCode: 0 };
   }
   // A missing player pool must still produce a connected readiness report with actionable failures.
-  const readinessData = data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds).status,
+  const readinessData = data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds, snapshot.draft?.type ?? null).status,
     survivalModel: null, policy: SAFE_RECOMMENDATION_POLICY };
   const readiness = withConnectedReadiness(required(localReadiness, 'readiness report'), snapshot, readinessData, now);
   if (args.command === 'readiness') {

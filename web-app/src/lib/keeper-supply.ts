@@ -1,5 +1,4 @@
-import type { DraftType, Position } from '@fantasy-draft/shared';
-import { getPickNumberForTeamRound } from '@/lib/mock-draft-engine';
+import { createSlotSequence, type DraftType, type Position } from '@fantasy-draft/shared';
 
 export interface KeeperSupplyEntry {
   readonly playerId: string;
@@ -41,9 +40,8 @@ export function getKeeperPickNumber(
   totalTeams: number,
   draftType: DraftType
 ): number {
-  return draftType === 'linear'
-    ? (keeper.round - 1) * totalTeams + keeper.teamIndex + 1
-    : getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams);
+  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: keeper.round })
+    .forTeamRound(keeper.teamIndex, keeper.round).pick;
 }
 
 interface KeeperSupplyCompletenessInput {

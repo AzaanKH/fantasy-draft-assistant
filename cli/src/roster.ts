@@ -8,7 +8,7 @@ import { CliError } from './errors';
 export function inspectRoster(context: SessionContext, data: DraftData) {
   if (context.slot === null) throw new CliError('SLOT_REQUIRED', 'Set --slot NUMBER or DRAFT_SLOT, or connect with --slot to inspect your roster.', 2);
   const players = new Map(data.players.map(player => [player.id, player]));
-  const imports = resolveDraftPickImports(context.snapshot.picks, data.players, context.slot).picks;
+  const imports = resolveDraftPickImports(context.snapshot.picks, data.players, context.slot, [], context.totalTeams, context.snapshot.draft?.type ?? null).picks;
   const teamIndex = context.slot - 1;
   const confirmed = new Map(imports.filter(pick => pick.teamIndex === teamIndex).map(pick => [pick.playerId, pick]));
   const reservations = new Map(context.keeperReservations.filter(keeper => keeper.teamIndex === teamIndex).map(keeper => [keeper.playerId, keeper]));

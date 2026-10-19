@@ -1,6 +1,6 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
 import type { DraftType } from '@fantasy-draft/shared';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
 interface DraftBoardCurrentView {
   readonly activeRound: number | null;
@@ -36,20 +36,21 @@ export function getDraftBoardCurrentView({
   myPickPosition,
   totalTeams,
   totalRounds,
-  draftType = 'snake',
+  draftType,
 }: {
   readonly currentPick: number;
   readonly myPickPosition: number;
   readonly totalTeams: number;
   readonly totalRounds: number;
-  readonly draftType?: DraftType;
+  readonly draftType: DraftType;
 }): DraftBoardCurrentView {
   const totalPicks = totalTeams * totalRounds;
   const isComplete = currentPick > totalPicks;
   const activePickNumber = clamp(currentPick, 1, Math.max(1, totalPicks));
+  const order = createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds });
   const activeTeamIndex = isComplete
     ? clamp(myPickPosition - 1, 0, Math.max(0, totalTeams - 1))
-    : getTeamIndexForDraftPick(activePickNumber, totalTeams, draftType);
+    : order.at(activePickNumber).teamIndex;
   const picksUntilMyTurn = isComplete
     ? null
     : getPicksUntilMyTurn(
@@ -61,7 +62,7 @@ export function getDraftBoardCurrentView({
       );
 
   return {
-    activeRound: isComplete ? null : Math.ceil(activePickNumber / totalTeams),
+    activeRound: isComplete ? null : order.at(activePickNumber).round,
     activeTeamIndex,
     mobileTeamIndices: getCenteredTeamSlice(activeTeamIndex, totalTeams),
     upcomingMyPickNumber: picksUntilMyTurn === null

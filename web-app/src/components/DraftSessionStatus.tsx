@@ -1,10 +1,10 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { CircleAlert, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { getRecommendationPolicyLabel } from '@/features/recommendations/draft-decision';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
@@ -28,7 +28,7 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
   const needsAttention = decision.readiness?.status === 'blocked' || keeperStatus?.isMockReady === false;
   const mode = sessionMode === 'setup' ? 'Preview' : sessionMode === 'mock' ? 'Mock draft' : connection?.usePrimaryLeagueSettings || connection?.settingsProfile === 'quick-mock' ? 'Sleeper mock' : 'Live draft';
   const complete = decision.currentPick > config.totalTeams * config.totalRounds;
-  const pick = complete ? 'Draft complete' : `Pick ${formatRoundPick(decision.currentPick, config.totalTeams)}`;
+  const pick = complete ? 'Draft complete' : `Pick ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(decision.currentPick)}`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

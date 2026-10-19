@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import type { DraftType, Player } from '@fantasy-draft/shared';
@@ -19,13 +20,7 @@ import {
   type DraftSessionMode,
   type MockCpuPickPace,
 } from '@/stores/draftStore';
-import {
-  estimateMockSurvivalProbabilities,
-  formatRoundPick,
-  getKeeperAtPick,
-  getTeamIndexForDraftPick,
-  type MockDraftEngineConfig,
-} from '@/lib/mock-draft-engine';
+import { estimateMockSurvivalProbabilities, getKeeperAtPick, type MockDraftEngineConfig } from '@/lib/mock-draft-engine';
 import { useSimulateNextCpuPick } from './mock-auto-advance';
 
 const CPU_PICK_PACE_OPTIONS: readonly { value: MockCpuPickPace; label: string }[] = [
@@ -46,13 +41,8 @@ function getNextUserPick(
   totalRounds: number,
   draftType: DraftType
 ): number | null {
-  const totalPicks = totalTeams * totalRounds;
-  for (let pickNumber = currentPick + 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (getTeamIndexForDraftPick(pickNumber, totalTeams, draftType) === myPickPosition - 1) {
-      return pickNumber;
-    }
-  }
-  return null;
+  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds })
+    .nextForTeam(myPickPosition - 1, currentPick + 1)?.pick ?? null;
 }
 
 export function MockDraftControls({
@@ -354,7 +344,7 @@ export function MockDraftControls({
                 <div className="mr-auto text-xs text-muted-foreground">
                   {currentPick > totalPicks
                     ? 'Draft complete'
-                    : `${isMyTurn && !keeperAtCurrentPick ? 'Your selection' : 'CPU selection'} · ${formatRoundPick(currentPick, config.totalTeams)} · overall #${String(currentPick)}`}
+                    : `${isMyTurn && !keeperAtCurrentPick ? 'Your selection' : 'CPU selection'} · ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(currentPick)} · overall #${String(currentPick)}`}
                 </div>
                 <Button
                   variant="outline"
@@ -407,7 +397,7 @@ export function MockDraftControls({
               <div className="border-t pt-4">
                 <div className="mb-2 flex items-center justify-between gap-2 text-xs">
                   <span className="font-semibold">
-                    Survival to {nextUserPick ? formatRoundPick(nextUserPick, config.totalTeams) : 'draft end'}
+                    Survival to {nextUserPick ? createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(nextUserPick) : 'draft end'}
                   </span>
                   <span className="text-muted-foreground">
                     {isEstimating ? 'Running room simulations…' : `${String(mockSettings.survivalIterations)} simulations`}

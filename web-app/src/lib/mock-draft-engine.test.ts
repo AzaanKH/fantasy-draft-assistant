@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
@@ -5,16 +6,7 @@ import {
   type Player,
   type Position,
 } from '@fantasy-draft/shared';
-import {
-  estimateMockSurvivalProbabilities,
-  getKeeperAtPick,
-  getTeamIndexForDraftPick,
-  getPickNumberForTeamRound,
-  selectCpuPlayer,
-  simulateCpuDraft,
-  type MockDraftEngineConfig,
-  type MockKeeperAssignment,
-} from './mock-draft-engine';
+import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment } from './mock-draft-engine';
 
 function player(
   id: string,
@@ -70,7 +62,7 @@ const players = Array.from({ length: 150 }, (_, index) =>
   )
 );
 
-const config: MockDraftEngineConfig = {
+const config: MockDraftEngineConfig = { draftType: 'snake',
   totalTeams: 10,
   totalRounds: 15,
   myPickPosition: 5,
@@ -89,7 +81,7 @@ const javonte: MockKeeperAssignment = {
 
 describe('mock draft engine', () => {
   it('presents auction nominations and keeper reservations in legacy snake order', () => {
-    expect([10, 11, 20, 21].map(pick => getTeamIndexForDraftPick(pick, 10, 'auction')))
+    expect([10, 11, 20, 21].map(pick => createSlotSequence({ type: 'auction', teams: 10, rounds: Math.ceil(pick / 10) }).at(pick).teamIndex))
       .toEqual([9, 9, 0, 0]);
     expect(getKeeperAtPick([javonte], 96, 10, 'auction')).toEqual(javonte);
     expect(getKeeperAtPick([javonte], 95, 10, 'auction')).toBeUndefined();
@@ -102,9 +94,9 @@ describe('mock draft engine', () => {
   });
 
   it('maps team 5 round 10 to 10.06 and consumes Javonte there', () => {
-    expect(getPickNumberForTeamRound(4, 10, 10)).toBe(96);
-    expect(getKeeperAtPick([javonte], 96, 10)).toEqual(javonte);
-    expect(getKeeperAtPick([javonte], 95, 10)).toBeUndefined();
+    expect(createSlotSequence({ type: 'snake', teams: 10, rounds: 10 }).forTeamRound(4, 10).pick).toBe(96);
+    expect(getKeeperAtPick([javonte], 96, 10, 'snake')).toEqual(javonte);
+    expect(getKeeperAtPick([javonte], 95, 10, 'snake')).toBeUndefined();
   });
 
   it('is reproducible for a seed and samples only the plausible top 10-15', () => {

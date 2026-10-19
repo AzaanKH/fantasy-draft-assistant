@@ -38,6 +38,7 @@ export function DraftRoom({
             <ReconciliationSummary
               summary={sync.reconciliationSummary}
               totalTeams={config.totalTeams}
+              draftType={config.draftType}
               onDismiss={sync.dismissReconciliationSummary}
             />
           ) : null}

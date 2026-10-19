@@ -66,7 +66,7 @@ function isKeeperFile(value: unknown): value is KeeperFile {
 }
 
 export function resolveKeepers(value: unknown, players: readonly Player[], teams: number, rounds: number,
-  draftType: DraftType = 'snake'): {
+  draftType: DraftType | null): {
   keepers: readonly CanonicalKeeperAssignment[]; status: KeeperStatus;
 } {
   const file = isKeeperFile(value) ? value : null;
@@ -80,7 +80,9 @@ export function resolveKeepers(value: unknown, players: readonly Player[], teams
     resolved.push({ playerId: player.id, playerName: player.name, position: player.position,
       teamIndex: entry.team - 1, round: entry.round, isMyKeeper: entry.isMyKeeper ?? false });
   }
-  const supply = canonicalizeKeeperSupply(resolved, { totalTeams: teams, totalRounds: rounds, draftType });
+  const supply = draftType === null
+    ? { assignments: [], invalidEntries: resolved, conflictingEntries: [], duplicatePlayerIds: [] }
+    : canonicalizeKeeperSupply(resolved, { totalTeams: teams, totalRounds: rounds, draftType });
   return {
     keepers: supply.assignments,
     status: {
@@ -97,7 +99,7 @@ export function resolveKeepers(value: unknown, players: readonly Player[], teams
 }
 
 export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string, settings: LeagueSettings, rounds: number,
-  marketAdp: readonly MarketAdpPlayer[] = [], draftType: DraftType = 'snake') {
+  marketAdp: readonly MarketAdpPlayer[], draftType: DraftType | null) {
   const [snapshot, identities, sleeper, environment, keeperFile, survival, policy] = yield* Effect.all([
     loadJson(root, 'data/fantasypros-snapshot.json'), loadJson(root, 'data/player-identity.json'),
     loadJson(root, 'data/sleeper-adp.json'), loadJson(root, 'data/team-environment.json'),

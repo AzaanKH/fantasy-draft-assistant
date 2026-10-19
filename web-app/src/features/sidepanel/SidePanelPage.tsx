@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
@@ -44,7 +45,6 @@ import {
 } from '@/hooks/useDraftSync';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn, formatSignedNumber } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
@@ -212,7 +212,8 @@ function SidePanelStatus({
     currentPick,
     config.myPickPosition,
     config.totalTeams,
-    config.totalRounds
+    config.totalRounds,
+    config.draftType
   );
 
   return (
@@ -222,7 +223,7 @@ function SidePanelStatus({
         <DraftSyncStatusIndicator sync={sync} compact className="text-[10px]" />
       </div>
       <div className="flex h-14 items-center justify-center border-x border-border/70 px-2 font-mono text-muted-foreground">
-        {formatRoundPick(currentPick, config.totalTeams)}
+        {createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(currentPick)}
       </div>
       <div className="flex h-14 items-center justify-end px-3 text-right font-semibold text-emerald-700 dark:text-emerald-300">
         {picksUntilTurn === 0
@@ -771,6 +772,7 @@ function SidePanelContent({
   const { needs } = useTeamNeeds();
   const leagueSettings = useDraftStore((state) => state.leagueSettings);
   const totalTeams = useDraftStore((state) => state.config.totalTeams);
+  const draftType = useDraftStore((state) => state.config.draftType);
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]
@@ -892,6 +894,7 @@ function SidePanelContent({
             <ProviderIdentityBlockedNotice
               unresolvedPicks={decision.unresolvedProviderPicks}
               totalTeams={totalTeams}
+              draftType={draftType}
             />
           ) : showReadinessBlock && decision.readiness ? (
             <DraftReadinessBlockedNotice readiness={decision.readiness} />

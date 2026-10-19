@@ -125,7 +125,7 @@ describe('2026 mock draft calibration', () => {
   });
 
   it('finishes a complete mock with legal starters, two FLEX slots, and roster maximums', () => {
-    const config: MockDraftEngineConfig = {
+    const config: MockDraftEngineConfig = { draftType: 'snake',
       totalTeams: 10,
       totalRounds: 15,
       myPickPosition: 5,
@@ -176,7 +176,7 @@ describe('2026 mock draft calibration', () => {
     const keeperIds = new Set(keepers.map((keeper) => keeper.playerId));
 
     for (let iteration = 0; iteration < iterations; iteration += 1) {
-      const config: MockDraftEngineConfig = {
+      const config: MockDraftEngineConfig = { draftType: 'snake',
         totalTeams: 10,
         totalRounds: 15,
         myPickPosition: 5,

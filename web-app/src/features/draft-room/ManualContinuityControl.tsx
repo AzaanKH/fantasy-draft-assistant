@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { CircleAlert, PenLine, ShieldAlert, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { getProviderName } from '@/lib/provider-name';
 import { cn } from '@/lib/utils';
 import {
@@ -164,7 +164,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                   key={pick.pickNumber}
                   className="flex flex-col gap-2 rounded-md border border-amber-500/35 bg-background/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   role="listitem"
-                  aria-label={`${pick.playerName}, ${pick.position}, pick ${formatRoundPick(pick.pickNumber, config.totalTeams)}, ${pick.teamName}, ${pick.provisionalRevision ? `corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}` : 'recorded locally'}`}
+                  aria-label={`${pick.playerName}, ${pick.position}, pick ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)}, ${pick.teamName}, ${pick.provisionalRevision ? `corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}` : 'recorded locally'}`}
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">
@@ -174,7 +174,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                       </span>
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Pick {formatRoundPick(pick.pickNumber, config.totalTeams)} · #{String(pick.pickNumber)} · {pick.teamName}
+                      Pick {createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)} · #{String(pick.pickNumber)} · {pick.teamName}
                       {pick.provisionalRevision
                         ? ` · Corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}`
                         : ' · Recorded locally'}

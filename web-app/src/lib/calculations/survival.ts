@@ -1,5 +1,4 @@
-import type { DraftType, Player, Position } from '@fantasy-draft/shared';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
+import { createSlotSequence, type DraftType, type Player, type Position, type SlotRef } from '@fantasy-draft/shared';
 
 const POSITION_LABELS: Record<Position, string> = {
   QB: 'QBs',
@@ -68,8 +67,7 @@ interface SurvivalContext {
   readonly myPickPosition: number;
   readonly totalTeams: number;
   readonly totalRounds: number;
-  /** Defaults to snake for callers that predate linear-draft support. */
-  readonly draftType?: DraftType;
+  readonly draftType: DraftType;
   /** Completed picks and effective keeper reservations cannot be selected again. */
   readonly occupiedPickNumbers?: ReadonlySet<number>;
 }
@@ -102,22 +100,13 @@ function quantile(values: readonly number[], percentile: number): number {
   return lower + (upper - lower) * (index - lowerIndex);
 }
 
-function formatRoundPick(pickNumber: number, totalTeams: number): string {
-  const round = Math.ceil(pickNumber / totalTeams);
-  const pickInRound = ((pickNumber - 1) % totalTeams) + 1;
-  return `${String(round)}.${String(pickInRound).padStart(2, '0')}`;
+function getNextUserSlot(context: SurvivalContext): SlotRef | null {
+  return createSlotSequence({ type: context.draftType, teams: context.totalTeams, rounds: context.totalRounds })
+    .nextForTeam(context.myPickPosition - 1, context.currentPick + 1, context.occupiedPickNumbers);
 }
 
 export function getNextUserPick(context: SurvivalContext): number | null {
-  const totalPicks = context.totalTeams * context.totalRounds;
-  for (let pick = context.currentPick + 1; pick <= totalPicks; pick += 1) {
-    const teamIndex = getTeamIndexForDraftPick(pick, context.totalTeams, context.draftType ?? 'snake');
-    if (teamIndex === context.myPickPosition - 1 && !context.occupiedPickNumbers?.has(pick)) {
-      return pick;
-    }
-  }
-
-  return null;
+  return getNextUserSlot(context)?.pick ?? null;
 }
 
 function getPositionTendency(
@@ -254,9 +243,10 @@ function getConditionalSurvivalProbability(
 
 function withHeuristicSurvivalSource(
   player: Player,
-  context: SurvivalContext
+  context: SurvivalContext,
+  nextSlot: SlotRef | null
 ): Player {
-  const nextPick = getNextUserPick(context);
+  const nextPick = nextSlot?.pick ?? null;
   const consensusMarketPick = getConsensusMarketPick(player);
   const sleeperTimingPick = getSleeperTimingPick(player);
   const expectedPick = sleeperTimingPick === undefined
@@ -273,7 +263,7 @@ function withHeuristicSurvivalSource(
     nextPickNumber: nextPick ?? undefined,
     nextPickLabel: nextPick === null
       ? undefined
-      : formatRoundPick(nextPick, context.totalTeams),
+      : nextSlot?.label,
     picksUntilNextPick: nextPick === null
       ? undefined
       : nextPick - context.currentPick,
@@ -288,19 +278,20 @@ function withHeuristicSurvivalSource(
   };
 }
 
-export function estimateLeagueSurvivalProbability(
+function estimateAtNextSlot(
   player: Player,
   model: LeagueSurvivalModel | null | undefined,
   context: SurvivalContext,
-  playerPool: readonly Player[] = [player]
+  playerPool: readonly Player[],
+  nextSlot: SlotRef | null
 ): Player {
-  const nextPick = getNextUserPick(context);
+  const nextPick = nextSlot?.pick ?? null;
   if (!model || nextPick === null) {
-    return withHeuristicSurvivalSource(player, context);
+    return withHeuristicSurvivalSource(player, context, nextSlot);
   }
 
   const summary = model.positions[player.position];
-  if (!summary) return withHeuristicSurvivalSource(player, context);
+  if (!summary) return withHeuristicSurvivalSource(player, context, nextSlot);
 
   const consensusMarketPick = getConsensusMarketPick(player);
   const sleeperTimingPick = getSleeperTimingPick(player);
@@ -334,7 +325,7 @@ export function estimateLeagueSurvivalProbability(
     ...player,
     nextPickSurvivalProbability,
     nextPickNumber: nextPick,
-    nextPickLabel: formatRoundPick(nextPick, context.totalTeams),
+    nextPickLabel: nextSlot?.label,
     picksUntilNextPick: nextPick - context.currentPick,
     leagueAdjustedMarketRank: round(leagueAdjustedMarketRank),
     leagueMarketDelta: round(leagueAdjustedMarketRank - consensusMarketPick),
@@ -350,12 +341,22 @@ export function estimateLeagueSurvivalProbability(
   };
 }
 
+export function estimateLeagueSurvivalProbability(
+  player: Player,
+  model: LeagueSurvivalModel | null | undefined,
+  context: SurvivalContext,
+  playerPool: readonly Player[] = [player]
+): Player {
+  return estimateAtNextSlot(player, model, context, playerPool, getNextUserSlot(context));
+}
+
 export function applyLeagueSurvivalModel(
   players: readonly Player[],
   model: LeagueSurvivalModel | null | undefined,
   context: SurvivalContext
 ): Player[] {
+  const nextSlot = getNextUserSlot(context);
   return players.map((player) =>
-    estimateLeagueSurvivalProbability(player, model, context, players)
+    estimateAtNextSlot(player, model, context, players, nextSlot)
   );
 }

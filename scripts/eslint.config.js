@@ -1,3 +1,4 @@
+import { draftOrderRules } from '../eslint.draft-order.js';
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
@@ -16,6 +17,7 @@ export default tseslint.config(
       },
     },
     rules: {
+      'no-restricted-syntax': ['error', ...draftOrderRules],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

@@ -1,4 +1,4 @@
-import type { DraftType, Player, Position, RosterRequirements } from '@fantasy-draft/shared';
+import { createSlotSequence, type DraftType, type Player, type Position, type RosterRequirements, type SlotRef } from '@fantasy-draft/shared';
 
 type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
 
@@ -45,8 +45,7 @@ export interface MockDraftEngineConfig {
   readonly totalTeams: number;
   readonly totalRounds: number;
   readonly myPickPosition: number;
-  /** Pick order; omitted means snake. Linear repeats round-one order every round. */
-  readonly draftType?: DraftType;
+  readonly draftType: DraftType;
   readonly rosterRequirements: RosterRequirements;
   /** 0 is nearly deterministic and 1 is the widest plausible top-15 sampler. */
   readonly randomness: number;
@@ -137,54 +136,15 @@ function mixSeed(...values: readonly number[]): number {
   );
 }
 
-export function getTeamIndexForPick(pickNumber: number, totalTeams: number): number {
-  const roundNumber = Math.ceil(pickNumber / totalTeams);
-  const pickInRound = ((pickNumber - 1) % totalTeams) + 1;
-  return roundNumber % 2 === 1
-    ? pickInRound - 1
-    : totalTeams - pickInRound;
-}
-
-/** Linear drafts repeat round-one order; snake (and auction nomination order) reverses even rounds. */
-export function getTeamIndexForDraftPick(
-  pickNumber: number,
-  totalTeams: number,
-  draftType: DraftType
-): number {
-  return draftType === 'linear'
-    ? (pickNumber - 1) % totalTeams
-    : getTeamIndexForPick(pickNumber, totalTeams);
-}
-
-export function getPickNumberForTeamRound(
-  teamIndex: number,
-  roundNumber: number,
-  totalTeams: number
-): number {
-  const pickInRound = roundNumber % 2 === 1
-    ? teamIndex + 1
-    : totalTeams - teamIndex;
-  return (roundNumber - 1) * totalTeams + pickInRound;
-}
-
-export function formatRoundPick(pickNumber: number, totalTeams: number): string {
-  const roundNumber = Math.ceil(pickNumber / totalTeams);
-  const pickInRound = ((pickNumber - 1) % totalTeams) + 1;
-  return `${String(roundNumber)}.${String(pickInRound).padStart(2, '0')}`;
-}
-
 export function getKeeperAtPick(
   keepers: readonly MockKeeperAssignment[],
   pickNumber: number,
   totalTeams: number,
-  draftType: DraftType = 'snake'
+  draftType: DraftType
 ): MockKeeperAssignment | undefined {
-  return keepers.find((keeper) =>
-    keeper.teamIndex < totalTeams &&
-    (draftType === 'linear'
-      ? (keeper.round - 1) * totalTeams + keeper.teamIndex + 1
-      : getPickNumberForTeamRound(keeper.teamIndex, keeper.round, totalTeams)) === pickNumber
-  );
+  const order = createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.max(1, ...keepers.map(keeper => keeper.round)) });
+  return keepers.find(keeper => keeper.teamIndex < totalTeams &&
+    order.forTeamRound(keeper.teamIndex, keeper.round).pick === pickNumber);
 }
 
 function getRosterCounts(
@@ -370,15 +330,15 @@ function getHistoryScore(
 function getRunMomentum(
   position: Position,
   history: readonly MockDraftPickLike[],
-  currentPick: number,
+  slot: SlotRef,
   config: MockDraftEngineConfig
 ): number {
   if (position !== 'QB' && position !== 'TE') return 0;
   const recent = history
-    .filter((pick) => pick.pickNumber < currentPick && pick.source !== 'keeper')
+    .filter((pick) => pick.pickNumber < slot.pick && pick.source !== 'keeper')
     .slice(-6);
   const recentAtPosition = recent.filter((pick) => pick.position === position).length;
-  const roundNumber = Math.ceil(currentPick / config.totalTeams);
+  const roundNumber = slot.round;
   const runWindow = position === 'QB'
     ? roundNumber >= 3 && roundNumber <= 6
     : roundNumber >= 2 && roundNumber <= 5;
@@ -414,8 +374,8 @@ function buildScarcityLookup(candidates: readonly Player[]): ReadonlyMap<string,
 }
 
 function scoreCpuCandidates(input: SelectCpuPlayerInput): ScoredCpuCandidate[] {
-  const teamIndex = getTeamIndexForDraftPick(input.currentPick, input.config.totalTeams, input.config.draftType ?? 'snake');
-  const roundNumber = Math.ceil(input.currentPick / input.config.totalTeams);
+  const slot = createSlotSequence({ type: input.config.draftType, teams: input.config.totalTeams, rounds: input.config.totalRounds }).at(input.currentPick);
+  const { teamIndex, round: roundNumber } = slot;
   const rosterCounts = getRosterCounts(teamIndex, input.history, input.keepers);
   const candidates = input.players.filter((player) =>
     !input.draftedPlayerIds.has(player.id) &&
@@ -456,7 +416,7 @@ function scoreCpuCandidates(input: SelectCpuPlayerInput): ScoredCpuCandidate[] {
       runMomentum: getRunMomentum(
         player.position,
         input.history,
-        input.currentPick,
+        slot,
         input.config
       ),
     };
@@ -507,19 +467,6 @@ export function selectCpuPlayer(input: SelectCpuPlayerInput): CpuSelection | und
   return last ? { player: last.player, shortlist } : undefined;
 }
 
-function getNextUserPickAfter(
-  currentPick: number,
-  config: MockDraftEngineConfig
-): number | null {
-  const totalPicks = config.totalTeams * config.totalRounds;
-  for (let pickNumber = currentPick + 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (getTeamIndexForDraftPick(pickNumber, config.totalTeams, config.draftType ?? 'snake') === config.myPickPosition - 1) {
-      return pickNumber;
-    }
-  }
-  return null;
-}
-
 export function estimateMockSurvivalProbabilities(input: {
   readonly players: readonly Player[];
   readonly draftedPlayerIds: ReadonlySet<string>;
@@ -531,7 +478,8 @@ export function estimateMockSurvivalProbabilities(input: {
   readonly iterations?: number;
   readonly iterationOffset?: number;
 }): Readonly<Record<string, number>> {
-  const nextUserPick = getNextUserPickAfter(input.currentPick, input.config);
+  const order = createSlotSequence({ type: input.config.draftType, teams: input.config.totalTeams, rounds: input.config.totalRounds });
+  const nextUserPick = order.nextForTeam(input.config.myPickPosition - 1, input.currentPick + 1)?.pick ?? null;
   const availablePlayers = input.players.filter((player) =>
     !input.draftedPlayerIds.has(player.id)
   );
@@ -547,7 +495,7 @@ export function estimateMockSurvivalProbabilities(input: {
     for (let pickNumber = input.currentPick; pickNumber < nextUserPick; pickNumber += 1) {
       if (
         pickNumber === input.currentPick &&
-        getTeamIndexForDraftPick(pickNumber, input.config.totalTeams, input.config.draftType ?? 'snake') ===
+        order.at(pickNumber).teamIndex ===
           input.config.myPickPosition - 1
       ) {
         continue;
@@ -582,7 +530,7 @@ export function estimateMockSurvivalProbabilities(input: {
         playerId: selection.player.id,
         playerName: selection.player.name,
         position: selection.player.position,
-        teamIndex: getTeamIndexForDraftPick(pickNumber, input.config.totalTeams, input.config.draftType ?? 'snake'),
+        teamIndex: order.at(pickNumber).teamIndex,
         source: 'cpu',
       });
     }
@@ -612,6 +560,7 @@ export function simulateCpuDraft(input: {
   const drafted = new Set(input.keepers.map((keeper) => keeper.playerId));
   const history: SimulatedMockPick[] = [];
   const totalPicks = input.config.totalTeams * input.config.totalRounds;
+  const order = createSlotSequence({ type: input.config.draftType, teams: input.config.totalTeams, rounds: input.config.totalRounds });
   let freshSelections = 0;
 
   for (let pickNumber = 1; pickNumber <= totalPicks; pickNumber += 1) {
@@ -649,7 +598,7 @@ export function simulateCpuDraft(input: {
       playerId: selection.player.id,
       playerName: selection.player.name,
       position: selection.player.position,
-      teamIndex: getTeamIndexForDraftPick(pickNumber, input.config.totalTeams, input.config.draftType ?? 'snake'),
+      teamIndex: order.at(pickNumber).teamIndex,
       source: 'cpu',
     });
     freshSelections += 1;

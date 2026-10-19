@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { Effect, Result } from 'effect';
 import {
   yahooDraftResultsFixture,
   yahooPlayersFixture,
@@ -66,6 +66,23 @@ describe('YahooSyncAdapter', () => {
     const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fetchAuction).poll());
     expect(snapshot.draft.type).toBe('auction');
     expect(snapshot.picks[0]).toMatchObject({ pickNumber: 3, draftSlot: 1, teamIndex: 0 });
+  });
+
+  it.each([
+    { round: '0', pick: '1' },
+    { round: '1.5', pick: '1' },
+    { round: '1', pick: '11' },
+  ])('reports invalid ordered result $round/$pick as a provider failure', async (invalid) => {
+    const fixture = createYahooFetch([]);
+    const fetchInvalid: FetchJson = async <T>(url: string, signal: AbortSignal, init?: RequestInit): Promise<T> => {
+      if (url.includes('/draftresults')) return {
+        draft_result: { ...invalid, team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
+      } as T;
+      return fixture<T>(url, signal, init);
+    };
+    const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fetchInvalid).poll()));
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure._tag).toBe('ProviderError');
   });
 
   it('extracts a league ID from Yahoo league and draft room URLs', () => {

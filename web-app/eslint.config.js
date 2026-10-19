@@ -1,3 +1,4 @@
+import { draftOrderRules } from '../eslint.draft-order.js';
 import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -22,6 +23,7 @@ export default tseslint.config(
       'react-refresh': reactRefresh,
     },
     rules: {
+      'no-restricted-syntax': ['error', ...draftOrderRules],
       ...reactHooks.configs.recommended.rules,
       '@typescript-eslint/no-unused-vars': [
         'error',

@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 import {
@@ -5,7 +6,7 @@ import {
   useDraftStore,
   useIsMyTurn,
 } from '@/stores/draftStore';
-import { getKeeperAtPick, getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
+import { getKeeperAtPick } from '@/lib/mock-draft-engine';
 
 export function canDraftFromWorkspace(
   sessionMode: ReturnType<typeof useDraftSessionMode>,
@@ -57,7 +58,7 @@ export function useDraftPlayerAction(): {
 
   const draftPlayer = React.useCallback((player: Player) => {
     if (!canDraftPlayer(player)) return;
-    const teamIndex = getTeamIndexForDraftPick(currentPick, config.totalTeams, config.draftType);
+    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(currentPick).teamIndex;
     markPlayerDrafted(
       player.id,
       player.name,
@@ -65,7 +66,7 @@ export function useDraftPlayerAction(): {
       teamIndex,
       'My Team'
     );
-  }, [canDraftPlayer, config.draftType, config.totalTeams, currentPick, markPlayerDrafted]);
+  }, [canDraftPlayer, config.draftType, config.totalTeams, config.totalRounds, currentPick, markPlayerDrafted]);
 
   return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };
 }

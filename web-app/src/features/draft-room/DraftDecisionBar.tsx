@@ -93,7 +93,8 @@ export function DraftDecisionBar({
     currentPick,
     config.myPickPosition,
     config.totalTeams,
-    config.totalRounds
+    config.totalRounds,
+    config.draftType
   );
   const turnLabel = sessionMode === 'setup'
     ? 'Preview'

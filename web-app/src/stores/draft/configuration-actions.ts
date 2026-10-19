@@ -1,6 +1,15 @@
 import { isDraftSize, isLeagueSettings, isRosterRequirements } from '@fantasy-draft/shared';
+import { canonicalizeKeeperSupply } from '@/lib/keeper-supply';
 import { rebuildCanonicalRosters } from './state';
-import type { DraftActions, SetDraftState } from './types';
+import type { DraftActions, DraftState, SetDraftState } from './types';
+
+function invalidateOutOfBoundsKeepers(state: DraftState): void {
+  const supply = canonicalizeKeeperSupply(state.preloadedKeepers, state.config);
+  if (supply.invalidEntries.length === 0) return;
+  state.preloadedKeepers = [];
+  state.keepersInitialized = false;
+  state.draftedPlayerIds = new Set(state.draftHistory.map(pick => pick.playerId));
+}
 
 export function createConfigurationActions(
   set: SetDraftState
@@ -48,6 +57,7 @@ export function createConfigurationActions(
         state.config.totalTeams = nextTotalTeams;
         state.config.totalRounds = nextTotalRounds;
         state.config.myPickPosition = nextPickPosition;
+        invalidateOutOfBoundsKeepers(state);
         rebuildCanonicalRosters(state);
         state.mockSurvivalProbabilities = {};
       }); },
@@ -115,6 +125,7 @@ export function createConfigurationActions(
           DEF: { ...settings.rosterRequirements.DEF },
           BENCH: { ...settings.rosterRequirements.BENCH },
         };
+        invalidateOutOfBoundsKeepers(state);
         rebuildCanonicalRosters(state);
         state.mockSurvivalProbabilities = {};
       }); },

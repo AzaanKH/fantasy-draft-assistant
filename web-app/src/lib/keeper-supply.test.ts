@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
@@ -10,11 +11,10 @@ import {
   isKeeperSupplyComplete,
 } from './keeper-supply';
 import { filterDrafted, getRecommendations } from '@/lib/calculations';
-import { getPickNumberForTeamRound } from '@/lib/mock-draft-engine';
 import {
   createDraftDecisionOutput,
 } from '@/features/recommendations/draft-decision';
-import { useDraftStore } from '@/stores/draftStore';
+import { createDraftStore, useDraftStore } from '@/stores/draftStore';
 
 const TOTAL_TEAMS = 10;
 const TOTAL_ROUNDS = 15;
@@ -284,7 +284,7 @@ describe('Primary League keeper supply end-to-end', () => {
       const state = useDraftStore.getState();
       const keeperAtPick = state.preloadedKeepers.find(
         (keeper) =>
-          getPickNumberForTeamRound(keeper.teamIndex, keeper.round, TOTAL_TEAMS) === pickNumber
+          createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: keeper.round }).forTeamRound(keeper.teamIndex, keeper.round).pick === pickNumber
       );
 
       if (keeperAtPick) {
@@ -432,5 +432,22 @@ describe('Primary League keeper supply end-to-end', () => {
     useDraftStore.getState().setSessionMode('setup');
     useDraftStore.getState().setConfig({ myPickPosition: 5 });
     expect(useDraftStore.getState().myRoster.RB).toEqual(['keeper-4']);
+  });
+});
+
+
+describe('keeper supply after a league size change', () => {
+  it.each([
+    { initialTeams: 12, teamIndex: 11, initialRounds: 15, round: 2, next: { totalTeams: 10 } },
+    { initialTeams: 10, teamIndex: 1, initialRounds: 15, round: 15, next: { totalRounds: 14 } },
+  ])('invalidates reservations outside the new config $next', ({ initialTeams, teamIndex, initialRounds, round, next }) => {
+    const store = createDraftStore();
+    store.getState().setConfig({ totalTeams: initialTeams, totalRounds: initialRounds });
+    store.getState().preloadKeepers([entry('keeper', 'Keeper', 'WR', teamIndex, round)]);
+    expect(store.getState().draftedPlayerIds.has('keeper')).toBe(true);
+    expect(() => { store.getState().setConfig(next); }).not.toThrow();
+    expect(store.getState().preloadedKeepers).toEqual([]);
+    expect(store.getState().keepersInitialized).toBe(false);
+    expect(store.getState().draftedPlayerIds.has('keeper')).toBe(false);
   });
 });

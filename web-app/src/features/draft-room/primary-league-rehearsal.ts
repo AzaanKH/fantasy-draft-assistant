@@ -1,3 +1,4 @@
+import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
@@ -16,10 +17,6 @@ import {
 import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { hasRemainingDraftDecision } from '@/hooks/useRecommendations';
-import {
-  getPickNumberForTeamRound,
-  getTeamIndexForPick,
-} from '@/lib/mock-draft-engine';
 import {
   calculateIsMyTurn,
   useDraftStore,
@@ -164,7 +161,7 @@ function buildSchedule(): {
   readonly provisionalPlayers: readonly Player[];
 } {
   const keeperByPick = new Map(KEEPERS.map((keeper) => [
-    getPickNumberForTeamRound(keeper.teamIndex, keeper.round, TOTAL_TEAMS),
+    createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: keeper.round }).forTeamRound(keeper.teamIndex, keeper.round).pick,
     keeper,
   ]));
   const positionQueues = Array.from({ length: TOTAL_TEAMS }, (_, teamIndex) => {
@@ -189,7 +186,7 @@ function buildSchedule(): {
   const picks: ScheduledPick[] = [];
 
   for (let pickNumber = 1; pickNumber <= TOTAL_PICKS; pickNumber += 1) {
-    const teamIndex = getTeamIndexForPick(pickNumber, TOTAL_TEAMS);
+    const teamIndex = createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: Math.ceil(pickNumber / TOTAL_TEAMS) }).at(pickNumber).teamIndex;
     const keeper = keeperByPick.get(pickNumber);
     const position = keeper?.position ?? positionQueues[teamIndex]?.shift();
     if (!position) throw new Error(`No position planned for pick ${String(pickNumber)}.`);
@@ -334,7 +331,7 @@ export function runPrimaryLeagueRehearsal(
   }, now);
   const store = useDraftStore.getState();
   store.preloadKeepers([]);
-  store.setConfig({
+  store.setConfig({ draftType: 'snake',
     totalTeams: TOTAL_TEAMS,
     totalRounds: TOTAL_ROUNDS,
     myPickPosition: MY_PICK_POSITION,
@@ -381,7 +378,7 @@ export function runPrimaryLeagueRehearsal(
     const managerIsOnTheClock = calculateIsMyTurn(
       state.currentPick,
       state.config.myPickPosition,
-      state.config.totalTeams
+      state.config.totalTeams, 'snake'
     );
     const scarcity = calculateAllScarcityScores(availablePlayers);
     const needs = calculateTeamNeeds(
@@ -510,7 +507,7 @@ export function runPrimaryLeagueRehearsal(
   observeDecision('Restored Provider Truth');
 
   const reconciliationMarkup = renderToStaticMarkup(
-    React.createElement(ReconciliationSummary, {
+    React.createElement(ReconciliationSummary, { draftType: 'snake',
       summary: {
         confirmedAt: now,
         confirmations: reconciliation.confirmations,
@@ -547,7 +544,7 @@ export function runPrimaryLeagueRehearsal(
   const canonicalPicks = [
     ...providerPicks.map((pick) => ({ pickNumber: pick.pickNumber, playerId: pick.playerId })),
     ...KEEPERS.map((keeper) => ({
-      pickNumber: getPickNumberForTeamRound(keeper.teamIndex, keeper.round, TOTAL_TEAMS),
+      pickNumber: createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: keeper.round }).forTeamRound(keeper.teamIndex, keeper.round).pick,
       playerId: keeper.playerId,
     })),
   ].sort((left, right) => left.pickNumber - right.pickNumber);

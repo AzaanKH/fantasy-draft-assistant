@@ -1,16 +1,18 @@
+import { type DraftType, createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { CircleAlert } from 'lucide-react';
 import type { UnresolvedProviderPick } from '@/stores/draftStore';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn } from '@/lib/utils';
 
 export function ProviderIdentityBlockedNotice({
   unresolvedPicks,
   totalTeams,
+  draftType,
   className,
 }: {
   readonly unresolvedPicks: readonly UnresolvedProviderPick[];
   readonly totalTeams: number;
+  readonly draftType: DraftType;
   readonly className?: string;
 }): React.ReactElement {
   const headingId = React.useId();
@@ -54,7 +56,7 @@ export function ProviderIdentityBlockedNotice({
             <div className="mt-0.5 text-[11px] text-muted-foreground">
               Pick{' '}
               <span className="font-mono tabular-nums">
-                {formatRoundPick(pick.pickNumber, totalTeams)} · #
+                {createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(pick.pickNumber / totalTeams) }).label(pick.pickNumber)} · #
                 {String(pick.pickNumber)}
               </span>
               {pick.nflTeam ? ` · ${pick.nflTeam}` : ''} · Provider ID{' '}

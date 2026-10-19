@@ -1,3 +1,4 @@
+import { type DraftType, createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import {
   BadgeCheck,
@@ -8,19 +9,20 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { DraftReconciliationSummary } from '@/hooks/useDraftSync';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { cn } from '@/lib/utils';
 
 function PickLocation({
   pickNumber,
   totalTeams,
+  draftType,
 }: {
   readonly pickNumber: number;
   readonly totalTeams: number;
+  readonly draftType: DraftType;
 }): React.ReactElement {
   return (
     <span className="font-mono tabular-nums">
-      {formatRoundPick(pickNumber, totalTeams)} · #{String(pickNumber)}
+      {createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(pickNumber / totalTeams) }).label(pickNumber)} · #{String(pickNumber)}
     </span>
   );
 }
@@ -28,10 +30,12 @@ function PickLocation({
 export function ReconciliationSummary({
   summary,
   totalTeams,
+  draftType,
   onDismiss,
 }: {
   readonly summary: DraftReconciliationSummary;
   readonly totalTeams: number;
+  readonly draftType: DraftType;
   readonly onDismiss: () => void;
 }): React.ReactElement {
   const hasUnresolved = summary.unresolvedIdentities.length > 0;
@@ -100,6 +104,7 @@ export function ReconciliationSummary({
                       <PickLocation
                         pickNumber={confirmation.pickNumber}
                         totalTeams={totalTeams}
+                        draftType={draftType}
                       />
                       {' '}· {confirmation.teamName}
                     </span>
@@ -125,6 +130,7 @@ export function ReconciliationSummary({
                     <PickLocation
                       pickNumber={correction.pickNumber}
                       totalTeams={totalTeams}
+                      draftType={draftType}
                     />
                     <span className="text-muted-foreground"> · </span>
                     <span className="font-semibold">
@@ -167,6 +173,7 @@ export function ReconciliationSummary({
                         <PickLocation
                           pickNumber={removal.pickNumber}
                           totalTeams={totalTeams}
+                          draftType={draftType}
                         />
                         {' '}· {sourceLabel} absent from Provider Truth
                       </span>
@@ -195,6 +202,7 @@ export function ReconciliationSummary({
                       <PickLocation
                         pickNumber={pick.pickNumber}
                         totalTeams={totalTeams}
+                        draftType={draftType}
                       />
                       {pick.nflTeam ? ` · ${pick.nflTeam}` : ''} · Provider ID{' '}
                       <span className="font-mono">{pick.playerId}</span>
