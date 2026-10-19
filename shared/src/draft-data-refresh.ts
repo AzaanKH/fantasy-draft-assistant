@@ -36,7 +36,7 @@ export interface DraftDataRefreshStatus {
 
 const REFRESH_STATES = new Set<string>(['idle', 'running', 'succeeded', 'failed']);
 const STEP_STATES = new Set<string>(['pending', 'running', 'succeeded', 'failed']);
-const STEP_KEYS = new Set<string>(DRAFT_DATA_REFRESH_STEPS.map((step) => step.key));
+const STEP_KEYS = /* @__PURE__ */ new Set<string>(/* @__PURE__ */ DRAFT_DATA_REFRESH_STEPS.map((step) => step.key));
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string';

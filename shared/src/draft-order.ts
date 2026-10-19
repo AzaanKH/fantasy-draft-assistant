@@ -6,7 +6,7 @@ export interface DraftFormat {
   readonly rounds: number;
 }
 
-const slotWitness: unique symbol = Symbol('draft-order-slot');
+const slotWitness: unique symbol = /* @__PURE__ */ Symbol('draft-order-slot');
 
 export interface SlotRef {
   readonly [slotWitness]: true;
@@ -31,7 +31,7 @@ export interface SlotSequence {
   picksUntilTurn(teamIndex: number, fromPick: number): number | null;
 }
 
-const sequences = new Map<string, SlotSequence>();
+const sequences = /* @__PURE__ */ new Map<string, SlotSequence>();
 const MAX_CACHED_SEQUENCES = 128;
 
 export function createSlotSequence(format: DraftFormat): SlotSequence {
