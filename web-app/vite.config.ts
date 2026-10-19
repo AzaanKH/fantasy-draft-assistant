@@ -1,7 +1,7 @@
-/// <reference types="vitest" />
 import { localDevPorts } from '../shared/src/local-dev';
 import { readFile } from 'node:fs/promises';
 import { defineConfig, type Plugin } from 'vite';
+import { sourceCondition } from '../source-condition.js';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
@@ -100,17 +100,14 @@ function browserDataPlugins(): Plugin[] {
 }
 
 export default defineConfig({
+  ...sourceCondition,
   publicDir: false,
   plugins: [localApiSecurity(), ...browserDataPlugins(), react(), tailwindcss()],
   resolve: {
+    ...sourceCondition.resolve,
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-  },
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
   },
   server: {
     host: '127.0.0.1',

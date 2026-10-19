@@ -1,4 +1,5 @@
 import { defineConfig, type Plugin } from 'vite';
+import { sourceCondition } from '../source-condition.js';
 import { resolve } from 'path';
 import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { localDevPorts } from '../shared/src/local-dev';
@@ -97,6 +98,7 @@ function validateClassicContentScripts(): Plugin {
 }
 
 export default defineConfig({
+  ...sourceCondition,
   define: { __DRAFT_LOCAL_PORTS__: JSON.stringify(ports) },
   plugins: [validateClassicContentScripts(), copyStaticFiles()],
   build: {
@@ -119,10 +121,5 @@ export default defineConfig({
     // Don't minify for easier debugging during development
     minify: false,
     sourcemap: true,
-  },
-  resolve: {
-    alias: {
-      '@fantasy-draft/shared': resolve(__dirname, '../shared/src'),
-    },
   },
 });

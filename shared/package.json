@@ -7,24 +7,20 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "@fantasy-draft/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json --force",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
-    "test": "vitest run",
+    "lint": "node ../scripts/lint.mjs shared",
+    "test": "vitest run --config ../vitest.config.js --project shared",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@eslint/js": "^9.16.0",
-    "eslint": "^9.16.0",
-    "globals": "^15.13.0",
-    "typescript": "^5.9.0",
-    "typescript-eslint": "^8.18.0",
-    "vitest": "^4.1.0"
+    "typescript": "^5.9.0"
   },
   "dependencies": {
     "effect": "^4.0.0"

@@ -7,9 +7,9 @@
     "dev": "vite build --watch",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "lint": "node ../scripts/lint.mjs extension",
+    "test": "vitest run --config ../vitest.config.js --project extension",
+    "test:watch": "vitest --config ../vitest.config.js --project extension",
     "clean": "rm -rf dist node_modules/.vite"
   },
   "dependencies": {
@@ -17,15 +17,9 @@
     "effect": "^4.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.16.0",
     "@types/chrome": "^0.0.287",
     "@types/node": "^22.10.2",
-    "eslint": "^9.16.0",
-    "globals": "^15.13.0",
-    "jsdom": "^26.0.0",
     "typescript": "^5.9.0",
-    "typescript-eslint": "^8.18.0",
-    "vite": "^6.4.3",
-    "vitest": "^4.1.0"
+    "vite": "^6.4.3"
   }
 }
