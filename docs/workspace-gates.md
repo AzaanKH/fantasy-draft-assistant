@@ -18,7 +18,7 @@ Server and scripts builds use separate TypeScript configs with the source condit
 
 ## Existing lint violations
 
-`eslint-baseline.json` records counts by source file and rule, with a reason for each entry. `scripts/lint.mjs` runs ESLint once, checks those counts, and reports ordinary lint errors. The baseline covers existing JSON casts, fetch calls, cross-package imports including the CLI's web-app alias, and exported functions without boundary annotations. Tests keep their existing fixture relaxations and do not use these production baselines.
+`eslint-baseline.json` records counts by source file and rule, with a reason for each entry. `scripts/lint.mjs` checks each workspace with the root ESLint config, compares those counts, and reports ordinary lint errors. The root command keeps pnpm's parallel workspace scheduling. The baseline covers existing JSON casts, fetch calls, cross-package imports including the CLI's web-app alias, and exported functions without boundary annotations. Tests keep their existing fixture relaxations and do not use these production baselines.
 
 When you remove a violation, lower or remove its baseline entry. Deleted and renamed files also require updates. Growth in any file or rule fails, even if another count decreases. Fix the new violation. For fetch, use the shared HTTP runner planned for unit 8, or add to the baseline only with a reason. Decode external JSON with a shared decoder and import packages through public exports.
 

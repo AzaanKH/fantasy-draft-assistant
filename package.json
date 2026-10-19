@@ -26,7 +26,7 @@
     "build:server": "pnpm --filter server build",
     "build:extension": "pnpm --filter extension build",
     "typecheck": "pnpm run -r typecheck",
-    "lint": "node scripts/check-workspace-gates.mjs && node scripts/lint.mjs",
+    "lint": "node scripts/check-workspace-gates.mjs && pnpm run -r lint",
     "test": "vitest run --project '!scripts-contract'",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "browser:gate": "pnpm --filter scripts browser:gate",
