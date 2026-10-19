@@ -38,7 +38,6 @@ export function useDraftPlayerAction(): {
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const myRoster = useDraftStore((state) => state.myRoster);
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
-  const addToMyRoster = useDraftStore((state) => state.addToMyRoster);
   const keeperAtCurrentPick = sessionMode === 'mock'
     ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams, config.draftType)
     : undefined;
@@ -66,8 +65,7 @@ export function useDraftPlayerAction(): {
       teamIndex,
       'My Team'
     );
-    addToMyRoster(player);
-  }, [addToMyRoster, canDraftPlayer, config.draftType, config.totalTeams, currentPick, markPlayerDrafted]);
+  }, [canDraftPlayer, config.draftType, config.totalTeams, currentPick, markPlayerDrafted]);
 
   return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };
 }

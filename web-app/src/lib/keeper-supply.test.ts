@@ -336,8 +336,8 @@ describe('Primary League keeper supply end-to-end', () => {
     for (const keeper of state.preloadedKeepers) {
       expect(state.draftedPlayerIds.has(keeper.playerId)).toBe(true);
     }
-    // My roster keeps Javonte from initialization even before his pick arrives.
-    expect(state.myRoster.RB).toEqual(['keeper-4']);
+    expect(state.myRoster.RB).toEqual(['keeper-4', 'candidate-21']);
+    expect(state.myRoster).toEqual(state.teamRosters[state.config.myPickPosition - 1]);
     expect(state.currentPick).toBe(31);
   });
 

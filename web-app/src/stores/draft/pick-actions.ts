@@ -11,7 +11,6 @@ export function createPickActions(
   'consumeKeeperAtCurrentPick' |
   'undoLastPick' |
   'branchFromPick' |
-  'addToMyRoster' |
   'resetDraft' |
   'setMockSurvivalProbabilities' |
   'togglePlayerShortlisted' |
@@ -61,6 +60,9 @@ export function createPickActions(
         });
         const teamRoster = state.teamRosters[teamIndex];
         if (teamRoster) addPlayerToRoster(teamRoster, position, playerId);
+        if (teamIndex === state.config.myPickPosition - 1) {
+          addPlayerToRoster(state.myRoster, position, playerId);
+        }
         if (pickNumber !== undefined) {
           state.currentPick = Math.max(state.currentPick, pickNumberToUse + 1);
         } else {
@@ -211,14 +213,6 @@ export function createPickActions(
         state.currentPick = branchPick;
         state.mockSurvivalProbabilities = {};
         state.mockAutoAdvance.paused = true;
-      }); },
-
-    addToMyRoster: (player) =>
-      { set((state) => {
-        const position = player.position;
-        addPlayerToRoster(state.myRoster, position, player.id);
-        const teamRoster = state.teamRosters[state.config.myPickPosition - 1];
-        if (teamRoster) addPlayerToRoster(teamRoster, position, player.id);
       }); },
 
     resetDraft: () =>

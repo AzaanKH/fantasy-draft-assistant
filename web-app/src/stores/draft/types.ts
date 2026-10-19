@@ -1,6 +1,5 @@
 import type {
   DecisionLens,
-  Player,
   Position,
   DraftPick,
   DraftType,
@@ -49,7 +48,7 @@ export interface MockDraftSettings {
 export type MockCpuPickPace = 'watch' | 'fast' | 'instant';
 
 /** Tab-local controls for CPU auto-advance; never saved with the draft session. */
-export interface MockAutoAdvanceState {
+interface MockAutoAdvanceState {
   /** Set by Pause, undo, and branching; cleared by Resume, a manual pick, or a new mock. */
   paused: boolean;
   /** Holds CPU picks while the mock settings dialog is open. */
@@ -222,7 +221,6 @@ export interface DraftActions {
   consumeKeeperAtCurrentPick: () => void;
   undoLastPick: () => void;
   branchFromPick: (pickNumber: number) => void;
-  addToMyRoster: (player: Player) => void;
   resetDraft: () => void;
   setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, number>>) => void;
   togglePlayerShortlisted: (playerId: string) => void;

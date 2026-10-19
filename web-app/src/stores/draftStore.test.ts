@@ -47,6 +47,41 @@ describe('draftStore shortlist', () => {
     unsubscribe();
   });
 
+  it('keeps a manual pick canonical through roster rebuild, undo, and provider reconciliation', () => {
+    const store = createDraftStore();
+    store.getState().setConfig({ totalTeams: 2, totalRounds: 3, myPickPosition: 1 });
+    store.getState().markPlayerDrafted('manual-rb', 'Manual RB', 'RB', 0, 'My Team');
+
+    const expectManualPick = () => {
+      const state = store.getState();
+      expect(state.draftHistory).toEqual([expect.objectContaining({
+        pickNumber: 1, playerId: 'manual-rb', teamIndex: 0,
+      })]);
+      expect(state.draftedPlayerIds).toEqual(new Set(['manual-rb']));
+      expect(state.myRoster.RB).toEqual(['manual-rb']);
+      expect(state.teamRosters[0]?.RB).toEqual(['manual-rb']);
+      expect(state.teamRosters[1]?.WR).toEqual([]);
+      expect(state.currentPick).toBe(2);
+    };
+    expectManualPick();
+    store.getState().preloadKeepers([]);
+    expectManualPick();
+    store.getState().markPlayerDrafted('later-wr', 'Later WR', 'WR', 1, 'Team 2');
+    store.getState().undoLastPick();
+    expectManualPick();
+    store.getState().reconcileSyncedPicks([{
+      pickNumber: 1, playerId: 'manual-rb', playerName: 'Manual RB',
+      position: 'RB', teamIndex: 0, teamName: 'My Team', isMyPick: true,
+    }], 2);
+    expectManualPick();
+    expect(store.getState().draftHistory[0]?.source).toBe('sync');
+    store.getState().undoLastPick();
+    expect(store.getState().draftHistory).toEqual([]);
+    expect(store.getState().draftedPlayerIds.size).toBe(0);
+    expect(store.getState().myRoster.RB).toEqual([]);
+    expect(store.getState().teamRosters[0]?.RB).toEqual([]);
+  });
+
   it('distinguishes setup, mock, and live draft sessions', () => {
     expect(useDraftStore.getState().sessionMode).toBe('setup');
 
