@@ -117,18 +117,21 @@ console.log(JSON.stringify({
     const runtimeNames: string[] = JSON.parse(readFileSync(
       join(SCRIPTS_DIR, 'shared-closed-runtime-exports.json'), 'utf8'
     ));
-    const entries = runtimeNames.map(name => [name, closed[name]]);
-    expect(entries.every(([, subpath]) => typeof subpath === 'string')).toBe(true);
+    const entries = Object.entries(closed);
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
 const root = await import('@fantasy-draft/shared');
 const failures = [];
+const runtimeNames = [];
 for (const [name, target] of ${JSON.stringify(entries)}) {
   const subpath = await import(target);
-  if (name in root || !(name in subpath)) failures.push(target + '/' + name);
+  if (name in root) failures.push(target + '/' + name);
+  if (name in subpath) runtimeNames.push(name);
 }
-console.log(JSON.stringify(failures));
+console.log(JSON.stringify({ failures, runtimeNames }));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-    expect(JSON.parse(output)).toEqual([]);
+    const result = JSON.parse(output);
+    expect(result.failures).toEqual([]);
+    expect(result.runtimeNames.sort()).toEqual([...runtimeNames].sort());
   });
 
   it('rejects all closed root names in NodeNext and resolves their subpath types', () => {
