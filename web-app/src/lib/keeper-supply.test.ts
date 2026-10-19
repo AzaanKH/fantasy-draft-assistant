@@ -2,7 +2,7 @@ import '@/stores/draft/derive-shadow.setup';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   type Player,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   createSlotSequence,
   type PositionNeed,

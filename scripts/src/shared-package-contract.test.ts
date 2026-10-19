@@ -42,112 +42,69 @@ function consumerDiagnostics(source: string): { code: number; message: string }[
 }
 
 describe('@fantasy-draft/shared package contract', () => {
-  it('imports the built package under plain Node ESM resolution', () => {
-    const output = execFileSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        "const shared = await import('@fantasy-draft/shared'); console.log(typeof shared.isPlayer);",
-      ],
-      { cwd: SCRIPTS_DIR, encoding: 'utf8' }
-    );
+  const subpaths = ['draft', 'catalog', 'league', 'node', 'sync', 'units'];
 
-    expect(output.trim()).toBe('function');
-  });
-
-  it('loads the closed draft subpath without adding recommendation exports to the root', () => {
+  it('rejects the root, temporary draft URL path and undeclared deep paths in plain Node', () => {
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
-const draft = await import('@fantasy-draft/shared/draft');
-const root = await import('@fantasy-draft/shared');
-let deepImportError;
-try {
-  await import('@fantasy-draft/shared/draft/calculations/recommendations');
-} catch (error) {
-  deepImportError = error.code;
+const errors = [];
+for (const path of ['', '/draft-url', '/draft/calculations/recommendations']) {
+  try {
+    await import('@fantasy-draft/shared' + path);
+    errors.push('resolved');
+  } catch (error) {
+    errors.push(error.code);
+  }
 }
-console.log(JSON.stringify({
-  recommendation: typeof draft.getRecommendationBoard,
-  order: typeof draft.createSlotSequence,
-  derive: typeof draft.deriveDraft,
-  rootRecommendation: typeof root.getRecommendationBoard,
-  deepImportError,
-}));
+console.log(JSON.stringify(errors));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-
-    expect(JSON.parse(output)).toEqual({
-      recommendation: 'function',
-      order: 'function',
-      derive: 'function',
-      rootRecommendation: 'undefined',
-      deepImportError: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
-    });
+    expect(JSON.parse(output)).toEqual(Array(3).fill('ERR_PACKAGE_PATH_NOT_EXPORTED'));
   });
 
-  it('loads catalog and draft URL exports without exposing them through the root', () => {
+  it('loads every exact subpath and every declared runtime export from built output', () => {
+    const manifest = JSON.parse(readFileSync(join(SCRIPTS_DIR, '..', 'shared', 'package.json'), 'utf8'));
+    expect(Object.keys(manifest.exports).sort()).toEqual(subpaths.map(subpath => `./${subpath}`).sort());
+    expect(manifest).not.toHaveProperty('main');
+    expect(manifest).not.toHaveProperty('types');
+    const expected = Object.fromEntries(subpaths.map(subpath => {
+      const source = readFileSync(join(SCRIPTS_DIR, '..', 'shared', 'src', subpath, 'index.ts'), 'utf8');
+      const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.Latest, true);
+      const names = file.statements.flatMap(node =>
+        ts.isExportDeclaration(node) && !node.isTypeOnly && node.exportClause && ts.isNamedExports(node.exportClause)
+          ? node.exportClause.elements.filter(element => !element.isTypeOnly).map(element => element.name.text)
+          : []);
+      return [subpath, names.sort()];
+    }));
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
-const catalog = await import('@fantasy-draft/shared/catalog');
-const { parseDraftRoomUrl } = await import('@fantasy-draft/shared/draft-url');
-const draft = await import('@fantasy-draft/shared/draft');
-const root = await import('@fantasy-draft/shared');
-console.log(JSON.stringify({
-  validator: typeof catalog.isPlayerIdentityFile,
-  readiness: typeof catalog.buildDraftReadinessReport,
-  mock: typeof draft.simulateCpuDraft,
-  route: parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo'),
-  rootCatalog: typeof root.isPlayerIdentityFile,
-  rootUrl: typeof root.parseDraftRoomUrl,
-}));
+const exports = {};
+for (const subpath of ${JSON.stringify(subpaths)}) {
+  exports[subpath] = Object.keys(await import('@fantasy-draft/shared/' + subpath)).sort();
+}
+const sync = await import('@fantasy-draft/shared/sync');
+console.log(JSON.stringify({ exports, route: sync.parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo') }));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-
     expect(JSON.parse(output)).toEqual({
-      validator: 'function',
-      readiness: 'function',
-      mock: 'function',
+      exports: expected,
       route: { isInDraftRoom: true, provider: 'sleeper', draftId: 'demo' },
-      rootCatalog: 'undefined',
-      rootUrl: 'undefined',
     });
   });
 
-  it('closes every completed wave runtime name on the root and loads its exact subpath', () => {
-    const closed: Record<string, string> = JSON.parse(readFileSync(
-      join(SCRIPTS_DIR, 'shared-closed-exports.json'), 'utf8'
-    ));
-    const runtimeNames: string[] = JSON.parse(readFileSync(
-      join(SCRIPTS_DIR, 'shared-closed-runtime-exports.json'), 'utf8'
-    ));
-    const entries = Object.entries(closed);
-    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
-const root = await import('@fantasy-draft/shared');
-const failures = [];
-const runtimeNames = [];
-for (const [name, target] of ${JSON.stringify(entries)}) {
-  const subpath = await import(target);
-  if (name in root) failures.push(target + '/' + name);
-  if (name in subpath) runtimeNames.push(name);
-}
-console.log(JSON.stringify({ failures, runtimeNames }));
-`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-    const result = JSON.parse(output);
-    expect(result.failures).toEqual([]);
-    expect(result.runtimeNames.sort()).toEqual([...runtimeNames].sort());
-  });
-
-  it('rejects all closed root names in NodeNext and resolves their subpath types', () => {
-    const closed: Record<string, string> = JSON.parse(readFileSync(
-      join(SCRIPTS_DIR, 'shared-closed-exports.json'), 'utf8'
-    ));
-    const entries = Object.entries(closed);
-    const rootSource = entries.map(([name]) => `import type { ${name} } from '@fantasy-draft/shared';`).join('\n');
-    const diagnostics = consumerDiagnostics(rootSource);
-    expect(diagnostics).toHaveLength(entries.length);
-    for (const [index, [name]] of entries.entries()) {
-      expect(diagnostics[index]?.code).toBeOneOf([2305, 2724]);
-      expect(diagnostics[index]?.message).toContain(name);
-    }
-    const subpathSource = entries.map(([name, subpath]) => `import type { ${name} } from '${subpath}';`).join('\n');
-    expect(consumerDiagnostics(subpathSource)).toEqual([]);
+  it('rejects root access in NodeNext and resolves every declared subpath contract', () => {
+    const diagnostics = consumerDiagnostics(`
+import type { Player } from '@fantasy-draft/shared';
+import type * as Shared from '@fantasy-draft/shared';
+import type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
+`);
+    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics.map(diagnostic => diagnostic.code)).toEqual([2307, 2307, 2307]);
+    const source = subpaths.flatMap(subpath => {
+      const source = readFileSync(join(SCRIPTS_DIR, '..', 'shared', 'src', subpath, 'index.ts'), 'utf8');
+      const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.Latest, true);
+      return file.statements.flatMap(node =>
+        ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)
+          ? node.exportClause.elements.map(element => `import type { ${element.name.text} as ${subpath}_${element.name.text} } from '@fantasy-draft/shared/${subpath}';`)
+          : []);
+    }).join('\n');
+    expect(consumerDiagnostics(source)).toEqual([]);
   });
 
   it('closes duplicate roster exports on draft in Node and NodeNext', () => {

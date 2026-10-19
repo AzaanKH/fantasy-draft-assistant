@@ -4,7 +4,7 @@ import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-fres
 import { useDraftStore } from '@/stores/draftStore';
 import {
   type NFLTeam,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type DraftReadinessSourceObservation,
   type DraftReadinessWarningInput,

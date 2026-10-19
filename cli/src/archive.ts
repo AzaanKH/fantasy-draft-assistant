@@ -3,7 +3,7 @@ import {
   isPlayer,
   isPosition,
   type Player,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   CORE_DRAFT_DATA_KEYS,
   OPTIONAL_SIGNAL_KEYS,

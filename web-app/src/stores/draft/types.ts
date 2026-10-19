@@ -1,6 +1,6 @@
 import type {
   Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type {
   DecisionLens,
   DraftPick,

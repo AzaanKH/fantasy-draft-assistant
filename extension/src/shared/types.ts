@@ -1,4 +1,4 @@
-import type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
+import type { DraftRoomStatus } from '@fantasy-draft/shared/sync';
 import { LOCAL_PORTS } from './local-config';
 /**
  * Extension message types for communication between
@@ -28,7 +28,7 @@ export interface DetectedPick {
 /**
  * Draft room status
  */
-export type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
+export type { DraftRoomStatus } from '@fantasy-draft/shared/sync';
 
 export interface ExtensionState {
   readonly picks: DetectedPick[];

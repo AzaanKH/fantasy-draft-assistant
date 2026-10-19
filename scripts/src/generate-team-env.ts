@@ -12,12 +12,12 @@ import { fileURLToPath } from 'node:url';
 import { Effect } from 'effect';
 import type {
   NFLTeam,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type {
   TeamEnvironment,
   VolumeLevel,
 } from '@fantasy-draft/shared/catalog';
-import { NFL_TEAMS } from '@fantasy-draft/shared';
+import { NFL_TEAMS } from '@fantasy-draft/shared/league';
 import { io, runMain } from './effect-runtime.js';
 import { withMemoryDb } from './model/duckdb.js';
 

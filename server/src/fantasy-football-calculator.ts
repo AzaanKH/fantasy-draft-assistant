@@ -3,7 +3,7 @@ import {
   isPosition,
   type NFLTeam,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   isMarketAdpFormat,
   type MarketAdpFormat,

@@ -12,7 +12,7 @@ import { useMemo } from 'react';
 import {
   POSITIONS,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type Recommendation,
 } from '@fantasy-draft/shared/draft';

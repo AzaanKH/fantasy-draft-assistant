@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isNFLTeam, type NFLTeam, type Position } from '@fantasy-draft/shared';
+import { isNFLTeam, type NFLTeam, type Position } from '@fantasy-draft/shared/league';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');

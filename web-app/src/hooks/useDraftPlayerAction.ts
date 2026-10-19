@@ -1,4 +1,4 @@
-import { type Player, type Position } from '@fantasy-draft/shared';
+import { type Player, type Position } from '@fantasy-draft/shared/league';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { type RosterRequirements } from '@fantasy-draft/shared/league';
 import * as React from 'react';

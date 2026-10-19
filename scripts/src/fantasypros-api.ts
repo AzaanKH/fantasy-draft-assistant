@@ -2,7 +2,7 @@ import type {
   NFLTeam,
   NewsStatus,
   Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
@@ -10,7 +10,7 @@ import type {
   FantasyProsProjection,
   FantasyProsSnapshot,
 } from '@fantasy-draft/shared/catalog';
-import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared';
+import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared/league';
 import { Data, Effect } from 'effect';
 import { fetchJson, type HttpRequestError } from './effect-runtime.js';
 

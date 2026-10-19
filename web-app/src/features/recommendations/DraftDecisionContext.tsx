@@ -3,7 +3,7 @@ import * as React from 'react';
 import {
   POSITIONS,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type DraftReadinessReport,
 } from '@fantasy-draft/shared/catalog';

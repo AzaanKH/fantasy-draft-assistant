@@ -18,7 +18,7 @@ import {
   type Position,
   POSITIONS,
   NFL_TEAMS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');

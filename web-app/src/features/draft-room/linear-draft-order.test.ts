@@ -2,7 +2,7 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Player } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
 import type { DraftType } from '@fantasy-draft/shared/sync';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';

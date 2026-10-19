@@ -8,7 +8,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect } from 'effect';
-import type { NFLTeam, Position } from '@fantasy-draft/shared';
+import type { NFLTeam, Position } from '@fantasy-draft/shared/league';
 import {
   isContractSourceColumn,
   resolveSeasonHistoryColumn,

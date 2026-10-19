@@ -1,7 +1,7 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { Position } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DATA_DIR = join(REPO_ROOT, 'data');

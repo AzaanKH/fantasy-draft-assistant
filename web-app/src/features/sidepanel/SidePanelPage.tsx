@@ -3,7 +3,7 @@ import {
   POSITIONS,
   type Player,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   createSlotSequence,
   type PositionNeed,

@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQuery } from '@tanstack/react-query';
-import { POSITIONS, type Player } from '@fantasy-draft/shared';
+import { POSITIONS, type Player } from '@fantasy-draft/shared/league';
 import { useRecommendations } from './useRecommendations';
 import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
 import { createQuickMockSettings, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';

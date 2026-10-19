@@ -1,4 +1,4 @@
-import { POSITIONS } from '@fantasy-draft/shared';
+import { POSITIONS } from '@fantasy-draft/shared/league';
 import { createSlotSequence, type DraftSource } from '@fantasy-draft/shared/draft';
 import { createDraftStore } from '../draftStore';
 import { shadowSource } from './derive-shadow-source';

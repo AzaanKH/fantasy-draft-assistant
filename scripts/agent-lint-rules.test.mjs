@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { ESLint, Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
@@ -40,7 +39,7 @@ describe('agent lint rules', () => {
     expect(messages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-cross-package-import' })]);
   });
   it('allows public packages, same-package paths, and the web-app alias', () => {
-    expect(messages("import { x } from '@fantasy-draft/shared'; import { y } from './local';")).toEqual([]);
+    expect(messages("import { x } from '@fantasy-draft/shared/league'; import { y } from './local';")).toEqual([]);
     expect(messages("import { x } from '@/lib/x';", 'web-app/src/probe.ts')).toEqual([]);
   });
   it('requires exported function annotations', () => {
@@ -50,20 +49,22 @@ describe('agent lint rules', () => {
 });
 
 describe('closed shared root exports', () => {
-  const catalogNames = Object.entries(JSON.parse(readFileSync(new URL('./shared-closed-exports.json', import.meta.url), 'utf8')))
-    .filter(([, target]) => target === '@fantasy-draft/shared/catalog').map(([name]) => name);
-  it.each(catalogNames)('closes catalog name %s across named import forms', (name) => {
-    for (const source of [
-      `import { ${name} as local } from '@fantasy-draft/shared';`,
-      `export type { ${name} as Public } from '@fantasy-draft/shared';`,
-      `type Local = import('@fantasy-draft/shared').${name};`,
-    ]) {
-      expect(messages(source)).toEqual([expect.objectContaining({
-        ruleId: 'agent/no-closed-root-import',
-        message: expect.stringContaining('@fantasy-draft/shared/catalog'),
-      })]);
+  it.each([
+    "import { Player as Local } from '@fantasy-draft/shared';",
+    "import type { Player } from '@fantasy-draft/shared';",
+    "import shared from '@fantasy-draft/shared';",
+    "import '@fantasy-draft/shared';",
+    "export { unknownName } from '@fantasy-draft/shared';",
+    "export * as shared from '@fantasy-draft/shared';",
+    "type Nested = import('@fantasy-draft/shared').unknownName.Nested;",
+    "const shared = require('@fantasy-draft/shared');",
+    "import shared = require('@fantasy-draft/shared');",
+  ])('rejects every bare root form: %s', source => {
+    const result = messages(source);
+    expect(result).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
+    for (const hint of ['/league', '/draft', '/catalog', '/sync', '/units', '/node', 'players', 'draft URLs']) {
+      expect(result[0].message).toContain(hint);
     }
-    expect(messages(`import type { ${name} } from '@fantasy-draft/shared/catalog';`)).toEqual([]);
   });
   it.each(['web-app/__bench__/probe.ts', 'scripts/probe.mjs'])('checks closed names outside src in %s', async (filePath) => {
     const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
@@ -84,7 +85,7 @@ describe('closed shared root exports', () => {
   ])('names the replacement for %s', (source, target) => {
     expect(messages(source)).toEqual([expect.objectContaining({
       ruleId: 'agent/no-closed-root-import',
-      message: expect.stringContaining(`@fantasy-draft/shared/${target}`),
+      message: expect.stringContaining(`/${target}`),
     })]);
   });
   it.each([
@@ -98,7 +99,7 @@ describe('closed shared root exports', () => {
   it('allows namespace and type access to valid draft exports', () => {
     expect(messages("import * as draft from '@fantasy-draft/shared/draft'; type Pick = import('@fantasy-draft/shared/draft').DraftPick;")).toEqual([]);
   });
-  it('allows open root names and closed names on their exact subpaths', () => {
-    expect(messages("import type { Player } from '@fantasy-draft/shared'; import { DraftSyncEngine } from '@fantasy-draft/shared/sync';")).toEqual([]);
+  it('allows contracts on their exact subpaths', () => {
+    expect(messages("import type { Player } from '@fantasy-draft/shared/league'; import { DraftSyncEngine } from '@fantasy-draft/shared/sync';")).toEqual([]);
   });
 });

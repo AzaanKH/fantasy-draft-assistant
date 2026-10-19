@@ -1,7 +1,7 @@
 import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import type {
   Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type {
   DraftMetadata,
   DraftPickEvent,

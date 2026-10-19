@@ -2,7 +2,7 @@ import { RANKING_LABELS } from '@/lib/demo-mode';
 import {
   type Player,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   formatDraftReadinessAge,
   type DraftReadinessReport,

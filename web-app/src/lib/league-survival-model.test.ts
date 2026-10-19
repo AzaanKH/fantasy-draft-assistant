@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { POSITIONS } from '@fantasy-draft/shared';
+import { POSITIONS } from '@fantasy-draft/shared/league';
 import { fetchLeagueSurvivalModel } from './league-survival-model';
 
 function createModel() {

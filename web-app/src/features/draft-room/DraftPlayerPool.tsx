@@ -4,7 +4,7 @@ import {
   type Player,
   type Position,
   POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type RosterRequirements,
 } from '@fantasy-draft/shared/league';

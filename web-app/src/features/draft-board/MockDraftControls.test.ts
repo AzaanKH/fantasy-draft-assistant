@@ -2,7 +2,7 @@
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Player } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
 import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 

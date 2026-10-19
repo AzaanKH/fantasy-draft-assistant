@@ -5,7 +5,7 @@ import {
   type NFLTeam,
   type Player,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   DRAFT_DATA_REFRESH_STEPS,
   evaluateDraftReadiness,

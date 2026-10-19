@@ -6,7 +6,7 @@ import {
   type Player,
   type Position,
   POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type PositionNeed,
   type Recommendation,

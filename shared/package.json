@@ -3,14 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
-    ".": {
-      "@fantasy-draft/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
     "./draft": {
       "@fantasy-draft/source": "./src/draft/index.ts",
       "types": "./dist/draft/index.d.ts",
@@ -20,11 +13,6 @@
       "@fantasy-draft/source": "./src/catalog/index.ts",
       "types": "./dist/catalog/index.d.ts",
       "import": "./dist/catalog/index.js"
-    },
-    "./draft-url": {
-      "@fantasy-draft/source": "./src/draft-url.ts",
-      "types": "./dist/draft-url.d.ts",
-      "import": "./dist/draft-url.js"
     },
     "./league": {
       "@fantasy-draft/source": "./src/league/index.ts",

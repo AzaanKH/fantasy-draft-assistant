@@ -5,7 +5,7 @@ import {
   isPosition,
   NFL_TEAMS,
   type Player,
-} from './index.js';
+} from './player.js';
 import {
   isTeamEnvironment,
   isTopOffense,

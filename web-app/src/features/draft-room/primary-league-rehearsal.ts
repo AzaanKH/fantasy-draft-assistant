@@ -2,7 +2,7 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   type Player,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   createSlotSequence,
 } from '@fantasy-draft/shared/draft';

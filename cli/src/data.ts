@@ -8,7 +8,7 @@ import {
   type NFLTeam,
   type Player,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   isTeamEnvironment,
   type FantasyProsSnapshot,

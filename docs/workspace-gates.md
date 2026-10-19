@@ -10,9 +10,9 @@ Package commands still work, for example `pnpm --filter @fantasy-draft/cli lint`
 
 ## Source and built package resolution
 
-TypeScript, Vite, Vitest, and the package scripts that use tsx select `@fantasy-draft/source`. Consumers read `shared/src/index.ts` even when `shared/dist` is absent or stale. For an ad hoc tsx command, pass `--conditions=@fantasy-draft/source`.
+TypeScript, Vite, Vitest, and the package scripts that use tsx select `@fantasy-draft/source`. Consumers read the selected `shared/src/<subpath>/index.ts` even when `shared/dist` is absent or stale. For an ad hoc tsx command, pass `--conditions=@fantasy-draft/source`.
 
-`pnpm test` runs ordinary suites without a build. The two shared package contract tests deliberately use plain Node and the published declarations. `pnpm build` runs them after all builds through `pnpm test:contracts`. Run `pnpm test:contracts` directly only after building shared.
+`pnpm test` runs ordinary suites without a build. The shared package contract tests deliberately use plain Node and the published declarations. `pnpm build` runs them after all builds through `pnpm test:contracts`. Run `pnpm test:contracts` directly only after building shared.
 
 Server and scripts builds use separate TypeScript configs with the source condition disabled, so emitted Node imports still resolve the built shared package. Shared build forces emission to recover when dist was deleted but TypeScript's incremental metadata remains.
 
@@ -23,3 +23,5 @@ Server and scripts builds use separate TypeScript configs with the source condit
 When you remove a violation, lower or remove its baseline entry. Deleted and renamed files also require updates. Growth in any file or rule fails, even if another count decreases. Fix the new violation. For fetch, use the shared HTTP runner planned for unit 8, or add to the baseline only with a reason. Decode external JSON with a shared decoder and import packages through public exports.
 
 Run `node scripts/probe-agent-gates.mjs` to check all new rules against a scratch source file. Run `node scripts/probe-workspace-gates.mjs` to check missing scripts and missing config coverage. After building shared, `node scripts/probe-source-condition.mjs` checks that a temporary shared signature change fails consumer typecheck without rebuilding dist. The probes restore their inputs and remove their scratch files.
+
+Import shared contracts through exact subpaths: `/league` for players, positions, scoring and rosters; `/draft` for draft order and recommendations; `/catalog` for data and readiness; `/sync` for provider sync and draft URLs; `/units` for limits; `/node` for local process configuration. The bare `@fantasy-draft/shared` root and temporary `/draft-url` path are not exported. `agent/no-closed-root-import` rejects root imports without a baseline allowance.

@@ -1,4 +1,4 @@
-import type { Position } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

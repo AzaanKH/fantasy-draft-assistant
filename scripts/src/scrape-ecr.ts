@@ -18,7 +18,7 @@ import {
   type Position,
   POSITIONS,
   NFL_TEAMS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type ECRPlayer,
   getTeamByeWeeks,

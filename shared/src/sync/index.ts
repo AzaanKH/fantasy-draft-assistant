@@ -27,3 +27,5 @@ export type {
   DraftSyncSnapshot,
   DraftSyncUpdate,
 } from '../sync.js';
+export { parseDraftRoomUrl } from '../draft-url.js';
+export type { DraftRoomStatus } from '../draft-url.js';
