@@ -1,8 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
-import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
-import { isRecommendationPolicyFile } from '@fantasy-draft/shared/catalog';
+import { SAFE_RECOMMENDATION_POLICY, isRecommendationPolicyFile } from '@fantasy-draft/shared/catalog';
 
 describe('runtime recommendation policy', () => {
   it('uses the active architecture in both saved configuration and the fallback', async () => {

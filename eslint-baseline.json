@@ -7,13 +7,13 @@
     }
   },
   "cli/src/context.ts": {
-    "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units. Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 2
     }
   },
   "cli/src/data.ts": {
-    "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units. Existing payloads migrate to shared decoders in the catalog units.",
+    "reason": "Existing payloads migrate to shared decoders in the catalog units.",
     "counts": {
       "agent/no-json-cast": 1
     }
@@ -25,7 +25,7 @@
     }
   },
   "cli/src/roster.ts": {
-    "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units. Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 1
     }

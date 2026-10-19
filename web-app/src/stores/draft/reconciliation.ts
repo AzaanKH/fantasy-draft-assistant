@@ -5,16 +5,7 @@ import {
   restoreShortlistedPlayer,
   rebuildCanonicalRosters,
 } from './state';
-import type {
-  RecordedDraftPick,
-  ReconciledDraftPick,
-  UnresolvedProviderPick,
-  DraftReconciliationResult,
-  ProvisionalPickConfirmation,
-  DraftPickCorrection,
-  DraftPickRemoval,
-} from './types';
-import type { DraftActions, SetDraftState } from './types';
+import { type RecordedDraftPick, type ReconciledDraftPick, type UnresolvedProviderPick, type DraftReconciliationResult, type ProvisionalPickConfirmation, type DraftPickCorrection, type DraftPickRemoval, type DraftActions, type SetDraftState } from './types';
 
 function hasSameCanonicalPick(
   left: RecordedDraftPick,

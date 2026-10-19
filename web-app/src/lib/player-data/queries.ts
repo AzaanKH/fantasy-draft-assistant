@@ -1,28 +1,7 @@
 import { fantasyProsProvider } from '@/lib/providers/fantasypros';
-import type {
-  FantasyProsSnapshot,
-  MarketAdpFormat,
-  MarketAdpSnapshot,
-  SportsbookSnapshot,
-} from '@fantasy-draft/shared';
-import { isMarketAdpSnapshot, isSportsbookSnapshot } from '@fantasy-draft/shared';
+import { type FantasyProsSnapshot, type MarketAdpFormat, type MarketAdpSnapshot, type SportsbookSnapshot, isMarketAdpSnapshot, isSportsbookSnapshot } from '@fantasy-draft/shared';
 
-import type {
-  ContractDataFile,
-  PlayerIdentityFile,
-  PredictionsDataFile,
-  RecommendationPolicyFile,
-  SleeperDataFile,
-  TeamEnvDataFile,
-} from '@fantasy-draft/shared/catalog';
-import {
-  isContractDataFile,
-  isPlayerIdentityFile,
-  isPredictionsDataFile,
-  isRecommendationPolicyFile,
-  isSleeperDataFile,
-  isTeamEnvDataFile,
-} from '@fantasy-draft/shared/catalog';
+import { type ContractDataFile, type PlayerIdentityFile, type PredictionsDataFile, type RecommendationPolicyFile, type SleeperDataFile, type TeamEnvDataFile, isContractDataFile, isPlayerIdentityFile, isPredictionsDataFile, isRecommendationPolicyFile, isSleeperDataFile, isTeamEnvDataFile } from '@fantasy-draft/shared/catalog';
 
 /**
  * Fetch FantasyPros snapshot data

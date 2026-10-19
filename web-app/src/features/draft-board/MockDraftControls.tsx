@@ -1,7 +1,6 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence, type DraftType, type Player } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
-import type { DraftType, Player } from '@fantasy-draft/shared';
 import { Pause, Play, RotateCcw, Settings2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {

@@ -1,7 +1,6 @@
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { buildDraftReadinessReport as buildReport, type LoadedArtifact } from '@fantasy-draft/shared/catalog';
 import type { DraftReadinessReport } from '@fantasy-draft/shared';
 

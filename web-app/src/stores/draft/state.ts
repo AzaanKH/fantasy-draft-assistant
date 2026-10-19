@@ -1,5 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import { DEFAULT_ROSTER_REQUIREMENTS, type DraftType, type Position } from '@fantasy-draft/shared';
+import { createSlotSequence, DEFAULT_ROSTER_REQUIREMENTS, type DraftType, type Position } from '@fantasy-draft/shared';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import type {
   MutableRoster,

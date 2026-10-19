@@ -4,11 +4,7 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

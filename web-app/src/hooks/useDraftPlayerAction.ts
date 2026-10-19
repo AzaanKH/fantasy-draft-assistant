@@ -1,6 +1,5 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence, type Player, type Position, type RosterRequirements } from '@fantasy-draft/shared';
 import * as React from 'react';
-import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
 import {
   useDraftSessionMode,
   useDraftStore,

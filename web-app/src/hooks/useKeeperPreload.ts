@@ -1,12 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Player, Position } from '@fantasy-draft/shared';
-import { normalizePlayerName } from '@fantasy-draft/shared/draft';
+import { normalizePlayerName, canonicalizeKeeperSupply, isKeeperSupplyComplete, type KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 import { IS_DEMO } from '@/lib/demo-mode';
-import {
-  canonicalizeKeeperSupply,
-  isKeeperSupplyComplete,
-} from '@fantasy-draft/shared/draft';
 import {
   useDraftStore,
   type PreloadedKeeper,
@@ -28,7 +24,6 @@ interface CurrentKeepersFile {
   readonly keepers: readonly CurrentKeeperEntry[];
 }
 
-import type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 export type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 
 const POSITIONS: readonly Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];

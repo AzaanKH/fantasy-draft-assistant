@@ -7,13 +7,8 @@ import {
   type Position,
 } from '@fantasy-draft/shared';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { blocksRecommendations } from '@fantasy-draft/shared/draft';
+import { blocksRecommendations, createDraftDecisionOutput, type DraftDecisionOutput, type DraftDecisionView } from '@fantasy-draft/shared/draft';
 import { useDraftStore, type DraftSessionMode, type UnresolvedProviderPick } from '@/stores/draftStore';
-import {
-  createDraftDecisionOutput,
-  type DraftDecisionOutput,
-  type DraftDecisionView,
-} from '@fantasy-draft/shared/draft';
 
 type RecommendationState = ReturnType<typeof useRecommendations>;
 

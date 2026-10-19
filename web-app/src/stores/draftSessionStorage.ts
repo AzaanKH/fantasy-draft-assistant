@@ -1,15 +1,4 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import {
-  isBoundedInteger,
-  isDraftSize,
-  isLeagueSettings,
-  isPosition,
-  isRosterRequirements,
-  MAX_DRAFT_PICKS,
-  type DraftProvider,
-  type DraftType,
-  type LeagueSettings,
-} from '@fantasy-draft/shared';
+import { createSlotSequence, isBoundedInteger, isDraftSize, isLeagueSettings, isPosition, isRosterRequirements, MAX_DRAFT_PICKS, type DraftProvider, type DraftType, type LeagueSettings } from '@fantasy-draft/shared';
 import { canonicalizeKeeperSupply } from '@fantasy-draft/shared/draft';
 import { isValidDraftSyncId } from './draftSyncStore';
 import {
