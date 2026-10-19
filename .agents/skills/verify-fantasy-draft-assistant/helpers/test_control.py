@@ -49,7 +49,7 @@ class CliIsolationTests(unittest.TestCase):
     def test_offline_doctor_does_not_contact_existing_services(self):
         with tempfile.TemporaryDirectory(prefix="fda-verify-") as directory:
             copy = Path(directory) / "checkout"
-            for file in ("data/.keep", "shared/dist/index.js", "cli/dist/draft.js"):
+            for file in ("data/.keep", "shared/dist/league/index.js", "cli/dist/draft.js"):
                 path = copy / file
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.touch()

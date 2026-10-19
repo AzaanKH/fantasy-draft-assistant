@@ -5,7 +5,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const directories = new Set(gateWorkspaces.map(({ directory }) => directory));
 const draftRosterExports = Object.fromEntries(['DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'Roster', 'RosterRequirements'].map(name => [name, '@fantasy-draft/shared/league']));
 const closedModules = { '@fantasy-draft/shared/draft': draftRosterExports };
-const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog instead of casting JSON.parse() or response.json().';
+const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog, @fantasy-draft/shared/league or @fantasy-draft/shared/sync instead of casting JSON.parse() or response.json().';
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-bare-fetch',
@@ -13,21 +13,31 @@ export const baselineRuleIds = [
   '@typescript-eslint/explicit-module-boundary-types',
 ];
 
+function staticModuleName(node) {
+  return node?.type === 'TemplateLiteral' && node.expressions.length === 0
+    ? node.quasis[0].value.cooked : node?.value;
+}
+
 export default {
   rules: {
     'no-closed-root-import': {
       meta: {
         type: 'problem', schema: [],
         messages: {
+          draftUrl: 'The temporary draft URL subpath is closed. Import draft URL contracts from @fantasy-draft/shared/sync.',
           closed: '{{name}} is closed on {{source}}. Import it from {{subpath}}.',
           root: 'The shared root is closed. Choose @fantasy-draft/shared/league for players, positions, scoring and rosters; /draft for draft order and recommendations; /catalog for data and readiness; /sync for providers and draft URLs; /units for limits; /node for local process configuration.',
         },
       },
       create(context) {
         function check(node) {
-          const source = node.source?.value;
+          const source = staticModuleName(node.source);
           if (source === '@fantasy-draft/shared') {
             context.report({ node, messageId: 'root' });
+            return;
+          }
+          if (source === '@fantasy-draft/shared/draft-url') {
+            context.report({ node, messageId: 'draftUrl' });
             return;
           }
           if (!Object.hasOwn(closedModules, source)) return;
@@ -50,7 +60,7 @@ export default {
           ExportAllDeclaration: check,
           ImportExpression: check,
           CallExpression(node) {
-            if (node.callee.type === 'Identifier' && node.callee.name === 'require' && node.arguments[0]?.value === '@fantasy-draft/shared') {
+            if (node.callee.type === 'Identifier' && node.callee.name === 'require' && staticModuleName(node.arguments[0]) === '@fantasy-draft/shared') {
               context.report({ node, messageId: 'root' });
             }
           },
@@ -60,6 +70,10 @@ export default {
           TSImportType(node) {
             if (node.source.value === '@fantasy-draft/shared') {
               context.report({ node, messageId: 'root' });
+              return;
+            }
+            if (node.source.value === '@fantasy-draft/shared/draft-url') {
+              context.report({ node, messageId: 'draftUrl' });
               return;
             }
             if (!Object.hasOwn(closedModules, node.source.value)) return;

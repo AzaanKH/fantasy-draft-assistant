@@ -59,9 +59,11 @@ describe('closed shared root exports', () => {
     "type Nested = import('@fantasy-draft/shared').unknownName.Nested;",
     "const shared = require('@fantasy-draft/shared');",
     "import shared = require('@fantasy-draft/shared');",
+    "const shared = import(`@fantasy-draft/shared`);",
+    "const shared = require(`@fantasy-draft/shared`);",
   ])('rejects every bare root form: %s', source => {
     const result = messages(source);
-    expect(result).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
+    expect(result).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import', messageId: 'root' })]);
     for (const hint of ['/league', '/draft', '/catalog', '/sync', '/units', '/node', 'players', 'draft URLs']) {
       expect(result[0].message).toContain(hint);
     }
@@ -72,16 +74,9 @@ describe('closed shared root exports', () => {
     expect(results[0].messages).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
   });
   it.each([
-    ["import { DraftSyncEngine } from '@fantasy-draft/shared';", 'sync'],
-    ["import type { DraftMetadata as Metadata } from '@fantasy-draft/shared';", 'sync'],
-    ["export { createLeagueSettings as settings } from '@fantasy-draft/shared';", 'league'],
-    ["import { MAX_DRAFT_TEAMS } from '@fantasy-draft/shared';", 'units'],
     ["type Roster = import('@fantasy-draft/shared/draft').Roster;", 'league'],
-    ["import { deriveDraft } from '@fantasy-draft/shared';", 'draft'],
-    ["import type { Recommendation } from '@fantasy-draft/shared';", 'draft'],
     ["import { createEmptyRoster } from '@fantasy-draft/shared/draft';", 'league'],
     ["export type { Roster as TeamRoster } from '@fantasy-draft/shared/draft';", 'league'],
-    ["import { localDevPorts } from '@fantasy-draft/shared';", 'node'],
   ])('names the replacement for %s', (source, target) => {
     expect(messages(source)).toEqual([expect.objectContaining({
       ruleId: 'agent/no-closed-root-import',
@@ -95,6 +90,16 @@ describe('closed shared root exports', () => {
     "type Metadata = import('@fantasy-draft/shared').DraftMetadata;",
   ])('rejects namespace access to closed groups: %s', (source) => {
     expect(messages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import' })]);
+  });
+  it.each([
+    "import { parseDraftRoomUrl } from '@fantasy-draft/shared/draft-url';",
+    "type Status = import('@fantasy-draft/shared/draft-url').DraftRoomStatus;",
+    "const url = import(`@fantasy-draft/shared/draft-url`);",
+  ])('points temporary URL imports to sync: %s', source => {
+    expect(messages(source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-closed-root-import', messageId: 'draftUrl',
+      message: expect.stringContaining('@fantasy-draft/shared/sync'),
+    })]);
   });
   it('allows namespace and type access to valid draft exports', () => {
     expect(messages("import * as draft from '@fantasy-draft/shared/draft'; type Pick = import('@fantasy-draft/shared/draft').DraftPick;")).toEqual([]);

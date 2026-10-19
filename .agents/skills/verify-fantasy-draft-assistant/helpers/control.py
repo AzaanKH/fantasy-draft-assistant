@@ -182,7 +182,7 @@ def doctor(run_id: str, output=None) -> None:
         "run_status": state["status"],
         "private_copy": copy.is_dir() and copy.parent.name.startswith("fda-verify-")
         and copy.resolve() != ROOT.resolve() and (copy / "data").is_dir(),
-        "shared_build": (copy / "shared" / "dist" / "index.js").is_file(),
+        "shared_build": (copy / "shared" / "dist" / "league" / "index.js").is_file(),
         "cli_build": (copy / "cli" / "dist" / "draft.js").is_file(),
     }
     if checks["private_copy"] and checks["cli_build"]:
