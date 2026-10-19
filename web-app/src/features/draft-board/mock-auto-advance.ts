@@ -46,6 +46,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       state.currentPick,
       state.config.myPickPosition,
       state.config.totalTeams,
+        state.config.totalRounds,
       state.config.draftType
     )) {
       return false;
@@ -116,6 +117,7 @@ export function MockDraftAutoAdvance(): null {
       state.currentPick,
       state.config.myPickPosition,
       state.config.totalTeams,
+        state.config.totalRounds,
       state.config.draftType
     )) {
       return;

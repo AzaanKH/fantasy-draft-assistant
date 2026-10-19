@@ -161,6 +161,7 @@ export function MockDraftControls({
     currentPick,
     config.myPickPosition,
     config.totalTeams,
+    config.totalRounds,
     config.draftType
   );
   const keeperAtCurrentPick = getKeeperAtPick(

@@ -181,9 +181,11 @@ export function calculateIsMyTurn(
   currentPick: number,
   myPickPosition: number,
   totalTeams: number,
+  totalRounds: number,
   draftType: DraftType
 ): boolean {
-  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(currentPick / totalTeams) }).at(currentPick).teamIndex === myPickPosition - 1;
+  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds })
+    .nextForTeam(myPickPosition - 1, currentPick)?.pick === currentPick;
 }
 
 /**

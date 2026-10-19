@@ -154,6 +154,7 @@ export function createDraftStore({
         state.currentPick,
         state.config.myPickPosition,
         state.config.totalTeams,
+        state.config.totalRounds,
         state.config.draftType
       );
     },
@@ -381,6 +382,7 @@ export const useIsMyTurn = () =>
       state.currentPick,
       state.config.myPickPosition,
       state.config.totalTeams,
+        state.config.totalRounds,
       state.config.draftType
     )
   );

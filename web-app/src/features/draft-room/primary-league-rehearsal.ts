@@ -378,7 +378,8 @@ export function runPrimaryLeagueRehearsal(
     const managerIsOnTheClock = calculateIsMyTurn(
       state.currentPick,
       state.config.myPickPosition,
-      state.config.totalTeams, 'snake'
+      state.config.totalTeams,
+        state.config.totalRounds, 'snake'
     );
     const scarcity = calculateAllScarcityScores(availablePlayers);
     const needs = calculateTeamNeeds(

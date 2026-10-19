@@ -15,8 +15,8 @@ describe('getPicksUntilMyTurn', () => {
 
 describe('calculateIsMyTurn', () => {
   it('tracks the active snake-draft slot as picks advance', () => {
-    expect(calculateIsMyTurn(1, 1, 10, 'snake')).toBe(true);
-    expect(calculateIsMyTurn(2, 1, 10, 'snake')).toBe(false);
-    expect(calculateIsMyTurn(20, 1, 10, 'snake')).toBe(true);
+    expect(calculateIsMyTurn(1, 1, 10, 15, 'snake')).toBe(true);
+    expect(calculateIsMyTurn(2, 1, 10, 15, 'snake')).toBe(false);
+    expect(calculateIsMyTurn(20, 1, 10, 15, 'snake')).toBe(true);
   });
 });

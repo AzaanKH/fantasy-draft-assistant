@@ -146,8 +146,8 @@ describe('draftStore shortlist', () => {
     const store = createDraftStore();
     store.getState().setConfig({ totalTeams: 10, draftType: 'linear', myPickPosition: 2 });
     store.getState().setSessionMode('live');
-    expect(calculateIsMyTurn(12, 2, 10, 'linear')).toBe(true);
-    expect(calculateIsMyTurn(12, 2, 10, 'snake')).toBe(false);
+    expect(calculateIsMyTurn(12, 2, 10, 15, 'linear')).toBe(true);
+    expect(calculateIsMyTurn(12, 2, 10, 15, 'snake')).toBe(false);
 
     const provisional = (teamIndex: number) => ({
       pickNumber: 12, playerId: `team-${String(teamIndex)}`, playerName: 'Observed', position: 'WR' as const,
