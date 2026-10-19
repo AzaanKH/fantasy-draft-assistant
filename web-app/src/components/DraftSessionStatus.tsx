@@ -1,15 +1,15 @@
+import { DRAFT_DISPLAY, IS_DEMO } from '@/lib/demo-mode';
 import { createSlotSequence } from '@fantasy-draft/shared';
 import * as React from 'react';
 import { CircleAlert, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import { getRecommendationPolicyLabel } from '@/features/recommendations/draft-decision';
+import { getRecommendationPolicyLabel } from '@fantasy-draft/shared/draft';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { KeeperStatus } from '@/features/draft-room/KeeperStatus';
-import { IS_DEMO } from '@/lib/demo-mode';
 
 export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
   readonly keeperStatus?: KeeperPreloadStatus;
@@ -51,7 +51,7 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
         <h2 className="pr-8 text-sm font-semibold">Draft session</h2>
         <p className="mt-2 text-sm">{pick} · {mode}</p>
         <p className="mt-2 text-sm text-muted-foreground">{String(config.totalTeams)} teams · {String(config.totalRounds)} rounds · Snake</p>
-        <p className="mt-2 text-sm text-muted-foreground">{quickMock ? 'Quick mock scoring and roster rules' : getRecommendationPolicyLabel(decision.overall.selection)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{quickMock ? 'Quick mock scoring and roster rules' : getRecommendationPolicyLabel(decision.overall.selection, DRAFT_DISPLAY)}</p>
         {keeperStatus ? <div className="mt-4"><KeeperStatus status={keeperStatus} /></div> : null}
         <section className="mt-4 border-t border-border pt-4" aria-label="League settings">
           <h3 className="text-sm font-semibold">{quickMock ? 'Quick mock settings' : 'Primary League settings'}</h3>

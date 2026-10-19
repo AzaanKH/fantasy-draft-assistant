@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
-import { estimateLeagueSurvivalProbability, getNextUserPick } from '@/lib/calculations/survival';
+import { estimateLeagueSurvivalProbability, getNextUserPick, formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { getEffectiveKeeperAssignments } from '@/lib/keeper-supply';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
-import { formatSignedNumber } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
 import {
   depthTier, getAvailableDepthPlayers, getDepthPlayers, getDepthRosterOpenings,

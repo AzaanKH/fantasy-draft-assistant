@@ -1,4 +1,5 @@
 import '@/stores/draft/derive-shadow.setup';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,11 +8,11 @@ import {
   calculateTeamNeeds,
   filterDrafted,
   getRecommendations,
-} from '@/lib/calculations';
+  createDraftDecisionOutput,
+} from '@fantasy-draft/shared/draft';
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { useDraftStore } from '@/stores/draftStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
-import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
 import { blocksProviderIdentityRecommendations } from '@/features/recommendations/DraftDecisionContext';
 import { ProviderIdentityBlockedNotice } from './ProviderIdentityBlockedNotice';
 import { ReconciliationSummary } from './ReconciliationSummary';
@@ -110,13 +111,14 @@ function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
       DEF: state.myRoster.DEF.length,
     },
     selectionsRemaining: state.config.totalRounds - rosterSize,
-  });
+  }, DRAFT_DISPLAY);
 
   return createDraftDecisionOutput(
     recommendations.draftNow,
     recommendations.selection,
     recommendations.bestAvailable,
-    state.decisionLens
+    state.decisionLens,
+    DRAFT_DISPLAY
   );
 }
 

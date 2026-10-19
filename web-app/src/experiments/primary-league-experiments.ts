@@ -1,15 +1,14 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import type {
-  FantasyProsSnapshot,
-  NFLTeam,
-  Player,
-  Position,
-  Roster,
-  RosterRequirements,
-  ScoringRules,
-  TeamEnvironment,
-} from '@fantasy-draft/shared';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
+  createSlotSequence,
+  type FantasyProsSnapshot,
+  type NFLTeam,
+  type Player,
+  type Position,
+  type Roster,
+  type RosterRequirements,
+  type ScoringRules,
+  type TeamEnvironment,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
   POSITIONS,
@@ -20,16 +19,17 @@ import keeperJson from '../../../data/league-history/current-keepers.json';
 import sleeperJson from '../../../data/sleeper-adp.json';
 import survivalModelJson from '../../../data/league-history/survival-model.json';
 import teamEnvironmentJson from '../../../data/team-environment.json';
-import { calculateAllScarcityScores } from '../lib/calculations/scarcity';
-import { getRecommendations } from '../lib/calculations/recommendations';
 import {
+  calculateAllScarcityScores,
+  getRecommendations,
   mergePlayerData,
   normalizePlayerName,
   type PlayerIdentityData,
   type SleeperADPPlayer,
-} from '../lib/calculations/player-value';
-import { applyLeagueSurvivalModel, type LeagueSurvivalModel } from '../lib/calculations/survival';
-import { calculateTeamNeeds } from '../lib/calculations/team-needs';
+  applyLeagueSurvivalModel,
+  type LeagueSurvivalModel,
+  calculateTeamNeeds,
+} from '@fantasy-draft/shared/draft';
 import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '../lib/mock-draft-engine';
 
 type CorePosition = 'QB' | 'RB' | 'WR' | 'TE';
@@ -395,6 +395,7 @@ function buildPlayers(scoringRules: ScoringRules): Player[] {
     sleeper.players,
     environments.teams,
     {
+      onWarning: (message) => { console.warn(message); },
       fantasyProsAdp: fantasyPros.adp ?? [],
       identities: identities.players,
       leagueContext: {
@@ -686,7 +687,8 @@ function runDraft(input: {
           .map((playerId) => playersById.get(playerId))
           .filter((player): player is Player => player !== undefined),
         selectionsRemaining: Math.max(0, config.totalRounds - myRosterIds.size),
-      }
+      },
+      DRAFT_DISPLAY
     );
     const recommendedIds = new Set(recommendations.draftNow.map((candidate) => candidate.playerId));
     const canonicalBestPick = recommendations.draftNow[0];

@@ -10,6 +10,11 @@
       "@fantasy-draft/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./draft": {
+      "@fantasy-draft/source": "./src/draft/index.ts",
+      "types": "./dist/draft/index.d.ts",
+      "import": "./dist/draft/index.js"
     }
   },
   "scripts": {

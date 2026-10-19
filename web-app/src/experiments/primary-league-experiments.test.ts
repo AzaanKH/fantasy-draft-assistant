@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
-import * as recommendations from '../lib/calculations/recommendations';
+import * as recommendations from '@fantasy-draft/shared/draft';
 import {
   __testables,
   runPrimaryLeagueExperiments,

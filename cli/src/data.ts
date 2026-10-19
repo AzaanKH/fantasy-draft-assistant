@@ -5,11 +5,9 @@ import {
   isPosition, isNFLTeam, isNewsStatus, isTeamEnvironment, type FantasyProsSnapshot, type LeagueSettings,
   type DraftType, type MarketAdpPlayer, type NFLTeam, type Player, type Position, type TeamEnvironment,
 } from '@fantasy-draft/shared';
-import { mergeCoreSources } from '@/lib/calculations/recommendation-player-variants';
-import { normalizePlayerName } from '@/lib/calculations/player-value';
+import { mergeCoreSources, normalizePlayerName, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
 import { canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry } from '@/lib/keeper-supply';
 import { isLeagueSurvivalModel } from '@/lib/league-survival-model';
-import type { LeagueSurvivalModel } from '@/lib/calculations/survival';
 import { isPlayerIdentityFile, isRecommendationPolicyFile, isRecord } from '@/lib/player-data/validators';
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import type { RecommendationPolicyFile, SleeperDataFile } from '@/lib/player-data/types';
@@ -118,6 +116,7 @@ export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string,
     ? environment.teams as Record<NFLTeam, TeamEnvironment> : {} as Record<NFLTeam, TeamEnvironment>;
   // Status commands report a failed merge as a warning, so keep it in the error channel.
   const merged = yield* Effect.try({ try: () => mergeCoreSources({
+    onWarning: (message) => { console.warn(message); },
     rankings: snapshot.rankings, projections: snapshot.projections, news: snapshot.news,
     sleeperPlayers, teamEnvironments, fantasyProsAdp: snapshot.adp, identities: identities.players,
     leagueContext: { marketAdp, scoringRules: settings.scoringRules, totalTeams: settings.totalTeams,

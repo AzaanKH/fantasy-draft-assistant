@@ -1,18 +1,16 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   getRecommendationExplanation,
-} from '@/features/recommendations/recommendation-explanation';
+  type AssistantAnswerRow,
+  getRosterAnswer,
+  getWaitAnswer,
+  getWhyRows,
+} from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
 import { type Player, type PositionNeed, type Recommendation } from '@fantasy-draft/shared';
 import { ChevronDown } from 'lucide-react';
 import * as React from 'react';
 
-import {
-  type AssistantAnswerRow,
-  getRosterAnswer,
-  getSignalValueColor,
-  getWaitAnswer,
-  getWhyRows,
-} from './assistant-analysis';
 
 const PositionalDepthChart = React.lazy(() => import('./PositionalDepthChart'));
 
@@ -26,6 +24,16 @@ export function CalculationDetails({ explanation }: { readonly explanation: stri
       <p className="motion-expandable">{explanation}</p>
     </details>
   );
+}
+
+/** Text tone from the design-system state colors; meaning is always carried by the words too. */
+function getSignalValueColor(tone: AssistantAnswerRow['tone']): string {
+  return {
+    positive: 'text-[color:var(--color-success)]',
+    caution: 'text-[color:var(--color-warning)]',
+    urgent: 'text-[color:var(--color-danger)]',
+    neutral: 'text-foreground',
+  }[tone];
 }
 
 function AnswerRows({ rows }: { readonly rows: readonly AssistantAnswerRow[] }): React.ReactElement {
@@ -49,8 +57,8 @@ export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredEx
 }): React.ReactElement {
   return (
     <div>
-      <AnswerRows rows={getWhyRows(recommendation, isTopPick, positionRank)} />
-      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation)} />
+      <AnswerRows rows={getWhyRows(recommendation, isTopPick, positionRank, DRAFT_DISPLAY)} />
+      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY)} />
     </div>
   );
 }

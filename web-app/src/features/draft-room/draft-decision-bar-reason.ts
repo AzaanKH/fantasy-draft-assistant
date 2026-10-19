@@ -3,7 +3,7 @@ import type {
   DecisionDivergenceFactor,
   Recommendation,
 } from '@fantasy-draft/shared';
-import { formatSignedNumber } from '@/lib/utils';
+import { formatSignedNumber } from '@fantasy-draft/shared/draft';
 
 function sentenceCase(value: string): string {
   const trimmed = value.trim().replace(/[.]+$/, '');

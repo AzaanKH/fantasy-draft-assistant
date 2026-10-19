@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Player, Position } from '@fantasy-draft/shared';
-import { normalizePlayerName } from '@/lib/calculations';
+import { normalizePlayerName } from '@fantasy-draft/shared/draft';
 import { IS_DEMO } from '@/lib/demo-mode';
 import {
   canonicalizeKeeperSupply,

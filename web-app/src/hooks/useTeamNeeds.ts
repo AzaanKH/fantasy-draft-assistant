@@ -13,7 +13,7 @@ import {
   calculateAllScarcityScores,
   calculateTeamNeeds,
   getCriticalPositions,
-} from '@/lib/calculations';
+} from '@fantasy-draft/shared/draft';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useDraftStore } from '@/stores/draftStore';
 

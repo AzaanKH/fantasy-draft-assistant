@@ -1,3 +1,4 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
   POSITIONS,
@@ -7,16 +8,12 @@ import {
 } from '@fantasy-draft/shared';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { blocksRecommendations } from '@/lib/draft-readiness';
-import { useDraftStore } from '@/stores/draftStore';
-import type {
-  DraftSessionMode,
-  UnresolvedProviderPick,
-} from '@/stores/draftStore';
+import { useDraftStore, type DraftSessionMode, type UnresolvedProviderPick } from '@/stores/draftStore';
 import {
   createDraftDecisionOutput,
   type DraftDecisionOutput,
   type DraftDecisionView,
-} from './draft-decision';
+} from '@fantasy-draft/shared/draft';
 
 type RecommendationState = ReturnType<typeof useRecommendations>;
 
@@ -91,7 +88,8 @@ export function DraftDecisionProvider({
       draftNow,
       selection,
       bestAvailable,
-      selectedLens
+      selectedLens,
+      DRAFT_DISPLAY
     ),
     [bestAvailable, draftNow, selectedLens, selection]
   );
@@ -103,7 +101,8 @@ export function DraftDecisionProvider({
         state.recommendations,
         state.selection,
         state.bestAvailable,
-        selectedLens
+        selectedLens,
+        DRAFT_DISPLAY
       );
     });
     return decisions;

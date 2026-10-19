@@ -2,14 +2,19 @@
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DraftProvider, Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
-import { POSITIONS } from '@fantasy-draft/shared';
+import {
+  type DraftProvider,
+  type Player,
+  type Position,
+  type PositionNeed,
+  type Recommendation,
+  POSITIONS,
+} from '@fantasy-draft/shared';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { DraftDecisionView } from '@/features/recommendations/draft-decision';
+import type { DraftDecisionView } from '@fantasy-draft/shared/draft';
 import type { DraftSynchronizationState } from '@/lib/draft-sync-state';
 import { useDraftStore } from '@/stores/draftStore';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
-
 import { AssistantPage } from './AssistantPage';
 
 const RECOMMENDATION_LIMIT = 60;

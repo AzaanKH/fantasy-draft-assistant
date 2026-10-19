@@ -1,5 +1,5 @@
 import { POSITIONS } from '@fantasy-draft/shared';
-import { calculateAllScarcityScores, calculateTeamNeeds } from '@/lib/calculations';
+import { calculateAllScarcityScores, calculateTeamNeeds } from '@fantasy-draft/shared/draft';
 import { resolveDraftPickImports } from '@/lib/draft-pick-imports';
 import type { DraftData } from './data';
 import type { SessionContext } from './context';

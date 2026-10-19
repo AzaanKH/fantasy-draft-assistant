@@ -21,14 +21,14 @@
   "cli/src/context.ts": {
     "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units. Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
-      "agent/no-cross-package-import": 4,
+      "agent/no-cross-package-import": 3,
       "@typescript-eslint/explicit-module-boundary-types": 2
     }
   },
   "cli/src/data.ts": {
     "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units. Existing payloads migrate to shared decoders in the catalog units.",
     "counts": {
-      "agent/no-cross-package-import": 9,
+      "agent/no-cross-package-import": 6,
       "agent/no-json-cast": 1
     }
   },
@@ -41,14 +41,14 @@
   "cli/src/roster.ts": {
     "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units. Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
-      "agent/no-cross-package-import": 2,
+      "agent/no-cross-package-import": 1,
       "@typescript-eslint/explicit-module-boundary-types": 1
     }
   },
   "cli/src/run.ts": {
     "reason": "Existing reach-ins and CLI aliases migrate to shared public exports in the domain extraction units.",
     "counts": {
-      "agent/no-cross-package-import": 5
+      "agent/no-cross-package-import": 2
     }
   },
   "extension/src/options/options.ts": {

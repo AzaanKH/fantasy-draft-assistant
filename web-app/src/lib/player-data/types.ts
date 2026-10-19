@@ -2,7 +2,7 @@ import {
   type ContractPlayerData,
   type PlayerIdentityData,
   type SleeperADPPlayer,
-} from '@/lib/calculations';
+} from '@fantasy-draft/shared/draft';
 import type { NFLTeam, PlayerPrediction, TeamEnvironment } from '@fantasy-draft/shared';
 
 

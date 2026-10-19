@@ -1,7 +1,12 @@
-import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared';
-import type { PlayerIdentityData } from '@/lib/calculations/player-value';
-import { isNFLTeam, isPosition, isPredictionSource, isTeamEnvironment, NFL_TEAMS } from '@fantasy-draft/shared';
-
+import {
+  LIVE_RECOMMENDATION_ARCHITECTURE,
+  isNFLTeam,
+  isPosition,
+  isPredictionSource,
+  isTeamEnvironment,
+  NFL_TEAMS,
+} from '@fantasy-draft/shared';
+import type { PlayerIdentityData } from '@fantasy-draft/shared/draft';
 import type {
   ContractDataFile,
   PlayerIdentityFile,

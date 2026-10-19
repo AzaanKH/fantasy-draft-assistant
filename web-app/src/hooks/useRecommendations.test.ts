@@ -8,7 +8,7 @@ import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
 import { createQuickMockSettings } from '@/lib/quick-mock-settings';
 import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
 import type { LocalLeagueProfile } from '@/stores/leagueSetupStore';
-import type { LeagueSurvivalModel } from '@/lib/calculations/survival';
+import type { LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
 
 const setup = vi.hoisted(() => ({
   profile: 'quick-mock' as LocalLeagueProfile,

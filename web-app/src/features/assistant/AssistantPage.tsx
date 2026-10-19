@@ -1,4 +1,10 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import {
+  createSlotSequence,
+  POSITIONS,
+  type Player,
+  type Position,
+  type Recommendation,
+} from '@fantasy-draft/shared';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
@@ -15,7 +21,6 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { useDraftSessionMode, useDraftStore, useIsMyTurn } from '@/stores/draftStore';
-import { POSITIONS, type Player, type Position, type Recommendation } from '@fantasy-draft/shared';
 import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
 import { AssistantContextBar } from './AssistantContextBar';
@@ -25,7 +30,7 @@ import { CompareAnswer } from './AssistantComparison';
 import { AssistantRecommendationRow, CandidateRowHeader } from './AssistantRecommendationRow';
 import { PositionTiersView } from './PositionTiersView';
 import { PreferredPickCard, type LensDivergence } from './PreferredPickCard';
-import { PoolSort, sortRecommendationsForPool } from './assistant-analysis';
+import { PoolSort, sortRecommendationsForPool } from '@fantasy-draft/shared/draft';
 import {
   countTeamsNeeding,
   getAlertSignals,

@@ -1,7 +1,6 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import { readFile } from 'node:fs/promises';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
+  createSlotSequence,
   createEmptyRoster,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
@@ -9,17 +8,22 @@ import {
   type DraftType,
   type Player,
 } from '@fantasy-draft/shared';
+import { readFile } from 'node:fs/promises';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchFantasyProsSnapshot,
   fetchPlayerIdentityData,
   fetchSleeperData,
   fetchTeamEnvData,
 } from '@/lib/player-data/queries';
-import { mergeCoreSources } from './recommendation-player-variants';
-import { getRecommendationBoard, type RecommendationResult } from './recommendations';
-import { applyLeagueSurvivalModel } from './survival';
-import { calculateAllScarcityScores } from './scarcity';
-import { calculateTeamNeeds } from './team-needs';
+import {
+  mergeCoreSources,
+  getRecommendationBoard,
+  type RecommendationResult,
+  applyLeagueSurvivalModel,
+  calculateAllScarcityScores,
+  calculateTeamNeeds,
+} from '@fantasy-draft/shared/draft';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -121,7 +125,7 @@ describe('live Best Pick and Best Player demo boards', () => {
       rosterCounts: Object.fromEntries(POSITIONS.map((position) => [position, roster[position].length])),
       rosterPlayers,
       selectionsRemaining: 15 - rosterPlayers.length,
-    });
+    }, DRAFT_DISPLAY);
     const lines: string[] = [];
     const record = (scope: string, result: RecommendationResult): void => {
       lines.push(serialize({ scope, selection: result.selection }));

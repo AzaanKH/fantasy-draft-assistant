@@ -1,20 +1,18 @@
 import '@/stores/draft/derive-shadow.setup';
-import { createSlotSequence } from '@fantasy-draft/shared';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
+  createSlotSequence,
   DEFAULT_ROSTER_REQUIREMENTS,
   type Player,
   type PositionNeed,
 } from '@fantasy-draft/shared';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   canonicalizeKeeperSupply,
   getEffectiveKeeperAssignments,
   isKeeperSupplyComplete,
 } from './keeper-supply';
-import { filterDrafted, getRecommendations } from '@/lib/calculations';
-import {
-  createDraftDecisionOutput,
-} from '@/features/recommendations/draft-decision';
+import { filterDrafted, getRecommendations, createDraftDecisionOutput } from '@fantasy-draft/shared/draft';
 import { createDraftStore, useDraftStore } from '@/stores/draftStore';
 
 const TOTAL_TEAMS = 10;
@@ -244,12 +242,13 @@ describe('Primary League keeper supply end-to-end', () => {
       totalPicks: TOTAL_TEAMS * TOTAL_ROUNDS,
       totalTeams: TOTAL_TEAMS,
       rosterCounts: { RB: 0, WR: 0 },
-    });
+    }, DRAFT_DISPLAY);
     return createDraftDecisionOutput(
       bestPick.draftNow,
       bestPick.selection,
       bestPick.bestAvailable,
-      'best-pick'
+      'best-pick',
+      DRAFT_DISPLAY
     );
   };
 

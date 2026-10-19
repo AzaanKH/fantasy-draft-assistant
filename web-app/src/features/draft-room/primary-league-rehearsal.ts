@@ -1,7 +1,6 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
+  createSlotSequence,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
   createLeagueSettings,
@@ -9,12 +8,14 @@ import {
   type Position,
   type Roster,
 } from '@fantasy-draft/shared';
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
   calculateAllScarcityScores,
   calculateTeamNeeds,
   getRecommendations,
-} from '@/lib/calculations';
-import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
+  createDraftDecisionOutput,
+} from '@fantasy-draft/shared/draft';
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { hasRemainingDraftDecision } from '@/hooks/useRecommendations';
 import {
@@ -421,12 +422,13 @@ export function runPrimaryLeagueRehearsal(
         K: state.myRoster.K.length,
         DEF: state.myRoster.DEF.length,
       },
-    });
+    }, DRAFT_DISPLAY);
     const decision = createDraftDecisionOutput(
       recommendations.draftNow,
       recommendations.selection,
       recommendations.bestAvailable,
-      state.decisionLens
+      state.decisionLens,
+      DRAFT_DISPLAY
     );
     recommendationChecks += 1;
     if (!managerIsOnTheClock) waitingRecommendationChecks += 1;

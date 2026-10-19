@@ -1,5 +1,5 @@
 import { POSITIONS } from '@fantasy-draft/shared';
-import type { LeagueSurvivalModel } from './calculations/survival';
+import type { LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;

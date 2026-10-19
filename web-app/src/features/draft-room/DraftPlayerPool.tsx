@@ -1,7 +1,11 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
-import type { Player, Position, RosterRequirements } from '@fantasy-draft/shared';
-import { POSITIONS } from '@fantasy-draft/shared';
+import {
+  type Player,
+  type Position,
+  type RosterRequirements,
+  POSITIONS,
+} from '@fantasy-draft/shared';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, ListPlus, Search } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
@@ -14,7 +18,8 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useUndraftedPlayers } from '@/hooks/useUndraftedPlayers';
-import { cn, formatSignedNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { useDraftStore } from '@/stores/draftStore';
 import { describePausedAdvice, getPlayerPoolRows, type PositionFilter } from './player-pool-rows';
 import { getRosterSlots } from './roster-slots';

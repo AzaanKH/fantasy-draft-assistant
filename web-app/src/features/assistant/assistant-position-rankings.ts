@@ -1,5 +1,5 @@
 import type { Recommendation } from '@fantasy-draft/shared';
-import type { DraftDecisionView } from '@/features/recommendations/draft-decision';
+import type { DraftDecisionView } from '@fantasy-draft/shared/draft';
 
 /**
  * Read a position-scoped list that has already been ranked by the canonical

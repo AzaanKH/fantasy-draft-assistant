@@ -1,10 +1,11 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import type { DraftProvider, Recommendation } from '@fantasy-draft/shared';
 import {
   applyLeagueSurvivalModel,
   getRecommendations,
-} from '@/lib/calculations';
+} from '@fantasy-draft/shared/draft';
 import {
   buildShadowRecommendationEvent,
   postShadowRecommendation,
@@ -130,7 +131,8 @@ export function useShadowRecommendationLogging(
               K: myRoster.K.length,
               DEF: myRoster.DEF.length,
             },
-          }
+          },
+          DRAFT_DISPLAY
         ).draftNow;
 
         if (shadowRecommendations.length === 0) {

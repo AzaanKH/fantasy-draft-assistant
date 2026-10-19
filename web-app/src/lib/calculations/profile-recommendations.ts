@@ -1,10 +1,11 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   POSITIONS,
   type Player,
   type PositionNeed,
 } from '@fantasy-draft/shared';
-import { getRecommendationBoard } from './recommendations';
+import { getRecommendationBoard } from '@fantasy-draft/shared/draft';
 
 // Synthetic 600-player calculation profile matching the hook's overall and
 // six position decisions. This measures CPU work, not rendered UI latency.
@@ -66,7 +67,7 @@ const context = {
 
 function runFullAndPositions(): number {
   const start = performance.now();
-  getRecommendationBoard(players, needs, 5, context);
+  getRecommendationBoard(players, needs, 5, context, DRAFT_DISPLAY);
   return performance.now() - start;
 }
 

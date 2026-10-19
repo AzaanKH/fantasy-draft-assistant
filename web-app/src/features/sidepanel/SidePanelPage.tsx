@@ -1,5 +1,13 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import { RANKING_LABELS } from '@/lib/demo-mode';
+import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
+import {
+  createSlotSequence,
+  POSITIONS,
+  type DraftProvider,
+  type Player,
+  type Position,
+  type PositionNeed,
+  type Recommendation,
+} from '@fantasy-draft/shared';
 import * as React from 'react';
 import {
   Bot,
@@ -14,14 +22,6 @@ import {
   Shirt,
   Target,
 } from 'lucide-react';
-import {
-  POSITIONS,
-  type DraftProvider,
-  type Player,
-  type Position,
-  type PositionNeed,
-  type Recommendation,
-} from '@fantasy-draft/shared';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import { DecisionSwap, MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
@@ -36,8 +36,9 @@ import {
   getPreferredRecommendation,
   getRecommendationPolicyLabel,
   type DraftDecisionView,
-} from '@/features/recommendations/draft-decision';
-import { getRecommendationExplanation } from '@/features/recommendations/recommendation-explanation';
+  getRecommendationExplanation,
+  formatSignedNumber,
+} from '@fantasy-draft/shared/draft';
 import { ThemeMenu } from '@/features/theme/ThemeMenu';
 import {
   useDraftSync,
@@ -45,7 +46,7 @@ import {
 } from '@/hooks/useDraftSync';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { cn, formatSignedNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useDraftStore } from '@/stores/draftStore';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
 import { reconcileComparisonSelection } from './comparison-selection';
@@ -283,7 +284,7 @@ function RecommendationHero({
   const survival = getSurvival(recommendation);
   const rank = decision.rankByPlayerId.get(recommendation.playerId);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation);
+    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
   const explanation = getCompactDecisionExplanation(
     recommendation,
     detailedExplanation
@@ -311,7 +312,7 @@ function RecommendationHero({
               {player?.team ? <span>· {player.team}</span> : null}
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              #{String(rank ?? 1)} {recommendation.position} option · {getRecommendationPolicyLabel(decision.selection)}
+              #{String(rank ?? 1)} {recommendation.position} option · {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)}
             </div>
           </div>
         </div>
@@ -482,7 +483,7 @@ function HeadToHead({
   const secondPlayer = playerById.get(second.playerId);
   const preferred = getPreferredRecommendation(decision, [first, second]) ?? first;
   const preferredExplanation = decision.explanationByPlayerId.get(preferred.playerId)
-    ?? getRecommendationExplanation(preferred);
+    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY);
 
   return (
     <>
@@ -528,7 +529,7 @@ function HeadToHead({
             {preferredExplanation}
           </p>
           <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {getRecommendationPolicyLabel(decision.selection)} policy · rank #{String(decision.rankByPlayerId.get(preferred.playerId) ?? '—')}
+            {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)} policy · rank #{String(decision.rankByPlayerId.get(preferred.playerId) ?? '—')}
           </p>
         </section>
       </DecisionSwap>
@@ -560,7 +561,7 @@ function AssistantPanel({
     ?? diagnostics?.expectedNextPickAlternative;
   const need = needs.find((item) => item.position === recommendation.position);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation);
+    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
   const explanation = getCompactDecisionExplanation(
     recommendation,
     detailedExplanation

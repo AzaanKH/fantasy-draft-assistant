@@ -1,17 +1,16 @@
-import { mergeCoreSources, type CorePlayerDataSources } from '@/lib/calculations/recommendation-player-variants';
+import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
 import { useDraftStore } from '@/stores/draftStore';
-import type {
-  DraftReadinessSourceObservation,
-  DraftReadinessWarningInput,
-  NFLTeam,
-  TeamEnvironment,
+import {
+  type DraftReadinessSourceObservation,
+  type DraftReadinessWarningInput,
+  type NFLTeam,
+  type TeamEnvironment,
+  evaluateDraftReadiness,
 } from '@fantasy-draft/shared';
-import { evaluateDraftReadiness } from '@fantasy-draft/shared';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
-
 import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import {
@@ -362,6 +361,7 @@ function useLivePlayerDataQuery() {
   const coreSources = useMemo<CorePlayerDataSources | null>(() => {
     if (!fantasyProsQuery.data || !identityQuery.data) return null;
     return {
+      onWarning: (message) => { console.warn(message); },
       rankings: fantasyProsQuery.data.rankings,
       projections: fantasyProsQuery.data.projections,
       news: fantasyProsQuery.data.news,

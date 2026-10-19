@@ -1,11 +1,10 @@
 import { MotionReorderItem } from '@/components/motion';
 import { PositionTag } from '@/components/PositionTag';
-import { formatSignedNumber } from '@/lib/utils';
+import { formatSignedNumber, survivalPercent } from '@fantasy-draft/shared/draft';
 import { type Player, type Recommendation } from '@fantasy-draft/shared';
 import { Check, Plus } from 'lucide-react';
 import * as React from 'react';
 
-import { survivalPercent } from './assistant-analysis';
 
 /** Column headings for candidate rows; values align right under them. */
 export function CandidateRowHeader(): React.ReactElement {

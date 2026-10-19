@@ -23,6 +23,34 @@ describe('@fantasy-draft/shared package contract', () => {
     expect(output.trim()).toBe('function');
   });
 
+  it('loads the closed draft subpath without adding recommendation exports to the root', () => {
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const draft = await import('@fantasy-draft/shared/draft');
+const root = await import('@fantasy-draft/shared');
+let deepImportError;
+try {
+  await import('@fantasy-draft/shared/draft/calculations/recommendations');
+} catch (error) {
+  deepImportError = error.code;
+}
+console.log(JSON.stringify({
+  recommendation: typeof draft.getRecommendationBoard,
+  order: typeof draft.createSlotSequence,
+  derive: typeof draft.deriveDraft,
+  rootRecommendation: typeof root.getRecommendationBoard,
+  deepImportError,
+}));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+
+    expect(JSON.parse(output)).toEqual({
+      recommendation: 'function',
+      order: 'function',
+      derive: 'function',
+      rootRecommendation: 'undefined',
+      deepImportError: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
+    });
+  });
+
   it('type-checks consumers under NodeNext and rejects nonexistent DraftSyncEngine methods', () => {
     const fileName = join(SCRIPTS_DIR, 'src', '__shared-contract-probe__.ts');
     const source = `

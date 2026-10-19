@@ -3,8 +3,7 @@ import { PositionTag } from '@/components/PositionTag';
 import type { Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
 import { Check, Plus, Search } from 'lucide-react';
 import * as React from 'react';
-
-import { survivalPercent } from './assistant-analysis';
+import { survivalPercent } from '@fantasy-draft/shared/draft';
 import { buildPositionTiers, isTierDepleted, type TierGroup, type TierPlayer } from './assistant-tiers';
 
 type TierFilter = 'ALL' | Position;

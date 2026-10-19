@@ -2,9 +2,13 @@ import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
 import { createDefaultLeagueSettings, type DraftReadinessReport, type Recommendation } from '@fantasy-draft/shared';
 import { buildDraftReadinessReport } from '../../scripts/src/draft-readiness-report';
-import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
-import { getComparisonHighlights, getAvailabilitySignal, getWaitAnswer } from '@/features/assistant/assistant-analysis';
-import { getComparisonMetrics } from '@/features/assistant/comparison-metrics';
+import {
+  createDraftDecisionOutput,
+  getComparisonHighlights,
+  getAvailabilitySignal,
+  getWaitAnswer,
+  getComparisonMetrics,
+} from '@fantasy-draft/shared/draft';
 import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
 import { invocationMode, parseArguments, parseSession, HELP, type Arguments, type SessionId } from './arguments';
 import { DraftClient, readPairingToken } from './client';

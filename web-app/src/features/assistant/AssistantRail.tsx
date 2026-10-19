@@ -2,10 +2,8 @@ import { PositionTag } from '@/components/PositionTag';
 import type { DraftProvider, Player, Position, PositionNeed, Recommendation } from '@fantasy-draft/shared';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import * as React from 'react';
-
-import type { AssistantDraftMode, UpcomingTeamPicks } from './assistant-context';
-import { countTeamsNeeding } from './assistant-context';
-import { survivalPercent } from './assistant-analysis';
+import { type AssistantDraftMode, type UpcomingTeamPicks, countTeamsNeeding } from './assistant-context';
+import { survivalPercent } from '@fantasy-draft/shared/draft';
 
 /** Ordered, local, draft-specific queue. Each player shows the chance of reaching the next pick. */
 export function AssistantQueue({

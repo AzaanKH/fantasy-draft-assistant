@@ -4,13 +4,11 @@ import { PositionTag } from '@/components/PositionTag';
 import { Button } from '@/components/ui/button';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import { getProviderName } from '@/lib/provider-name';
-import { formatSignedNumber } from '@/lib/utils';
+import { formatSignedNumber, getWaitingCostSummary, survivalPercent } from '@fantasy-draft/shared/draft';
 import type { DraftProvider, Player, Position, Recommendation } from '@fantasy-draft/shared';
 import { Check, ListPlus } from 'lucide-react';
 import * as React from 'react';
-
 import type { AssistantDraftMode } from './assistant-context';
-import { getWaitingCostSummary, survivalPercent } from './assistant-analysis';
 
 export interface LensDivergence {
   readonly label: 'Best Pick' | 'Best Player';

@@ -7,6 +7,7 @@
  * - TE premium scoring consideration
  */
 
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { useMemo } from 'react';
 import {
   POSITIONS,
@@ -20,7 +21,7 @@ import {
   type RecommendationContext,
   type RecommendationResult,
   type RecommendationSelection,
-} from '@/lib/calculations';
+} from '@fantasy-draft/shared/draft';
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
@@ -183,7 +184,8 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       availablePlayers,
       needs,
       limit,
-      recommendationContext
+      recommendationContext,
+      DRAFT_DISPLAY
     );
     for (const position of POSITIONS) {
       const result = board.byPosition[position];

@@ -1,8 +1,9 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import type { Player, Recommendation } from '@fantasy-draft/shared';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionTag } from '@/components/PositionTag';
 import { MetricHelp } from '@/features/help/MetricHelp';
-import { comparisonBar, getComparisonMetrics, type ComparisonMetric } from './comparison-metrics';
+import { comparisonBar, getComparisonMetrics, type ComparisonMetric } from '@fantasy-draft/shared/draft';
 
 function formatMetric(value: number | null, format: ComparisonMetric['format']): string {
   if (value === null) return 'Unavailable';
@@ -29,7 +30,7 @@ export function PlayerComparisonMetrics({
   readonly playerById?: ReadonlyMap<string, Player>;
 }): React.ReactElement {
   const players = [first, second];
-  const rows = getComparisonMetrics(first, second, ranks);
+  const rows = getComparisonMetrics(first, second, ranks, DRAFT_DISPLAY);
 
   return (
     <table className="rec-compare">

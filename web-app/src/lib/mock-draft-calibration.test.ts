@@ -1,18 +1,18 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type {
-  FantasyProsSnapshot,
-  NFLTeam,
-  Player,
-  Position,
-  TeamEnvironment,
+import {
+  type FantasyProsSnapshot,
+  type NFLTeam,
+  type Player,
+  type Position,
+  type TeamEnvironment,
+  DEFAULT_ROSTER_REQUIREMENTS,
 } from '@fantasy-draft/shared';
-import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
 import {
   mergePlayerData,
   normalizePlayerName,
   type PlayerIdentityData,
   type SleeperADPPlayer,
-} from './calculations/player-value';
+} from '@fantasy-draft/shared/draft';
 import {
   simulateCpuDraft,
   type MockDraftEngineConfig,
