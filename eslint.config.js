@@ -30,6 +30,12 @@ const effectOwners = [
   'scripts/src/model/{duckdb,init-duckdb,profile-model-sources}.ts',
 ];
 
+// Test harnesses launch isolated fixtures. Plain-node tooling must not depend on the package it probes.
+const processExceptions = [
+  '**/*.test.{ts,tsx,mjs}',
+  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports}.mjs',
+];
+
 const environments = {
   node: globals.node,
   browser: globals.browser,
@@ -64,6 +70,11 @@ export default tseslint.config(
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
     ignores: ['**/*.test.{ts,tsx,mjs}'],
     rules: { 'agent/no-bare-fetch': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['shared/src/node/**', ...processExceptions],
+    rules: { 'agent/no-bare-child-process': 'error' },
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),

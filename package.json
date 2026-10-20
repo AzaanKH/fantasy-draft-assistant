@@ -11,7 +11,7 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "predev": "pnpm data:check && pnpm --filter scripts check:dev-ports",
-    "dev": "pnpm dev:shared & pnpm dev:web & pnpm dev:server & pnpm dev:extension & wait",
+    "dev": "pnpm --filter scripts dev",
     "dev:live": "pnpm draft:preflight && pnpm dev",
     "dev:shared": "pnpm --filter @fantasy-draft/shared build --watch",
     "dev:web": "pnpm --filter web-app dev",

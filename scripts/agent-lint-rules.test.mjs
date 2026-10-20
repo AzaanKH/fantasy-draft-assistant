@@ -39,6 +39,46 @@ describe('agent lint rules', () => {
     }
   });
   it.each([
+    "import { spawn } from 'child_process';",
+    "import cp from 'node:child_process';",
+    "export * from 'node:child_process';",
+    "const cp = import('child_process');",
+    "const cp = import(`node:child_process`);",
+    "const cp = require('child_process');",
+    "const cp = require(`node:child_process`);",
+    "import cp = require('child_process');",
+    "type Child = import('node:child_process').ChildProcess;",
+  ])('requires the shared process runner: %s', async source => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    const filePath = 'scripts/src/process-probe.ts';
+    const config = await eslint.calculateConfigForFile(filePath);
+    const result = new Linter().verify(source, [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-bare-child-process': config.rules['agent/no-bare-child-process'] ?? 'off' },
+    }], { filename: filePath });
+    expect(result).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-bare-child-process', severity: 2,
+      message: expect.stringContaining('use Processes from @fantasy-draft/shared/node'),
+    })]);
+  });
+  it.each([
+    ['shared/src/node/processes.ts', false],
+    ['shared/src/node/nested/runner.ts', false],
+    ['shared/src/node-other/runner.ts', true],
+    ['server/src/fixture.test.ts', false],
+    ['scripts/audit-unused-exports.mjs', false],
+    ['scripts/probe-source-condition.mjs', false],
+    ['scripts/probe-workspace-gates.mjs', false],
+    ['scripts/probe-agent-gates.mjs', false],
+    ['scripts/other-probe.mjs', true],
+    ['extension/config/process.ts', true],
+  ])('enforces the process boundary and exact exceptions in %s', async (filePath, enforced) => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    const config = await eslint.calculateConfigForFile(filePath);
+    expect(config.rules['agent/no-bare-child-process'] ?? [0]).toEqual(enforced ? [2] : [0]);
+    expect(baselineRuleIds).not.toContain('agent/no-bare-child-process');
+  });
+  it.each([
     'const x = JSON.parse(text) as Payload;',
     'const x = response.json() as Promise<Payload>;',
     'const x = await response.json() as Payload;',

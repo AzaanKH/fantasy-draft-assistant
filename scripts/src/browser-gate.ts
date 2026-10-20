@@ -4,7 +4,7 @@
  * contacts a draft provider. Usage: `pnpm browser:gate` (needs `playwright install chromium`).
  */
 import { http, HttpError } from '@fantasy-draft/shared/http';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { Processes, type ProcessService } from '@fantasy-draft/shared/node';
 import { createConnection } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -227,12 +227,16 @@ const requireFreePorts = io(async () => {
   }
 });
 
-const waitForServer = (server: ChildProcess): Effect.Effect<void, Error> => io(async () => {
+const waitForServer = (server: ProcessService): Effect.Effect<void, Error> => io(async () => {
+  const requireRunning = (): void => {
+    const exit = server.exit;
+    if (exit !== null) throw new Error(`Vite exited with code ${String(exit.code)}`);
+  };
   const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    if (server.exitCode !== null) throw new Error(`Vite exited with code ${String(server.exitCode)}`);
+    requireRunning();
     if (await isListening()) {
-      if (server.exitCode !== null) throw new Error(`Vite exited with code ${String(server.exitCode)}`);
+      requireRunning();
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -241,27 +245,12 @@ const waitForServer = (server: ChildProcess): Effect.Effect<void, Error> => io(a
 });
 
 const webServer = Effect.acquireRelease(
-  Effect.sync(() => spawn('pnpm', ['--filter', 'web-app', 'exec', 'vite', '--port', String(WEB_PORT), '--strictPort'], {
+  Effect.sync(() => Processes.service('pnpm', ['--filter', 'web-app', 'exec', 'vite', '--port', String(WEB_PORT), '--strictPort'], {
     cwd: REPO_ROOT,
-    // The API port points at nothing, so no request can reach a running sync server.
     env: { ...process.env, DRAFT_WEB_PORT: String(WEB_PORT), DRAFT_API_PORT: String(API_PORT) },
-    // Its proxy logs every request to the absent API server, so output is dropped; a failed start shows as an exit code.
-    stdio: 'ignore',
-    detached: process.platform !== 'win32',
+    output: 'ignore', timeoutMs: 30 * 60_000,
   })),
-  (server) => Effect.callback((resume: (effect: Effect.Effect<void>) => void) => {
-    if (server.exitCode !== null || server.pid === undefined) {
-      resume(Effect.void);
-      return;
-    }
-    server.once('exit', () => { resume(Effect.void); });
-    try {
-      if (process.platform === 'win32') server.kill();
-      else process.kill(-server.pid, 'SIGTERM');
-    } catch {
-      resume(Effect.void);
-    }
-  }),
+  server => Effect.promise(() => server.stop()),
 );
 
 const browser = Effect.acquireRelease(

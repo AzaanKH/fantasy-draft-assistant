@@ -82,3 +82,16 @@ if (process.argv.includes('--replay')) {
   });
   console.log(JSON.stringify({ historicalCommit, historicalPath, liveRequests: 0, cases: receipt }, null, 2));
 }
+
+if (process.argv.includes('--replay')) {
+  const source = execFileSync('git', ['show', 'f464926:server/src/draft-data-refresh.ts'], { cwd: root, encoding: 'utf8' });
+  const messages = new Linter().verify(source, [{
+    linterOptions: { reportUnusedDisableDirectives: false },
+    files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+    plugins: { agent }, rules: { 'agent/no-bare-child-process': 'error' },
+  }], { filename: path.join(root, 'server/src/draft-data-refresh.ts') });
+  if (messages.length !== 1 || messages[0].ruleId !== 'agent/no-bare-child-process' || messages[0].severity !== 2) {
+    throw new Error(`Base-era process replay failed: ${JSON.stringify(messages)}`);
+  }
+  console.log(JSON.stringify({ processReplayBase: 'f464926', liveCommands: 0, messages }, null, 2));
+}

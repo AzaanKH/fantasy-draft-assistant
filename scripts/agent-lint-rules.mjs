@@ -87,6 +87,25 @@ export default {
         };
       },
     },
+    'no-bare-child-process': {
+      meta: { type: 'problem', schema: [], messages: {
+        runner: 'For process lifecycle, use Processes from @fantasy-draft/shared/node.',
+      } },
+      create(context) {
+        function check(node, source) {
+          if (['child_process', 'node:child_process'].includes(staticModuleName(source))) context.report({ node, messageId: 'runner' });
+        }
+        return {
+          ImportDeclaration: node => check(node, node.source),
+          ExportNamedDeclaration: node => check(node, node.source),
+          ExportAllDeclaration: node => check(node, node.source),
+          ImportExpression: node => check(node, node.source),
+          CallExpression: node => { if (node.callee.name === 'require') check(node, node.arguments[0]); },
+          TSExternalModuleReference: node => check(node, node.expression),
+          TSImportType: node => check(node, node.source),
+        };
+      },
+    },
     'no-node-in-browser': {
       meta: { type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',

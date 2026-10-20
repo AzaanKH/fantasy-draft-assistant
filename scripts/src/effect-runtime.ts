@@ -1,3 +1,4 @@
+import { runNodeMain } from '@fantasy-draft/shared/node';
 import { http, HttpError } from '@fantasy-draft/shared/http';
 export { parseRetryAfter } from '@fantasy-draft/shared/http';
 import { pathToFileURL } from 'node:url';
@@ -9,32 +10,14 @@ export function isEntryPoint(moduleUrl: string): boolean {
   return Boolean(entryPoint && moduleUrl === pathToFileURL(entryPoint).href);
 }
 
-const CLEANUP_GRACE_MS = 5000;
-
-/**
- * Run a script's program. Ctrl-C interrupts it, so scoped resources such as
- * browsers and database connections are released before the process exits.
- */
 export function runMain(program: Effect.Effect<void, unknown>, failureLabel?: string): void {
-  const controller = new AbortController();
-  const stop = (): void => {
-    // A second Ctrl-C, or cleanup that outlasts the grace period, exits immediately as before.
-    if (controller.signal.aborted) process.exit(130);
-    controller.abort();
-    setTimeout(() => { process.exit(130); }, CLEANUP_GRACE_MS).unref();
-  };
-  process.on('SIGINT', stop);
-  process.on('SIGTERM', stop);
-  void Effect.runPromiseExit(program, { signal: controller.signal }).then((exit) => {
-    process.off('SIGINT', stop);
-    process.off('SIGTERM', stop);
-    if (Exit.isSuccess(exit)) return;
-    if (Cause.hasInterruptsOnly(exit.cause)) process.exit(130);
-    const error = Cause.squash(exit.cause);
-    if (failureLabel) console.error(failureLabel, error);
-    else console.error(error);
-    process.exit(1);
-  });
+  void runNodeMain(async signal => {
+    const exit = await Effect.runPromiseExit(program, { signal });
+    if (Exit.isFailure(exit)) {
+      if (Cause.hasInterruptsOnly(exit.cause)) process.exitCode = 130;
+      else throw Cause.squash(exit.cause);
+    }
+  }, { failureLabel });
 }
 
 /** Wrap file or process I/O, keeping the original Error so failures print as they did before. */
