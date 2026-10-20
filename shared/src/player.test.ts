@@ -8,9 +8,9 @@ import {
   NFL_TEAMS,
   type Player,
 } from './player.js';
+import { isTeamEnvironment } from './catalog/decoders.js';
 import { isNeedPriority } from './draft.js';
 import {
-  isTeamEnvironment,
   isTopOffense,
   isDecentOffense,
   type TeamEnvironment,

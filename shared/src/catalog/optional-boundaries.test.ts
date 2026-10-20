@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decodeLeagueSurvivalModel } from './decoders.js';
 import { isLeagueSurvivalModel } from './league-survival-model.js';
-import { isTeamEnvironment } from '../team-environment.js';
+import { isTeamEnvironment } from './decoders.js';
 import { POSITIONS } from '../player.js';
 
 const summary = { position: 'QB', leagueMedianPick: 50, sleeperMedianPick: 55, pickPremium: 5,

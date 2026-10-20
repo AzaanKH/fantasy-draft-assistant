@@ -1,6 +1,5 @@
 export type { TeamEnvironment, VolumeLevel } from './catalog/decoders.js';
 import type { TeamEnvironment } from './catalog/decoders.js';
-export { isTeamEnvironment } from './catalog/decoders.js';
 
 /**
  * Checks if a team has a top-tier offense (score >= 8)

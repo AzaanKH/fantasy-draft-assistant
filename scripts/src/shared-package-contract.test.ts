@@ -75,15 +75,24 @@ console.log(JSON.stringify(errors));
       return [subpath, names.sort()];
     }));
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const { registerHooks } = await import('node:module');
+const plainImports = [];
+const hook = registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === 'effect' || specifier.startsWith('effect/')) plainImports.push(specifier);
+  return nextResolve(specifier, context);
+} });
+for (const subpath of ['league', 'draft', 'units']) await import('@fantasy-draft/shared/' + subpath);
+hook.deregister();
 const exports = {};
 for (const subpath of ${JSON.stringify(subpaths)}) {
   exports[subpath] = Object.keys(await import('@fantasy-draft/shared/' + subpath)).sort();
 }
 const sync = await import('@fantasy-draft/shared/sync');
-console.log(JSON.stringify({ exports, route: sync.parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo') }));
+console.log(JSON.stringify({ exports, plainImports, route: sync.parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo') }));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
     expect(JSON.parse(output)).toEqual({
       exports: expected,
+      plainImports: [],
       route: { isInDraftRoom: true, provider: 'sleeper', draftId: 'demo' },
     });
   });

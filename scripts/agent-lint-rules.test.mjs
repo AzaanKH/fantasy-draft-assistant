@@ -108,3 +108,45 @@ describe('closed shared root exports', () => {
     expect(messages("import type { Player } from '@fantasy-draft/shared/league'; import { DraftSyncEngine } from '@fantasy-draft/shared/sync';")).toEqual([]);
   });
 });
+
+describe('Effect import boundaries', () => {
+  async function effectMessages(source, filePath) {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    const config = await eslint.calculateConfigForFile(filePath);
+    return new Linter().verify(source, [{
+      files: ['**/*.{ts,tsx}'],
+      languageOptions: { parser: tseslint.parser },
+      rules: {
+        'no-restricted-imports': config.rules['no-restricted-imports'] ?? 'off',
+        'no-restricted-syntax': config.rules['no-restricted-syntax'] ?? 'off',
+      },
+    }], { filename: filePath });
+  }
+
+  it.each([
+    'shared/src/player.ts', 'shared/src/limits.ts', 'shared/src/draft.ts',
+    'shared/src/league-settings.ts', 'shared/src/league/index.ts', 'shared/src/draft/index.ts',
+    'web-app/src/lib/pure-value.ts', 'scripts/src/model/pure-value.ts', 'server/src/pure-value.ts',
+  ])('rejects the Effect barrel in %s with a concrete fix', async filePath => {
+    expect(await effectMessages("import { Schema } from 'effect';", filePath)).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates.') }),
+    ]);
+  });
+
+  it.each([
+    "export { Schema } from 'effect';", "export * from 'effect';",
+    "import { Schema } from 'effect/Schema';", "const effect = import('effect');",
+    "const effect = require('effect');",
+  ])('rejects alternate dependency forms: %s', async source => {
+    expect(await effectMessages(source, 'shared/src/player.ts')).toHaveLength(1);
+  });
+
+  it.each([
+    'shared/src/catalog/decoders.ts', 'shared/src/catalog/nested/boundary.ts',
+    'scripts/src/script-file-schemas.ts', 'scripts/src/contract-source-schema.ts',
+    'server/src/sync-server.ts', 'scripts/src/effect-runtime.ts',
+    'cli/src/run.ts', 'extension/src/background/background-controller.ts',
+  ])('allows explicit decoder and I/O owners in %s', async filePath => {
+    expect(await effectMessages("import { Schema } from 'effect';", filePath)).toEqual([]);
+  });
+});

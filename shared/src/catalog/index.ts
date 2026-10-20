@@ -8,7 +8,7 @@ export { isLeagueSurvivalModel } from './league-survival-model.js';
 export { areKeepersValid, buildDraftReadinessReport } from './draft-readiness-report.js';
 export type { LoadedArtifact } from './draft-readiness-report.js';
 
-export { isTeamEnvironment } from '../team-environment.js';
+export { isTeamEnvironment } from './decoders.js';
 export { isTopOffense } from '../team-environment.js';
 export { isDecentOffense } from '../team-environment.js';
 export type { VolumeLevel } from '../team-environment.js';
@@ -29,7 +29,7 @@ export type { FantasyProsNewsItem } from '../fantasypros.js';
 export type { FantasyProsSnapshot } from '../fantasypros.js';
 export { americanOddsToImpliedProbability } from '../sportsbook.js';
 export { calculateSportsbookProjectionAdjustment } from '../sportsbook.js';
-export { isSportsbookSnapshot } from '../sportsbook.js';
+export { isSportsbookSnapshot } from './decoders.js';
 export { normalizeSportsbookPlayerName } from '../sportsbook.js';
 export type { SportsbookOverUnderLine } from '../sportsbook.js';
 export type { SportsbookSnapshot } from '../sportsbook.js';

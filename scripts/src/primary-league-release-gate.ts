@@ -7,17 +7,9 @@ import { Schema } from 'effect';
 import { decodeReadinessEvidence, decodeRehearsalEvidence, decodeOperationalEvidence } from './script-file-schemas.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const RELEASE_REPORT_PATH = join(
-  REPO_ROOT,
-  'data',
-  'primary-league-release-gate-report.json'
-);
+const RELEASE_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.releaseReport));
 const READINESS_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.readinessReport));
-const REHEARSAL_REPORT_PATH = join(
-  REPO_ROOT,
-  'data',
-  'primary-league-deterministic-rehearsal-report.json'
-);
+const REHEARSAL_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.deterministicRehearsal));
 const OPERATION_PATH = join(REPO_ROOT, catalogPath(CATALOG.rehearsal));
 
 type ReleaseCheckKey =

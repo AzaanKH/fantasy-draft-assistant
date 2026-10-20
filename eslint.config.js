@@ -16,6 +16,18 @@ const draftOrderRules = [
   },
 ];
 
+const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates.';
+const effectOwners = [
+  'shared/src/catalog/**',
+  '**/*-{schema,schemas,decoder,decoders,boundary,boundaries}.{ts,tsx}',
+  '**/*.test.{ts,tsx,mjs}',
+  'cli/src/{archive,client,connections,data,errors,files,run}.ts',
+  'extension/src/background/{background-controller,sync-snapshot-client}.ts',
+  'server/src/{draft-data-refresh,fantasy-football-calculator,http-security,shadow-logger,sleeper-adapter,sync-adapter,sync-server,yahoo-adapter}.ts',
+  'scripts/src/{browser-gate,build-demo-data,build-historical-snapshots,build-prediction-dataset,check-data-quality,check-demo-data,effect-runtime,fantasypros-api,fetch-sleeper-adp,generate-team-env,import-league-draft-history,install-demo-data,measure-effect-adoption,playwright-browser,primary-league-release-gate,refresh-contracts,refresh-fantasypros-snapshot,scrape-contracts,scrape-ecr,recommendation-evaluation}.ts',
+  'scripts/src/model/{duckdb,init-duckdb,profile-model-sources}.ts',
+];
+
 const environments = {
   node: globals.node,
   browser: globals.browser,
@@ -45,6 +57,17 @@ export default tseslint.config(
     languageOptions: { parser: tseslint.parser },
     plugins: { agent: agentRules },
     rules: { 'agent/no-closed-root-import': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: effectOwners,
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['effect', 'effect/*'], message: effectBoundaryMessage }] }],
+      'no-restricted-syntax': ['error', ...draftOrderRules,
+        { selector: "ImportExpression[source.value='effect']", message: effectBoundaryMessage },
+        { selector: "CallExpression[callee.name='require'][arguments.0.value='effect']", message: effectBoundaryMessage },
+      ],
+    },
   },
   {
     files: ['web-app/src/**/*.{ts,tsx}'],

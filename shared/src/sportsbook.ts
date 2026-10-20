@@ -16,7 +16,6 @@ type SportsbookMarket = (typeof SPORTSBOOK_MARKETS)[number];
 
 export type { SportsbookOverUnderLine, SportsbookSnapshot } from './catalog/decoders.js';
 import type { SportsbookOverUnderLine } from './catalog/decoders.js';
-export { isSportsbookSnapshot } from './catalog/decoders.js';
 
 export type FantasyProsMarketStats = Readonly<
   Partial<Record<SportsbookMarket, number>>
