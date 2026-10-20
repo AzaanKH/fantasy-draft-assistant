@@ -1,7 +1,7 @@
 import { ESLint, Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
-import agent from './agent-lint-rules.mjs';
+import agent, { baselineRuleIds } from './agent-lint-rules.mjs';
 
 function messages(source, file = 'cli/src/probe.ts') {
   return new Linter({ cwd: new URL('..', import.meta.url).pathname }).verify(source, [{
@@ -27,8 +27,67 @@ describe('agent lint rules', () => {
   ])('rejects unvalidated JSON casts: %s', (source) => {
     expect(messages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-json-cast' })]);
   });
-  it('requires the shared HTTP runner', () => {
-    expect(messages('fetch(url);')).toEqual([expect.objectContaining({ message: expect.stringContaining('shared HTTP runner (unit 8)') })]);
+  it.each([
+    'fetch(url);', 'globalThis.fetch(url);', 'window.fetch(url);',
+    "globalThis['fetch'](url);", 'window[`fetch`](url);',
+    'const f = fetch; f(url);', 'const f = window.fetch; f(url);',
+    'const f = globalThis.fetch; f(url);',
+    'const { fetch: f } = globalThis; f(url);',
+    'const { fetch } = window; fetch(url);',
+    "const { ['fetch']: f } = window; f(url);",
+    'const f = fetch.bind(globalThis); f(url);',
+    'const f = window.fetch.bind(window); f(url);',
+    "const f = globalThis['fetch']['bind'](globalThis); f(url);",
+    'consume(fetch);', 'consume(globalThis.fetch);',
+    'window.fetch = mockFetch;',
+  ])('requires @fantasy-draft/shared/http for native references: %s', source => {
+    expect(messages(source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-bare-fetch', severity: 2,
+      message: expect.stringContaining('use @fantasy-draft/shared/http'),
+    })]);
+  });
+  it.each([
+    'const client = { fetch() {} }; client.fetch(url);',
+    'function run(fetch: Function) { fetch(url); }',
+    'const fetch = localRequest; fetch(url);',
+    'function run(window: Client) { window.fetch(url); }',
+    'function run(globalThis: Client) { globalThis.fetch(url); }',
+    'function run(globalThis: Client) { const { fetch: f } = globalThis; f(url); }',
+    'function run(fetch: Function) { const f = fetch.bind(null); f(url); }',
+    'const value = { fetch: localRequest };',
+    'type Client = { fetch: () => void };',
+    'type Transport = typeof fetch;',
+    'const request: typeof fetch = client;',
+    'type Transport = typeof globalThis.fetch;',
+    'window[method](url);',
+  ])('allows unrelated methods and locally bound names: %s', source => {
+    expect(messages(source)).toEqual([]);
+  });
+  it('allows native transport only inside shared/src/http', () => {
+    expect(messages('fetch(url); globalThis.fetch(url);', 'shared/src/http/transport.ts')).toEqual([]);
+    expect(messages('fetch(url);', 'shared/src/http/nested/transport.ts')).toEqual([]);
+    expect(messages('fetch(url);', 'shared/src/http-other/transport.ts')).toHaveLength(1);
+    expect(baselineRuleIds).not.toContain('agent/no-bare-fetch');
+  });
+  it.each(['scripts/probe.mjs', 'web-app/__visual__/probe.ts', 'extension/config/transport.ts'])('enforces native references outside production src in %s', async filePath => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    const config = await eslint.calculateConfigForFile(filePath);
+    expect(config.rules['agent/no-bare-fetch']).toEqual([2]);
+    const result = new Linter().verify('window.fetch = mockFetch;', [{
+      files: ['**/*.{ts,mjs}'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-bare-fetch': config.rules['agent/no-bare-fetch'] },
+    }], { filename: filePath });
+    expect(result).toEqual([expect.objectContaining({ ruleId: 'agent/no-bare-fetch', severity: 2 })]);
+  });
+  it.each(['server/src/client.test.ts', 'web-app/src/transport.test.tsx', 'scripts/transport.test.mjs'])('excludes mock and local-server harnesses from native fetch enforcement in %s', async filePath => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    const config = await eslint.calculateConfigForFile(filePath);
+    expect(config.rules['agent/no-bare-fetch'] ?? [0]).toEqual([0]);
+    const result = new Linter().verify('fetch(localUrl); window.fetch = mockFetch;', [{
+      files: ['**/*.{ts,tsx,mjs}'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-bare-fetch': config.rules['agent/no-bare-fetch'] ?? 'off' },
+    }], { filename: filePath });
+    expect(result).toEqual([]);
   });
   it.each([
     "import { x } from '../../server/src/x';",
@@ -64,7 +123,7 @@ describe('closed shared root exports', () => {
   ])('rejects every bare root form: %s', source => {
     const result = messages(source);
     expect(result).toEqual([expect.objectContaining({ ruleId: 'agent/no-closed-root-import', messageId: 'root' })]);
-    for (const hint of ['/league', '/draft', '/catalog', '/sync', '/units', '/node', 'players', 'draft URLs']) {
+    for (const hint of ['/league', '/draft', '/catalog', '/sync', '/units', '/node', '/http', 'players', 'draft URLs']) {
       expect(result[0].message).toContain(hint);
     }
   });
@@ -125,7 +184,7 @@ describe('Effect import boundaries', () => {
 
   it.each([
     'shared/src/player.ts', 'shared/src/limits.ts', 'shared/src/draft.ts',
-    'shared/src/league-settings.ts', 'shared/src/player-schema.ts', 'shared/src/league/index.ts', 'shared/src/draft/index.ts',
+    'shared/src/http/index.ts', 'shared/src/http/transport.ts', 'shared/src/league-settings.ts', 'shared/src/player-schema.ts', 'shared/src/league/index.ts', 'shared/src/draft/index.ts',
     'web-app/src/lib/pure-value.ts', 'scripts/src/model/pure-value.ts', 'server/src/pure-value.ts',
   ])('rejects the Effect barrel in %s with a concrete fix', async filePath => {
     expect(await effectMessages("import { Schema } from 'effect';", filePath)).toEqual([

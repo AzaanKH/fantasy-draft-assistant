@@ -23,7 +23,7 @@ export function compareBaseline(actual, baseline, directories) {
       const count = current[rule] ?? 0;
       const allowed = saved?.counts[rule] ?? 0;
       if (count > allowed) {
-        failures.push(`${file}: ${rule} rose from ${allowed} to ${count}. Fix the new violation; use a shared decoder or public package export as applicable. For fetch, use the shared HTTP runner (unit 8) or add to the baseline only with a reason.`);
+        failures.push(`${file}: ${rule} rose from ${allowed} to ${count}. Fix the new violation; use a shared decoder or public package export as applicable.`);
       } else if (count < allowed) {
         failures.push(`${file}: ${rule} baseline is stale (${allowed} saved, ${count} found). Lower or remove this entry in eslint-baseline.json.`);
       }

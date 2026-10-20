@@ -41,7 +41,7 @@ These counts cover the four converted workspaces, from `main` to the end of the 
 | Declarative timeouts | 0 → 3 | 0 → 5 | 0 → 1 | 0 → 1 |
 | Tagged error classes | 0 → 2 | 0 → 3 | 0 → 2 | 0 → 1 |
 
-Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. The CLI and scripts each read HTTP bodies with an explicit reader that cancels on abort, which accounts for some of the remaining `try` blocks and signal handling. The remaining extension timers belong to the content scripts, which were left alone on purpose.
+Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. These historical counts precede unit 8. HTTP bodies now run through the Effect-free `@fantasy-draft/shared/http` runner. The CLI and script adapters preserve their Effect error channels and pass interruption signals to that runner. The remaining extension timers belong to the content scripts, which were left alone on purpose.
 
 ## Runtime cost
 

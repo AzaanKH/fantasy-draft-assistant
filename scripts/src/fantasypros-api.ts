@@ -310,11 +310,13 @@ function fetchFantasyProsJson<T>(
       url.searchParams.set(key, String(value));
     }
   }
-  return fetchJson(url, {
+  return fetchJson(url, decode, {
     label: 'FantasyPros API',
     timeoutMs: FANTASYPROS_REQUEST_TIMEOUT_MS,
     headers: { 'x-api-key': apiKey, accept: 'application/json' },
-  }).pipe(Effect.flatMap(value => parsePayload(path, () => decode(value))));
+  }, cause => new FantasyProsPayloadError({
+    message: `FantasyPros returned an unexpected ${path} payload: ${cause instanceof Error ? cause.message : String(cause)}`, cause,
+  }));
 }
 
 const fetchFantasyProsPlayerIndex = (apiKey: string) => fetchFantasyProsJson(

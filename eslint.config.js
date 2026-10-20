@@ -62,6 +62,11 @@ export default tseslint.config(
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['**/*.test.{ts,tsx,mjs}'],
+    rules: { 'agent/no-bare-fetch': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
     ignores: effectOwners,
     rules: {
       'no-restricted-imports': ['error', { patterns: [{ group: ['effect', 'effect/*'], message: effectBoundaryMessage }] }],
@@ -96,7 +101,6 @@ export default tseslint.config(
     plugins: { agent: agentRules },
     rules: {
       'agent/no-json-cast': 'error',
-      'agent/no-bare-fetch': 'error',
       'agent/no-cross-package-import': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
     },

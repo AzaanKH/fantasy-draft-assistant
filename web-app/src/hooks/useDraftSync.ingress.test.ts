@@ -80,7 +80,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     onmessage: null as ((event: MessageEvent<string>) => void) | null,
   };
   const eventSource = vi.fn(function () { return stream; });
-  const fetcher = vi.fn();
+  const fetcher = vi.fn<typeof fetch>();
   beforeEach(() => {
     mocks.effects.length = 0;
     mocks.states.length = 0;
@@ -89,7 +89,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     mocks.query.mockReset().mockReturnValue({ data: mocks.snapshot });
     stream.onmessage = null;
     eventSource.mockClear();
-    fetcher.mockReset().mockResolvedValue({ ok: true, json: async () => mocks.snapshot });
+    fetcher.mockReset().mockImplementation(async () => Response.json(mocks.snapshot));
     vi.stubGlobal('window', { setInterval: vi.fn(), clearInterval: vi.fn() });
     vi.stubGlobal('EventSource', eventSource);
     vi.stubGlobal('fetch', fetcher);
@@ -204,14 +204,15 @@ describe('Sleeper sync ingress and reconciliation', () => {
   });
 
   it('preserves newer streamed picks when a delayed refresh arrives before heartbeats', async () => {
-    let finishRefresh!: (response: unknown) => void;
+    let finishRefresh!: (response: Response) => void;
     fetcher.mockImplementationOnce(() => new Promise((resolve) => { finishRefresh = resolve; }));
     const { result, cleanup } = renderDraft('Draft_1-abc');
     try {
       const pending = result.refresh();
+      await vi.waitFor(() => { expect(fetcher).toHaveBeenCalledTimes(1); });
       sendUpdate({ type: 'snapshot', snapshot: newerSnapshot });
       expect(liveSnapshot().picks).toHaveLength(1);
-      finishRefresh({ ok: true, json: async () => mocks.snapshot });
+      finishRefresh(Response.json(mocks.snapshot));
       await pending;
 
       expect(liveSnapshot()).toEqual(newerSnapshot);
@@ -232,7 +233,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     try {
       sendUpdate({ type: 'snapshot', snapshot: newerSnapshot });
       const corrected = { ...newerSnapshot, picks: [], lastPolledAt: 300, lastSuccessfulSyncAt: 300 };
-      fetcher.mockResolvedValueOnce({ ok: true, json: async () => corrected });
+      fetcher.mockResolvedValueOnce(Response.json(corrected));
       await result.refresh();
       expect(liveSnapshot()).toEqual(corrected);
       expect(mocks.queryClient?.getQueryData(queryKey)).toEqual(corrected);
@@ -246,7 +247,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     try {
       const failed = { ...newerSnapshot, status: 'error', lastPolledAt: 300, lastError: 'Unavailable' };
       sendUpdate({ type: 'status', snapshot: failed });
-      fetcher.mockResolvedValueOnce({ ok: true, json: async () => newerSnapshot });
+      fetcher.mockResolvedValueOnce(Response.json(newerSnapshot));
       await result.refresh();
       expect(liveSnapshot()).toEqual(failed);
       expect(mocks.queryClient?.getQueryData(queryKey)).toEqual(failed);
@@ -274,9 +275,12 @@ describe('Sleeper sync ingress and reconciliation', () => {
     expect(options.enabled).toBe(true);
     await options.queryFn();
     await result.refresh();
-    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc');
+    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc',
+      expect.anything());
     expect(eventSource).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc/events');
-    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc/refresh', { method: 'POST' });
+    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc/refresh',
+      expect.objectContaining({ method: 'POST' }));
+    expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
     cleanup();
   });
 });

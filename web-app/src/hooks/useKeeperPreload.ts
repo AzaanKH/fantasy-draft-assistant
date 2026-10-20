@@ -1,3 +1,4 @@
+import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Player, Position } from '@fantasy-draft/shared/league';
@@ -13,13 +14,10 @@ import { decodeKeeperFile, type KeeperFile } from '@fantasy-draft/shared/catalog
 export type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 
 async function fetchCurrentKeepers(): Promise<KeeperFile> {
-  const response = await fetch('/api/draft-data/current-keepers');
-  if (!response.ok) {
-    throw new Error(`Failed to load current keepers: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  try { return decodeKeeperFile(parsed); }
-  catch (error) { throw new Error('Invalid current keeper data format: ' + String(error)); }
+  return requestJson('/api/draft-data/current-keepers', parsed => {
+    try { return decodeKeeperFile(parsed); }
+    catch (error) { throw new Error('Invalid current keeper data format: ' + String(error)); }
+  }, 'Failed to load current keepers');
 }
 
 function getKeeperKey(name: string, position: Position): string {

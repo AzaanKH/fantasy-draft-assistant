@@ -3,6 +3,7 @@
  * real app with the checked-in data. It starts its own Vite dev server and never
  * contacts a draft provider. Usage: `pnpm browser:gate` (needs `playwright install chromium`).
  */
+import { http, HttpError } from '@fantasy-draft/shared/http';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createConnection } from 'node:net';
 import path from 'node:path';
@@ -203,10 +204,10 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
 
 const isListening = async (): Promise<boolean> => {
   try {
-    await fetch(ORIGIN);
+    await http.text(ORIGIN, { timeoutMs: 20_000, retries: 0, retryAfter: true });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    return error instanceof HttpError && error.kind === 'status';
   }
 };
 

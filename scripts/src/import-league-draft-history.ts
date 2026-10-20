@@ -224,15 +224,10 @@ const USER_2024_PICK_OVERRIDES: readonly LeagueDraftPickOverride[] = [
 
 function sleeperRequest<T>(path: string, decode: (value: unknown) => T): Effect.Effect<T, HttpRequestError> {
   const url = `${SLEEPER_API_BASE}${path}`;
-  return fetchJson(url, { label: 'Sleeper', timeoutMs: FETCH_TIMEOUT_MS }).pipe(
-    Effect.flatMap(value => Effect.try({
-      try: () => decode(value),
-      catch: error => new HttpRequestError({
-        message: `Sleeper response did not match expected shape for ${url}: ${String(error)}`,
-        url,
-      }),
-    })),
-  );
+  return fetchJson(url, decode, { label: 'Sleeper', timeoutMs: FETCH_TIMEOUT_MS }, error => new HttpRequestError({
+    message: `Sleeper response did not match expected shape for ${url}: ${String(error)}`,
+    url,
+  }));
 }
 
 async function writeJson(path: string, data: unknown): Promise<void> {

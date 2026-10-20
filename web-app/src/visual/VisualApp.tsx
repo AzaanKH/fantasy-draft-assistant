@@ -1,3 +1,4 @@
+import { DraftDataRefreshRequestContext } from '@/hooks/useDraftDataRefresh';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -311,19 +312,6 @@ function visualRefreshStatus(state: VisualRefreshState): DraftDataRefreshStatus 
   };
 }
 
-/**
- * Answers the refresh API with a fixed status, so readiness fixtures show the refresh
- * action and its progress without reaching the local server or running a refresh.
- */
-function installVisualRefreshApi(state: VisualRefreshState): void {
-  const realFetch = window.fetch.bind(window);
-  window.fetch = (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (new URL(url, window.location.href).pathname !== '/api/draft-data/refresh') return realFetch(input, init);
-    return Promise.resolve(Response.json(visualRefreshStatus(state)));
-  };
-}
-
 export type VisualRoute =
   | { readonly screen: 'header'; readonly state: 'draft' | 'assistant' }
   | { readonly screen: 'board'; readonly state: 'mid-draft' }
@@ -475,7 +463,10 @@ export function VisualApp(): React.ReactElement {
     () => getVisualRoute(window.location.pathname, window.location.search),
     []
   );
-  React.useState(() => { installVisualRefreshApi(route.screen === 'readiness' ? route.refresh : 'idle'); });
+  const requestRefreshStatus = React.useCallback(
+    () => Promise.resolve(visualRefreshStatus(route.screen === 'readiness' ? route.refresh : 'idle')),
+    [route]
+  );
   const [queryClient] = React.useState(() => {
     const client = new QueryClient({
       defaultOptions: {
@@ -492,22 +483,24 @@ export function VisualApp(): React.ReactElement {
   return (
     <ThemeProvider initialTheme="light" persist={false}>
       <QueryClientProvider client={queryClient}>
-        <DraftStoreProvider store={draftStore}>
-          <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
-            <NotificationProvider>
-              <TooltipProvider><MotionProvider>
-                <LiveDraftSyncProvider connectionStore={connectionStore}>
-                  <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
-                    <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
-                      <VisualRouteContent route={route} />
-                    </div>
-                    <VisualReadySignal />
-                  </DraftDecisionProvider>
-                </LiveDraftSyncProvider>
-              </MotionProvider></TooltipProvider>
-            </NotificationProvider>
-          </PlayerDataFixtureProvider>
-        </DraftStoreProvider>
+        <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
+          <DraftStoreProvider store={draftStore}>
+            <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
+              <NotificationProvider>
+                <TooltipProvider><MotionProvider>
+                  <LiveDraftSyncProvider connectionStore={connectionStore}>
+                    <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                      <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
+                        <VisualRouteContent route={route} />
+                      </div>
+                      <VisualReadySignal />
+                    </DraftDecisionProvider>
+                  </LiveDraftSyncProvider>
+                </MotionProvider></TooltipProvider>
+              </NotificationProvider>
+            </PlayerDataFixtureProvider>
+          </DraftStoreProvider>
+        </DraftDataRefreshRequestContext.Provider>
       </QueryClientProvider>
     </ThemeProvider>
   );

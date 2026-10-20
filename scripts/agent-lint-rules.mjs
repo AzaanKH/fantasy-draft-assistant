@@ -8,7 +8,6 @@ const closedModules = { '@fantasy-draft/shared/draft': draftRosterExports };
 const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog, @fantasy-draft/shared/league or @fantasy-draft/shared/sync instead of casting JSON.parse() or response.json().';
 export const baselineRuleIds = [
   'agent/no-json-cast',
-  'agent/no-bare-fetch',
   'agent/no-cross-package-import',
   '@typescript-eslint/explicit-module-boundary-types',
 ];
@@ -26,7 +25,7 @@ export default {
         messages: {
           draftUrl: 'The temporary draft URL subpath is closed. Import draft URL contracts from @fantasy-draft/shared/sync.',
           closed: '{{name}} is closed on {{source}}. Import it from {{subpath}}.',
-          root: 'The shared root is closed. Choose @fantasy-draft/shared/league for players, positions, scoring and rosters; /draft for draft order and recommendations; /catalog for data and readiness; /sync for providers and draft URLs; /units for limits; /node for local process configuration.',
+          root: 'The shared root is closed. Choose @fantasy-draft/shared/league for players, positions, scoring and rosters; /draft for draft order and recommendations; /catalog for data and readiness; /sync for providers and draft URLs; /units for limits; /node for local process configuration; /http for HTTP requests.',
         },
       },
       create(context) {
@@ -109,12 +108,46 @@ export default {
     'no-bare-fetch': {
       meta: {
         type: 'problem', schema: [],
-        messages: { runner: 'Use the shared HTTP runner (unit 8) or add to the baseline only with a reason. Bare fetch has no shared timeout, body cancel, or retry policy.' },
+        messages: { runner: 'For HTTP requests, use @fantasy-draft/shared/http. Native fetch references are restricted to shared/src/http for shared timeout, body cancel, and retry policy.' },
       },
       create(context) {
+        if (path.relative(root, context.filename).replaceAll('\\', '/').startsWith('shared/src/http/')) return {};
+        const sourceCode = context.sourceCode;
+        function isGlobal(node, names) {
+          if (node?.type !== 'Identifier' || !names.includes(node.name)) return false;
+          let scope = sourceCode.getScope(node);
+          while (scope) {
+            const variable = scope.set.get(node.name);
+            if (variable) return variable.defs.length === 0;
+            scope = scope.upper;
+          }
+          return true;
+        }
+        function isGlobalObject(node) {
+          return isGlobal(node, ['globalThis', 'window']);
+        }
+        function propertyName(node) {
+          return !node.computed && node.key?.type === 'Identifier' ? node.key.name
+            : !node.computed && node.property?.type === 'Identifier' ? node.property.name
+              : staticModuleName(node.key ?? node.property);
+        }
         return {
-          "CallExpression[callee.type='Identifier'][callee.name='fetch']"(node) {
-            context.report({ node, messageId: 'runner' });
+          Identifier(node) {
+            if (node.parent.type === 'TSTypeQuery' || !isGlobal(node, ['fetch'])) return;
+            const reference = sourceCode.getScope(node).references.find(reference => reference.identifier === node);
+            if (reference?.isValueReference) context.report({ node, messageId: 'runner' });
+          },
+          MemberExpression(node) {
+            if (isGlobalObject(node.object) && propertyName(node) === 'fetch') {
+              context.report({ node, messageId: 'runner' });
+            }
+          },
+          Property(node) {
+            if (node.parent.type !== 'ObjectPattern' || propertyName(node) !== 'fetch') return;
+            const owner = node.parent.parent;
+            const source = owner.type === 'VariableDeclarator' ? owner.init
+              : owner.type === 'AssignmentExpression' ? owner.right : undefined;
+            if (isGlobalObject(source)) context.report({ node, messageId: 'runner' });
           },
         };
       },
