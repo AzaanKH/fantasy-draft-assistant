@@ -11,17 +11,17 @@ export interface LoadedArtifact {
   readonly validationError?: string;
 }
 
-const decodeRecord = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown));
-const hasPredictionScore = Schema.is(Schema.Struct({ projectedPoints: Schema.Finite }));
-const hasContractContext = Schema.is(Schema.Struct({
+const decodeRecord = /* @__PURE__ */ Schema.decodeUnknownSync(/* @__PURE__ */ Schema.Record(Schema.String, Schema.Unknown));
+const hasPredictionScore = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Struct({ projectedPoints: Schema.Finite }));
+const hasContractContext = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Struct({
   name: Schema.String, position: Schema.String, isContractYear: Schema.Boolean,
 }));
-const hasKeeperSupply = Schema.is(Schema.Struct({
+const hasKeeperSupply = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Struct({
   season: Schema.Finite,
-  keepers: Schema.Array(Schema.Struct({
-    playerName: Schema.String, position: Schema.Literals(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']),
-    team: Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 1 && value <= 10)),
-    round: Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 1)),
+  keepers: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Struct({
+    playerName: Schema.String, position: /* @__PURE__ */ Schema.Literals(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']),
+    team: /* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value) && value >= 1 && value <= 10)),
+    round: /* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value) && value >= 1)),
   })),
 }));
 
