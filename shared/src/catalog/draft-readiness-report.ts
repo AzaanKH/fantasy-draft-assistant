@@ -1,5 +1,6 @@
+import { Schema } from 'effect';
 import { CATALOG, catalogPath } from './manifest.js';
-import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile } from './decoders.js';
+import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile, decodeOrNull } from './decoders.js';
 import { evaluateDraftReadiness, formatDraftReadinessTimestamp, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
 
 
@@ -10,11 +11,19 @@ export interface LoadedArtifact {
   readonly validationError?: string;
 }
 
-type JsonRecord = Readonly<Record<string, unknown>>;
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const decodeRecord = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown));
+const hasPredictionScore = Schema.is(Schema.Struct({ projectedPoints: Schema.Finite }));
+const hasContractContext = Schema.is(Schema.Struct({
+  name: Schema.String, position: Schema.String, isContractYear: Schema.Boolean,
+}));
+const hasKeeperSupply = Schema.is(Schema.Struct({
+  season: Schema.Finite,
+  keepers: Schema.Array(Schema.Struct({
+    playerName: Schema.String, position: Schema.Literals(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']),
+    team: Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 1 && value <= 10)),
+    round: Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 1)),
+  })),
+}));
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -23,8 +32,7 @@ function isFiniteNumber(value: unknown): value is number {
 function nested(value: unknown, ...keys: readonly string[]): unknown {
   let current = value;
   for (const key of keys) {
-    if (!isRecord(current)) return undefined;
-    current = current[key];
+    current = decodeOrNull(decodeRecord, current)?.[key];
   }
   return current;
 }
@@ -73,56 +81,26 @@ function observation(
 }
 
 function isPrimaryLeagueSettings(value: unknown, season: number): boolean {
-  if (!isRecord(value) || !isRecord(value['scoring'])) return false;
-  const scoring = value['scoring'];
-  return (
-    value['season'] === season &&
-    value['leagueName'] === 'Ummati Official' &&
-    value['totalTeams'] === 10 &&
-    value['totalRounds'] === 14 &&
-    (value['source'] === 'sleeper' || value['source'] === 'manual-confirmation') &&
-    scoring['passingTouchdown'] === 4 &&
-    scoring['reception'] === 1 &&
-    scoring['tightEndReceptionPremium'] === 0.5 &&
-    scoring['rushAttemptBonus'] === 0.2 &&
-    isRecord(value['roster']) &&
-    value['roster']['QB'] === 1 &&
-    value['roster']['RB'] === 2 &&
-    value['roster']['WR'] === 2 &&
-    value['roster']['TE'] === 1 &&
-    value['roster']['FLEX'] === 2 &&
-    value['roster']['K'] === 1 &&
-    value['roster']['DEF'] === 0 &&
-    value['roster']['BENCH'] === 5
-  );
+  const settings = decodeOrNull(decodePrimaryLeagueSettingsFile, value);
+  if (!settings) return false;
+  const { scoring, roster } = settings;
+  return settings.season === season && settings.leagueName === 'Ummati Official' &&
+    settings.totalTeams === 10 && settings.totalRounds === 14 &&
+    scoring.passingTouchdown === 4 && scoring.reception === 1 &&
+    scoring.tightEndReceptionPremium === 0.5 && scoring.rushAttemptBonus === 0.2 &&
+    roster.QB === 1 && roster.RB === 2 && roster.WR === 2 && roster.TE === 1 &&
+    roster.FLEX === 2 && roster.K === 1 && roster.DEF === 0 && roster.BENCH === 5;
 }
 
 export function areKeepersValid(value: unknown, season: number, totalRounds: unknown): boolean {
   if (!isFiniteNumber(totalRounds) || !Number.isInteger(totalRounds) || totalRounds < 1) return false;
-  if (!isRecord(value) || value['season'] !== season) return false;
-  const keepers = asArray(value['keepers']);
-  if (keepers.length !== 10) return false;
-
+  if (!hasKeeperSupply(value) || value.season !== season || value.keepers.length !== 10) return false;
   const playerKeys = new Set<string>();
   const pickKeys = new Set<string>();
-  for (const keeper of keepers) {
-    if (
-      !isRecord(keeper) ||
-      typeof keeper['playerName'] !== 'string' ||
-      !['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(String(keeper['position'])) ||
-      !Number.isInteger(keeper['team']) ||
-      !isFiniteNumber(keeper['team']) ||
-      keeper['team'] < 1 ||
-      keeper['team'] > 10 ||
-      !Number.isInteger(keeper['round']) ||
-      !isFiniteNumber(keeper['round']) ||
-      keeper['round'] < 1 ||
-      keeper['round'] > totalRounds
-    ) {
-      return false;
-    }
-    const playerKey = `${keeper['playerName'].trim().toLowerCase()}:${String(keeper['position'])}`;
-    const pickKey = `${String(keeper['team'])}:${String(keeper['round'])}`;
+  for (const keeper of value.keepers) {
+    if (keeper.round > totalRounds) return false;
+    const playerKey = `${keeper.playerName.trim().toLowerCase()}:${keeper.position}`;
+    const pickKey = `${String(keeper.team)}:${String(keeper.round)}`;
     if (playerKeys.has(playerKey) || pickKeys.has(pickKey)) return false;
     playerKeys.add(playerKey);
     pickKeys.add(pickKey);
@@ -242,9 +220,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
       timestamp(nested(predictions.value, 'generatedAt')),
       typeof nested(predictions.value, 'modelVersion') === 'string' &&
         predictionRows.length >= 800 &&
-        predictionRows.every((player) =>
-          isRecord(player) && isFiniteNumber(player['projectedPoints'])
-        ),
+        predictionRows.every(hasPredictionScore),
       'The experimental prediction rows or model version are invalid.',
       [
         { key: 'trusted-rankings', label: 'Trusted rankings', timestamp: rankingsTimestamp },
@@ -256,12 +232,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
       contracts,
       timestamp(nested(contracts.value, 'generatedAt')) ??
         timestamp(nested(contracts.value, 'scrapedAt')),
-      contractRows.length >= 50 && contractRows.every((player) =>
-        isRecord(player) &&
-        typeof player['name'] === 'string' &&
-        typeof player['position'] === 'string' &&
-        typeof player['isContractYear'] === 'boolean'
-      ),
+      contractRows.length >= 50 && contractRows.every(hasContractContext),
       'Expected at least 50 valid contract-context rows.'
     ),
     'sportsbook-context': observation(

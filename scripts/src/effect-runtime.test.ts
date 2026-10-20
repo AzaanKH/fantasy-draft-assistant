@@ -22,8 +22,8 @@ async function serve(handler: Handler) {
 
 afterEach(async () => { await Promise.all(servers.splice(0).map((stop) => stop())); });
 
-const run = <T>(url: string, timeoutMs = 2000) =>
-  Effect.runPromise(Effect.result(fetchJson<T>(url, { label: 'Test', timeoutMs })));
+const run = (url: string, timeoutMs = 2000) =>
+  Effect.runPromise(Effect.result(fetchJson(url, { label: 'Test', timeoutMs })));
 
 describe('fetchJson', () => {
   it('retries rate limits after the Retry-After delay, then succeeds', async () => {
@@ -32,7 +32,7 @@ describe('fetchJson', () => {
       else response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
     });
     const started = Date.now();
-    const result = await run<{ ok: boolean }>(server.url);
+    const result = await run(server.url);
     expect(result).toMatchObject({ _tag: 'Success', success: { ok: true } });
     expect(server.hits()).toBe(2);
     expect(Date.now() - started).toBeGreaterThanOrEqual(900);

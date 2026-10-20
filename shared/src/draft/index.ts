@@ -98,7 +98,7 @@ export {
   type DerivedDraft,
 } from '../derive-draft.js';
 
-export { DEFAULT_QUICK_MOCK, isQuickMockPreferences, createQuickMockSettings } from './quick-mock-settings.js';
+export { DEFAULT_QUICK_MOCK, createQuickMockSettings } from './quick-mock-settings.js';
 export type { QuickMockPreferences } from './quick-mock-settings.js';
 export { getNextOpenPickNumber, resolveDraftPickImports } from './draft-pick-imports.js';
 export type { DraftPickImportRejection, DraftPickImportResult } from './draft-pick-imports.js';
@@ -109,7 +109,6 @@ export { getKeeperAtPick, selectCpuPlayer, estimateMockSurvivalProbabilities, si
 export type { MockDraftPickLike, MockKeeperAssignment, MockLeagueHistoryModel, MockDraftEngineConfig, SelectCpuPlayerInput, CpuSelection, SimulatedMockPick } from './mock-draft-engine.js';
 export type { KeeperPreloadStatus } from './keeper-preload-status.js';
 
-export { isShadowRecommendationEvent } from '../shadow.js';
 export type { ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.js';
 export { optimizeLineupUtility } from '../lineup-utility.js';
 export type { LineupPlayer } from '../lineup-utility.js';

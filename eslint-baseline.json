@@ -2,20 +2,13 @@
   "cli/src/client.ts": {
     "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
     "counts": {
-      "agent/no-bare-fetch": 1,
-      "agent/no-json-cast": 1
+      "agent/no-bare-fetch": 1
     }
   },
   "cli/src/context.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 2
-    }
-  },
-  "cli/src/files.ts": {
-    "reason": "Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-json-cast": 1
     }
   },
   "cli/src/roster.ts": {
@@ -39,8 +32,7 @@
   "scripts/src/effect-runtime.ts": {
     "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
     "counts": {
-      "agent/no-bare-fetch": 1,
-      "agent/no-json-cast": 1
+      "agent/no-bare-fetch": 1
     }
   },
   "scripts/src/refresh-contracts.ts": {
@@ -49,16 +41,9 @@
       "agent/no-bare-fetch": 1
     }
   },
-  "server/src/shadow-logger.ts": {
-    "reason": "Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-json-cast": 1
-    }
-  },
   "server/src/sync-server.ts": {
     "reason": "Existing payloads migrate to shared decoders in the catalog units. Existing calls migrate to the shared HTTP runner in unit 8.",
     "counts": {
-      "agent/no-json-cast": 2,
       "agent/no-bare-fetch": 1
     }
   },

@@ -5,14 +5,11 @@ import { randomBytes } from 'node:crypto';
 import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
-  isMarketAdpFormat, CATALOG, catalogPath, decodeKeeperFile, decodeSportsbookSnapshot,
+  isMarketAdpFormat, CATALOG, catalogPath, decodeKeeperFile, decodeSportsbookSnapshot, decodeEspnDraftSnapshot, decodeShadowRecommendationEvent, decodeOrNull,
 } from '@fantasy-draft/shared/catalog';
 import {
-  isShadowRecommendationEvent,
-} from '@fantasy-draft/shared/draft';
-import {
   DraftSyncEngine,
-  isEspnDraftSnapshot,
+  isDraftProvider,
   type DraftMetadata,
   type DraftSessionSummary,
   type DraftPickEvent,
@@ -297,6 +294,7 @@ class DraftSession {
       );
 
       if (polled._tag === 'Failure') {
+        console.warn('[sync-server] Provider sync rejected', polled.failure.message);
         adapter.invalidateSettings?.();
         this.broadcast({
           type: 'status',
@@ -414,7 +412,8 @@ function parseDraftRoute(pathname: string): {
     return null;
   }
 
-  const provider = (providerMatch?.[1] ?? 'sleeper') as DraftProvider;
+  const provider = providerMatch?.[1] ?? 'sleeper';
+  if (!isDraftProvider(provider)) return null;
   const encodedDraftId = providerMatch?.[2] ?? legacyMatch?.[1];
   const action = providerMatch?.[3] ?? legacyMatch?.[2];
   if (!encodedDraftId) return null;
@@ -439,8 +438,10 @@ function readJsonBody(request: IncomingMessage): Effect.Effect<unknown, HttpErro
       try: async () => {
         const chunks: Buffer[] = [];
         let receivedBytes = 0;
-        for await (const chunk of request as AsyncIterable<Buffer | string>) {
-          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        for await (const chunk of request) {
+          const value: unknown = chunk;
+          if (!Buffer.isBuffer(value) && typeof value !== 'string') throw new Error('Invalid request body');
+          const buffer: Buffer = Buffer.isBuffer(value) ? value : Buffer.from(value);
           receivedBytes += buffer.length;
           if (receivedBytes > MAX_JSON_BODY_BYTES) throw new Error('Request body is too large');
           chunks.push(buffer);
@@ -451,17 +452,17 @@ function readJsonBody(request: IncomingMessage): Effect.Effect<unknown, HttpErro
     });
     if (!body) return yield* new HttpError(400, 'Request body is required');
     return yield* Effect.try({
-      try: () => JSON.parse(body) as unknown,
+      try: (): unknown => JSON.parse(body),
       catch: (error) => new HttpError(400, error instanceof Error ? error.message : 'Invalid request body'),
     });
   });
 }
 
-async function defaultFetchJson<T>(
+async function defaultFetchJson(
   url: string,
   signal: AbortSignal,
   init: RequestInit = {}
-): Promise<T> {
+): Promise<unknown> {
   const response = await fetch(url, { ...init, signal });
 
   if (!response.ok) {
@@ -477,7 +478,7 @@ async function defaultFetchJson<T>(
     throw new Error(`${provider} request failed: ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  return response.json();
 }
 
 /** Exposed for tests of provider request cleanup. */
@@ -681,8 +682,9 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     if (url.pathname === '/api/shadow-recommendations' && request.method === 'POST') {
-      const event = yield* readJsonBody(request);
-      if (!isShadowRecommendationEvent(event)) {
+      const event = decodeOrNull(decodeShadowRecommendationEvent, yield* readJsonBody(request));
+      if (!event) {
+        console.warn('[sync-server] Rejected invalid shadow recommendation event');
         sendJson(request, response, 400, { error: 'Invalid shadow recommendation event' }, allowedOrigins);
         return;
       }
@@ -739,13 +741,15 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         return;
       }
 
-      const payload = yield* readJsonBody(request);
-      if (!isEspnDraftSnapshot(payload)) {
+      const payload = decodeOrNull(decodeEspnDraftSnapshot, yield* readJsonBody(request));
+      if (!payload) {
+        console.warn('[sync-server] Rejected invalid ESPN draft snapshot');
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
       const espnPayload = payload;
       if (espnPayload.draft.draftId !== route.draftId) {
+        console.warn('[sync-server] Rejected ESPN draft snapshot for another session');
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
@@ -867,11 +871,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   };
   server.once('close', disposeSessions);
 
-  const syncServer = server as SyncServer;
-  syncServer.shutdown = (callback) => {
-    disposeSessions();
-    server.close(callback);
-  };
-
-  return syncServer;
+  return Object.assign(server, {
+    shutdown: (callback?: (error?: Error) => void) => {
+      disposeSessions();
+      server.close(callback);
+    },
+  });
 }

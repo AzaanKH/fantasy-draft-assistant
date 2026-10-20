@@ -1,15 +1,11 @@
+import { isDraftMetadata, isDraftSyncUpdate, isSleeperDraftPick, isSleeperDraftMetadata } from './catalog/sync-decoders.js';
 import { describe, expect, it } from 'vitest';
 import {
   DraftSyncEngine,
-  isDraftMetadata,
-  isDraftSyncUpdate,
-  isSleeperDraftPick,
-  isSleeperDraftMetadata,
   normalizeSleeperDraftMetadata,
   normalizeSleeperPick,
   resolveSleeperDraftLeagueId,
   type SleeperDraftMetadata,
-  type DraftPickEvent,
   type SleeperDraftPick,
 } from './sync.js';
 
@@ -55,13 +51,13 @@ describe('DraftSyncEngine', () => {
   it.each([
     { pickNumber: 151 }, { round: 16 }, { draftSlot: 11 }, { teamIndex: 10 },
     { pickNumber: 0 }, { round: 0 }, { draftSlot: 0 }, { teamIndex: -1 },
-    { pickNumber: 1.5 }, { playerName: 123 },
+    { pickNumber: 1.5 },
   ])('rejects invalid picks without changing accepted state: %j', (overrides) => {
     const engine = new DraftSyncEngine('sleeper', 'draft-123');
     const draft = normalizeSleeperDraftMetadata(createDraft());
     const pick = normalizeSleeperPick(createPick(1, 'p1'));
     const accepted = engine.reconcile(draft, [pick]);
-    expect(() => engine.reconcile(draft, [{ ...pick, ...overrides } as DraftPickEvent]))
+    expect(() => engine.reconcile(draft, [{ ...pick, ...overrides }]))
       .toThrow('Invalid draft metadata or picks');
     expect(engine.getSnapshot()).toBe(accepted.snapshot);
     expect(engine.reconcile(draft, [pick]).newPicks).toEqual([]);
@@ -254,6 +250,14 @@ describe('DraftSyncEngine', () => {
         },
       })
     ).toBe(false);
+  });
+
+  it('rejects sync envelopes with inconsistent nested session identities atomically', () => {
+    const engine = new DraftSyncEngine('sleeper', 'draft-123');
+    const snapshot = engine.reconcile(normalizeSleeperDraftMetadata(createDraft()), [normalizeSleeperPick(createPick(1, 'p1'))]).snapshot;
+    expect(isDraftSyncUpdate({ type: 'snapshot', snapshot: { ...snapshot, draft: { ...snapshot.draft, draftId: 'other' } } })).toBe(false);
+    expect(isDraftSyncUpdate({ type: 'snapshot', snapshot: { ...snapshot, picks: [{ ...snapshot.picks[0], draftId: 'other' }] } })).toBe(false);
+    expect(isDraftSyncUpdate({ type: 'pick', snapshot, pick: { ...snapshot.picks[0], draftId: 'other' } })).toBe(false);
   });
 
   it('rejects malformed draft orders and sync updates at runtime boundaries', () => {

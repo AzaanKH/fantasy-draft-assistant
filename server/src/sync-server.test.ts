@@ -1,3 +1,4 @@
+import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { describe, expect, it } from 'vitest';
 import { createServer as createHttpServer } from 'node:http';
 import { Effect } from 'effect';
@@ -12,7 +13,6 @@ import {
 } from './__fixtures__/sleeper-fixtures.js';
 import { createSyncServer as createServer, SLEEPER_API_BASE, syncServerInternals, type FetchJson } from './sync-server.js';
 import type {
-  DraftSyncSnapshot,
   DraftSyncUpdate,
   EspnDraftSnapshot,
 } from '@fantasy-draft/shared/sync';
@@ -32,17 +32,17 @@ function createSyncServer(options: Parameters<typeof createServer>[0] = {}) {
 }
 
 function createMockFetchJson(): FetchJson {
-  return async <T>(url: string): Promise<T> => {
+  return async (url: string): Promise<unknown> => {
     if (url === `${SLEEPER_API_BASE}/draft/fixture-draft`) {
-      return draftFixture as T;
+      return draftFixture;
     }
 
     if (url === `${SLEEPER_API_BASE}/draft/fixture-draft/picks`) {
-      return picksFixture as T;
+      return picksFixture;
     }
 
     if (url === `${SLEEPER_API_BASE}/league/fixture-league`) {
-      return leagueFixture as T;
+      return leagueFixture;
     }
 
     throw new Error(`Unexpected URL: ${url}`);
@@ -50,25 +50,25 @@ function createMockFetchJson(): FetchJson {
 }
 
 function createYahooMockFetchJson(): FetchJson {
-  return async <T>(url: string): Promise<T> => {
+  return async (url: string): Promise<unknown> => {
     if (
       url ===
       `${YAHOO_PUBLIC_API_BASE}/settings/nfl/7428778?format=rawjson`
     ) {
-      return yahooSettingsFixture as T;
+      return yahooSettingsFixture;
     }
     if (
       url ===
       `${YAHOO_PUBLIC_API_BASE}/players/nfl/7428778?images=0&projected=0&average=0&format=rawjson`
     ) {
-      return yahooPlayersFixture as T;
+      return yahooPlayersFixture;
     }
     if (
       url.startsWith(
         `${YAHOO_PUBLIC_READ_API_BASE}/league/999.l.7428778/draftresults?`
       )
     ) {
-      return yahooDraftResultsFixture as T;
+      return yahooDraftResultsFixture;
     }
     throw new Error(`Unexpected URL: ${url}`);
   };
@@ -78,9 +78,9 @@ describe('createSyncServer', () => {
   it('lists authenticated retained sessions without fetching providers or extending activity', async () => {
     const fixtureFetch = createMockFetchJson();
     let fetchCalls = 0;
-    const server = createSyncServer({ fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+    const server = createSyncServer({ fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> => {
       fetchCalls += 1;
-      return fixtureFetch<T>(url, signal);
+      return fixtureFetch(url, signal);
     } });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as AddressInfo;
@@ -111,9 +111,9 @@ describe('createSyncServer', () => {
     let fetchCalls = 0;
     const fixtureFetch = createMockFetchJson();
     const server = createSyncServer({ sessionStaleAfterMs: 1,
-      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+      fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> => {
         fetchCalls += 1;
-        return fixtureFetch<T>(url, signal);
+        return fixtureFetch(url, signal);
       } });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as AddressInfo;
@@ -161,9 +161,9 @@ describe('createSyncServer', () => {
   it('revalidates league settings on explicit refresh even within the cache TTL', async () => {
     let settingsRequests = 0;
     const fixtureFetch = createMockFetchJson();
-    const server = createSyncServer({ fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+    const server = createSyncServer({ fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> => {
       if (url.includes('/league/')) settingsRequests += 1;
-      return fixtureFetch<T>(url, signal);
+      return fixtureFetch(url, signal);
     } });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as AddressInfo;
@@ -199,7 +199,7 @@ describe('createSyncServer', () => {
       });
       expect(response.ok).toBe(true);
 
-      const snapshot = (await response.json()) as DraftSyncSnapshot;
+      const snapshot = decodeDraftSyncSnapshot(await response.json());
 
       expect(snapshot.provider).toBe('sleeper');
       expect(snapshot.draft?.providerKey).toBe(draftFixture.draft_id);
@@ -238,10 +238,10 @@ describe('createSyncServer', () => {
     const fixtureFetch = createMockFetchJson();
     const server = createSyncServer({
       pollIntervalMs: 1_000,
-      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> =>
+      fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> =>
         url.endsWith('/fixture-draft/picks')
-          ? providerPicks as T
-          : fixtureFetch<T>(url, signal),
+          ? providerPicks
+          : fixtureFetch(url, signal),
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as AddressInfo;
@@ -267,7 +267,7 @@ describe('createSyncServer', () => {
             const event = pending.slice(0, end);
             pending = pending.slice(end + 2);
             const data = event.split('\n').find((line) => line.startsWith('data: '));
-            if (data) return JSON.parse(data.slice(6)) as DraftSyncUpdate;
+            if (data) return decodeDraftSyncUpdate(JSON.parse(data.slice(6)));
           }
           const chunk = await reader.read();
           if (chunk.done) throw new Error('Draft event stream closed');
@@ -329,7 +329,7 @@ describe('createSyncServer', () => {
       );
       expect(response.ok).toBe(true);
 
-      const snapshot = (await response.json()) as DraftSyncSnapshot;
+      const snapshot = decodeDraftSyncSnapshot(await response.json());
       expect(snapshot.provider).toBe('yahoo');
       expect(snapshot.draft?.providerKey).toBe('999.l.7428778');
       expect(snapshot.picks).toHaveLength(2);
@@ -403,7 +403,7 @@ describe('createSyncServer', () => {
       expect(published.headers.get('access-control-allow-origin')).toBe(
         extensionOrigin
       );
-      expect((await published.json()) as DraftSyncSnapshot).toMatchObject({
+      expect(decodeDraftSyncSnapshot(await published.json())).toMatchObject({
         provider: 'espn',
         status: 'synced',
         picks: [{ playerId: '4429795', pickNumber: 1 }],
@@ -415,14 +415,14 @@ describe('createSyncServer', () => {
 
       const undone = await publish([], now + 1);
       expect(undone.ok).toBe(true);
-      expect(((await undone.json()) as DraftSyncSnapshot).picks).toHaveLength(0);
+      expect(decodeDraftSyncSnapshot(await undone.json()).picks).toHaveLength(0);
 
       const read = await fetch(
         `http://127.0.0.1:${port}/api/sync/espn/drafts/4242`,
         { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
       );
       expect(read.ok).toBe(true);
-      expect(((await read.json()) as DraftSyncSnapshot).picks).toHaveLength(0);
+      expect(decodeDraftSyncSnapshot(await read.json()).picks).toHaveLength(0);
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.shutdown((error?: Error) => {
@@ -552,9 +552,9 @@ describe('createSyncServer', () => {
   it('rejects unconfigured extension origins before fetching Sleeper', async () => {
     let fetchCalls = 0;
     const server = createSyncServer({
-      fetchJson: async <T>(): Promise<T> => {
+      fetchJson: async (): Promise<unknown> => {
         fetchCalls += 1;
-        return draftFixture as T;
+        return draftFixture;
       },
     });
 
@@ -611,9 +611,9 @@ describe('createSyncServer', () => {
     const baseFetch = createMockFetchJson();
     let freshFetchCalls = 0;
     const freshServer = createSyncServer({
-      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+      fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> => {
         freshFetchCalls += 1;
-        return baseFetch<T>(url, signal);
+        return baseFetch(url, signal);
       },
       sessionStaleAfterMs: 60_000,
     });
@@ -639,9 +639,9 @@ describe('createSyncServer', () => {
 
     let staleFetchCalls = 0;
     const staleServer = createSyncServer({
-      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+      fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> => {
         staleFetchCalls += 1;
-        return baseFetch<T>(url, signal);
+        return baseFetch(url, signal);
       },
       sessionStaleAfterMs: 1,
     });
@@ -673,11 +673,11 @@ describe('createSyncServer', () => {
     let leagueLookups = 0;
     const server = createSyncServer({
       pollIntervalMs: 60_000,
-      fetchJson: async <T>(url: string, signal: AbortSignal): Promise<T> => {
+      fetchJson: async (url: string, signal: AbortSignal): Promise<unknown> => {
         if (url.endsWith('/draft/fixture-draft')) draftPolls += 1;
         if (url.includes('/league/')) leagueLookups += 1;
         await new Promise((resolve) => setTimeout(resolve, 50));
-        return fixtureFetch<T>(url, signal);
+        return fixtureFetch(url, signal);
       },
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -703,7 +703,7 @@ describe('createSyncServer', () => {
   it('times out stalled Sleeper requests and clears the sync state', async () => {
     const server = createSyncServer({
       requestTimeoutMs: 5,
-      fetchJson: <T>(_url: string, signal: AbortSignal) => new Promise<T>((_resolve, reject) => {
+      fetchJson: (_url: string, signal: AbortSignal) => new Promise<unknown>((_resolve, reject) => {
         signal.addEventListener('abort', () => { reject(new Error('Sleeper request timed out')); });
       }),
     });
@@ -715,7 +715,7 @@ describe('createSyncServer', () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
         headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
       });
-      const snapshot = (await response.json()) as DraftSyncSnapshot;
+      const snapshot = decodeDraftSyncSnapshot(await response.json());
 
       expect(snapshot.status).toBe('error');
       expect(snapshot.lastError).toBe('Sleeper request timed out');

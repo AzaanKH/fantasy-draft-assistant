@@ -1,3 +1,4 @@
+import { decodeResidualTrainingRows, decodePredictionOutputRows, decodeDuckDbTableCounts } from './script-file-schemas.js';
 /**
  * Builds the model-ready fantasy football datasets from historical sources.
  *
@@ -37,38 +38,6 @@ import {
   type PositionResidualRow,
 } from './model/position-residual-model.js';
 import { io, runMain } from './effect-runtime.js';
-
-interface CountRow {
-  readonly table_name: string;
-  readonly row_count: bigint;
-}
-
-interface PredictionRow {
-  readonly player_id: string | bigint;
-  readonly player_name: string;
-  readonly position: string;
-  readonly team: string;
-  readonly base_projected_points: number | bigint;
-  readonly usage_efficiency_adjustment: number | bigint;
-  readonly custom_scoring_adjustment: number | bigint;
-  readonly projected_points: number | bigint;
-  readonly floor_projected_points: number | bigint;
-  readonly ceiling_projected_points: number | bigint;
-  readonly position_percentile: number | bigint;
-  readonly value_over_replacement: number | bigint;
-  readonly ceiling_score: number | bigint;
-  readonly floor_score: number | bigint;
-  readonly uncertainty_score: number | bigint;
-  readonly injury_risk_score: number | bigint;
-  readonly model_family: string;
-}
-
-interface ResidualTrainingDbRow {
-  readonly season: number | bigint;
-  readonly position: string;
-  readonly target_residual: number | bigint;
-  readonly [featureName: string]: string | number | bigint | null;
-}
 
 const SOURCE_RESPONSIBILITIES = {
   nflverse: [
@@ -1276,16 +1245,15 @@ const program = Effect.gen(function* () {
       where row_number = 1
         and shared_projection is not null
     `);
-    const residualDbRows = residualReader.getRowObjects() as unknown as ResidualTrainingDbRow[];
+    const residualDbRows = decodeResidualTrainingRows(residualReader.getRowObjects());
     const residualRows: PositionResidualRow[] = residualDbRows.flatMap((row) => {
-      if (!OFFENSIVE_POSITIONS.includes(row.position as OffensivePosition)) return [];
       const features = Object.fromEntries(residualFeatureNames.map((featureName) => {
         const value = row[featureName];
         return [featureName, value === null || value === undefined ? null : Number(value)];
       }));
       return [{
         season: Number(row.season),
-        position: row.position as OffensivePosition,
+        position: row.position,
         targetResidual: Number(row.target_residual),
         playerVolume: row.trailing_player_volume_3yr === null ||
             row.trailing_player_volume_3yr === undefined
@@ -1674,7 +1642,7 @@ const program = Effect.gen(function* () {
       order by projected_points desc
     `);
 
-    const predictionRows = predictionReader.getRowObjects() as unknown as PredictionRow[];
+    const predictionRows = decodePredictionOutputRows(predictionReader.getRowObjects());
     await writeFile(
       MODEL_PATHS.predictionsJson,
       `${JSON.stringify(
@@ -1736,7 +1704,7 @@ const program = Effect.gen(function* () {
       union all select 'model.league_history_survival_training_dataset', count(*) from model.league_history_survival_training_dataset
       union all select 'model.draft_pick_trade_grader_features', count(*) from model.draft_pick_trade_grader_features
     `);
-    const counts = (countReader.getRowObjects() as unknown as CountRow[]).map((row) => ({
+    const counts = decodeDuckDbTableCounts(countReader.getRowObjects()).map((row) => ({
       tableName: row.table_name,
       rowCount: Number(row.row_count),
     }));

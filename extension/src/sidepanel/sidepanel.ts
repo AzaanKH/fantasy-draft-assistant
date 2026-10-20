@@ -6,14 +6,16 @@
  * logic, and theme preferences stay identical across both surfaces.
  */
 
+import { decodeOrNull } from '@fantasy-draft/shared/catalog';
+import { decodeExtensionMessage, decodeExtensionStateResponse, decodeStoredDraftSlot, decodeStoredString } from '../shared/boundary-decoders';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { localWebAppBase } from '../shared/local-urls';
 import {
   DEFAULT_WEB_APP_URL,
   STORAGE_KEYS,
-  isExtensionMessage,
-  isExtensionState,
   type DraftRoomStatus,
+  type ExtensionState,
+  type ExtensionMessage,
 } from '../shared/types';
 
 const frame = document.getElementById('sidepanel-frame') as HTMLIFrameElement;
@@ -29,10 +31,6 @@ let syncSnapshot: DraftSyncSnapshot | null = null;
 let webAppUrl = DEFAULT_WEB_APP_URL;
 let currentFrameUrl = '';
 let loadTimeout: number | null = null;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function getDraftContextUrl(pathname: '/sidepanel' | '/draft'): string {
   const url = new URL(webAppUrl);
@@ -94,8 +92,8 @@ async function readExtensionState(): Promise<void> {
     STORAGE_KEYS.SYNC_TOKEN,
   ]);
   pairingState.hidden = Boolean(stored[STORAGE_KEYS.SYNC_TOKEN]);
-  const storedWebAppUrl: unknown = stored[STORAGE_KEYS.WEB_APP_URL];
-  if (typeof storedWebAppUrl === 'string') {
+  const storedWebAppUrl = decodeOrNull(decodeStoredString, stored[STORAGE_KEYS.WEB_APP_URL]);
+  if (storedWebAppUrl !== null) {
     try {
       webAppUrl = localWebAppBase(storedWebAppUrl);
     } catch {
@@ -103,22 +101,15 @@ async function readExtensionState(): Promise<void> {
     }
   }
 
-  const storedPosition: unknown = stored[STORAGE_KEYS.MY_PICK_POSITION];
-  if (
-    typeof storedPosition === 'number' &&
-    Number.isInteger(storedPosition) &&
-    storedPosition >= 1
-  ) {
-    draftStatus = { ...draftStatus, myDraftSlot: storedPosition };
-  }
+  const storedPosition = decodeOrNull(decodeStoredDraftSlot, stored[STORAGE_KEYS.MY_PICK_POSITION]);
+  if (storedPosition !== null) draftStatus = { ...draftStatus, myDraftSlot: storedPosition };
 
   const response: unknown = await chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' });
-  const data = isRecord(response) &&
-    response['success'] === true &&
-    isExtensionState(response['data'])
-    ? response['data']
-    : null;
-  if (!data) return;
+  let data: ExtensionState;
+  try { data = decodeExtensionStateResponse(response).data; } catch (error) {
+    console.warn('[Fantasy Draft] Rejected background draft state:', error);
+    return;
+  }
 
   draftStatus = data.status;
   if ('snapshot' in data) {
@@ -126,13 +117,15 @@ async function readExtensionState(): Promise<void> {
   }
 }
 
-function handleMessage(message: unknown): void {
-  if (!isExtensionMessage(message) || message.type !== 'SYNC_STATE') return;
-
-  draftStatus = message.data.status;
-  if ('snapshot' in message.data) {
-    syncSnapshot = message.data.snapshot ?? null;
+function handleMessage(value: unknown): void {
+  let message: ExtensionMessage;
+  try { message = decodeExtensionMessage(value); } catch (error) {
+    console.warn('[Fantasy Draft] Rejected extension message:', error);
+    return;
   }
+  if (message.type !== 'SYNC_STATE') return;
+  draftStatus = message.data.status;
+  if ('snapshot' in message.data) syncSnapshot = message.data.snapshot ?? null;
   loadSidePanel();
 }
 

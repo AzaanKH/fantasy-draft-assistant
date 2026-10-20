@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Stream } from 'effect';
-import { decodeMarketAdpSnapshot, type MarketAdpPlayer } from '@fantasy-draft/shared/catalog';
-import { isDraftSyncSnapshot, isDraftSyncUpdate, isDraftSessionSummary, type DraftSessionSummary, type DraftSyncSnapshot, type DraftSyncUpdate } from '@fantasy-draft/shared/sync';
+import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate, decodeDraftSessionList, decodeMarketAdpSnapshot, type MarketAdpPlayer } from '@fantasy-draft/shared/catalog';
+import { type DraftSessionSummary, type DraftSyncSnapshot, type DraftSyncUpdate } from '@fantasy-draft/shared/sync';
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
 import type { SessionId } from './arguments';
 import { CliError, unexpected } from './errors';
@@ -35,9 +35,9 @@ function decodeSseText(state: SseState, text: string): readonly [SseState, reado
       if (data.length > 0) {
         let event: unknown;
         try { event = JSON.parse(data.join('\n')); }
-        catch { throw new CliError('INVALID_STREAM', 'The server sent an invalid JSON draft event.'); }
-        if (!isDraftSyncUpdate(event)) throw new CliError('INVALID_STREAM', 'The server sent an invalid draft update.');
-        events.push(event);
+        catch { console.warn('[draft-client] Rejected invalid JSON draft event'); throw new CliError('INVALID_STREAM', 'The server sent an invalid JSON draft event.'); }
+        try { events.push(decodeDraftSyncUpdate(event)); }
+        catch { console.warn('[draft-client] Rejected invalid draft update'); throw new CliError('INVALID_STREAM', 'The server sent an invalid draft update.'); }
       }
       data = [];
       frameSize = 0;
@@ -144,7 +144,7 @@ export class DraftClient {
       try: async signal => {
         const response = await this.send(path, method, signal);
         const text = await readBody(response, signal);
-        try { return JSON.parse(text) as unknown; }
+        try { const value: unknown = JSON.parse(text); return value; }
         catch { throw invalid; }
       },
       catch: asCliError,
@@ -153,20 +153,25 @@ export class DraftClient {
 
   snapshot(session: SessionId): Effect.Effect<DraftSyncSnapshot, CliError> {
     return this.json(`${this.route(session)}/refresh`, 'POST', this.timeouts.requestMs,
-      new CliError('INVALID_SNAPSHOT', 'The server sent an invalid JSON snapshot.')).pipe(Effect.flatMap(value =>
-      !isDraftSyncSnapshot(value) || value.provider !== session.provider || value.draftId !== session.draftId ||
-        (value.draft && (value.draft.provider !== session.provider || value.draft.draftId !== session.draftId))
-        ? Effect.fail(new CliError('INVALID_SNAPSHOT', 'The server snapshot does not match the requested session.'))
-        : Effect.succeed(value)));
+      new CliError('INVALID_SNAPSHOT', 'The server sent an invalid JSON snapshot.')).pipe(Effect.flatMap(value => Effect.try({
+        try: () => {
+          const snapshot = decodeDraftSyncSnapshot(value);
+          if (snapshot.provider !== session.provider || snapshot.draftId !== session.draftId) throw new Error('Session mismatch');
+          return snapshot;
+        },
+        catch: () => {
+          console.warn('[draft-client] Rejected invalid draft snapshot');
+          return new CliError('INVALID_SNAPSHOT', 'The server snapshot does not match the requested session.');
+        },
+      })));
   }
 
   sessions(): Effect.Effect<readonly DraftSessionSummary[], CliError> {
     const invalid = new CliError('INVALID_SESSIONS', 'The server sent an invalid session list.');
-    return this.json('/api/sync/sessions', 'GET', this.timeouts.requestMs, invalid).pipe(Effect.flatMap(value => {
-      const sessions = (value as { sessions?: unknown } | null)?.sessions;
-      return Array.isArray(sessions) && sessions.length <= 128 && sessions.every(isDraftSessionSummary)
-        ? Effect.succeed(sessions) : Effect.fail(invalid);
-    }));
+    return this.json('/api/sync/sessions', 'GET', this.timeouts.requestMs, invalid).pipe(Effect.flatMap(value => Effect.try({
+      try: () => decodeDraftSessionList(value).sessions,
+      catch: () => { console.warn('[draft-client] Rejected invalid session list'); return invalid; },
+    })));
   }
 
   marketAdp(settings: LeagueSettings, season: number): Effect.Effect<{
@@ -207,7 +212,7 @@ export class DraftClient {
         return identity.provider !== session.provider || identity.draftId !== session.draftId ||
           event.type !== 'heartbeat' && event.snapshot.draft !== null &&
           (event.snapshot.draft.provider !== session.provider || event.snapshot.draft.draftId !== session.draftId)
-          ? Effect.fail(new CliError('INVALID_STREAM', 'The event does not match the requested session.'))
+          ? Effect.sync(() => { console.warn('[draft-client] Rejected draft event for another session'); }).pipe(Effect.andThen(Effect.fail(new CliError('INVALID_STREAM', 'The event does not match the requested session.'))))
           : Effect.succeed(event);
       }),
     );

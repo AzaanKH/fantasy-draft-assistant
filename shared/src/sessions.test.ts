@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isDraftSessionSummary, type DraftSessionSummary } from './sessions.js';
+import { isDraftSessionSummary } from './catalog/sync-decoders.js';
+import type { DraftSessionSummary } from './sessions.js';
 
 const summary: DraftSessionSummary = {
   session: 'sleeper:draft-1',
@@ -48,6 +49,11 @@ describe('draft session summaries', () => {
     ['a non-finite activity time', { lastActivityAt: Number.POSITIVE_INFINITY }],
   ])('rejects %s', (_label, overrides) => {
     expect(isDraftSessionSummary({ ...summary, ...overrides })).toBe(false);
+  });
+
+  it('rejects sync-state values that only stringify to a valid state', () => {
+    expect(isDraftSessionSummary({ ...summary, sync: { ...summary.sync, state: ['synced'] } })).toBe(false);
+    expect(isDraftSessionSummary({ ...summary, sync: { ...summary.sync, state: { toString: () => 'synced' } } })).toBe(false);
   });
 
   it('validates the nested sync state', () => {

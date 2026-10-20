@@ -43,6 +43,8 @@ exports[`Sleeper sync ingress and reconciliation > keeps a restored journal thro
 ]
 `;
 
+exports[`Sleeper sync ingress and reconciliation > logs rejected SSE JSON, shape and session messages without publishing them > documented deriveDraft mismatches 1`] = `[]`;
+
 exports[`Sleeper sync ingress and reconciliation > preserves newer streamed picks when a delayed refresh arrives before heartbeats > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`Sleeper sync ingress and reconciliation > stores the provider draft type before reconciling keeper picks > documented deriveDraft mismatches 1`] = `[]`;

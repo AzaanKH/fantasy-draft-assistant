@@ -143,13 +143,13 @@ async function readBody(response: Response, signal: AbortSignal): Promise<string
 }
 
 /** GET JSON with a per-attempt timeout and a retry policy that honors Retry-After. */
-export function fetchJson<T>(url: string | URL, options: FetchJsonOptions): Effect.Effect<T, HttpRequestError> {
+export function fetchJson(url: string | URL, options: FetchJsonOptions): Effect.Effect<unknown, HttpRequestError> {
   const href = String(url);
   const failure = (message: string, details: { status?: number; retryAfterMs?: number } = {}) =>
     new HttpRequestError({ message, url: href, ...details });
   // The request and its body share one signal, so a timeout also cancels a stalled body.
   const attempt = Effect.tryPromise({
-    try: async (signal) => {
+    try: async (signal): Promise<unknown> => {
       let response: Response;
       try {
         response = await fetch(url, { headers: options.headers, signal });
@@ -164,7 +164,7 @@ export function fetchJson<T>(url: string | URL, options: FetchJsonOptions): Effe
         });
       }
       try {
-        return JSON.parse(body) as T;
+        return JSON.parse(body);
       } catch {
         throw failure(`${options.label} returned invalid JSON for ${href}`);
       }

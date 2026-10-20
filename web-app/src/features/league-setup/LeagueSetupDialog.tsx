@@ -1,3 +1,4 @@
+import { isQuickMockPreferences } from '@fantasy-draft/shared/catalog';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { IS_DEMO } from '@/lib/demo-mode';
-import { DEFAULT_QUICK_MOCK, isQuickMockPreferences } from '@fantasy-draft/shared/draft';
+import { DEFAULT_QUICK_MOCK } from '@fantasy-draft/shared/draft';
 import { useLeagueSetupStore, type LocalLeagueProfile } from '@/stores/leagueSetupStore';
 import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { useDraftStore } from '@/stores/draftStore';

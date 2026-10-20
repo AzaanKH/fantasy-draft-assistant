@@ -115,7 +115,7 @@ export class FantasyFootballCalculatorAdpProvider {
       if (cached && cached.expiresAt > now) return cached.snapshot;
 
       const url = `${FFC_API_BASE}/${format}?teams=${String(normalizedTeams)}&year=${String(normalizedSeason)}`;
-      const raw = yield* requestJson<unknown>(this.fetchJson, url);
+      const raw = yield* requestJson(this.fetchJson, url);
       const payload = yield* Effect.try({ try: () => decodeProviderEnvelope(raw), catch: () => new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' }) });
       const warnings: string[] = [];
 

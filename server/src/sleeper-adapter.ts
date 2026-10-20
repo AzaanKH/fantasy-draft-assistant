@@ -1,16 +1,12 @@
+import { decodeSleeperDraftMetadata, decodeSleeperDraftPickList } from '@fantasy-draft/shared/catalog';
 import {
-  isSleeperDraftMetadata,
-  isSleeperDraftPickList,
   normalizeSleeperDraftMetadata,
   resolveSleeperDraftLeagueId,
   normalizeSleeperPick,
-  type SleeperDraftMetadata,
-  type SleeperDraftPick,
 } from '@fantasy-draft/shared/sync';
 import {
   isSleeperLeague,
   normalizeSleeperLeagueSettings,
-  type SleeperLeague,
 } from '@fantasy-draft/shared/league';
 import { Effect } from 'effect';
 import {
@@ -46,18 +42,23 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
   public poll(): Effect.Effect<DraftAdapterSnapshot, ProviderError> {
     return Effect.gen({ self: this }, function* () {
       const [draftResponse, picksResponse] = yield* Effect.all([
-        requestJson<SleeperDraftMetadata>(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}`),
-        requestJson<SleeperDraftPick[]>(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}/picks`),
+        requestJson(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}`),
+        requestJson(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}/picks`),
       ], { concurrency: 'unbounded' });
 
-      if (
-        !isSleeperDraftMetadata(draftResponse) ||
-        !isSleeperDraftPickList(picksResponse)
-      ) {
+      const { draft, picks } = yield* Effect.try({
+        try: () => ({ draft: decodeSleeperDraftMetadata(draftResponse), picks: decodeSleeperDraftPickList(picksResponse) }),
+        catch: () => {
+          console.warn('[sleeper-adapter] Rejected invalid draft payload');
+          return new ProviderError({ message: 'Sleeper returned an invalid draft payload' });
+        },
+      });
+      if (draft.draft_id !== this.draftId || picks.some(pick => pick.draft_id !== this.draftId)) {
+        console.warn('[sleeper-adapter] Rejected draft payload for another session');
         return yield* new ProviderError({ message: 'Sleeper returned an invalid draft payload' });
       }
 
-      const leagueId = resolveSleeperDraftLeagueId(draftResponse);
+      const leagueId = resolveSleeperDraftLeagueId(draft);
       if (this.settingsCache?.leagueId !== leagueId) this.invalidateSettings();
       // League settings refine the draft, so a failed lookup still publishes picks.
       const leagueSettings = leagueId
@@ -65,8 +66,8 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
         : undefined;
 
       return {
-        draft: normalizeSleeperDraftMetadata(draftResponse, leagueSettings),
-        picks: picksResponse.map(normalizeSleeperPick),
+        draft: normalizeSleeperDraftMetadata(draft, leagueSettings),
+        picks: picks.map(normalizeSleeperPick),
       };
     });
   }
@@ -80,8 +81,9 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
       // Never fall back to expired settings when a verification request fails.
       this.settingsCache = undefined;
       const generation = this.settingsGeneration;
-      const leagueResponse = yield* requestJson<SleeperLeague>(this.fetchJson, `${SLEEPER_API_BASE}/league/${leagueId}`);
+      const leagueResponse = yield* requestJson(this.fetchJson, `${SLEEPER_API_BASE}/league/${leagueId}`);
       if (!isSleeperLeague(leagueResponse) || leagueResponse.league_id !== leagueId) {
+        console.warn('[sleeper-adapter] Rejected invalid league settings');
         return yield* new ProviderError({ message: 'Sleeper returned invalid league settings' });
       }
       const settings = normalizeSleeperLeagueSettings(leagueResponse);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { IS_DEMO } from '@/lib/demo-mode';
-import { isValidDraftSyncId } from '@/stores/draftSyncStore';
+import { isValidDraftSyncId } from '@fantasy-draft/shared/catalog';
 import {
   getDraftSyncConnectionState,
   getDraftSynchronizationState,

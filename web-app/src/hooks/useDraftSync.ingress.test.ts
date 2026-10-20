@@ -117,6 +117,18 @@ describe('Sleeper sync ingress and reconciliation', () => {
     return mocks.states[0] as DraftSyncSnapshot;
   }
 
+  it('logs rejected SSE JSON, shape and session messages without publishing them', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const mounted = renderDraft('Draft_1-abc');
+    stream.onmessage?.({ data: '{bad-json' } as MessageEvent<string>);
+    sendUpdate({ type: 'snapshot', snapshot: {} });
+    sendUpdate({ type: 'heartbeat', provider: 'yahoo', draftId: 'other', lastPolledAt: 200, lastSuccessfulSyncAt: 200 });
+    expect(warning).toHaveBeenCalledTimes(3);
+    expect(mocks.queryClient?.getQueryData(queryKey)).toBeUndefined();
+    mounted.cleanup();
+    warning.mockRestore();
+  });
+
   it('keeps a restored journal through a stale snapshot and reconciles it when only the heartbeat time changes', () => {
     const values = new Map<string, string>();
     const storage = {

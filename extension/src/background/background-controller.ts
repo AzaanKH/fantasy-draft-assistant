@@ -1,6 +1,5 @@
 import { Effect, Fiber } from 'effect';
 import {
-  isEspnDraftSnapshot,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
 } from '@fantasy-draft/shared/sync';
@@ -197,11 +196,6 @@ export function createBackgroundController(
       }
 
       case 'ESPN_DRAFT_SNAPSHOT': {
-        if (!isEspnDraftSnapshot(message.data)) {
-          sendResponse({ success: false, error: 'Invalid ESPN draft snapshot' });
-          break;
-        }
-
         const snapshot = attachEspnLeagueProfile(message.data);
 
         const requestedStatus: DraftRoomStatus = {

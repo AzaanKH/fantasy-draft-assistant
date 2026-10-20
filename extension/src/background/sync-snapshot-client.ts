@@ -1,6 +1,6 @@
 import { Data, Effect } from 'effect';
+import { decodeDraftSyncSnapshot } from '@fantasy-draft/shared/catalog';
 import {
-  isDraftSyncSnapshot,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
 } from '@fantasy-draft/shared/sync';
@@ -55,10 +55,9 @@ export function createSyncSnapshotClient(
         throw new Error(`Snapshot request failed: ${String(response.status)}`);
       }
       const parsed: unknown = await response.json();
-      if (!isDraftSyncSnapshot(parsed)) {
-        throw new Error('Sync server returned an invalid draft snapshot');
+      try { return decodeDraftSyncSnapshot(parsed); } catch (cause) {
+        throw new Error('Sync server returned an invalid draft snapshot', { cause });
       }
-      return parsed;
     },
     catch: syncError,
   }).pipe(Effect.timeoutOrElse({

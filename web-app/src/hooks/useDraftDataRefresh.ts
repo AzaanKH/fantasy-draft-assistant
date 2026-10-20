@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { isDraftDataRefreshStatus, type DraftDataRefreshStatus } from '@fantasy-draft/shared/catalog';
+import { decodeDraftDataRefreshStatus, type DraftDataRefreshStatus } from '@fantasy-draft/shared/catalog';
 import { toast } from 'sonner';
 
 const REFRESH_URL = '/api/draft-data/refresh';
@@ -12,8 +12,8 @@ const POLL_INTERVAL_MS = 1000;
 async function readStatus(response: Response): Promise<DraftDataRefreshStatus> {
   if (!response.ok) throw new Error(`Draft data refresh request failed: ${String(response.status)}`);
   const body: unknown = await response.json();
-  if (!isDraftDataRefreshStatus(body)) throw new Error('Draft data refresh returned an unexpected status');
-  return body;
+  try { return decodeDraftDataRefreshStatus(body); }
+  catch { throw new Error('Draft data refresh returned an unexpected status'); }
 }
 
 interface DraftDataRefresh {

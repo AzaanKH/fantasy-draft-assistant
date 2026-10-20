@@ -1,6 +1,8 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
-import type { DraftProvider } from '@fantasy-draft/shared/sync';
+import { isDraftProvider, type DraftProvider } from '@fantasy-draft/shared/sync';
 import { IS_DEMO } from '@/lib/demo-mode';
+
+import { decodeDraftSyncConnection, isDraftSyncConnection, isValidDraftSyncId } from '@fantasy-draft/shared/catalog';
 
 export const DRAFT_SYNC_STORAGE_KEY = 'fantasy-draft-live-sync-v1';
 
@@ -22,37 +24,8 @@ export interface DraftSyncConnectionStore {
   disconnect: () => void;
 }
 
-function isDraftProvider(value: unknown): value is DraftProvider {
-  return value === 'sleeper' || value === 'yahoo' || value === 'espn';
-}
-
-export function isValidDraftSyncId(provider: DraftProvider, value: unknown): value is string {
-  return typeof value === 'string' && (
-    provider === 'sleeper'
-      ? /^[A-Za-z0-9_-]{1,128}$/.test(value)
-      : /^\d{1,20}$/.test(value)
-  );
-}
-
 function isDraftPosition(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 20;
-}
-
-function isPersistedDraftSyncConnection(
-  value: unknown
-): value is PersistedDraftSyncConnection {
-  if (typeof value !== 'object' || value === null) return false;
-
-  const candidate = value as Record<string, unknown>;
-  return (
-    isDraftProvider(candidate.provider) &&
-    isValidDraftSyncId(candidate.provider, candidate.draftId) &&
-    (candidate.draftPosition === null || isDraftPosition(candidate.draftPosition)) &&
-    (candidate.settingsProfile === undefined || (candidate.settingsProfile === 'quick-mock' && candidate.provider === 'sleeper' && candidate.usePrimaryLeagueSettings !== true)) &&
-    (candidate.usePrimaryLeagueSettings === undefined ||
-      (typeof candidate.usePrimaryLeagueSettings === 'boolean' &&
-       (candidate.provider === 'sleeper' || !candidate.usePrimaryLeagueSettings)))
-  );
 }
 
 export function parseStoredDraftSyncConnection(
@@ -61,8 +34,7 @@ export function parseStoredDraftSyncConnection(
   if (!serialized) return null;
 
   try {
-    const parsed: unknown = JSON.parse(serialized);
-    return isPersistedDraftSyncConnection(parsed) ? parsed : null;
+    return decodeDraftSyncConnection(JSON.parse(serialized));
   } catch {
     return null;
   }
@@ -185,7 +157,7 @@ export function createDraftSyncConnectionStore({
       set({ connection });
     },
     restoreConnection: (connection) => {
-      if (!isPersistedDraftSyncConnection(connection)) return;
+      if (!isDraftSyncConnection(connection)) return;
       persist(connection);
       set({ connection });
     },

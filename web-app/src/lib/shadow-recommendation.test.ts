@@ -1,6 +1,6 @@
+import { isShadowRecommendationEvent } from '@fantasy-draft/shared/catalog';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  isShadowRecommendationEvent,
   type PositionNeed,
   type Recommendation,
 } from '@fantasy-draft/shared/draft';

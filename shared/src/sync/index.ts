@@ -1,15 +1,7 @@
-export { isDraftSessionSummary } from '../sessions.js';
 export type { DraftSessionSummary } from '../sessions.js';
 export {
   DraftSyncEngine,
   isDraftProvider,
-  isDraftMetadata,
-  isEspnDraftSnapshot,
-  isDraftSyncSnapshot,
-  isDraftSyncUpdate,
-  isSleeperDraftMetadata,
-  isSleeperDraftPick,
-  isSleeperDraftPickList,
   normalizeSleeperDraftMetadata,
   normalizeSleeperPick,
   resolveSleeperDraftLeagueId,

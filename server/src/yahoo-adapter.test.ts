@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Effect, Result } from 'effect';
 import {
   yahooDraftResultsFixture,
@@ -19,49 +19,62 @@ function createYahooFetch(
   optionsLog: Array<RequestInit | undefined> = [],
   playersPayload: unknown = yahooPlayersFixture
 ): FetchJson {
-  return async <T>(
+  return async (
     url: string,
     _signal: AbortSignal,
     init?: RequestInit
-  ): Promise<T> => {
+  ): Promise<unknown> => {
     log.push(url);
     optionsLog.push(init);
     if (
       url ===
       `${YAHOO_PUBLIC_API_BASE}/settings/nfl/7428778?format=rawjson`
     ) {
-      return yahooSettingsFixture as T;
+      return yahooSettingsFixture;
     }
     if (
       url ===
       `${YAHOO_PUBLIC_API_BASE}/players/nfl/7428778?images=0&projected=0&average=0&format=rawjson`
     ) {
-      return playersPayload as T;
+      return playersPayload;
     }
     if (
       url.startsWith(
         `${YAHOO_PUBLIC_READ_API_BASE}/league/999.l.7428778/draftresults?`
       )
     ) {
-      return yahooDraftResultsFixture as T;
+      return yahooDraftResultsFixture;
     }
     throw new Error(`Unexpected URL: ${url}`);
   };
 }
 
 describe('YahooSyncAdapter', () => {
+  it.each([null, { fname: 'Missing key' }])('rejects a malformed player row atomically and logs it', async invalid => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const players = { service: { player_list: [...yahooPlayersFixture.service.player_list, invalid] } };
+    try {
+      await expect(Effect.runPromise(new YahooSyncAdapter('7428778', createYahooFetch([], [], players)).poll())).rejects.toMatchObject({ _tag: 'ProviderError' });
+      expect(warning).toHaveBeenCalled();
+    } finally { warning.mockRestore(); }
+  });
+
+  it.each([null, { round: '1', pick: 'invalid', team_key: '999.l.7428778.t.1' }])('rejects malformed declared draft results atomically', invalid => {
+    expect(() => parseYahooDraftResults({ draft_result: invalid })).toThrow('Yahoo returned an invalid draft result');
+  });
+
   it('uses the winning team key for auction picks even when nomination order differs', async () => {
     const fetchFixture = createYahooFetch([]);
-    const fetchAuction: FetchJson = async <T>(url: string, signal: AbortSignal, init?: RequestInit): Promise<T> => {
+    const fetchAuction: FetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
       if (url.includes('/settings/')) return {
         service: { ...yahooSettingsFixture.service, settings: {
           ...yahooSettingsFixture.service.settings, is_auction_draft: 1,
         } },
-      } as T;
+      };
       if (url.includes('/draftresults')) return {
         draft_result: { pick: '3', round: '2', team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
-      } as T;
-      return fetchFixture<T>(url, signal, init);
+      };
+      return fetchFixture(url, signal, init);
     };
     const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fetchAuction).poll());
     expect(snapshot.draft.type).toBe('auction');
@@ -74,11 +87,11 @@ describe('YahooSyncAdapter', () => {
     { round: '1', pick: '11' },
   ])('reports invalid ordered result $round/$pick as a provider failure', async (invalid) => {
     const fixture = createYahooFetch([]);
-    const fetchInvalid: FetchJson = async <T>(url: string, signal: AbortSignal, init?: RequestInit): Promise<T> => {
+    const fetchInvalid: FetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
       if (url.includes('/draftresults')) return {
         draft_result: { ...invalid, team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
-      } as T;
-      return fixture<T>(url, signal, init);
+      };
+      return fixture(url, signal, init);
     };
     const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fetchInvalid).poll()));
     expect(Result.isFailure(result)).toBe(true);
