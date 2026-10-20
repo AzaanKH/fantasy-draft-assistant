@@ -120,7 +120,7 @@ describe('Primary League release gate report', () => {
 
 it('records a timed-out command as failed even when its leader exited successfully', async () => {
   const outcome = await runReleaseCommand({ executable: process.execPath, args: ['-e',
-    "require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], { stdio: 'inherit' }); process.exit(0);",
+    "const child = require('node:child_process').spawn(process.execPath, ['-e', \"process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000);\"], { stdio: ['ignore', 'pipe', 'inherit'] }); child.stdout.once('data', () => process.exit(0));",
   ] }, new AbortController().signal, 500);
   expect(outcome).toMatchObject({ status: 'failed', exitCode: 0 });
 });
