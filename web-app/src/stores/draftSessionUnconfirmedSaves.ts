@@ -222,11 +222,20 @@ export function readDraftSessionChanges(
       const key = storage.key(index);
       if (key?.startsWith(prefix)) keys.push(key);
     }
-    return keys.flatMap((key) => {
+    let rejectedCount = 0;
+    const changes = keys.flatMap((key) => {
       const serialized = storage.getItem(key);
       const change = parseDraftSessionChange(serialized);
+      if (serialized && !change) rejectedCount += 1;
       return serialized && change ? [{ key, serialized, change }] : [];
     });
+    if (rejectedCount > 0) {
+      console.warn(
+        '[Fantasy Draft] Rejected unconfirmed save journals; each save stays atomic to preserve dependent pick moves.',
+        { rejectedCount }
+      );
+    }
+    return changes;
   } catch {
     return [];
   }
