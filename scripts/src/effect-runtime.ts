@@ -84,7 +84,9 @@ export function fetchJson<T, E = never>(
       const safe = cause instanceof HttpError ? cause.url : new HttpError('invalid-json', url).url;
       const message = cause instanceof HttpError && cause.kind === 'timeout'
         ? `${options.label} request timed out after ${String(options.timeoutMs)}ms for ${safe}`
-        : `${options.label} request failed for ${safe}: ${cause instanceof HttpError ? cause.message : 'Invalid response payload'}`;
+        : cause instanceof HttpError && cause.kind === 'invalid-json'
+          ? `${options.label} returned invalid JSON for ${safe}`
+          : `${options.label} request failed${cause instanceof HttpError && cause.status !== undefined ? ` (${String(cause.status)})` : ''} for ${safe}`;
       return new HttpRequestError({ message, url: safe,
         ...(cause instanceof HttpError ? { status: cause.status, retryAfterMs: cause.retryAfterMs } : {}),
       });

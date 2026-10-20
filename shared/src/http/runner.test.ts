@@ -124,3 +124,54 @@ describe('HTTP streaming ownership', () => {
     await expect(oversized.next()).rejects.toMatchObject({ kind: 'invalid-stream' });
   });
 });
+
+describe('HTTP stream regression cases', () => {
+  it('types a body read failure as a network error', async () => {
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const body = new ReadableStream<Uint8Array>({ start(c) { controller = c; c.enqueue(new TextEncoder().encode('data: {"ok":true}\n\n')); } });
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 100, maxEventBytes: 1000 }, {
+      fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    expect(await iterator.next()).toMatchObject({ value: { ok: true } });
+    controller?.error(new TypeError('terminated'));
+    await expect(iterator.next()).rejects.toMatchObject({ kind: 'network', phase: 'body' });
+  });
+
+  it('times out an incomplete event even if bytes keep arriving', async () => {
+    vi.useFakeTimers();
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const cancel = vi.fn(() => { clearInterval(timer); });
+    const body = new ReadableStream<Uint8Array>({ start(c) { timer = setInterval(() => { c.enqueue(new TextEncoder().encode(': trickle\n')); }, 5); }, cancel });
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 30, maxEventBytes: 1000 }, {
+      fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    const result = iterator.next().catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(31);
+    try { expect(cancel).toHaveBeenCalledOnce(); }
+    finally { clearInterval(timer); }
+    expect(await result).toMatchObject({ kind: 'timeout' });
+  });
+
+  it('does not emit buffered frames after caller abort', async () => {
+    const controller = new AbortController();
+    const body = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new TextEncoder().encode('data: {"ok":true}\n\ndata: {"ok":false}\n\n')); } });
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 100, maxEventBytes: 1000 }, {
+      init: { signal: controller.signal }, fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    expect(await iterator.next()).toMatchObject({ value: { ok: true } });
+    controller.abort();
+    await expect(iterator.next()).rejects.toMatchObject({ kind: 'aborted' });
+  });
+
+  it.each([['2', 2199], ['5', 5249]] as const)('adds bounded positive jitter after Retry-After %s', async (retryAfter, delayMs) => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response('', { status: 429, headers: { 'Retry-After': retryAfter } }))
+      .mockImplementation(() => Promise.resolve(Response.json({ ok: true })));
+    const result = http.json('https://test.invalid/jitter', decode, { ...policy, retries: 1 }, { fetch: fetcher, random: () => 0.999 });
+    await vi.advanceTimersByTimeAsync(delayMs - 1);
+    expect(fetcher).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await result).toEqual({ ok: true });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+});

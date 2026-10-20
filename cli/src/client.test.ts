@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Effect, Stream } from 'effect';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -86,6 +86,23 @@ describe('draft server requests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       expect(server.isClosed()).toBe(true);
     } finally { await server.stop(); }
+  });
+
+  it('keeps the stream-disconnected code when a response body fails', async () => {
+    let bodyController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const body = new ReadableStream<Uint8Array>({ start(c) {
+      bodyController = c;
+      c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'snapshot', snapshot: fixtureSnapshot() })}\n\n`));
+    } });
+    vi.stubGlobal('fetch', async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }));
+    const client = new DraftClient('http://test.invalid', 'a'.repeat(43));
+    let seen = 0;
+    const result = Effect.runPromise(Effect.result(Stream.runDrain(client.events({ id: 'sleeper:fixture', provider: 'sleeper', draftId: 'fixture' }).pipe(
+      Stream.tap(() => Effect.sync(() => { seen++; })),
+    ))));
+    await vi.waitFor(() => { expect(seen).toBe(1); });
+    bodyController?.error(new TypeError('terminated'));
+    expect(await result).toMatchObject({ _tag: 'Failure', failure: { code: 'STREAM_DISCONNECTED' } });
   });
 
   it('ends an idle event stream and closes its connection so watch can reconnect', async () => {

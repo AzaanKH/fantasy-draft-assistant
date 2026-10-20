@@ -37,6 +37,7 @@ export class HttpError extends Error {
     url: string | URL,
     readonly status?: number,
     readonly retryAfterMs?: number,
+    readonly phase: 'request' | 'body' = 'request',
   ) {
     const redacted = safeUrl(url);
     super(`HTTP ${kind}${status === undefined ? '' : ` ${status}`} for ${redacted}`);
@@ -58,7 +59,7 @@ function scope(url: string | URL, caller: AbortSignal | null | undefined, timeou
   };
   reset(timeoutMs);
   return {
-    signal: controller.signal, clear, reset,
+    signal: controller.signal, reset,
     close: () => { clear(); caller?.removeEventListener('abort', abort); },
   };
 }
@@ -154,7 +155,7 @@ async function open(url: string | URL, policy: HttpPolicy, options: HttpOptions)
 async function bytes(url: string | URL, policy: HttpPolicy, options: HttpOptions = {}): Promise<Uint8Array> {
   const { response, deadline } = await open(url, policy, options);
   try { return await readBytes(response, deadline.signal); }
-  catch (cause) { throw deadline.signal.aborted ? deadline.signal.reason : cause instanceof HttpError ? cause : new HttpError('network', url); }
+  catch (cause) { throw deadline.signal.aborted ? deadline.signal.reason : cause instanceof HttpError ? cause : new HttpError('network', url, undefined, undefined, 'body'); }
   finally { deadline.close(); }
 }
 async function text(url: string | URL, policy: HttpPolicy, options: HttpOptions = {}): Promise<string> {
@@ -183,15 +184,14 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
   let buffer = '';
   let data: string[] = [];
   let frameBytes = 0;
+  deadline.reset(policy.idleMs);
   try {
     for (;;) {
-      deadline.reset(policy.idleMs);
       const result = await interrupted(() => reader.read(), deadline.signal).catch((cause: unknown) => {
         if (cause instanceof HttpError && cause.kind === 'timeout' && policy.idleTimeout === 'end') return { done: true, value: undefined };
-        throw cause;
+        throw cause instanceof HttpError ? cause : new HttpError('network', url, undefined, undefined, 'body');
       });
       const { done, value } = result;
-      deadline.clear();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       let newline: number;
@@ -200,7 +200,12 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
         buffer = buffer.slice(newline + 1);
         if (new TextEncoder().encode(line).length + frameBytes > policy.maxEventBytes) throw new HttpError('invalid-stream', url);
         if (line === '') {
-          if (data.length) yield decode(parseJson(data.join('\n'), url));
+          if (data.length) {
+            if (deadline.signal.aborted) throw deadline.signal.reason;
+            const event = decode(parseJson(data.join('\n'), url));
+            deadline.reset(policy.idleMs);
+            yield event;
+          }
           data = []; frameBytes = 0;
         } else if (line.startsWith('data:')) {
           const content = line.slice(5).replace(/^ /, '');

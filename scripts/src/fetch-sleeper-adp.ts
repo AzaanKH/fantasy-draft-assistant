@@ -91,7 +91,7 @@ function isValidTeam(value: string | null): value is NFLTeam {
  */
 // The full player catalog is several megabytes, so allow a slow but bounded download.
 export const fetchSleeperPlayers = Effect.sync(() => { console.log(`Fetching from ${SLEEPER_PLAYERS_URL}...`); }).pipe(
-  Effect.andThen(fetchJson(SLEEPER_PLAYERS_URL, decodeSleeperPlayers, { label: 'Sleeper API', timeoutMs: 60_000 })),
+  Effect.andThen(fetchJson(SLEEPER_PLAYERS_URL, decodeSleeperPlayers, { label: 'Sleeper API', timeoutMs: 60_000 }, cause => cause instanceof Error ? cause : new Error(String(cause)))),
   Effect.tap((data) => Effect.sync(() => { console.log(`Received ${Object.keys(data).length} total player records`); })),
 );
 

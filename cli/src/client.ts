@@ -138,7 +138,9 @@ export class DraftClient {
       },
       onError: error => error instanceof HttpError && (error.kind === 'invalid-stream' || error.kind === 'invalid-json')
         ? new CliError('INVALID_STREAM', 'The server sent an invalid draft event stream.')
-        : this.requestError(error, new CliError('INVALID_STREAM', 'The server sent an invalid draft event.')),
+        : error instanceof HttpError && error.kind === 'network' && error.phase === 'body'
+          ? new CliError('STREAM_DISCONNECTED', 'The draft event stream disconnected.')
+          : this.requestError(error, new CliError('INVALID_STREAM', 'The server sent an invalid draft event.')),
     });
   }
 }

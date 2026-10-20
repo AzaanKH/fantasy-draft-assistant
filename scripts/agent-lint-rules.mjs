@@ -124,7 +124,9 @@ export default {
           return true;
         }
         function isGlobalObject(node) {
-          return isGlobal(node, ['globalThis', 'window']);
+          return isGlobal(node, ['globalThis', 'window', 'self', 'global']) ||
+            node?.type === 'MemberExpression' && isGlobalObject(node.object) &&
+            ['globalThis', 'window', 'self', 'global'].includes(propertyName(node));
         }
         function propertyName(node) {
           return !node.computed && node.key?.type === 'Identifier' ? node.key.name

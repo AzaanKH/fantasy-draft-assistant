@@ -211,3 +211,9 @@ describe('Effect import boundaries', () => {
     expect(await effectMessages("import { Schema } from 'effect';", filePath)).toEqual([]);
   });
 });
+
+describe('native fetch across host globals', () => {
+  it.each(['self.fetch(url);', 'global.fetch(url);', 'globalThis.window.fetch(url);'])('rejects %s', source => {
+    expect(messages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-bare-fetch' })]);
+  });
+});
