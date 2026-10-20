@@ -20,6 +20,25 @@ function messages(source, file = 'cli/src/probe.ts') {
 
 describe('agent lint rules', () => {
   it.each([
+    "import { localDevPorts } from '@fantasy-draft/shared/node';",
+    "export * from '@fantasy-draft/shared/node';",
+    "const node = import(`@fantasy-draft/shared/node`);",
+    "const node = require('@fantasy-draft/shared/node');",
+  ])('keeps Node imports out of browser source: %s', async source => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    for (const filePath of ['extension/src/shared/probe.ts', 'web-app/src/probe.ts']) {
+      const config = await eslint.calculateConfigForFile(filePath);
+      const result = new Linter().verify(source, [{
+        files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+        plugins: { agent }, rules: { 'agent/no-node-in-browser': config.rules['agent/no-node-in-browser'] ?? 'off' },
+      }], { filename: filePath });
+      expect(result).toEqual([expect.objectContaining({
+        ruleId: 'agent/no-node-in-browser', severity: 2,
+        message: expect.stringContaining('localDevPorts from @fantasy-draft/shared/sync'),
+      })]);
+    }
+  });
+  it.each([
     'const x = JSON.parse(text) as Payload;',
     'const x = response.json() as Promise<Payload>;',
     'const x = await response.json() as Payload;',

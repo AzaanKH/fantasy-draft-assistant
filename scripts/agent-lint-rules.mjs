@@ -87,6 +87,25 @@ export default {
         };
       },
     },
+    'no-node-in-browser': {
+      meta: { type: 'problem', schema: [], messages: {
+        browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
+      } },
+      create(context) {
+        function check(node, source) {
+          if (staticModuleName(source) === '@fantasy-draft/shared/node') context.report({ node, messageId: 'browser' });
+        }
+        return {
+          ImportDeclaration: node => check(node, node.source),
+          ExportNamedDeclaration: node => check(node, node.source),
+          ExportAllDeclaration: node => check(node, node.source),
+          ImportExpression: node => check(node, node.source),
+          CallExpression: node => { if (node.callee.name === 'require') check(node, node.arguments[0]); },
+          TSExternalModuleReference: node => check(node, node.expression),
+          TSImportType: node => check(node, node.source),
+        };
+      },
+    },
     'no-json-cast': {
       meta: { type: 'problem', schema: [], messages: { decode: decoderMessage } },
       create(context) {

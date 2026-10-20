@@ -79,6 +79,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ['{web-app,extension}/src/**/*.{ts,tsx,js,mjs,cjs}'],
+    rules: { 'agent/no-node-in-browser': 'error' },
+  },
+  {
     files: ['web-app/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
