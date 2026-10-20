@@ -166,6 +166,16 @@ describe('league boundary predicates', () => {
     } })).toBe(true);
   });
 
+  it.each(['__proto__', 'constructor', 'toString'])('checks prototype-named scoring extras as finite numbers: %s', key => {
+    const settings = normalizeSleeperLeagueSettings(createLeague(), 1000);
+    expect(isLeagueSettings({ ...settings, scoringRules: {
+      ...settings.scoringRules, passing: { ...settings.scoringRules.passing, [key]: 1 },
+    } })).toBe(true);
+    expect(isLeagueSettings({ ...settings, scoringRules: {
+      ...settings.scoringRules, passing: { ...settings.scoringRules.passing, [key]: {} },
+    } })).toBe(false);
+  });
+
   it('rejects each missing scoring field promised by LeagueSettings', () => {
     const settings = normalizeSleeperLeagueSettings(createLeague(), 1000);
     for (const [group, rules] of Object.entries(settings.scoringRules)) {

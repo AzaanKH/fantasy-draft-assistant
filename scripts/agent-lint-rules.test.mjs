@@ -125,7 +125,7 @@ describe('Effect import boundaries', () => {
 
   it.each([
     'shared/src/player.ts', 'shared/src/limits.ts', 'shared/src/draft.ts',
-    'shared/src/league-settings.ts', 'shared/src/league/index.ts', 'shared/src/draft/index.ts',
+    'shared/src/league-settings.ts', 'shared/src/player-schema.ts', 'shared/src/league/index.ts', 'shared/src/draft/index.ts',
     'web-app/src/lib/pure-value.ts', 'scripts/src/model/pure-value.ts', 'server/src/pure-value.ts',
   ])('rejects the Effect barrel in %s with a concrete fix', async filePath => {
     expect(await effectMessages("import { Schema } from 'effect';", filePath)).toEqual([
@@ -137,6 +137,8 @@ describe('Effect import boundaries', () => {
     "export { Schema } from 'effect';", "export * from 'effect';",
     "import { Schema } from 'effect/Schema';", "const effect = import('effect');",
     "const effect = require('effect');",
+    "const effect = import('effect/Effect');", "const effect = require('effect/Effect');",
+    "const effect = import(`effect`);", "const effect = require(`effect/Effect`);",
   ])('rejects alternate dependency forms: %s', async source => {
     expect(await effectMessages(source, 'shared/src/player.ts')).toHaveLength(1);
   });

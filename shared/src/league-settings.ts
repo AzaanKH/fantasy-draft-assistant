@@ -90,7 +90,7 @@ export function isRosterRequirements(value: unknown): value is RosterRequirement
 function isScoringGroup(value: unknown, fields: object): boolean {
   if (!isRecord(value)) return false;
   const validField = (key: string, item: unknown): boolean => {
-    const expected: unknown = Reflect.get(fields, key);
+    const expected: unknown = Object.hasOwn(fields, key) ? Reflect.get(fields, key) : undefined;
     return typeof expected === 'object' && expected !== null
       ? isScoringGroup(item, expected)
       : isFiniteNumber(item);

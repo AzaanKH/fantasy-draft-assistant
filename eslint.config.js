@@ -16,10 +16,10 @@ const draftOrderRules = [
   },
 ];
 
-const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates.';
+const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates. List new I/O owners in effectOwners in eslint.config.js.';
 const effectOwners = [
   'shared/src/catalog/**',
-  '**/*-{schema,schemas,decoder,decoders,boundary,boundaries}.{ts,tsx}',
+  'scripts/src/{contract-source-schema,script-file-schemas}.ts',
   '**/*.test.{ts,tsx,mjs}',
   'cli/src/{archive,client,connections,data,errors,files,run}.ts',
   'extension/src/background/{background-controller,sync-snapshot-client}.ts',
@@ -64,8 +64,10 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': ['error', { patterns: [{ group: ['effect', 'effect/*'], message: effectBoundaryMessage }] }],
       'no-restricted-syntax': ['error', ...draftOrderRules,
-        { selector: "ImportExpression[source.value='effect']", message: effectBoundaryMessage },
-        { selector: "CallExpression[callee.name='require'][arguments.0.value='effect']", message: effectBoundaryMessage },
+        { selector: "ImportExpression[source.value=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+        { selector: "ImportExpression[source.expressions.length=0][source.quasis.0.value.cooked=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+        { selector: "CallExpression[callee.name='require'][arguments.0.value=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+        { selector: "CallExpression[callee.name='require'][arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
       ],
     },
   },
