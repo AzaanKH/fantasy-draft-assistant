@@ -1,3 +1,4 @@
+import { validateUiEntryBundle } from './config/ui-bundle-guard';
 import { decodeExtensionManifest } from './config/manifest-decoder';
 import { defineConfig, type Plugin } from 'vite';
 import { sourceCondition } from '../source-condition.js';
@@ -67,18 +68,7 @@ function validateClassicContentScripts(): Plugin {
   return {
     name: 'validate-classic-content-scripts',
     generateBundle(_options, bundle) {
-      for (const fileName of ['content.js', 'espn-page.js']) {
-        const output = bundle[fileName];
-        if (
-          output?.type === 'chunk' &&
-          ((output.imports?.length ?? 0) > 0 ||
-            (output.dynamicImports?.length ?? 0) > 0)
-        ) {
-          throw new Error(
-            `${fileName} must be self-contained because Chrome content scripts are not ES modules`
-          );
-        }
-      }
+      validateUiEntryBundle(bundle);
     },
   };
 }
