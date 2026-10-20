@@ -1,3 +1,4 @@
+import { decodeProviderDraftSnapshot } from '@fantasy-draft/shared/catalog';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -286,7 +287,8 @@ class DraftSession {
         Effect.flatMap((adapterSnapshot) => Effect.try({
           try: () => {
             const polledAt = Date.now();
-            return { polledAt, ...this.engine.reconcile(adapterSnapshot.draft, adapterSnapshot.picks, polledAt) };
+            const decoded = decodeProviderDraftSnapshot(adapterSnapshot);
+            return { polledAt, ...this.engine.reconcile(decoded.draft, decoded.picks, polledAt) };
           },
           catch: (cause) => new ProviderError({ message: cause instanceof Error ? cause.message : 'Unknown sync error', cause }),
         })),

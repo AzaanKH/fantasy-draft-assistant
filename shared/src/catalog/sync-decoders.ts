@@ -1,3 +1,4 @@
+import type { DataShape } from './data-shape.js';
 import { Schema } from 'effect';
 import { isLeagueSettings } from '../league-settings.js';
 import { MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from '../limits.js';
@@ -50,6 +51,12 @@ const draftPickEvent = /* @__PURE__ */ openStruct({
   source: /* @__PURE__ */ Schema.Literals(['sleeper-api', 'yahoo-public', 'espn-extension', 'extension-dom', 'manual']),
   confidence: /* @__PURE__ */ Schema.Literals(['confirmed', 'probable']), observedAt: Schema.Finite,
 });
+const providerDraftSnapshot = /* @__PURE__ */ openStruct({
+  draft: draftMetadata, picks: /* @__PURE__ */ Schema.Array(draftPickEvent),
+});
+export const decodeProviderDraftSnapshot: (value: unknown) => {
+  readonly draft: DraftMetadata; readonly picks: readonly DraftPickEvent[];
+} = /* @__PURE__ */ Schema.decodeUnknownSync(providerDraftSnapshot);
 const espnDraftSnapshot = /* @__PURE__ */ openStruct({
   draft: draftMetadata, picks: /* @__PURE__ */ Schema.Array(draftPickEvent), observedAt: Schema.Finite,
   myDraftSlot: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ integer(1, MAX_DRAFT_TEAMS)),
@@ -89,29 +96,29 @@ const draftSessionSummary = /* @__PURE__ */ openStruct({
 }).check(/* @__PURE__ */ Schema.makeFilter(value => value.session === `${value.provider}:${value.draftId}`));
 const draftSessionList = /* @__PURE__ */ openStruct({ sessions: /* @__PURE__ */ Schema.Array(draftSessionSummary).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= 128)) });
 
-export const decodeDraftMetadata = /* @__PURE__ */ Schema.decodeUnknownSync(draftMetadata);
-export const decodeSleeperDraftMetadata = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftMetadata);
-export const decodeSleeperDraftPick = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftPick);
-export const decodeSleeperDraftPickList = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftPickList);
-export const decodeEspnDraftSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(espnDraftSnapshot);
-export const decodeDraftSyncSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(draftSyncSnapshot);
-export const decodeDraftSyncUpdate = /* @__PURE__ */ Schema.decodeUnknownSync(draftSyncUpdate);
-export const decodeDraftSessionSummary = /* @__PURE__ */ Schema.decodeUnknownSync(draftSessionSummary);
-export const decodeDraftSessionList = /* @__PURE__ */ Schema.decodeUnknownSync(draftSessionList);
-export const isDraftMetadata = /* @__PURE__ */ Schema.is(draftMetadata);
-export const isSleeperDraftMetadata = /* @__PURE__ */ Schema.is(sleeperDraftMetadata);
-export const isSleeperDraftPick = /* @__PURE__ */ Schema.is(sleeperDraftPick);
-export const isSleeperDraftPickList = /* @__PURE__ */ Schema.is(sleeperDraftPickList);
-export const isEspnDraftSnapshot = /* @__PURE__ */ Schema.is(espnDraftSnapshot);
-export const isDraftSyncSnapshot = /* @__PURE__ */ Schema.is(draftSyncSnapshot);
-export const isDraftSyncUpdate = /* @__PURE__ */ Schema.is(draftSyncUpdate);
-export const isDraftSessionSummary = /* @__PURE__ */ Schema.is(draftSessionSummary);
+export const decodeDraftMetadata: (value: unknown) => DraftMetadata = /* @__PURE__ */ Schema.decodeUnknownSync(draftMetadata);
+export const decodeSleeperDraftMetadata: (value: unknown) => SleeperDraftMetadata = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftMetadata);
+export const decodeSleeperDraftPick: (value: unknown) => SleeperDraftPick = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftPick);
+export const decodeSleeperDraftPickList: (value: unknown) => readonly SleeperDraftPick[] = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftPickList);
+export const decodeEspnDraftSnapshot: (value: unknown) => EspnDraftSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(espnDraftSnapshot);
+export const decodeDraftSyncSnapshot: (value: unknown) => DraftSyncSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(draftSyncSnapshot);
+export const decodeDraftSyncUpdate: (value: unknown) => DraftSyncUpdate = /* @__PURE__ */ Schema.decodeUnknownSync(draftSyncUpdate);
+export const decodeDraftSessionSummary: (value: unknown) => DraftSessionSummary = /* @__PURE__ */ Schema.decodeUnknownSync(draftSessionSummary);
+export const decodeDraftSessionList: (value: unknown) => { readonly sessions: readonly DraftSessionSummary[] } = /* @__PURE__ */ Schema.decodeUnknownSync(draftSessionList);
+export const isDraftMetadata: (value: unknown) => value is DraftMetadata = /* @__PURE__ */ Schema.is(draftMetadata);
+export const isSleeperDraftMetadata: (value: unknown) => value is SleeperDraftMetadata = /* @__PURE__ */ Schema.is(sleeperDraftMetadata);
+export const isSleeperDraftPick: (value: unknown) => value is SleeperDraftPick = /* @__PURE__ */ Schema.is(sleeperDraftPick);
+export const isSleeperDraftPickList: (value: unknown) => value is readonly SleeperDraftPick[] = /* @__PURE__ */ Schema.is(sleeperDraftPickList);
+export const isEspnDraftSnapshot: (value: unknown) => value is EspnDraftSnapshot = /* @__PURE__ */ Schema.is(espnDraftSnapshot);
+export const isDraftSyncSnapshot: (value: unknown) => value is DraftSyncSnapshot = /* @__PURE__ */ Schema.is(draftSyncSnapshot);
+export const isDraftSyncUpdate: (value: unknown) => value is DraftSyncUpdate = /* @__PURE__ */ Schema.is(draftSyncUpdate);
+export const isDraftSessionSummary: (value: unknown) => value is DraftSessionSummary = /* @__PURE__ */ Schema.is(draftSessionSummary);
 
-export type SleeperDraftPick = typeof sleeperDraftPick.Type;
-export type SleeperDraftMetadata = typeof sleeperDraftMetadata.Type;
-export type DraftMetadata = typeof draftMetadata.Type;
-export type DraftPickEvent = typeof draftPickEvent.Type;
-export type EspnDraftSnapshot = typeof espnDraftSnapshot.Type;
-export type DraftSyncSnapshot = typeof draftSyncSnapshot.Type;
-export type DraftSyncUpdate = typeof draftSyncUpdate.Type;
-export type DraftSessionSummary = typeof draftSessionSummary.Type;
+export type SleeperDraftPick = DataShape<typeof sleeperDraftPick.Type>;
+export type SleeperDraftMetadata = Omit<DataShape<typeof sleeperDraftMetadata.Type>, 'metadata'> & Pick<typeof sleeperDraftMetadata.Type, 'metadata'>;
+export type DraftMetadata = DataShape<typeof draftMetadata.Type>;
+export type DraftPickEvent = DataShape<typeof draftPickEvent.Type>;
+export type EspnDraftSnapshot = DataShape<typeof espnDraftSnapshot.Type>;
+export type DraftSyncSnapshot = DataShape<typeof draftSyncSnapshot.Type>;
+export type DraftSyncUpdate = DataShape<typeof draftSyncUpdate.Type>;
+export type DraftSessionSummary = DataShape<typeof draftSessionSummary.Type>;

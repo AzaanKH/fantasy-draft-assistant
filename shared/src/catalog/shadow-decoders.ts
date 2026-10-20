@@ -1,3 +1,4 @@
+import type { DataShape } from './data-shape.js';
 import { Schema } from 'effect';
 import { POSITIONS } from '../player.js';
 
@@ -30,8 +31,8 @@ const shadowRecommendationEvent = /* @__PURE__ */ openStruct({
     positionNeeds: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ openStruct({ position, priority: /* @__PURE__ */ Schema.Literals(['critical', 'high', 'medium', 'low', 'defer', 'filled']) })).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= 6)),
   }).check(/* @__PURE__ */ Schema.makeFilter(value => value.myPickPosition <= value.totalTeams)),
 });
-export const decodeShadowRecommendationEvent = /* @__PURE__ */ Schema.decodeUnknownSync(shadowRecommendationEvent);
-export const isShadowRecommendationEvent = /* @__PURE__ */ Schema.is(shadowRecommendationEvent);
+export const decodeShadowRecommendationEvent: (value: unknown) => ShadowRecommendationEvent = /* @__PURE__ */ Schema.decodeUnknownSync(shadowRecommendationEvent);
+export const isShadowRecommendationEvent: (value: unknown) => value is ShadowRecommendationEvent = /* @__PURE__ */ Schema.is(shadowRecommendationEvent);
 
-export type ShadowRecommendationEvent = typeof shadowRecommendationEvent.Type;
-export type ShadowRecommendation = typeof recommendation.Type;
+export type ShadowRecommendationEvent = DataShape<typeof shadowRecommendationEvent.Type>;
+export type ShadowRecommendation = DataShape<typeof recommendation.Type>;

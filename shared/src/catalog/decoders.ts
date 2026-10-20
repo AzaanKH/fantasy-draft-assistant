@@ -1,3 +1,4 @@
+import type { DataShape } from './data-shape.js';
 import { Schema } from 'effect';
 import { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';
 import { isPosition, NFL_TEAMS, POSITIONS, NEWS_STATUSES, PREDICTION_SOURCES } from '../player.js';
@@ -73,12 +74,6 @@ const fantasyProsSnapshot = /* @__PURE__ */ openStruct({
   rankings: /* @__PURE__ */ Schema.Array(ecrPlayer), adp: /* @__PURE__ */ Schema.Array(fantasyProsAdpPlayer),
   projections: /* @__PURE__ */ Schema.Array(fantasyProsProjection), news: /* @__PURE__ */ Schema.Array(fantasyProsNewsItem),
 });
-
-type DataShape<A> = A extends readonly unknown[]
-  ? { [K in keyof A]: DataShape<A[K]> }
-  : A extends object
-    ? { [K in keyof A as string extends K ? never : K]: DataShape<A[K]> }
-    : A;
 
 export type PlayerIdentityData = DataShape<typeof playerIdentity.Type>;
 export type SleeperADPPlayer = DataShape<typeof sleeperPlayer.Type>;

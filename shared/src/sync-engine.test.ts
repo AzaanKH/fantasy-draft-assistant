@@ -1,3 +1,4 @@
+import { decodeProviderDraftSnapshot } from './catalog/sync-decoders.js';
 import { isDraftMetadata, isDraftSyncUpdate, isSleeperDraftPick, isSleeperDraftMetadata } from './catalog/sync-decoders.js';
 import { describe, expect, it } from 'vitest';
 import {
@@ -61,6 +62,22 @@ describe('DraftSyncEngine', () => {
       .toThrow('Invalid draft metadata or picks');
     expect(engine.getSnapshot()).toBe(accepted.snapshot);
     expect(engine.reconcile(draft, [pick]).newPicks).toEqual([]);
+  });
+
+  it.each([
+    { playerName: 123 }, { playerName: 'x'.repeat(257) }, { playerId: 'x'.repeat(129) },
+    { confidence: 'invalid' }, { source: 'invalid' }, { position: 'invalid' },
+    { observedAt: Infinity }, { isKeeper: 'yes' }, { nflTeam: 123 },
+  ])('rejects malformed normalized picks before engine state changes: %j', overrides => {
+    const engine = new DraftSyncEngine('sleeper', 'draft-123');
+    const draft = normalizeSleeperDraftMetadata(createDraft());
+    const pick = normalizeSleeperPick(createPick(1, 'p1'));
+    const accepted = engine.reconcile(draft, [pick]);
+    expect(() => {
+      const decoded = decodeProviderDraftSnapshot({ draft, picks: [{ ...pick, ...overrides }] });
+      engine.reconcile(decoded.draft, decoded.picks);
+    }).toThrow();
+    expect(engine.getSnapshot()).toBe(accepted.snapshot);
   });
 
   it('caps the pick list at the active draft capacity and accepts the final pick', () => {

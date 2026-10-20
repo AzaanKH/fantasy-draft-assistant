@@ -1,5 +1,5 @@
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createServer as createHttpServer } from 'node:http';
 import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -181,6 +181,56 @@ describe('createSyncServer', () => {
         if (error) reject(error);
         else resolve();
       }); });
+    }
+  });
+
+  it.each([
+    ['sleeper', 'name'], ['sleeper', 'id'], ['yahoo', 'name'], ['yahoo', 'id'],
+  ] as const)('rejects oversized normalized %s player %s before publication', async (provider, field) => {
+    let invalid = provider === 'yahoo' && field === 'name';
+    const fixtureFetch = provider === 'sleeper' ? createMockFetchJson() : createYahooMockFetchJson();
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const server = createSyncServer({ pollIntervalMs: 60_000, fetchJson: async (url, signal, init) => {
+      if (invalid && provider === 'sleeper' && url.endsWith('/picks')) {
+        return picksFixture.map((pick, index) => index ? pick : {
+          ...pick, ...(field === 'id' ? { player_id: 'x'.repeat(129) } : {}),
+          metadata: pick.metadata && { ...pick.metadata, ...(field === 'name' ? { first_name: 'x'.repeat(257) } : {}) },
+        });
+      }
+      if (invalid && provider === 'yahoo' && url.includes('/players/')) {
+        return { service: { player_list: yahooPlayersFixture.service.player_list.map((player, index) => index ? player : {
+          ...player, ...(field === 'name' ? { fname: 'x'.repeat(257) } : { player_key: 'x'.repeat(129) }),
+        }) } };
+      }
+      if (invalid && provider === 'yahoo' && field === 'id' && url.includes('/draftresults')) {
+        return { draft_result: { pick: '1', round: '1', team_key: '999.l.7428778.t.1', player_key: 'x'.repeat(129) } };
+      }
+      return fixtureFetch(url, signal, init);
+    } });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected local server address');
+    const path = provider === 'sleeper' ? 'drafts/fixture-draft' : 'yahoo/drafts/7428778';
+    const url = `http://127.0.0.1:${String(address.port)}/api/sync/${path}`;
+    const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
+    try {
+      const accepted = decodeDraftSyncSnapshot(await (await fetch(url, { headers })).json());
+      if (invalid) {
+        expect(accepted.status).toBe('error');
+        expect(accepted.picks).toEqual([]);
+        expect(warning).toHaveBeenCalledWith('[sync-server] Provider sync rejected', expect.any(String));
+        return;
+      }
+      expect(accepted.status).toBe('synced');
+      invalid = true;
+      const rejected = decodeDraftSyncSnapshot(await (await fetch(`${url}/refresh`, { method: 'POST', headers })).json());
+      expect(rejected.status).toBe('error');
+      expect(rejected.picks).toEqual(accepted.picks);
+      expect(rejected.lastSuccessfulSyncAt).toBe(accepted.lastSuccessfulSyncAt);
+      expect(warning).toHaveBeenCalledWith('[sync-server] Provider sync rejected', expect.any(String));
+    } finally {
+      warning.mockRestore();
+      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
     }
   });
 
