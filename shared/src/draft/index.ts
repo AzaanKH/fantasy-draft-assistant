@@ -98,7 +98,7 @@ export {
   type DerivedDraft,
 } from '../derive-draft.js';
 
-export { DEFAULT_QUICK_MOCK, createQuickMockSettings } from './quick-mock-settings.js';
+export { DEFAULT_QUICK_MOCK, createQuickMockSettings, isQuickMockPreferences, isLeagueSetupPreferences } from './quick-mock-settings.js';
 export type { QuickMockPreferences } from './quick-mock-settings.js';
 export { getNextOpenPickNumber, resolveDraftPickImports } from './draft-pick-imports.js';
 export type { DraftPickImportRejection, DraftPickImportResult } from './draft-pick-imports.js';

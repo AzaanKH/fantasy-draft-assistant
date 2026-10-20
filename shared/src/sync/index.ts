@@ -1,3 +1,5 @@
+export { DRAFT_SESSION_LINEAGE_LIMIT, isValidDraftSyncId, isDraftSessionIdentity, isDraftSyncConnection } from '../sessions.js';
+export type { DraftSessionIdentity } from '../sessions.js';
 export type { DraftSessionSummary } from '../sessions.js';
 export {
   DraftSyncEngine,

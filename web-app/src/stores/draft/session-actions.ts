@@ -1,4 +1,4 @@
-import { isDraftSessionIdentity } from '@fantasy-draft/shared/catalog';
+import { isDraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { castDraft, type Draft } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';

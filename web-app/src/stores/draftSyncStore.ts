@@ -1,8 +1,7 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
-import { isDraftProvider, type DraftProvider } from '@fantasy-draft/shared/sync';
+import { isDraftProvider, isDraftSyncConnection, isValidDraftSyncId, type DraftProvider } from '@fantasy-draft/shared/sync';
 import { IS_DEMO } from '@/lib/demo-mode';
 
-import { decodeDraftSyncConnection, isDraftSyncConnection, isValidDraftSyncId } from '@fantasy-draft/shared/catalog';
 
 export const DRAFT_SYNC_STORAGE_KEY = 'fantasy-draft-live-sync-v1';
 
@@ -34,7 +33,8 @@ export function parseStoredDraftSyncConnection(
   if (!serialized) return null;
 
   try {
-    return decodeDraftSyncConnection(JSON.parse(serialized));
+    const value: unknown = JSON.parse(serialized);
+    return isDraftSyncConnection(value) ? value : null;
   } catch {
     return null;
   }

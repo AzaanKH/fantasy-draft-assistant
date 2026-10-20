@@ -1,4 +1,4 @@
-import { isQuickMockPreferences } from '@fantasy-draft/shared/catalog';
+import { isQuickMockPreferences } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';

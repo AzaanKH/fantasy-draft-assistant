@@ -1,8 +1,9 @@
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
-import { type DraftProvider } from '@fantasy-draft/shared/sync';
+import { DRAFT_SESSION_LINEAGE_LIMIT, type DraftSessionIdentity } from '@fantasy-draft/shared/sync';
+export type { DraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { canonicalizeKeeperSupply } from '@fantasy-draft/shared/draft';
-import { DRAFT_SESSION_LINEAGE_LIMIT, decodeStoredDraftSession } from '@fantasy-draft/shared/catalog';
-export { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/catalog';
+import { decodeStoredDraftSession } from '@fantasy-draft/shared/catalog';
+export { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/sync';
 import {
   computeDraftSessionChange,
   isEmptyDraftSessionChange,
@@ -15,11 +16,6 @@ import type {
   RecordedDraftPick,
   UnresolvedProviderPick,
 } from './draft/types';
-
-export interface DraftSessionIdentity {
-  readonly provider: DraftProvider;
-  readonly draftId: string;
-}
 
 /** Enumeration and removal let any tab find and clear every tab's recorded saves. */
 export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;

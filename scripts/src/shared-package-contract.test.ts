@@ -97,6 +97,61 @@ console.log(JSON.stringify({ exports, plainImports, route: sync.parseDraftRoomUr
     });
   });
 
+  it('loads the helpers used by draft consumers without loading Effect', () => {
+    const consumers = [
+      ['web-app/src/hooks/useDraftSync.ts', 'isValidDraftSyncId', ['sleeper', 'Draft_1-abc']],
+      ['web-app/src/stores/draft/session-actions.ts', 'isDraftSessionIdentity', [{ provider: 'espn', draftId: '4242' }]],
+      ['web-app/src/features/league-setup/LeagueSetupDialog.tsx', 'isQuickMockPreferences', [{ totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 }]],
+    ] as const;
+    const probes = consumers.map(([path, name, args]) => {
+      const source = readFileSync(join(SCRIPTS_DIR, '..', path), 'utf8');
+      const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+      const owner = file.statements.find(node => ts.isImportDeclaration(node) &&
+        node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+        node.importClause.namedBindings.elements.some(element => element.name.text === name));
+      if (!owner || !ts.isImportDeclaration(owner) || !ts.isStringLiteral(owner.moduleSpecifier)) throw new Error(`No import owner for ${name} in ${path}`);
+      return { owner: owner.moduleSpecifier.text, name, args };
+    });
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const { registerHooks } = await import('node:module');
+const effects = [];
+const hook = registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === 'effect' || specifier.startsWith('effect/')) effects.push(specifier);
+  return nextResolve(specifier, context);
+} });
+const accepted = [];
+for (const probe of ${JSON.stringify(probes)}) {
+  const helpers = await import(probe.owner);
+  accepted.push(helpers[probe.name](...probe.args));
+}
+hook.deregister();
+console.log(JSON.stringify({ effectLoads: effects.length, accepted }));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+    expect(JSON.parse(output)).toEqual({ effectLoads: 0, accepted: [true, true, true] });
+  });
+
+  it('loads simple stored preferences and connections without loading Effect', () => {
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const { registerHooks } = await import('node:module');
+const { register } = await import('tsx/esm/api');
+const unregister = register({ tsconfig: '../web-app/tsconfig.json' });
+const effects = [];
+const hook = registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === 'effect' || specifier.startsWith('effect/')) effects.push(specifier);
+  return nextResolve(specifier, context);
+} });
+globalThis.localStorage = { getItem: () => JSON.stringify({ profile: 'primary-league', quickMock: { totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 } }) };
+const connections = await import('../web-app/src/stores/draftSyncStore.ts');
+const preferences = await import('../web-app/src/stores/leagueSetupStore.ts');
+const connection = connections.parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: null }));
+const rejected = connections.parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: 0 }));
+hook.deregister();
+unregister();
+console.log(JSON.stringify({ effectLoads: effects.length, connection, rejected, profile: preferences.useLeagueSetupStore.getState().profile }));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+    expect(JSON.parse(output)).toEqual({ effectLoads: 0, connection: { provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: null }, rejected: null, profile: 'primary-league' });
+  });
+
   it('rejects root access in NodeNext and resolves every declared subpath contract', () => {
     const diagnostics = consumerDiagnostics(`
 import type { Player } from '@fantasy-draft/shared';
@@ -117,10 +172,10 @@ import type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
     expect(contracts).toMatchInlineSnapshot(`
       {
         "catalog": "CATALOG, CORE_DRAFT_DATA_KEYS, DRAFT_DATA_REFRESH_STEPS, DRAFT_READINESS_DEFINITIONS, DRAFT_SESSION_LINEAGE_LIMIT, OPTIONAL_SIGNAL_KEYS, REFRESHABLE_CORE_DRAFT_DATA_KEYS, SAFE_RECOMMENDATION_POLICY, americanOddsToImpliedProbability, areKeepersValid, browserDataFiles, buildDraftReadinessReport, calculateSportsbookProjectionAdjustment, catalogDataClassification, catalogPath, createSafeRecommendationPolicy, decodeContractDataFile, decodeDraftDataRefreshStatus, decodeDraftMetadata, decodeDraftSessionChange, decodeDraftSessionIdentity, decodeDraftSessionList, decodeDraftSessionSummary, decodeDraftSyncConnection, decodeDraftSyncSnapshot, decodeDraftSyncUpdate, decodeEspnDraftSnapshot, decodeFantasyProsSnapshot, decodeKeeperFile, decodeLeagueSetupPreferences, decodeLeagueSurvivalModel, decodeMarketAdpSnapshot, decodeOrNull, decodePlayerIdentityFile, decodePredictionsDataFile, decodePrimaryLeagueSettingsFile, decodeProviderDraftSnapshot, decodeQuickMockPreferences, decodeRecommendationPolicyFile, decodeShadowRecommendationEvent, decodeSleeperDataFile, decodeSleeperDraftMetadata, decodeSleeperDraftPick, decodeSleeperDraftPickList, decodeSportsbookSnapshot, decodeStoredDraftSession, decodeTeamEnvDataFile, evaluateDraftReadiness, formatDraftReadinessAge, formatDraftReadinessTimestamp, getTeamByeWeeks, isDecentOffense, isDraftDataRefreshStatus, isDraftMetadata, isDraftSessionIdentity, isDraftSessionSummary, isDraftSyncConnection, isDraftSyncSnapshot, isDraftSyncUpdate, isEspnDraftSnapshot, isLeagueSurvivalModel, isMarketAdpFormat, isMarketAdpSnapshot, isQuickMockPreferences, isRecommendationPolicyFile, isShadowRecommendationEvent, isSleeperDraftMetadata, isSleeperDraftPick, isSleeperDraftPickList, isSportsbookSnapshot, isTeamEnvironment, isTopOffense, isValidDraftSyncId, normalizeSportsbookPlayerName, parsePlayerNameAndTeam, parsePositionString, type ContractDataFile, type ContractPlayer, type CoreDraftDataKey, type DecodeOptions, type DraftDataRefreshState, type DraftDataRefreshStatus, type DraftDataRefreshStepState, type DraftReadinessDefinition, type DraftReadinessDependencyObservation, type DraftReadinessItem, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarning, type DraftReadinessWarningInput, type ECRPlayer, type FantasyProsAdpPlayer, type FantasyProsMarketStats, type FantasyProsNewsItem, type FantasyProsProjection, type FantasyProsSnapshot, type KeeperFile, type LoadedArtifact, type MarketAdpFormat, type MarketAdpPlayer, type MarketAdpSnapshot, type PlayerIdentityFile, type PredictionsDataFile, type RecommendationPolicyFile, type SleeperDataFile, type SportsbookOverUnderLine, type SportsbookSnapshot, type TeamEnvDataFile, type TeamEnvironment, type VolumeLevel",
-        "draft": "DEFAULT_QUICK_MOCK, LIVE_RECOMMENDATION_ARCHITECTURE, applyLeagueSurvivalModel, applyPositionTiers, blocksLiveRecommendations, blocksRecommendations, calculateAllScarcityScores, calculateTeamNeeds, calculateTierAvailability, canonicalizeKeeperSupply, comparisonBar, createDraftDecisionOutput, createDraftDecisionView, createDraftDisplayContext, createQuickMockSettings, createSlotSequence, deriveDraft, estimateLeagueSurvivalProbability, estimateMockSurvivalProbabilities, evaluateWorkspaceDraftReadiness, filterDrafted, formatSignedNumber, getAvailabilitySignal, getComparisonHighlights, getComparisonMetrics, getCriticalPositions, getEffectiveKeeperAssignments, getKeeperAtPick, getKeeperPickNumber, getNextOpenPickNumber, getNextUserPick, getPreferredRecommendation, getRecommendationBoard, getRecommendationExplanation, getRecommendationPolicyLabel, getRecommendations, getRosterAnswer, getTierKey, getWaitAnswer, getWaitingCostSummary, getWhyRows, isKeeperSupplyComplete, isNeedPriority, mergeCoreSources, mergePlayerData, normalizePlayerName, optimizeLineupUtility, resolveDraftPickImports, selectCpuPlayer, simulateCpuDraft, sortRecommendationsForPool, survivalPercent, type AssistantAnswerRow, type CanonicalKeeperAssignment, type ComparisonMetric, type ContractPlayerData, type CorePlayerDataSources, type CpuSelection, type DecisionDivergenceFactor, type DecisionLens, type DecisionOutput, type DerivedDraft, type DraftDecisionOutput, type DraftDecisionView, type DraftDisplayContext, type DraftFormat, type DraftKeeper, type DraftPick, type DraftPickImportRejection, type DraftPickImportResult, type DraftSelection, type DraftSource, type ExpectedNextPickAlternative, type HelpMetric, type KeeperPreloadStatus, type KeeperSupplyEntry, type LeagueSurvivalModel, type LineupPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel, type NeedPriority, type PlayerIdentityData, type PoolSort, type PositionNeed, type QuickMockPreferences, type Recommendation, type RecommendationContext, type RecommendationDecisionFactors, type RecommendationResult, type RecommendationSelection, type SelectCpuPlayerInput, type ShadowRecommendation, type ShadowRecommendationEvent, type SimulatedMockPick, type SleeperADPPlayer, type SlotRef, type SlotSequence",
+        "draft": "DEFAULT_QUICK_MOCK, LIVE_RECOMMENDATION_ARCHITECTURE, applyLeagueSurvivalModel, applyPositionTiers, blocksLiveRecommendations, blocksRecommendations, calculateAllScarcityScores, calculateTeamNeeds, calculateTierAvailability, canonicalizeKeeperSupply, comparisonBar, createDraftDecisionOutput, createDraftDecisionView, createDraftDisplayContext, createQuickMockSettings, createSlotSequence, deriveDraft, estimateLeagueSurvivalProbability, estimateMockSurvivalProbabilities, evaluateWorkspaceDraftReadiness, filterDrafted, formatSignedNumber, getAvailabilitySignal, getComparisonHighlights, getComparisonMetrics, getCriticalPositions, getEffectiveKeeperAssignments, getKeeperAtPick, getKeeperPickNumber, getNextOpenPickNumber, getNextUserPick, getPreferredRecommendation, getRecommendationBoard, getRecommendationExplanation, getRecommendationPolicyLabel, getRecommendations, getRosterAnswer, getTierKey, getWaitAnswer, getWaitingCostSummary, getWhyRows, isKeeperSupplyComplete, isLeagueSetupPreferences, isNeedPriority, isQuickMockPreferences, mergeCoreSources, mergePlayerData, normalizePlayerName, optimizeLineupUtility, resolveDraftPickImports, selectCpuPlayer, simulateCpuDraft, sortRecommendationsForPool, survivalPercent, type AssistantAnswerRow, type CanonicalKeeperAssignment, type ComparisonMetric, type ContractPlayerData, type CorePlayerDataSources, type CpuSelection, type DecisionDivergenceFactor, type DecisionLens, type DecisionOutput, type DerivedDraft, type DraftDecisionOutput, type DraftDecisionView, type DraftDisplayContext, type DraftFormat, type DraftKeeper, type DraftPick, type DraftPickImportRejection, type DraftPickImportResult, type DraftSelection, type DraftSource, type ExpectedNextPickAlternative, type HelpMetric, type KeeperPreloadStatus, type KeeperSupplyEntry, type LeagueSurvivalModel, type LineupPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel, type NeedPriority, type PlayerIdentityData, type PoolSort, type PositionNeed, type QuickMockPreferences, type Recommendation, type RecommendationContext, type RecommendationDecisionFactors, type RecommendationResult, type RecommendationSelection, type SelectCpuPlayerInput, type ShadowRecommendation, type ShadowRecommendationEvent, type SimulatedMockPick, type SleeperADPPlayer, type SlotRef, type SlotSequence",
         "league": "DEFAULT_ROSTER_REQUIREMENTS, DEFAULT_SCORING_RULES, NFL_TEAMS, POSITIONS, createDefaultLeagueSettings, createEmptyRoster, createLeagueSettings, isLeagueSettings, isNFLTeam, isNewsStatus, isPlayer, isPosition, isPredictionSource, isRosterRequirements, isSleeperLeague, normalizeSleeperLeagueSettings, type HighlightLevel, type LeagueSettings, type NFLTeam, type NewsStatus, type Player, type PlayerPrediction, type Position, type PredictionSource, type Roster, type RosterRequirements, type ScoringRules, type SleeperLeague, type SurvivalModelSource, type TierSource",
         "node": "localDevPorts",
-        "sync": "DraftSyncEngine, isDraftProvider, normalizeSleeperDraftMetadata, normalizeSleeperPick, parseDraftRoomUrl, resolveSleeperDraftLeagueId, type DraftMetadata, type DraftPickEvent, type DraftProvider, type DraftRoomStatus, type DraftSessionSummary, type DraftStatus, type DraftSyncSnapshot, type DraftSyncState, type DraftSyncUpdate, type DraftType, type EspnDraftSnapshot, type SleeperDraftMetadata, type SleeperDraftPick",
+        "sync": "DRAFT_SESSION_LINEAGE_LIMIT, DraftSyncEngine, isDraftProvider, isDraftSessionIdentity, isDraftSyncConnection, isValidDraftSyncId, normalizeSleeperDraftMetadata, normalizeSleeperPick, parseDraftRoomUrl, resolveSleeperDraftLeagueId, type DraftMetadata, type DraftPickEvent, type DraftProvider, type DraftRoomStatus, type DraftSessionIdentity, type DraftSessionSummary, type DraftStatus, type DraftSyncSnapshot, type DraftSyncState, type DraftSyncUpdate, type DraftType, type EspnDraftSnapshot, type SleeperDraftMetadata, type SleeperDraftPick",
         "units": "MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS, isBoundedInteger, isDraftSize",
       }
     `);
