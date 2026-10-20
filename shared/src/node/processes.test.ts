@@ -99,3 +99,39 @@ describe('Processes', () => {
     await expect(Processes.run('/no-such-process-u09', [], { timeoutMs: 1000 })).rejects.toMatchObject({ kind: 'spawn', exitCode: null });
   });
 });
+
+it.skipIf(process.platform === 'win32')('stops a nested process group even after its watcher kills the nested owner', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'nested-runner-'));
+  temporary.push(dir);
+  const file = join(dir, 'pid');
+  const nested = `process.on('SIGTERM', () => {}); require('node:fs').writeFileSync(${JSON.stringify(file)}, String(process.pid)); console.log('ready'); setInterval(() => {}, 1000);`;
+  const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(nested)}], { detached: true, stdio: 'inherit' }); setInterval(() => {}, 1000);`;
+  let ready!: () => void;
+  const started = new Promise<void>(resolve => { ready = resolve; });
+  const service = Processes.service(process.execPath, ['-e', parent], { timeoutMs: 5000, termGraceMs: 50, onStdout: () => { ready(); } });
+  let pid: number | undefined;
+  try {
+    await started;
+    pid = Number(await readFile(file, 'utf8'));
+    let deadline!: ReturnType<typeof setTimeout>;
+    try {
+      await Promise.race([service.stop(), new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => { reject(new Error('Nested group survived shutdown')); }, 1000);
+      })]);
+    } finally { clearTimeout(deadline); }
+    expect(alive(pid)).toBe(false);
+  } finally {
+    if (pid !== undefined) { try { process.kill(-pid, 'SIGKILL'); } catch { /* Fixture already stopped. */ } }
+    await service.stop();
+  }
+});
+
+it('does not signal an unrelated service while stopping an owned group', async () => {
+  const other = Processes.service(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 5000 });
+  const owned = Processes.service(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 5000 });
+  try {
+    await owned.stop();
+    expect(other.pid).toBeTypeOf('number');
+    expect(alive(other.pid!)).toBe(true);
+  } finally { await Promise.all([owned.stop(), other.stop()]); }
+});

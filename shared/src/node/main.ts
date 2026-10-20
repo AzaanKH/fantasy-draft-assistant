@@ -8,6 +8,7 @@ export async function runNodeMain(program: (signal: AbortSignal) => Promise<void
   const stop = (): void => { controller.abort(); };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
+  process.on('SIGHUP', stop);
   try {
     await program(controller.signal);
   } catch (error) {
@@ -19,6 +20,7 @@ export async function runNodeMain(program: (signal: AbortSignal) => Promise<void
   } finally {
     process.off('SIGINT', stop);
     process.off('SIGTERM', stop);
+    process.off('SIGHUP', stop);
     if (controller.signal.aborted) process.exitCode = 130;
   }
 }

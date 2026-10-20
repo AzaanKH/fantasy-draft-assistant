@@ -1,4 +1,4 @@
-import { Processes } from '@fantasy-draft/shared/node';
+import { Processes, ProcessError } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
 import { Effect, Fiber } from 'effect';
 import {
@@ -28,12 +28,17 @@ function runCommand(
   return Effect.callback((resume) => {
     const service = Processes.service(command, args, {
       cwd: REPO_ROOT, env: process.env, shell: IS_WINDOWS,
-      timeoutMs: STEP_TIMEOUT_MS, ...grace, output: 'inherit',
+      timeoutMs: STEP_TIMEOUT_MS, ...grace, output: 'tee',
       onStdout: onOutput, onStderr: onOutput,
     });
     void service.result.then(
       () => { resume(Effect.void); },
-      (error: unknown) => { resume(Effect.fail(error instanceof Error ? error : new Error(String(error)))); },
+      (error: unknown) => {
+        const failure = error instanceof ProcessError && error.kind === 'exit'
+          ? new Error(error.result.signal ? `stopped by ${error.result.signal}` : `exit code ${String(error.exitCode)}`)
+          : error instanceof Error ? error : new Error(String(error));
+        resume(Effect.fail(failure));
+      },
     );
     return Effect.promise(() => service.stop());
   });

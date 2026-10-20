@@ -247,6 +247,7 @@ const waitForServer = (server: ProcessService): Effect.Effect<void, Error> => io
 const webServer = Effect.acquireRelease(
   Effect.sync(() => Processes.service('pnpm', ['--filter', 'web-app', 'exec', 'vite', '--port', String(WEB_PORT), '--strictPort'], {
     cwd: REPO_ROOT,
+    // The API port points at nothing, so no request can reach a running sync server.
     env: { ...process.env, DRAFT_WEB_PORT: String(WEB_PORT), DRAFT_API_PORT: String(API_PORT) },
     output: 'ignore', timeoutMs: 30 * 60_000,
   })),

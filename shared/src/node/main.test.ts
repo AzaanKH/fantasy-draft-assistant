@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { Processes } from './processes.js';
@@ -27,4 +29,30 @@ describe('runNodeMain', () => {
       });
     `)).rejects.toMatchObject({ exitCode: 130, result: expect.objectContaining({ stdout: 'cleanup finished\n' }) });
   });
+});
+
+it.skipIf(process.platform === 'win32')('SIGHUP stops an owned child before the main process exits', async () => {
+  const tsx = new URL('../../../scripts/node_modules/tsx/dist/loader.mjs', import.meta.url).href;
+  const parent = spawn(process.execPath, ['--import', tsx, '--eval', `
+    const { runNodeMain } = require(${JSON.stringify(new URL('./main.ts', import.meta.url).pathname)});
+    const { Processes } = require(${JSON.stringify(new URL('./processes.ts', import.meta.url).pathname)});
+    runNodeMain(async signal => {
+      const service = Processes.service(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 5000, signal });
+      console.log(service.pid);
+      await service.result;
+    });
+  `], { stdio: ['ignore', 'pipe', 'pipe'] });
+  let pid: number | undefined;
+  try {
+    const [chunk] = await once(parent.stdout, 'data');
+    pid = Number(String(chunk).trim());
+    expect(Number.isInteger(pid)).toBe(true);
+    const closed = once(parent, 'close');
+    parent.kill('SIGHUP');
+    await closed;
+    expect(() => process.kill(pid!, 0)).toThrow();
+  } finally {
+    if (pid !== undefined) { try { process.kill(-pid, 'SIGKILL'); } catch { /* Fixture already stopped. */ } }
+    if (parent.exitCode === null && parent.signalCode === null) parent.kill('SIGKILL');
+  }
 });

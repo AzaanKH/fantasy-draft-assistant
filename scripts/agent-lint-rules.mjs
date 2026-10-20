@@ -95,12 +95,41 @@ export default {
         function check(node, source) {
           if (['child_process', 'node:child_process'].includes(staticModuleName(source))) context.report({ node, messageId: 'runner' });
         }
+        function definition(node) {
+          if (node?.type !== 'Identifier') return undefined;
+          let scope = context.sourceCode.getScope(node);
+          while (scope) {
+            const variable = scope.set.get(node.name);
+            if (variable) return variable.defs[0];
+            scope = scope.upper;
+          }
+        }
+        function isCreateRequire(node) {
+          if (node?.type !== 'Identifier') return false;
+          const bound = definition(node);
+          return bound?.type === 'ImportBinding' && bound.node.type === 'ImportSpecifier' &&
+            bound.node.imported.name === 'createRequire' && ['module', 'node:module'].includes(bound.parent.source.value);
+        }
+        function isLoader(node, seen = new Set()) {
+          if (!node || seen.has(node)) return false;
+          seen.add(node);
+          if (node.type === 'Identifier') {
+            if (node.name === 'require') return true;
+            const bound = definition(node);
+            return bound?.type === 'Variable' && isLoader(bound.node.init, seen);
+          }
+          if (node.type === 'CallExpression') return isCreateRequire(node.callee);
+          if (node.type === 'MemberExpression' && node.object.name === 'process') {
+            return (node.computed ? staticModuleName(node.property) : node.property.name) === 'getBuiltinModule';
+          }
+          return false;
+        }
         return {
           ImportDeclaration: node => check(node, node.source),
           ExportNamedDeclaration: node => check(node, node.source),
           ExportAllDeclaration: node => check(node, node.source),
           ImportExpression: node => check(node, node.source),
-          CallExpression: node => { if (node.callee.name === 'require') check(node, node.arguments[0]); },
+          CallExpression: node => { if (isLoader(node.callee)) check(node, node.arguments[0]); },
           TSExternalModuleReference: node => check(node, node.expression),
           TSImportType: node => check(node, node.source),
         };

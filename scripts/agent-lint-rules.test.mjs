@@ -47,6 +47,11 @@ describe('agent lint rules', () => {
     "const cp = require('child_process');",
     "const cp = require(`node:child_process`);",
     "import cp = require('child_process');",
+    "process.getBuiltinModule('child_process');",
+    "process['getBuiltinModule']('node:child_process');",
+    "const load = require; load('node:child_process');",
+    "import { createRequire } from 'node:module'; createRequire(import.meta.url)('child_process');",
+    "import { createRequire as make } from 'node:module'; const load = make(import.meta.url); load('node:child_process');",
     "type Child = import('node:child_process').ChildProcess;",
   ])('requires the shared process runner: %s', async source => {
     const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });

@@ -32,6 +32,7 @@ async function runRefreshStep(step: RefreshStep, signal: AbortSignal): Promise<v
   try {
     await Processes.run(PNPM_COMMAND, [step.script], {
       cwd: REPO_ROOT, env: process.env, output: 'inherit', stdin: 'inherit',
+      // Node can only launch pnpm.cmd through a shell on Windows.
       shell: process.platform === 'win32', timeoutMs: 5 * 60_000, signal,
     });
   } catch (error) {
