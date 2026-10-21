@@ -41,7 +41,9 @@ try {
   const adapter = (await readFile(path.join(here, 'adapter.mjs'), 'utf8')).replace('SHARED_ROOT', path.join(root, 'shared/src'));
   server = await createServer({ root: path.join(root, 'web-app'), configFile: path.join(root, 'web-app/vite.config.ts'),
     server: { host: '127.0.0.1', port: 3000, strictPort: true, hmr: false, watch: null },
-    plugins: [{ name: 'persistence-test-adapter', configureServer(vite) {
+    plugins: [{ name: 'persistence-test-adapter', configResolved(config) {
+      config.server.watch = null;
+    }, configureServer(vite) {
       vite.middlewares.use('/__persistence/adapter.mjs', (_request, response) => {
         response.setHeader('Content-Type', 'text/javascript'); response.end(adapter);
       });
