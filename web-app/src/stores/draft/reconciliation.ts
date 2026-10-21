@@ -255,6 +255,10 @@ export function createReconciliationActions(
         state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
           (playerId) => !state.draftedPlayerIds.has(playerId)
         );
+        state.draftProgress = {
+          anchor: { kind: 'provider', nextPickNumber, keeperSlots: [...keeperPickNumbers], totalPicks },
+          historyLength: draftHistory.length, keeperPhase: 'reserved',
+        };
         state.currentPick = canonicalNextPick;
         state.mockSurvivalProbabilities = {};
         result = {

@@ -135,6 +135,7 @@ export function createDraftStore({
     mockSettings: defaultMockSettings,
     mockAutoAdvance: { paused: false, settingsOpen: false },
     currentPick: 1,
+    draftProgress: { anchor: { kind: 'start' }, historyLength: 0, keeperPhase: 'pending-consumption' },
     draftedPlayerIds: new Set<string>(),
     draftHistory: [],
     shortlistedPlayerIds: [],
@@ -148,16 +149,6 @@ export function createDraftStore({
     filter: defaultFilter,
 
     // Computed getters
-    get isMyTurn() {
-      const state = get();
-      return calculateIsMyTurn(
-        state.currentPick,
-        state.config.myPickPosition,
-        state.config.totalTeams,
-        state.config.totalRounds,
-        state.config.draftType
-      );
-    },
     get totalPicks() {
       const state = get();
       return state.config.totalTeams * state.config.totalRounds;

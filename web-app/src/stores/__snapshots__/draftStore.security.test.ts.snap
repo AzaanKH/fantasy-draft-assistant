@@ -1,20 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`draft store resource bounds > clamps finite pick position 0 to 1 > documented deriveDraft mismatches 1`] = `
-[
-  {
-    "fields": [
-      {
-        "derived": true,
-        "field": "isMyTurn",
-        "stored": false,
-      },
-    ],
-    "step": 3,
-    "store": 1,
-  },
-]
-`;
+exports[`draft store resource bounds > clamps finite pick position 0 to 1 > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`draft store resource bounds > clamps finite pick position 3.6 to 4 > documented deriveDraft mismatches 1`] = `[]`;
 

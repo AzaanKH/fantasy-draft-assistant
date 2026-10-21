@@ -39,7 +39,7 @@ describe('draftStore shortlist', () => {
     if (!api) throw new Error('Store provider did not render');
     let notifications = 0;
     const unsubscribe = api.subscribe(() => { notifications += 1; });
-    api.setState({ currentPick: 4 });
+    api.getState().branchFromPick(4);
     expect(api.getState().currentPick).toBe(4);
     expect(api.getInitialState().currentPick).toBe(1);
     expect(second.getState().currentPick).toBe(1);

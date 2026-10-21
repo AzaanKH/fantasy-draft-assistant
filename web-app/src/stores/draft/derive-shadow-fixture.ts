@@ -5,7 +5,7 @@ import { shadowSource } from './derive-shadow-source';
 
 export const shadowMockFormat = { type: 'snake', teams: 10, rounds: 14 } as const;
 
-export function createShadowMock(completedPicks: number): DraftSource {
+export function createShadowMockStore(completedPicks: number): ReturnType<typeof createDraftStore> {
   const order = createSlotSequence(shadowMockFormat);
   const store = createDraftStore();
   store.getState().setConfig({ totalTeams: 10, totalRounds: 14, myPickPosition: 5 });
@@ -29,5 +29,10 @@ export function createShadowMock(completedPicks: number): DraftSource {
       );
     }
   }
-  return shadowSource(store.getState());
+  return store;
+}
+
+
+export function createShadowMock(completedPicks: number): DraftSource {
+  return shadowSource(createShadowMockStore(completedPicks).getState());
 }

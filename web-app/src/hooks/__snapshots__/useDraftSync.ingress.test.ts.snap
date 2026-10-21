@@ -16,32 +16,7 @@ exports[`Sleeper sync ingress and reconciliation > does not start requests or re
 
 exports[`Sleeper sync ingress and reconciliation > does not start requests or refresh for invalid ID "draft?refresh" > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`Sleeper sync ingress and reconciliation > keeps a restored journal through a stale snapshot and reconciles it when only the heartbeat time changes > documented deriveDraft mismatches 1`] = `
-[
-  {
-    "fields": [
-      {
-        "derived": 2,
-        "field": "currentPick",
-        "stored": 1,
-      },
-    ],
-    "step": 10,
-    "store": 2,
-  },
-  {
-    "fields": [
-      {
-        "derived": 2,
-        "field": "currentPick",
-        "stored": 1,
-      },
-    ],
-    "step": 12,
-    "store": 3,
-  },
-]
-`;
+exports[`Sleeper sync ingress and reconciliation > keeps a restored journal through a stale snapshot and reconciles it when only the heartbeat time changes > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`Sleeper sync ingress and reconciliation > logs rejected SSE JSON, shape and session messages without publishing them > documented deriveDraft mismatches 1`] = `[]`;
 

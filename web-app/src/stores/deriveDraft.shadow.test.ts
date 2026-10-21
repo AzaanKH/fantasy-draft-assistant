@@ -17,12 +17,12 @@ describe('10 by 14 mock with keepers at 1, 70, and 140', () => {
   });
 });
 
-it('exposes an explicit branch cursor that the proposed source facts cannot reconstruct', () => {
+it('reconstructs distinct branch cursors from their source facts', () => {
   const first = createDraftStore();
   const branched = createDraftStore();
   branched.getState().branchFromPick(96);
-  expect(shadowSource(branched.getState())).toEqual(shadowSource(first.getState()));
+  expect(shadowSource(branched.getState())).not.toEqual(shadowSource(first.getState()));
   expect(branched.getState().currentPick).toBe(96);
   expect(first.getState().currentPick).toBe(1);
-  expect(deriveDraft(shadowSource(branched.getState()), shadowFormat(branched.getState())).currentPick).toBe(1);
+  expect(deriveDraft(shadowSource(branched.getState()), shadowFormat(branched.getState())).currentPick).toBe(96);
 });

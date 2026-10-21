@@ -2,6 +2,7 @@ import type {
   Position,
 } from '@fantasy-draft/shared/league';
 import type {
+  DraftProgress,
   DecisionLens,
   DraftPick,
 } from '@fantasy-draft/shared/draft';
@@ -158,6 +159,7 @@ export interface DraftState {
 
   // Draft progress
   currentPick: number;
+  draftProgress: DraftProgress;
   /** All unavailable players: completed picks plus keepers reserved for future round selections. */
   draftedPlayerIds: Set<string>;
   draftHistory: RecordedDraftPick[];
@@ -178,7 +180,6 @@ export interface DraftState {
   filter: FilterState;
 
   // Computed
-  isMyTurn: boolean;
   totalPicks: number;
 }
 

@@ -1,9 +1,12 @@
+import { DEFAULT_ROSTER_REQUIREMENTS } from './draft.js';
 import { describe, expect, it } from 'vitest';
 import { deriveDraft, type DraftSource } from './derive-draft.js';
 import { createSlotSequence, type DraftFormat } from './draft-order.js';
 
 const format: DraftFormat = { type: 'snake', teams: 10, rounds: 14 };
 const source: DraftSource = {
+  progress: { anchor: { kind: 'start' }, historyLength: 0, keeperPhase: 'pending-consumption' },
+  sessionMode: 'live', rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
   history: [], keepers: [], myTeamIndex: 0, shortlistOrder: [], unresolvedPicks: [],
 };
 
@@ -17,6 +20,7 @@ describe('shadow draft derivation', () => {
     }));
     const input = {
       ...source, keepers,
+      progress: { anchor: { kind: 'provider' as const, nextPickNumber: 5, keeperSlots: [1, 70, 140], totalPicks: 140 }, historyLength: 2, keeperPhase: 'reserved' as const },
       history: [
         { pickNumber: 3, playerId: 'provisional', position: 'WR' as const, teamIndex: 2 },
         { pickNumber: 2, playerId: 'confirmed', position: 'TE' as const, teamIndex: 1 },
@@ -39,6 +43,7 @@ describe('shadow draft derivation', () => {
   it('lets completed history displace a keeper by slot or by player, without inventing a team', () => {
     const view = deriveDraft({
       ...source,
+      progress: { anchor: { kind: 'branch', pickNumber: 1 }, historyLength: 2, keeperPhase: 'pending-consumption' },
       keepers: [
         { playerId: 'moved', position: 'RB', teamIndex: 0, round: 1 },
         { playerId: 'displaced', position: 'TE', teamIndex: 1, round: 1 },

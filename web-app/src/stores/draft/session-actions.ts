@@ -32,6 +32,10 @@ export function applySavedDraftSession(
   state.leagueSettings = castDraft(saved?.leagueSettings ?? createDefaultLeagueSettings());
   state.currentPick = saved?.currentPick ?? 1;
   state.draftHistory = saved?.draftHistory ?? [];
+  state.draftProgress = {
+    anchor: { kind: 'carry', pickNumber: saved?.currentPick ?? 1 },
+    historyLength: state.draftHistory.length, keeperPhase: 'reserved',
+  };
   state.shortlistedPlayerIds = saved?.shortlistedPlayerIds ?? [];
   state.preloadedKeepers = saved?.preloadedKeepers ?? [];
   state.keepersInitialized = saved?.keepersInitialized ?? false;
@@ -70,6 +74,7 @@ export function createSessionActions(
     setSessionMode: (mode) =>
       { set((state) => {
         state.sessionMode = mode;
+        state.draftProgress.keeperPhase = mode === 'live' ? 'reserved' : 'pending-consumption';
         state.mockAutoAdvance.paused = false;
         if (mode === 'mock') {
           state.liveSession = null;

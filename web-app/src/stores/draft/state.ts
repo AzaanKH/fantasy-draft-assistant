@@ -146,6 +146,7 @@ export function rebuildAfterProvisionalChange(state: Pick<
   DraftState,
   | 'config'
   | 'currentPick'
+  | 'draftProgress'
   | 'draftedPlayerIds'
   | 'draftHistory'
   | 'shortlistedPlayerIds'
@@ -169,6 +170,11 @@ export function rebuildAfterProvisionalChange(state: Pick<
     (playerId) => !state.draftedPlayerIds.has(playerId)
   );
   rebuildCanonicalRosters(state);
+  state.draftProgress = {
+    anchor: { kind: 'first-open', keeperSlots: [...getKeeperPickNumbers(effectiveKeepers, state.config.totalTeams, state.config.draftType)],
+      totalPicks: state.config.totalTeams * state.config.totalRounds },
+    historyLength: state.draftHistory.length, keeperPhase: 'reserved',
+  };
   state.currentPick = getNextCanonicalOpenPick(
     state.draftHistory,
     effectiveKeepers,
@@ -216,3 +222,7 @@ export const defaultMockSettings: MockDraftSettings = {
   cpuPickPace: 'watch',
 };
 
+export function selectIsMyTurn(state: DraftState): boolean {
+  return calculateIsMyTurn(state.currentPick, state.config.myPickPosition, state.config.totalTeams,
+    state.config.totalRounds, state.config.draftType);
+}

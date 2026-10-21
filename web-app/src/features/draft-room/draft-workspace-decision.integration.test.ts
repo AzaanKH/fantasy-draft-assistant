@@ -1,3 +1,4 @@
+import { selectIsMyTurn } from '@/stores/draft/state';
 import '@/stores/draft/derive-shadow.setup';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
@@ -101,7 +102,7 @@ function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
     currentPick: state.currentPick,
     totalPicks: state.config.totalTeams * state.config.totalRounds,
     totalTeams: state.config.totalTeams,
-    isMyTurn: state.isMyTurn,
+    isMyTurn: selectIsMyTurn(state),
     requirements: state.config.rosterRequirements,
     rosterCounts: {
       QB: state.myRoster.QB.length,
@@ -204,7 +205,7 @@ describe('Draft Workspace decision integration', () => {
     ], 2);
     const afterConfirmedPick = calculateFromDraftState();
 
-    expect(useDraftStore.getState().isMyTurn).toBe(false);
+    expect(selectIsMyTurn(useDraftStore.getState())).toBe(false);
     expect(afterConfirmedPick.selected).not.toBeNull();
     expect(afterConfirmedPick.bestPick?.playerId).not.toBe('ecr-leader');
     expect(afterConfirmedPick.bestPlayer?.playerId).not.toBe('ecr-leader');
