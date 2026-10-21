@@ -1,6 +1,6 @@
 import { getDraftView } from '@/workspace/useDraftView';
 import { deriveDraftState } from './draft/source';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, type ProvisionalPickInput, type SyncedImportedPick } from './draftStore';
 import {
   DRAFT_SESSION_LINEAGE_LIMIT,
@@ -41,6 +41,67 @@ function openSession(storage: ReturnType<typeof memoryStorage>, session = identi
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('durable draft sessions', () => {
+  describe('unit 11c durability defects', () => {
+    let quota: { acknowledged: boolean; recovered: readonly string[] };
+    let race: readonly string[];
+    let orphan: { before: string; after: string | null };
+
+    beforeAll(() => {
+      const quotaStorage = memoryStorage();
+      const quotaTab = openSession(quotaStorage);
+      quotaStorage.setItem.mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+      const acknowledged = quotaTab.getState().recordProvisionalPick(pick(1, 'acknowledged'));
+      quotaStorage.setItem.mockImplementation((key: string, value: string) => { quotaStorage.values.set(key, value); });
+      quota = { acknowledged, recovered: createDraftStore({ storage: quotaStorage, session: identity })
+        .getState().draftHistory.map((entry) => entry.playerId) };
+
+      const storage = memoryStorage();
+      const key = getDraftSessionStorageKey(identity);
+      const tabA = openSession(storage);
+      let interleave = false;
+      const accepted: boolean[] = [];
+      const racingStorage = memoryStorage(storage.values);
+      racingStorage.setItem.mockImplementation((storedKey: string, value: string) => {
+        if (interleave && storedKey !== key) {
+          interleave = false;
+          accepted.push(tabA.getState().recordProvisionalPick(pick(1, 'first')));
+          accepted.push(tabA.getState().recordProvisionalPick(pick(2, 'second')));
+        }
+        storage.values.set(storedKey, value);
+      });
+      const tabB = openSession(racingStorage);
+      interleave = true;
+      tabB.getState().togglePlayerShortlisted('queued');
+      expect(accepted).toEqual([true, true]);
+      race = createDraftStore({ storage, session: identity }).getState().draftHistory.map((entry) => entry.playerId);
+
+      const orphanStorage = memoryStorage();
+      const orphanTab = openSession(orphanStorage);
+      const baseline = orphanStorage.getItem(key);
+      expect(orphanTab.getState().recordProvisionalPick(pick(1, 'base'))).toBe(true);
+      expect(orphanTab.getState().recordProvisionalPick(pick(2, 'dependent'))).toBe(true);
+      const journalKey = [...orphanStorage.values.keys()].find((name) => name !== key);
+      if (!journalKey || !baseline) throw new Error('Missing characterization fixture');
+      const journal = orphanStorage.getItem(journalKey);
+      if (!journal) throw new Error('Missing generated journal');
+      orphanStorage.values.set(key, baseline);
+      createDraftStore({ storage: orphanStorage, session: identity });
+      orphan = { before: journal, after: orphanStorage.getItem(journalKey) };
+    });
+
+    it.fails('never acknowledges a pick that both durable writes reject', () => {
+      expect(!quota.acknowledged || quota.recovered.includes('acknowledged')).toBe(true);
+    });
+
+    it.fails('retains two acknowledged saves overwritten by one stale writer', () => {
+      expect(race).toEqual(['first', 'second']);
+    });
+
+    it.fails('preserves a valid journal when its base write is missing', () => {
+      expect(orphan.after).toBe(orphan.before);
+    });
+  });
+
   it('restores the provisional journal, corrections, queue, keepers, and canonical rosters after reload', () => {
     const storage = memoryStorage();
     const first = openSession(storage);
