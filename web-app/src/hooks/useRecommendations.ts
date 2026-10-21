@@ -115,14 +115,15 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
 
   const availablePlayers = useMemo(() => {
     if (!enabled) return [];
-    const leagueAdjustedPool = applyLeagueSurvivalModel([...available], timingEvidence.model, {
+    const leagueAdjustedPool = applyLeagueSurvivalModel(players, timingEvidence.model, {
       currentPick,
       myPickPosition: config.myPickPosition,
       totalTeams: config.totalTeams,
       totalRounds: config.totalRounds,
       draftType: config.draftType,
     });
-    const leagueAdjusted = leagueAdjustedPool;
+    const availableIds = new Set(available.map(player => player.id));
+    const leagueAdjusted = leagueAdjustedPool.filter(player => availableIds.has(player.id));
     if (sessionMode !== 'mock' || !timingEvidence.model) return leagueAdjusted;
     return leagueAdjusted.map((player) => {
       const mockProbability = mockSurvivalProbabilities[player.id];
@@ -134,7 +135,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
             survivalModelSource: 'league-history' as const,
           };
     });
-  }, [enabled, available, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
+  }, [enabled, players, available, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
 
   const recommendationContext = useMemo<RecommendationContext>(() => ({
       currentPick,

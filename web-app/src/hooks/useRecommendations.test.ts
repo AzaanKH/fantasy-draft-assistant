@@ -25,7 +25,7 @@ vi.mock('@/stores/draftSyncStore', async (importOriginal) => ({
 }));
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
 vi.mock('./usePlayerData', () => ({
-  usePlayerDataQuery: () => ({ players: [player], isLoading: false, dataInfo: {} }),
+  usePlayerDataQuery: () => ({ players: catalog, isLoading: false, dataInfo: {} }),
 }));
 vi.mock('./useTeamNeeds', () => ({
   useTeamNeeds: () => ({ needs: [], isLoading: false }),
@@ -50,6 +50,7 @@ const model: LeagueSurvivalModel = {
     top50RateDelta: 0.2, top100RateDelta: 0.1, sampleSize: 20,
   }])) as LeagueSurvivalModel['positions'],
 };
+let catalog: readonly Player[] = [player];
 let store: ReturnType<typeof createDraftStore>;
 let result: ReturnType<typeof useRecommendations>;
 let enabled = true;
@@ -64,6 +65,7 @@ function render() {
 }
 
 beforeEach(() => {
+  catalog = [player];
   setup.profile = 'quick-mock';
   setup.connection = null;
   enabled = true;
@@ -140,4 +142,16 @@ describe('recommendation timing by league profile', () => {
     expect(result.isLoading).toBe(false);
     expect(result.topPick).toBeNull();
   });
+});
+
+it('keeps drafted players in the historical survival cohort while filtering browse availability', () => {
+  setup.profile = 'primary-league';
+  const earlier: Player = { ...player, id: 'earlier', name: 'Earlier Quarterback', ecrRank: 1, consensusAdp: 1, marketAdp: 1 };
+  catalog = [earlier, player];
+  cachedModel = { ...model, historicalPickNumbers: { QB: [1, 5, 10, 20, 30, 50, 80, 100] } };
+  store.getState().setConfig({ totalTeams: 10, totalRounds: 14 });
+  store.getState().markPlayerDrafted(earlier.id, earlier.name, earlier.position, 0, 'My Team');
+  render();
+  expect(result.topPick?.playerId).toBe(player.id);
+  expect(result.topPick?.diagnostics?.historicalExpectedPick).toBe(100);
 });
