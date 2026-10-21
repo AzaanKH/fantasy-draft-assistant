@@ -13,7 +13,7 @@ if (!fixture) throw new Error('Missing player');
 const drafted = { ...fixture, position: 'WR' as const, tier: 1 };
 const alias = { ...drafted, id: 'same-name-alias', name: drafted.name.toUpperCase() };
 const other = { ...drafted, id: 'other', name: 'Another Receiver' };
-const players = [drafted, alias, other];
+let players = [drafted, alias, other];
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players, isLoading: false }) }));
 vi.mock('@/hooks/useLeagueTimingEvidence', () => ({ useLeagueTimingEvidence: () => ({ model: null, isLoading: false }) }));
 vi.mock('@/features/draft-room/LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connection: { provider: 'sleeper' } }) }));
@@ -21,6 +21,7 @@ let root: Root;
 let store: DraftStoreApi;
 let container: HTMLDivElement;
 beforeEach(() => {
+  players = [drafted, alias, other];
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   store = createDraftStore(); store.getState().setSessionMode('live');
@@ -28,7 +29,8 @@ beforeEach(() => {
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
 });
 afterEach(() => { act(() => { root.unmount(); }); container.remove(); });
-it('uses canonical name identity availability for the depth chart', () => {
+it('uses canonical name identity availability for the depth chart and counts repeated IDs once', () => {
+  players = [...players, other];
   act(() => { root.render(createElement(DraftStoreProvider, { store, children: createElement(TooltipProvider, null, createElement(PositionalDepthChart, { needs: [] })) })); });
   expect(container.querySelector('button[aria-label="WR Tier 1: 1 available players"]')).not.toBeNull();
   const button = container.querySelector<HTMLButtonElement>('button[aria-label="Show available WR players"]');

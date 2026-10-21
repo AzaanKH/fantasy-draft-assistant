@@ -13,7 +13,7 @@ import { estimateLeagueSurvivalProbability, getNextUserPick, formatSignedNumber 
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import { useDraftStore } from '@/stores/draftStore';
 import {
-  depthTier, getDepthPlayers, getDepthRosterOpenings,
+  depthTier, getAvailableDepthPlayers, getDepthPlayers, getDepthRosterOpenings,
   getDepthTierDrop, getDepthTiers, type DepthFilter,
 } from './positional-depth';
 
@@ -109,7 +109,8 @@ export default function PositionalDepthChart({ needs }: {
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const available = useDraftView((view) => view.available);
+  const browsePool = useDraftView((view) => view.available);
+  const available = useMemo(() => getAvailableDepthPlayers(browsePool, new Set()), [browsePool]);
   const config = useDraftStore((state) => state.config);
   const [showAll, setShowAll] = useState(false);
   const [showSpecialTeams, setShowSpecialTeams] = useState(false);
