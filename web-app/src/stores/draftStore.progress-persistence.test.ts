@@ -70,12 +70,14 @@ describe('persisted progress facts', () => {
   it('keeps sparse provider progress and its captured keeper slots through reload', () => {
     const storage = memoryStorage();
     const first = open(storage);
+    first.getState().preloadKeepers([{ playerId: 'keeper', playerName: 'Keeper', position: 'RB',
+      teamIndex: 1, round: 10, isMyKeeper: false }]);
     first.getState().reconcileSyncedPicks([{ pickNumber: 3, playerId: 'third', playerName: 'Third', position: 'WR',
       teamIndex: 2, teamName: 'Team 3', isMyPick: false }], 96, [], 100);
     const reloaded = createDraftStore({ storage, session: identity }).getState();
     expect(reloaded.currentPick).toBe(96);
     expect(reloaded.draftProgress).toEqual(first.getState().draftProgress);
-    expect(reloaded.draftProgress.anchor.kind).toBe('provider');
+    expect(reloaded.draftProgress.anchor).toMatchObject({ kind: 'provider', keeperSlots: [99], totalPicks: 140 });
     expect(reloaded.draftHistory.map(pick => pick.pickNumber)).toEqual([3]);
   });
 
@@ -198,4 +200,18 @@ it.each([0, 2.5, 5000])('persists the raw provider cursor fact before command cl
   expect(reloaded.currentPick).toBe(first.getState().currentPick);
   expect(reloaded.draftProgress).toEqual(first.getState().draftProgress);
   expect(reloaded.draftProgress.anchor).toMatchObject({ kind: 'provider', nextPickNumber });
+});
+
+it('retains command-time past-keepers bounds after the number of rounds changes', () => {
+  const storage = memoryStorage();
+  const first = open(storage);
+  first.getState().preloadKeepers([{ playerId: 'keeper', playerName: 'Keeper', position: 'RB',
+    teamIndex: 0, round: 1, isMyKeeper: true }]);
+  const accepted = first.getState().draftProgress;
+  expect(accepted.anchor).toEqual({ kind: 'past-keepers', fromPick: 1, keeperSlots: [1], totalPicks: 140 });
+  first.getState().setConfig({ totalRounds: 15 });
+  const reloaded = createDraftStore({ storage, session: identity }).getState();
+  expect(reloaded.config.totalRounds).toBe(15);
+  expect(reloaded.currentPick).toBe(2);
+  expect(reloaded.draftProgress).toEqual(accepted);
 });

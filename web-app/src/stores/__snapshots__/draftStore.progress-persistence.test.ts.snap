@@ -37,3 +37,5 @@ exports[`persists the raw provider cursor fact before command clamping (5000) > 
 exports[`preserves the legacy sorted reload cursor when the command prefix interleaves with later picks > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`rejects a malformed journal progress field without dropping its picks or queue > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`retains command-time past-keepers bounds after the number of rounds changes > documented deriveDraft mismatches 1`] = `[]`;

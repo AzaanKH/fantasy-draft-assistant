@@ -79,6 +79,7 @@ const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal
     value.unresolvedProviderPicks.every(row => row.pickNumber <= total);
 }));
 const progressPick = /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1);
+// Keeper slots and bounds belong to the accepted command, even after the draft format changes.
 const reservedSlots = {
   keeperSlots: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS))
     .check(/* @__PURE__ */ Schema.makeFilter(slots => slots.length <= MAX_DRAFT_PICKS && new Set(slots).size === slots.length)),
