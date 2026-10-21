@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
@@ -15,7 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
-  calculateIsMyTurn,
   useDraftStore,
   useDraftStoreApi,
   type DraftSessionMode,
@@ -60,9 +60,9 @@ export function MockDraftControls({
   const [isEstimating, setIsEstimating] = React.useState(false);
   const [branchPick, setBranchPick] = React.useState('1');
   const draftHistory = useDraftStore((state) => state.draftHistory);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const draftedPlayerIds = useDraftView((state) => state.draftedPlayerIds);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const currentPick = useDraftStore((state) => state.currentPick);
+  const currentPick = useDraftView((state) => state.currentPick);
   const config = useDraftStore((state) => state.config);
   const mockSettings = useDraftStore((state) => state.mockSettings);
   const isPaused = useDraftStore((state) => state.mockAutoAdvance.paused);
@@ -155,16 +155,10 @@ export function MockDraftControls({
     setBranchPick(String(currentPick));
   }, [currentPick]);
 
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
   if (sessionMode === 'live') return null;
 
   const totalPicks = config.totalTeams * config.totalRounds;
-  const isMyTurn = calculateIsMyTurn(
-    currentPick,
-    config.myPickPosition,
-    config.totalTeams,
-    config.totalRounds,
-    config.draftType
-  );
   const keeperAtCurrentPick = getKeeperAtPick(
     preloadedKeepers,
     currentPick,

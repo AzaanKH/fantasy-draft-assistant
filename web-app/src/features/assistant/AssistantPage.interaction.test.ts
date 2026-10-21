@@ -107,7 +107,7 @@ vi.mock('@/features/draft-room/LiveDraftSyncProvider', () => ({
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players }) }));
 vi.mock('@/hooks/useTeamNeeds', () => ({ useTeamNeeds: () => ({ needs }) }));
 vi.mock('@/hooks/useDraftPlayerAction', () => ({
-  useDraftPlayerAction: () => ({ canDraft: mocks.canDraft, isMyTurn: true, draftPlayer: mocks.draftPlayer }),
+  useDraftPlayerAction: () => ({ canDraft: mocks.canDraft, canDraftPlayer: () => mocks.canDraft, isMyTurn: true, draftPlayer: mocks.draftPlayer }),
 }));
 vi.mock('@/hooks/useQueueActions', () => ({
   useQueueActions: () => ({ togglePlayerQueued: mocks.togglePlayerQueued, removePlayerFromQueue: vi.fn() }),

@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 /**
  * Team Needs Hook
  *
@@ -28,9 +29,9 @@ export function useTeamNeeds(): {
   isLoading: boolean;
 } {
   const { players, isLoading } = usePlayerDataQuery();
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const currentPick = useDraftStore((state) => state.currentPick);
+  const myRoster = useDraftView((state) => state.myRoster);
+  const draftedPlayerIds = useDraftView((state) => state.draftedPlayerIds);
+  const currentPick = useDraftView((state) => state.currentPick);
   const config = useDraftStore((state) => state.config);
 
   const scarcityScores = useMemo(() => {

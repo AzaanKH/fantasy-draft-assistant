@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
@@ -72,12 +73,12 @@ export function DraftDecisionProvider({
     topPick,
     isLoading,
   } = recommendationState;
-  const currentPick = useDraftStore((state) => state.currentPick);
+  const currentPick = useDraftView((state) => state.currentPick);
   const selectedLens = useDraftStore((state) => state.decisionLens);
   const setSelectedLens = useDraftStore((state) => state.setDecisionLens);
   const historyLength = useDraftStore((state) => state.draftHistory.length);
-  const rosterSize = useDraftStore((state) =>
-    (Object.values(state.myRoster) as string[][]).reduce(
+  const rosterSize = useDraftView((state) =>
+    POSITIONS.map(position => state.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     )

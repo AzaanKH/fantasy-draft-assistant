@@ -258,7 +258,8 @@ function createFixtureHistory(): RecordedDraftPick[] {
   return Array.from({ length: 46 }, (_, index) => {
     const pickNumber = index + 1;
     const teamIndex = createSlotSequence({ type: 'snake', teams: 10, rounds: Math.ceil(pickNumber / 10) }).at(pickNumber).teamIndex;
-    const position = (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
+    const managerPositions: Readonly<Record<number, Player['position']>> = { 5: 'RB', 16: 'RB', 25: 'QB', 36: 'WR', 45: 'TE' };
+    const position = managerPositions[pickNumber] ?? (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
     return {
       pickNumber,
       playerId: `visual-drafted-${String(pickNumber)}`,
@@ -278,6 +279,7 @@ export function createVisualDraftStore(): DraftStoreApi {
   store.setState({
     sessionMode: 'mock',
     currentPick: 47,
+    draftProgress: { anchor: { kind: 'carry', pickNumber: 47 }, historyLength: draftHistory.length },
     draftedPlayerIds: new Set(draftHistory.map((pick) => pick.playerId)),
     draftHistory,
     shortlistedPlayerIds: ['visual-player-2', 'visual-player-6'],

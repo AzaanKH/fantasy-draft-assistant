@@ -1,10 +1,10 @@
+import { useDraftView, useDraftViewReader } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import {
-  calculateIsMyTurn,
   useDraftStore,
   useDraftStoreApi,
   type MockCpuPickPace,
@@ -23,17 +23,19 @@ const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
  */
 export function useSimulateNextCpuPick(players: readonly Player[]): () => boolean {
   const draftStore = useDraftStoreApi();
+  const readDraftView = useDraftViewReader();
   const sessionMode = useDraftStore((state) => state.sessionMode);
   const timingEvidence = useLeagueTimingEvidence(sessionMode !== 'live');
 
   return React.useCallback((): boolean => {
     const state = draftStore.getState();
+    const view = readDraftView();
     const totalPicks = state.config.totalTeams * state.config.totalRounds;
-    if (state.currentPick > totalPicks) return false;
+    if (view.currentPick > totalPicks) return false;
 
     const keeper = getKeeperAtPick(
       state.preloadedKeepers,
-      state.currentPick,
+      view.currentPick,
       state.config.totalTeams,
       state.config.draftType
     );
@@ -42,22 +44,16 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       return true;
     }
 
-    if (calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams,
-        state.config.totalRounds,
-      state.config.draftType
-    )) {
+    if (view.isMyTurn) {
       return false;
     }
 
     const selection = selectCpuPlayer({
       players,
-      draftedPlayerIds: state.draftedPlayerIds,
+      draftedPlayerIds: view.draftedPlayerIds,
       history: state.draftHistory,
       keepers: state.preloadedKeepers,
-      currentPick: state.currentPick,
+      currentPick: view.currentPick,
       config: {
         totalTeams: state.config.totalTeams,
         totalRounds: state.config.totalRounds,
@@ -71,7 +67,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     });
     if (!selection) return false;
 
-    const teamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(state.currentPick).teamIndex;
+    const teamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(view.currentPick).teamIndex;
     state.markPlayerDrafted(
       selection.player.id,
       selection.player.name,
@@ -82,7 +78,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       'cpu'
     );
     return true;
-  }, [draftStore, timingEvidence.model, players]);
+  }, [draftStore, readDraftView, timingEvidence.model, players]);
 }
 
 /**
@@ -92,8 +88,9 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
 export function MockDraftAutoAdvance(): null {
   const { players } = usePlayerDataQuery();
   const draftStore = useDraftStoreApi();
+  const readDraftView = useDraftViewReader();
   const sessionMode = useDraftStore((state) => state.sessionMode);
-  const currentPick = useDraftStore((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const config = useDraftStore((state) => state.config);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const { paused, settingsOpen } = useDraftStore((state) => state.mockAutoAdvance);
@@ -105,21 +102,16 @@ export function MockDraftAutoAdvance(): null {
   React.useEffect(() => {
     if (sessionMode !== 'mock' || paused || settingsOpen || players.length === 0) return;
     const state = draftStore.getState();
+    const view = readDraftView();
     const totalPicks = state.config.totalTeams * state.config.totalRounds;
-    if (state.currentPick > totalPicks) return;
+    if (view.currentPick > totalPicks) return;
     const keeper = getKeeperAtPick(
       state.preloadedKeepers,
-      state.currentPick,
+      view.currentPick,
       state.config.totalTeams,
       state.config.draftType
     );
-    if (!keeper && calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams,
-        state.config.totalRounds,
-      state.config.draftType
-    )) {
+    if (!keeper && view.isMyTurn) {
       return;
     }
     const timer = window.setTimeout(() => {
@@ -132,6 +124,7 @@ export function MockDraftAutoAdvance(): null {
     cpuPickDelayMs,
     currentPick,
     draftStore,
+    readDraftView,
     paused,
     players.length,
     preloadedKeepers,

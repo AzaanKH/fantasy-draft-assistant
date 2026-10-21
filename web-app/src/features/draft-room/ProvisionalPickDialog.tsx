@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
@@ -79,8 +80,9 @@ function ProvisionalPickForm({
   const { players } = usePlayerDataQuery();
   const { connection } = useLiveDraftSync();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
+  const currentPick = useDraftView((state) => state.currentPick);
+  const available = useDraftView((view) => view.available);
+  const canRecord = useDraftView((view) => view.canRecord);
   const draftHistory = useDraftStore((state) => state.draftHistory);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
   const recordProvisionalPick = useDraftStore(
@@ -91,12 +93,9 @@ function ProvisionalPickForm({
   );
 
   const selectablePlayers = React.useMemo(
-    () => players
-      .filter((player) =>
-        !draftedPlayerIds.has(player.id) || player.id === editingPick?.playerId
-      )
+    () => [...available, ...players.filter((player) => player.id === editingPick?.playerId && !available.some(candidate => candidate.id === player.id))]
       .sort((left, right) => left.ecrRank - right.ecrRank),
-    [draftedPlayerIds, editingPick?.playerId, players]
+    [available, editingPick?.playerId, players]
   );
   const order = React.useMemo(() => createSlotSequence({
     type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds,
@@ -252,7 +251,7 @@ function ProvisionalPickForm({
         </Button>
         <Button
           onClick={handleSave}
-          disabled={
+          disabled={!canRecord ||
             !selectedPlayerId ||
             !selectedPickNumber ||
             Boolean(

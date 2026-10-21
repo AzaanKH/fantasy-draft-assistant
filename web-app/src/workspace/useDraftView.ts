@@ -1,0 +1,63 @@
+import { useCallback } from 'react';
+import { useStore } from 'zustand';
+import { deriveDraft, getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
+import type { Player } from '@fantasy-draft/shared/league';
+import { usePlayerDataQuery } from '@/hooks/usePlayerData';
+import { useDraftStoreApi, type DraftStoreApi } from '@/stores/draftStore';
+import type { DraftState } from '@/stores/draft/types';
+
+export interface DraftView extends DerivedDraft {
+  readonly draftedPlayers: readonly { readonly playerName: string; readonly position: Player['position'] }[];
+}
+
+type Inputs = Pick<DraftState, 'draftProgress' | 'sessionMode' | 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds'>;
+interface CachedView { readonly inputs: Inputs; readonly view: DraftView }
+type DraftViewStore = Pick<DraftStoreApi, 'getState'>;
+const views = new WeakMap<DraftViewStore, WeakMap<readonly Player[], CachedView>>();
+const EMPTY_PLAYERS: readonly Player[] = [];
+
+function selectDraftView(store: DraftViewStore, state: Inputs, players: readonly Player[]): DraftView {
+  let catalogs = views.get(store);
+  if (!catalogs) { catalogs = new WeakMap(); views.set(store, catalogs); }
+  const previous = catalogs.get(players);
+  const before = previous?.inputs;
+  if (before && before.draftProgress === state.draftProgress && before.sessionMode === state.sessionMode &&
+      before.draftHistory === state.draftHistory && before.preloadedKeepers === state.preloadedKeepers &&
+      before.config === state.config && before.shortlistedPlayerIds === state.shortlistedPlayerIds) return previous.view;
+  const { config } = state;
+  const derived = deriveDraft({
+    progress: state.draftProgress,
+    sessionMode: state.sessionMode,
+    rosterRequirements: config.rosterRequirements,
+    history: state.draftHistory,
+    keepers: state.preloadedKeepers,
+    myTeamIndex: config.myPickPosition - 1,
+    shortlistOrder: state.shortlistedPlayerIds,
+  }, { type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }, players);
+  const view: DraftView = {
+    ...derived,
+    draftedPlayers: [
+      ...state.draftHistory,
+      ...getEffectiveKeeperAssignments(state.preloadedKeepers, state.draftHistory, config.totalTeams, config.draftType),
+    ],
+  };
+  catalogs.set(players, { inputs: state, view });
+  return view;
+}
+
+/** Read at callback time so queued actions and CPU loops see the latest source facts. */
+export function getDraftView(store: DraftViewStore, players: readonly Player[] = EMPTY_PLAYERS): DraftView {
+  return selectDraftView(store, store.getState(), players);
+}
+
+export function useDraftView<T>(selector: (view: DraftView) => T): T {
+  const store = useDraftStoreApi();
+  const { players } = usePlayerDataQuery();
+  return useStore(store, state => selector(selectDraftView(store, state, players)));
+}
+
+export function useDraftViewReader(): () => DraftView {
+  const store = useDraftStoreApi();
+  const { players } = usePlayerDataQuery();
+  return useCallback(() => getDraftView(store, players), [store, players]);
+}

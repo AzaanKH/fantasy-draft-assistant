@@ -1,3 +1,4 @@
+import { getDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { useDraftStoreApi } from '@/stores/draftStore';
@@ -25,7 +26,7 @@ export function useQueueActions(
       id: `queue:${playerId}`,
       action: { label: 'Undo', onClick: () => {
         const current = draftStore.getState();
-        const isQueued = current.shortlistedPlayerIds.includes(playerId);
+        const isQueued = getDraftView(draftStore).shortlistedPlayerIds.includes(playerId);
         if (wasQueued && !isQueued) {
           current.togglePlayerShortlisted(playerId);
         } else if (!wasQueued && isQueued) {
@@ -37,15 +38,15 @@ export function useQueueActions(
 
   const togglePlayerQueued = React.useCallback((playerId: string) => {
     const store = draftStore.getState();
-    const wasQueued = store.shortlistedPlayerIds.includes(playerId);
+    const wasQueued = getDraftView(draftStore).shortlistedPlayerIds.includes(playerId);
     store.togglePlayerShortlisted(playerId);
-    const isQueued = draftStore.getState().shortlistedPlayerIds.includes(playerId);
+    const isQueued = getDraftView(draftStore).shortlistedPlayerIds.includes(playerId);
     if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
   }, [draftStore, showQueueFeedback]);
 
   const removePlayerFromQueue = React.useCallback((playerId: string) => {
     const store = draftStore.getState();
-    if (!store.shortlistedPlayerIds.includes(playerId)) return;
+    if (!getDraftView(draftStore).shortlistedPlayerIds.includes(playerId)) return;
     store.removePlayerFromShortlist(playerId);
     showQueueFeedback(playerId, true);
   }, [draftStore, showQueueFeedback]);

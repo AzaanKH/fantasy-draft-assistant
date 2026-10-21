@@ -1,3 +1,4 @@
+import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -8,6 +9,8 @@ import type {
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
+
+vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => VISUAL_PLAYER_DATA }));
 
 const decision = vi.hoisted(() => ({
   output: { bestPick: null as Recommendation | null },

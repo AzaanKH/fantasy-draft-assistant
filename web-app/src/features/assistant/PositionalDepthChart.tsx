@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { useId, useMemo, useRef, useState } from 'react';
 import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
@@ -30,8 +31,8 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
 }): React.ReactElement {
   const [limit, setLimit] = useState(8);
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const queuedIds = useDraftStore((state) => state.shortlistedPlayerIds);
+  const currentPick = useDraftView((state) => state.currentPick);
+  const queuedIds = useDraftView((state) => state.shortlistedPlayerIds);
   const sessionMode = useDraftStore((state) => state.sessionMode);
   const mockProbabilities = useDraftStore((state) => state.mockSurvivalProbabilities);
   const { togglePlayerQueued } = useQueueActions(players);
@@ -108,7 +109,7 @@ export default function PositionalDepthChart({ needs }: {
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const draftedIds = useDraftStore((state) => state.draftedPlayerIds);
+  const draftedIds = useDraftView((state) => state.draftedPlayerIds);
   const history = useDraftStore((state) => state.draftHistory);
   const keepers = useDraftStore((state) => state.preloadedKeepers);
   const config = useDraftStore((state) => state.config);

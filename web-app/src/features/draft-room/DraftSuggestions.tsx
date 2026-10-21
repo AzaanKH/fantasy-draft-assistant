@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
 import type { Player } from '@fantasy-draft/shared/league';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
@@ -11,7 +12,6 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import { useDraftStore } from '@/stores/draftStore';
 
 function SuggestionCard({
   recommendation,
@@ -116,9 +116,9 @@ export function DraftSuggestions({
 }): React.ReactElement {
   const { overall, isLoading } = useDraftDecision();
   const { players } = usePlayerDataQuery();
-  const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((state) => state.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(players);
-  const { canDraft, draftPlayer } = useDraftPlayerAction();
+  const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]
@@ -138,7 +138,7 @@ export function DraftSuggestions({
           explanation={overall.explanationByPlayerId.get(recommendation.playerId) ?? recommendation.reason}
           rank={overall.rankByPlayerId.get(recommendation.playerId) ?? 0}
           player={playerById.get(recommendation.playerId)}
-          canDraft={canDraft}
+          canDraft={canDraft && canDraftPlayer(recommendation)}
           isQueued={queuedSet.has(recommendation.playerId)}
           onDraft={draftPlayer}
           onQueue={togglePlayerQueued}

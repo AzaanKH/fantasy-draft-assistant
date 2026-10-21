@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
 import {
   POSITIONS,
@@ -212,7 +213,7 @@ function SidePanelStatus({
   readonly sync: DraftSyncViewState;
 }): React.ReactElement {
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
+  const currentPick = useDraftView((state) => state.currentPick);
   const picksUntilTurn = getPicksUntilMyTurn(
     currentPick,
     config.myPickPosition,
@@ -677,7 +678,7 @@ function RosterPanel({
   readonly playerById: ReadonlyMap<string, Player>;
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
-  const roster = useDraftStore((state) => state.myRoster);
+  const roster = useDraftView((state) => state.myRoster);
   const config = useDraftStore((state) => state.config);
 
   return (

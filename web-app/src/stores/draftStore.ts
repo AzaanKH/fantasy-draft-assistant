@@ -24,7 +24,6 @@ import {
 } from './draftSessionUnconfirmedSaves';
 import type { DraftStore, DraftSessionMode, SetDraftState } from './draft/types';
 import {
-  calculateIsMyTurn,
   createEmptyMutableRoster,
   createEmptyTeamRosters,
   defaultConfig,
@@ -368,13 +367,3 @@ export const useDraftStore: UseDraftStore = Object.assign(
  */
 export const useDraftSessionMode = (): DraftSessionMode =>
   useDraftStore((state) => state.sessionMode);
-export const useIsMyTurn = () =>
-  useDraftStore((state) =>
-    calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams,
-        state.config.totalRounds,
-      state.config.draftType
-    )
-  );

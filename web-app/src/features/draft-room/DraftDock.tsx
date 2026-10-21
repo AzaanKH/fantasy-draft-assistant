@@ -1,3 +1,5 @@
+import { POSITIONS } from '@fantasy-draft/shared/league';
+import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -58,10 +60,10 @@ export function DraftDock({
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
 }): React.ReactElement {
   const isSplit = useMediaQuery(SPLIT_LAYOUT_QUERY);
-  const queuedCount = useDraftStore((state) => state.shortlistedPlayerIds.length);
+  const queuedCount = useDraftView((state) => state.shortlistedPlayerIds.length);
   const totalRounds = useDraftStore((state) => state.config.totalRounds);
-  const rosterCount = useDraftStore((state) =>
-    (Object.values(state.myRoster) as string[][]).reduce(
+  const rosterCount = useDraftView((state) =>
+    POSITIONS.map(position => state.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     )

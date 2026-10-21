@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { type Player, type Position } from '@fantasy-draft/shared/league';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { type RosterRequirements } from '@fantasy-draft/shared/league';
@@ -5,9 +6,7 @@ import * as React from 'react';
 import {
   useDraftSessionMode,
   useDraftStore,
-  useIsMyTurn,
 } from '@/stores/draftStore';
-import { getKeeperAtPick } from '@fantasy-draft/shared/draft';
 
 export function canDraftFromWorkspace(
   sessionMode: ReturnType<typeof useDraftSessionMode>,
@@ -33,28 +32,15 @@ export function useDraftPlayerAction(): {
   readonly canDraftPlayer: (player: Pick<Player, 'position'>) => boolean;
   readonly draftPlayer: (player: Player) => void;
 } {
-  const sessionMode = useDraftSessionMode();
-  const isMyTurn = useIsMyTurn();
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
+  const canDraft = useDraftView((view) => view.canDraft);
+  const canDraftByPosition = useDraftView((view) => view.canDraftByPosition);
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const myRoster = useDraftStore((state) => state.myRoster);
+  const currentPick = useDraftView((view) => view.currentPick);
   const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
-  const keeperAtCurrentPick = sessionMode === 'mock'
-    ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams, config.draftType)
-    : undefined;
-  // The Draft Workspace is read-only for connected provider drafts. Local pick
-  // mutation is reserved for deterministic mock rehearsal; provider picks are
-  // observed through sync and are always completed in the provider UI.
-  const canDraft = canDraftFromWorkspace(
-    sessionMode,
-    isMyTurn,
-    keeperAtCurrentPick !== undefined
-  );
-
   const canDraftPlayer = React.useCallback(
-    (player: Pick<Player, 'position'>) => canDraft && !isPositionFull(player.position, myRoster, config.rosterRequirements),
-    [canDraft, config.rosterRequirements, myRoster]
+    (player: Pick<Player, 'position'>) => canDraftByPosition[player.position],
+    [canDraftByPosition]
   );
 
   const draftPlayer = React.useCallback((player: Player) => {

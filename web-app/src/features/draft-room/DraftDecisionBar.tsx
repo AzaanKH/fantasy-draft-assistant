@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
 import { ArrowRight, Check, ListPlus, LoaderCircle } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
@@ -57,8 +58,8 @@ export function DraftDecisionBar({
   const bestPick = output.bestPick;
   const sessionMode = useDraftSessionMode();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const isQueued = useDraftStore((state) =>
+  const currentPick = useDraftView((state) => state.currentPick);
+  const isQueued = useDraftView((state) =>
     bestPick ? state.shortlistedPlayerIds.includes(bestPick.playerId) : false
   );
   const queuePlayerIdentity = React.useMemo(

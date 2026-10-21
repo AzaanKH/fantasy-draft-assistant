@@ -1,3 +1,4 @@
+import { getDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   type Player,
@@ -23,7 +24,6 @@ import {
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { hasRemainingDraftDecision } from '@/hooks/useRecommendations';
 import {
-  calculateIsMyTurn,
   useDraftStore,
   type DraftTeamRoster,
   type PreloadedKeeper,
@@ -275,7 +275,7 @@ function repeatedStrings(values: readonly string[]): string[] {
 
 function compareRosters(
   expected: readonly DraftTeamRoster[],
-  actual: readonly DraftTeamRoster[]
+  actual: readonly Roster[]
 ): string[] {
   const mismatches: string[] = [];
   expected.forEach((expectedRoster, teamIndex) => {
@@ -364,7 +364,7 @@ export function runPrimaryLeagueRehearsal(
 
   const observeDecision = (label: string): void => {
     observedTransitions += 1;
-    const state = useDraftStore.getState();
+    const state = { ...useDraftStore.getState(), ...getDraftView(useDraftStore, allPlayers) };
     const myRosterSize = rosterSize(state.myRoster);
     const shouldRecommend = hasRemainingDraftDecision(
       state.currentPick,
@@ -380,12 +380,7 @@ export function runPrimaryLeagueRehearsal(
     const availablePlayers = allPlayers.filter(
       (player) => !state.draftedPlayerIds.has(player.id)
     );
-    const managerIsOnTheClock = calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams,
-        state.config.totalRounds, 'snake'
-    );
+    const managerIsOnTheClock = state.isMyTurn;
     const scarcity = calculateAllScarcityScores(availablePlayers);
     const needs = calculateTeamNeeds(
       state.myRoster,
@@ -547,7 +542,7 @@ export function runPrimaryLeagueRehearsal(
   }
   synchronizationStates.push(getDraftSynchronizationState('complete'));
 
-  const finalState = useDraftStore.getState();
+  const finalState = { ...useDraftStore.getState(), ...getDraftView(useDraftStore, allPlayers) };
   const canonicalPicks = [
     ...providerPicks.map((pick) => ({ pickNumber: pick.pickNumber, playerId: pick.playerId })),
     ...KEEPERS.map((keeper) => ({
