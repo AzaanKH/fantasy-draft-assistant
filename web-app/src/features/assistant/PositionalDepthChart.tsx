@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
-import { estimateLeagueSurvivalProbability, getNextUserPick, formatSignedNumber, getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';
+import { estimateLeagueSurvivalProbability, getNextUserPick, formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import { useDraftStore } from '@/stores/draftStore';
 import {
-  depthTier, getAvailableDepthPlayers, getDepthPlayers, getDepthRosterOpenings,
+  depthTier, getDepthPlayers, getDepthRosterOpenings,
   getDepthTierDrop, getDepthTiers, type DepthFilter,
 } from './positional-depth';
 
@@ -31,8 +31,8 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
 }): React.ReactElement {
   const [limit, setLimit] = useState(8);
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
-  const queuedIds = useDraftView((state) => state.shortlistedPlayerIds);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const queuedIds = useDraftView((view) => view.shortlistedPlayerIds);
   const sessionMode = useDraftStore((state) => state.sessionMode);
   const mockProbabilities = useDraftStore((state) => state.mockSurvivalProbabilities);
   const { togglePlayerQueued } = useQueueActions(players);
@@ -109,9 +109,7 @@ export default function PositionalDepthChart({ needs }: {
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const draftedIds = useDraftView((state) => state.draftedPlayerIds);
-  const history = useDraftStore((state) => state.draftHistory);
-  const keepers = useDraftStore((state) => state.preloadedKeepers);
+  const available = useDraftView((view) => view.available);
   const config = useDraftStore((state) => state.config);
   const [showAll, setShowAll] = useState(false);
   const [showSpecialTeams, setShowSpecialTeams] = useState(false);
@@ -119,11 +117,6 @@ export default function PositionalDepthChart({ needs }: {
   const selectionTrigger = useRef<HTMLButtonElement | null>(null);
   const titleId = useId();
   const detailId = useId();
-  const available = useMemo(() => {
-    const excluded = new Set([...draftedIds, ...history.map((pick) => pick.playerId),
-      ...getEffectiveKeeperAssignments(keepers, history, config.totalTeams, config.draftType).map((keeper) => keeper.playerId)]);
-    return getAvailableDepthPlayers(players, excluded);
-  }, [players, draftedIds, history, keepers, config.totalTeams, config.draftType]);
   const positions = POSITIONS.filter((position) => config.rosterRequirements[position].starters > 0 ||
     (config.rosterRequirements.FLEX.starters > 0 && config.rosterRequirements.FLEX.eligiblePositions.includes(position)));
   const secondary = positions.filter((position) => (position === 'K' || position === 'DEF') &&

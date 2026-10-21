@@ -73,12 +73,12 @@ export function DraftDecisionProvider({
     topPick,
     isLoading,
   } = recommendationState;
-  const currentPick = useDraftView((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const selectedLens = useDraftStore((state) => state.decisionLens);
   const setSelectedLens = useDraftStore((state) => state.setDecisionLens);
   const historyLength = useDraftStore((state) => state.draftHistory.length);
-  const rosterSize = useDraftView((state) =>
-    POSITIONS.map(position => state.myRoster[position]).reduce(
+  const rosterSize = useDraftView((view) =>
+    POSITIONS.map(position => view.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     )

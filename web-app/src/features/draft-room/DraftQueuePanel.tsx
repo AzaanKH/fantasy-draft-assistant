@@ -12,7 +12,7 @@ import { useQueueActions } from '@/hooks/useQueueActions';
 
 export function DraftQueuePanel(): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const queuedPlayerIds = useDraftView((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { removePlayerFromQueue } = useQueueActions(players);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const playerById = React.useMemo(

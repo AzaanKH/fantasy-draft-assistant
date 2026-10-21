@@ -8,7 +8,7 @@ import { getRosterSlots } from './roster-slots';
 
 export function DraftRosterPanel(): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const myRoster = useDraftView((state) => state.myRoster);
+  const myRoster = useDraftView((view) => view.myRoster);
   const config = useDraftStore((state) => state.config);
   const draftHistory = useDraftStore((state) => state.draftHistory);
   const playerById = React.useMemo(

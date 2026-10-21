@@ -41,13 +41,13 @@ export function useShadowRecommendationLogging(
   } = input;
   const { shadowPlayers, dataInfo } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
-  const draftedPlayerIds = useDraftView((state) => state.draftedPlayerIds);
-  const myRoster = useDraftView((state) => state.myRoster);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const myRoster = useDraftView((view) => view.myRoster);
   const config = useDraftStore((state) => state.config);
   const leagueSettingsFingerprint = useDraftStore(
     (state) => state.leagueSettings.fingerprint
   );
-  const currentPick = useDraftView((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const isMyTurn = useDraftView((view) => view.isMyTurn);
   const attemptedEventIds = useRef(new Set<string>());
   const timingEvidence = useLeagueTimingEvidence(dataInfo.shadowLoggingEnabled && draftReady);

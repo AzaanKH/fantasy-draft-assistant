@@ -29,9 +29,9 @@ export function useTeamNeeds(): {
   isLoading: boolean;
 } {
   const { players, isLoading } = usePlayerDataQuery();
-  const myRoster = useDraftView((state) => state.myRoster);
-  const draftedPlayerIds = useDraftView((state) => state.draftedPlayerIds);
-  const currentPick = useDraftView((state) => state.currentPick);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const currentPick = useDraftView((view) => view.currentPick);
   const config = useDraftStore((state) => state.config);
 
   const scarcityScores = useMemo(() => {

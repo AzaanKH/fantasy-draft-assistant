@@ -58,9 +58,9 @@ export function DraftDecisionBar({
   const bestPick = output.bestPick;
   const sessionMode = useDraftSessionMode();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
-  const isQueued = useDraftView((state) =>
-    bestPick ? state.shortlistedPlayerIds.includes(bestPick.playerId) : false
+  const currentPick = useDraftView((view) => view.currentPick);
+  const isQueued = useDraftView((view) =>
+    bestPick ? view.shortlistedPlayerIds.includes(bestPick.playerId) : false
   );
   const queuePlayerIdentity = React.useMemo(
     () => bestPick ? [{ id: bestPick.playerId, name: bestPick.playerName }] : [],

@@ -60,9 +60,9 @@ export function MockDraftControls({
   const [isEstimating, setIsEstimating] = React.useState(false);
   const [branchPick, setBranchPick] = React.useState('1');
   const draftHistory = useDraftStore((state) => state.draftHistory);
-  const draftedPlayerIds = useDraftView((state) => state.draftedPlayerIds);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const currentPick = useDraftView((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const config = useDraftStore((state) => state.config);
   const mockSettings = useDraftStore((state) => state.mockSettings);
   const isPaused = useDraftStore((state) => state.mockAutoAdvance.paused);

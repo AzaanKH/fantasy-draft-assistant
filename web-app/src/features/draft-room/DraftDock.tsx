@@ -60,10 +60,10 @@ export function DraftDock({
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
 }): React.ReactElement {
   const isSplit = useMediaQuery(SPLIT_LAYOUT_QUERY);
-  const queuedCount = useDraftView((state) => state.shortlistedPlayerIds.length);
+  const queuedCount = useDraftView((view) => view.shortlistedPlayerIds.length);
   const totalRounds = useDraftStore((state) => state.config.totalRounds);
-  const rosterCount = useDraftView((state) =>
-    POSITIONS.map(position => state.myRoster[position]).reduce(
+  const rosterCount = useDraftView((view) =>
+    POSITIONS.map(position => view.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     )

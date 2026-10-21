@@ -84,13 +84,13 @@ export function AssistantPage({
   const isMyTurn = useDraftView((view) => view.isMyTurn);
   const sessionMode = useDraftSessionMode();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const draftHistory = useDraftStore((state) => state.draftHistory);
-  const teamRosters = useDraftView((state) => state.teamRosters);
-  const draftedPlayerIds = useDraftView((state) => state.draftedPlayerIds);
-  const myRoster = useDraftView((state) => state.myRoster);
+  const teamRosters = useDraftView((view) => view.teamRosters);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const myRoster = useDraftView((view) => view.myRoster);
   const decisionLens = useDraftStore((state) => state.decisionLens);
-  const queuedPlayerIds = useDraftView((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const moveShortlistedPlayer = useDraftStore((state) => state.moveShortlistedPlayer);
   const { togglePlayerQueued, removePlayerFromQueue } = useQueueActions(players);
 
@@ -257,7 +257,9 @@ export function AssistantPage({
     : null;
   const disabledReason = mode === 'mock' && !canDraft
     ? canPickNow ? 'A keeper occupies this pick.' : 'Waiting for your turn.'
-    : null;
+    : mode === 'mock' && leaderPlayer && !canDraftPlayer(leaderPlayer)
+      ? `${leaderPlayer.position} limit reached.`
+      : null;
   const cards = showAllPlayers ? poolRecommendations : poolRecommendations.slice(0, collapsedPlayerCount * 2);
   const hiddenPlayerCount = poolRecommendations.length - cards.length;
   const selectedTabIndex = ANALYSIS_TABS.findIndex((tab) => tab.id === analysisTab);

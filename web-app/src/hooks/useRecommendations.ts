@@ -81,8 +81,8 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const available = useDraftView((view) => view.available);
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
-  const myRoster = useDraftView((state) => state.myRoster);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const myRoster = useDraftView((view) => view.myRoster);
   const sessionMode = useDraftStore((state) => state.sessionMode);
   const mockSurvivalProbabilities = useDraftStore(
     (state) => state.mockSurvivalProbabilities

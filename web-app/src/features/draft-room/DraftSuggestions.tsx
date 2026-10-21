@@ -19,6 +19,7 @@ function SuggestionCard({
   rank,
   player,
   canDraft,
+  positionAllowed,
   isQueued,
   onDraft,
   onQueue,
@@ -29,6 +30,7 @@ function SuggestionCard({
   readonly rank: number;
   readonly player?: Player;
   readonly canDraft: boolean;
+  readonly positionAllowed: boolean;
   readonly isQueued: boolean;
   readonly onDraft: (player: Player) => void;
   readonly onQueue: (playerId: string) => void;
@@ -74,6 +76,8 @@ function SuggestionCard({
           <Button
             size="sm"
             className="flex-1"
+            disabled={!positionAllowed}
+            title={positionAllowed ? undefined : `${recommendation.position} limit reached`}
             onClick={() => {
               onDraft(player);
             }}
@@ -116,7 +120,7 @@ export function DraftSuggestions({
 }): React.ReactElement {
   const { overall, isLoading } = useDraftDecision();
   const { players } = usePlayerDataQuery();
-  const queuedPlayerIds = useDraftView((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(players);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const playerById = React.useMemo(
@@ -138,7 +142,8 @@ export function DraftSuggestions({
           explanation={overall.explanationByPlayerId.get(recommendation.playerId) ?? recommendation.reason}
           rank={overall.rankByPlayerId.get(recommendation.playerId) ?? 0}
           player={playerById.get(recommendation.playerId)}
-          canDraft={canDraft && canDraftPlayer(recommendation)}
+          canDraft={canDraft}
+          positionAllowed={canDraftPlayer(recommendation)}
           isQueued={queuedSet.has(recommendation.playerId)}
           onDraft={draftPlayer}
           onQueue={togglePlayerQueued}

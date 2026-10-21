@@ -353,7 +353,7 @@ export function DraftBoard({
 } = {}): React.ReactElement {
   const { players } = usePlayerDataQuery();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const isMyTurn = useDraftView((view) => view.isMyTurn);
   const draftHistory = useDraftStore((state) => state.draftHistory);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);

@@ -45,7 +45,7 @@ function selectDraftView(store: DraftViewStore, state: Inputs, players: readonly
   return view;
 }
 
-/** Read at callback time so queued actions and CPU loops see the latest source facts. */
+/** Fresh callback read. Without a catalog, availability is empty; membership and permissions still apply. */
 export function getDraftView(store: DraftViewStore, players: readonly Player[] = EMPTY_PLAYERS): DraftView {
   return selectDraftView(store, store.getState(), players);
 }

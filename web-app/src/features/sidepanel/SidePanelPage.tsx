@@ -213,7 +213,7 @@ function SidePanelStatus({
   readonly sync: DraftSyncViewState;
 }): React.ReactElement {
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
+  const currentPick = useDraftView((view) => view.currentPick);
   const picksUntilTurn = getPicksUntilMyTurn(
     currentPick,
     config.myPickPosition,
@@ -678,7 +678,7 @@ function RosterPanel({
   readonly playerById: ReadonlyMap<string, Player>;
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
-  const roster = useDraftView((state) => state.myRoster);
+  const roster = useDraftView((view) => view.myRoster);
   const config = useDraftStore((state) => state.config);
 
   return (

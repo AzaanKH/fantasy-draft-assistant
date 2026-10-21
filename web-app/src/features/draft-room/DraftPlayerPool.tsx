@@ -126,10 +126,10 @@ export function DraftPlayerPool(): React.ReactElement {
   const [searchQuery, setSearchQuery] = React.useState('');
   const playerListRef = React.useRef<HTMLDivElement>(null);
   const deferredSearchQuery = React.useDeferredValue(searchQuery.trim().toLowerCase());
-  const queuedPlayerIds = useDraftView((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(basePlayers);
   const sessionMode = useDraftStore((state) => state.sessionMode);
-  const myRoster = useDraftView((state) => state.myRoster);
+  const myRoster = useDraftView((view) => view.myRoster);
   const config = useDraftStore((state) => state.config);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);

@@ -80,8 +80,8 @@ function ProvisionalPickForm({
   const { players } = usePlayerDataQuery();
   const { connection } = useLiveDraftSync();
   const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((state) => state.currentPick);
-  const available = useDraftView((view) => view.available);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const canRecord = useDraftView((view) => view.canRecord);
   const draftHistory = useDraftStore((state) => state.draftHistory);
   const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
@@ -93,9 +93,10 @@ function ProvisionalPickForm({
   );
 
   const selectablePlayers = React.useMemo(
-    () => [...available, ...players.filter((player) => player.id === editingPick?.playerId && !available.some(candidate => candidate.id === player.id))]
+    () => players
+      .filter((player) => !draftedPlayerIds.has(player.id) || player.id === editingPick?.playerId)
       .sort((left, right) => left.ecrRank - right.ecrRank),
-    [available, editingPick?.playerId, players]
+    [draftedPlayerIds, editingPick?.playerId, players]
   );
   const order = React.useMemo(() => createSlotSequence({
     type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds,

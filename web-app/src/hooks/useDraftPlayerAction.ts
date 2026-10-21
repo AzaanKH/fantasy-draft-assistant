@@ -16,7 +16,7 @@ export function canDraftFromWorkspace(
   return sessionMode === 'mock' && isMyTurn && !hasKeeperAtCurrentPick;
 }
 
-/** A position whose roster maximum is reached is not a legal pick, matching the recommendation pool. */
+/** Independent legacy position check retained for the stored-path shadow. */
 export function isPositionFull(
   position: Position,
   roster: Readonly<Record<Position, readonly string[]>>,
