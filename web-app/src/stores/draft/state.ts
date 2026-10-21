@@ -173,7 +173,7 @@ export function rebuildAfterProvisionalChange(state: Pick<
   state.draftProgress = {
     anchor: { kind: 'first-open', keeperSlots: [...getKeeperPickNumbers(effectiveKeepers, state.config.totalTeams, state.config.draftType)],
       totalPicks: state.config.totalTeams * state.config.totalRounds },
-    historyLength: state.draftHistory.length, keeperPhase: 'reserved',
+    historyLength: state.draftHistory.length,
   };
   state.currentPick = getNextCanonicalOpenPick(
     state.draftHistory,

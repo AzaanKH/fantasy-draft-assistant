@@ -5,13 +5,13 @@ import { createSlotSequence, type DraftFormat } from './draft-order.js';
 
 const format: DraftFormat = { type: 'snake', teams: 10, rounds: 14 };
 const source: DraftSource = {
-  progress: { anchor: { kind: 'start' }, historyLength: 0, keeperPhase: 'pending-consumption' },
+  progress: { anchor: { kind: 'start' }, historyLength: 0 },
   sessionMode: 'live', rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
-  history: [], keepers: [], myTeamIndex: 0, shortlistOrder: [], unresolvedPicks: [],
+  history: [], keepers: [], myTeamIndex: 0, shortlistOrder: [],
 };
 
 describe('shadow draft derivation', () => {
-  it.each(['snake', 'linear', 'auction'] as const)('reserves keeper costs and finds gaps using %s slots', type => {
+  it.each(['snake', 'linear', 'auction'] as const)('reserves keeper costs and finds the first gap using %s slots', type => {
     const config = { ...format, type };
     const order = createSlotSequence(config);
     const keepers = [1, 70, 140].map(pick => ({
@@ -20,17 +20,16 @@ describe('shadow draft derivation', () => {
     }));
     const input = {
       ...source, keepers,
-      progress: { anchor: { kind: 'provider' as const, nextPickNumber: 5, keeperSlots: [1, 70, 140], totalPicks: 140 }, historyLength: 2, keeperPhase: 'reserved' as const },
+      progress: { anchor: { kind: 'first-open' as const, keeperSlots: [1, 70, 140], totalPicks: 140 }, historyLength: 2 },
       history: [
         { pickNumber: 3, playerId: 'provisional', position: 'WR' as const, teamIndex: 2 },
         { pickNumber: 2, playerId: 'confirmed', position: 'TE' as const, teamIndex: 1 },
       ],
       shortlistOrder: ['later', 'keeper-70', 'provisional', 'another'],
-      unresolvedPicks: [{ pickNumber: 4 }],
     };
     const before = structuredClone(input);
     const view = deriveDraft(input, config);
-    expect(view.currentPick).toBe(5);
+    expect(view.currentPick).toBe(4);
     expect(view.draftedPlayerIds).toEqual(new Set(['keeper-1', 'keeper-70', 'keeper-140', 'provisional', 'confirmed']));
     expect(view.shortlistedPlayerIds).toEqual(['later', 'another']);
     expect(view.teamRosters[order.at(140).teamIndex]?.RB).toContain('keeper-140');
@@ -43,7 +42,7 @@ describe('shadow draft derivation', () => {
   it('lets completed history displace a keeper by slot or by player, without inventing a team', () => {
     const view = deriveDraft({
       ...source,
-      progress: { anchor: { kind: 'branch', pickNumber: 1 }, historyLength: 2, keeperPhase: 'pending-consumption' },
+      progress: { anchor: { kind: 'first-open', keeperSlots: [], totalPicks: 140 }, historyLength: 2 },
       keepers: [
         { playerId: 'moved', position: 'RB', teamIndex: 0, round: 1 },
         { playerId: 'displaced', position: 'TE', teamIndex: 1, round: 1 },
@@ -77,7 +76,7 @@ describe('shadow draft derivation', () => {
     expect(input.shortlistOrder).toEqual(['a', 'b', 'c']);
   });
 
-  it('marks a full 140-slot draft complete, including future keeper supply and unresolved slots', () => {
+  it('marks a full 140-slot draft complete', () => {
     const order = createSlotSequence(format);
     const view = deriveDraft({
       ...source,

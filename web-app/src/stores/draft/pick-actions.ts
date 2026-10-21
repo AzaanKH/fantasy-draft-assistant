@@ -117,7 +117,6 @@ export function createPickActions(
         );
         state.draftProgress = {
           historyLength: state.draftHistory.length,
-          keeperPhase: state.sessionMode === 'live' ? 'reserved' : 'pending-consumption',
           anchor: state.sessionMode === 'live'
             ? { kind: 'past-keepers', fromPick,
                 keeperSlots: effectiveKeepers.map(keeper => getKeeperPickNumber(keeper, state.config.totalTeams, state.config.draftType)),
@@ -148,7 +147,7 @@ export function createPickActions(
         if (state.draftHistory.some((pick) => pick.playerId === keeper.playerId)) {
           state.draftProgress = {
             anchor: { kind: 'carry', pickNumber: deriveDraftCursor(state.draftHistory, state.draftProgress) + 1 },
-            historyLength: state.draftHistory.length, keeperPhase: 'pending-consumption',
+            historyLength: state.draftHistory.length,
           };
           state.currentPick += 1;
           state.mockSurvivalProbabilities = {};
@@ -198,7 +197,7 @@ export function createPickActions(
           rebuildCanonicalRosters(state);
           state.draftProgress = {
             anchor: { kind: 'reopen', pickNumber: lastPick.pickNumber },
-            historyLength: state.draftHistory.length, keeperPhase: 'pending-consumption',
+            historyLength: state.draftHistory.length,
           };
           state.currentPick = Math.max(1, lastPick.pickNumber);
           state.mockSurvivalProbabilities = {};
@@ -230,7 +229,7 @@ export function createPickActions(
         );
         state.draftProgress = {
           anchor: { kind: 'branch', pickNumber: branchPick },
-          historyLength: state.draftHistory.length, keeperPhase: 'pending-consumption',
+          historyLength: state.draftHistory.length,
         };
         state.currentPick = branchPick;
         state.mockSurvivalProbabilities = {};
@@ -239,7 +238,7 @@ export function createPickActions(
 
     resetDraft: () =>
       { set((state) => {
-        state.draftProgress = { anchor: { kind: 'start' }, historyLength: 0, keeperPhase: 'pending-consumption' };
+        state.draftProgress = { anchor: { kind: 'start' }, historyLength: 0 };
         state.currentPick = 1;
         state.draftedPlayerIds = new Set(
           state.preloadedKeepers.map((keeper) => keeper.playerId)

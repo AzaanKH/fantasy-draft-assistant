@@ -131,7 +131,6 @@ it('denies drafting at a keeper slot and at each position limit', () => {
   store.getState().setConfig({ myPickPosition: 1 });
   store.getState().preloadKeepers([{ playerId: 'keeper', playerName: 'Keeper', position: 'QB', teamIndex: 0, round: 1, isMyKeeper: true }]);
   let view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), shadowPlayers);
-  expect(store.getState().draftProgress.keeperPhase).toBe('pending-consumption');
   expect(view.canDraft).toBe(false);
   store.getState().branchFromPick(20);
   store.getState().setRosterRequirements({

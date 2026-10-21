@@ -16,7 +16,7 @@ export interface DraftKeeper extends Omit<DraftSelection, 'pickNumber'> {
   readonly round: number;
 }
 
-/** Source facts, including accepted cursor commands. No projected roster or stored currentPick is an input. */
+/** Source facts, including accepted cursor commands. Legacy saved cursors enter only through a carry anchor. */
 export interface DraftSource {
   readonly progress: DraftProgress;
   readonly sessionMode: 'setup' | 'live' | 'mock';
@@ -25,7 +25,6 @@ export interface DraftSource {
   readonly keepers: readonly DraftKeeper[];
   readonly myTeamIndex: number;
   readonly shortlistOrder: readonly string[];
-  readonly unresolvedPicks: readonly { readonly pickNumber: number }[];
 }
 
 export interface DerivedDraft {

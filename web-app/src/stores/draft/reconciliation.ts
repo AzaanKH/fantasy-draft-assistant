@@ -257,7 +257,7 @@ export function createReconciliationActions(
         );
         state.draftProgress = {
           anchor: { kind: 'provider', nextPickNumber, keeperSlots: [...keeperPickNumbers], totalPicks },
-          historyLength: draftHistory.length, keeperPhase: 'reserved',
+          historyLength: draftHistory.length,
         };
         state.currentPick = canonicalNextPick;
         state.mockSurvivalProbabilities = {};

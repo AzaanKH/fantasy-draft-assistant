@@ -135,7 +135,7 @@ export function createDraftStore({
     mockSettings: defaultMockSettings,
     mockAutoAdvance: { paused: false, settingsOpen: false },
     currentPick: 1,
-    draftProgress: { anchor: { kind: 'start' }, historyLength: 0, keeperPhase: 'pending-consumption' },
+    draftProgress: { anchor: { kind: 'start' }, historyLength: 0 },
     draftedPlayerIds: new Set<string>(),
     draftHistory: [],
     shortlistedPlayerIds: [],

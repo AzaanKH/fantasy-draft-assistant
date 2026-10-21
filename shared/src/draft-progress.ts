@@ -6,21 +6,24 @@ interface ReservedSlots {
   readonly totalPicks: number;
 }
 
-export type CursorAnchor =
+/** These commands pause on an unrecorded keeper slot until its selection is consumed. */
+type PendingKeeperConsumption =
   | { readonly kind: 'start' }
-  | ({ readonly kind: 'provider'; readonly nextPickNumber: number } & ReservedSlots)
   | { readonly kind: 'branch'; readonly pickNumber: number }
   | { readonly kind: 'reopen'; readonly pickNumber: number }
-  | ({ readonly kind: 'first-open' } & ReservedSlots)
-  | ({ readonly kind: 'past-keepers'; readonly fromPick: number } & ReservedSlots)
   | { readonly kind: 'carry'; readonly pickNumber: number };
+
+type ReservedKeeperSupply =
+  | ({ readonly kind: 'provider'; readonly nextPickNumber: number } & ReservedSlots)
+  | ({ readonly kind: 'first-open' } & ReservedSlots)
+  | ({ readonly kind: 'past-keepers'; readonly fromPick: number } & ReservedSlots);
+
+export type CursorAnchor = PendingKeeperConsumption | ReservedKeeperSupply;
 
 /** A cursor-setting command and the history prefix it accepted. Later appends advance from it. */
 export interface DraftProgress {
   readonly anchor: CursorAnchor;
   readonly historyLength: number;
-  /** Pending keepers occupy rosters but pause sequential mock consumption at their slot. */
-  readonly keeperPhase: 'pending-consumption' | 'reserved';
 }
 
 export function deriveDraftCursor(history: readonly DraftSelection[], progress: DraftProgress): number {

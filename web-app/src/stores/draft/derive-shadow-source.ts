@@ -1,7 +1,7 @@
 import type { DraftFormat, DraftSource } from '@fantasy-draft/shared/draft';
 import type { DraftState } from './types';
 
-type SourceState = Pick<DraftState, 'draftProgress' | 'sessionMode' | 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds' | 'unresolvedProviderPicks'>;
+type SourceState = Pick<DraftState, 'draftProgress' | 'sessionMode' | 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds'>;
 
 export function shadowSource(state: SourceState): DraftSource {
   return {
@@ -12,7 +12,6 @@ export function shadowSource(state: SourceState): DraftSource {
     keepers: state.preloadedKeepers,
     myTeamIndex: state.config.myPickPosition - 1,
     shortlistOrder: state.shortlistedPlayerIds,
-    unresolvedPicks: state.unresolvedProviderPicks,
   };
 }
 
