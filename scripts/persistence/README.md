@@ -68,6 +68,8 @@ Every shared-storage run must acknowledge 600 commands, converge without duplica
 
 Negative stress and sequential controls must retain each actor's own 300 effects, retain all 600 in union, and keep distinct stored sessions for the same draft identity. Negative conflict samples must retain each partition's own acknowledged pick or queue move. Storage-sharing markers, live identities, original storage bytes, storage errors, page errors, incomplete scenarios, and missing samples are also checked.
 
+Recorded document replacements at explicit reload boundaries fail the 11b gate. The bounded reader can retain diagnostic snapshots after a replacement, but those snapshots do not make an unexplained navigation pass. Storage inspection also checks the attached document identity. A missing replacement ledger fails the gate.
+
 Run the standalone audit tests without starting a browser:
 
 ```sh

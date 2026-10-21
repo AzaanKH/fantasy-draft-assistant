@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { audit, auditConflict, summarize, failsGate } from './audit.mjs';
 import { auditConflict11b, check11bBands } from './bands-11b.mjs';
-import { readReloadBoundary } from './reload-boundary.mjs';
+import { inspectAttachedDocument, readReloadBoundary } from './reload-boundary.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -231,5 +231,7 @@ async function snapshotsAfterReload(pair) {
     results.reloadBoundaryReplacements.push({ label: pair.label, session: pair.session, rows });
   } });
 }
-async function inspect(pair) { return Promise.all(pair.targets.map(target => target.evaluate(() => window.persistenceHarness.inspect()))); }
+async function inspect(pair) {
+  return Promise.all(pair.targets.map((target, actor) => target.evaluate(inspectAttachedDocument, pair.capabilities[actor].documentId)));
+}
 async function closePair(pair) { await Promise.all(pair.pages.map(page => page.close())); }

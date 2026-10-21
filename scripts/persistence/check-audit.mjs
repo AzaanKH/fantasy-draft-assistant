@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { runInNewContext } from 'node:vm';
 import { Worker } from 'node:worker_threads';
-import { readReloadBoundary } from './reload-boundary.mjs';
+import { inspectAttachedDocument, readReloadBoundary } from './reload-boundary.mjs';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -124,7 +124,7 @@ function matrix11b({ tabsLost = 3893, extensionLost = 3589, tabsWorst, extension
       sequentialControl: evidence(commands, statesFor(shared, 0)) };
   });
   return { metadata: { finished: 'test', suites: 3, seeds: 5, commandsPerActor: 300 },
-    pageErrors: [], scenarioErrors: [], scenarios };
+    pageErrors: [], scenarioErrors: [], reloadBoundaryReplacements: [], scenarios };
 }
 
 test('11b accepts characterized losses and double acceptance while the future conflict gate stays strict', () => {
@@ -137,6 +137,12 @@ test('11b accepts characterized losses and double acceptance while the future co
   assert.equal(auditConflict11b('pick', sample.issued, sample.afterReload, sample.settled).good, true);
   const oneAccepted = [sample.issued[0], { ...sample.issued[1], receipt: { accepted: false } }];
   assert.equal(auditConflict11b('pick', oneAccepted, sample.afterReload, sample.settled).good, true);
+});
+
+test('11b requires an explicit replacement ledger', () => {
+  const results = matrix11b();
+  delete results.reloadBoundaryReplacements;
+  assert.match(check11bBands(results).failures.join('\n'), /document replacements/);
 });
 
 test('11b includes both aggregate band edges and rejects one effect beyond either edge', () => {
@@ -240,6 +246,14 @@ test('result checker applies 11b independently of the future durability gate and
     assert.equal(printed.bands11b.passes, true);
     assert.equal(printed.passesFutureGate, false);
     assert.equal((await check('--gate')).status, 1);
+    results.reloadBoundaryReplacements.push({ label: 'tabs', session: 'test', rows: [{ kind: 'replaced', actor: 0, expected: 1, actual: 2 }] });
+    results.bands11b = check11bBands(results);
+    writeFileSync(file, JSON.stringify(results));
+    const replacement = await check('--gate-11b');
+    assert.equal(replacement.status, 1, replacement.stderr);
+    assert.match(JSON.parse(replacement.stdout).bands11b.failures.join('\n'), /document replacements/);
+    results.reloadBoundaryReplacements = [];
+    results.bands11b = check11bBands(results);
     results.scenarios[0].conflicts[0].checks11b.good = false;
     writeFileSync(file, JSON.stringify(results));
     assert.equal((await check('--gate-11b')).status, 1);
@@ -309,6 +323,22 @@ test('explicit reload reattaches only to a replacement document and rejects unst
   await assert.rejects(readReloadBoundary({ read: async () => { throw new Error('adapter missing in same document'); },
     attach: async () => { attachments++; }, recordReplacement: () => undefined }), /adapter missing/);
   assert.equal(attachments, before);
+});
+
+test('storage inspection rejects a document replaced after the snapshot without reading its adapter', () => {
+  let inspections = 0;
+  const current = { head: { picks: ['retained'] } };
+  const context = { expected: 1, performance: { timeOrigin: 1 },
+    window: { persistenceHarness: { inspect: () => { inspections++; return current; } } } };
+  const inspect = () => runInNewContext(`(${inspectAttachedDocument.toString()})(expected)`, context);
+  assert.equal(inspect(), current);
+  context.performance.timeOrigin = 2;
+  assert.throws(inspect, /document replacement during storage inspection/);
+  assert.equal(inspections, 1);
+  context.performance.timeOrigin = 1;
+  delete context.window.persistenceHarness;
+  assert.throws(inspect, /adapter missing/);
+  assert.equal(inspections, 1);
 });
 
 test('reload handoff preserves both stable actors and their real adapter error histories', async () => {

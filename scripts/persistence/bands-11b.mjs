@@ -30,6 +30,8 @@ export function check11bBands(results) {
   const require = (condition, message) => { if (!condition) failures.push(message); };
   require(Boolean(results.metadata?.finished) && !results.fatal, 'Matrix must finish without a fatal error');
   require(results.pageErrors?.length === 0 && results.scenarioErrors?.length === 0, 'No page or scenario errors');
+  require(Array.isArray(results.reloadBoundaryReplacements) && results.reloadBoundaryReplacements.length === 0,
+    'No unexplained document replacements at reload boundaries');
   require(results.metadata?.suites === 3 && results.metadata?.seeds === 5 &&
     results.metadata?.commandsPerActor === 300, '11b requires three suites, five seeds, and 300 commands per actor');
   require(same(results.scenarios?.map(row => row.label).sort(), [...labels].sort()), '11b requires all four scenarios exactly once');

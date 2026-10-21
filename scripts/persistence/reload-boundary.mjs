@@ -1,5 +1,11 @@
 import { audit } from './audit.mjs';
 
+export function inspectAttachedDocument(expected) {
+  if (performance.timeOrigin !== expected) throw new Error('Unexpected document replacement during storage inspection');
+  if (!window.persistenceHarness) throw new Error('Persistence adapter missing in its attached document');
+  return window.persistenceHarness.inspect();
+}
+
 export async function readReloadBoundary({ read, attach, recordReplacement }) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const rows = await read();
