@@ -9,6 +9,9 @@ import { draftPlayers } from '@/stores/draft/draft-catalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useNow } from './useNow';
 import { useWorkspace } from './WorkspaceProvider';
+import { workspaceForTestStore } from './workspace-test-helpers';
+import { LiveDraftSyncProvider, useLiveDraftSync } from '@/features/draft-room/LiveDraftSyncProvider';
+import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
 import { getDraftView, useDraftView, useDraftViewReader } from './useDraftView';
 
 vi.mock('@fantasy-draft/shared/draft', async importOriginal => {
@@ -16,6 +19,11 @@ vi.mock('@fantasy-draft/shared/draft', async importOriginal => {
   return { ...actual, deriveDraft: vi.fn(actual.deriveDraft), getRecommendationBoard: vi.fn(actual.getRecommendationBoard) };
 });
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: draftPlayers, isLoading: false }) }));
+vi.mock('@/hooks/useConnectionNotifications', () => ({ useConnectionNotifications: () => undefined }));
+vi.mock('@/hooks/useDraftSyncTransport', () => ({ useDraftSyncTransport: () => ({
+  snapshot: { provider: 'sleeper', draftId: 'clock-room', draft: null, picks: [], status: 'synced', lastSuccessfulSyncAt: Date.parse('2026-10-21T12:00:00Z'), lastError: null },
+  snapshotQuery: { error: null, isLoading: false, isError: false }, transportState: 'connected', refresh: async () => undefined,
+}) }));
 vi.mock('@/hooks/useLeagueTimingEvidence', () => ({ useLeagueTimingEvidence: () => ({ model: null, isLoading: false }) }));
 let store: DraftStoreApi;
 let root: Root;
@@ -94,6 +102,35 @@ it('ticks an age display without rendering the command owner or deriving recomme
   expect({ ownerRenders, readerRenders, derives: vi.mocked(deriveDraft).mock.calls.length, boards: vi.mocked(getRecommendationBoard).mock.calls.length }).toEqual(before);
   expect(commandOwner).toBe(owner);
   expect(read()).toBe(view);
+  act(() => { root.unmount(); });
+  expect(vi.getTimerCount()).toBe(0);
+  root = createRoot(container);
+  vi.useRealTimers();
+});
+
+it('keeps the live sync provider and recommendation consumer quiet during age-only ticks', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-21T12:00:00Z'));
+  const workspace = workspaceForTestStore(store);
+  workspace.send('connection.startConnection', 'sleeper', 'clock-room');
+  workspace.send('connection.confirmDraftPosition', 5);
+  let liveBoardRenders = 0;
+  function LiveBoard() {
+    const { sync } = useLiveDraftSync();
+    liveBoardRenders += 1;
+    return createElement('section', { 'data-state': sync.connectionState }, createElement(Readers));
+  }
+  function Age() {
+    return createElement(DraftSyncStatusIndicator, { sync: useLiveDraftSync().viewState });
+  }
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(LiveDraftSyncProvider, { children: [createElement(LiveBoard, {key: 'board'}), createElement(Age, {key: 'age'})] }) })); });
+  const sends = vi.spyOn(workspace, 'send');
+  const before = { liveBoardRenders, derives: vi.mocked(deriveDraft).mock.calls.length, boards: vi.mocked(getRecommendationBoard).mock.calls.length };
+  const age = container.querySelector('span[title]')?.getAttribute('title');
+  act(() => { vi.advanceTimersByTime(5_000); });
+  expect(container.querySelector('span[title]')?.getAttribute('title')).not.toBe(age);
+  expect({ liveBoardRenders, derives: vi.mocked(deriveDraft).mock.calls.length, boards: vi.mocked(getRecommendationBoard).mock.calls.length }).toEqual(before);
+  expect(sends).not.toHaveBeenCalled();
   act(() => { root.unmount(); });
   expect(vi.getTimerCount()).toBe(0);
   root = createRoot(container);

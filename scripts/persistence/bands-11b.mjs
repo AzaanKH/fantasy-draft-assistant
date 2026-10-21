@@ -9,6 +9,7 @@ const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
 export function auditConflict11b(kind, issued, snapshots, settled, shared = true) {
   const checks = auditConflict(kind, issued, snapshots, settled);
+  if (!audit(issued, snapshots).unique || !audit(issued, settled).unique) return { ...checks, good: false };
   if (!shared) {
     const partitions = snapshots.map((snapshot, actor) => auditConflict(kind, [issued[actor]],
       [snapshot, snapshot], [settled[actor]]));
@@ -82,7 +83,8 @@ export function check11bBands(results) {
   function checkEffects(run, name, shared, sequential) {
     const checks = audit(run.issued, run.afterReload, run.beforeReload);
     require(checks.commands === 600 && checks.acknowledged === 600 && !checks.rejected &&
-      !checks.errors && checks.unique, `${name}: 600 acknowledgements, no errors or duplicates`);
+      !checks.errors && checks.unique && audit(run.issued, run.beforeReload).unique,
+    `${name}: 600 acknowledgements, no errors or duplicates before or after reload`);
     require(run.beforeReload.length === 2 && run.afterReload.length === 2, `${name}: two snapshots before and after reload`);
     checkStorage(run, 'beforeReload', 'stored', name, shared);
     checkStorage(run, 'afterReload', 'afterStored', name, shared);

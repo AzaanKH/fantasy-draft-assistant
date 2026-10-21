@@ -245,3 +245,36 @@ test('result checker applies 11b independently of the future durability gate and
     rmSync(directory, { recursive: true });
   }
 });
+
+test('11b rejects settled duplicate players and slots even when reload normalizes them', () => {
+  for (const family of ['stress', 'sequential', 'conflict']) for (const duplicateKind of ['player', 'slot']) {
+    const results = matrix11b();
+    const scenario = results.scenarios[0];
+    const run = family === 'stress' ? scenario.runs[0] : family === 'sequential' ? scenario.sequentialControl : scenario.conflicts[0];
+    const snapshotKey = family === 'conflict' ? 'settled' : 'beforeReload';
+    run[snapshotKey] = structuredClone(run[snapshotKey]);
+    for (const state of run[snapshotKey]) {
+      const first = state.picks[0];
+      state.picks.push({ ...first, ...(duplicateKind === 'player' ? { pickNumber: 400 } : { playerId: 'extra-player' }) });
+    }
+    run.stored = evidence(run.issued, run[snapshotKey]).stored;
+    for (const current of results.scenarios) {
+      for (const effect of [...current.runs, current.sequentialControl]) effect.checks = audit(effect.issued, effect.afterReload, effect.beforeReload);
+      for (const sample of current.conflicts) {
+        sample.checks = auditConflict(sample.kind, sample.issued, sample.afterReload, sample.settled);
+        sample.checks11b = auditConflict11b(sample.kind, sample.issued, sample.afterReload, sample.settled,
+          ['tabs', 'extension-granted'].includes(current.label));
+      }
+    }
+    results.summary = summarize(results.scenarios);
+    results.bands11b = check11bBands(results);
+    assert.equal(results.bands11b.passes, false, `${family} ${duplicateKind} must fail`);
+    const directory = mkdtempSync(path.join(tmpdir(), 'persistence-settled-duplicates-'));
+    try {
+      const file = path.join(directory, 'results.json');
+      writeFileSync(file, JSON.stringify(results));
+      const raw = spawnSync(process.execPath, [new URL('./check-results.mjs', import.meta.url).pathname, file, '--gate-11b'], { encoding: 'utf8' });
+      assert.equal(raw.status, 1, `${family} ${duplicateKind}: ${raw.stdout} ${raw.stderr}`);
+    } finally { rmSync(directory, { recursive: true }); }
+  }
+});
