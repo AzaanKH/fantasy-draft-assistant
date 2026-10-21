@@ -194,17 +194,19 @@ async function makePair(label, extensionId, session) {
   await Promise.all([pages[0].goto(`${origin}/draft`), pages[1].goto(peer)]);
   const pair = { pages, label, session }; await attach(pair); return pair;
 }
-async function attach(pair) {
+async function attach(pair, actors = [0, 1]) {
   let second = pair.pages[1];
   if (pair.label.startsWith('extension')) {
     await second.waitForFunction(() => document.querySelector('#sidepanel-frame').src.startsWith('http://localhost:3000/sidepanel'));
     second = await (await second.locator('#sidepanel-frame').elementHandle()).contentFrame();
   }
   pair.targets = [pair.pages[0], second];
-  pair.capabilities = await Promise.all(pair.targets.map(async (target, actor) => {
+  pair.capabilities ??= [];
+  await Promise.all(actors.map(async actor => {
+    const target = pair.targets[actor];
     await target.waitForFunction(() => !!document.querySelector('#root')?.children.length);
     await target.waitForLoadState('networkidle');
-    return target.evaluate(async ({ session, actor }) => {
+    pair.capabilities[actor] = await target.evaluate(async ({ session, actor }) => {
       const { attach } = await import('/__persistence/adapter.mjs');
       return attach({ session, actor });
     }, { session: pair.session, actor });
@@ -216,7 +218,7 @@ async function readDocuments(pair) {
     if (performance.timeOrigin !== expected) return { kind: 'replaced', actor, expected, actual: performance.timeOrigin,
       url: location.href, readyState: document.readyState, discarded: document.wasDiscarded };
     if (!window.persistenceHarness) throw new Error('Persistence adapter missing in its attached document');
-    return { kind: 'snapshot', snapshot: window.persistenceHarness.snapshot() };
+    return { kind: 'snapshot', actor, snapshot: window.persistenceHarness.snapshot() };
   }, { expected: pair.capabilities[actor].documentId, actor })));
 }
 async function snapshots(pair) {
@@ -225,7 +227,7 @@ async function snapshots(pair) {
   return rows.map(row => row.snapshot);
 }
 async function snapshotsAfterReload(pair) {
-  return readReloadBoundary({ read: () => readDocuments(pair), attach: () => attach(pair), recordReplacement: rows => {
+  return readReloadBoundary({ read: () => readDocuments(pair), attach: actors => attach(pair, actors), recordReplacement: rows => {
     results.reloadBoundaryReplacements.push({ label: pair.label, session: pair.session, rows });
   } });
 }

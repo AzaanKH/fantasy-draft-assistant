@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { runInNewContext } from 'node:vm';
 import { Worker } from 'node:worker_threads';
 import { readReloadBoundary } from './reload-boundary.mjs';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { audit, auditConflict, summarize, failsGate } from './audit.mjs';
@@ -298,14 +299,69 @@ test('explicit reload reattaches only to a replacement document and rejects unst
   let attachments = 0;
   const recorded = [];
   let reads = 0;
-  assert.deepEqual(await readReloadBoundary({ read: async () => ++reads === 1 ? [{ kind: 'replaced', expected: 1, actual: 2 }] : stable,
+  assert.deepEqual(await readReloadBoundary({ read: async () => ++reads === 1 ? [{ kind: 'replaced', actor: 0, expected: 1, actual: 2 }] : stable,
     attach: async () => { attachments++; }, recordReplacement: rows => { recorded.push(rows); } }), [state]);
   assert.equal(attachments, 1);
-  assert.deepEqual(recorded, [[{ kind: 'replaced', expected: 1, actual: 2 }]]);
+  assert.deepEqual(recorded, [[{ kind: 'replaced', actor: 0, expected: 1, actual: 2 }]]);
   await assert.rejects(readReloadBoundary({ read: async () => [{ kind: 'replaced' }],
     attach: async () => { attachments++; }, recordReplacement: () => undefined }), /kept changing/);
   const before = attachments;
   await assert.rejects(readReloadBoundary({ read: async () => { throw new Error('adapter missing in same document'); },
     attach: async () => { attachments++; }, recordReplacement: () => undefined }), /adapter missing/);
   assert.equal(attachments, before);
+});
+
+test('reload handoff preserves both stable actors and their real adapter error histories', async () => {
+  const adapterSource = readFileSync(new URL('./adapter.mjs', import.meta.url), 'utf8')
+    .replace(/^import .*;$/gm, '').replace('export function attach', 'function attach')
+    .replace('import.meta.url', "'adapter-test.mjs'");
+  for (const stableActor of [0, 1]) for (const failStorage of [false, true]) {
+    const sends = [[], []];
+    const rooms = [0, 1].map(actor => {
+      class Storage { setItem() { throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' }); } }
+      const state = { liveSession: { provider: 'sleeper', draftId: 'probe' }, sessionMode: 'live',
+        draftHistory: [pick], shortlistedPlayerIds: [], draftProgress: {} };
+      const window = {};
+      const context = { Storage, window, structuredClone, performance: { timeOrigin: actor + 1, now: () => 0 },
+        isSecureContext: true, indexedDB: {}, navigator: { locks: {} }, location: { origin: 'http://localhost:3000', href: 'http://localhost:3000/draft' },
+        getDraftSessionStorageKey: () => 'key', createSlotSequence: () => ({ at: () => ({ teamIndex: 0, slot: 1 }) }),
+        getBrowserWorkspace: () => ({ draft: { getState: () => state }, send: (...command) => sends[actor].push(command) }) };
+      const bind = () => runInNewContext(`${adapterSource}; attach({ session: 'probe', actor: ${actor} });`, context);
+      bind();
+      return { bind, snapshot: () => window.persistenceHarness.snapshot(), fail: () => { try { new Storage().setItem('key', 'value'); } catch {} } };
+    });
+    if (failStorage) rooms[stableActor].fail();
+    const replacedActor = 1 - stableActor;
+    let reads = 0;
+    const attached = [];
+    const ledger = [];
+    const beforeSends = sends[stableActor].length;
+    const handoff = readReloadBoundary({
+      read: async () => [0, 1].map(actor => ++reads <= 2 && actor === replacedActor
+        ? { kind: 'replaced', actor, expected: 1, actual: 2 }
+        : { kind: 'snapshot', actor, snapshot: rooms[actor].snapshot() }),
+      attach: async (actors = [0, 1]) => { attached.push(...actors); for (const actor of actors) rooms[actor].bind(); },
+      recordReplacement: rows => { ledger.push(rows); },
+    });
+    if (failStorage) {
+      await assert.rejects(handoff, /Storage errors/);
+      assert.equal(rooms[stableActor].snapshot().errors.length, 1);
+      assert.equal(auditConflict11b('pick', [a], [rooms[stableActor].snapshot(), rooms[stableActor].snapshot()],
+        [rooms[stableActor].snapshot(), rooms[stableActor].snapshot()]).good, false);
+      assert.equal(ledger[0].find(row => row.actor === stableActor).snapshot.errors.length, 1);
+    } else {
+      await handoff;
+      assert.deepEqual(attached, [replacedActor]);
+    }
+    assert.equal(sends[stableActor].length, beforeSends, 'Stable actor must receive no setup commands');
+  }
+});
+
+test('reload handoff rejects an intermediate duplicate instead of scoring its later normalization', async () => {
+  let attachments = 0;
+  await assert.rejects(readReloadBoundary({
+    read: async () => [{ kind: 'snapshot', actor: 0, snapshot: snapshot([pick, pick]) }, { kind: 'replaced', actor: 1 }],
+    attach: async () => { attachments++; }, recordReplacement: () => undefined,
+  }), /Duplicate/);
+  assert.equal(attachments, 0);
 });
