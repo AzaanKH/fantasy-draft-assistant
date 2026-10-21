@@ -1,7 +1,7 @@
+import { deriveDraftState } from './source';
 import { isDraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { castDraft, type Draft } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
-import { getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';
 import {
   parseStoredDraftSession,
   readStoredDraftSessionText,
@@ -10,7 +10,7 @@ import {
   type DraftSessionStorage,
   type PersistedDraftSession,
 } from '../draftSessionStorage';
-import { defaultConfig, defaultFilter, rebuildCanonicalRosters } from './state';
+import { defaultConfig, defaultFilter } from './state';
 import type { DraftActions, SetDraftState, DraftStore } from './types';
 
 /** The saved session this store last loaded or wrote, shared with the persistence subscriber. */
@@ -20,7 +20,7 @@ export interface DraftSessionPersistence {
 
 export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [], session: null };
 
-/** Replaces durable session state with a saved session, rebuilding derived sets and rosters. */
+/** Replaces durable source facts with a saved session. */
 export function applySavedDraftSession(
   state: Draft<DraftStore>,
   identity: DraftSessionIdentity | null,
@@ -30,7 +30,6 @@ export function applySavedDraftSession(
   state.sessionMode = saved ? 'live' : 'setup';
   state.config = castDraft(saved?.config ?? { ...defaultConfig });
   state.leagueSettings = castDraft(saved?.leagueSettings ?? createDefaultLeagueSettings());
-  state.currentPick = saved?.currentPick ?? 1;
   state.draftHistory = saved?.draftHistory ?? [];
   state.draftProgress = castDraft(saved?.draftProgress ?? {
     anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 0,
@@ -44,18 +43,7 @@ export function applySavedDraftSession(
   state.lastConfirmedPickNumber = saved?.lastConfirmedPickNumber ?? 0;
   state.decisionLens = saved?.decisionLens ?? 'best-pick';
   state.mockSurvivalProbabilities = {};
-  const effectiveKeepers = getEffectiveKeeperAssignments(
-    state.preloadedKeepers, state.draftHistory, state.config.totalTeams,
-    state.config.draftType
-  );
-  state.draftedPlayerIds = new Set([
-    ...state.draftHistory.map((pick) => pick.playerId),
-    ...effectiveKeepers.map((keeper) => keeper.playerId),
-  ]);
-  state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-    (playerId) => !state.draftedPlayerIds.has(playerId)
-  );
-  rebuildCanonicalRosters(state);
+  state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
 }
 
 export function createSessionActions(

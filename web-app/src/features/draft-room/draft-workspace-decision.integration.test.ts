@@ -1,5 +1,4 @@
-import { selectIsMyTurn } from '@/stores/draft/state';
-import '@/stores/draft/derive-shadow.setup';
+import { deriveDraftState } from '@/stores/draft/source';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -89,28 +88,28 @@ const NEEDS: readonly PositionNeed[] = [
 
 function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
   const state = useDraftStore.getState();
-  const rosterSize = (Object.values(state.myRoster) as string[][]).reduce(
+  const rosterSize = (Object.values(deriveDraftState(state).myRoster) as string[][]).reduce(
     (total, playerIds) => total + playerIds.length,
     0
   );
   const availablePlayers = filterDrafted(
     [...players],
-    state.draftedPlayerIds,
+    deriveDraftState(state).draftedPlayerIds,
     state.draftHistory
   );
   const recommendations = getRecommendations(availablePlayers, NEEDS, 10, {
-    currentPick: state.currentPick,
+    currentPick: deriveDraftState(state).currentPick,
     totalPicks: state.config.totalTeams * state.config.totalRounds,
     totalTeams: state.config.totalTeams,
-    isMyTurn: selectIsMyTurn(state),
+    isMyTurn: deriveDraftState(state).isMyTurn,
     requirements: state.config.rosterRequirements,
     rosterCounts: {
-      QB: state.myRoster.QB.length,
-      RB: state.myRoster.RB.length,
-      WR: state.myRoster.WR.length,
-      TE: state.myRoster.TE.length,
-      K: state.myRoster.K.length,
-      DEF: state.myRoster.DEF.length,
+      QB: deriveDraftState(state).myRoster.QB.length,
+      RB: deriveDraftState(state).myRoster.RB.length,
+      WR: deriveDraftState(state).myRoster.WR.length,
+      TE: deriveDraftState(state).myRoster.TE.length,
+      K: deriveDraftState(state).myRoster.K.length,
+      DEF: deriveDraftState(state).myRoster.DEF.length,
     },
     selectionsRemaining: state.config.totalRounds - rosterSize,
   }, DRAFT_DISPLAY);
@@ -182,10 +181,10 @@ describe('Draft Workspace decision integration', () => {
     expect(switched.selected?.playerId).toBe('ecr-leader');
     expect(switched.bestPick?.playerId).toBe('roster-rb');
     expect(switched.bestPlayer?.playerId).toBe('ecr-leader');
-    expect(stateAfterSwitch.currentPick).toBe(stateBeforeSwitch.currentPick);
-    expect(stateAfterSwitch.myRoster).toEqual(stateBeforeSwitch.myRoster);
-    expect([...stateAfterSwitch.draftedPlayerIds]).toEqual([
-      ...stateBeforeSwitch.draftedPlayerIds,
+    expect(deriveDraftState(stateAfterSwitch).currentPick).toBe(deriveDraftState(stateBeforeSwitch).currentPick);
+    expect(deriveDraftState(stateAfterSwitch).myRoster).toEqual(deriveDraftState(stateBeforeSwitch).myRoster);
+    expect([...deriveDraftState(stateAfterSwitch).draftedPlayerIds]).toEqual([
+      ...deriveDraftState(stateBeforeSwitch).draftedPlayerIds,
     ]);
     expect(stateAfterSwitch.filter).toEqual(stateBeforeSwitch.filter);
     expect(useDraftSyncConnectionStore.getState().connection).toEqual(
@@ -205,7 +204,7 @@ describe('Draft Workspace decision integration', () => {
     ], 2);
     const afterConfirmedPick = calculateFromDraftState();
 
-    expect(selectIsMyTurn(useDraftStore.getState())).toBe(false);
+    expect(deriveDraftState(useDraftStore.getState()).isMyTurn).toBe(false);
     expect(afterConfirmedPick.selected).not.toBeNull();
     expect(afterConfirmedPick.bestPick?.playerId).not.toBe('ecr-leader');
     expect(afterConfirmedPick.bestPlayer?.playerId).not.toBe('ecr-leader');
@@ -261,7 +260,7 @@ describe('Draft Workspace decision integration', () => {
 
     const before = calculateFromDraftState(continuityPlayers);
     const needsBefore = calculateTeamNeeds(
-      useDraftStore.getState().myRoster,
+      deriveDraftState(useDraftStore.getState()).myRoster,
       useDraftStore.getState().config.rosterRequirements,
       new Map()
     );
@@ -286,7 +285,7 @@ describe('Draft Workspace decision integration', () => {
     const current = useDraftStore.getState();
     const after = calculateFromDraftState(continuityPlayers);
     const needsAfter = calculateTeamNeeds(
-      current.myRoster,
+      deriveDraftState(current).myRoster,
       current.config.rosterRequirements,
       new Map()
     );
@@ -294,10 +293,10 @@ describe('Draft Workspace decision integration', () => {
     expect(recorded).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(current.draftHistory.at(-1)?.source).toBe('provisional');
-    expect(current.draftedPlayerIds.has('continuity-leader')).toBe(true);
-    expect(current.teamRosters[4]?.WR).toContain('continuity-leader');
-    expect(current.myRoster.WR).toContain('continuity-leader');
-    expect(current.currentPick).toBe(6);
+    expect(deriveDraftState(current).draftedPlayerIds.has('continuity-leader')).toBe(true);
+    expect(deriveDraftState(current).teamRosters[4]?.WR).toContain('continuity-leader');
+    expect(deriveDraftState(current).myRoster.WR).toContain('continuity-leader');
+    expect(deriveDraftState(current).currentPick).toBe(6);
     expect(needsBefore.find((need) => need.position === 'WR')?.startersFilled).toBe(0);
     expect(needsAfter.find((need) => need.position === 'WR')?.startersFilled).toBe(1);
     expect(after.bestPick?.playerId).not.toBe('continuity-leader');
@@ -365,10 +364,10 @@ describe('Draft Workspace decision integration', () => {
     )).toEqual([
       expect.objectContaining({ pickNumber: 5, source: 'sync' }),
     ]);
-    expect(reconciled.myRoster.WR).toEqual(['ecr-leader']);
-    expect(reconciled.teamRosters[4]?.WR).toEqual(['ecr-leader']);
-    expect(reconciled.draftedPlayerIds.has('ecr-leader')).toBe(true);
-    expect(reconciled.currentPick).toBe(6);
+    expect(deriveDraftState(reconciled).myRoster.WR).toEqual(['ecr-leader']);
+    expect(deriveDraftState(reconciled).teamRosters[4]?.WR).toEqual(['ecr-leader']);
+    expect(deriveDraftState(reconciled).draftedPlayerIds.has('ecr-leader')).toBe(true);
+    expect(deriveDraftState(reconciled).currentPick).toBe(6);
     expect(recommendationAfterConfirmation.bestPick?.playerId).toBe(
       recommendationAfterObservation.bestPick?.playerId
     );
@@ -522,10 +521,10 @@ describe('Draft Workspace decision integration', () => {
       }),
     ]);
     expect(reconciliation.unresolvedIdentities).toEqual([unresolvedPick]);
-    expect(reconciled.draftedPlayerIds.has('next-wr')).toBe(false);
-    expect(reconciled.draftedPlayerIds.has('roster-rb')).toBe(false);
-    expect(reconciled.draftedPlayerIds.has('ecr-leader')).toBe(true);
-    expect(reconciled.currentPick).toBe(8);
+    expect(deriveDraftState(reconciled).draftedPlayerIds.has('next-wr')).toBe(false);
+    expect(deriveDraftState(reconciled).draftedPlayerIds.has('roster-rb')).toBe(false);
+    expect(deriveDraftState(reconciled).draftedPlayerIds.has('ecr-leader')).toBe(true);
+    expect(deriveDraftState(reconciled).currentPick).toBe(8);
     expect(blocksProviderIdentityRecommendations(
       reconciled.sessionMode,
       reconciled.unresolvedProviderPicks.length
@@ -626,7 +625,7 @@ describe('Draft Workspace decision integration', () => {
     const current = useDraftStore.getState();
     const afterCorrection = calculateFromDraftState(continuityPlayers);
     const needsAfterCorrection = calculateTeamNeeds(
-      current.myRoster,
+      deriveDraftState(current).myRoster,
       current.config.rosterRequirements,
       new Map()
     );
@@ -634,11 +633,11 @@ describe('Draft Workspace decision integration', () => {
       (pick) => pick.pickNumber === 6
     );
 
-    expect(current.currentPick).toBe(5);
-    expect(current.draftedPlayerIds.has('continuity-leader')).toBe(false);
-    expect(current.draftedPlayerIds.has('continuity-rb')).toBe(true);
-    expect(current.myRoster.WR).toEqual([]);
-    expect(current.teamRosters[5]?.RB).toEqual(['continuity-rb']);
+    expect(deriveDraftState(current).currentPick).toBe(5);
+    expect(deriveDraftState(current).draftedPlayerIds.has('continuity-leader')).toBe(false);
+    expect(deriveDraftState(current).draftedPlayerIds.has('continuity-rb')).toBe(true);
+    expect(deriveDraftState(current).myRoster.WR).toEqual([]);
+    expect(deriveDraftState(current).teamRosters[5]?.RB).toEqual(['continuity-rb']);
     expect(corrected).toMatchObject({
       source: 'provisional',
       provisionalRevision: 1,
@@ -678,16 +677,16 @@ describe('Draft Workspace decision integration', () => {
     const current = useDraftStore.getState();
     const afterRemoval = calculateFromDraftState(continuityPlayers);
     const needsAfterRemoval = calculateTeamNeeds(
-      current.myRoster,
+      deriveDraftState(current).myRoster,
       current.config.rosterRequirements,
       new Map()
     );
 
     expect(current.draftHistory).toEqual(confirmedBefore);
-    expect(current.currentPick).toBe(5);
-    expect(current.draftedPlayerIds.has('continuity-leader')).toBe(false);
-    expect(current.myRoster.WR).toEqual([]);
-    expect(current.teamRosters[4]?.WR).toEqual([]);
+    expect(deriveDraftState(current).currentPick).toBe(5);
+    expect(deriveDraftState(current).draftedPlayerIds.has('continuity-leader')).toBe(false);
+    expect(deriveDraftState(current).myRoster.WR).toEqual([]);
+    expect(deriveDraftState(current).teamRosters[4]?.WR).toEqual([]);
     expect(needsAfterRemoval.find(
       (need) => need.position === 'WR'
     )?.startersFilled).toBe(0);

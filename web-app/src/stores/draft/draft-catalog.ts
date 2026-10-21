@@ -1,6 +1,6 @@
 import { POSITIONS, type Player } from '@fantasy-draft/shared/league';
 
-export const shadowPlayers: Player[] = Array.from({ length: 600 }, (_, index) => ({
+export const draftPlayers: Player[] = Array.from({ length: 600 }, (_, index) => ({
   id: `player-${index + 1}`, name: `Player ${index + 1}`,
   position: POSITIONS[index % POSITIONS.length] ?? 'WR', team: 'BUF', byeWeek: 7,
   ecrRank: index + 1, positionalRank: index + 1, sleeperAdp: index + 1,

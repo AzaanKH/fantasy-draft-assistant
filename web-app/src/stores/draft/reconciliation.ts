@@ -1,9 +1,8 @@
-import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
+import { deriveDraftState } from './source';
+import { deriveDraftCursor, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import {
   getKeeperPickNumbers,
-  advancePastKeeperSlots,
   restoreShortlistedPlayer,
-  rebuildCanonicalRosters,
 } from './state';
 import { type RecordedDraftPick, type ReconciledDraftPick, type UnresolvedProviderPick, type DraftReconciliationResult, type ProvisionalPickConfirmation, type DraftPickCorrection, type DraftPickRemoval, type DraftActions, type SetDraftState } from './types';
 
@@ -213,13 +212,11 @@ export function createReconciliationActions(
         });
         const draftHistory = remotePicks;
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const canonicalNextPick = advancePastKeeperSlots(
-          Math.min(totalPicks + 1, Math.max(1, Math.round(nextPickNumber))),
-          effectiveKeepers,
-          state.config.totalTeams,
-          totalPicks,
-          state.config.draftType
-        );
+        const draftProgress = {
+          anchor: { kind: 'provider', nextPickNumber, keeperSlots: [...keeperPickNumbers], totalPicks },
+          historyLength: draftHistory.length,
+        } satisfies import('@fantasy-draft/shared/draft').DraftProgress;
+        const canonicalNextPick = deriveDraftCursor(draftHistory, draftProgress);
         const historyChanged = !hasSameCanonicalHistory(
           state.draftHistory,
           draftHistory
@@ -231,7 +228,7 @@ export function createReconciliationActions(
         if (
           !historyChanged &&
           !unresolvedIdentitiesChanged &&
-          state.currentPick === canonicalNextPick
+          deriveDraftState(state).currentPick === canonicalNextPick
         ) {
           return;
         }
@@ -247,19 +244,8 @@ export function createReconciliationActions(
         }
         state.draftHistory = draftHistory;
         state.unresolvedProviderPicks = canonicalUnresolvedPicks;
-        state.draftedPlayerIds = new Set([
-          ...draftHistory.map((pick) => pick.playerId),
-          ...effectiveKeepers.map((keeper) => keeper.playerId),
-        ]);
-        rebuildCanonicalRosters(state);
-        state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-          (playerId) => !state.draftedPlayerIds.has(playerId)
-        );
-        state.draftProgress = {
-          anchor: { kind: 'provider', nextPickNumber, keeperSlots: [...keeperPickNumbers], totalPicks },
-          historyLength: draftHistory.length,
-        };
-        state.currentPick = canonicalNextPick;
+        state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
+        state.draftProgress = draftProgress;
         state.mockSurvivalProbabilities = {};
         result = {
           changed: true,

@@ -1,3 +1,4 @@
+import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
 import { DRAFT_SESSION_LINEAGE_LIMIT, type DraftSessionIdentity } from '@fantasy-draft/shared/sync';
 export type { DraftSessionIdentity } from '@fantasy-draft/shared/sync';
@@ -173,7 +174,7 @@ export function persistDraftSession(
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
-    currentPick: state.currentPick,
+    currentPick: deriveDraftCursor(state.draftHistory, state.draftProgress),
     draftProgress: state.draftProgress,
     draftHistory: state.draftHistory,
     shortlistedPlayerIds: state.shortlistedPlayerIds,

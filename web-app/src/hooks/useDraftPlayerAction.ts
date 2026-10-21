@@ -1,29 +1,10 @@
 import { useDraftView } from '@/workspace/useDraftView';
-import { type Player, type Position } from '@fantasy-draft/shared/league';
+import { type Player } from '@fantasy-draft/shared/league';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
-import { type RosterRequirements } from '@fantasy-draft/shared/league';
 import * as React from 'react';
 import {
-  useDraftSessionMode,
   useDraftStore,
 } from '@/stores/draftStore';
-
-export function canDraftFromWorkspace(
-  sessionMode: ReturnType<typeof useDraftSessionMode>,
-  isMyTurn: boolean,
-  hasKeeperAtCurrentPick: boolean
-): boolean {
-  return sessionMode === 'mock' && isMyTurn && !hasKeeperAtCurrentPick;
-}
-
-/** Independent legacy position check retained for the stored-path shadow. */
-export function isPositionFull(
-  position: Position,
-  roster: Readonly<Record<Position, readonly string[]>>,
-  requirements: RosterRequirements
-): boolean {
-  return roster[position].length >= requirements[position].max;
-}
 
 export function useDraftPlayerAction(): {
   readonly canDraft: boolean;

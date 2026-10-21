@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidePanelPage } from '@/features/sidepanel/SidePanelPage';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { getDraftView } from '@/workspace/useDraftView';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
@@ -76,7 +77,7 @@ beforeEach(() => {
     totalTeams: 4, totalRounds: 3, myPickPosition: 2, draftType: 'linear',
   });
   store.getState().setSessionMode('live');
-  store.setState({ currentPick: 5, draftProgress: { anchor: { kind: 'carry', pickNumber: 5 }, historyLength: 0 } });
+  store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: 5 }, historyLength: 0 } });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -134,7 +135,7 @@ describe('ProvisionalPickDialog linear order', () => {
         teamName: 'Team 1', source: 'provisional',
       }),
     ]);
-    expect(store.getState().teamRosters[0]?.WR).toContain(player.id);
+    expect(getDraftView(store).teamRosters[0]?.WR).toContain(player.id);
     expect(document.querySelector('[role="alert"]')).toBeNull();
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
@@ -163,7 +164,7 @@ describe('rendered linear turn timing', () => {
     { currentPick: 5, expected: '1 picks away' },
     { currentPick: 6, expected: 'Your turn' },
   ])('shows decision-bar timing at linear pick $currentPick', ({ currentPick, expected }) => {
-    store.setState({ currentPick, draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
+    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
     render(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
     expect(container.textContent).toContain(expected);
   });
@@ -173,7 +174,7 @@ describe('rendered linear turn timing', () => {
     { currentPick: 6, expected: 'Your pick now' },
     { currentPick: 13, expected: 'Draft complete' },
   ])('shows side-panel timing at linear pick $currentPick', ({ currentPick, expected }) => {
-    store.setState({ currentPick, draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
+    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
     render(createElement(SidePanelPage));
     expect(container.textContent).toContain(expected);
   });
@@ -208,12 +209,12 @@ describe('completed mock draft actions', () => {
   it.each(['snake', 'linear'] as const)('does not offer a phantom %s turn after the final round', draftType => {
     store.getState().setConfig({ draftType, myPickPosition: draftType === 'linear' ? 1 : 4 });
     store.getState().setSessionMode('mock');
-    store.setState({ currentPick: 13, draftProgress: { anchor: { kind: 'carry', pickNumber: 13 }, historyLength: 0 } });
+    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: 13 }, historyLength: 0 } });
     render(createElement(DraftActionProbe));
     const button = container.querySelector('button');
     expect(button?.disabled).toBe(true);
     act(() => { button?.click(); });
     expect(store.getState().draftHistory).toEqual([]);
-    expect(store.getState().myRoster.WR).toEqual([]);
+    expect(getDraftView(store).myRoster.WR).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
-import '@/stores/draft/derive-shadow.setup';
+import { getDraftView } from '@/workspace/useDraftView';
+import { deriveDraftState } from './draft/source';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, type ProvisionalPickInput, type SyncedImportedPick } from './draftStore';
 import {
@@ -73,11 +74,11 @@ describe('durable draft sessions', () => {
     expect(state.draftHistory).toEqual(first.getState().draftHistory);
     expect(state.draftHistory[1]).toMatchObject({ source: 'provisional', playerId: 'replacement', timestamp: originalTimestamp, provisionalRevision: 1 });
     expect(state.shortlistedPlayerIds).toEqual(['observed', 'removed', 'waiting']);
-    expect(state.currentPick).toBe(3);
-    expect(state.draftedPlayerIds).toEqual(new Set(['confirmed', 'replacement', 'keeper']));
-    expect(state.myRoster.WR).toEqual(['replacement']);
-    expect(state.myRoster.RB).toEqual(['keeper']);
-    expect(state.teamRosters[0]?.WR).toEqual(['confirmed']);
+    expect(deriveDraftState(state).currentPick).toBe(3);
+    expect(deriveDraftState(state).draftedPlayerIds).toEqual(new Set(['confirmed', 'replacement', 'keeper']));
+    expect(deriveDraftState(state).myRoster.WR).toEqual(['replacement']);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper']);
+    expect(deriveDraftState(state).teamRosters[0]?.WR).toEqual(['confirmed']);
     expect(state.decisionLens).toBe('best-player');
     expect(restarted.getState().correctProvisionalPick(2, pick(2, 'observed'))).toBe(true);
     expect(restarted.getState().draftHistory[1]).toMatchObject({ timestamp: originalTimestamp, provisionalRevision: 2 });
@@ -85,7 +86,7 @@ describe('durable draft sessions', () => {
     const afterAnotherReload = createDraftStore({ storage, session: identity }).getState();
     expect(afterAnotherReload.draftHistory.map((entry) => entry.playerId)).toEqual(['confirmed']);
     expect(afterAnotherReload.shortlistedPlayerIds).toEqual(['observed', 'replacement', 'removed', 'waiting']);
-    expect(afterAnotherReload.myRoster.WR).toEqual([]);
+    expect(deriveDraftState(afterAnotherReload).myRoster.WR).toEqual([]);
   });
 
   it('preserves restored observations until newer Provider Truth confirms, corrects, and removes them once', () => {
@@ -111,9 +112,9 @@ describe('durable draft sessions', () => {
     expect(result.removals.map((entry) => entry.playerId)).toEqual(['absent']);
     expect(restarted.getState().manualContinuityBaselineAt).toBeNull();
     expect(restarted.getState().shortlistedPlayerIds).toEqual(['absent', 'mistake', 'waiting']);
-    expect(restarted.getState().draftedPlayerIds).toEqual(new Set(['confirmed', 'match', 'correct']));
-    expect(restarted.getState().teamRosters[2]?.WR).toEqual(['correct']);
-    expect(restarted.getState().currentPick).toBe(4);
+    expect(getDraftView(restarted).draftedPlayerIds).toEqual(new Set(['confirmed', 'match', 'correct']));
+    expect(getDraftView(restarted).teamRosters[2]?.WR).toEqual(['correct']);
+    expect(getDraftView(restarted).currentPick).toBe(4);
     const afterReload = createDraftStore({ storage, session: identity });
     expect(afterReload.getState().draftHistory.every((entry) => entry.source === 'sync')).toBe(true);
     expect(afterReload.getState().lastConfirmedSyncAt).toBe(200);
@@ -129,8 +130,8 @@ describe('durable draft sessions', () => {
     first.getState().reconcileSyncedPicks([official(1, 'confirmed')], 3, [unresolved], 100);
     const restarted = createDraftStore({ storage, session: identity });
     expect(restarted.getState().unresolvedProviderPicks).toEqual([unresolved]);
-    expect(restarted.getState().draftedPlayerIds.has('unknown')).toBe(false);
-    expect(restarted.getState().currentPick).toBe(3);
+    expect(getDraftView(restarted).draftedPlayerIds.has('unknown')).toBe(false);
+    expect(getDraftView(restarted).currentPick).toBe(3);
     restarted.getState().reconcileSyncedPicks([official(1, 'confirmed'), official(2, 'resolved')], 3, [], 200);
     expect(createDraftStore({ storage, session: identity }).getState().unresolvedProviderPicks).toEqual([]);
   });
@@ -144,7 +145,7 @@ describe('durable draft sessions', () => {
     store.getState().setLiveDraftSession(otherDraft);
     expect(store.getState().draftHistory).toEqual([]);
     expect(store.getState().shortlistedPlayerIds).toEqual([]);
-    expect(store.getState().draftedPlayerIds.size).toBe(0);
+    expect(getDraftView(store).draftedPlayerIds.size).toBe(0);
     store.getState().togglePlayerShortlisted('other-draft-queue');
     const otherProvider: DraftSessionIdentity = { provider: 'espn', draftId: '123' };
     store.getState().setLiveDraftSession(otherProvider);
@@ -177,7 +178,7 @@ describe('durable draft sessions', () => {
     expect(restarted.draftHistory).toEqual([]);
     expect(restarted.shortlistedPlayerIds).toEqual([]);
     expect(restarted.manualContinuityBaselineAt).toBeNull();
-    expect(restarted.currentPick).toBe(1);
+    expect(deriveDraftState(restarted).currentPick).toBe(1);
   });
 
   it('keeps mocks, unbound stores, and transient calculations from overwriting a live journal', () => {
@@ -265,7 +266,7 @@ describe('durable draft sessions', () => {
 
     tabA.getState().recordProvisionalPick(pick(1, 'observed'));
     expect(tabB.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
-    expect(tabB.getState().draftedPlayerIds.has('observed')).toBe(true);
+    expect(getDraftView(tabB).draftedPlayerIds.has('observed')).toBe(true);
 
     tabB.getState().setDecisionLens('best-player');
     expect(tabA.getState().decisionLens).toBe('best-player');

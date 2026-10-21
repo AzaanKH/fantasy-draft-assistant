@@ -1,6 +1,7 @@
+import { deriveDraftState } from '@/stores/draft/source';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
-import { deriveDraft, getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
+import { getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
 import type { Player } from '@fantasy-draft/shared/league';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useDraftStoreApi, type DraftStoreApi } from '@/stores/draftStore';
@@ -25,15 +26,7 @@ function selectDraftView(store: DraftViewStore, state: Inputs, players: readonly
       before.draftHistory === state.draftHistory && before.preloadedKeepers === state.preloadedKeepers &&
       before.config === state.config && before.shortlistedPlayerIds === state.shortlistedPlayerIds) return previous.view;
   const { config } = state;
-  const derived = deriveDraft({
-    progress: state.draftProgress,
-    sessionMode: state.sessionMode,
-    rosterRequirements: config.rosterRequirements,
-    history: state.draftHistory,
-    keepers: state.preloadedKeepers,
-    myTeamIndex: config.myPickPosition - 1,
-    shortlistOrder: state.shortlistedPlayerIds,
-  }, { type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }, players);
+  const derived = deriveDraftState(state, players);
   const view: DraftView = {
     ...derived,
     draftedPlayers: [

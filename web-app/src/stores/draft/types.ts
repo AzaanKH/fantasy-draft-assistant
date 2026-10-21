@@ -158,10 +158,7 @@ export interface DraftState {
   mockAutoAdvance: MockAutoAdvanceState;
 
   // Draft progress
-  currentPick: number;
   draftProgress: DraftProgress;
-  /** All unavailable players: completed picks plus keepers reserved for future round selections. */
-  draftedPlayerIds: Set<string>;
   draftHistory: RecordedDraftPick[];
   shortlistedPlayerIds: string[];
   preloadedKeepers: PreloadedKeeper[];
@@ -170,17 +167,9 @@ export interface DraftState {
   /** Provider picks excluded from canonical state until their player identity resolves. */
   unresolvedProviderPicks: UnresolvedProviderPick[];
 
-  // My team
-  myRoster: MutableRoster;
-  /** Canonical roster for every draft slot, including keepers and provisional picks. */
-  teamRosters: MutableRoster[];
-
   // UI state
   decisionLens: DecisionLens;
   filter: FilterState;
-
-  // Computed
-  totalPicks: number;
 }
 
 /**

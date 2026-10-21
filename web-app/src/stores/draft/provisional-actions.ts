@@ -1,8 +1,9 @@
+import { deriveDraftState } from './source';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import {
   getKeeperPickNumbers,
   restoreShortlistedPlayer,
-  rebuildAfterProvisionalChange,
+  acceptProvisionalProgress,
 } from './state';
 import type { DraftActions, SetDraftState } from './types';
 
@@ -31,7 +32,7 @@ export function createProvisionalActions(
         const invalidPick =
           state.sessionMode !== 'live' ||
           pick.teamIndex !== expectedTeamIndex ||
-          state.draftedPlayerIds.has(pick.playerId) ||
+          deriveDraftState(state).draftedPlayerIds.has(pick.playerId) ||
           reservedKeeperPickNumbers.has(pick.pickNumber) ||
           state.draftHistory.some((draftPick) =>
             draftPick.pickNumber === pick.pickNumber ||
@@ -49,7 +50,7 @@ export function createProvisionalActions(
           source: 'provisional',
           ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
         });
-        rebuildAfterProvisionalChange(state);
+        acceptProvisionalProgress(state);
         recorded = true;
       });
       return recorded;
@@ -123,7 +124,7 @@ export function createProvisionalActions(
             ? { shortlistIndex }
             : {}),
         };
-        rebuildAfterProvisionalChange(state);
+        acceptProvisionalProgress(state);
         corrected = true;
       });
       return corrected;
@@ -143,7 +144,7 @@ export function createProvisionalActions(
 
         restoreShortlistedPlayer(state.shortlistedPlayerIds, pick);
         state.draftHistory.splice(pickIndex, 1);
-        rebuildAfterProvisionalChange(state);
+        acceptProvisionalProgress(state);
         removed = true;
       });
       return removed;

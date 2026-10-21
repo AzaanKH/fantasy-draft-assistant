@@ -24,8 +24,6 @@ import {
 } from './draftSessionUnconfirmedSaves';
 import type { DraftStore, DraftSessionMode, SetDraftState } from './draft/types';
 import {
-  createEmptyMutableRoster,
-  createEmptyTeamRosters,
   defaultConfig,
   defaultFilter,
   defaultMockSettings,
@@ -51,7 +49,6 @@ export type {
   UnresolvedProviderPick,
   PreloadedKeeper,
 } from './draft/types';
-export { calculateIsMyTurn } from './draft/state';
 
 enableMapSet();
 
@@ -133,25 +130,15 @@ export function createDraftStore({
     leagueSettings: createDefaultLeagueSettings(),
     mockSettings: defaultMockSettings,
     mockAutoAdvance: { paused: false, settingsOpen: false },
-    currentPick: 1,
     draftProgress: { anchor: { kind: 'start' }, historyLength: 0 },
-    draftedPlayerIds: new Set<string>(),
     draftHistory: [],
     shortlistedPlayerIds: [],
     preloadedKeepers: [],
     keepersInitialized: false,
     mockSurvivalProbabilities: {},
     unresolvedProviderPicks: [],
-    myRoster: createEmptyMutableRoster(),
-    teamRosters: createEmptyTeamRosters(defaultConfig.totalTeams),
     decisionLens: 'best-pick',
     filter: defaultFilter,
-
-    // Computed getters
-    get totalPicks() {
-      const state = get();
-      return state.config.totalTeams * state.config.totalRounds;
-    },
 
     ...createSessionActions(set, get, storage, persistence),
     ...createConfigurationActions(set),
@@ -177,12 +164,11 @@ export function createDraftStore({
   };
   })
   );
-  // Derived Sets and rosters are rebuilt on hydration, never deserialized.
   store.subscribe((state, previous) => {
     if (state.liveSession !== previous.liveSession ||
         state.sessionMode !== previous.sessionMode ||
         state.config !== previous.config || state.leagueSettings !== previous.leagueSettings ||
-        state.currentPick !== previous.currentPick || state.draftHistory !== previous.draftHistory ||
+        state.draftHistory !== previous.draftHistory ||
         state.draftProgress !== previous.draftProgress ||
         state.shortlistedPlayerIds !== previous.shortlistedPlayerIds ||
         state.preloadedKeepers !== previous.preloadedKeepers || state.keepersInitialized !== previous.keepersInitialized ||

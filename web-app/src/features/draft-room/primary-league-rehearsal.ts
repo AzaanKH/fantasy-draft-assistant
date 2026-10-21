@@ -364,7 +364,8 @@ export function runPrimaryLeagueRehearsal(
 
   const observeDecision = (label: string): void => {
     observedTransitions += 1;
-    const state = { ...useDraftStore.getState(), ...getDraftView(useDraftStore, allPlayers) };
+    const state = getDraftView(useDraftStore, allPlayers);
+    const { config, decisionLens } = useDraftStore.getState();
     const myRosterSize = rosterSize(state.myRoster);
     const shouldRecommend = hasRemainingDraftDecision(
       state.currentPick,
@@ -384,7 +385,7 @@ export function runPrimaryLeagueRehearsal(
     const scarcity = calculateAllScarcityScores(availablePlayers);
     const needs = calculateTeamNeeds(
       state.myRoster,
-      state.config.rosterRequirements,
+      config.rosterRequirements,
       scarcity,
       {
         currentPick: state.currentPick,
@@ -410,7 +411,7 @@ export function runPrimaryLeagueRehearsal(
       totalPicks: TOTAL_PICKS,
       totalTeams: TOTAL_TEAMS,
       isMyTurn: managerIsOnTheClock,
-      requirements: state.config.rosterRequirements,
+      requirements: config.rosterRequirements,
       rosterPlayers,
       selectionsRemaining: TOTAL_ROUNDS - myRosterSize,
       rosterCounts: {
@@ -426,7 +427,7 @@ export function runPrimaryLeagueRehearsal(
       recommendations.draftNow,
       recommendations.selection,
       recommendations.bestAvailable,
-      state.decisionLens,
+      decisionLens,
       DRAFT_DISPLAY
     );
     recommendationChecks += 1;
@@ -542,7 +543,8 @@ export function runPrimaryLeagueRehearsal(
   }
   synchronizationStates.push(getDraftSynchronizationState('complete'));
 
-  const finalState = { ...useDraftStore.getState(), ...getDraftView(useDraftStore, allPlayers) };
+  const finalState = getDraftView(useDraftStore, allPlayers);
+  const { draftHistory } = useDraftStore.getState();
   const canonicalPicks = [
     ...providerPicks.map((pick) => ({ pickNumber: pick.pickNumber, playerId: pick.playerId })),
     ...KEEPERS.map((keeper) => ({
@@ -568,8 +570,8 @@ export function runPrimaryLeagueRehearsal(
   failUnless(duplicatePickNumbers.length === 0, `Duplicate pick numbers: ${duplicatePickNumbers.join(', ')}.`);
   failUnless(duplicatePlayerIds.length === 0, `Duplicate players: ${duplicatePlayerIds.join(', ')}.`);
   failUnless(rosterMismatches.length === 0, rosterMismatches.join(' '));
-  failUnless(finalState.draftHistory.length === 130, 'Final provider history does not contain 130 ordinary picks.');
-  failUnless(finalState.draftHistory.every((pick) => pick.source === 'sync'), 'A provisional pick remained after final reconciliation.');
+  failUnless(draftHistory.length === 130, 'Final provider history does not contain 130 ordinary picks.');
+  failUnless(draftHistory.every((pick) => pick.source === 'sync'), 'A provisional pick remained after final reconciliation.');
   failUnless(finalState.draftedPlayerIds.size === TOTAL_PICKS, 'Final unavailable-player set does not contain exactly 140 drafted players.');
   failUnless(finalState.currentPick === TOTAL_PICKS + 1, 'Draft did not advance to its completed cursor.');
   failUnless(

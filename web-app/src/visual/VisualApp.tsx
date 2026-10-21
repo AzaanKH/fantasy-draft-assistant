@@ -278,20 +278,10 @@ export function createVisualDraftStore(): DraftStoreApi {
   const draftHistory = createFixtureHistory();
   store.setState({
     sessionMode: 'mock',
-    currentPick: 47,
     draftProgress: { anchor: { kind: 'carry', pickNumber: 47 }, historyLength: draftHistory.length },
-    draftedPlayerIds: new Set(draftHistory.map((pick) => pick.playerId)),
     draftHistory,
     shortlistedPlayerIds: ['visual-player-2', 'visual-player-6'],
     keepersInitialized: true,
-    myRoster: {
-      QB: ['visual-drafted-25'],
-      RB: ['visual-drafted-5', 'visual-drafted-16'],
-      WR: ['visual-drafted-36'],
-      TE: ['visual-drafted-45'],
-      K: [],
-      DEF: [],
-    },
   });
   return store;
 }

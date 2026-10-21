@@ -1,12 +1,12 @@
 import { POSITIONS } from '@fantasy-draft/shared/league';
 import { createSlotSequence, type DraftSource } from '@fantasy-draft/shared/draft';
 import { createDraftStore } from '../draftStore';
-import { shadowSource } from './derive-shadow-source';
+import { draftSource } from './source';
 
-export const shadowMockFormat = { type: 'snake', teams: 10, rounds: 14 } as const;
+export const draftMockFormat = { type: 'snake', teams: 10, rounds: 14 } as const;
 
-export function createShadowMockStore(completedPicks: number): ReturnType<typeof createDraftStore> {
-  const order = createSlotSequence(shadowMockFormat);
+export function createDraftMockStore(completedPicks: number): ReturnType<typeof createDraftStore> {
+  const order = createSlotSequence(draftMockFormat);
   const store = createDraftStore();
   store.getState().setConfig({ totalTeams: 10, totalRounds: 14, myPickPosition: 5 });
   store.getState().setSessionMode('mock');
@@ -33,6 +33,6 @@ export function createShadowMockStore(completedPicks: number): ReturnType<typeof
 }
 
 
-export function createShadowMock(completedPicks: number): DraftSource {
-  return shadowSource(createShadowMockStore(completedPicks).getState());
+export function createDraftMock(completedPicks: number): DraftSource {
+  return draftSource(createDraftMockStore(completedPicks).getState());
 }
