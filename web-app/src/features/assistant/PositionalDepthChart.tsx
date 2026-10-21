@@ -1,3 +1,4 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { useId, useMemo, useRef, useState } from 'react';
@@ -11,7 +12,6 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { estimateLeagueSurvivalProbability, getNextUserPick, formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
-import { useDraftStore } from '@/stores/draftStore';
 import {
   depthTier, getAvailableDepthPlayers, getDepthPlayers, getDepthRosterOpenings,
   getDepthTierDrop, getDepthTiers, type DepthFilter,
@@ -30,11 +30,11 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
   readonly onClose: () => void;
 }): React.ReactElement {
   const [limit, setLimit] = useState(8);
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
   const currentPick = useDraftView((view) => view.currentPick);
   const queuedIds = useDraftView((view) => view.shortlistedPlayerIds);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const mockProbabilities = useDraftStore((state) => state.mockSurvivalProbabilities);
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const mockProbabilities = useDraftState((state) => state.mockSurvivalProbabilities);
   const { togglePlayerQueued } = useQueueActions(players);
   const timingEvidence = useLeagueTimingEvidence();
   const timing = useMemo(() => {
@@ -111,7 +111,7 @@ export default function PositionalDepthChart({ needs }: {
   const { players } = usePlayerDataQuery();
   const browsePool = useDraftView((view) => view.available);
   const available = useMemo(() => getAvailableDepthPlayers(browsePool, new Set()), [browsePool]);
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
   const [showAll, setShowAll] = useState(false);
   const [showSpecialTeams, setShowSpecialTeams] = useState(false);
   const [selection, setSelection] = useState<{ position: Position; tier: DepthFilter } | null>(null);

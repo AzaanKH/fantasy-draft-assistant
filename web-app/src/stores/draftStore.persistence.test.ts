@@ -317,7 +317,7 @@ describe('durable draft sessions', () => {
       const store = createDraftStore({
         storage,
         session: identity,
-        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); return () => { listeners.splice(listeners.indexOf(onChange), 1); }; },
       });
       store.getState().setSessionMode('live');
       return store;
@@ -511,7 +511,7 @@ describe('durable draft sessions', () => {
       const store = createDraftStore({
         storage,
         session: identity,
-        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); return () => { listeners.splice(listeners.indexOf(onChange), 1); }; },
       });
       store.getState().setSessionMode('live');
       return store;
@@ -633,7 +633,7 @@ describe('durable draft sessions', () => {
     expect(createDraftStore({ storage, session: identity }).getState().draftHistory).toEqual([]);
   });
 
-  it('hydrates the default store before rendering and follows saved and URL connection changes synchronously', async () => {
+  it('hydrates the browser workspace before rendering and follows saved and URL connection changes synchronously', async () => {
     vi.resetModules();
     const storage = memoryStorage();
     const store = openSession(storage);
@@ -641,17 +641,18 @@ describe('durable draft sessions', () => {
     store.getState().recordProvisionalPick(pick(1, 'saved-pick'));
     storage.setItem(DRAFT_SYNC_STORAGE_KEY, JSON.stringify({ ...identity, draftPosition: 2 }));
     vi.stubGlobal('window', { localStorage: storage });
-    const { useDraftStore } = await import('./draftStore');
-    const { useDraftSyncConnectionStore, initializeDraftSyncConnection } = await import('./draftSyncStore');
-    expect(useDraftStore.getState().draftHistory[0]?.playerId).toBe('saved-pick');
-    expect(useDraftStore.getState().manualContinuityBaselineAt).toBe(100);
-    initializeDraftSyncConnection('?provider=espn&draftId=123&position=1');
-    expect(useDraftStore.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
-    useDraftSyncConnectionStore.getState().startConnection('sleeper', '123');
-    expect(useDraftStore.getState().draftHistory[0]?.playerId).toBe('saved-pick');
-    useDraftSyncConnectionStore.getState().disconnect();
-    expect(useDraftStore.getState().liveSession).toBeNull();
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
+    const { createBrowserWorkspace } = await import('../workspace/browser-workspace');
+    const workspace = createBrowserWorkspace('');
+    expect(workspace.draft.getState().draftHistory[0]?.playerId).toBe('saved-pick');
+    expect(workspace.draft.getState().manualContinuityBaselineAt).toBe(100);
+    workspace.send('connection.restoreConnection', { provider: 'espn', draftId: '123', draftPosition: 1 });
+    expect(workspace.draft.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
+    expect(workspace.draft.getState().draftHistory).toEqual([]);
+    workspace.send('connection.startConnection', 'sleeper', '123');
+    expect(workspace.draft.getState().draftHistory[0]?.playerId).toBe('saved-pick');
+    workspace.send('connection.disconnect');
+    expect(workspace.draft.getState().liveSession).toBeNull();
+    expect(workspace.draft.getState().draftHistory).toEqual([]);
+    workspace.dispose();
   });
 });

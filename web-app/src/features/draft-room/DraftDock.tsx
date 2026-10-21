@@ -1,3 +1,4 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { POSITIONS } from '@fantasy-draft/shared/league';
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
@@ -11,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
-import { useDraftStore } from '@/stores/draftStore';
 import { DraftPlayerPool } from './DraftPlayerPool';
 
 const DraftSuggestions = React.lazy(() =>
@@ -61,7 +61,7 @@ export function DraftDock({
 }): React.ReactElement {
   const isSplit = useMediaQuery(SPLIT_LAYOUT_QUERY);
   const queuedCount = useDraftView((view) => view.shortlistedPlayerIds.length);
-  const totalRounds = useDraftStore((state) => state.config.totalRounds);
+  const totalRounds = useDraftState((state) => state.config.totalRounds);
   const rosterCount = useDraftView((view) =>
     POSITIONS.map(position => view.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,

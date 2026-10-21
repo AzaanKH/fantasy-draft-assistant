@@ -1,7 +1,7 @@
+import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
 import { toast } from 'sonner';
-import { useDraftStoreApi } from '@/stores/draftStore';
 
 interface QueuePlayerIdentity {
   readonly id: string;
@@ -14,7 +14,7 @@ export function useQueueActions(
   readonly togglePlayerQueued: (playerId: string) => void;
   readonly removePlayerFromQueue: (playerId: string) => void;
 } {
-  const draftStore = useDraftStoreApi();
+  const workspace = useWorkspace();
   const playerNameById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player.name])),
     [players]
@@ -25,31 +25,28 @@ export function useQueueActions(
     toast(`${playerName} ${wasQueued ? 'removed from' : 'added to'} queue`, {
       id: `queue:${playerId}`,
       action: { label: 'Undo', onClick: () => {
-        const current = draftStore.getState();
-        const isQueued = getDraftView(draftStore).shortlistedPlayerIds.includes(playerId);
+        const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
         if (wasQueued && !isQueued) {
-          current.togglePlayerShortlisted(playerId);
+          workspace.send('togglePlayerShortlisted', playerId);
         } else if (!wasQueued && isQueued) {
-          current.removePlayerFromShortlist(playerId);
+          workspace.send('removePlayerFromShortlist', playerId);
         }
       } },
     });
-  }, [draftStore, playerNameById]);
+  }, [workspace, playerNameById]);
 
   const togglePlayerQueued = React.useCallback((playerId: string) => {
-    const store = draftStore.getState();
-    const wasQueued = getDraftView(draftStore).shortlistedPlayerIds.includes(playerId);
-    store.togglePlayerShortlisted(playerId);
-    const isQueued = getDraftView(draftStore).shortlistedPlayerIds.includes(playerId);
+    const wasQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
+    workspace.send('togglePlayerShortlisted', playerId);
+    const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
     if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
-  }, [draftStore, showQueueFeedback]);
+  }, [workspace, showQueueFeedback]);
 
   const removePlayerFromQueue = React.useCallback((playerId: string) => {
-    const store = draftStore.getState();
-    if (!getDraftView(draftStore).shortlistedPlayerIds.includes(playerId)) return;
-    store.removePlayerFromShortlist(playerId);
+    if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) return;
+    workspace.send('removePlayerFromShortlist', playerId);
     showQueueFeedback(playerId, true);
-  }, [draftStore, showQueueFeedback]);
+  }, [workspace, showQueueFeedback]);
 
   return { togglePlayerQueued, removePlayerFromQueue };
 }

@@ -3,9 +3,12 @@ import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { deriveDraft, getRecommendationBoard } from '@fantasy-draft/shared/draft';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { draftPlayers } from '@/stores/draft/draft-catalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { useNow } from './useNow';
+import { useWorkspace } from './WorkspaceProvider';
 import { getDraftView, useDraftView, useDraftViewReader } from './useDraftView';
 
 vi.mock('@fantasy-draft/shared/draft', async importOriginal => {
@@ -32,7 +35,7 @@ beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   store = createDraftStore(); store.getState().setSessionMode('mock');
   container = document.createElement('div'); root = createRoot(container);
-  act(() => { root.render(createElement(DraftStoreProvider, { store, children: createElement(Readers) })); });
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(Readers) })); });
 });
 afterEach(() => { act(() => { root.unmount(); }); });
 it('shares the projection and recommendation board across unrelated UI and clock updates', () => {
@@ -42,7 +45,7 @@ it('shares the projection and recommendation board across unrelated UI and clock
   expect(read()).toBe(before); expect(getDraftView(store, draftPlayers)).toBe(before);
   expect(vi.mocked(deriveDraft).mock.calls.length).toBe(derives);
   expect(vi.mocked(getRecommendationBoard).mock.calls.length).toBe(boards);
-  act(() => { root.render(createElement(DraftStoreProvider, { store, children: createElement(Readers) })); });
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(Readers) })); });
   expect(read()).toBe(before); expect(vi.mocked(deriveDraft).mock.calls.length).toBe(derives);
   expect(vi.mocked(getRecommendationBoard).mock.calls.length).toBe(boards);
 });
@@ -67,4 +70,32 @@ it('keeps separate stores and catalog replacements isolated', () => {
   const replacement = draftPlayers.slice(0, 20);
   expect(getDraftView(store, replacement).available).toHaveLength(20);
   expect(read().available).toHaveLength(600);
+});
+
+it('ticks an age display without rendering the command owner or deriving recommendations', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-21T12:00:00Z'));
+  let ownerRenders = 0;
+  let readerRenders = 0;
+  let commandOwner: ReturnType<typeof useWorkspace> | undefined;
+  function Clock() { return createElement('time', null, useNow()); }
+  function Owner() {
+    commandOwner = useWorkspace(); ownerRenders += 1;
+    return createElement(Clock);
+  }
+  function Board() { readerRenders += 1; return createElement(Readers); }
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: [createElement(Owner, {key: 'owner'}), createElement(Board, {key: 'board'})] })); });
+  const view = read();
+  const before = { ownerRenders, readerRenders, derives: vi.mocked(deriveDraft).mock.calls.length, boards: vi.mocked(getRecommendationBoard).mock.calls.length };
+  const owner = commandOwner;
+  const time = container.querySelector('time')?.textContent;
+  act(() => { vi.advanceTimersByTime(5_000); });
+  expect(container.querySelector('time')?.textContent).not.toBe(time);
+  expect({ ownerRenders, readerRenders, derives: vi.mocked(deriveDraft).mock.calls.length, boards: vi.mocked(getRecommendationBoard).mock.calls.length }).toEqual(before);
+  expect(commandOwner).toBe(owner);
+  expect(read()).toBe(view);
+  act(() => { root.unmount(); });
+  expect(vi.getTimerCount()).toBe(0);
+  root = createRoot(container);
+  vi.useRealTimers();
 });

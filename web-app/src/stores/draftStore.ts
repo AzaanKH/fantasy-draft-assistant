@@ -1,9 +1,7 @@
-import { createContext, createElement, useContext, type ReactNode, type ReactElement } from 'react';
-import { create, useStore, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
+import { create, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
-import { useDraftSyncConnectionStore } from './draftSyncStore';
 import {
   createDraftSessionWriteId,
   getBrowserDraftSessionStorage,
@@ -22,7 +20,7 @@ import {
   type DraftSessionChange,
   type StoredDraftSessionChange,
 } from './draftSessionUnconfirmedSaves';
-import type { DraftStore, DraftSessionMode, SetDraftState } from './draft/types';
+import type { DraftStore, SetDraftState } from './draft/types';
 import {
   defaultConfig,
   defaultFilter,
@@ -53,28 +51,30 @@ export type {
 enableMapSet();
 
 type BoundDraftStore = UseBoundStore<Mutate<StoreApi<DraftStore>, [['zustand/immer', never]]>>;
-export type DraftStoreApi = BoundDraftStore;
+export type DraftStoreApi = BoundDraftStore & { readonly dispose: () => void };
 
 /** Notifies the store when another tab changes a stored key, as the `storage` event does. */
 type ExternalDraftSessionChanges = (
   onChange: (key: string | null, newValue: string | null) => void
-) => void;
+) => (() => void) | undefined;
 
-interface DraftStoreOptions {
+export interface DraftStoreOptions {
   readonly storage?: DraftSessionStorage | null;
   readonly session?: DraftSessionIdentity | null;
   readonly externalChanges?: ExternalDraftSessionChanges | null;
 }
 
-function subscribeToBrowserStorageEvents(
+export function subscribeToBrowserStorageEvents(
   onChange: (key: string | null, newValue: string | null) => void
-): void {
+): (() => void) | undefined {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
-  window.addEventListener('storage', (event) => {
+  const onStorage = (event: StorageEvent): void => {
     if (event.storageArea === null || event.storageArea === getBrowserDraftSessionStorage()) {
       onChange(event.key, event.newValue);
     }
-  });
+  };
+  window.addEventListener('storage', onStorage);
+  return () => { window.removeEventListener('storage', onStorage); };
 }
 
 /** Retries before a save overwrites a tab that keeps saving first; that tab's save is then merged back. */
@@ -87,7 +87,7 @@ export function createDraftStore({
   storage = null,
   session = null,
   externalChanges = null,
-}: DraftStoreOptions = {}): BoundDraftStore {
+}: DraftStoreOptions = {}): DraftStoreApi {
   const persistence: DraftSessionPersistence = { base: EMPTY_DRAFT_SESSION_BASE };
   // Each page load records its saves under a new key, so a reloaded tab's last
   // save stays in storage for any tab to merge back if it was overwritten.
@@ -290,66 +290,10 @@ export function createDraftStore({
     }
   }
 
-  externalChanges?.((key) => {
+  const stopExternalChanges = externalChanges?.((key) => {
     const { liveSession } = store.getState();
     if (liveSession && (key === null || key === getDraftSessionStorageKey(liveSession))) syncFromOtherTabs();
   });
   if (session) store.getState().setLiveDraftSession(session);
-  return store;
+  return Object.assign(store, { dispose: () => { stopExternalChanges?.(); } });
 }
-
-const defaultDraftStore = createDraftStore({
-  storage: getBrowserDraftSessionStorage(),
-  session: useDraftSyncConnectionStore.getState().connection,
-  externalChanges: subscribeToBrowserStorageEvents,
-});
-// Connection changes bind and hydrate synchronously, before React's sync effects.
-// Explicitly created stores remain isolated for mocks, rehearsals, and tests.
-useDraftSyncConnectionStore.subscribe(({ connection }) => {
-  defaultDraftStore.getState().setLiveDraftSession(connection);
-});
-const DraftStoreContext = createContext<DraftStoreApi | null>(null);
-
-export function DraftStoreProvider({
-  children,
-  store,
-}: {
-  readonly children: ReactNode;
-  readonly store: DraftStoreApi;
-}): ReactElement {
-  return createElement(DraftStoreContext.Provider, { value: store }, children);
-}
-
-export function useDraftStoreApi(): DraftStoreApi {
-  return useContext(DraftStoreContext) ?? defaultDraftStore;
-}
-
-interface UseDraftStore {
-  <T>(selector: (state: DraftStore) => T): T;
-  readonly getState: DraftStoreApi['getState'];
-  readonly getInitialState: DraftStoreApi['getInitialState'];
-  readonly setState: DraftStoreApi['setState'];
-  readonly subscribe: DraftStoreApi['subscribe'];
-}
-
-function useDraftStoreSelector<T>(selector: (state: DraftStore) => T): T {
-  return useStore(useDraftStoreApi(), selector);
-}
-
-// Static methods address the default store. Components must capture useDraftStoreApi()
-// during render for imperative callbacks scoped to a DraftStoreProvider.
-export const useDraftStore: UseDraftStore = Object.assign(
-  useDraftStoreSelector,
-  {
-    getState: defaultDraftStore.getState.bind(defaultDraftStore),
-    getInitialState: defaultDraftStore.getInitialState.bind(defaultDraftStore),
-    setState: defaultDraftStore.setState.bind(defaultDraftStore),
-    subscribe: defaultDraftStore.subscribe.bind(defaultDraftStore),
-  }
-);
-
-/**
- * Selector hooks for common state slices
- */
-export const useDraftSessionMode = (): DraftSessionMode =>
-  useDraftStore((state) => state.sessionMode);

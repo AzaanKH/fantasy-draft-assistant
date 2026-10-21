@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir, cp, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { audit, auditConflict, summarize, failsGate } from './audit.mjs';
+import { auditConflict11b, check11bBands } from './bands-11b.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -25,11 +26,13 @@ const selected = process.env.PERSISTENCE_SCENARIOS?.split(',').map(value => valu
 if (selected.some(value => !scenarios.includes(value))) throw new Error('Unknown persistence scenario');
 await mkdir(out, { recursive: true });
 const results = { metadata: { started: new Date().toISOString(), root, node: process.version,
-  suites, seeds, commandsPerActor: count, origin, workload: 'unique disjoint picks and shortlist additions; P9 LCG and 0..5ms jitter' },
+  suites, seeds, commandsPerActor: count, conflictSamplesPerKind: 20, origin, workload: 'unique disjoint picks and shortlist additions; P9 LCG and 0..5ms jitter' },
   scenarios: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
 results.metadata.sourceHashes = Object.fromEntries(await Promise.all([
+  'web-app/src/workspace/browser-workspace.ts', 'web-app/src/workspace/workspace.ts',
   'web-app/src/stores/draftStore.ts', 'web-app/src/stores/draftSessionStorage.ts',
   'web-app/src/stores/draftSessionUnconfirmedSaves.ts', 'scripts/persistence/adapter.mjs',
+  'scripts/persistence/bands-11b.mjs', 'scripts/persistence/audit.mjs', 'scripts/persistence/run.mjs',
 ].map(async file => [file, createHash('sha256').update(await readFile(path.join(root, file))).digest('hex')])));
 const save = () => writeFile(path.join(out, 'results.json'), JSON.stringify(results, null, 2));
 process.env.BROWSER_DATA_SOURCE = 'demo';
@@ -115,11 +118,14 @@ try {
       for (const target of control.targets) controlIssued.push(...await target.evaluate(count => window.persistenceHarness.stress(707, count), count));
       await new Promise(resolve => setTimeout(resolve, 250));
       const controlBefore = await snapshots(control);
+      const controlStored = await inspect(control);
       await reload(control);
       await new Promise(resolve => setTimeout(resolve, 250));
-      scenario.sequentialControl = { checks: audit(controlIssued, await snapshots(control), controlBefore), beforeReload: controlBefore, issued: controlIssued, afterReload: await snapshots(control) };
+      const controlAfter = await snapshots(control);
+      scenario.sequentialControl = { capabilities: control.capabilities, checks: audit(controlIssued, controlAfter, controlBefore),
+        beforeReload: controlBefore, stored: controlStored, issued: controlIssued, afterReload: controlAfter, afterStored: await inspect(control) };
       await closePair(control); await save();
-      for (const kind of ['pick', 'move']) {
+      for (const kind of ['pick', 'move']) for (let sample = 1; sample <= 20; sample++) {
         const pair = await makePair(label, id, String(++serial));
         if (kind === 'move') for (const target of pair.targets) for (const player of ['p0', 'p1', 'p2', 'p3']) {
           await target.evaluate(player => window.persistenceHarness.issue({ type: 'shortlistAdd', player }), player);
@@ -133,9 +139,15 @@ try {
         ];
         const issued = await Promise.all(pair.targets.map((target, actor) => target.evaluate(cmd => window.persistenceHarness.issue(cmd), commands[actor])));
         await new Promise(resolve => setTimeout(resolve, 250));
-        const settled = await snapshots(pair); await reload(pair);
+        const settled = await snapshots(pair);
+        const stored = await inspect(pair);
+        await reload(pair);
+        await new Promise(resolve => setTimeout(resolve, 250));
         const afterReload = await snapshots(pair);
-        scenario.conflicts.push({ kind, issued, settled, afterReload, checks: auditConflict(kind, issued, afterReload, settled) });
+        const afterStored = await inspect(pair);
+        scenario.conflicts.push({ kind, sample, capabilities: pair.capabilities, issued, settled, stored, afterReload, afterStored,
+          checks: auditConflict(kind, issued, afterReload, settled),
+          checks11b: auditConflict11b(kind, issued, afterReload, settled, ['tabs', 'extension-granted'].includes(label)) });
         await closePair(pair); await save();
       }
       const probe = await makePair(label, id, String(++serial));
@@ -161,9 +173,12 @@ try {
     }
   }
   results.summary = summarize(results.scenarios);
-  results.metadata.finished = new Date().toISOString(); await save();
-  console.log(JSON.stringify({ summary: results.summary, pageErrors: results.pageErrors }));
-  if (results.scenarioErrors.length || process.argv.includes('--gate') && failsGate(results)) process.exitCode = 1;
+  results.metadata.finished = new Date().toISOString();
+  results.bands11b = check11bBands(results);
+  await save();
+  console.log(JSON.stringify({ summary: results.summary, pageErrors: results.pageErrors, bands11b: results.bands11b }));
+  if (results.scenarioErrors.length || process.argv.includes('--gate') && failsGate(results) ||
+    process.argv.includes('--gate-11b') && !results.bands11b.passes) process.exitCode = 1;
 } catch (error) {
   results.fatal = { name: error.name, message: error.message, stack: error.stack }; await save(); throw error;
 } finally {

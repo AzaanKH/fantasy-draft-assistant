@@ -1,3 +1,4 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
@@ -23,7 +24,6 @@ import { useQueueActions } from '@/hooks/useQueueActions';
 import { useUndraftedPlayers } from '@/hooks/useUndraftedPlayers';
 import { cn } from '@/lib/utils';
 import { formatSignedNumber } from '@fantasy-draft/shared/draft';
-import { useDraftStore } from '@/stores/draftStore';
 import { describePausedAdvice, getPlayerPoolRows, type PositionFilter } from './player-pool-rows';
 import { getRosterSlots } from './roster-slots';
 
@@ -128,9 +128,9 @@ export function DraftPlayerPool(): React.ReactElement {
   const deferredSearchQuery = React.useDeferredValue(searchQuery.trim().toLowerCase());
   const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(basePlayers);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
+  const sessionMode = useDraftState((state) => state.sessionMode);
   const myRoster = useDraftView((view) => view.myRoster);
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 

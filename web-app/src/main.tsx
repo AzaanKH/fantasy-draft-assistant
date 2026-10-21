@@ -7,7 +7,8 @@ import { NotificationProvider } from './components/notifications';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 import { applyTheme, readStoredTheme } from './features/theme/theme';
 import { LivePlayerDataProvider } from './hooks/usePlayerData';
-import { initializeDraftSyncConnection } from './stores/draftSyncStore';
+import { createBrowserWorkspace } from './workspace/browser-workspace';
+import { WorkspaceProvider } from './workspace/WorkspaceProvider';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -19,6 +20,7 @@ const root = createRoot(rootElement);
 const visualRouteRequested = window.location.pathname.startsWith('/__visual/');
 
 function renderNormalApp(app: ReactElement): void {
+  const workspace = createBrowserWorkspace(window.location.search);
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -32,11 +34,13 @@ function renderNormalApp(app: ReactElement): void {
     <StrictMode>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <LivePlayerDataProvider>
-            <NotificationProvider>
-              <TooltipProvider><MotionProvider>{app}</MotionProvider></TooltipProvider>
-            </NotificationProvider>
-          </LivePlayerDataProvider>
+          <WorkspaceProvider workspace={workspace}>
+            <LivePlayerDataProvider>
+              <NotificationProvider>
+                <TooltipProvider><MotionProvider>{app}</MotionProvider></TooltipProvider>
+              </NotificationProvider>
+            </LivePlayerDataProvider>
+          </WorkspaceProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </StrictMode>
@@ -59,7 +63,6 @@ if (import.meta.env.DEV && visualRouteRequested) {
 } else {
   void import('./App').then(({ App }) => {
     applyTheme(readStoredTheme());
-    initializeDraftSyncConnection(window.location.search);
     renderNormalApp(<App />);
   }).catch(() => {
     root.render(

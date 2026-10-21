@@ -1,3 +1,4 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 /**
  * Team Needs Hook
@@ -17,7 +18,6 @@ import {
   getCriticalPositions,
 } from '@fantasy-draft/shared/draft';
 import { usePlayerDataQuery } from './usePlayerData';
-import { useDraftStore } from '@/stores/draftStore';
 
 /**
  * Hook to calculate team positional needs
@@ -32,7 +32,7 @@ export function useTeamNeeds(): {
   const myRoster = useDraftView((view) => view.myRoster);
   const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const currentPick = useDraftView((view) => view.currentPick);
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
 
   const scarcityScores = useMemo(() => {
     const availablePlayers = players.filter((p) => !draftedPlayerIds.has(p.id));
