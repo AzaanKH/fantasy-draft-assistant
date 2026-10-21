@@ -1,7 +1,7 @@
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
 import { DRAFT_SESSION_LINEAGE_LIMIT, type DraftSessionIdentity } from '@fantasy-draft/shared/sync';
 export type { DraftSessionIdentity } from '@fantasy-draft/shared/sync';
-import { canonicalizeKeeperSupply } from '@fantasy-draft/shared/draft';
+import { canonicalizeKeeperSupply, type DraftProgress } from '@fantasy-draft/shared/draft';
 import { decodeStoredDraftSession } from '@fantasy-draft/shared/catalog';
 export { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/sync';
 import {
@@ -22,7 +22,7 @@ export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeI
 
 /** Canonical history doubles as the local journal, including provisional revisions. */
 export interface PersistedDraftSession {
-  readonly version: 1;
+  readonly version: 2;
   /** Advances by one per lineage entry a write adds, so tabs can detect that another tab saved first. */
   readonly revision: number;
   /**
@@ -36,6 +36,7 @@ export interface PersistedDraftSession {
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
   readonly currentPick: number;
+  readonly draftProgress: DraftProgress;
   readonly draftHistory: RecordedDraftPick[];
   readonly shortlistedPlayerIds: string[];
   readonly preloadedKeepers: PreloadedKeeper[];
@@ -84,13 +85,14 @@ export function parseStoredDraftSession(
     if (supply.invalidEntries.length || supply.duplicatePlayerIds.length || supply.conflictingEntries.length) return null;
 
     return {
-      version: 1,
+      version: 2,
       revision: value.revision ?? 0,
       identity: { provider: identity.provider, draftId: identity.draftId },
       config,
       leagueSettings: value.leagueSettings,
       currentPick: value.currentPick,
-      draftHistory: [...draftHistory].sort((left, right) => left.pickNumber - right.pickNumber),
+      draftProgress: value.draftProgress,
+      draftHistory: [...draftHistory],
       shortlistedPlayerIds: [...new Set(value.shortlistedPlayerIds)],
       preloadedKeepers: [...preloadedKeepers],
       keepersInitialized: value.keepersInitialized,
@@ -164,13 +166,14 @@ export function persistDraftSession(
   const writeId = createDraftSessionWriteId();
   const added = [...mergedWriteIds, writeId];
   const session: PersistedDraftSession = {
-    version: 1,
+    version: 2,
     revision: base.revision + added.length,
     lineage: [...base.lineage, ...added].slice(-DRAFT_SESSION_LINEAGE_LIMIT),
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
     currentPick: state.currentPick,
+    draftProgress: state.draftProgress,
     draftHistory: state.draftHistory,
     shortlistedPlayerIds: state.shortlistedPlayerIds,
     preloadedKeepers: state.preloadedKeepers,

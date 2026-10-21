@@ -32,10 +32,9 @@ export function applySavedDraftSession(
   state.leagueSettings = castDraft(saved?.leagueSettings ?? createDefaultLeagueSettings());
   state.currentPick = saved?.currentPick ?? 1;
   state.draftHistory = saved?.draftHistory ?? [];
-  state.draftProgress = {
-    anchor: { kind: 'carry', pickNumber: saved?.currentPick ?? 1 },
-    historyLength: state.draftHistory.length,
-  };
+  state.draftProgress = castDraft(saved?.draftProgress ?? {
+    anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 0,
+  });
   state.shortlistedPlayerIds = saved?.shortlistedPlayerIds ?? [];
   state.preloadedKeepers = saved?.preloadedKeepers ?? [];
   state.keepersInitialized = saved?.keepersInitialized ?? false;

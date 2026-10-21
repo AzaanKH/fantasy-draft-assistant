@@ -14,7 +14,7 @@ function pick(pickNumber: number, playerId: string): RecordedDraftPick {
 
 function session(overrides: Partial<PersistedDraftSession> = {}): PersistedDraftSession {
   return {
-    version: 1, revision: 1, lineage: ['base'], identity: { provider: 'sleeper', draftId: '123' },
+    version: 2, draftProgress: { anchor: { kind: 'start' }, historyLength: 0 }, revision: 1, lineage: ['base'], identity: { provider: 'sleeper', draftId: '123' },
     config: defaultConfig, leagueSettings: createDefaultLeagueSettings(), currentPick: 1, draftHistory: [],
     shortlistedPlayerIds: [], preloadedKeepers: [], keepersInitialized: false, unresolvedProviderPicks: [],
     decisionLens: 'best-pick', manualContinuityBaselineAt: null, lastConfirmedSyncAt: null,

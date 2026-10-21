@@ -184,6 +184,7 @@ export function createDraftStore({
         state.sessionMode !== previous.sessionMode ||
         state.config !== previous.config || state.leagueSettings !== previous.leagueSettings ||
         state.currentPick !== previous.currentPick || state.draftHistory !== previous.draftHistory ||
+        state.draftProgress !== previous.draftProgress ||
         state.shortlistedPlayerIds !== previous.shortlistedPlayerIds ||
         state.preloadedKeepers !== previous.preloadedKeepers || state.keepersInitialized !== previous.keepersInitialized ||
         state.unresolvedProviderPicks !== previous.unresolvedProviderPicks ||

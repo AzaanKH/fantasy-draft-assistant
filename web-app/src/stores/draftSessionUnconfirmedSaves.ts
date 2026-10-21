@@ -1,3 +1,4 @@
+import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import { decodeDraftSessionChange } from '@fantasy-draft/shared/catalog';
 import type { RecordedDraftPick } from './draft/types';
 import type {
@@ -21,6 +22,7 @@ const MERGED_FIELDS = [
   'lastConfirmedSyncAt',
   'lastConfirmedPickNumber',
   'currentPick',
+  'draftProgress',
 ] as const satisfies readonly (keyof PersistedDraftSession)[];
 
 type MergedField = (typeof MERGED_FIELDS)[number];
@@ -183,6 +185,13 @@ export function applyDraftSessionChange(
     } else if (field === 'currentPick') {
       Object.assign(merged, { currentPick: Math.max(session.currentPick, change.fields.currentPick?.after ?? session.currentPick) });
     }
+  }
+  if (merged.draftProgress.historyLength > merged.draftHistory.length ||
+      deriveDraftCursor(merged.draftHistory, merged.draftProgress) !== merged.currentPick) {
+    // A merged history has no single accepted command prefix. Preserve the legacy journal cursor policy.
+    return { ...merged, draftProgress: {
+      anchor: { kind: 'carry', pickNumber: merged.currentPick }, historyLength: merged.draftHistory.length,
+    } };
   }
   return merged;
 }

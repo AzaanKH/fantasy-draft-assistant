@@ -2,6 +2,7 @@ import { DRAFT_SESSION_LINEAGE_LIMIT, isDraftSessionIdentity, isDraftSyncConnect
 import { isQuickMockPreferences } from '../draft/quick-mock-settings.js';
 export { DRAFT_SESSION_LINEAGE_LIMIT, isDraftSessionIdentity, isDraftSyncConnection, isValidDraftSyncId, isQuickMockPreferences };
 import { Schema } from 'effect';
+import { deriveDraftCursor, type DraftProgress } from '../draft-progress.js';
 import { isLeagueSettings, isRosterRequirements } from '../league-settings.js';
 import { createSlotSequence } from '../draft-order.js';
 import { MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS, isDraftSize } from '../limits.js';
@@ -58,7 +59,7 @@ const history = /* @__PURE__ */ Schema.Array(recordedPick).check(/* @__PURE__ */
 const keepers = /* @__PURE__ */ Schema.Array(keeper).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
 const unresolved = /* @__PURE__ */ Schema.Array(unresolvedPick).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
 const lens = /* @__PURE__ */ Schema.Literals(['best-pick', 'best-player']);
-const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal(1), identity, config, leagueSettings,
+const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literals([1, 2]), identity, config, leagueSettings,
   currentPick: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1), draftHistory: history, preloadedKeepers: keepers,
   shortlistedPlayerIds: playerIds, keepersInitialized: Schema.Boolean, unresolvedProviderPicks: unresolved,
   decisionLens: lens, manualContinuityBaselineAt: nullableTimestamp, lastConfirmedSyncAt: nullableTimestamp,
@@ -77,7 +78,49 @@ const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal
     value.preloadedKeepers.every(row => row.teamIndex < c.totalTeams && row.round <= c.totalRounds) &&
     value.unresolvedProviderPicks.every(row => row.pickNumber <= total);
 }));
-export const decodeStoredDraftSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
+const progressPick = /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1);
+const reservedSlots = {
+  keeperSlots: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS))
+    .check(/* @__PURE__ */ Schema.makeFilter(slots => slots.length <= MAX_DRAFT_PICKS && new Set(slots).size === slots.length)),
+  totalPicks: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS),
+};
+const reservedAnchor = /* @__PURE__ */ Schema.Union([
+  /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('provider'), nextPickNumber: Schema.Finite, ...reservedSlots }),
+  /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('first-open'), ...reservedSlots }),
+  /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('past-keepers'), fromPick: progressPick, ...reservedSlots }),
+]).check(/* @__PURE__ */ Schema.makeFilter(anchor => anchor.keeperSlots.every(slot => slot <= anchor.totalPicks)));
+const progress = /* @__PURE__ */ object({
+  anchor: /* @__PURE__ */ Schema.Union([
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('start') }),
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('branch'), pickNumber: progressPick }),
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('reopen'), pickNumber: progressPick }),
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('carry'), pickNumber: progressPick }),
+    reservedAnchor,
+  ]),
+  historyLength: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS),
+});
+const decodeProgress = /* @__PURE__ */ Schema.decodeUnknownSync(progress);
+const decodeSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
+export function decodeStoredDraftSession(input: unknown): ReturnType<typeof decodeSession> & { readonly draftProgress: DraftProgress } {
+  const value = decodeSession(input);
+  const draftHistory = [...value.draftHistory].sort((left, right) => left.pickNumber - right.pickNumber);
+  let draftProgress: DraftProgress = {
+    anchor: { kind: 'carry', pickNumber: value.currentPick }, historyLength: value.draftHistory.length,
+  };
+  if (value.version === 2) {
+    try {
+      const decoded = decodeProgress(value.draftProgress);
+      if (decoded.historyLength > value.draftHistory.length ||
+          deriveDraftCursor(draftHistory, decoded) !== value.currentPick) {
+        throw new Error('Progress does not match the saved history and cursor');
+      }
+      draftProgress = decoded;
+    } catch {
+      console.warn('[Fantasy Draft] Rejected stored draft progress; imported the saved cursor as carry.', { identity: value.identity });
+    }
+  }
+  return { ...value, draftHistory, draftProgress };
+}
 
 function change<S extends Schema.Top>(schema: S) { return /* @__PURE__ */ object({ before: schema, after: schema }); }
 const changeFields = {
@@ -85,6 +128,7 @@ const changeFields = {
   preloadedKeepers: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ Schema.mutable(keepers))), keepersInitialized: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(Schema.Boolean)),
   unresolvedProviderPicks: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ Schema.mutable(unresolved))), decisionLens: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(lens)),
   manualContinuityBaselineAt: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(nullableTimestamp)), lastConfirmedSyncAt: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(nullableTimestamp)),
+  draftProgress: /* @__PURE__ */ Schema.optional(Schema.Unknown),
   lastConfirmedPickNumber: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ integer(0, MAX_DRAFT_PICKS))), currentPick: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1))),
 };
 const fields = /* @__PURE__ */ object(changeFields).check(/* @__PURE__ */ Schema.makeFilter(value => Object.keys(value).every(key => Object.hasOwn(changeFields, key))));
@@ -93,7 +137,19 @@ const journal = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal
   picks: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ object({ pickNumber: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS), before: /* @__PURE__ */ Schema.NullOr(recordedPick), after: /* @__PURE__ */ Schema.NullOr(recordedPick) }))
     .check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS)), fields,
 });
-export const decodeDraftSessionChange = /* @__PURE__ */ Schema.decodeUnknownSync(journal);
+const decodeJournal = /* @__PURE__ */ Schema.decodeUnknownSync(journal);
+const decodeProgressChange = /* @__PURE__ */ Schema.decodeUnknownSync(/* @__PURE__ */ change(progress));
+export function decodeDraftSessionChange(input: unknown): ReturnType<typeof decodeJournal> & { readonly fields: { readonly draftProgress?: ReturnType<typeof decodeProgressChange> } } {
+  const value = decodeJournal(input);
+  const { draftProgress: rawProgress, ...fields } = value.fields;
+  if (rawProgress === undefined) return { ...value, fields };
+  try {
+    return { ...value, fields: { ...fields, draftProgress: decodeProgressChange(rawProgress) } };
+  } catch {
+    console.warn('[Fantasy Draft] Rejected journal draft progress; retained the other saved changes.', { writeId: value.writeId });
+    return { ...value, fields };
+  }
+}
 
 const refreshStatus = /* @__PURE__ */ object({ state: /* @__PURE__ */ Schema.Literals(['idle', 'running', 'succeeded', 'failed']),
   steps: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ object({ key: /* @__PURE__ */ Schema.Literals(DRAFT_DATA_REFRESH_STEPS.map(step => step.key)), label: Schema.String,

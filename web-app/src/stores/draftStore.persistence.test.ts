@@ -558,7 +558,7 @@ describe('durable draft sessions', () => {
     if (!serialized) throw new Error('Missing snapshot');
     const snapshot = JSON.parse(serialized) as Record<string, unknown>;
     for (const invalid of [
-      '{', JSON.stringify({ ...snapshot, version: 2 }),
+      '{', JSON.stringify({ ...snapshot, version: 3 }),
       JSON.stringify({ ...snapshot, identity: { provider: 'yahoo', draftId: '123' } }),
       JSON.stringify({ ...snapshot, config: { ...store.getState().config, totalTeams: 2 ** 32 } }),
       JSON.stringify({ ...snapshot, currentPick: -1 }),
