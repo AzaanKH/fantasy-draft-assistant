@@ -2,29 +2,29 @@
 
 exports[`keeps progress on an unrelated stale-tab queue edit and restores a reopen anchor > documented deriveDraft mismatches 1`] = `[]`;
 
+exports[`keeps progress out of every journal, including a cursor-neutral branch save > documented deriveDraft mismatches 1`] = `[]`;
+
 exports[`keeps v1 journal picks when their cursor update needs a carry import > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > imports a v1 fixture once as carry and writes v2 on the next save > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > imports a legacy v1 fixture as carry and adds optional progress on the next save > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`persisted progress facts > keeps sparse provider progress and its captured keeper slots through reload > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`persisted progress facts > keeps the branch-at-96 anchor through save and reload, including a cursor-neutral branch > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > recovers an overwritten branch journal after reload > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > recovers an overwritten branch cursor through unchanged journals after reload > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks ({"anchor":{"kind":"branch","pickNumber":95},"historyLength":1}) > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > rejects only malformed optional progress and keeps valid picks ({"anchor":{"kind":"branch","pickNumber":95},"historyLength":1}) > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks ({"anchor":{"kind":"branch","pickNumber":96},"historyLength":2}) > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > rejects only malformed optional progress and keeps valid picks ({"anchor":{"kind":"branch","pickNumber":96},"historyLength":2}) > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks ({"anchor":{"kind":"provider","nextPickNumber":96,"totalPicks":140,"keeperSlots":[-1]},"historyLength":1}) > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > rejects only malformed optional progress and keeps valid picks ({"anchor":{"kind":"provider","nextPickNumber":96,"totalPicks":140,"keeperSlots":[-1]},"historyLength":1}) > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks ({"anchor":{"kind":"unknown"},"historyLength":1}) > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > rejects only malformed optional progress and keeps valid picks ({"anchor":{"kind":"unknown"},"historyLength":1}) > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks ({}) > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > rejects only malformed optional progress and keeps valid picks ({}) > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks (null) > documented deriveDraft mismatches 1`] = `[]`;
-
-exports[`persisted progress facts > rejects only malformed v2 progress and keeps valid picks (undefined) > documented deriveDraft mismatches 1`] = `[]`;
+exports[`persisted progress facts > rejects only malformed optional progress and keeps valid picks (null) > documented deriveDraft mismatches 1`] = `[]`;
 
 exports[`persisted progress facts > serializes a mock keeper pause without enabling automatic mock persistence > documented deriveDraft mismatches 1`] = `[]`;
 
@@ -36,6 +36,6 @@ exports[`persists the raw provider cursor fact before command clamping (5000) > 
 
 exports[`preserves the legacy sorted reload cursor when the command prefix interleaves with later picks > documented deriveDraft mismatches 1`] = `[]`;
 
-exports[`rejects a malformed journal progress field without dropping its picks or queue > documented deriveDraft mismatches 1`] = `[]`;
-
 exports[`retains command-time past-keepers bounds after the number of rounds changes > documented deriveDraft mismatches 1`] = `[]`;
+
+exports[`writes optional progress in a v1 session and keeps picks when an older writer omits it > documented deriveDraft mismatches 1`] = `[]`;

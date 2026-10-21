@@ -81,7 +81,7 @@ describe('persisted progress facts', () => {
     expect(reloaded.draftHistory.map(pick => pick.pickNumber)).toEqual([3]);
   });
 
-  it('imports a v1 fixture once as carry and writes v2 on the next save', () => {
+  it('imports a legacy v1 fixture as carry and adds optional progress on the next save', () => {
     const storage = memoryStorage();
     storage.setItem(key, JSON.stringify(legacy));
     const first = createDraftStore({ storage, session: identity });
@@ -89,20 +89,20 @@ describe('persisted progress facts', () => {
       shortlistedPlayerIds: ['waiting'], lastConfirmedSyncAt: 100,
       draftProgress: { anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 1 } });
     first.getState().setDecisionLens('best-player');
-    expect(JSON.parse(storage.getItem(key) ?? '{}')).toMatchObject({ version: 2,
+    expect(JSON.parse(storage.getItem(key) ?? '{}')).toMatchObject({ version: 1,
       draftProgress: { anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 1 } });
     expect(createDraftStore({ storage, session: identity }).getState().draftProgress).toEqual(first.getState().draftProgress);
   });
 
   it.each([
-    undefined, null, {}, { anchor: { kind: 'unknown' }, historyLength: 1 },
+    null, {}, { anchor: { kind: 'unknown' }, historyLength: 1 },
     { anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 2 },
     { anchor: { kind: 'branch', pickNumber: 95 }, historyLength: 1 },
     { anchor: { kind: 'provider', nextPickNumber: 96, totalPicks: 140, keeperSlots: [-1] }, historyLength: 1 },
-  ])('rejects only malformed v2 progress and keeps valid picks (%j)', (draftProgress) => {
+  ])('rejects only malformed optional progress and keeps valid picks (%j)', (draftProgress) => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const storage = memoryStorage();
-    storage.setItem(key, JSON.stringify({ ...legacy, version: 2, draftProgress }));
+    storage.setItem(key, JSON.stringify({ ...legacy, draftProgress }));
     const reloaded = createDraftStore({ storage, session: identity }).getState();
     expect(reloaded.draftHistory).toEqual(legacy.draftHistory);
     expect(reloaded.currentPick).toBe(96);
@@ -111,7 +111,7 @@ describe('persisted progress facts', () => {
     expect(parseStoredDraftSession(storage.getItem(key), identity)).not.toBeNull();
   });
 
-  it('recovers an overwritten branch journal after reload', () => {
+  it('recovers an overwritten branch cursor through unchanged journals after reload', () => {
     const storage = memoryStorage();
     const tabA = open(storage);
     let stale: string | null = null;
@@ -126,7 +126,7 @@ describe('persisted progress facts', () => {
     const reloaded = createDraftStore({ storage, session: identity }).getState();
     expect(reloaded.currentPick).toBe(96);
     expect(reloaded.decisionLens).toBe('best-player');
-    expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 0 });
+    expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 0 });
   });
 });
 
@@ -144,23 +144,6 @@ it('keeps v1 journal picks when their cursor update needs a carry import', () =>
   expect(reloaded.shortlistedPlayerIds).toEqual(['waiting', 'recovered']);
   expect(reloaded.currentPick).toBe(97);
   expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 97 }, historyLength: 2 });
-});
-
-it('rejects a malformed journal progress field without dropping its picks or queue', () => {
-  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  const storage = memoryStorage();
-  storage.setItem(key, JSON.stringify({ ...legacy, version: 2,
-    draftProgress: { anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 1 }, revision: 1, lineage: ['base'] }));
-  storage.setItem('fantasy-draft-session-unconfirmed-v1:sleeper:123:old-tab', JSON.stringify({
-    version: 1, writeId: 'lost', baseWriteId: 'base', revision: 2,
-    picks: [{ pickNumber: 2, before: null, after: { ...legacy.draftHistory[0],
-      pickNumber: 2, teamIndex: 1, playerId: 'second', playerName: 'Second' } }],
-    queueAdded: ['recovered'], queueRemoved: [], fields: { draftProgress: { before: null, after: { anchor: { kind: 'invalid' } } } },
-  }));
-  const reloaded = createDraftStore({ storage, session: identity }).getState();
-  expect(reloaded.draftHistory.map(pick => pick.playerId)).toEqual(['first', 'second']);
-  expect(reloaded.shortlistedPlayerIds).toEqual(['waiting', 'recovered']);
-  expect(warning).toHaveBeenCalledWith(expect.stringContaining('journal draft progress'), expect.anything());
 });
 
 it('preserves the legacy sorted reload cursor when the command prefix interleaves with later picks', () => {
@@ -214,4 +197,43 @@ it('retains command-time past-keepers bounds after the number of rounds changes'
   expect(reloaded.config.totalRounds).toBe(15);
   expect(reloaded.currentPick).toBe(2);
   expect(reloaded.draftProgress).toEqual(accepted);
+});
+
+it('writes optional progress in a v1 session and keeps picks when an older writer omits it', () => {
+  const storage = memoryStorage();
+  const first = open(storage);
+  first.getState().markPlayerDrafted('manual', 'Manual', 'WR', 0, 'Team 1');
+  first.getState().branchFromPick(96);
+  const saved: unknown = JSON.parse(storage.getItem(key) ?? '{}');
+  expect(saved).toMatchObject({ version: 1, draftProgress: { anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 1 } });
+  if (typeof saved !== 'object' || saved === null || !('draftProgress' in saved)) throw new Error('Missing progress');
+  const { draftProgress: _ignored, ...oldWriteBack } = saved;
+  storage.setItem(key, JSON.stringify(oldWriteBack));
+  const restarted = createDraftStore({ storage, session: identity }).getState();
+  expect(restarted.sessionMode).toBe('live');
+  expect(restarted.draftHistory).toEqual(first.getState().draftHistory);
+  expect(restarted.currentPick).toBe(96);
+  expect(restarted.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 1 });
+});
+
+it('keeps progress out of every journal, including a cursor-neutral branch save', () => {
+  const storage = memoryStorage();
+  const first = open(storage);
+  first.getState().markPlayerDrafted('manual', 'Manual', 'WR', 0, 'Team 1');
+  first.getState().branchFromPick(96);
+  const journals = [...storage.values].filter(([storedKey]) => storedKey !== key);
+  expect(journals.length).toBeGreaterThan(0);
+  for (const [, serialized] of journals) {
+    const journal: unknown = JSON.parse(serialized);
+    expect(journal).not.toHaveProperty('fields.draftProgress');
+  }
+  first.getState().reconcileSyncedPicks([], 96, [], 100);
+  first.getState().branchFromPick(96);
+  expect(parseStoredDraftSession(storage.getItem(key), identity)?.draftProgress.anchor.kind).toBe('branch');
+  for (const [storedKey, serialized] of storage.values) {
+    if (storedKey !== key) {
+      const journal: unknown = JSON.parse(serialized);
+      expect(journal).not.toHaveProperty('fields.draftProgress');
+    }
+  }
 });

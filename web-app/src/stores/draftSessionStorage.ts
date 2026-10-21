@@ -22,7 +22,7 @@ export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeI
 
 /** Canonical history doubles as the local journal, including provisional revisions. */
 export interface PersistedDraftSession {
-  readonly version: 2;
+  readonly version: 1;
   /** Advances by one per lineage entry a write adds, so tabs can detect that another tab saved first. */
   readonly revision: number;
   /**
@@ -36,6 +36,7 @@ export interface PersistedDraftSession {
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
   readonly currentPick: number;
+  /** Optional in stored records; parsing imports missing progress from the legacy cursor. */
   readonly draftProgress: DraftProgress;
   readonly draftHistory: RecordedDraftPick[];
   readonly shortlistedPlayerIds: string[];
@@ -85,7 +86,7 @@ export function parseStoredDraftSession(
     if (supply.invalidEntries.length || supply.duplicatePlayerIds.length || supply.conflictingEntries.length) return null;
 
     return {
-      version: 2,
+      version: 1,
       revision: value.revision ?? 0,
       identity: { provider: identity.provider, draftId: identity.draftId },
       config,
@@ -166,7 +167,7 @@ export function persistDraftSession(
   const writeId = createDraftSessionWriteId();
   const added = [...mergedWriteIds, writeId];
   const session: PersistedDraftSession = {
-    version: 2,
+    version: 1,
     revision: base.revision + added.length,
     lineage: [...base.lineage, ...added].slice(-DRAFT_SESSION_LINEAGE_LIMIT),
     identity: state.liveSession,

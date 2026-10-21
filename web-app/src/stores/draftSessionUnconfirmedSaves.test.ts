@@ -14,7 +14,7 @@ function pick(pickNumber: number, playerId: string): RecordedDraftPick {
 
 function session(overrides: Partial<PersistedDraftSession> = {}): PersistedDraftSession {
   return {
-    version: 2, draftProgress: { anchor: { kind: 'start' }, historyLength: 0 }, revision: 1, lineage: ['base'], identity: { provider: 'sleeper', draftId: '123' },
+    version: 1, draftProgress: { anchor: { kind: 'start' }, historyLength: 0 }, revision: 1, lineage: ['base'], identity: { provider: 'sleeper', draftId: '123' },
     config: defaultConfig, leagueSettings: createDefaultLeagueSettings(), currentPick: 1, draftHistory: [],
     shortlistedPlayerIds: [], preloadedKeepers: [], keepersInitialized: false, unresolvedProviderPicks: [],
     decisionLens: 'best-pick', manualContinuityBaselineAt: null, lastConfirmedSyncAt: null,
@@ -81,4 +81,22 @@ describe('merging an overwritten save', () => {
     expect(merged.draftHistory.map((entry) => [entry.pickNumber, entry.playerId]))
       .toEqual([[1, 'moved'], [2, 'other'], [3, 'added']]);
   });
+});
+
+it('keeps session progress when a recovered journal changes only the queue', () => {
+  const base = session({ currentPick: 96, draftProgress: { anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 0 } });
+  const next = { ...base, shortlistedPlayerIds: ['waiting'] };
+  const change = computeDraftSessionChange(base, next, 'queue-only');
+  expect(change.fields).not.toHaveProperty('draftProgress');
+  expect(applyDraftSessionChange(base, change).draftProgress).toEqual(base.draftProgress);
+});
+
+it('imports carry when recovered picks change the accepted prefix without moving the cursor', () => {
+  const base = session({ currentPick: 96, draftHistory: [pick(1, 'first')],
+    draftProgress: { anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 1 } });
+  const next = { ...base, draftHistory: [...base.draftHistory, pick(2, 'second')] };
+  const merged = applyDraftSessionChange(base, computeDraftSessionChange(base, next, 'new-pick'));
+  expect(merged.draftHistory.map(pick => pick.playerId)).toEqual(['first', 'second']);
+  expect(merged.currentPick).toBe(96);
+  expect(merged.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 2 });
 });
