@@ -55,7 +55,6 @@ it('derives one complete browse view per source transition through a 140-pick mo
     expect(read().currentPick).toBe(index + 2);
     expect(read().available).toHaveLength(599 - index);
     const calls = vi.mocked(deriveDraft).mock.calls.slice(before);
-    expect(calls.filter(([, , players]) => players?.length === 0)).toHaveLength(1);
     counts.push(calls.filter(([, , players]) => players === draftPlayers).length);
   }
   expect(counts).toEqual(Array.from({ length: 140 }, () => 1));

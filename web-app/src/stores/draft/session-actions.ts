@@ -20,7 +20,6 @@ export interface DraftSessionPersistence {
 
 export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [], session: null };
 
-/** Replaces durable source facts with a saved session. */
 export function applySavedDraftSession(
   state: Draft<DraftStore>,
   identity: DraftSessionIdentity | null,

@@ -1,7 +1,6 @@
 import { POSITIONS } from '@fantasy-draft/shared/league';
-import { createSlotSequence, type DraftSource } from '@fantasy-draft/shared/draft';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { createDraftStore } from '../draftStore';
-import { draftSource } from './source';
 
 export const draftMockFormat = { type: 'snake', teams: 10, rounds: 14 } as const;
 
@@ -30,9 +29,4 @@ export function createDraftMockStore(completedPicks: number): ReturnType<typeof 
     }
   }
   return store;
-}
-
-
-export function createDraftMock(completedPicks: number): DraftSource {
-  return draftSource(createDraftMockStore(completedPicks).getState());
 }
