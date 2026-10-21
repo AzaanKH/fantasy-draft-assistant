@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { Worker } from 'node:worker_threads';
+import { readReloadBoundary } from './reload-boundary.mjs';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -213,7 +214,7 @@ test('11b rejects storage errors and storage bytes that disagree with scored sna
 });
 
 
-test('result checker applies 11b independently of the future durability gate and verifies retained audits', () => {
+test('result checker applies 11b independently of the future durability gate and verifies retained audits', async () => {
   const results = matrix11b();
   for (const scenario of results.scenarios) {
     for (const run of [...scenario.runs, scenario.sequentialControl]) {
@@ -229,24 +230,24 @@ test('result checker applies 11b independently of the future durability gate and
   results.bands11b = check11bBands(results);
   const directory = mkdtempSync(path.join(tmpdir(), 'persistence-audit-'));
   const file = path.join(directory, 'results.json');
-  const check = flag => spawnSync(process.execPath, [new URL('./check-results.mjs', import.meta.url).pathname, file, flag], { encoding: 'utf8' });
+  const check = flag => checkInWorker(file, flag);
   try {
     writeFileSync(file, JSON.stringify(results));
-    const comparison = check('--gate-11b');
+    const comparison = await check('--gate-11b');
     assert.equal(comparison.status, 0, comparison.stderr);
     const printed = JSON.parse(comparison.stdout);
     assert.equal(printed.bands11b.passes, true);
     assert.equal(printed.passesFutureGate, false);
-    assert.equal(check('--gate').status, 1);
+    assert.equal((await check('--gate')).status, 1);
     results.scenarios[0].conflicts[0].checks11b.good = false;
     writeFileSync(file, JSON.stringify(results));
-    assert.equal(check('--gate-11b').status, 1);
+    assert.equal((await check('--gate-11b')).status, 1);
   } finally {
     rmSync(directory, { recursive: true });
   }
 });
 
-test('11b rejects settled duplicate players and slots even when reload normalizes them', () => {
+test('11b rejects settled duplicate players and slots even when reload normalizes them', async () => {
   for (const family of ['stress', 'sequential', 'conflict']) for (const duplicateKind of ['player', 'slot']) {
     const results = matrix11b();
     const scenario = results.scenarios[0];
@@ -273,8 +274,38 @@ test('11b rejects settled duplicate players and slots even when reload normalize
     try {
       const file = path.join(directory, 'results.json');
       writeFileSync(file, JSON.stringify(results));
-      const raw = spawnSync(process.execPath, [new URL('./check-results.mjs', import.meta.url).pathname, file, '--gate-11b'], { encoding: 'utf8' });
+      const raw = await checkInWorker(file, '--gate-11b');
       assert.equal(raw.status, 1, `${family} ${duplicateKind}: ${raw.stdout} ${raw.stderr}`);
     } finally { rmSync(directory, { recursive: true }); }
   }
+});
+
+function checkInWorker(file, flag) {
+  return new Promise(resolve => {
+    const worker = new Worker(new URL('./check-results.mjs', import.meta.url), { argv: [file, flag], stdout: true, stderr: true });
+    let stdout = '';
+    let stderr = '';
+    worker.stdout.on('data', chunk => { stdout += chunk; });
+    worker.stderr.on('data', chunk => { stderr += chunk; });
+    worker.on('error', error => { stderr += error.stack; });
+    worker.on('exit', status => { resolve({ status, stdout, stderr }); });
+  });
+}
+
+test('explicit reload reattaches only to a replacement document and rejects unstable or missing adapters', async () => {
+  const state = snapshot([pick]);
+  const stable = [{ kind: 'snapshot', snapshot: state }];
+  let attachments = 0;
+  const recorded = [];
+  let reads = 0;
+  assert.deepEqual(await readReloadBoundary({ read: async () => ++reads === 1 ? [{ kind: 'replaced', expected: 1, actual: 2 }] : stable,
+    attach: async () => { attachments++; }, recordReplacement: rows => { recorded.push(rows); } }), [state]);
+  assert.equal(attachments, 1);
+  assert.deepEqual(recorded, [[{ kind: 'replaced', expected: 1, actual: 2 }]]);
+  await assert.rejects(readReloadBoundary({ read: async () => [{ kind: 'replaced' }],
+    attach: async () => { attachments++; }, recordReplacement: () => undefined }), /kept changing/);
+  const before = attachments;
+  await assert.rejects(readReloadBoundary({ read: async () => { throw new Error('adapter missing in same document'); },
+    attach: async () => { attachments++; }, recordReplacement: () => undefined }), /adapter missing/);
+  assert.equal(attachments, before);
 });

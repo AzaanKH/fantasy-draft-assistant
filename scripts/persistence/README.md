@@ -28,6 +28,8 @@ A pick is acknowledged only when `recordProvisionalPick` returns true. A queue a
 
 `kept` and `lost` use the reloaded top-level tab as the common session. `keptByTarget`, both missing-ID lists, and `unionMissing` distinguish a deleted effect from separate partitions. A missing-permission or hostname-split row can have half the commands in each partition, with nothing physically deleted. Such a row still fails the shared-session contract. `converged` compares pick identity and exact queue order. `unique` checks slots, players, and queue members. Raw heads and journals are captured before and after reload, including sequential controls.
 
+The adapter records the document time origin when it attaches. Command-time snapshots reject a replacement document or a missing adapter. At the explicit reload boundary only, the runner records a late document replacement and binds the adapter to that new document before scoring. The handoff is bounded; a missing adapter in the same document or repeated replacement still fails.
+
 Each scenario also runs the actors sequentially. Shared-origin sequential success alongside concurrent loss rules out an invalid command workload as the explanation. Negative scenarios retain their partition split in that control too.
 
 The ordinary command exits successfully when characterization completes, even when it finds trunk defects. Add `--gate` after the command to fail on stress loss, rejection, storage errors before or after reload, divergence, invariant violations, page errors, sequential-control failures, conflict failures, or writes accepted in a negative scenario:

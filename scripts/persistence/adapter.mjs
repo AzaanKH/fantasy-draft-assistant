@@ -58,6 +58,6 @@ export function attach({ session, actor }) {
       return issued;
     },
   };
-  return { origin: location.origin, url: location.href, key, workspaceModuleUrl: '/src/workspace/browser-workspace.ts', adapterModuleUrl: import.meta.url,
+  return { origin: location.origin, url: location.href, documentId: performance.timeOrigin, key, workspaceModuleUrl: '/src/workspace/browser-workspace.ts', adapterModuleUrl: import.meta.url,
     initial: snapshot(), secure: isSecureContext, indexedDB: !!indexedDB, locks: !!navigator.locks };
 }

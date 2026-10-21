@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { audit, auditConflict, summarize, failsGate } from './audit.mjs';
 import { auditConflict11b, check11bBands } from './bands-11b.mjs';
+import { readReloadBoundary } from './reload-boundary.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -27,12 +28,12 @@ if (selected.some(value => !scenarios.includes(value))) throw new Error('Unknown
 await mkdir(out, { recursive: true });
 const results = { metadata: { started: new Date().toISOString(), root, node: process.version,
   suites, seeds, commandsPerActor: count, conflictSamplesPerKind: 20, origin, workload: 'unique disjoint picks and shortlist additions; P9 LCG and 0..5ms jitter' },
-  scenarios: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
+  scenarios: [], reloadBoundaryReplacements: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
 results.metadata.sourceHashes = Object.fromEntries(await Promise.all([
   'web-app/src/workspace/browser-workspace.ts', 'web-app/src/workspace/workspace.ts',
   'web-app/src/stores/draftStore.ts', 'web-app/src/stores/draftSessionStorage.ts',
   'web-app/src/stores/draftSessionUnconfirmedSaves.ts', 'scripts/persistence/adapter.mjs',
-  'scripts/persistence/bands-11b.mjs', 'scripts/persistence/audit.mjs', 'scripts/persistence/run.mjs',
+  'scripts/persistence/reload-boundary.mjs', 'scripts/persistence/bands-11b.mjs', 'scripts/persistence/audit.mjs', 'scripts/persistence/run.mjs',
 ].map(async file => [file, createHash('sha256').update(await readFile(path.join(root, file))).digest('hex')])));
 const save = () => writeFile(path.join(out, 'results.json'), JSON.stringify(results, null, 2));
 process.env.BROWSER_DATA_SOURCE = 'demo';
@@ -105,7 +106,7 @@ try {
           const stored = await inspect(pair);
           await reload(pair);
           await new Promise(resolve => setTimeout(resolve, 250));
-          const afterReload = await snapshots(pair);
+          const afterReload = await snapshotsAfterReload(pair);
           const afterStored = await inspect(pair);
           const checks = audit(issued, afterReload, beforeReload);
           scenario.runs.push({ suite, seed, capabilities: pair.capabilities, issued, beforeReload, stored, afterReload, afterStored, checks });
@@ -121,7 +122,7 @@ try {
       const controlStored = await inspect(control);
       await reload(control);
       await new Promise(resolve => setTimeout(resolve, 250));
-      const controlAfter = await snapshots(control);
+      const controlAfter = await snapshotsAfterReload(control);
       scenario.sequentialControl = { capabilities: control.capabilities, checks: audit(controlIssued, controlAfter, controlBefore),
         beforeReload: controlBefore, stored: controlStored, issued: controlIssued, afterReload: controlAfter, afterStored: await inspect(control) };
       await closePair(control); await save();
@@ -143,7 +144,7 @@ try {
         const stored = await inspect(pair);
         await reload(pair);
         await new Promise(resolve => setTimeout(resolve, 250));
-        const afterReload = await snapshots(pair);
+        const afterReload = await snapshotsAfterReload(pair);
         const afterStored = await inspect(pair);
         scenario.conflicts.push({ kind, sample, capabilities: pair.capabilities, issued, settled, stored, afterReload, afterStored,
           checks: auditConflict(kind, issued, afterReload, settled),
@@ -210,6 +211,23 @@ async function attach(pair) {
   }));
 }
 async function reload(pair) { await Promise.all(pair.pages.map(page => page.reload())); await attach(pair); }
-async function snapshots(pair) { return Promise.all(pair.targets.map(target => target.evaluate(() => window.persistenceHarness.snapshot()))); }
+async function readDocuments(pair) {
+  return Promise.all(pair.targets.map((target, actor) => target.evaluate(({ expected, actor }) => {
+    if (performance.timeOrigin !== expected) return { kind: 'replaced', actor, expected, actual: performance.timeOrigin,
+      url: location.href, readyState: document.readyState, discarded: document.wasDiscarded };
+    if (!window.persistenceHarness) throw new Error('Persistence adapter missing in its attached document');
+    return { kind: 'snapshot', snapshot: window.persistenceHarness.snapshot() };
+  }, { expected: pair.capabilities[actor].documentId, actor })));
+}
+async function snapshots(pair) {
+  const rows = await readDocuments(pair);
+  if (rows.some(row => row.kind === 'replaced')) throw new Error(`Unexpected document replacement during commands: ${JSON.stringify(rows)}`);
+  return rows.map(row => row.snapshot);
+}
+async function snapshotsAfterReload(pair) {
+  return readReloadBoundary({ read: () => readDocuments(pair), attach: () => attach(pair), recordReplacement: rows => {
+    results.reloadBoundaryReplacements.push({ label: pair.label, session: pair.session, rows });
+  } });
+}
 async function inspect(pair) { return Promise.all(pair.targets.map(target => target.evaluate(() => window.persistenceHarness.inspect()))); }
 async function closePair(pair) { await Promise.all(pair.pages.map(page => page.close())); }
