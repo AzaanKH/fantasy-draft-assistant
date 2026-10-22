@@ -100,9 +100,17 @@ const progress = /* @__PURE__ */ object({
     reservedAnchor,
   ]),
   historyLength: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS),
+  historyOrder: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Literal('pick')),
 });
 const decodeProgress = /* @__PURE__ */ Schema.decodeUnknownSync(progress);
 const decodeSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
+// Migration validates entries separately and retains the original history order.
+export const decodeStoredDraftSessionRecord = decodeSession;
+export const decodeStoredDraftPick = /* @__PURE__ */ Schema.decodeUnknownSync(recordedPick);
+export const decodeStoredDraftKeeper = /* @__PURE__ */ Schema.decodeUnknownSync(keeper);
+export const decodeStoredUnresolvedPick = /* @__PURE__ */ Schema.decodeUnknownSync(unresolvedPick);
+export const decodeStoredPlayerId = /* @__PURE__ */ Schema.decodeUnknownSync(text);
+export const decodeStoredDraftProgress = decodeProgress;
 export function decodeStoredDraftSession(input: unknown): ReturnType<typeof decodeSession> & { readonly draftProgress: DraftProgress } {
   const value = decodeSession(input);
   // Legacy reloads sort picks; validate the command prefix against that same order.
