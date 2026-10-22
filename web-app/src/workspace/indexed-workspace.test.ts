@@ -1,4 +1,4 @@
-import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
+import { IDBFactory, IDBRequest, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { describe, expect, it, vi } from 'vitest';
 import { openDraftDatabase } from './indexed-db';
 import { createIndexedWorkspace } from './indexed-workspace';
@@ -14,6 +14,19 @@ async function setup(factory = new IDBFactory()) {
   return { database, workspace, report, factory };
 }
 
+function interceptPut(after: (store: IDBObjectStore, request: IDBRequest<unknown>) => void) {
+  const descriptor = Object.getOwnPropertyDescriptor(FakeObjectStore.prototype, 'put');
+  const original: unknown = descriptor?.value;
+  if (!descriptor || typeof original !== 'function') throw new Error('Missing IndexedDB put implementation');
+  Object.defineProperty(FakeObjectStore.prototype, 'put', { ...descriptor, value(this: IDBObjectStore, value: unknown, key?: IDBValidKey): unknown {
+    const request: unknown = Reflect.apply(original, this, [value, key]);
+    if (!(request instanceof IDBRequest)) throw new Error('Invalid IndexedDB request');
+    after(this, request);
+    return request;
+  } });
+  return { mockRestore: () => { Object.defineProperty(FakeObjectStore.prototype, 'put', descriptor); } };
+}
+
 describe('transactional workspace', () => {
   it('retains two acknowledged saves despite another writer starting from stale state, D3', async () => {
     const { factory, workspace: first } = await setup();
@@ -27,6 +40,38 @@ describe('transactional workspace', () => {
     expect(reloaded.workspace.draft.getState().shortlistedPlayerIds).toEqual(['queue']); reloaded.workspace.dispose();
   });
 
+  it('keeps local controls across durable commits and refresh without writing or broadcasting them', async () => {
+    const { factory, database } = await setup();
+    const channel = { postMessage: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), close: vi.fn() };
+    const reader = createIndexedWorkspace({ database, identity, report: vi.fn(), channel });
+    await reader.send('addShortlistedPlayer', 'initial');
+    const before = await database.read(identity);
+    channel.postMessage.mockClear();
+    await reader.send('setSearchQuery', 'mahomes');
+    await reader.send('setPositionFilter', 'QB');
+    await reader.send('setMockSettings', { randomness: 0.75 });
+    await reader.send('setMockAutoAdvancePaused', true);
+    await reader.send('setMockSettingsOpen', true);
+    await reader.send('setMockSurvivalProbabilities', { qb: 0.5 });
+    expect(await database.read(identity)).toEqual(before);
+    expect(channel.postMessage).not.toHaveBeenCalled();
+    const { workspace: writer } = await setup(factory);
+    await writer.send('addShortlistedPlayer', 'remote');
+    await reader.refresh();
+    await reader.send('setDecisionLens', 'best-player');
+    expect(reader.draft.getState()).toMatchObject({ filter: { searchQuery: 'mahomes', position: 'QB' },
+      mockSettings: { randomness: 0.75 }, mockAutoAdvance: { paused: true, settingsOpen: true }, mockSurvivalProbabilities: { qb: 0.5 },
+      shortlistedPlayerIds: ['initial', 'remote'] });
+    const acknowledged = await database.read(identity);
+    channel.postMessage.mockClear();
+    expect(await reader.send('recordProvisionalPick', pick(141, 'out-of-range'))).toBe(false);
+    await reader.send('addShortlistedPlayer', 'initial');
+    expect(await database.read(identity)).toEqual(acknowledged);
+    expect(channel.postMessage).not.toHaveBeenCalled();
+    await expect(reader.send('setSessionMode', 'mock')).rejects.toThrow('separate workspace');
+    reader.dispose(); writer.dispose();
+  });
+
   it('serializes conflicting picks with one explicit losing result', async () => {
     const { factory, workspace: first } = await setup();
     const { workspace: second } = await setup(factory);
@@ -37,13 +82,7 @@ describe('transactional workspace', () => {
 
   it('does not acknowledge or publish an aborted save, D1', async () => {
     const { database, workspace, report } = await setup();
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- The test restores the receiver with call.
-    const original = FakeObjectStore.prototype.put;
-    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
-      const request = original.call(this, value, key);
-      this.transaction.abort();
-      return request;
-    });
+    const put = interceptPut(store => { store.transaction.abort(); });
     await expect(workspace.send('recordProvisionalPick', pick(1, 'lost'))).rejects.toThrow();
     expect(workspace.draft.getState().draftHistory).toEqual([]);
     put.mockRestore(); expect(await database.read(identity)).toBeNull();
@@ -76,14 +115,10 @@ describe('transactional workspace', () => {
 
   it('waits past request success before acknowledging the transaction', async () => {
     const { workspace } = await setup();
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- The test restores the receiver with call.
-    const original = FakeObjectStore.prototype.put;
     let acknowledged = false;
     let requestSucceeded = false;
-    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
-      const request = original.call(this, value, key);
+    const put = interceptPut((_store, request) => {
       request.addEventListener('success', () => { requestSucceeded = true; expect(acknowledged).toBe(false); });
-      return request;
     });
     await workspace.send('recordProvisionalPick', pick(1, 'committed')).then(() => { acknowledged = true; });
     expect(requestSucceeded).toBe(true); expect(acknowledged).toBe(true); put.mockRestore(); workspace.dispose();
@@ -93,13 +128,7 @@ describe('transactional workspace', () => {
     const { database, workspace } = await setup();
     const session = sessionFromState({ ...initialDraftState(identity), shortlistedPlayerIds: ['imported'] }, identity, 0);
     const imported = { sessions: [session], source: [], rejected: [], unresolved: [] };
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- The test restores the receiver with call.
-    const original = FakeObjectStore.prototype.put;
-    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
-      const request = original.call(this, value, key);
-      if (this.name === 'sessions') this.transaction.abort();
-      return request;
-    });
+    const put = interceptPut(store => { if (store.name === 'sessions') store.transaction.abort(); });
     await expect(database.importV1(imported)).rejects.toThrow(); put.mockRestore();
     expect(await database.read(identity)).toBeNull();
     await database.importV1(imported); await database.importV1(imported);
@@ -115,6 +144,26 @@ describe('transactional workspace', () => {
     await database.importV1({ sessions: [resolved, other], source: [], rejected: [], unresolved: [] });
     expect((await database.read(identity))?.shortlistedPlayerIds).toEqual(['resolved']);
     expect((await database.read(other.identity))?.identity).toEqual(other.identity); workspace.dispose();
+  });
+
+  it('deduplicates identical raw import snapshots and retains a changed refused source', async () => {
+    const { database, workspace } = await setup();
+    const session = sessionFromState(initialDraftState(identity), identity, 1);
+    const source = [{ key: 'fantasy-draft-session-v1:sleeper:123', serialized: JSON.stringify(session) }];
+    const value = { sessions: [session], source, rejected: [], unresolved: [] };
+    await database.importV1(value);
+    const count = (await database.inspectImports()).length;
+    await database.importV1(value);
+    expect((await database.inspectImports()).length).toBe(count);
+    await workspace.send('addShortlistedPlayer', 'acknowledged');
+    expect((await database.importV1(value)).refused).toEqual([]);
+    const changedSession = { ...session, shortlistedPlayerIds: ['late-v1'] };
+    const changed = { ...value, sessions: [changedSession], source: [{ key: 'fantasy-draft-session-v1:sleeper:123', serialized: JSON.stringify(changedSession) }] };
+    expect((await database.importV1(changed)).refused).toEqual([expect.objectContaining({ identity })]);
+    expect((await database.read(identity))?.shortlistedPlayerIds).toEqual(['acknowledged']);
+    const records = await database.inspectImports();
+    expect(records.filter(row => typeof row === 'object' && row !== null && 'reason' in row)).toMatchObject([{ identity, source: changed.source }]);
+    workspace.dispose();
   });
 
   it('records import completion and facts together and retains raw unresolved journals, D6', async () => {

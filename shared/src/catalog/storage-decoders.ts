@@ -105,7 +105,6 @@ const progress = /* @__PURE__ */ object({
   value.historyPrefix.length === value.historyLength && new Set(value.historyPrefix).size === value.historyPrefix.length));
 const decodeProgress = /* @__PURE__ */ Schema.decodeUnknownSync(progress);
 const decodeSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
-// Migration validates entries separately and retains the original history order.
 export const decodeStoredDraftSessionRecord = decodeSession;
 export const decodeStoredDraftPick = /* @__PURE__ */ Schema.decodeUnknownSync(recordedPick);
 export const decodeStoredDraftKeeper = /* @__PURE__ */ Schema.decodeUnknownSync(keeper);

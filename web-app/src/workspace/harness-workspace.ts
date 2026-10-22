@@ -1,7 +1,7 @@
 import { createDraftStore } from '@/stores/draftStore';
 import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createWorkspace } from './workspace';
-import { importV1, snapshotV1Storage } from './v1-import';
+import { captureV1ImportSnapshot, importV1Snapshot } from './import-snapshot';
 import { decodeIndexedSession } from './idb-session';
 import type { DraftSessionIdentity } from '@/stores/draftSessionStorage';
 import type { Workspace } from './workspace';
@@ -18,18 +18,26 @@ export function createHarnessWorkspace(): Workspace {
   let active: IndexedWorkspace | undefined;
   let stop: (() => void) | undefined;
   binding = { errors, async bind(identity) {
-    if (active) { stop?.(); active.dispose(); }
-    const imported = importV1(snapshotV1Storage(localStorage));
-    const database = await openDraftDatabase({ factory: indexedDB, decode: decodeIndexedSession, report: diagnostic => { errors.push(diagnostic); } });
+    stop?.(); active?.dispose(); stop = undefined; active = undefined;
+    let database: Awaited<ReturnType<typeof openDraftDatabase>> | undefined;
+    let candidate: IndexedWorkspace | undefined;
     try {
-      await database.importV1(imported);
-      if (imported.unresolved.length) throw new Error('Unresolved v1 journals prevent a writable workspace');
-    } catch (error) { database.close(); throw error; }
-    active = createIndexedWorkspace({ database, identity, lifecycle: { window, document },
-      channel: new BroadcastChannel('fantasy-draft-workspace-v2'), report: error => { errors.push({ phase: 'error', error }); } });
-    stop = active.draft.subscribe(state => { draft.setState(state); });
-    await active.refresh(); draft.setState(active.draft.getState());
-    return active;
+      const snapshot = captureV1ImportSnapshot(localStorage);
+      database = await openDraftDatabase({ factory: indexedDB, decode: decodeIndexedSession, report: diagnostic => { errors.push(diagnostic); } });
+      await importV1Snapshot({ database, snapshot, identity, report: diagnostic => { errors.push(diagnostic); } });
+      candidate = createIndexedWorkspace({ database, identity, lifecycle: { window, document },
+        channel: new BroadcastChannel('fantasy-draft-workspace-v2'), report: error => { errors.push({ phase: 'error', error }); } });
+      await candidate.refresh();
+      snapshot.verifySource();
+      draft.setState(candidate.draft.getState());
+      stop = candidate.draft.subscribe(state => { draft.setState(state); });
+      active = candidate;
+      return active;
+    } catch (error) {
+      candidate?.dispose(); database?.close();
+      if (!errors.some(diagnostic => diagnostic.error === error)) errors.push({ phase: 'error', error });
+      throw error;
+    }
   } };
   const owner = createWorkspace({ draftStore: draft, connectionStore: connection, durable: command => {
     if (!active) return Promise.reject(new Error('Bind the harness session before a durable command'));

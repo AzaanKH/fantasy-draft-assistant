@@ -104,6 +104,10 @@ export async function verifyStorageSharing(options: ProbeOptions & { readonly ca
   const location = options.location ?? window.location;
   const nonce = options.nonce ?? new URLSearchParams(location.search).get('__storageNonce');
   const embedded = window.parent !== window;
+  const parentOrigin = new URLSearchParams(location.search).get('__storageParentOrigin');
+  const reply = (value: unknown): void => {
+    if (embedded && parentOrigin && /^chrome-extension:\/\/[a-p]{32}$/.test(parentOrigin)) window.parent.postMessage(value, parentOrigin);
+  };
   try {
     assertCanonicalOrigin(options.canonicalOrigin, location);
     if (nonce === null || nonce === undefined) {
@@ -111,9 +115,9 @@ export async function verifyStorageSharing(options: ProbeOptions & { readonly ca
       return;
     }
     await runProbe(nonce, options, 'frame');
-    if (embedded) window.parent.postMessage({ type: RESULT_TYPE, nonce, ok: true }, '*');
+    reply({ type: RESULT_TYPE, nonce, ok: true });
   } catch (error) {
-    if (embedded) window.parent.postMessage({ type: RESULT_TYPE, nonce, ok: false, error: error instanceof Error ? error.message : String(error) }, '*');
+    reply({ type: RESULT_TYPE, nonce, ok: false, error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }

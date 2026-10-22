@@ -108,16 +108,41 @@ function carry(session: Pick<PersistedDraftSession, 'currentPick' | 'draftHistor
   return { anchor: { kind: 'carry', pickNumber: session.currentPick }, historyLength: session.draftHistory.length };
 }
 
+function normalizeLegacyV1Config(config: ReturnType<typeof decodeStoredDraftSessionRecord>['config']): PersistedDraftSession['config'] {
+  if (config.draftType === undefined) return { ...config, draftType: 'snake' };
+  return { ...config, draftType: config.draftType };
+}
+
+function decodeV1ProgressToFrozenPrefix({ progress, originalHistory, acceptedHistory, session }: {
+  progress: unknown;
+  originalHistory: unknown;
+  acceptedHistory: ReadonlySet<number>;
+  session: Pick<PersistedDraftSession, 'draftHistory' | 'currentPick'>;
+}): DraftProgress {
+  const decoded = decodeStoredDraftProgress(progress);
+  const original: unknown[] = Array.isArray(originalHistory) ? originalHistory : [];
+  if (decoded.historyLength > original.length) throw new Error('Progress prefix exceeds the saved history');
+  const ranked = original.map((raw: unknown, index) => {
+    const pick = record(raw);
+    if (typeof pick.pickNumber !== 'number' || !Number.isSafeInteger(pick.pickNumber)) {
+      throw new Error('Cannot recover the progress prefix through an unranked rejected pick');
+    }
+    return { pickNumber: pick.pickNumber, index };
+  }).sort((a, b) => a.pickNumber - b.pickNumber);
+  const remapped = { ...decoded, historyLength: ranked.slice(0, decoded.historyLength).filter(row => acceptedHistory.has(row.index)).length };
+  const ordered = [...session.draftHistory].sort((a, b) => a.pickNumber - b.pickNumber);
+  if (deriveDraftCursor(ordered, remapped) !== session.currentPick) {
+    throw new Error('Progress does not match the accepted history and saved cursor');
+  }
+  return { ...remapped, historyPrefix: ordered.slice(0, remapped.historyLength).map(pick => pick.pickNumber) };
+}
+
 function decodeSession(value: Record<string, unknown>, identity: DraftSessionIdentity, reject: Reject): PersistedDraftSession {
   const header = decodeStoredDraftSessionRecord({
     ...value, draftHistory: [], preloadedKeepers: [], shortlistedPlayerIds: [], unresolvedProviderPicks: [],
   });
   if (!same(header.identity, identity)) throw new Error('Session identity does not match its storage key');
-  const config = {
-    ...header.config,
-    // eslint-disable-next-line no-restricted-syntax -- v1 records predating draftType used snake order.
-    draftType: header.config.draftType ?? 'snake',
-  };
+  const config = normalizeLegacyV1Config(header.config);
   const total = config.totalTeams * config.totalRounds;
   const sequence = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds });
   const slots = new Set<number>();
@@ -137,6 +162,8 @@ function decodeSession(value: Record<string, unknown>, identity: DraftSessionIde
   }, reject);
   const keeperSlots = new Set<number>();
   const keeperPlayers = new Set<string>();
+  let keeperSupplyComplete = true;
+  const rejectKeeper: Reject = (path, raw, reason) => { keeperSupplyComplete = false; reject(path, raw, reason); };
   const preloadedKeepers = entries(value.preloadedKeepers, '$.preloadedKeepers', input => {
     const keeper = decodeStoredDraftKeeper(input);
     if (keeper.teamIndex >= config.totalTeams || keeper.round > config.totalRounds) throw new Error('Keeper is outside the session draft configuration');
@@ -145,7 +172,7 @@ function decodeSession(value: Record<string, unknown>, identity: DraftSessionIde
     keeperSlots.add(slot);
     keeperPlayers.add(keeper.playerId);
     return keeper;
-  }, reject);
+  }, rejectKeeper);
   const unresolvedProviderPicks = entries(value.unresolvedProviderPicks, '$.unresolvedProviderPicks', input => {
     const pick = decodeStoredUnresolvedPick(input);
     if (pick.pickNumber > total) throw new Error('Unresolved pick is outside the session draft configuration');
@@ -154,29 +181,14 @@ function decodeSession(value: Record<string, unknown>, identity: DraftSessionIde
   const session: PersistedDraftSession = {
     ...header, config, revision: header.revision ?? 0, lineage: [...header.lineage ?? []],
     draftHistory, preloadedKeepers, unresolvedProviderPicks,
+    keepersInitialized: header.keepersInitialized && keeperSupplyComplete,
     shortlistedPlayerIds: [...new Set(entries(value.shortlistedPlayerIds, '$.shortlistedPlayerIds', input => decodeStoredPlayerId(input), reject))],
     draftProgress: { anchor: { kind: 'carry', pickNumber: header.currentPick }, historyLength: draftHistory.length },
   };
   if (value.draftProgress !== undefined) {
-    const progress = decode(value.draftProgress, '$.draftProgress', input => {
-      const decoded = decodeStoredDraftProgress(input);
-      const original: unknown[] = Array.isArray(value.draftHistory) ? value.draftHistory : [];
-      if (decoded.historyLength > original.length) throw new Error('Progress prefix exceeds the saved history');
-      // v1 counts this prefix in pick order, even when bytes store insertion order.
-      const ranked = original.map((raw: unknown, index) => {
-        const pick = record(raw);
-        if (typeof pick.pickNumber !== 'number' || !Number.isSafeInteger(pick.pickNumber)) {
-          throw new Error('Cannot recover the progress prefix through an unranked rejected pick');
-        }
-        return { pickNumber: pick.pickNumber, index };
-      }).sort((a, b) => a.pickNumber - b.pickNumber);
-      const progress = { ...decoded, historyLength: ranked.slice(0, decoded.historyLength).filter(row => acceptedHistory.has(row.index)).length };
-      const ordered = [...draftHistory].sort((a, b) => a.pickNumber - b.pickNumber);
-      if (deriveDraftCursor(ordered, progress) !== header.currentPick) {
-        throw new Error('Progress does not match the accepted history and saved cursor');
-      }
-      return { ...progress, historyPrefix: ordered.slice(0, progress.historyLength).map(pick => pick.pickNumber) };
-    }, reject);
+    const progress = decode(value.draftProgress, '$.draftProgress', input => decodeV1ProgressToFrozenPrefix({
+      progress: input, originalHistory: value.draftHistory, acceptedHistory, session,
+    }), reject);
     if (progress) return { ...session, draftProgress: progress };
   }
   return session;
@@ -193,6 +205,17 @@ function pickTokens(value: unknown): Set<string> {
     }
   }
   return tokens;
+}
+
+function pickDependencyRecovery(value: unknown): 'known' | 'unknown' {
+  if (value === null || typeof value !== 'object') return 'unknown';
+  for (const name of ['before', 'after']) {
+    const member: unknown = Reflect.get(value, name);
+    if (member !== null && (typeof member !== 'object' || !('playerId' in member) || typeof member.playerId !== 'string')) {
+      return 'unknown';
+    }
+  }
+  return 'known';
 }
 
 function pickGroups<T>(values: readonly T[], tokens: (value: T) => Set<string>): T[][] {
@@ -221,14 +244,9 @@ function decodeJournal(value: Record<string, unknown>, reject: Reject): { change
     }
     return pick;
   }, rejected) }));
-  const groups = pickGroups(decoded, item => pickTokens(item.raw));
-  // An unidentifiable corrupt member could be the destination of any removal.
-  const unknownDependency = decoded.some(item => !item.pick && ['before', 'after'].some(name => {
-    if (item.raw === null || typeof item.raw !== 'object') return true;
-    const member: unknown = Reflect.get(item.raw, name);
-    return member !== null && (typeof member !== 'object' || !('playerId' in member) || typeof member.playerId !== 'string');
-  }));
-  const picks = groups.flatMap(group => !unknownDependency && group.every(item => item.pick !== undefined)
+  const dependencyRecovery = decoded.some(item => !item.pick && pickDependencyRecovery(item.raw) === 'unknown') ? 'unknown' : 'known';
+  const groups = dependencyRecovery === 'known' ? pickGroups(decoded, item => pickTokens(item.raw)) : [];
+  const picks = groups.flatMap(group => group.every(item => item.pick !== undefined)
     ? group.flatMap(item => item.pick ? [item.pick] : []) : []);
   const fields: DraftSessionChange['fields'] = {};
   const rawFields = decode(value.fields, '$.fields', record, rejected);

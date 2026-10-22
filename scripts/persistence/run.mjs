@@ -38,7 +38,7 @@ results.metadata.sourceHashes = Object.fromEntries(await Promise.all([
   'web-app/src/workspace/draft-reducer.ts', 'web-app/src/workspace/dispatch-command.ts',
   'web-app/src/workspace/harness-workspace.ts', 'web-app/src/workspace/indexed-db.ts',
   'web-app/src/workspace/indexed-workspace.ts', 'web-app/src/workspace/idb-session.ts',
-  'web-app/src/workspace/v1-import.ts', 'web-app/src/workspace/storage-sharing.ts',
+  'web-app/src/workspace/import-snapshot.ts', 'web-app/src/workspace/v1-import.ts', 'web-app/src/workspace/storage-sharing.ts',
   'shared/src/draft-progress.ts', 'shared/src/catalog/storage-decoders.ts',
   'extension/src/sidepanel/sidepanel.ts', 'extension/src/sidepanel/storage-sharing.ts',
   'scripts/persistence/idb-adapter.mjs', 'scripts/persistence/blocked-adapter.mjs',
@@ -297,7 +297,7 @@ async function attach(pair, actors = [0, 1]) {
   pair.capabilities ??= [];
   await Promise.all(actors.map(async actor => {
     const target = pair.targets[actor];
-    await target.waitForFunction(() => !!document.querySelector('#root')?.children.length);
+    await target.locator('#root > *').first().waitFor({ state: 'attached' });
     await target.waitForLoadState('networkidle');
     if (idb && await target.locator('[data-storage-blocked]').count()) {
       await target.evaluate(async () => {

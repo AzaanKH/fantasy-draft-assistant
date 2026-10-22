@@ -32,6 +32,7 @@ export function dispatchDraftCommand(actions: DraftActions, command: DraftComman
       case 'setDecisionLens': { const [, ...args] = command; actions.setDecisionLens(...args); break; }
       case 'setPositionFilter': { const [, ...args] = command; actions.setPositionFilter(...args); break; }
       case 'setSearchQuery': { const [, ...args] = command; actions.setSearchQuery(...args); break; }
+      default: { const exhaustive: never = command; return exhaustive; }
   }
   return result;
 }

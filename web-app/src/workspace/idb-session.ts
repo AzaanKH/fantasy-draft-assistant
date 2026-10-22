@@ -10,8 +10,8 @@ export function decodeIndexedSession(input: unknown): PersistedDraftSession {
       deriveDraftCursor(value.draftHistory, draftProgress) !== value.currentPick ||
       new Set(value.draftHistory.map(pick => pick.pickNumber)).size !== value.draftHistory.length ||
       new Set(value.draftHistory.map(pick => pick.playerId)).size !== value.draftHistory.length) throw new Error('Invalid IndexedDB session facts');
-  // eslint-disable-next-line no-restricted-syntax -- v1 imports retain the default order used before draftType was stored.
-  return { ...value, config: { ...value.config, draftType: value.config.draftType ?? 'snake' },
+  if (value.config.draftType === undefined) throw new Error('IndexedDB session requires a draft type');
+  return { ...value, config: { ...value.config, draftType: value.config.draftType },
     revision: value.revision ?? 0, lineage: [...value.lineage ?? []], draftProgress,
     draftHistory: [...value.draftHistory], shortlistedPlayerIds: [...value.shortlistedPlayerIds],
     preloadedKeepers: [...value.preloadedKeepers], unresolvedProviderPicks: [...value.unresolvedProviderPicks] };

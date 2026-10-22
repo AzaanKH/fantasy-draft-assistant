@@ -75,11 +75,37 @@ describe('v1 independent entry import', () => {
   });
 
   it('retains the first valid occurrence of conflicting picks and keeper slots', () => {
-    const result = importV1([stored({ ...session(), draftProgress: undefined, draftHistory: [pick(1), pick(1, 'duplicate-slot'), pick(2, 'player-1'), pick(3)],
-      preloadedKeepers: [keeper, { ...keeper, playerId: 'duplicate-keeper-slot' }] })]);
+    const raw = stored({ ...session(), draftProgress: undefined, draftHistory: [pick(1), pick(1, 'duplicate-slot'), pick(2, 'player-1'), pick(3)],
+      preloadedKeepers: [keeper, { ...keeper, playerId: 'duplicate-keeper-slot' }] });
+    const result = importV1([raw]);
     expect(result.sessions[0]?.draftHistory).toEqual([pick(1), pick(3)]);
     expect(result.sessions[0]?.preloadedKeepers).toEqual([keeper]);
     expect(result.rejected).toHaveLength(3);
+    expect(result.rejected.every(row => row.serialized === raw.serialized)).toBe(true);
+    expect(importV1([raw])).toEqual(result);
+  });
+
+  it.each([
+    { reason: 'invalid entry', supply: [keeper, { ...keeper, playerId: 'invalid', position: 'BROKEN' }], accepted: [keeper] },
+    { reason: 'out-of-bounds entry', supply: [keeper, { ...keeper, playerId: 'invalid', teamIndex: 50 }], accepted: [keeper] },
+    { reason: 'duplicate slot', supply: [keeper, { ...keeper, playerId: 'duplicate-slot' }], accepted: [keeper] },
+    { reason: 'duplicate player', supply: [keeper, { ...keeper, round: 5 }], accepted: [keeper] },
+    { reason: 'malformed collection', supply: null, accepted: [] },
+  ])('retains valid keepers but leaves the supply incomplete after a rejected $reason', ({ supply, accepted }) => {
+    const raw = stored({ ...session(), keepersInitialized: true, preloadedKeepers: supply });
+    const result = importV1([raw]);
+    expect(result.sessions[0]?.preloadedKeepers).toEqual(accepted);
+    expect(result.sessions[0]?.keepersInitialized).toBe(false);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0]).toMatchObject({ key: raw.key, serialized: raw.serialized });
+    expect(result.source).toEqual([raw]);
+  });
+
+  it.each([true, false])('preserves keepersInitialized=%s for a complete valid keeper supply', keepersInitialized => {
+    const result = importV1([stored({ ...session(), keepersInitialized, preloadedKeepers: [keeper] })]);
+    expect(result.sessions[0]?.preloadedKeepers).toEqual([keeper]);
+    expect(result.sessions[0]?.keepersInitialized).toBe(keepersInitialized);
+    expect(result.rejected).toEqual([]);
   });
 
   it('isolates invalid sessions and rejects mismatched key identities', () => {
@@ -107,6 +133,19 @@ describe('v1 independent entry import', () => {
     expect(result.config.draftType).toBe('snake');
     expect(result.draftHistory).toEqual(value.draftHistory);
     expect(result.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 7 }, historyLength: 2 });
+  });
+
+  it.each([
+    { draftType: undefined, expected: 'snake', teamIndex: 9 },
+    { draftType: 'linear', expected: 'linear', teamIndex: 0 },
+  ])('normalizes legacy draftType=$draftType before validating later-round provisional picks', ({ draftType, expected, teamIndex }) => {
+    const value = session();
+    const provisional = { ...pick(11), source: 'provisional', teamIndex };
+    const result = importV1([stored({ ...value, currentPick: 12, draftProgress: undefined,
+      config: { ...value.config, draftType }, draftHistory: [provisional] })]);
+    expect(result.sessions[0]?.config.draftType).toBe(expected);
+    expect(result.sessions[0]?.draftHistory).toEqual([provisional]);
+    expect(result.rejected).toEqual([]);
   });
 });
 
@@ -212,9 +251,14 @@ describe('v1 journal import', () => {
     expect(result.rejected).toHaveLength(1);
   });
 
-  it('blocks all pick removals when a corrupt member has no recoverable dependency identity', () => {
-    const raw = journal({ ...change(), picks: [{ pickNumber: 1, before: pick(1), after: null }, null] });
-    expect(imported([stored(session({ draftHistory: [pick(1)] })), raw]).draftHistory).toEqual([pick(1)]);
+  it('blocks all pick changes when a corrupt member has no recoverable dependency identity', () => {
+    const raw = journal({ ...change(), picks: [
+      { pickNumber: 1, before: pick(1), after: null }, null,
+      { pickNumber: 3, before: null, after: pick(3) },
+    ], queueAdded: ['queued'] });
+    const result = imported([stored(session({ draftHistory: [pick(1)] })), raw]);
+    expect(result.draftHistory).toEqual([pick(1)]);
+    expect(result.shortlistedPlayerIds).toEqual(['queued']);
   });
 
   it('retains the original pick when a corrupt destination omits its player identity', () => {

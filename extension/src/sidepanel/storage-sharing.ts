@@ -58,6 +58,7 @@ export function startStorageSharing({ frame, frameUrl, ready, failed }: {
       if (stopped) { closeHelper(); return; }
       if (helperId === undefined) throw new Error('Unable to open the storage helper. Open the web app to retry.');
       panel.searchParams.set('__storageNonce', nonce);
+      panel.searchParams.set('__storageParentOrigin', window.location.origin);
       frame.src = panel.toString();
     } catch (error) {
       fail(error instanceof Error ? error : new Error(String(error)));
