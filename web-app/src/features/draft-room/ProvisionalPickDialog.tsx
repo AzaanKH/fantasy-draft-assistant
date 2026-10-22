@@ -1,3 +1,4 @@
+import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
@@ -80,6 +81,7 @@ function ProvisionalPickForm({
   const config = useDraftState((state) => state.config);
   const currentPick = useDraftView((view) => view.currentPick);
   const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const [pending, setPending] = React.useState(false);
   const canRecord = useDraftView((view) => view.canRecord);
   const draftHistory = useDraftState((state) => state.draftHistory);
   const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
@@ -144,7 +146,8 @@ function ProvisionalPickForm({
     setSelectedPickNumber(nextPick === undefined ? '' : String(nextPick));
   }, [currentPick, editablePickNumbers, selectedPickNumber]);
 
-  const handleSave = (): void => {
+  const handleSave = async (): Promise<void> => {
+    if (pending) return;
     const player = selectablePlayers.find(
       (candidate) => candidate.id === selectedPlayerId
     );
@@ -167,9 +170,17 @@ function ProvisionalPickForm({
         draftHistory
       ),
     };
-    const saved = editingPick
-      ? workspace.send('correctProvisionalPick', editingPick.pickNumber, replacement)
-      : workspace.send('recordProvisionalPick', replacement);
+    setPending(true);
+    let saved: boolean;
+    try {
+      const outcome = editingPick
+        ? requestWorkspace(workspace, 'correctProvisionalPick', editingPick.pickNumber, replacement)
+        : requestWorkspace(workspace, 'recordProvisionalPick', replacement);
+      saved = outcome instanceof Promise ? await outcome : outcome;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+      return;
+    } finally { setPending(false); }
     if (!saved) {
       setError(editingPick
         ? 'Choose a different player or an open draft position.'
@@ -244,8 +255,8 @@ function ProvisionalPickForm({
           Cancel
         </Button>
         <Button
-          onClick={handleSave}
-          disabled={!canRecord ||
+          onClick={() => { void handleSave(); }}
+          disabled={pending || !canRecord ||
             !selectedPlayerId ||
             !selectedPickNumber ||
             Boolean(
@@ -255,7 +266,7 @@ function ProvisionalPickForm({
             )
           }
         >
-          {editingPick
+          {pending ? 'Saving...' : editingPick
             ? 'Save Correction'
             : 'Record Provisional Pick'}
         </Button>

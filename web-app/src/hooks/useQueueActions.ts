@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
@@ -27,9 +28,9 @@ export function useQueueActions(
       action: { label: 'Undo', onClick: () => {
         const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
         if (wasQueued && !isQueued) {
-          workspace.send('togglePlayerShortlisted', playerId);
+          dispatchWorkspace(workspace, 'togglePlayerShortlisted', playerId);
         } else if (!wasQueued && isQueued) {
-          workspace.send('removePlayerFromShortlist', playerId);
+          dispatchWorkspace(workspace, 'removePlayerFromShortlist', playerId);
         }
       } },
     });
@@ -37,14 +38,27 @@ export function useQueueActions(
 
   const togglePlayerQueued = React.useCallback((playerId: string) => {
     const wasQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
-    workspace.send('togglePlayerShortlisted', playerId);
+    if (workspace.sendDurable) {
+      void workspace.sendDurable(['togglePlayerShortlisted', playerId]).then(() => {
+        const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
+        if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
+      }).catch(() => undefined);
+      return;
+    }
+    dispatchWorkspace(workspace, 'togglePlayerShortlisted', playerId);
     const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
     if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
   }, [workspace, showQueueFeedback]);
 
   const removePlayerFromQueue = React.useCallback((playerId: string) => {
     if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) return;
-    workspace.send('removePlayerFromShortlist', playerId);
+    if (workspace.sendDurable) {
+      void workspace.sendDurable(['removePlayerFromShortlist', playerId]).then(() => {
+        if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
+      }).catch(() => undefined);
+      return;
+    }
+    dispatchWorkspace(workspace, 'removePlayerFromShortlist', playerId);
     if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
   }, [workspace, showQueueFeedback]);
 

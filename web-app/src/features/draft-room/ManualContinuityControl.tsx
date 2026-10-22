@@ -1,3 +1,4 @@
+import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
@@ -36,6 +37,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
   >(null);
   const [pendingRemovalPickNumber, setPendingRemovalPickNumber] =
     React.useState<number | null>(null);
+  const [removalPending, setRemovalPending] = React.useState(false);
   const [removalError, setRemovalError] = React.useState<string | null>(null);
 
   const provisionalPicks = React.useMemo(
@@ -79,12 +81,22 @@ export function ManualContinuityControl(): React.ReactElement | null {
     setRemovalError(null);
     setPendingRemovalPickNumber(pickNumber);
   };
-  const handleRemove = (): void => {
+  const handleRemove = async (): Promise<void> => {
+    if (removalPending) return;
     if (!pendingRemovalPick) {
       setRemovalError('This Provisional Pick is no longer available to remove.');
       return;
     }
-    if (!workspace.send('removeProvisionalPick', pendingRemovalPick.pickNumber)) {
+    setRemovalPending(true);
+    let removed: boolean;
+    try {
+      const result = requestWorkspace(workspace, 'removeProvisionalPick', pendingRemovalPick.pickNumber);
+      removed = result instanceof Promise ? await result : result;
+    } catch (error) {
+      setRemovalError(error instanceof Error ? error.message : String(error));
+      return;
+    } finally { setRemovalPending(false); }
+    if (!removed) {
       setRemovalError('Only a local Provisional Pick can be removed.');
       return;
     }
@@ -242,8 +254,8 @@ export function ManualContinuityControl(): React.ReactElement | null {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleRemove}
-              disabled={!pendingRemovalPick}
+              onClick={() => { void handleRemove(); }}
+              disabled={removalPending || !pendingRemovalPick}
             >
               <Trash2 />
               Remove Provisional Pick

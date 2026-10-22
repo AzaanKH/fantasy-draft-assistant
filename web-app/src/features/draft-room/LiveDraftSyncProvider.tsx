@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import * as React from 'react';
 import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
@@ -170,39 +171,39 @@ export function LiveDraftSyncProvider({ children }: {
   React.useEffect(() => {
     if (connection?.draftPosition === null || connection === null) return;
 
-    workspace.send('setConfig', { myPickPosition: connection.draftPosition });
-    workspace.send('setSessionMode', 'live');
+    dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition });
+    dispatchWorkspace(workspace, 'setSessionMode', 'live');
   }, [connection, workspace]);
 
   React.useEffect(() => {
-    if (sync.draft) workspace.send('setConfig', { draftType: sync.draft.type });
+    if (sync.draft) dispatchWorkspace(workspace, 'setConfig', { draftType: sync.draft.type });
   }, [sync.draft, workspace]);
 
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
     setReconciliationTargetAt(null);
-    workspace.send('connection.startConnection', next.provider, next.draftId);
+    dispatchWorkspace(workspace, 'connection.startConnection', next.provider, next.draftId);
   }, [workspace]);
 
   const confirmDraftPosition = React.useCallback((draftPosition: number) => {
     setReconciliationTargetAt(null);
-    workspace.send('connection.confirmDraftPosition', draftPosition);
-    workspace.send('setConfig', { myPickPosition: draftPosition });
-    workspace.send('setSessionMode', 'live');
+    dispatchWorkspace(workspace, 'connection.confirmDraftPosition', draftPosition);
+    dispatchWorkspace(workspace, 'setConfig', { myPickPosition: draftPosition });
+    dispatchWorkspace(workspace, 'setSessionMode', 'live');
   }, [workspace]);
 
   const enterManualContinuity = React.useCallback(() => {
     if (!canEnterManualContinuity) return;
     const baselineAt = sync.lastSuccessfulSyncAt ?? lastConfirmedSyncAt;
-    if (baselineAt !== null) workspace.send('enterManualContinuity', baselineAt);
+    if (baselineAt !== null) dispatchWorkspace(workspace, 'enterManualContinuity', baselineAt);
   }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt, lastConfirmedSyncAt, workspace]);
 
   const disconnect = React.useCallback(() => {
     setReconciliationTargetAt(null);
-    workspace.send('connection.disconnect');
-    workspace.send('setConfig', { draftType: 'snake' });
-    workspace.send('applyLeagueSettings', createDefaultLeagueSettings());
-    workspace.send('resetDraft');
-    workspace.send('setSessionMode', 'setup');
+    dispatchWorkspace(workspace, 'connection.disconnect');
+    dispatchWorkspace(workspace, 'setConfig', { draftType: 'snake' });
+    dispatchWorkspace(workspace, 'applyLeagueSettings', createDefaultLeagueSettings());
+    dispatchWorkspace(workspace, 'resetDraft');
+    dispatchWorkspace(workspace, 'setSessionMode', 'setup');
   }, [workspace]);
 
   const viewState = React.useMemo<DraftSyncViewState>(() => ({

@@ -197,7 +197,8 @@ export interface DraftActions {
     teamIndex: number,
     teamName: string,
     pickNumber?: number,
-    source?: RecordedDraftPick['source']
+    source?: RecordedDraftPick['source'],
+    expected?: { readonly pickNumber: number; readonly actor: 'user' | 'cpu' }
   ) => void;
   recordProvisionalPick: (pick: ProvisionalPickInput) => boolean;
   correctProvisionalPick: (
@@ -215,7 +216,7 @@ export interface DraftActions {
     keepers: readonly PreloadedKeeper[],
     supplyComplete?: boolean
   ) => void;
-  consumeKeeperAtCurrentPick: () => void;
+  consumeKeeperAtCurrentPick: (expectedPickNumber?: number) => void;
   undoLastPick: () => void;
   branchFromPick: (pickNumber: number) => void;
   resetDraft: () => void;

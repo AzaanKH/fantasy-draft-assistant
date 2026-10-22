@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
@@ -143,15 +144,15 @@ export function useKeeperPreload(
 
   useEffect(() => {
     if (keepersEnabled === false) {
-      workspace.send('preloadKeepers', []);
+      dispatchWorkspace(workspace, 'preloadKeepers', []);
       return;
     }
     if (!query.data || playersLoading) return;
     if (!supplyIsComplete) {
-      workspace.send('preloadKeepers', [], false);
+      dispatchWorkspace(workspace, 'preloadKeepers', [], false);
       return;
     }
-    workspace.send('preloadKeepers', resolution.resolved);
+    dispatchWorkspace(workspace, 'preloadKeepers', resolution.resolved);
   }, [
     keepersEnabled,
     playersLoading,

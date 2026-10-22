@@ -1,24 +1,64 @@
 import type { DraftSessionIdentity, PersistedDraftSession } from '@/stores/draftSessionStorage';
-import type { V1Import } from './v1-import';
+import type { RawV1Entry, V1Import } from './v1-import';
 
 export const DRAFT_DATABASE = 'fantasy-draft-workspace-v2';
 export const IMPORT_METADATA = 'fantasy-draft-v1-import-v2';
+/** Global activation record: written atomically with the import, read by every writer as the rollback fence. */
+export const ACTIVATION_RECORD = 'fantasy-draft-activation-v1';
 const STORES = ['sessions', 'metadata', 'probes'] as const;
 export interface StorageDiagnostic { readonly phase: 'open' | 'blocked' | 'upgrade' | 'error' | 'abort'; readonly error: unknown }
 const asError = (error: unknown): Error => error instanceof Error ? error : new Error(String(error));
-const sessionKey = (identity: DraftSessionIdentity): string => `${identity.provider}:${identity.draftId}`;
+export const sessionKey = (identity: DraftSessionIdentity): string => `${identity.provider}:${identity.draftId}`;
 type ImportRefusal = { readonly identity: DraftSessionIdentity; readonly reason: string };
+
+export interface DatabaseSnapshot {
+  readonly sessions: readonly { readonly key: string; readonly session: PersistedDraftSession; readonly serialized: string }[];
+  readonly invalid: readonly { readonly key: string; readonly value: unknown; readonly serialized: string; readonly reason: string }[];
+  readonly metadata: readonly { readonly key: string; readonly value: unknown; readonly serialized: string }[];
+}
+
+/** Expected values are `JSON.stringify` of the stored value, or null for an absent key. A snapshot also checks the complete key set inside the write transaction. */
+export interface DatabaseCommit {
+  readonly expect: { readonly snapshot?: DatabaseSnapshot; readonly sessions?: Readonly<Record<string, string | null>>; readonly metadata?: Readonly<Record<string, string | null>> };
+  readonly sessions?: readonly { readonly key: string; readonly session: PersistedDraftSession }[];
+  readonly metadata?: readonly { readonly key: string; readonly value: unknown }[];
+  /** Runs inside the transaction before and after the writes; a throw aborts the commit. */
+  readonly verify?: () => void;
+}
+
+export class DatabaseConflictError extends Error {
+  constructor(readonly key: string) { super(`Workspace storage changed at ${key}. Review the data again.`); this.name = 'DatabaseConflictError'; }
+}
+
+export class DraftWritersStoppedError extends Error {
+  constructor() { super('A storage rollback stopped this workspace. Reload to continue.'); this.name = 'DraftWritersStoppedError'; }
+}
 
 export interface DraftDatabase {
   read(identity: DraftSessionIdentity): Promise<PersistedDraftSession | null>;
   update<T>(identity: DraftSessionIdentity, apply: (latest: PersistedDraftSession | null) => { session: PersistedDraftSession; result: T }): Promise<{ session: PersistedDraftSession; result: T }>;
   importV1(value: V1Import, options?: { verifySource?: () => void }): Promise<{ refused: readonly ImportRefusal[] }>;
   inspectImports(): Promise<readonly unknown[]>;
+  snapshot(): Promise<DatabaseSnapshot>;
+  commit(request: DatabaseCommit): Promise<void>;
   probe(key: string, value?: string | null): Promise<string | null>;
   close(): void;
 }
 
-async function digest(value: unknown): Promise<string> {
+export function writersStopped(record: unknown): boolean {
+  return typeof record === 'object' && record !== null && 'state' in record &&
+    (record.state === 'rolling-back' || record.state === 'rolled-back');
+}
+
+/** The per-session import digest, shared by `importV1` and activation so either recognizes the other's import. */
+export function importSourceDigest(source: readonly RawV1Entry[], session: PersistedDraftSession): Promise<string> {
+  const key = sessionKey(session.identity);
+  const raw = [...source].sort((a, b) => a.key.localeCompare(b.key))
+    .filter(entry => entry.key === `fantasy-draft-session-v1:${key}` || entry.key.startsWith(`fantasy-draft-session-unconfirmed-v1:${key}:`));
+  return digest({ raw, session });
+}
+
+export async function digest(value: unknown): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -71,69 +111,147 @@ export function openDraftDatabase({ factory, decode, report, name = DRAFT_DATABA
           const get = tx.objectStore('sessions').get(sessionKey(identity));
           get.onsuccess = () => { try { done(readSession(get.result)); } catch (error) { abort(error); } };
         }),
-        update: (identity, apply) => transaction(['sessions'], 'readwrite', (tx, done, abort) => {
+        update: (identity, apply) => transaction(['sessions', 'metadata'], 'readwrite', (tx, done, abort) => {
           const store = tx.objectStore('sessions');
-          const get = store.get(sessionKey(identity));
-          get.onsuccess = () => {
-            try {
-              const previous = readSession(get.result);
-              const next = apply(previous);
-              const session = decode(next.session);
-              if (session.identity.provider !== identity.provider || session.identity.draftId !== identity.draftId) throw new Error('Workspace transaction changed session identity');
-              if (JSON.stringify(session) !== JSON.stringify(previous)) store.put(session, sessionKey(identity));
-              done({ session, result: next.result });
-            } catch (error) { abort(error); }
+          const fence = tx.objectStore('metadata').get(ACTIVATION_RECORD);
+          fence.onsuccess = () => {
+            if (writersStopped(fence.result)) { abort(new DraftWritersStoppedError()); return; }
+            const get = store.get(sessionKey(identity));
+            get.onsuccess = () => {
+              try {
+                const previous = readSession(get.result);
+                const next = apply(previous);
+                const session = decode(next.session);
+                if (session.identity.provider !== identity.provider || session.identity.draftId !== identity.draftId) throw new Error('Workspace transaction changed session identity');
+                if (JSON.stringify(session) !== JSON.stringify(previous)) store.put(session, sessionKey(identity));
+                done({ session, result: next.result });
+              } catch (error) { abort(error); }
+            };
           };
         }),
         async importV1(value, { verifySource } = {}) {
           const source = [...value.source].sort((a, b) => a.key.localeCompare(b.key));
           const snapshotDigest = await digest({ ...value, source });
-          const sources = await Promise.all(value.sessions.map(async session => {
-            const key = sessionKey(session.identity);
-            const raw = source.filter(entry => entry.key === `fantasy-draft-session-v1:${key}` || entry.key.startsWith(`fantasy-draft-session-unconfirmed-v1:${key}:`));
-            return { session, key, sourceDigest: await digest({ raw, session }) };
-          }));
+          const sources = await Promise.all(value.sessions.map(async session => ({
+            session, key: sessionKey(session.identity), sourceDigest: await importSourceDigest(source, session),
+          })));
           return transaction(['sessions', 'metadata'], 'readwrite', (tx, done, abort) => {
-            verifySource?.();
             const metadata = tx.objectStore('metadata');
-            const store = tx.objectStore('sessions');
-            const refused: ImportRefusal[] = [];
-            let pending = sources.length;
-            const finish = (): void => { verifySource?.(); done({ refused }); };
-            metadata.put(value, `${IMPORT_METADATA}:snapshot:${snapshotDigest}`);
-            if (!pending) finish();
-            for (const { session, key, sourceDigest } of sources) {
-              const existing = store.get(key);
-              existing.onsuccess = () => {
-                const marker = metadata.get(`${IMPORT_METADATA}:${key}`);
-                marker.onsuccess = () => {
-                  try {
-                    verifySource?.();
-                    const previous = readSession(existing.result);
-                    const imported: unknown = marker.result;
-                    const markerPresent = typeof imported === 'object' && imported !== null;
-                    const sameSource = markerPresent && 'sourceDigest' in imported && imported.sourceDigest === sourceDigest;
-                    const unchangedSinceImport = markerPresent && 'importedRevision' in imported && imported.importedRevision === previous?.revision;
-                    if (!sameSource && (previous === null || unchangedSinceImport)) {
-                      const decoded = decode(session);
-                      store.put(decoded, key);
-                      const unresolved = value.unresolved.some(journal => journal.key.startsWith(`fantasy-draft-session-unconfirmed-v1:${key}:`));
-                      metadata.put({ identity: session.identity, importedRevision: decoded.revision, sourceDigest, complete: !unresolved }, `${IMPORT_METADATA}:${key}`);
-                    } else if (!sameSource) {
-                      const refusal = { identity: session.identity, reason: 'The v1 source differs from the acknowledged IndexedDB session' };
-                      refused.push(refusal);
-                      metadata.put({ ...refusal, source, sourceDigest }, `${IMPORT_METADATA}:refused:${key}:${sourceDigest}`);
-                    }
-                    if (--pending === 0) finish();
-                  } catch (error) { abort(error); }
-                };
-              };
-            }
+            const fence = metadata.get(ACTIVATION_RECORD);
+            fence.onsuccess = () => {
+              if (writersStopped(fence.result)) { abort(new DraftWritersStoppedError()); return; }
+              try {
+                verifySource?.();
+                const store = tx.objectStore('sessions');
+                const refused: ImportRefusal[] = [];
+                let pending = sources.length;
+                const finish = (): void => { verifySource?.(); done({ refused }); };
+                metadata.put(value, `${IMPORT_METADATA}:snapshot:${snapshotDigest}`);
+                if (!pending) finish();
+                for (const { session, key, sourceDigest } of sources) {
+                  const existing = store.get(key);
+                  existing.onsuccess = () => {
+                    const marker = metadata.get(`${IMPORT_METADATA}:${key}`);
+                    marker.onsuccess = () => {
+                      try {
+                        verifySource?.();
+                        const previous = readSession(existing.result);
+                        const imported: unknown = marker.result;
+                        const markerPresent = typeof imported === 'object' && imported !== null;
+                        const sameSource = markerPresent && 'sourceDigest' in imported && imported.sourceDigest === sourceDigest;
+                        const unchangedSinceImport = markerPresent && 'importedRevision' in imported && imported.importedRevision === previous?.revision;
+                        if (!sameSource && (previous === null || unchangedSinceImport)) {
+                          const decoded = decode(session);
+                          store.put(decoded, key);
+                          const unresolved = value.unresolved.some(journal => journal.key.startsWith(`fantasy-draft-session-unconfirmed-v1:${key}:`));
+                          metadata.put({ identity: session.identity, importedRevision: decoded.revision, sourceDigest, complete: !unresolved }, `${IMPORT_METADATA}:${key}`);
+                        } else if (!sameSource) {
+                          const refusal = { identity: session.identity, reason: 'The v1 source differs from the acknowledged IndexedDB session' };
+                          refused.push(refusal);
+                          metadata.put({ ...refusal, source, sourceDigest }, `${IMPORT_METADATA}:refused:${key}:${sourceDigest}`);
+                        }
+                        if (--pending === 0) finish();
+                      } catch (error) { abort(error); }
+                    };
+                  };
+                }
+              } catch (error) { abort(error); }
+            };
           });
         },
         inspectImports: () => transaction(['metadata'], 'readonly', (tx, done, abort) => {
           const get = tx.objectStore('metadata').getAll();
           get.onsuccess = () => { const records: unknown = get.result; if (!Array.isArray(records)) { abort(new Error('Invalid import metadata')); return; } done(records); };
+        }),
+        snapshot: () => transaction(['sessions', 'metadata'], 'readonly', (tx, done, abort) => {
+          const sessions: { key: string; session: PersistedDraftSession; serialized: string }[] = [];
+          const invalid: { key: string; value: unknown; serialized: string; reason: string }[] = [];
+          const metadata: { key: string; value: unknown; serialized: string }[] = [];
+          const read = (name: 'sessions' | 'metadata', row: (key: string, value: unknown) => void, next: () => void): void => {
+            const cursor = tx.objectStore(name).openCursor();
+            cursor.onsuccess = () => {
+              const current = cursor.result;
+              if (!current) { next(); return; }
+              try { row(typeof current.key === 'string' ? current.key : JSON.stringify(current.key), current.value); current.continue(); } catch (error) { abort(error); }
+            };
+          };
+          read('sessions', (key, value) => {
+            const serialized = JSON.stringify(value);
+            try { sessions.push({ key, session: decode(value), serialized }); }
+            catch (error) { invalid.push({ key, value, serialized, reason: asError(error).message }); }
+          }, () => {
+            read('metadata', (key, value) => { metadata.push({ key, value, serialized: JSON.stringify(value) }); }, () => {
+              done({ sessions, invalid, metadata });
+            });
+          });
+        }),
+        commit: request => transaction(['sessions', 'metadata'], 'readwrite', (tx, done, abort) => {
+          const stores = { sessions: tx.objectStore('sessions'), metadata: tx.objectStore('metadata') };
+          const expected = (['sessions', 'metadata'] as const).flatMap(name =>
+            Object.entries(request.expect[name] ?? {}).map(([key, serialized]) => ({ name, key, serialized })));
+          let pending = expected.length + (request.expect.snapshot ? 2 : 0);
+          const write = (): void => {
+            try {
+              request.verify?.();
+              for (const { key, session } of request.sessions ?? []) {
+                const decoded = decode(session);
+                if (sessionKey(decoded.identity) !== key) throw new Error('Workspace commit changed session identity');
+                stores.sessions.put(decoded, key);
+              }
+              for (const { key, value } of request.metadata ?? []) stores.metadata.put(value, key);
+              request.verify?.();
+              done(undefined);
+            } catch (error) { abort(error); }
+          };
+          if (!pending) { write(); return; }
+          const snapshot = request.expect.snapshot;
+          if (snapshot) {
+            for (const name of ['sessions', 'metadata'] as const) {
+              const rows = name === 'sessions' ? [...snapshot.sessions, ...snapshot.invalid] : snapshot.metadata;
+              const remaining = new Map(rows.map(row => [row.key, row.serialized]));
+              const cursor = stores[name].openCursor();
+              cursor.onsuccess = () => {
+                const current = cursor.result;
+                if (!current) {
+                  if (remaining.size) { abort(new DatabaseConflictError(name)); return; }
+                  if (--pending === 0) write();
+                  return;
+                }
+                const key = typeof current.key === 'string' ? current.key : JSON.stringify(current.key);
+                if (!remaining.has(key) || remaining.get(key) !== JSON.stringify(current.value)) { abort(new DatabaseConflictError(key)); return; }
+                remaining.delete(key);
+                current.continue();
+              };
+            }
+          }
+          for (const { name, key, serialized } of expected) {
+            const get = stores[name].get(key);
+            get.onsuccess = () => {
+              const actual = get.result === undefined ? null : JSON.stringify(get.result);
+              if (actual !== serialized) { abort(new DatabaseConflictError(key)); return; }
+              if (--pending === 0) write();
+            };
+          }
         }),
         probe: (key, value) => transaction(['probes'], value === undefined ? 'readonly' : 'readwrite', (tx, done, abort) => {
           const store = tx.objectStore('probes');

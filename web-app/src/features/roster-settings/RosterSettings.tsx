@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import type { Position } from '@fantasy-draft/shared/league';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ export function RosterSettings(): React.ReactElement {
     const next = field === 'starters'
       ? { starters: value, max: Math.max(value, current.max) }
       : { starters: Math.min(current.starters, value), max: value };
-    workspace.send('setRosterRequirements', { ...requirements, [position]: next });
+    dispatchWorkspace(workspace, 'setRosterRequirements', { ...requirements, [position]: next });
   };
 
   return (
@@ -92,7 +93,7 @@ export function RosterSettings(): React.ReactElement {
                 max={10}
                 value={requirements.FLEX.starters}
                 onChange={(event) => {
-                  workspace.send('setRosterRequirements', {
+                  dispatchWorkspace(workspace, 'setRosterRequirements', {
                     ...requirements,
                     FLEX: {
                       ...requirements.FLEX,
@@ -112,7 +113,7 @@ export function RosterSettings(): React.ReactElement {
                 max={20}
                 value={requirements.BENCH.spots}
                 onChange={(event) => {
-                  workspace.send('setRosterRequirements', {
+                  dispatchWorkspace(workspace, 'setRosterRequirements', {
                     ...requirements,
                     BENCH: { spots: numericValue(event.target.value) },
                   });
@@ -127,7 +128,7 @@ export function RosterSettings(): React.ReactElement {
               variant="outline"
               size="sm"
               onClick={() => {
-                workspace.send('setRosterRequirements', leagueRoster);
+                dispatchWorkspace(workspace, 'setRosterRequirements', leagueRoster);
               }}
             >
               Reset to league rules

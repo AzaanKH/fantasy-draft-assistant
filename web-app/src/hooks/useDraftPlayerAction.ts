@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView, useDraftView } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
@@ -25,7 +26,11 @@ export function useDraftPlayerAction(): {
     const view = getDraftView(workspace.draft);
     if (!view.canDraftByPosition[player.position]) return;
     const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(view.currentPick).teamIndex;
-    workspace.send('markPlayerDrafted',
+    if (workspace.sendDurable) {
+      void workspace.sendDurable(['markPlayerDrafted', player.id, player.name, player.position, teamIndex, 'My Team', view.currentPick, 'manual', { pickNumber: view.currentPick, actor: 'user' }]).catch(() => undefined);
+      return;
+    }
+    dispatchWorkspace(workspace, 'markPlayerDrafted',
       player.id,
       player.name,
       player.position,

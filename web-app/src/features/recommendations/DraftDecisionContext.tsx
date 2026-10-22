@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -128,7 +129,7 @@ export function DraftDecisionProvider({
     topPick,
     isLoading,
     output,
-    setSelectedLens: (lens) => { workspace.send('setDecisionLens', lens); },
+    setSelectedLens: (lens) => { dispatchWorkspace(workspace, 'setDecisionLens', lens); },
     overall: output.selectedView,
     byPosition,
     outputByPosition,

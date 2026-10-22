@@ -28,6 +28,17 @@ function interceptPut(after: (store: IDBObjectStore, request: IDBRequest<unknown
 }
 
 describe('transactional workspace', () => {
+  it('does not publish unchanged revisions during focus or notification re-reads', async () => {
+    const { workspace } = await setup();
+    await workspace.send('addShortlistedPlayer', 'saved');
+    const state = workspace.draft.getState();
+    const notify = vi.fn(); const stop = workspace.draft.subscribe(notify);
+    await workspace.refresh(); await workspace.refresh();
+    expect(workspace.draft.getState()).toBe(state);
+    expect(notify).not.toHaveBeenCalled();
+    stop(); workspace.dispose();
+  });
+
   it('retains two acknowledged saves despite another writer starting from stale state, D3', async () => {
     const { factory, workspace: first } = await setup();
     const { workspace: second } = await setup(factory);

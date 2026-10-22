@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useNow } from '@/workspace/useNow';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
@@ -520,8 +521,8 @@ export function DraftConnect({
     setDraftIdInput(parsedConnection.draftId);
     startConnection(parsedConnection);
     if (parsedConnection.provider === 'sleeper') {
-      workspace.send('connection.setPrimaryLeagueSettings', pendingSettingsProfile === 'primary-league-mock');
-      workspace.send('connection.setQuickMockSettings', pendingSettingsProfile === 'quick-mock');
+      dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', pendingSettingsProfile === 'primary-league-mock');
+      dispatchWorkspace(workspace, 'connection.setQuickMockSettings', pendingSettingsProfile === 'quick-mock');
     }
   };
 
@@ -799,8 +800,8 @@ export function DraftConnect({
         { value: 'provider', label: 'Actual Primary League · Verify with Sleeper' },
       ]} onValueChange={(value) => {
         if (!connection) { setPendingSettingsProfile(value); return; }
-        workspace.send('connection.setPrimaryLeagueSettings', value === 'primary-league-mock');
-        workspace.send('connection.setQuickMockSettings', value === 'quick-mock');
+        dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', value === 'primary-league-mock');
+        dispatchWorkspace(workspace, 'connection.setQuickMockSettings', value === 'quick-mock');
       }} />
       <p className="text-xs leading-relaxed text-muted-foreground">
         {settingsProfile === 'quick-mock'

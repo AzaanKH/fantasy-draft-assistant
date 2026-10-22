@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
@@ -161,12 +162,12 @@ function useSidePanelSync(connection: SidePanelConnection) {
 
   React.useEffect(() => {
     if (connection.draftPosition !== null) {
-      workspace.send('setConfig', { myPickPosition: connection.draftPosition });
+      dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition });
     }
   }, [connection.draftPosition, workspace]);
 
   React.useEffect(() => {
-    if (sync.draft) workspace.send('setSessionMode', 'live');
+    if (sync.draft) dispatchWorkspace(workspace, 'setSessionMode', 'live');
   }, [workspace, sync.draft]);
 
   return sync;
@@ -753,11 +754,12 @@ function BottomNavigation({
 }
 
 /** Keeps the draft connection alive while the panel content shows an error fallback. */
-export function SidePanelPage(): React.ReactElement {
+export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: () => void } = {}): React.ReactElement {
   const [connection] = React.useState(readConnection);
   const sync = useSidePanelSync(connection);
   return (
     <RouteErrorBoundary>
+        {onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
       <SidePanelContent connection={connection} sync={sync} />
     </RouteErrorBoundary>
   );

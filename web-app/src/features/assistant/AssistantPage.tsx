@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import {
@@ -541,7 +542,7 @@ export function AssistantPage({
             nextPickLabel={nextPickLabel}
             mode={mode}
             provider={liveSync.connection?.provider ?? null}
-            onMove={(...args) => { workspace.send('moveShortlistedPlayer', ...args); }}
+            onMove={(...args) => { dispatchWorkspace(workspace, 'moveShortlistedPlayer', ...args); }}
             onRemove={removePlayerFromQueue}
             onSelect={handleSelectPlayer}
           />

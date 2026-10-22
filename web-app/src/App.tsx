@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { createQuickMockSettings, evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
@@ -83,8 +85,8 @@ export function App(): React.ReactElement {
   const useQuickMockSettings = connection ? connection.settingsProfile === 'quick-mock' : localProfile === 'quick-mock';
   React.useEffect(() => {
     if (connection || sessionMode !== 'setup' || hasPicks) return;
-    workspace.send('applyLeagueSettings', localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings());
-    workspace.send('setConfig', localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 });
+    dispatchWorkspace(workspace, 'applyLeagueSettings', localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings());
+    dispatchWorkspace(workspace, 'setConfig', localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 });
   }, [connection, sessionMode, hasPicks, localProfile, quickMockPreferences, workspace]);
   const leagueSettings = useDraftState((state) => state.leagueSettings);
   const usePrimaryLeagueSettings = connection ? connection.provider === 'sleeper' && connection.usePrimaryLeagueSettings === true : localProfile === 'primary-league';
@@ -168,7 +170,7 @@ export function App(): React.ReactElement {
         <DraftDecisionProvider readiness={readiness}>
           <RouteErrorBoundary>
             <React.Suspense fallback={<RouteLoading route="sidepanel" />}>
-              <SidePanelPage />
+              <SidePanelPage onOpenWorkspace={STORAGE_ACTIVATION_ENABLED ? () => { setRoute('draft'); } : undefined} />
             </React.Suspense>
           </RouteErrorBoundary>
         </DraftDecisionProvider>

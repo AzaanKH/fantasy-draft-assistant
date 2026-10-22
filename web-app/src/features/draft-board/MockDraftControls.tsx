@@ -1,3 +1,4 @@
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
@@ -81,10 +82,10 @@ export function MockDraftControls({
 
   // The settings dialog holds CPU picks; MockDraftAutoAdvance reads this from the store.
   React.useEffect(() => {
-    workspace.send('setMockSettingsOpen', isOpen);
+    dispatchWorkspace(workspace, 'setMockSettingsOpen', isOpen);
   }, [workspace, isOpen]);
   React.useEffect(() => () => {
-    workspace.send('setMockSettingsOpen', false);
+    dispatchWorkspace(workspace, 'setMockSettingsOpen', false);
   }, [workspace]);
 
   React.useEffect(() => {
@@ -106,7 +107,7 @@ export function MockDraftControls({
           ])
         );
         if (!cancelled) {
-          workspace.send('setMockSurvivalProbabilities', probabilities);
+          dispatchWorkspace(workspace, 'setMockSurvivalProbabilities', probabilities);
           setIsEstimating(false);
         }
         return;
@@ -186,7 +187,7 @@ export function MockDraftControls({
             variant={isPaused ? 'default' : 'outline'}
             size="sm"
             className="text-xs"
-            onClick={() => { workspace.send('setMockAutoAdvancePaused', !isPaused); }}
+            onClick={() => { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', !isPaused); }}
             disabled={currentPick > totalPicks}
           >
             {isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
@@ -197,7 +198,10 @@ export function MockDraftControls({
               variant="outline"
               size="sm"
               className="text-xs"
-              onClick={() => { simulateNextCpuPick(); }}
+              onClick={() => {
+                const result = simulateNextCpuPick();
+                if (result instanceof Promise) void result.catch(() => undefined);
+              }}
               disabled={(isMyTurn && !keeperAtCurrentPick) || currentPick > totalPicks}
             >
               <SkipForward className="size-3.5" />
@@ -239,7 +243,7 @@ export function MockDraftControls({
                 value={config.totalTeams}
                 disabled={draftStarted}
                 onChange={(event) => {
-                  workspace.send('setConfig', {
+                  dispatchWorkspace(workspace, 'setConfig', {
                     totalTeams: Math.max(
                       minimumMockTeams,
                       numericValue(event.target.value, config.totalTeams)
@@ -258,7 +262,7 @@ export function MockDraftControls({
                 value={config.myPickPosition}
                 disabled={draftStarted}
                 onChange={(event) => {
-                  workspace.send('setConfig', {
+                  dispatchWorkspace(workspace, 'setConfig', {
                     myPickPosition: numericValue(event.target.value, config.myPickPosition),
                   });
                 }}
@@ -273,7 +277,7 @@ export function MockDraftControls({
                 max={100}
                 value={Math.round(mockSettings.randomness * 100)}
                 onChange={(event) => {
-                  workspace.send('setMockSettings', {
+                  dispatchWorkspace(workspace, 'setMockSettings', {
                     randomness: Number(event.target.value) / 100,
                   });
                 }}
@@ -287,7 +291,7 @@ export function MockDraftControls({
                 min={0}
                 value={mockSettings.seed}
                 onChange={(event) => {
-                  workspace.send('setMockSettings', {
+                  dispatchWorkspace(workspace, 'setMockSettings', {
                     seed: numericValue(event.target.value, mockSettings.seed),
                   });
                 }}
@@ -301,7 +305,7 @@ export function MockDraftControls({
                 size="sm"
                 className="h-9 w-full text-xs"
                 onClick={() => {
-                  workspace.send('setMockSettings', {
+                  dispatchWorkspace(workspace, 'setMockSettings', {
                     seed: Math.floor(Date.now() % 2147483647),
                   });
                 }}
@@ -321,7 +325,7 @@ export function MockDraftControls({
                 className="h-8 text-xs"
                 aria-pressed={mockSettings.cpuPickPace === option.value}
                 onClick={() => {
-                  workspace.send('setMockSettings', { cpuPickPace: option.value });
+                  dispatchWorkspace(workspace, 'setMockSettings', { cpuPickPace: option.value });
                 }}
               >
                 {option.label}
@@ -342,7 +346,7 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    workspace.send('undoLastPick');
+                    dispatchWorkspace(workspace, 'undoLastPick');
                   }}
                   disabled={draftHistory.length === 0}
                 >
@@ -352,7 +356,7 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    workspace.send('resetDraft');
+                    dispatchWorkspace(workspace, 'resetDraft');
                   }}
                 >
                   <RotateCcw className="size-3.5" /> Restart
@@ -377,7 +381,7 @@ export function MockDraftControls({
                   onClick={() => {
                     // Branch only to the current or an earlier pick: skipping ahead leaves
                     // CPU teams with too few picks to fill their required roster slots.
-                    workspace.send('branchFromPick', Math.min(currentPick, numericValue(branchPick, currentPick))
+                    dispatchWorkspace(workspace, 'branchFromPick', Math.min(currentPick, numericValue(branchPick, currentPick))
                     );
                   }}
                 >
@@ -423,8 +427,8 @@ export function MockDraftControls({
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    workspace.send('resetDraft');
-                    workspace.send('setSessionMode', 'setup');
+                    dispatchWorkspace(workspace, 'resetDraft');
+                    dispatchWorkspace(workspace, 'setSessionMode', 'setup');
                     setIsOpen(false);
                   }}
                 >
@@ -435,7 +439,7 @@ export function MockDraftControls({
             ) : (
               <Button
                 onClick={() => {
-                  workspace.send('setSessionMode', 'mock');
+                  dispatchWorkspace(workspace, 'setSessionMode', 'mock');
                   setIsOpen(false);
                 }}
                 disabled={!isMockReady}

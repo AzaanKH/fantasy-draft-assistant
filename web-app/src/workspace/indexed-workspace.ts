@@ -13,20 +13,22 @@ export interface IndexedWorkspace {
   dispose(): void;
 }
 
-export function createIndexedWorkspace({ database, identity, lifecycle, channel, report }: {
+export function createIndexedWorkspace({ database, identity, lifecycle, channel, report, initialState, closeDatabase = true }: {
   database: DraftDatabase;
   identity: DraftSessionIdentity;
   lifecycle?: { window: Pick<Window, 'addEventListener' | 'removeEventListener'>; document: Pick<Document, 'addEventListener' | 'removeEventListener' | 'visibilityState'> };
   channel?: Pick<BroadcastChannel, 'postMessage' | 'addEventListener' | 'removeEventListener' | 'close'>;
   report: (error: unknown) => void;
+  initialState?: DraftState;
+  closeDatabase?: boolean;
 }): IndexedWorkspace {
-  const draft = createStore(() => initialDraftState(identity));
+  const draft = createStore(() => initialState ?? initialDraftState(identity));
   let disposed = false;
   let revision = -1;
   let localEpoch = 0;
   const localFields = (state: DraftState) => ({ filter: state.filter, mockSettings: state.mockSettings, mockAutoAdvance: state.mockAutoAdvance, mockSurvivalProbabilities: state.mockSurvivalProbabilities });
   function adopt(session: Awaited<ReturnType<DraftDatabase['read']>>): void {
-    if (disposed || !session || session.revision < revision) return;
+    if (disposed || !session || session.revision <= revision) return;
     revision = session.revision; draft.setState({ ...stateFromSession(session), ...localFields(draft.getState()) }, true);
   }
   async function refresh(): Promise<void> { if (!disposed) adopt(await database.read(identity)); }
@@ -54,7 +56,8 @@ export function createIndexedWorkspace({ database, identity, lifecycle, channel,
       let changed = false;
       let reducedLocal: ReturnType<typeof localFields> | undefined;
       const committed = await database.update(identity, latest => {
-        const state = { ...(latest ? stateFromSession(latest) : initialDraftState(identity)), ...localFields(draft.getState()) };
+        if (disposed) throw new Error('Workspace is disposed');
+        const state = { ...(latest ? stateFromSession(latest) : initialState ?? initialDraftState(identity)), ...localFields(draft.getState()) };
         const reduced = reduceDraftCommand(state, command);
         reducedLocal = localFields(reduced.state);
         const candidate = sessionFromState(reduced.state, identity, latest?.revision ?? 0, latest?.lineage);
@@ -64,7 +67,7 @@ export function createIndexedWorkspace({ database, identity, lifecycle, channel,
       });
       adopt(committed.session);
       if (!disposed && epoch === localEpoch && reducedLocal) draft.setState(reducedLocal);
-      if (changed) {
+      if (changed && !disposed) {
         try { channel?.postMessage({ provider: identity.provider, draftId: identity.draftId }); } catch (error) { report(error); }
       }
       return committed;
@@ -74,7 +77,8 @@ export function createIndexedWorkspace({ database, identity, lifecycle, channel,
       disposed = true;
       lifecycle?.window.removeEventListener('focus', reread);
       lifecycle?.document.removeEventListener('visibilitychange', visible);
-      channel?.removeEventListener('message', reread); channel?.close(); database.close();
+      channel?.removeEventListener('message', reread); channel?.close();
+      if (closeDatabase) database.close();
     },
   };
 }

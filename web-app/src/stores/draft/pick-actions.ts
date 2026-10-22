@@ -1,4 +1,4 @@
-import { deriveDraftCursor, canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
+import { deriveDraftCursor, canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber, createSlotSequence } from '@fantasy-draft/shared/draft';
 import { deriveDraftState } from './source';
 import type { DraftActions, SetDraftState } from './types';
 
@@ -18,11 +18,16 @@ export function createPickActions(
   'moveShortlistedPlayer'
 > {
   return {
-    markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual') =>
+    markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual', expected) =>
       { set((state) => {
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
         const view = deriveDraftState(state);
         const pickNumberToUse = pickNumber ?? view.currentPick;
+        if (expected && (view.currentPick !== expected.pickNumber || state.sessionMode !== 'mock' ||
+            createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(view.currentPick).teamIndex !== teamIndex ||
+            (expected.actor === 'user' ? !view.canDraftByPosition[position] : view.isMyTurn) || view.draftedPlayerIds.has(playerId))) {
+          throw new Error('The draft changed before this selection was saved. Review the current pick and retry.');
+        }
 
         if (pickNumberToUse < 1 || pickNumberToUse > totalPicks) {
           return;
@@ -109,9 +114,10 @@ export function createPickActions(
         state.mockSurvivalProbabilities = {};
       }); },
 
-    consumeKeeperAtCurrentPick: () =>
+    consumeKeeperAtCurrentPick: (expectedPickNumber) =>
       { set((state) => {
         const { currentPick } = deriveDraftState(state);
+        if (expectedPickNumber !== undefined && currentPick !== expectedPickNumber) throw new Error('The draft advanced before the keeper could be recorded.');
         const keeper = state.preloadedKeepers.find(
           (candidate) => getKeeperPickNumber(candidate, state.config.totalTeams, state.config.draftType) === currentPick
         );
