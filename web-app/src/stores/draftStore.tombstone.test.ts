@@ -1,10 +1,15 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { useQueueActions } from '../hooks/useQueueActions';
+import { DraftStoreProvider } from './draftStore';
+import { DRAFT_STORAGE_MIGRATION_KEY } from '@fantasy-draft/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toast } from 'sonner';
 import { createDraftStore } from './draftStore';
 import { getDraftSessionStorageKey, persistDraftSession } from './draftSessionStorage';
 import { readDraftSessionChanges, removeDraftSessionChange, writeDraftSessionChange } from './draftSessionUnconfirmedSaves';
 
-const tombstoneKey = 'fantasy-draft-storage-migrated';
+const tombstoneKey = DRAFT_STORAGE_MIGRATION_KEY;
 const tombstone = JSON.stringify({ version: 1, migratedAt: 1770000000000, by: 'migration-test' });
 const identity = { provider: 'sleeper', draftId: 'tombstone-test' } as const;
 const pick = { pickNumber: 1, playerId: 'observed', playerName: 'Observed', position: 'RB', teamIndex: 0, teamName: 'Team 1' } as const;
@@ -93,7 +98,7 @@ describe('v1 migration tombstone', () => {
     expect(error).toHaveBeenCalledWith(expect.stringContaining('Reload to continue'), expect.any(Object));
   });
 
-  it('blocks writes when the tombstone cannot be read', () => {
+  it('preserves the legacy fallback when the tombstone cannot be read', () => {
     const { storage, store, values } = fixture();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const read = storage.getItem;
@@ -102,9 +107,35 @@ describe('v1 migration tombstone', () => {
       return read(key);
     });
     const before = [...values];
-    expect(store.getState().recordProvisionalPick(pick)).toBe(false);
-    expect([...values]).toEqual(before);
+    expect(store.getState().recordProvisionalPick(pick)).toBe(true);
+    expect([...values]).not.toEqual(before);
     expect(warn).toHaveBeenCalled();
+  });
+
+  it('allows search and filters while refusing persisted changes and reconciliation', () => {
+    const { storage, store, values } = fixture();
+    storage.setItem(tombstoneKey, tombstone);
+    const before = [...values];
+    store.getState().setSearchQuery('running back');
+    store.getState().setPositionFilter('RB');
+    expect(store.getState().filter).toMatchObject({ searchQuery: 'running back', position: 'RB' });
+    const result = store.getState().reconcileSyncedPicks([], 2, [], 100);
+    expect(result).toMatchObject({ refused: true, changed: false });
+    expect(store.getState().lastConfirmedSyncAt).not.toBe(100);
+    expect([...values]).toEqual(before);
+  });
+
+  it('does not show queue-removal success when persistence refuses the command', () => {
+    const { storage, store } = fixture();
+    let remove: ((id: string) => void) | undefined;
+    function Capture() { remove = useQueueActions([]).removePlayerFromQueue; return null; }
+    renderToString(createElement(DraftStoreProvider, { store, children: createElement(Capture) }));
+    storage.setItem(tombstoneKey, tombstone);
+    const error = vi.spyOn(toast, 'error');
+    remove?.('waiting');
+    expect(store.getState().shortlistedPlayerIds).toContain('waiting');
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('Reload to continue'), expect.any(Object));
+    expect(toast.getHistory().some(row => 'title' in row && row.title === 'Player removed from queue')).toBe(false);
   });
 
   it('checks the persistence boundary even for force saves and direct journal mutations', () => {

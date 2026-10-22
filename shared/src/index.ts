@@ -271,3 +271,5 @@ export type {
   DraftDataRefreshStepStatus,
   DraftDataRefreshStatus,
 } from './draft-data-refresh.js';
+
+export { DRAFT_STORAGE_MIGRATION_KEY, isDraftStorageMigration, type DraftStorageMigration } from './storage-migration.js';

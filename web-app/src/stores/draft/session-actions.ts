@@ -59,7 +59,8 @@ export function createSessionActions(
   set: SetDraftState,
   get: () => DraftStore,
   storage: DraftSessionStorage | null,
-  persistence: DraftSessionPersistence
+  persistence: DraftSessionPersistence,
+  loadSession: SetDraftState = set
 ): Pick<
   DraftActions,
   'setSessionMode' |
@@ -84,7 +85,7 @@ export function createSessionActions(
       if (current?.provider === identity?.provider && current?.draftId === identity?.draftId) return;
       const serialized = identity ? readStoredDraftSessionText(storage, identity) : null;
       const saved = identity ? parseStoredDraftSession(serialized, identity) : null;
-      set((state) => {
+      loadSession((state) => {
         // Rebase inside the transition, after the pre-change check of the previous session.
         persistence.base = saved
           ? { revision: saved.revision, serialized, lineage: saved.lineage, session: saved }

@@ -1,3 +1,5 @@
+import { DRAFT_STORAGE_MIGRATION_KEY } from '@fantasy-draft/shared';
+import { DraftStorageMigratedError, isDraftStorageMigrated, showDraftStorageReloadNotice } from './draftStorageMigration';
 import { createContext, createElement, useContext, type ReactNode, type ReactElement } from 'react';
 import { create, useStore, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -99,6 +101,13 @@ export function createDraftStore({
   let adoptingSavedSession = false;
   let forceSave = false;
   let saveConflicted = false;
+  let storageFrozen = false;
+  function v1Frozen(): boolean {
+    const migrated = isDraftStorageMigrated(storage);
+    if (migrated && !storageFrozen) showDraftStorageReloadNotice();
+    storageFrozen ||= migrated;
+    return storageFrozen;
+  }
   const store = create<DraftStore>()(
   immer((rawSet, get) => {
   // Every change starts from the newest saved session, so edits from other tabs are kept.
@@ -108,11 +117,19 @@ export function createDraftStore({
     const previousSession = get().liveSession;
     for (let attempt = 1; ; attempt += 1) {
       syncFromOtherTabs();
+      const previous = get();
       // Persistent contention is not expected; the overwritten save is merged back later.
       forceSave = attempt >= MAX_SAVE_ATTEMPTS;
       saveConflicted = false;
       try {
         rawSet(transition);
+      } catch (error) {
+        if (!(error instanceof DraftStorageMigratedError)) throw error;
+        adoptingSavedSession = true;
+        try { store.setState(previous, true); } finally { adoptingSavedSession = false; }
+        storageFrozen = true;
+        showDraftStorageReloadNotice();
+        return false;
       } finally {
         forceSave = false;
       }
@@ -122,6 +139,13 @@ export function createDraftStore({
     const { liveSession } = get();
     if (liveSession && (liveSession.provider !== previousSession?.provider ||
         liveSession.draftId !== previousSession.draftId)) syncFromOtherTabs(true);
+    return true;
+  };
+  const loadSession: SetDraftState = (transition) => {
+    if (!v1Frozen()) return set(transition);
+    adoptingSavedSession = true;
+    try { rawSet(transition); } finally { adoptingSavedSession = false; }
+    return true;
   };
   return {
     // Initial state
@@ -162,7 +186,7 @@ export function createDraftStore({
       return state.config.totalTeams * state.config.totalRounds;
     },
 
-    ...createSessionActions(set, get, storage, persistence),
+    ...createSessionActions(set, get, storage, persistence, loadSession),
     ...createConfigurationActions(set),
     ...createProvisionalActions(set),
     ...createPickActions(set),
@@ -207,6 +231,9 @@ export function createDraftStore({
 
   /** Returns false when another tab saved first and nothing was written. */
   function saveSession(state: DraftStore, mergedWriteIds: readonly string[] = []): boolean {
+    if (storageFrozen && storage && state.liveSession && state.sessionMode !== 'mock') {
+      throw new DraftStorageMigratedError();
+    }
     const result = persistDraftSession(storage, state, persistence.base, { force: forceSave, tabId, mergedWriteIds });
     if (result.status === 'conflict') return false;
     if (result.status === 'written') persistence.base = result.base;
@@ -279,6 +306,15 @@ export function createDraftStore({
    * session changed, or when `checkRecordedSaves` is set after loading a session.
    */
   function syncFromOtherTabs(checkRecordedSaves = false): void {
+    if (v1Frozen()) return;
+    try { syncUnmigratedSession(checkRecordedSaves); } catch (error) {
+      if (!(error instanceof DraftStorageMigratedError)) throw error;
+      storageFrozen = true;
+      showDraftStorageReloadNotice();
+    }
+  }
+
+  function syncUnmigratedSession(checkRecordedSaves: boolean): void {
     // Runs inside action calls, which only happen after the store exists.
     const { liveSession, sessionMode } = store.getState();
     if (!storage || !liveSession || sessionMode === 'mock') return;
@@ -312,11 +348,17 @@ export function createDraftStore({
     }
   }
 
-  externalChanges?.((key) => {
+  externalChanges?.((key, newValue) => {
+    if (key === DRAFT_STORAGE_MIGRATION_KEY && newValue !== null && !storageFrozen) {
+      storageFrozen = true;
+      showDraftStorageReloadNotice();
+    }
+    if (v1Frozen()) return;
     const { liveSession } = store.getState();
     if (liveSession && (key === null || key === getDraftSessionStorageKey(liveSession))) syncFromOtherTabs();
   });
   if (session) store.getState().setLiveDraftSession(session);
+  v1Frozen();
   return store;
 }
 

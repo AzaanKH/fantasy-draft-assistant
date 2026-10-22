@@ -1,3 +1,4 @@
+import { assertDraftStorageWritable } from './draftStorageMigration';
 import {
   isBoundedInteger,
   isDraftSize,
@@ -246,6 +247,7 @@ export function persistDraftSession(
   { force = false, tabId = null, mergedWriteIds = [] }: DraftSessionWriteOptions = {}
 ): DraftSessionWriteResult {
   if (!storage || !state.liveSession || state.sessionMode === 'mock') return { status: 'skipped' };
+  assertDraftStorageWritable(storage);
   const stored = readStoredDraftSessionText(storage, state.liveSession);
   // An unreadable entry cannot be adopted; overwrite it rather than stall.
   if (!force && stored !== base.serialized && parseStoredDraftSession(stored, state.liveSession)) {
@@ -277,6 +279,7 @@ export function persistDraftSession(
     const change = computeDraftSessionChange(base.session, session, writeId);
     if (!isEmptyDraftSessionChange(change)) writeDraftSessionChange(storage, state.liveSession, tabId, change);
   }
+  assertDraftStorageWritable(storage);
   try {
     // A single synchronous write keeps picks and queue changes durable before reload.
     storage.setItem(getDraftSessionStorageKey(state.liveSession), serialized);

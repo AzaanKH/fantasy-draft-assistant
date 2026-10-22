@@ -47,7 +47,7 @@ export function useQueueActions(
     const store = draftStore.getState();
     if (!store.shortlistedPlayerIds.includes(playerId)) return;
     store.removePlayerFromShortlist(playerId);
-    showQueueFeedback(playerId, true);
+    if (!draftStore.getState().shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
   }, [draftStore, showQueueFeedback]);
 
   return { togglePlayerQueued, removePlayerFromQueue };
