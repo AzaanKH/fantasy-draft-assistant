@@ -175,7 +175,7 @@ function decodeSession(value: Record<string, unknown>, identity: DraftSessionIde
       if (deriveDraftCursor(ordered, progress) !== header.currentPick) {
         throw new Error('Progress does not match the accepted history and saved cursor');
       }
-      return { ...progress, historyOrder: 'pick' as const };
+      return { ...progress, historyPrefix: ordered.slice(0, progress.historyLength).map(pick => pick.pickNumber) };
     }, reject);
     if (progress) return { ...session, draftProgress: progress };
   }

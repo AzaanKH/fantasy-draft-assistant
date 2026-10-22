@@ -181,6 +181,10 @@ try {
         for (const sender of [0, 1]) {
           const pair = await makePair(label, id, String(++serial));
           await new Promise(resolve => setTimeout(resolve, 250));
+          for (const page of pair.pages) {
+            const nativeFocus = await active.newCDPSession(page);
+            await nativeFocus.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+          }
           for (const target of pair.targets) await target.evaluate(() => {
             BroadcastChannel.prototype.postMessage = () => undefined;
             window.__lifecycle = [{ type: 'initial', state: document.visibilityState }];
@@ -201,6 +205,18 @@ try {
           }
           const after = await pair.targets[receiver].evaluate(() => ({ snapshot: window.persistenceHarness.snapshot(), events: window.__lifecycle }));
           const row = { sender, receipt, before, after };
+          const nativeVisibility = await active.newCDPSession(pair.pages[receiver]);
+          const { windowId } = await nativeVisibility.send('Browser.getWindowForTarget');
+          try {
+            await nativeVisibility.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'minimized' } });
+            await pair.targets[receiver].waitForFunction(() => document.visibilityState === 'hidden', null, { timeout: 2000 });
+            await nativeVisibility.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+            await pair.targets[receiver].waitForFunction(() => document.visibilityState === 'visible', null, { timeout: 2000 });
+            row.nativeVisibility = { proven: true, events: await pair.targets[receiver].evaluate(() => window.__lifecycle) };
+          } catch (error) {
+            row.nativeVisibility = { proven: false, reason: error.message, events: await pair.targets[receiver].evaluate(() => window.__lifecycle) };
+          } finally { await nativeVisibility.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }); }
+
           if (!receipt.receipt.accepted || before.shortlist.includes('missed-notification') || !after.events.some(event => event.type === 'focus' && event.trusted)) throw new Error('Trusted focus recovery failed');
           scenario.lifecycle.push(row); await pair.pages[receiver].close();
         }

@@ -1,9 +1,8 @@
-import { createRequire } from 'node:module';
+import { Processes } from '@fantasy-draft/shared/node';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const { Processes } = await import(createRequire(path.join(root, 'scripts/package.json')).resolve('@fantasy-draft/shared/node'));
 const out = path.resolve(process.env.PERSISTENCE_OUTPUT || path.join(root, 'artifacts/old-module-import'));
 mkdirSync(out, { recursive: true });
 async function run(args, cwd, label) {

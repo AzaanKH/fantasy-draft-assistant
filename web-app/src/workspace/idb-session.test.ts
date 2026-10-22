@@ -1,3 +1,4 @@
+import { importV1 } from './v1-import';
 import { describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { decodeIndexedSession } from './idb-session';
@@ -26,13 +27,27 @@ describe('IndexedDB session boundary', () => {
     expect((await workspace.readPersisted())?.currentPick).toBe(3); workspace.dispose();
   });
 
+  it('keeps the imported accepted prefix fixed when a later manual pick inserts an earlier slot', async () => {
+    const state = initialDraftState(identity);
+    const history = [provisional(1), provisional(3)].map(pick => ({ ...pick, source: 'manual' as const, timestamp: 0 }));
+    const session = sessionFromState({ ...state, draftHistory: history,
+      draftProgress: { anchor: { kind: 'first-open', keeperSlots: [], totalPicks: 140 }, historyLength: 2 } }, identity, 1);
+    const imported = importV1([{ key: 'fantasy-draft-session-v1:sleeper:123', serialized: JSON.stringify(session) }]);
+    const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
+    await database.importV1(imported);
+    const workspace = createIndexedWorkspace({ database, identity, report: () => undefined });
+    await workspace.send('markPlayerDrafted', 'p2', 'P2', 'WR', 1, 'Team 2', 2);
+    expect((await workspace.readPersisted())?.currentPick).toBe(3);
+    expect((await workspace.readPersisted())?.draftHistory.map(pick => pick.pickNumber)).toEqual([1, 3, 2]); workspace.dispose();
+  });
+
   it('retains imported pick-order prefix semantics without sorting insertion history', () => {
     const state = initialDraftState(identity);
     const history = [provisional(3), provisional(1), provisional(2)].map(pick => ({ ...pick, source: 'manual' as const, timestamp: 0 }));
-    const session = sessionFromState({ ...state, draftHistory: history, draftProgress: { anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 1, historyOrder: 'pick' } }, identity, 1);
+    const session = sessionFromState({ ...state, draftHistory: history, draftProgress: { anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 1, historyPrefix: [1] } }, identity, 1);
     expect(session.currentPick).toBe(4);
     const decoded = decodeIndexedSession(session);
     expect(decoded.draftHistory.map(pick => pick.pickNumber)).toEqual([3, 1, 2]);
-    expect(decoded.draftProgress.historyOrder).toBe('pick');
+    expect(decoded.draftProgress.historyPrefix).toEqual([1]);
   });
 });

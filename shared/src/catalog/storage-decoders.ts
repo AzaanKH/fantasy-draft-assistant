@@ -100,7 +100,7 @@ const progress = /* @__PURE__ */ object({
     reservedAnchor,
   ]),
   historyLength: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS),
-  historyOrder: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Literal('pick')),
+  historyPrefix: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Array(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS))),
 });
 const decodeProgress = /* @__PURE__ */ Schema.decodeUnknownSync(progress);
 const decodeSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);

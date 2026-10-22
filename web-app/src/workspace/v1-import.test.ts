@@ -87,7 +87,7 @@ describe('v1 independent entry import', () => {
       { key: 'fantasy-draft-session-v1:sleeper:broken', serialized: '{broken JSON' },
       stored(session(), 'mismatch'), stored(),
     ]);
-    expect(result.sessions).toEqual([{ ...session(), draftProgress: { ...session().draftProgress, historyOrder: 'pick' } }]);
+    expect(result.sessions).toEqual([{ ...session(), draftProgress: { ...session().draftProgress, historyPrefix: [] } }]);
     expect(result.rejected).toHaveLength(2);
   });
 
@@ -117,7 +117,7 @@ describe('v1 cursor history', () => {
     const result = importV1([stored(value)]);
     expect(result.rejected).toEqual([]);
     expect(result.sessions[0]?.draftHistory).toEqual(value.draftHistory);
-    expect(result.sessions[0]?.draftProgress).toEqual({ ...value.draftProgress, historyOrder: 'pick' });
+    expect(result.sessions[0]?.draftProgress).toEqual({ ...value.draftProgress, historyPrefix: [1] });
     expect(deriveDraftCursor([...value.draftHistory].sort((a, b) => a.pickNumber - b.pickNumber), value.draftProgress)).toBe(4);
     expect(deriveDraftCursor(value.draftHistory, value.draftProgress)).toBe(3);
     const restored = result.sessions[0];
@@ -130,14 +130,14 @@ describe('v1 cursor history', () => {
       draftProgress: { anchor: { kind: 'branch', pickNumber: 1 }, historyLength: 1 } });
     const result = importV1([stored({ ...value, draftHistory: [pick(3), { ...pick(1), position: 'broken' }, pick(2)] })]);
     expect(result.rejected.map(row => row.path)).toEqual(['$.draftHistory[1]']);
-    expect(result.sessions[0]?.draftProgress).toEqual({ anchor: value.draftProgress.anchor, historyLength: 0, historyOrder: 'pick' });
+    expect(result.sessions[0]?.draftProgress).toEqual({ anchor: value.draftProgress.anchor, historyLength: 0, historyPrefix: [] });
     expect(result.sessions[0]?.draftHistory).toEqual([pick(3), pick(2)]);
   });
 
   it('retains reserved keeper progress and diagnoses invalid progress with a saved-cursor fallback', () => {
     const value = session({ currentPick: 3, draftHistory: [pick(1)],
       draftProgress: { anchor: { kind: 'provider', nextPickNumber: 2, totalPicks: 140, keeperSlots: [2] }, historyLength: 1 } });
-    expect(imported([stored(value)]).draftProgress).toEqual({ ...value.draftProgress, historyOrder: 'pick' });
+    expect(imported([stored(value)]).draftProgress).toEqual({ ...value.draftProgress, historyPrefix: [1] });
     const result = importV1([stored({ ...value, draftProgress: { anchor: { kind: 'start' }, historyLength: 1000 } })]);
     expect(result.rejected.map(row => row.path)).toEqual(['$.draftProgress']);
     expect(result.sessions[0]?.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 3 }, historyLength: 1 });
@@ -184,7 +184,7 @@ describe('v1 journal import', () => {
   it('does not replay a journal already represented by the session lineage', () => {
     const value = session({ lineage: ['base', 'journal'], shortlistedPlayerIds: ['later'] });
     const result = importV1([stored(value), journal(change({ queueAdded: ['obsolete'], fields: { currentPick: { before: 1, after: 20 } } }))]);
-    expect(result.sessions).toEqual([{ ...value, draftProgress: { ...value.draftProgress, historyOrder: 'pick' } }]);
+    expect(result.sessions).toEqual([{ ...value, draftProgress: { ...value.draftProgress, historyPrefix: [] } }]);
     expect(result.unresolved).toEqual([]);
   });
 
@@ -248,7 +248,7 @@ describe('v1 journal import', () => {
 
   it('uses each journal key identity and isolates an invalid journal record', () => {
     const result = importV1([stored(), journal({ version: 2 }), journal(change({ baseWriteId: null }), 'other', '456')]);
-    expect(result.sessions).toEqual([{ ...session(), draftProgress: { ...session().draftProgress, historyOrder: 'pick' } }]);
+    expect(result.sessions).toEqual([{ ...session(), draftProgress: { ...session().draftProgress, historyPrefix: [] } }]);
     expect(result.rejected).toHaveLength(1);
     expect(result.unresolved[0]?.key).toContain(':456:');
   });
@@ -256,7 +256,7 @@ describe('v1 journal import', () => {
   it('keeps progress on queue-only recovery and imports carry after pick changes', () => {
     const value = session({ currentPick: 96, draftHistory: [pick(1)],
       draftProgress: { anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 1 } });
-    expect(imported([stored(value), journal(change({ queueAdded: ['queued'] }))]).draftProgress).toEqual({ ...value.draftProgress, historyOrder: 'pick' });
+    expect(imported([stored(value), journal(change({ queueAdded: ['queued'] }))]).draftProgress).toEqual({ ...value.draftProgress, historyPrefix: [1] });
     expect(imported([stored(value), journal(change({ picks: [{ pickNumber: 2, before: null, after: pick(2) }] }))]).draftProgress)
       .toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 2 });
   });
