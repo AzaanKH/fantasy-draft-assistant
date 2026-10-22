@@ -13,7 +13,6 @@ function dataState(state: DraftState) {
   return Object.fromEntries(Object.entries(state).filter(([, value]) => typeof value !== 'function'));
 }
 
-// Invoke the public store actions independently of the reducer's dispatcher.
 function applyToOracle(actions: DraftActions, command: DraftCommand, queue: readonly string[]): unknown {
   switch (command[0]) {
     case 'setLiveDraftSession': { actions.setLiveDraftSession(command[1]); return; }
@@ -64,7 +63,6 @@ function createReplay(seed: DraftState = initialDraftState(identity)) {
   const oracle = createDraftStore({ storage: null });
   stores.push(oracle);
   let state = structuredClone(seed);
-  // Loading an absent null-storage session through setLiveDraftSession clears live state.
   oracle.setState(structuredClone(seed));
   expect(dataState(oracle.getState())).toEqual(state);
   return {

@@ -34,7 +34,7 @@ const results = { metadata: { started: new Date().toISOString(), root, node: pro
   suites, seeds, commandsPerActor: count, conflictSamplesPerKind: idb ? { pick: Number(process.env.PERSISTENCE_PICK_SAMPLES || 20), move: conflictSamples } : conflictSamples, store: idb ? 'idb' : 'v1', origin, workload: 'unique disjoint picks and shortlist additions; P9 LCG and 0..5ms jitter' },
   scenarios: [], reloadBoundaryReplacements: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
 results.metadata.sourceHashes = Object.fromEntries(await Promise.all([
-  'web-app/src/workspace/browser-workspace.ts', 'web-app/src/workspace/workspace.ts',
+  'web-app/src/main.tsx', 'web-app/src/workspace/browser-workspace.ts', 'web-app/src/workspace/workspace.ts',
   'web-app/src/workspace/draft-reducer.ts', 'web-app/src/workspace/dispatch-command.ts',
   'web-app/src/workspace/harness-workspace.ts', 'web-app/src/workspace/indexed-db.ts',
   'web-app/src/workspace/indexed-workspace.ts', 'web-app/src/workspace/idb-session.ts',

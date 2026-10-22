@@ -4,7 +4,6 @@ import { LOCAL_PORTS } from '../shared/local-config';
 const RESULT_TYPE = 'FANTASY_DRAFT_STORAGE_SHARING';
 const TIMEOUT = 10_000;
 
-/** Opens only a writer-free helper. The caller must keep commands blocked until ready. */
 export function startStorageSharing({ frame, frameUrl, ready, failed }: {
   readonly frame: HTMLIFrameElement;
   readonly frameUrl: string;

@@ -10,6 +10,20 @@ const out = path.resolve(process.env.PERSISTENCE_OUTPUT || path.join(root, 'arti
 await mkdir(out, { recursive: true });
 const fixtures = JSON.parse(await readFile(path.join(out, '../old-modules/stack-bytes.json'), 'utf8'));
 const reports = [];
+const baseData = path.join(root, '.local/verify-base/web-app/dist/data');
+const headData = path.join(root, 'web-app/dist/data');
+async function fixturePaths(directory, prefix = '') {
+  const paths = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const relative = path.join(prefix, entry.name);
+    if (entry.isDirectory()) paths.push(...await fixturePaths(path.join(directory, entry.name), relative));
+    else paths.push(relative);
+  }
+  return paths.sort();
+}
+const fixtureFiles = await fixturePaths(baseData);
+assert.deepEqual(await fixturePaths(headData), fixtureFiles, 'Production parity requires matching fixture files');
+for (const file of fixtureFiles) assert.deepEqual(await readFile(path.join(baseData, file)), await readFile(path.join(headData, file)), `Production parity fixture differs: ${file}`);
 for (const [side, checkout] of [['base', path.join(root, '.local/verify-base')], ['head', root]]) {
   const dist = path.join(checkout, 'web-app/dist');
   const js = (await readdir(path.join(dist, 'assets'))).filter(name => name.endsWith('.js'));
@@ -56,6 +70,7 @@ for (const [side, checkout] of [['base', path.join(root, '.local/verify-base')],
     const before = await page.evaluate(async () => ({ opened: window.__openedDatabases, databases: await indexedDB.databases(), entries: Object.keys(localStorage).filter(key => key.startsWith('fantasy-draft-session')).sort().map(key => [key, localStorage.getItem(key)]) }));
     const add = page.getByRole('button', { name: /^Add .* to local shortlist$/ }).first();
     await add.click();
+    await page.waitForLoadState('networkidle');
     const after = await page.evaluate(() => ({ opened: window.__openedDatabases, entries: Object.keys(localStorage).filter(key => key.startsWith('fantasy-draft-session')).sort().map(key => [key, localStorage.getItem(key)]) }));
     assert.deepEqual(after.opened, [], 'Normal production session opened IndexedDB');
     assert.deepEqual(before.databases, [], 'Normal production session created a database');

@@ -1,5 +1,6 @@
 import { createDraftStore } from '@/stores/draftStore';
 import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import type { VerifiedStorageSharing } from './storage-sharing';
 import { createWorkspace } from './workspace';
 import { captureV1ImportSnapshot, importV1Snapshot } from './import-snapshot';
 import { decodeIndexedSession } from './idb-session';
@@ -10,7 +11,8 @@ import { createIndexedWorkspace, type IndexedWorkspace } from './indexed-workspa
 
 let binding: { bind(identity: DraftSessionIdentity): Promise<IndexedWorkspace>; errors: StorageDiagnostic[] } | undefined;
 
-export function createHarnessWorkspace(): Workspace {
+export function createHarnessWorkspace(verified: VerifiedStorageSharing): Workspace {
+  if (verified.origin !== window.location.origin) throw new Error('Storage verification belongs to another origin');
   if (!import.meta.env.DEV || import.meta.env.VITE_PERSISTENCE_HARNESS !== 'idb') throw new Error('IndexedDB workspace is available only to the development persistence harness');
   const draft = createDraftStore({ storage: null });
   const connection = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });

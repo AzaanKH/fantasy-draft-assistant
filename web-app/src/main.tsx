@@ -65,12 +65,13 @@ if (import.meta.env.DEV && visualRouteRequested) {
 } else {
   void import('./App').then(async ({ App }) => {
     applyTheme(readStoredTheme());
+    let harnessFactory: (() => import('./workspace/workspace').Workspace) | undefined;
     if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
       const { verifyStorageSharing } = await import('./workspace/storage-sharing');
-      await verifyStorageSharing({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN), location: window.location });
+      const verified = await verifyStorageSharing({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN), location: window.location });
+      const { createHarnessWorkspace } = await import('./workspace/harness-workspace');
+      harnessFactory = () => createHarnessWorkspace(verified);
     }
-    const harnessFactory = import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb'
-      ? (await import('./workspace/harness-workspace')).createHarnessWorkspace : undefined;
     renderNormalApp(<App />, harnessFactory);
   }).catch((error: unknown) => {
     root.render(

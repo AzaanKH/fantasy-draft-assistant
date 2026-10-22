@@ -1,6 +1,8 @@
 import { openDraftDatabase, type DraftDatabase } from './indexed-db';
 
 const RESULT_TYPE = 'FANTASY_DRAFT_STORAGE_SHARING';
+const verifiedSharing = Symbol('verified storage sharing');
+export type VerifiedStorageSharing = { readonly [verifiedSharing]: true; readonly origin: string; readonly kind: 'origin-only' | 'probed' };
 const DEFAULT_TIMEOUT = 8_000;
 const POLL_INTERVAL = 25;
 type ProbeLocation = Pick<Location, 'origin' | 'search' | 'pathname'>;
@@ -99,8 +101,7 @@ async function runProbe(nonce: string, options: ProbeOptions, role: 'top' | 'fra
   }
 }
 
-/** Called before a harness workspace mounts or binds. */
-export async function verifyStorageSharing(options: ProbeOptions & { readonly canonicalOrigin: string; readonly nonce?: string }): Promise<void> {
+export async function verifyStorageSharing(options: ProbeOptions & { readonly canonicalOrigin: string; readonly nonce?: string }): Promise<VerifiedStorageSharing> {
   const location = options.location ?? window.location;
   const nonce = options.nonce ?? new URLSearchParams(location.search).get('__storageNonce');
   const embedded = window.parent !== window;
@@ -112,17 +113,17 @@ export async function verifyStorageSharing(options: ProbeOptions & { readonly ca
     assertCanonicalOrigin(options.canonicalOrigin, location);
     if (nonce === null || nonce === undefined) {
       if (embedded || location.pathname === '/sidepanel') throw new StorageSharingError('Storage sharing has not been checked. Open the web app to retry.');
-      return;
+      return { [verifiedSharing]: true, origin: location.origin, kind: 'origin-only' };
     }
     await runProbe(nonce, options, 'frame');
     reply({ type: RESULT_TYPE, nonce, ok: true });
+    return { [verifiedSharing]: true, origin: location.origin, kind: 'probed' };
   } catch (error) {
     reply({ type: RESULT_TYPE, nonce, ok: false, error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }
 
-/** This route must never construct or mount a workspace, including on failure. */
 export async function serveStorageProbe(nonce: string, options: ProbeOptions = {}): Promise<void> {
   const location = options.location ?? window.location;
   assertCanonicalOrigin(options.canonicalOrigin ?? location.origin, location);

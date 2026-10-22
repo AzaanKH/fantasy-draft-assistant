@@ -49,8 +49,11 @@ export async function importV1Snapshot({ database, snapshot, identity, report }:
   const diagnostic = new V1ImportDiagnostic(imported, refused);
   if (imported.rejected.length || imported.unresolved.length || refused.length) report({ phase: 'error', error: diagnostic });
   verifySource();
+  const headKey = `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
+  const rejectedHead = imported.source.some(entry => entry.key === headKey) &&
+    !imported.sessions.some(session => session.identity.provider === identity.provider && session.identity.draftId === identity.draftId);
   const journalPrefix = `fantasy-draft-session-unconfirmed-v1:${identity.provider}:${identity.draftId}:`;
-  if (imported.unresolved.some(journal => journal.key.startsWith(journalPrefix)) ||
+  if (rejectedHead || imported.unresolved.some(journal => journal.key.startsWith(journalPrefix)) ||
       refused.some(row => row.identity.provider === identity.provider && row.identity.draftId === identity.draftId)) {
     throw diagnostic;
   }

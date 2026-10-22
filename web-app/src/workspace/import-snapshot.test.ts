@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { verifyStorageSharing } from './storage-sharing';
 import * as indexedDatabase from './indexed-db';
 import type { StorageDiagnostic } from './indexed-db';
 import type { DraftSessionIdentity } from '@/stores/draftSessionStorage';
@@ -159,6 +160,18 @@ describe('identity-scoped import diagnostics', () => {
     expect((await db.read(identity))?.identity).toEqual(identity);
   });
 
+  it('blocks an undecodable v1 head instead of replacing it with an empty writable draft', async () => {
+    const badHead = { ...originalSession, decisionLens: 'not-a-lens' };
+    const source = [{ key: sessionKey, serialized: JSON.stringify(badHead) }];
+    const db = await database();
+    const coordinator = run(db, new SourceStorage(source));
+    await expect(coordinator.start()).rejects.toThrow(V1ImportDiagnostic);
+    expect(reportedImport(coordinator.diagnostics).imported.rejected).toHaveLength(1);
+    expect(await db.inspectImports()).toContainEqual(coordinator.snapshot.imported);
+    expect(await db.read(identity)).toBeNull();
+    await run(db, new SourceStorage(source), otherIdentity).start();
+  });
+
   it('blocks the requested identity with all unresolved raw bytes attached', async () => {
     const journals = [orphan(identity.draftId, 'first'), orphan(identity.draftId, 'second'), orphan(otherIdentity.draftId)];
     const coordinator = run(await database(), new SourceStorage(journals));
@@ -198,7 +211,8 @@ async function harness(storage = new SourceStorage()) {
   const db = await database();
   const close = vi.spyOn(db, 'close');
   const open = vi.spyOn(indexedDatabase, 'openDraftDatabase').mockResolvedValue(db);
-  const owner = createHarnessWorkspace();
+  const verified = await verifyStorageSharing({ canonicalOrigin: window.location.origin });
+  const owner = createHarnessWorkspace(verified);
   cleanup.push(() => { owner.dispose(); });
   return { db, close, open, owner, binding: getHarnessBinding() };
 }
@@ -234,6 +248,15 @@ describe('harness import binding', () => {
     await owner.sendDurable?.(['togglePlayerShortlisted', 'writable']);
     expect(owner.draft.getState().shortlistedPlayerIds).toEqual(['writable']);
     expect(reportedImport(binding.errors).imported.unresolved.map(({ key, serialized }) => ({ key, serialized }))).toEqual([journal]);
+  });
+
+  it('leaves the owner write-blocked after an invalid header bind', async () => {
+    const source = [{ key: sessionKey, serialized: JSON.stringify({ ...originalSession, decisionLens: 'not-a-lens' }) }];
+    const { binding, close, owner } = await harness(new SourceStorage(source));
+    await expect(binding.bind(identity)).rejects.toThrow(V1ImportDiagnostic);
+    expect(close).toHaveBeenCalled();
+    await expect(owner.sendDurable?.(['togglePlayerShortlisted', 'blocked'])).rejects.toThrow('Bind the harness session');
+    expect(reportedImport(binding.errors).imported.source).toEqual(source);
   });
 
   it('closes storage and leaves no writer when the requested identity has an unresolved journal', async () => {
