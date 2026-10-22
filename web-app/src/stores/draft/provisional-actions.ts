@@ -18,7 +18,7 @@ export function createProvisionalActions(
   return {
     recordProvisionalPick: (pick) => {
       let recorded = false;
-      set((state) => {
+      const applied = set((state) => {
         // A save conflict replays this transition on another tab's newer session.
         recorded = false;
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
@@ -53,12 +53,12 @@ export function createProvisionalActions(
         acceptProvisionalProgress(state);
         recorded = true;
       });
-      return recorded;
+      return applied && recorded;
     },
 
     correctProvisionalPick: (originalPickNumber, replacement) => {
       let corrected = false;
-      set((state) => {
+      const applied = set((state) => {
         corrected = false;
         const originalIndex = state.draftHistory.findIndex(
           (pick) =>
@@ -127,12 +127,12 @@ export function createProvisionalActions(
         acceptProvisionalProgress(state);
         corrected = true;
       });
-      return corrected;
+      return applied && corrected;
     },
 
     removeProvisionalPick: (pickNumber) => {
       let removed = false;
-      set((state) => {
+      const applied = set((state) => {
         removed = false;
         if (state.sessionMode !== 'live') return;
         const pickIndex = state.draftHistory.findIndex(
@@ -147,7 +147,7 @@ export function createProvisionalActions(
         acceptProvisionalProgress(state);
         removed = true;
       });
-      return removed;
+      return applied && removed;
     },
 
   };
