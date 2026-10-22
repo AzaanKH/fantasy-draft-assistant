@@ -101,7 +101,8 @@ const progress = /* @__PURE__ */ object({
   ]),
   historyLength: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS),
   historyPrefix: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Array(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS))),
-});
+}).check(/* @__PURE__ */ Schema.makeFilter(value => value.historyPrefix === undefined ||
+  value.historyPrefix.length === value.historyLength && new Set(value.historyPrefix).size === value.historyPrefix.length));
 const decodeProgress = /* @__PURE__ */ Schema.decodeUnknownSync(progress);
 const decodeSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
 // Migration validates entries separately and retains the original history order.

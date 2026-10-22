@@ -398,7 +398,7 @@ test('reload handoff rejects an intermediate duplicate instead of scoring its la
 });
 
 test('blocked workspaces require an explicit setup error, zero acknowledgements and unchanged v1 bytes', () => {
-  const before = { blocked: true, setupError: 'Host permission required', initialBytes: [['v1', 'raw']], bytes: [['v1', 'raw']] };
+  const before = { blocked: true, ownerAbsent: true, setupError: 'Host permission required', initialBytes: [['v1', 'raw']], bytes: [['v1', 'raw']] };
   const issued = [{ ...b, receipt: { accepted: false, reason: 'Host permission required' } }];
   const good = auditBlocked(issued, before, before);
   assert.equal(good.attempted, 1); assert.equal(good.acknowledged, 0); assert.equal(good.rejected, 1);

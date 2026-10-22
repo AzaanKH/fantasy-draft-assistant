@@ -300,6 +300,10 @@ async function attach(pair, actors = [0, 1]) {
     await target.waitForFunction(() => !!document.querySelector('#root')?.children.length);
     await target.waitForLoadState('networkidle');
     if (idb && await target.locator('[data-storage-blocked]').count()) {
+      await target.evaluate(async () => {
+        const { getBrowserWorkspace } = await import('/src/workspace/browser-workspace.ts');
+        window.__persistenceHasOwner = () => { try { getBrowserWorkspace(); return true; } catch { return false; } };
+      });
       pair.capabilities[actor] = await target.evaluate(installBlockedAdapter, { session: pair.session, actor }); return;
     }
     pair.capabilities[actor] = await target.evaluate(async ({ session, actor }) => {

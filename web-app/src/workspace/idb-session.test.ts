@@ -41,6 +41,14 @@ describe('IndexedDB session boundary', () => {
     expect((await workspace.readPersisted())?.draftHistory.map(pick => pick.pickNumber)).toEqual([1, 3, 2]); workspace.dispose();
   });
 
+  it.each([[1], [1, 1], [1, 99]])('rejects an invalid accepted prefix %j', (...historyPrefix) => {
+    const state = initialDraftState(identity);
+    const history = [provisional(1), provisional(3)].map(pick => ({ ...pick, source: 'manual' as const, timestamp: 0 }));
+    const session = sessionFromState({ ...state, draftHistory: history,
+      draftProgress: { anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 2, historyPrefix } }, identity, 1);
+    expect(() => decodeIndexedSession(session)).toThrow();
+  });
+
   it('retains imported pick-order prefix semantics without sorting insertion history', () => {
     const state = initialDraftState(identity);
     const history = [provisional(3), provisional(1), provisional(2)].map(pick => ({ ...pick, source: 'manual' as const, timestamp: 0 }));
