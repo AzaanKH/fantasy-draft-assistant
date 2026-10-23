@@ -1,5 +1,6 @@
-import { POSITIONS, type Player, type Position, type PositionNeed } from '@fantasy-draft/shared';
-import { calculateTierAvailability, getTierKey } from '@/lib/calculations/tiers';
+import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
+import { type PositionNeed } from '@fantasy-draft/shared/draft';
+import { calculateTierAvailability, getTierKey } from '@fantasy-draft/shared/draft';
 
 interface PositionalDepth {
   readonly position: Position;

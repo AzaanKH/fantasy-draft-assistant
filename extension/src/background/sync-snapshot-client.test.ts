@@ -101,6 +101,33 @@ describe('sync snapshot I/O', () => {
     }
   });
 
+  it('times out and cancels a stalled successful response body', async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    const client = createSyncSnapshotClient(
+      async () => 'http://localhost:3001', async () => 'test-token',
+      vi.fn(async () => new Response(new ReadableStream({ cancel }))), 50
+    );
+    try {
+      const request = Effect.runPromise(client.fetch({ isInDraftRoom: true, draftId: '123' }));
+      const rejection = expect(request).rejects.toThrow('Snapshot request timed out');
+      await vi.advanceTimersByTimeAsync(50);
+      await rejection;
+      expect(cancel).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('preserves the invalid snapshot message after decoding at the HTTP boundary', async () => {
+    const client = createSyncSnapshotClient(
+      async () => 'http://localhost:3001', async () => 'test-token',
+      vi.fn(async () => Response.json({ picks: [] }))
+    );
+    await expect(Effect.runPromise(client.fetch({ isInDraftRoom: true, draftId: '123' })))
+      .rejects.toThrow('Sync server returned an invalid draft snapshot');
+  });
+
   it('publishes ESPN snapshots to the browser-ingest route', async () => {
     const responseSnapshot = {
       provider: 'espn',

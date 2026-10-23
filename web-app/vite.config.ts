@@ -1,14 +1,18 @@
-/// <reference types="vitest" />
 import { localDevPorts } from '../shared/src/local-dev';
 import { readFile } from 'node:fs/promises';
 import { defineConfig, type Plugin } from 'vite';
+import { sourceCondition } from '../source-condition.js';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-import { BROWSER_DATA_FILES, DEMO_BROWSER_DATA_FILES } from '../scripts/src/browser-data';
+import { browserDataFiles } from '../shared/src/catalog/manifest';
+
 import { localApiSecurity } from '../server/src/vite-security';
 
-const { webPort, apiOrigin } = localDevPorts(process.env);
+const BROWSER_DATA_FILES = browserDataFiles('local');
+const DEMO_BROWSER_DATA_FILES = browserDataFiles('demo');
+
+const { webPort, apiOrigin, webOrigin } = localDevPorts(process.env);
 
 const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
@@ -100,17 +104,15 @@ function browserDataPlugins(): Plugin[] {
 }
 
 export default defineConfig({
+  ...sourceCondition,
   publicDir: false,
+  define: { 'import.meta.env.VITE_CANONICAL_WEB_ORIGIN': JSON.stringify(webOrigin) },
   plugins: [localApiSecurity(), ...browserDataPlugins(), react(), tailwindcss()],
   resolve: {
+    ...sourceCondition.resolve,
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-  },
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
   },
   server: {
     host: '127.0.0.1',

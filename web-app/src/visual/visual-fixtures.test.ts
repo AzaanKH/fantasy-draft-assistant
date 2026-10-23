@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { getDraftBoardRoundNumbers } from '@/features/draft-room/DraftBoard';
-import { useDraftStore } from '@/stores/draftStore';
+import { getDraftView } from '@/workspace/useDraftView';
+import { createDraftStore } from '@/stores/draftStore';
+const draftStore = createDraftStore();
 import {
   createVisualDraftStore,
   getVisualRoute,
@@ -43,16 +45,21 @@ describe('visual fixtures', () => {
   });
 
   it('seeds ten available players and fixed-time mid-draft state in an isolated store', () => {
-    const defaultPick = useDraftStore.getState().currentPick;
+    const defaultPick = getDraftView(draftStore).currentPick;
     const store = createVisualDraftStore();
     const fixture = store.getState();
 
     expect(VISUAL_PLAYERS).toHaveLength(10);
-    expect(fixture.currentPick).toBe(47);
+    expect(getDraftView(store).currentPick).toBe(47);
     expect(fixture.config).toMatchObject({ totalTeams: 10, totalRounds: 14 });
+    expect(getDraftView(store, VISUAL_PLAYERS).available).toEqual(VISUAL_PLAYERS);
+    expect(getDraftView(store).myRoster).toEqual({
+      QB: ['visual-drafted-25'], RB: ['visual-drafted-5', 'visual-drafted-16'],
+      WR: ['visual-drafted-36'], TE: ['visual-drafted-45'], K: [], DEF: [],
+    });
     expect(fixture.draftHistory).toHaveLength(46);
     expect(fixture.draftHistory.every((pick) => pick.timestamp === VISUAL_NOW)).toBe(true);
-    expect(useDraftStore.getState().currentPick).toBe(defaultPick);
+    expect(getDraftView(draftStore).currentPick).toBe(defaultPick);
   });
 
   it('centers a reduced board window without changing the draft configuration', () => {

@@ -5,7 +5,7 @@ import {
   type DraftReadinessDefinition,
   type DraftReadinessKey,
   type DraftReadinessSourceObservation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import {
   LIVE_CORE_REFRESH_STEPS,
   LIVE_DRAFT_PREP_REPORT_STEP,

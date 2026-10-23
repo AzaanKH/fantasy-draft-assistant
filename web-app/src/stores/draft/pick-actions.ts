@@ -1,5 +1,5 @@
-import { canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
-import { addPlayerToRoster, advancePastKeeperSlots, rebuildCanonicalRosters } from './state';
+import { deriveDraftCursor, canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
+import { deriveDraftState } from './source';
 import type { DraftActions, SetDraftState } from './types';
 
 export function createPickActions(
@@ -21,13 +21,14 @@ export function createPickActions(
     markPlayerDrafted: (playerId, playerName, position, teamIndex, teamName, pickNumber, source = 'manual') =>
       { set((state) => {
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const pickNumberToUse = pickNumber ?? state.currentPick;
+        const view = deriveDraftState(state);
+        const pickNumberToUse = pickNumber ?? view.currentPick;
 
         if (pickNumberToUse < 1 || pickNumberToUse > totalPicks) {
           return;
         }
 
-        if (state.draftedPlayerIds.has(playerId) && source !== 'keeper') {
+        if (view.draftedPlayerIds.has(playerId) && source !== 'keeper') {
           return;
         }
 
@@ -38,12 +39,11 @@ export function createPickActions(
           if (hasPick) return;
         }
 
-        if (state.currentPick > totalPicks && pickNumber === undefined) {
+        if (view.currentPick > totalPicks && pickNumber === undefined) {
           return;
         }
 
         const shortlistIndex = state.shortlistedPlayerIds.indexOf(playerId);
-        state.draftedPlayerIds.add(playerId);
         if (shortlistIndex >= 0) {
           state.shortlistedPlayerIds.splice(shortlistIndex, 1);
         }
@@ -58,16 +58,6 @@ export function createPickActions(
           source,
           ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
         });
-        const teamRoster = state.teamRosters[teamIndex];
-        if (teamRoster) addPlayerToRoster(teamRoster, position, playerId);
-        if (teamIndex === state.config.myPickPosition - 1) {
-          addPlayerToRoster(state.myRoster, position, playerId);
-        }
-        if (pickNumber !== undefined) {
-          state.currentPick = Math.max(state.currentPick, pickNumberToUse + 1);
-        } else {
-          state.currentPick += 1;
-        }
         // The user's own pick resumes CPU auto-advance after an undo or pause.
         if (source === 'manual') state.mockAutoAdvance.paused = false;
         state.mockSurvivalProbabilities = {};
@@ -78,6 +68,7 @@ export function createPickActions(
         // Canonical keeper supply: one deterministic assignment per kept
         // player at its configured team and round-selection cost, validated
         // before ordinary draft picks are applied.
+        const fromPick = deriveDraftCursor(state.draftHistory, state.draftProgress);
         const supply = canonicalizeKeeperSupply(keepers, {
           totalTeams: state.config.totalTeams,
           totalRounds: state.config.totalRounds,
@@ -100,50 +91,46 @@ export function createPickActions(
         );
         state.preloadedKeepers = assignments.map((keeper) => ({ ...keeper }));
         state.keepersInitialized = supplyIsValid && supplyComplete;
+        state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
         const effectiveKeepers = getEffectiveKeeperAssignments(
           state.preloadedKeepers,
           state.draftHistory,
           state.config.totalTeams,
           state.config.draftType
         );
-        state.draftedPlayerIds = new Set([
-          ...state.draftHistory.map((pick) => pick.playerId),
-          ...effectiveKeepers.map((keeper) => keeper.playerId),
-        ]);
-        rebuildCanonicalRosters(state);
-        state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-          (playerId) => !state.draftedPlayerIds.has(playerId)
-        );
-        if (state.sessionMode === 'live') {
-          state.currentPick = advancePastKeeperSlots(
-            state.currentPick,
-            effectiveKeepers,
-            state.config.totalTeams,
-            state.config.totalTeams * state.config.totalRounds,
-            state.config.draftType
-          );
-        }
+        state.draftProgress = {
+          historyLength: state.draftHistory.length,
+          anchor: state.sessionMode === 'live'
+            ? { kind: 'past-keepers', fromPick,
+                keeperSlots: effectiveKeepers.map(keeper => getKeeperPickNumber(keeper, state.config.totalTeams, state.config.draftType)),
+                totalPicks: state.config.totalTeams * state.config.totalRounds }
+            : { kind: 'carry', pickNumber: fromPick },
+        };
         state.mockSurvivalProbabilities = {};
       }); },
 
     consumeKeeperAtCurrentPick: () =>
       { set((state) => {
+        const { currentPick } = deriveDraftState(state);
         const keeper = state.preloadedKeepers.find(
-          (candidate) => getKeeperPickNumber(candidate, state.config.totalTeams, state.config.draftType) === state.currentPick
+          (candidate) => getKeeperPickNumber(candidate, state.config.totalTeams, state.config.draftType) === currentPick
         );
         if (!keeper) return;
-        if (state.draftHistory.some((pick) => pick.pickNumber === state.currentPick)) return;
+        if (state.draftHistory.some((pick) => pick.pickNumber === currentPick)) return;
         // A legacy synced keeper may already exist at another slot. The
         // canonical keeper still owns this slot, so advance instead of stalling.
         if (state.draftHistory.some((pick) => pick.playerId === keeper.playerId)) {
-          state.currentPick += 1;
+          state.draftProgress = {
+            anchor: { kind: 'carry', pickNumber: deriveDraftCursor(state.draftHistory, state.draftProgress) + 1 },
+            historyLength: state.draftHistory.length,
+          };
           state.mockSurvivalProbabilities = {};
           return;
         }
 
         const isMyKeeper = keeper.teamIndex === state.config.myPickPosition - 1;
         state.draftHistory.push({
-          pickNumber: state.currentPick,
+          pickNumber: currentPick,
           playerId: keeper.playerId,
           playerName: keeper.playerName,
           position: keeper.position,
@@ -152,8 +139,6 @@ export function createPickActions(
           timestamp: Date.now(),
           source: 'keeper',
         });
-        state.draftedPlayerIds.add(keeper.playerId);
-        state.currentPick += 1;
         state.mockSurvivalProbabilities = {};
       }); },
 
@@ -161,16 +146,6 @@ export function createPickActions(
       { set((state) => {
         const lastPick = state.draftHistory.pop();
         if (lastPick) {
-          const effectiveKeepers = getEffectiveKeeperAssignments(
-            state.preloadedKeepers,
-            state.draftHistory,
-            state.config.totalTeams,
-            state.config.draftType
-          );
-          state.draftedPlayerIds = new Set([
-            ...state.draftHistory.map((pick) => pick.playerId),
-            ...effectiveKeepers.map((keeper) => keeper.playerId),
-          ]);
           if (
             lastPick.shortlistIndex !== undefined &&
             !state.shortlistedPlayerIds.includes(lastPick.playerId)
@@ -181,8 +156,10 @@ export function createPickActions(
               lastPick.playerId
             );
           }
-          rebuildCanonicalRosters(state);
-          state.currentPick = Math.max(1, lastPick.pickNumber);
+          state.draftProgress = {
+            anchor: { kind: 'reopen', pickNumber: lastPick.pickNumber },
+            historyLength: state.draftHistory.length,
+          };
           state.mockSurvivalProbabilities = {};
           // Keep CPU auto-advance from re-drafting the restored pick.
           state.mockAutoAdvance.paused = true;
@@ -196,37 +173,23 @@ export function createPickActions(
         state.draftHistory = state.draftHistory.filter(
           (pick) => pick.pickNumber < branchPick
         );
-        const effectiveKeepers = getEffectiveKeeperAssignments(
-          state.preloadedKeepers,
-          state.draftHistory,
-          state.config.totalTeams,
-          state.config.draftType
-        );
-        state.draftedPlayerIds = new Set([
-          ...effectiveKeepers.map((keeper) => keeper.playerId),
-          ...state.draftHistory.map((pick) => pick.playerId),
-        ]);
-        rebuildCanonicalRosters(state);
-        state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-          (playerId) => !state.draftedPlayerIds.has(playerId)
-        );
-        state.currentPick = branchPick;
+        state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
+        state.draftProgress = {
+          anchor: { kind: 'branch', pickNumber: branchPick },
+          historyLength: state.draftHistory.length,
+        };
         state.mockSurvivalProbabilities = {};
         state.mockAutoAdvance.paused = true;
       }); },
 
     resetDraft: () =>
       { set((state) => {
-        state.currentPick = 1;
-        state.draftedPlayerIds = new Set(
-          state.preloadedKeepers.map((keeper) => keeper.playerId)
-        );
+        state.draftProgress = { anchor: { kind: 'start' }, historyLength: 0 };
         state.draftHistory = [];
         state.unresolvedProviderPicks = [];
         state.manualContinuityBaselineAt = null;
         state.lastConfirmedSyncAt = null;
         state.lastConfirmedPickNumber = 0;
-        rebuildCanonicalRosters(state);
         state.shortlistedPlayerIds = [];
         state.mockSurvivalProbabilities = {};
         state.mockAutoAdvance.paused = false;
@@ -246,7 +209,7 @@ export function createPickActions(
           return;
         }
 
-        if (!state.draftedPlayerIds.has(playerId)) {
+        if (!deriveDraftState(state).draftedPlayerIds.has(playerId)) {
           state.shortlistedPlayerIds.push(playerId);
         }
       });

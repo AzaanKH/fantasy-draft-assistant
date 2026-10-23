@@ -1,11 +1,15 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import {
-  formatDraftReadinessAge,
-  type DraftReadinessReport,
   type Player,
   type Position,
+} from '@fantasy-draft/shared/league';
+import {
+  formatDraftReadinessAge,
+  type DraftReadinessReport,
+} from '@fantasy-draft/shared/catalog';
+import {
   type Recommendation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 
 export type PositionFilter = Position | 'ALL' | 'FLEX';
 

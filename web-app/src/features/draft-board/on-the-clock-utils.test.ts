@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateIsMyTurn } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+import { getDraftView } from '@/workspace/useDraftView';
 import { getPicksUntilMyTurn } from './on-the-clock-utils';
 
 describe('getPicksUntilMyTurn', () => {
@@ -13,10 +14,13 @@ describe('getPicksUntilMyTurn', () => {
   });
 });
 
-describe('calculateIsMyTurn', () => {
+describe('derived turn timing', () => {
   it('tracks the active snake-draft slot as picks advance', () => {
-    expect(calculateIsMyTurn(1, 1, 10, 15, 'snake')).toBe(true);
-    expect(calculateIsMyTurn(2, 1, 10, 15, 'snake')).toBe(false);
-    expect(calculateIsMyTurn(20, 1, 10, 15, 'snake')).toBe(true);
+    const store = createDraftStore();
+    store.getState().setConfig({ totalTeams: 10, totalRounds: 15, myPickPosition: 1, draftType: 'snake' });
+    for (const [pickNumber, expected] of [[1, true], [2, false], [20, true]] as const) {
+      store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber }, historyLength: 0 } });
+      expect(getDraftView(store).isMyTurn).toBe(expected);
+    }
   });
 });

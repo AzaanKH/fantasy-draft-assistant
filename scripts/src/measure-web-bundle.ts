@@ -1,21 +1,18 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, relative, sep } from 'node:path';
 import { BROWSER_DATA_ALLOWLIST } from './browser-data.js';
+import { decodeSourceMap } from './script-file-schemas.js';
 import { REPO_ROOT } from './model/duckdb.js';
 
 const DIST_DIR = join(REPO_ROOT, 'web-app', 'dist');
-const OUTPUT_FILE = join(REPO_ROOT, 'data', 'web-bundle-report.json');
+const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.bundleReport));
 // Includes Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
 const JS_GZIP_BUDGET = 384 * 1024;
 const CSS_GZIP_BUDGET = 24 * 1024;
 const STATIC_OUTPUT_BUDGET = 9 * 1024 * 1024;
 const PROHIBITED_STATIC_EXTENSIONS = new Set(['.duckdb', '.ndjson', '.parquet']);
-
-interface SourceMapFile {
-  readonly sources?: readonly string[];
-  readonly sourcesContent?: readonly (string | null)[];
-}
 
 interface StaticFile {
   readonly path: string;
@@ -84,7 +81,7 @@ async function main(): Promise<void> {
     if ((await stat(path)).isDirectory()) continue;
     const extension = extname(filename);
     if (extension === '.map') {
-      const map = JSON.parse(await readFile(path, 'utf8')) as SourceMapFile;
+      const map = decodeSourceMap(JSON.parse(await readFile(path, 'utf8')));
       for (let index = 0; index < (map.sources?.length ?? 0); index += 1) {
         const source = map.sources?.[index];
         const content = map.sourcesContent?.[index];

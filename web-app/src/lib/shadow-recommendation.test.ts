@@ -1,9 +1,9 @@
+import { isShadowRecommendationEvent } from '@fantasy-draft/shared/catalog';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  isShadowRecommendationEvent,
   type PositionNeed,
   type Recommendation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import {
   buildShadowRecommendationEvent,
   postShadowRecommendation,
@@ -118,5 +118,22 @@ describe('Shadow Recommendation telemetry', () => {
     expect(event.coreDecision.bestPick.playerId).toBe('best-pick');
     await expect(request).resolves.toBe(false);
     expect(event.coreDecision.bestPlayer.playerId).toBe('best-player');
+  });
+
+  it('accepts the decoded receipt through an injected fetch', async () => {
+    const event = buildEvent();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ eventId: event.eventId, recorded: true }));
+    await expect(postShadowRecommendation('/api/shadow-recommendations', event, fetcher)).resolves.toBe(true);
+    expect(fetcher).toHaveBeenCalledWith('/api/shadow-recommendations', expect.objectContaining({
+      method: 'POST', body: JSON.stringify(event),
+    }));
+    expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('contains malformed receipts and HTTP failures', async () => {
+    for (const response of [Response.json({ recorded: 'yes' }), new Response(null, { status: 503 })]) {
+      await expect(postShadowRecommendation('/api/shadow-recommendations', buildEvent(),
+        vi.fn(async () => response))).resolves.toBe(false);
+    }
   });
 });

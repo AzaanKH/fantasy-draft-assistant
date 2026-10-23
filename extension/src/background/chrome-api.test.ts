@@ -2,7 +2,7 @@ import type {
   DraftProvider,
   DraftSyncSnapshot,
   EspnDraftSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { Effect } from 'effect';
 import type {
