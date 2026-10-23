@@ -1,3 +1,5 @@
+import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
+import { createWorkspace } from '@/workspace/workspace';
 import { DraftDataRefreshRequestContext } from '@/hooks/useDraftDataRefresh';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
@@ -35,12 +37,7 @@ import {
   type PlayerDataQueryResult,
 } from '@/hooks/usePlayerData';
 import { createDataFreshnessItem } from '@/lib/data-freshness';
-import {
-  createDraftStore,
-  DraftStoreProvider,
-  type DraftStoreApi,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi, type RecordedDraftPick } from '@/stores/draftStore';
 import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 
 export const VISUAL_NOW = Date.UTC(2026, 7, 27, 17, 0, 0);
@@ -451,6 +448,7 @@ export function VisualApp(): React.ReactElement {
     initialConnection: null,
     persist: () => undefined,
   }));
+  const [workspace] = React.useState(() => createWorkspace({ draftStore, connectionStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),
     []
@@ -476,11 +474,11 @@ export function VisualApp(): React.ReactElement {
     <ThemeProvider initialTheme="light" persist={false}>
       <QueryClientProvider client={queryClient}>
         <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
-          <DraftStoreProvider store={draftStore}>
+          <WorkspaceProvider workspace={workspace}>
             <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
               <NotificationProvider>
                 <TooltipProvider><MotionProvider>
-                  <LiveDraftSyncProvider connectionStore={connectionStore}>
+                  <LiveDraftSyncProvider>
                     <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
                       <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
                         <VisualRouteContent route={route} />
@@ -491,7 +489,7 @@ export function VisualApp(): React.ReactElement {
                 </MotionProvider></TooltipProvider>
               </NotificationProvider>
             </PlayerDataFixtureProvider>
-          </DraftStoreProvider>
+          </WorkspaceProvider>
         </DraftDataRefreshRequestContext.Provider>
       </QueryClientProvider>
     </ThemeProvider>

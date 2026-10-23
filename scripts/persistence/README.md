@@ -1,6 +1,6 @@
 # Characterize draft-session persistence
 
-This separate browser check calls the running app's real default `useDraftStore` singleton on `/draft` and inside the installed unpacked extension's `/sidepanel` iframe. The React app stays mounted. The adapter imports the app's Vite store module URL. Its slot helper is pure shared code. It adds no reducer, persistence implementation, production export, or production build entry.
+This separate browser check calls the running app's live workspace on `/draft` and inside the installed unpacked extension's `/sidepanel` iframe. The React app stays mounted. The adapter obtains the composition root's instance through `/src/workspace/browser-workspace.ts`, reads `workspace.draft.getState()`, and writes through `workspace.send(...)`. Its slot helper is pure shared code. It creates no alternate store or workspace owner.
 
 Install dependencies and local demo data, then build the unpacked extension:
 
@@ -9,7 +9,6 @@ pnpm install --frozen-lockfile --prefer-offline
 pnpm data:demo:install
 pnpm build:extension
 pnpm --filter scripts exec playwright install chromium
-node --test scripts/persistence/check-audit.mjs
 pnpm test:persistence
 ```
 
@@ -23,11 +22,13 @@ The defaults are three suites, five seeds per suite, and two actors with 300 com
 
 The workload alternates unique provisional picks and unique shortlist additions. Actors use disjoint player IDs and pick slots in a supported 20-team, 20-round linear draft. It copies P9's LCG seed arithmetic and requested 0 to 5 ms timer jitter. It keeps unit 0's 300 commands per actor and five seeds, repeated three times.
 
-This is an adaptation of P9, not its four-operation random workload. Today's store has no retained command log, so a superseded queue edit cannot be counted as a missing command. Unique additions make every acknowledged effect independently observable after reload. Separate conflict cases exercise two picks for one slot and opposite moves of one queue member. The move adapter translates P9's destination index into the app's offset argument.
+This is an adaptation of P9, not its four-operation random workload. Today's store has no retained command log, so a superseded queue edit cannot be counted as a missing command. Unique additions make every acknowledged effect independently observable after reload. Each scenario runs 20 independent pick-conflict samples and 20 independent queue-move samples. They exercise two picks for one slot and opposite moves of one queue member. Every sample retains its receipts, settled and reloaded snapshots, original head and journal bytes, parsed storage records, and both the 11b and future conflict audits. The move adapter translates P9's destination index into the app's offset argument.
 
 A pick is acknowledged only when `recordProvisionalPick` returns true. A queue addition is acknowledged when the synchronous action leaves the player in that actor's queue. These are the current app's acknowledgement semantics, not a promise that its disk write succeeded. Rejections are counted separately. Setup actions, sequential controls, and conflict commands are excluded from stress totals.
 
-`kept` and `lost` use the reloaded top-level tab as the common session. `keptByTarget`, both missing-ID lists, and `unionMissing` distinguish a deleted effect from separate partitions. A missing-permission or hostname-split row can have half the commands in each partition, with nothing physically deleted. Such a row still fails the shared-session contract. `converged` compares pick identity and exact queue order. `unique` checks slots, players, and queue members. Raw heads and journals are captured before and after reload.
+`kept` and `lost` use the reloaded top-level tab as the common session. `keptByTarget`, both missing-ID lists, and `unionMissing` distinguish a deleted effect from separate partitions. A missing-permission or hostname-split row can have half the commands in each partition, with nothing physically deleted. Such a row still fails the shared-session contract. `converged` compares pick identity and exact queue order. `unique` checks slots, players, and queue members. Raw heads and journals are captured before and after reload, including sequential controls.
+
+The adapter records the document time origin when it attaches. Command-time snapshots reject a replacement document or a missing adapter. At the explicit reload boundary only, the runner records a late document replacement and binds the adapter to that new document before scoring. The handoff is bounded; a missing adapter in the same document or repeated replacement still fails.
 
 Each scenario also runs the actors sequentially. Shared-origin sequential success alongside concurrent loss rules out an invalid command workload as the explanation. Negative scenarios retain their partition split in that control too.
 
@@ -37,7 +38,7 @@ The ordinary command exits successfully when characterization completes, even wh
 pnpm test:persistence --gate
 ```
 
-The negative scenarios currently permit writes. Unit 11c must change those cases to assert a blocking permission or setup flow and zero acknowledged writes, rather than merely observe partition divergence. The adapter must move to `useWorkspace().send` in 11b, preserving these command intents and acknowledgement checks. Unit 11c must also add trusted lifecycle recovery and real old-module rollout cases. Passing this script alone does not prove migration, native visibility behavior, disk quota durability, or process-crash recovery.
+The negative scenarios currently permit writes. Unit 11c must change those cases to assert a blocking permission or setup flow and zero acknowledged writes, rather than merely observe partition divergence. Unit 11c must also add trusted lifecycle recovery and real old-module rollout cases. Passing this script alone does not prove migration, native visibility behavior, disk quota durability, or process-crash recovery.
 
 A failure in one scenario is retained in `scenarioErrors`; the runner continues to later scenarios and exits unsuccessfully. A future negative setup screen that prevents the frame from loading is currently recorded as an incomplete scenario, never counted as zero lost commands. Unit 11c must replace that observation with explicit blocked-write assertions.
 
@@ -45,7 +46,50 @@ Recompute the audit from retained raw receipts and snapshots without launching a
 
 ```sh
 node scripts/persistence/check-results.mjs /absolute/results.json
+node scripts/persistence/check-results.mjs /absolute/results.json --gate-11b
 node scripts/persistence/check-results.mjs /absolute/results.json --gate
 ```
 
-The first command verifies completed run counts, identities, modes, and every saved audit value. The second also applies the future durability gate. A completed characterization with known trunk defects passes the first command and fails the second.
+The first command verifies completed run counts, identities, modes, and saved audit values. `--gate-11b` also applies the non-regression checks below. `--gate` applies the separate future durability gate. A completed characterization with known trunk defects can pass the 11b comparison while failing the future gate. Summary fields such as `conflictFailures` retain the stricter future semantics; `checks11b` and `bands11b` report the 11b result.
+
+## Check the 11b non-regression bands
+
+Run the unchanged full stress matrix with the 11b gate:
+
+```sh
+pnpm test:persistence --gate-11b
+```
+
+`bands-11b.mjs` recomputes the comparison from raw receipts, snapshots, and storage records. Both the runner and `check-results.mjs` use it. It requires all four scenarios, three suites of five seeds, 300 commands per actor, and 20 samples of each conflict kind per scenario. Subsets and smaller smoke runs remain available for characterization but cannot pass this gate.
+
+The tabs baseline loses 3,893 of 9,000 effects. Its allowed aggregate loss is 3,443 through 4,343, inclusive, and its maximum per-run loss is 300 of 600. The permission-granted extension baseline loses 3,589 of 9,000. Its allowed aggregate loss is 3,139 through 4,039, inclusive, and its maximum per-run loss is 294 of 600. These bounds apply +/-5 percentage points in aggregate and the characterized worst run plus 30. They describe this stress schedule and do not establish durability.
+
+Every shared-storage run must acknowledge 600 commands, converge without duplicate players, slots, or queue members, and show no additional loss on reload. Shared sequential controls must retain all 600 effects. A positive pick conflict may acknowledge one or two commands but must retain at least one acknowledged pick, converge, and have no duplicate players or slots. Shared queue moves require a valid permutation and the exact same settled order before and after reload.
+
+Negative stress and sequential controls must retain each actor's own 300 effects, retain all 600 in union, and keep distinct stored sessions for the same draft identity. Negative conflict samples must retain each partition's own acknowledged pick or queue move. Storage-sharing markers, live identities, original storage bytes, storage errors, page errors, incomplete scenarios, and missing samples are also checked.
+
+Recorded document replacements at explicit reload boundaries fail the 11b gate. The bounded reader can retain diagnostic snapshots after a replacement, but those snapshots do not make an unexplained navigation pass. Storage inspection also checks the attached document identity. A missing replacement ledger fails the gate.
+
+Run the standalone audit tests without starting a browser:
+
+```sh
+node --test scripts/persistence/check-audit.mjs
+```
+
+## Inactive IndexedDB store
+
+Production continues to use v1. The IndexedDB owner is available only when the demo development runner sets `PERSISTENCE_STORE=idb`. It mounts the existing workspace owner with an asynchronous `sendDurable` path. Synchronous UI writes stay read-only in this test mode. Each command reads the latest session and commits it in one strict-durability transaction. The receipt includes the committed facts and is returned after transaction completion.
+
+Build the test extension with the same explicit harness flag, then run the full durability gate:
+
+```sh
+VITE_PERSISTENCE_HARNESS=idb pnpm build:extension
+PERSISTENCE_STORE=idb PERSISTENCE_HEADED=true PERSISTENCE_CONFLICT_SAMPLES=100 pnpm test:persistence --gate-idb
+node scripts/persistence/check-results.mjs artifacts/persistence/results.json --gate-idb
+```
+
+The positive cases retain 9,000 effects each. Each includes 20 pick conflicts and 100 queue moves. The two negative cases attempt 300 commands in the explicitly blocked workspace, require 300 rejections and zero acknowledgements, and compare unchanged v1 bytes. A timeout without a setup error fails. The extension also starts with no app tab and completes its writer-free helper handshake. The tabs case suppresses notification hints, closes the writer after commit, and checks trusted focus recovery in both directions. Native visibility events are retained separately. Use a headed private browser for native lifecycle checks.
+
+`PERSISTENCE_PICK_SAMPLES` and `PERSISTENCE_CONFLICT_SAMPLES` reduce conflict counts for smoke runs. Smoke runs cannot pass `--gate-idb`. No new persistence flag is a production user setting. Restore the ordinary extension build after testing.
+
+`node scripts/persistence/old-modules.mjs` extracts the pinned real main and stack modules inside `.local/`, runs their writers, and checks complete and retained-journal imports. It installs only locked dependencies and does not refresh providers. `activation-off.mjs` compares already-built base and head production apps in private browser contexts, drives a real queue action, compares v1 bytes and demo data requests, and asserts zero IndexedDB opens.

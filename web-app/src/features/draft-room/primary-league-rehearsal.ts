@@ -1,3 +1,5 @@
+import { createWorkspace, type Workspace } from '@/workspace/workspace';
+import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { getDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
@@ -23,12 +25,7 @@ import {
 } from '@fantasy-draft/shared/draft';
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { hasRemainingDraftDecision } from '@/hooks/useRecommendations';
-import {
-  useDraftStore,
-  type DraftTeamRoster,
-  type PreloadedKeeper,
-  type SyncedImportedPick,
-} from '@/stores/draftStore';
+import { createDraftStore, type DraftTeamRoster, type PreloadedKeeper, type SyncedImportedPick } from '@/stores/draftStore';
 import { ReconciliationSummary } from './ReconciliationSummary';
 
 const TOTAL_TEAMS = 10;
@@ -309,6 +306,18 @@ function compareRosters(
 export function runPrimaryLeagueRehearsal(
   now: number = Date.now()
 ): PrimaryLeagueRehearsalResult {
+  const workspace = createWorkspace({
+    draftStore: createDraftStore(),
+    connectionStore: createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined }),
+  });
+  try {
+    return rehearsePrimaryLeague(workspace, now);
+  } finally {
+    workspace.dispose();
+  }
+}
+
+function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeagueRehearsalResult {
   const failures: string[] = [];
   const failUnless = (condition: boolean, message: string): void => {
     if (!condition) failures.push(message);
@@ -334,22 +343,21 @@ export function runPrimaryLeagueRehearsal(
     rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
     keepersEnabled: true,
   }, now);
-  const store = useDraftStore.getState();
-  store.preloadKeepers([]);
-  store.setConfig({ draftType: 'snake',
+  workspace.send('preloadKeepers', []);
+  workspace.send('setConfig', { draftType: 'snake',
     totalTeams: TOTAL_TEAMS,
     totalRounds: TOTAL_ROUNDS,
     myPickPosition: MY_PICK_POSITION,
     rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
   });
-  store.applyLeagueSettings(leagueSettings);
-  store.setSessionMode('live');
-  store.preloadKeepers(KEEPERS);
-  store.resetDraft();
-  store.setDecisionLens('best-pick');
+  workspace.send('applyLeagueSettings', leagueSettings);
+  workspace.send('setSessionMode', 'live');
+  workspace.send('preloadKeepers', KEEPERS);
+  workspace.send('resetDraft');
+  workspace.send('setDecisionLens', 'best-pick');
 
-  failUnless(useDraftStore.getState().keepersInitialized, 'Keeper supply did not initialize.');
-  failUnless(useDraftStore.getState().preloadedKeepers.length === 10, 'Keeper supply did not contain 10 assignments.');
+  failUnless(workspace.draft.getState().keepersInitialized, 'Keeper supply did not initialize.');
+  failUnless(workspace.draft.getState().preloadedKeepers.length === 10, 'Keeper supply did not contain 10 assignments.');
   failUnless(leagueSettings.scoringRules.receiving.reception === 1, 'Full PPR was not applied.');
   failUnless(leagueSettings.scoringRules.receiving.tePremium === 0.5, 'TE premium was not applied.');
   failUnless(leagueSettings.scoringRules.rushing.attemptBonus === 0.2, 'Rush-attempt scoring was not applied.');
@@ -364,8 +372,8 @@ export function runPrimaryLeagueRehearsal(
 
   const observeDecision = (label: string): void => {
     observedTransitions += 1;
-    const state = getDraftView(useDraftStore, allPlayers);
-    const { config, decisionLens } = useDraftStore.getState();
+    const state = getDraftView(workspace.draft, allPlayers);
+    const { config, decisionLens } = workspace.draft.getState();
     const myRosterSize = rosterSize(state.myRoster);
     const shouldRecommend = hasRemainingDraftDecision(
       state.currentPick,
@@ -457,8 +465,7 @@ export function runPrimaryLeagueRehearsal(
 
   for (const scheduled of providerSchedule.filter((pick) => pick.pickNumber <= 64)) {
     providerPicks.push(toProviderPick(scheduled));
-    useDraftStore.getState().reconcileSyncedPicks(
-      providerPicks,
+    workspace.send('reconcileSyncedPicks', providerPicks,
       nextOpenPick(scheduled.pickNumber, keeperPickNumbers)
     );
     observeDecision(`Provider pick ${String(scheduled.pickNumber)}`);
@@ -480,7 +487,7 @@ export function runPrimaryLeagueRehearsal(
   const recordProvisional = (
     scheduled: ScheduledPick,
     player: Player
-  ): boolean => useDraftStore.getState().recordProvisionalPick({
+  ): boolean => workspace.send('recordProvisionalPick', {
     pickNumber: scheduled.pickNumber,
     playerId: player.id,
     playerName: player.name,
@@ -502,8 +509,7 @@ export function runPrimaryLeagueRehearsal(
   );
   providerPicks.push(...restoredThroughPick67.map(toProviderPick));
   synchronizationStates.push(getDraftSynchronizationState('syncing'));
-  const reconciliation = useDraftStore.getState().reconcileSyncedPicks(
-    providerPicks,
+  const reconciliation = workspace.send('reconcileSyncedPicks', providerPicks,
     68
   );
   synchronizationStates.push(getDraftSynchronizationState('connected'));
@@ -535,16 +541,15 @@ export function runPrimaryLeagueRehearsal(
 
   for (const scheduled of providerSchedule.filter((pick) => pick.pickNumber >= 68)) {
     providerPicks.push(toProviderPick(scheduled));
-    useDraftStore.getState().reconcileSyncedPicks(
-      providerPicks,
+    workspace.send('reconcileSyncedPicks', providerPicks,
       nextOpenPick(scheduled.pickNumber, keeperPickNumbers)
     );
     observeDecision(`Provider pick ${String(scheduled.pickNumber)}`);
   }
   synchronizationStates.push(getDraftSynchronizationState('complete'));
 
-  const finalState = getDraftView(useDraftStore, allPlayers);
-  const { draftHistory } = useDraftStore.getState();
+  const finalState = getDraftView(workspace.draft, allPlayers);
+  const { draftHistory } = workspace.draft.getState();
   const canonicalPicks = [
     ...providerPicks.map((pick) => ({ pickNumber: pick.pickNumber, playerId: pick.playerId })),
     ...KEEPERS.map((keeper) => ({

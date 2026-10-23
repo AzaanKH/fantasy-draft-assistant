@@ -1,3 +1,4 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 /**
  * Recommendations Hook
@@ -27,7 +28,6 @@ import {
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
-import { useDraftStore } from '@/stores/draftStore';
 
 const EMPTY_SELECTION: RecommendationSelection = {
   policy: 'league-aware-score',
@@ -80,11 +80,11 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const available = useDraftView((view) => view.available);
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
   const currentPick = useDraftView((view) => view.currentPick);
   const myRoster = useDraftView((view) => view.myRoster);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const mockSurvivalProbabilities = useDraftStore(
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const mockSurvivalProbabilities = useDraftState(
     (state) => state.mockSurvivalProbabilities
   );
   const isMyTurn = useDraftView((view) => view.isMyTurn);

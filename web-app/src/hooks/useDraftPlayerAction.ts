@@ -1,10 +1,8 @@
-import { useDraftView } from '@/workspace/useDraftView';
+import { useWorkspace } from '@/workspace/WorkspaceProvider';
+import { getDraftView, useDraftView } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
-import {
-  useDraftStore,
-} from '@/stores/draftStore';
 
 export function useDraftPlayerAction(): {
   readonly canDraft: boolean;
@@ -16,25 +14,25 @@ export function useDraftPlayerAction(): {
   const isMyTurn = useDraftView((view) => view.isMyTurn);
   const canDraft = useDraftView((view) => view.canDraft);
   const canDraftByPosition = useDraftView((view) => view.canDraftByPosition);
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftView((view) => view.currentPick);
-  const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
+  const workspace = useWorkspace();
   const canDraftPlayer = React.useCallback(
     (player: Pick<Player, 'position'>) => canDraftByPosition[player.position],
     [canDraftByPosition]
   );
 
   const draftPlayer = React.useCallback((player: Player) => {
-    if (!canDraftPlayer(player)) return;
-    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(currentPick).teamIndex;
-    markPlayerDrafted(
+    const { config } = workspace.draft.getState();
+    const view = getDraftView(workspace.draft);
+    if (!view.canDraftByPosition[player.position]) return;
+    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(view.currentPick).teamIndex;
+    workspace.send('markPlayerDrafted',
       player.id,
       player.name,
       player.position,
       teamIndex,
       'My Team'
     );
-  }, [canDraftPlayer, config.draftType, config.totalTeams, config.totalRounds, currentPick, markPlayerDrafted]);
+  }, [workspace]);
 
   return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };
 }

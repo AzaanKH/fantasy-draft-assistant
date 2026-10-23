@@ -24,9 +24,14 @@ export type CursorAnchor = PendingKeeperConsumption | ReservedKeeperSupply;
 export interface DraftProgress {
   readonly anchor: CursorAnchor;
   readonly historyLength: number;
+  readonly historyPrefix?: readonly number[];
 }
 
 export function deriveDraftCursor(history: readonly DraftSelection[], progress: DraftProgress): number {
+  if (progress.historyPrefix) {
+    const accepted = new Set(progress.historyPrefix);
+    history = [...history.filter(pick => accepted.has(pick.pickNumber)), ...history.filter(pick => !accepted.has(pick.pickNumber))];
+  }
   const { anchor, historyLength } = progress;
   let cursor: number;
   switch (anchor.kind) {

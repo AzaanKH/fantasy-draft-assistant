@@ -1,5 +1,5 @@
+import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import * as React from 'react';
-import { useStore, type StoreApi } from 'zustand';
 import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
 import {
   createDefaultLeagueSettings,
@@ -14,13 +14,8 @@ import {
   type DraftSynchronizationState,
   type DraftSyncViewState,
 } from '@/hooks/useDraftSync';
-import { useDraftStore } from '@/stores/draftStore';
-import {
-  getDraftSyncSearch,
-  useDraftSyncConnectionStore,
-  type DraftSyncConnectionStore,
-  type PersistedDraftSyncConnection,
-} from '@/stores/draftSyncStore';
+
+import { getDraftSyncSearch, type PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
 
 interface StartDraftConnectionInput {
   readonly provider: DraftProvider;
@@ -88,36 +83,19 @@ function syncConnectionToUrl(
   }
 }
 
-export function LiveDraftSyncProvider({
-  children,
-  connectionStore = useDraftSyncConnectionStore,
-}: {
+export function LiveDraftSyncProvider({ children }: {
   readonly children: React.ReactNode;
-  /** Defaults to the persisted connection; visual fixtures pass an isolated store. */
-  readonly connectionStore?: StoreApi<DraftSyncConnectionStore>;
 }): React.ReactElement {
-  const connection = useStore(connectionStore, (state) => state.connection);
-  const persistStartConnection = useStore(
-    connectionStore,
-    (state) => state.startConnection
-  );
-  const persistDraftPosition = useStore(
-    connectionStore,
-    (state) => state.confirmDraftPosition
-  );
-  const clearConnection = useStore(connectionStore, (state) => state.disconnect);
-  const manualContinuityBaselineAt = useDraftStore((state) => state.manualContinuityBaselineAt);
-  const recordManualContinuity = useDraftStore((state) => state.enterManualContinuity);
-  const lastConfirmedSyncAt = useDraftStore((state) => state.lastConfirmedSyncAt);
-  const lastConfirmedPickNumber = useDraftStore((state) => state.lastConfirmedPickNumber);
+  const connection = useConnectionState((state) => state.connection);
+  const manualContinuityBaselineAt = useDraftState((state) => state.manualContinuityBaselineAt);
+  const workspace = useWorkspace();
+  const lastConfirmedSyncAt = useDraftState((state) => state.lastConfirmedSyncAt);
+  const lastConfirmedPickNumber = useDraftState((state) => state.lastConfirmedPickNumber);
   const [reconciliationTargetAt, setReconciliationTargetAt] =
     React.useState<number | null>(null);
   const isManualContinuity = manualContinuityBaselineAt !== null && reconciliationTargetAt === null;
-  const applyLeagueSettings = useDraftStore((state) => state.applyLeagueSettings);
-  const resetDraft = useDraftStore((state) => state.resetDraft);
-  const setConfig = useDraftStore((state) => state.setConfig);
-  const setSessionMode = useDraftStore((state) => state.setSessionMode);
-  const provisionalPickCount = useDraftStore((state) =>
+
+  const provisionalPickCount = useDraftState((state) =>
     state.draftHistory.filter((pick) => pick.source === 'provisional').length
   );
   const isDraftPositionConfirmed =
@@ -192,40 +170,40 @@ export function LiveDraftSyncProvider({
   React.useEffect(() => {
     if (connection?.draftPosition === null || connection === null) return;
 
-    setConfig({ myPickPosition: connection.draftPosition });
-    setSessionMode('live');
-  }, [connection, setConfig, setSessionMode]);
+    workspace.send('setConfig', { myPickPosition: connection.draftPosition });
+    workspace.send('setSessionMode', 'live');
+  }, [connection, workspace]);
 
   React.useEffect(() => {
-    if (sync.draft) setConfig({ draftType: sync.draft.type });
-  }, [sync.draft, setConfig]);
+    if (sync.draft) workspace.send('setConfig', { draftType: sync.draft.type });
+  }, [sync.draft, workspace]);
 
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
     setReconciliationTargetAt(null);
-    persistStartConnection(next.provider, next.draftId);
-  }, [persistStartConnection]);
+    workspace.send('connection.startConnection', next.provider, next.draftId);
+  }, [workspace]);
 
   const confirmDraftPosition = React.useCallback((draftPosition: number) => {
     setReconciliationTargetAt(null);
-    persistDraftPosition(draftPosition);
-    setConfig({ myPickPosition: draftPosition });
-    setSessionMode('live');
-  }, [persistDraftPosition, setConfig, setSessionMode]);
+    workspace.send('connection.confirmDraftPosition', draftPosition);
+    workspace.send('setConfig', { myPickPosition: draftPosition });
+    workspace.send('setSessionMode', 'live');
+  }, [workspace]);
 
   const enterManualContinuity = React.useCallback(() => {
     if (!canEnterManualContinuity) return;
     const baselineAt = sync.lastSuccessfulSyncAt ?? lastConfirmedSyncAt;
-    if (baselineAt !== null) recordManualContinuity(baselineAt);
-  }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt, lastConfirmedSyncAt, recordManualContinuity]);
+    if (baselineAt !== null) workspace.send('enterManualContinuity', baselineAt);
+  }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt, lastConfirmedSyncAt, workspace]);
 
   const disconnect = React.useCallback(() => {
     setReconciliationTargetAt(null);
-    clearConnection();
-    setConfig({ draftType: 'snake' });
-    applyLeagueSettings(createDefaultLeagueSettings());
-    resetDraft();
-    setSessionMode('setup');
-  }, [applyLeagueSettings, clearConnection, resetDraft, setConfig, setSessionMode]);
+    workspace.send('connection.disconnect');
+    workspace.send('setConfig', { draftType: 'snake' });
+    workspace.send('applyLeagueSettings', createDefaultLeagueSettings());
+    workspace.send('resetDraft');
+    workspace.send('setSessionMode', 'setup');
+  }, [workspace]);
 
   const viewState = React.useMemo<DraftSyncViewState>(() => ({
     connectionState: sync.connectionState,

@@ -1,3 +1,4 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { RANKING_LABELS } from '@/lib/demo-mode';
@@ -14,16 +15,13 @@ import {
 import { Select } from '@/components/ui/select';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getProviderName } from '@/lib/provider-name';
-import {
-  useDraftStore,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { type RecordedDraftPick } from '@/stores/draftStore';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 
 function getTeamName(
   teamIndex: number,
   myTeamIndex: number,
-  history: ReturnType<typeof useDraftStore.getState>['draftHistory']
+  history: readonly RecordedDraftPick[]
 ): string {
   if (teamIndex === myTeamIndex) return 'My Team';
 
@@ -79,18 +77,13 @@ function ProvisionalPickForm({
 }): React.ReactElement {
   const { players } = usePlayerDataQuery();
   const { connection } = useLiveDraftSync();
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
   const currentPick = useDraftView((view) => view.currentPick);
   const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const canRecord = useDraftView((view) => view.canRecord);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const recordProvisionalPick = useDraftStore(
-    (state) => state.recordProvisionalPick
-  );
-  const correctProvisionalPick = useDraftStore(
-    (state) => state.correctProvisionalPick
-  );
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
+  const workspace = useWorkspace();
 
   const selectablePlayers = React.useMemo(
     () => players
@@ -175,8 +168,8 @@ function ProvisionalPickForm({
       ),
     };
     const saved = editingPick
-      ? correctProvisionalPick(editingPick.pickNumber, replacement)
-      : recordProvisionalPick(replacement);
+      ? workspace.send('correctProvisionalPick', editingPick.pickNumber, replacement)
+      : workspace.send('recordProvisionalPick', replacement);
     if (!saved) {
       setError(editingPick
         ? 'Choose a different player or an open draft position.'

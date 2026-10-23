@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { getDraftBoardRoundNumbers } from '@/features/draft-room/DraftBoard';
 import { getDraftView } from '@/workspace/useDraftView';
-import { useDraftStore } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+const draftStore = createDraftStore();
 import {
   createVisualDraftStore,
   getVisualRoute,
@@ -44,7 +45,7 @@ describe('visual fixtures', () => {
   });
 
   it('seeds ten available players and fixed-time mid-draft state in an isolated store', () => {
-    const defaultPick = getDraftView(useDraftStore).currentPick;
+    const defaultPick = getDraftView(draftStore).currentPick;
     const store = createVisualDraftStore();
     const fixture = store.getState();
 
@@ -58,7 +59,7 @@ describe('visual fixtures', () => {
     });
     expect(fixture.draftHistory).toHaveLength(46);
     expect(fixture.draftHistory.every((pick) => pick.timestamp === VISUAL_NOW)).toBe(true);
-    expect(getDraftView(useDraftStore).currentPick).toBe(defaultPick);
+    expect(getDraftView(draftStore).currentPick).toBe(defaultPick);
   });
 
   it('centers a reduced board window without changing the draft configuration', () => {
