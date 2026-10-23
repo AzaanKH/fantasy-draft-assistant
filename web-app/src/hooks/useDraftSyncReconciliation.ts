@@ -167,6 +167,7 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       importResult.rejectedPicks,
       snapshot.lastSuccessfulSyncAt
     );
+    if (reconciliation.refused) return;
     lastImported.current = {
       draftId: snapshot.draftId,
       picks: snapshot.picks,

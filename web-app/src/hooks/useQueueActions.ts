@@ -45,7 +45,7 @@ export function useQueueActions(
   const removePlayerFromQueue = React.useCallback((playerId: string) => {
     if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) return;
     workspace.send('removePlayerFromShortlist', playerId);
-    showQueueFeedback(playerId, true);
+    if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
   }, [workspace, showQueueFeedback]);
 
   return { togglePlayerQueued, removePlayerFromQueue };

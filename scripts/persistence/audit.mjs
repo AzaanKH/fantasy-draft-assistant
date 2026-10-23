@@ -55,6 +55,7 @@ export function auditConflict(kind, issued, snapshots, beforeReload = []) {
 
 export function failsGate(results) {
   return Boolean(results.fatal || results.pageErrors.length || (results.scenarioErrors || []).length ||
+    (results.scenarios || []).some(scenario => scenario.blocked && (scenario.blocked.checks.acknowledged || scenario.blocked.checks.rejected !== scenario.blocked.checks.attempted || !scenario.blocked.checks.explicitSetupError || !scenario.blocked.checks.unchanged)) ||
     results.summary.some(row => row.lost || row.rejected || row.errors || row.nonconverged || row.invariantFailures ||
       row.sequentialFailures || row.conflictFailures ||
       ['extension-no-permission', 'hostname-split'].includes(row.scenario) && row.acknowledged > 0));
