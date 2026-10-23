@@ -1,6 +1,7 @@
 import { auditSession, sessionPasses, auditMoveConflict, auditReconcileBurst, hasProductionProof, completeReceiptLedger } from './ui-adapter.mjs';
 import { auditObservedConflict } from './ui-conflict.mjs';
 import { workerResetPasses } from './ui-worker.mjs';
+import { hasReadinessProof } from './ui-readiness.mjs';
 
 export const ROOT_SMOKE_SCOPE = 'root-tier2-production-smoke';
 export const ROOT_SMOKE_PLAN = Object.freeze({ tabs: Object.freeze([['pickConflict', 20], ['moveConflict', 20], ['reconcile', 1], ['lifecycle', 1]]),
@@ -37,6 +38,7 @@ export function evaluateRootSmoke(result) {
   try {
     const m = result.metadata;
     if (m.tier !== ROOT_SMOKE_SCOPE || !m.finished || !hasProductionProof(m)) failures.push('Missing exact production smoke scope or HTTP/build proof');
+    if (!hasReadinessProof(m)) failures.push('Missing legitimate readiness fixture HTTP/league proof');
     if (!m.git?.clean || !/^[a-f0-9]{40}$/.test(m.expectedHead ?? '') || m.git.head !== m.expectedHead || m.gitEnd?.head !== m.expectedHead || m.gitEnd.status ||
         !m.sourceStable || !m.sourceHashes || JSON.stringify(m.sourceHashes) !== JSON.stringify(m.sourceHashesEnd)) failures.push('Smoke requires its frozen clean committed SHA');
     if ('gate' in result || m.commandsPerActor !== 150 || m.config?.perActor !== 150 || m.config?.control !== false || m.config?.bursts !== false || m.config?.lifecycle !== true || m.config?.burstPicksPerActor !== 60 || m.config?.suites !== 1 || m.config?.seeds !== 1 || m.config?.pickConflicts !== 20 || m.config?.moveConflicts !== 20) failures.push('Wrong fixed smoke workload');

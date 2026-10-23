@@ -3,6 +3,7 @@ import { planSession } from '../ui-adapter.mjs';
 import { ROOT_SMOKE_PLAN, ROOT_SMOKE_SCOPE } from '../ui-root-smoke.mjs';
 import { workerProtocol } from './worker-protocol.mjs';
 import { resetExtensionWorker } from '../ui-worker.mjs';
+import { FIXTURE_LEAGUE, READINESS_PATHS } from '../ui-readiness.mjs';
 
 export async function rootSmokeEvidence() {
   const head = '1'.repeat(40), hash = 'a'.repeat(64), files = { 'index.html': hash, 'assets/app.js': hash };
@@ -13,6 +14,9 @@ export async function rootSmokeEvidence() {
     productionHttp: { verified: files, catalogFixtureSha256: hash, rejected: { '/@vite/client': 404, '/@react-refresh': 404, '/src/main.tsx': 404, '/node_modules/vite/dist/client/client.mjs': 404 } },
     catalogFixture: { sha256: hash }, commandsPerActor: 150, config: { suites: 1, seeds: 1, perActor: 150, pickConflicts: 20, moveConflicts: 20, control: false, bursts: false, lifecycle: true, burstPicksPerActor: 60 } },
     scenarios: [], commandStarts: [], commandLog: [], pageErrors: [], scenarioErrors: [], cleanupErrors: [] };
+  const readinessFiles = Object.fromEntries(READINESS_PATHS.map(url => [url, hash]));
+  result.metadata.readinessFixture = { leaguePreferences: FIXTURE_LEAGUE, files: readinessFiles };
+  result.metadata.productionHttp.readinessFiles = readinessFiles;
   let serial = 0;
   const receipt = (label, session, cmd, outcome = 'ack', extra = {}) => {
     const row = { actionId: `row-${++serial}`, scenario: label, session, cmd, outcome, ...extra };

@@ -71,3 +71,14 @@ export async function verifyProductionHttp(origin, build) {
   }
   return { verified, rejected, noViteClientOrHmr: true };
 }
+
+export async function verifyFixtureHttp(origin, files) {
+  const verified = {};
+  for (const [url, value] of Object.entries(files)) {
+    const bytes = await http.text(`${origin}${url}`, policy);
+    const expected = sha256(JSON.stringify(value));
+    if (sha256(bytes) !== expected) throw new Error(`Served readiness fixture differs: ${url}`);
+    verified[url] = expected;
+  }
+  return verified;
+}

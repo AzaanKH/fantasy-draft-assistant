@@ -5,6 +5,32 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { createHash } from 'node:crypto';
 import { Processes } from '@fantasy-draft/shared/node';
 import { evaluateRootSmoke, ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN } from './ui-root-smoke.mjs';
+import { evaluateReachability, PREFLIGHT_SCOPE, PREFLIGHT_PLAN } from './ui-reachability.mjs';
+
+export function driverMode(args) {
+  if (JSON.stringify(args) === JSON.stringify(['--reachability-only', '--browser-authorized'])) return {
+    preflight: true, scope: PREFLIGHT_SCOPE, marker: 'PREFLIGHT-CLAIM.json', runnerFlag: '--root-tier2-preflight', plan: PREFLIGHT_PLAN,
+  };
+  assert.deepEqual(args, ['--browser-authorized'], 'Choose exactly the authorized preflight or smoke driver entry');
+  return { preflight: false, scope: ROOT_SMOKE_SCOPE, marker: 'SMOKE-CONSUMED.json', runnerFlag: '--root-tier2-smoke', plan: ROOT_SMOKE_PLAN };
+}
+
+export function validateReachabilityAuthorization({ env, head, branch, status, outputExists }) {
+  assert.match(env.UI_EXPECTED_HEAD ?? '', /^[a-f0-9]{40}$/);
+  assert.equal(head, env.UI_EXPECTED_HEAD);
+  assert.equal(branch, 'feat/agent-u11c2-activation'); assert.equal(status, '', 'Commit and freeze all sources');
+  assert(path.isAbsolute(env.UI_OUTPUT ?? ''), 'Use a fresh absolute preflight output');
+  assert.equal(outputExists, false, 'Preflight output exists; inspect it without launching');
+}
+
+export function validatePreflightReceipt(receipt, result, head) {
+  assert.equal(receipt.head, head); assert.equal(receipt.scope, PREFLIGHT_SCOPE); assert.equal(receipt.consumed, false);
+  assert.equal(receipt.sourceStable, true); assert.equal(receipt.failure, undefined);
+  assert.equal(receipt.after.head, head); assert.equal(receipt.after.status, '');
+  assert.equal(receipt.changed.length, 0); assert.equal(receipt.reachability.passes, true); assert.equal(receipt.reachability.workloadCommands, 0);
+  assert(evaluateReachability(result).passes, 'All exact-head non-consuming reachability checks must pass before smoke');
+  assert.equal(result.metadata.expectedHead, head);
+}
 
 export function validateSmokeAuthorization({ args, env, head, branch, status, ci, upstream, outputExists }) {
   assert.deepEqual(args, ['--browser-authorized'], 'Root must explicitly authorize this exact smoke driver');
@@ -21,17 +47,28 @@ export function validateSmokeAuthorization({ args, env, head, branch, status, ci
 }
 
 export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = process.env) {
+  const mode = driverMode(args);
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
   const git = async argv => (await Processes.run('git', argv, { cwd: root, timeoutMs: 30000, maxOutputBytes: 4000000 })).stdout.trim();
   const state = async () => ({ head: await git(['rev-parse', 'HEAD']), branch: await git(['branch', '--show-current']), status: await git(['status', '--porcelain', '--untracked-files=normal']) });
   const before = await state();
-  const ci = JSON.parse(readFileSync(inputEnv.UI_CI_EVIDENCE, 'utf8'));
-  validateSmokeAuthorization({ args, env: inputEnv, ...before, ci, upstream: await git(['rev-parse', 'origin/feat/agent-u11c2-activation']), outputExists: existsSync(inputEnv.UI_OUTPUT) });
+  const ci = mode.preflight ? undefined : JSON.parse(readFileSync(inputEnv.UI_CI_EVIDENCE, 'utf8'));
+  const authorization = { args, env: inputEnv, ...before, ci, upstream: await git(['rev-parse', 'origin/feat/agent-u11c2-activation']), outputExists: existsSync(inputEnv.UI_OUTPUT) };
+  if (mode.preflight) validateReachabilityAuthorization(authorization);
+  else {
+    validateSmokeAuthorization(authorization);
+    assert(path.isAbsolute(inputEnv.UI_PREFLIGHT_EVIDENCE ?? ''), 'Provide the passing exact-head preflight driver receipt');
+    const directory = path.dirname(inputEnv.UI_PREFLIGHT_EVIDENCE);
+    assert(!existsSync(path.join(directory, 'SMOKE-CONSUMED.json')), 'Workload evidence cannot masquerade as preflight');
+    const claim = JSON.parse(readFileSync(path.join(directory, 'PREFLIGHT-CLAIM.json'), 'utf8'));
+    assert.equal(claim.head, before.head); assert.equal(claim.scope, PREFLIGHT_SCOPE); assert.equal(claim.consumed, false);
+    validatePreflightReceipt(JSON.parse(readFileSync(inputEnv.UI_PREFLIGHT_EVIDENCE, 'utf8')), JSON.parse(readFileSync(path.join(directory, 'results.json'), 'utf8')), before.head);
+  }
   const out = inputEnv.UI_OUTPUT, sha = value => createHash('sha256').update(value).digest('hex');
   const tracked = (await Processes.run('git', ['ls-files', '-z'], { cwd: root, timeoutMs: 30000, maxOutputBytes: 4000000 })).stdout.split('\0').filter(Boolean);
   const sourceHashes = Object.fromEntries(tracked.map(file => [file, sha(readFileSync(path.join(root, file)))]));
   mkdirSync(out); const write = (name, value) => writeFileSync(path.join(out, name), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
-  write('driver-preflight.json', { ...before, driverPid: process.pid, ci, scope: ROOT_SMOKE_SCOPE, plan: ROOT_SMOKE_PLAN, sourceHashes, fullMatrixClaim: false });
+  write('driver-preflight.json', { ...before, driverPid: process.pid, ci, scope: mode.scope, plan: mode.plan, sourceHashes, fullMatrixClaim: false, preflight: mode.preflight });
   const env = { ...inputEnv, VITE_STORAGE_ACTIVATION: 'idb' };
   const unset = ['VITE_PERSISTENCE_HARNESS', 'VITE_DEMO_MODE', 'UI_SCENARIOS', 'UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_PICK_CONFLICTS', 'UI_MOVE_CONFLICTS', 'UI_BURSTS', 'UI_CONTROL', 'UI_LIFECYCLE', 'UI_BURST_PICKS'];
   for (const name of unset) delete env[name];
@@ -48,25 +85,27 @@ export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = pr
       write(`${label}-exit.json`, { at: new Date().toISOString(), result });
     } catch (error) { write(`${label}-exit.json`, { at: new Date().toISOString(), error: error.message, result: error.result }); throw error; }
   };
-  let consumed = false, smoke, failure;
+  let consumed = false, smoke, reachability, failure;
   try {
     await run('extension-build', 'pnpm', ['build:extension'], 120000);
     assert.deepEqual(await state(), before);
-    write('SMOKE-CONSUMED.json', { head: before.head, driverPid: process.pid, at: new Date().toISOString(), invocations: 1, scope: ROOT_SMOKE_SCOPE, fullMatrixClaim: false, rollbackAuthorized: false });
-    consumed = true;
-    await run('smoke', 'node', ['scripts/persistence/ui-activation.mjs', '--root-tier2-smoke', '--browser-authorized'], 7200000);
-    smoke = evaluateRootSmoke(JSON.parse(readFileSync(path.join(out, 'results.json'), 'utf8')));
-    assert(smoke.passes, JSON.stringify(smoke.failures)); assert.deepEqual(await state(), before);
+    write(mode.marker, { head: before.head, driverPid: process.pid, at: new Date().toISOString(), invocations: 1, scope: mode.scope, consumed: !mode.preflight, fullMatrixClaim: false, rollbackAuthorized: false });
+    consumed = !mode.preflight;
+    await run(mode.preflight ? 'reachability' : 'smoke', 'node', ['scripts/persistence/ui-activation.mjs', mode.runnerFlag, '--browser-authorized'], mode.preflight ? 900000 : 7200000);
+    const result = JSON.parse(readFileSync(path.join(out, 'results.json'), 'utf8'));
+    const assessment = mode.preflight ? (reachability = evaluateReachability(result)) : (smoke = evaluateRootSmoke(result));
+    assert(assessment.passes, JSON.stringify(assessment.failures)); assert.deepEqual(await state(), before);
   } catch (error) { failure = { message: error.message, stack: error.stack }; }
   finally {
     process.off('SIGTERM', onSignal); process.off('SIGINT', onSignal);
     const after = await state();
     const changed = tracked.filter(file => sha(readFileSync(path.join(root, file))) !== sourceHashes[file]);
     const result = existsSync(path.join(out, 'results.json')) ? JSON.parse(readFileSync(path.join(out, 'results.json'), 'utf8')) : undefined;
-    smoke ??= result ? evaluateRootSmoke(result) : undefined;
-    write('driver-final-receipt.json', { at: new Date().toISOString(), head: before.head, after, changed, scope: ROOT_SMOKE_SCOPE, smoke, consumed,
+    if (mode.preflight) reachability ??= result ? evaluateReachability(result) : undefined;
+    else smoke ??= result ? evaluateRootSmoke(result) : undefined;
+    write('driver-final-receipt.json', { at: new Date().toISOString(), head: before.head, after, changed, scope: mode.scope, smoke, reachability, consumed,
       failure, sourceStable: !changed.length, fullMatrixClaim: false, rollbackInvocations: 0, fullMatrixInvocations: 0, retries: 0 });
-    if (failure || changed.length || !smoke?.passes || JSON.stringify(after) !== JSON.stringify(before)) process.exitCode = 1;
+    if (failure || changed.length || !(mode.preflight ? reachability : smoke)?.passes || JSON.stringify(after) !== JSON.stringify(before)) process.exitCode = 1;
   }
 }
 

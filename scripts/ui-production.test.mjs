@@ -7,7 +7,9 @@ import { Processes } from '@fantasy-draft/shared/node';
 import { http } from '@fantasy-draft/shared/http';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
-import { assertProductionEnvironment, inspectProductionBuild, createStaticHandler, verifyProductionHttp } from './persistence/ui-production.mjs';
+import { assertProductionEnvironment, inspectProductionBuild, createStaticHandler, verifyProductionHttp, verifyFixtureHttp } from './persistence/ui-production.mjs';
+import { buildReadinessFixture } from './persistence/ui-readiness.mjs';
+import { buildCatalogFixture } from './persistence/ui-adapter.mjs';
 
 const env = { MODE: 'production', DEV: false, PROD: true, VITE_STORAGE_ACTIVATION: 'idb' };
 test('production proof rejects dev mode, the harness and static demo mode', () => {
@@ -47,6 +49,41 @@ test('Node creates decodable v1 setup bytes through the real store without servi
   expect(session.identity).toEqual({ provider: 'sleeper', draftId: '1700000000009' });
   expect(session.draftHistory).toEqual([]);
   expect(rows.some(([key]) => key === 'fantasy-draft-storage-migrated')).toBe(false);
+});
+
+test('preflight imports legitimate queue fixtures through v1 before activation with no tombstone or counted browser commands', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'ui-preflight-seed-'));
+  const input = path.join(directory, 'input.json'), output = path.join(directory, 'output.json');
+  const leaguePreferences = { profile: 'quick-mock', quickMock: { totalTeams: 20, totalRounds: 20, reception: 1, passingTouchdown: 4 } };
+  await writeFile(input, JSON.stringify({ ids: ['1800000000001', '1800000000002'], teams: 20, rounds: 20, output,
+    queues: { '1800000000002': ['9221', '9509', '4034', '9493'] }, leaguePreferences }));
+  const require = createRequire(import.meta.url);
+  await Processes.run(process.execPath, [require.resolve('tsx/cli'), '--conditions=@fantasy-draft/source', new URL('./persistence/ui-seed.mjs', import.meta.url).pathname, input], { timeoutMs: 15000 });
+  const rows = new Map(JSON.parse(await readFile(output, 'utf8')));
+  expect(JSON.parse(rows.get('fantasy-draft-session-v1:sleeper:1800000000001')).shortlistedPlayerIds).toEqual([]);
+  expect(JSON.parse(rows.get('fantasy-draft-session-v1:sleeper:1800000000002')).shortlistedPlayerIds).toEqual(['9221', '9509', '4034', '9493']);
+  expect(JSON.parse(rows.get('fantasy-draft-league-setup-v1'))).toEqual(leaguePreferences);
+  expect(rows.has('fantasy-draft-storage-migrated')).toBe(false);
+});
+
+test('actual static fixture endpoints provide decoded readiness inputs while unknown APIs and refresh writes stay unavailable', async () => {
+  const data = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions', 'sleeper-adp'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
+  const { snapshot, catalog } = buildCatalogFixture(...data.slice(0, 3));
+  const ready = buildReadinessFixture({ snapshot, identities: data[1], sleeper: data[3], catalog });
+  const source = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
+  const code = source.slice(source.indexOf('function createFixture()'), source.indexOf('\nlet server;'));
+  const fixture = runInNewContext(`(${code})()`, { URL, TEAMS: 20, ROUNDS: 20, setInterval, clearInterval });
+  fixture.readiness(ready.files);
+  const dist = await mkdtemp(path.join(tmpdir(), 'ui-ready-http-'));
+  await writeFile(path.join(dist, 'index.html'), '<main>ordinary production app</main>');
+  const server = createServer(createStaticHandler({ dist, fixture: fixture.handler }));
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  try {
+    expect(Object.keys(await verifyFixtureHttp(origin, ready.files))).toHaveLength(7);
+    await expect(http.text(`${origin}/api/draft-data/refresh`, { timeoutMs: 5000, retries: 0, retryAfter: false }, { init: { method: 'POST' } })).rejects.toMatchObject({ status: 405 });
+    await expect(http.text(`${origin}/api/unimplemented`, { timeoutMs: 5000, retries: 0, retryAfter: false })).rejects.toMatchObject({ status: 503 });
+  } finally { fixture.stop(); await new Promise(resolve => server.close(resolve)); }
 });
 
 test('the real runner seeds v1 bytes with an effective source condition in its child process', async () => {

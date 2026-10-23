@@ -4,8 +4,10 @@ import { readFile, writeFile, appendFile, rename, open, mkdir, cp, mkdtemp, read
 import path from 'node:path';
 import { createServer as createHttpServer } from 'node:http';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile } from '@fantasy-draft/shared/catalog';
-import { inspectProductionBuild, createStaticHandler, verifyProductionHttp } from './ui-production.mjs';
+import { inspectProductionBuild, createStaticHandler, verifyProductionHttp, verifyFixtureHttp } from './ui-production.mjs';
 import { createDiagnostics, createNavigationGuard } from './ui-diagnostics.mjs';
+import { buildReadinessFixture, FIXTURE_LEAGUE } from './ui-readiness.mjs';
+import { PREFLIGHT_SCOPE, PREFLIGHT_PLAN, evaluateReachability, assertNoPreflightWorkload, assertWorkloadAllowed, inspectControl, inspectAssistantMoves, runReconcilePhases } from './ui-reachability.mjs';
 import { runnerMode } from './ui-runner-mode.mjs';
 import { resetExtensionWorker, workerResetPasses } from './ui-worker.mjs';
 import { prepareConflict, submitConflict, auditObservedConflict } from './ui-conflict.mjs';
@@ -20,7 +22,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const args = process.argv.slice(2);
-const { extensionSetupOnly, rootTier2Smoke, workload } = runnerMode(args);
+const { extensionSetupOnly, rootTier2Smoke, rootTier2Preflight, workload } = runnerMode(args);
 const flag = name => args.includes(`--${name}`);
 const option = name => args.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
 const int = (name, fallback) => { const value = process.env[name] === undefined ? fallback : Number(process.env[name]); if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`); return value; };
@@ -60,11 +62,12 @@ const config = {
   port: 3000, executable: process.env.UI_EXECUTABLE || process.env.PERSISTENCE_EXECUTABLE,
   ...workload,
 };
-const smoke = flag('smoke') || config.suites !== DEFAULTS.suites || config.seeds !== DEFAULTS.seeds || config.perActor !== DEFAULTS.perActor ||
-  config.pickConflicts < DEFAULTS.pickConflicts || config.moveConflicts < DEFAULTS.moveConflicts || !config.bursts;
+const fixtureReadyScope = rootTier2Smoke || rootTier2Preflight;
+const smoke = !rootTier2Preflight && (flag('smoke') || config.suites !== DEFAULTS.suites || config.seeds !== DEFAULTS.seeds || config.perActor !== DEFAULTS.perActor ||
+  config.pickConflicts < DEFAULTS.pickConflicts || config.moveConflicts < DEFAULTS.moveConflicts || !config.bursts);
 const scenarioArg = option('scenarios') ?? process.env.UI_SCENARIOS;
-if ((extensionSetupOnly || rootTier2Smoke) && scenarioArg) throw new Error('Setup-only cannot select workload scenarios');
-const selected = offline || extensionSetupOnly ? [] : rootTier2Smoke ? ['tabs', 'extension-granted'] : focused ? ['tabs'] : scenarioArg ? scenarioArg.split(',').map(s => s.trim()) : SCENARIOS;
+if ((extensionSetupOnly || fixtureReadyScope) && scenarioArg) throw new Error('Setup-only cannot select workload scenarios');
+const selected = offline || extensionSetupOnly ? [] : fixtureReadyScope ? ['tabs', 'extension-granted'] : focused ? ['tabs'] : scenarioArg ? scenarioArg.split(',').map(s => s.trim()) : SCENARIOS;
 if (new Set(selected).size !== selected.length || selected.some(s => !SCENARIOS.includes(s))) throw new Error('Unknown scenario');
 const outDir = path.resolve(process.env.UI_OUTPUT || '/Users/azaankhalfe/Desktop/fantasy-draft/artifacts/agent-friendly-plan/units/u11c2/ui-proof');
 
@@ -75,7 +78,7 @@ if (flag('check')) {
 }
 
 if (!offline && !flag('browser-authorized')) throw new Error('Browser paused: pass --browser-authorized only after the parent confirms fixes are ready');
-if (!offline && !flag('smoke') && !tier2 && !flag('gate') && !focused && !extensionSetupOnly && !rootTier2Smoke) throw new Error('Choose --tier2, --smoke, --gate or --extension-setup-only explicitly');
+if (!offline && !flag('smoke') && !tier2 && !flag('gate') && !focused && !extensionSetupOnly && !fixtureReadyScope) throw new Error('Choose --tier2, --smoke, --gate or --extension-setup-only explicitly');
 if (tier2 && (config.suites !== 1 || config.seeds !== 1 || config.perActor !== 300 || config.pickConflicts !== 20 || config.moveConflicts !== 20 || config.control)) {
   throw new Error('Tier 2 requires 1 suite, 1 seed, 300 commands per actor, 20 pick conflicts, 20 moves, no sequential control');
 }
@@ -90,11 +93,11 @@ if (gitStart.branch !== 'feat/agent-u11c2-activation') throw new Error('Wrong br
 if (flag('gate') && (!process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean || smoke)) {
   throw new Error('Final matrix requires UI_EXPECTED_HEAD equal to the clean committed HEAD and the complete default matrix');
 }
-if ((extensionSetupOnly || rootTier2Smoke) && (!/^[a-f0-9]{40}$/.test(process.env.UI_EXPECTED_HEAD ?? '') || !process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean)) {
+if ((extensionSetupOnly || fixtureReadyScope) && (!/^[a-f0-9]{40}$/.test(process.env.UI_EXPECTED_HEAD ?? '') || !process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean)) {
   throw new Error('Setup-only requires UI_EXPECTED_HEAD equal to the clean committed HEAD');
 }
 
-if (rootTier2Smoke && ['UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_PICK_CONFLICTS', 'UI_MOVE_CONFLICTS', 'UI_BURSTS', 'UI_CONTROL', 'UI_LIFECYCLE', 'UI_BURST_PICKS'].some(name => process.env[name] !== undefined)) throw new Error('Root smoke rejects workload overrides');
+if (fixtureReadyScope && ['UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_PICK_CONFLICTS', 'UI_MOVE_CONFLICTS', 'UI_BURSTS', 'UI_CONTROL', 'UI_LIFECYCLE', 'UI_BURST_PICKS'].some(name => process.env[name] !== undefined)) throw new Error('Root smoke rejects workload overrides');
 
 delete process.env.VITE_PERSISTENCE_HARNESS;
 delete process.env.VITE_DEMO_MODE;
@@ -118,14 +121,14 @@ const navigation = !offline && !focused ? createNavigationGuard({ origin, onDefe
 } }) : undefined;
 const diagnostics = createDiagnostics(outDir, { navigation });
 const guarded = operation => navigation ? Promise.race([operation(), navigationStopped.then(defect => { throw new Error(defect.message); })]) : operation();
-const claim = await open(path.join(outDir, 'run-claim.json'), 'wx');
+const claim = await open(path.join(outDir, rootTier2Preflight ? 'reachability-claim.json' : 'run-claim.json'), 'wx');
 await claim.writeFile(JSON.stringify({ started: new Date().toISOString(), pid: process.pid, args, head: gitStart.head }));
 await claim.close();
 
-const results = { metadata: { started: new Date().toISOString(), root, node: process.version, smoke, tier: offline ? 'offline' : rootTier2Smoke ? ROOT_SMOKE_SCOPE : extensionSetupOnly ? 'extension-setup-only' : focused ? 'focused-navigation' : tier2 ? 2 : flag('gate') ? 3 : 'exploratory', git: gitStart, expectedHead: process.env.UI_EXPECTED_HEAD, serve: focused ? 'vite-dev' : 'production-static',
+const results = { metadata: { started: new Date().toISOString(), root, node: process.version, smoke, tier: offline ? 'offline' : rootTier2Preflight ? PREFLIGHT_SCOPE : rootTier2Smoke ? ROOT_SMOKE_SCOPE : extensionSetupOnly ? 'extension-setup-only' : focused ? 'focused-navigation' : tier2 ? 2 : flag('gate') ? 3 : 'exploratory', git: gitStart, expectedHead: process.env.UI_EXPECTED_HEAD, serve: focused ? 'vite-dev' : 'production-static',
   suites: config.suites, seeds: config.seeds, commandsPerActor: config.perActor, config, origin, scenarios: selected,
   env: { VITE_STORAGE_ACTIVATION: process.env.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: process.env.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: process.env.VITE_DEMO_MODE, BROWSER_DATA_SOURCE: process.env.BROWSER_DATA_SOURCE },
-  rootSmokePlan: rootTier2Smoke ? ROOT_SMOKE_PLAN : undefined, workload: rootTier2Smoke ? 'root-authorized Tier 2 production smoke; 300 total installed-iframe slice commands; no tab measured workload or full matrix claim' : extensionSetupOnly ? 'setup only; zero pick or queue commands; no full matrix claim' : 'real DOM: Provisional Pick dialog + pool queue buttons; P9 LCG 0..5ms jitter' },
+  reachabilityPlan: rootTier2Preflight ? PREFLIGHT_PLAN : undefined, rootSmokePlan: rootTier2Smoke ? ROOT_SMOKE_PLAN : undefined, workload: rootTier2Preflight ? 'reachability setup only; zero workload commands, no smoke consumption or claim' : rootTier2Smoke ? 'root-authorized Tier 2 production smoke; 300 total installed-iframe slice commands; no tab measured workload or full matrix claim' : extensionSetupOnly ? 'setup only; zero pick or queue commands; no full matrix claim' : 'real DOM: Provisional Pick dialog + pool queue buttons; P9 LCG 0..5ms jitter' },
   commandStarts: [], commandLog: [], cleanupErrors: [], failureEvidence: [], progress: [], scenarios: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
 async function browserDataFallbackFiles() {
   const manifest = await readFile(path.join(root, 'shared/src/catalog/manifest.ts'), 'utf8');
@@ -133,7 +136,7 @@ async function browserDataFallbackFiles() {
 }
 async function sourceSnapshot() {
   const files = ['scripts/persistence/ui-activation.mjs', 'scripts/persistence/ui-adapter.mjs', 'pnpm-lock.yaml',
-    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/persistence/ui-worker.mjs', 'scripts/persistence/ui-conflict.mjs', 'scripts/persistence/ui-root-smoke.mjs', 'scripts/persistence/root-smoke-driver.mjs', 'scripts/persistence/fixtures/root-smoke-evidence.mjs', 'scripts/persistence/fixtures/conflict-dialog.mjs', 'scripts/ui-root-smoke.test.mjs', 'scripts/persistence/fixtures/worker-stop-without-close.json', 'scripts/persistence/fixtures/worker-protocol.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
+    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/persistence/ui-worker.mjs', 'scripts/persistence/ui-conflict.mjs', 'scripts/persistence/ui-root-smoke.mjs', 'scripts/persistence/ui-readiness.mjs', 'scripts/persistence/ui-reachability.mjs', 'scripts/ui-reachability.test.mjs', 'scripts/persistence/root-smoke-driver.mjs', 'scripts/persistence/fixtures/root-smoke-evidence.mjs', 'scripts/persistence/fixtures/conflict-dialog.mjs', 'scripts/ui-root-smoke.test.mjs', 'scripts/persistence/fixtures/worker-stop-without-close.json', 'scripts/persistence/fixtures/worker-protocol.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
     'package.json', 'pnpm-workspace.yaml', 'source-condition.js', '.npmrc'];
   async function walk(dir) {
     let entries;
@@ -175,10 +178,11 @@ function journal(event) {
   return receiptTail;
 }
 
+let readinessFixture; let fixtureCatalog;
 const fixture = createFixture();
 function createFixture() {
   const drafts = new Map();
-  let catalogBytes;
+  let catalogBytes; const readyFiles = new Map();
   const state = id => { if (!drafts.has(id)) drafts.set(id, { mode: 'healthy', picks: [], syncedAt: Date.now(), streams: new Set(), held: new Set(), timer: null }); return drafts.get(id); };
   const metadata = id => ({ provider: 'sleeper', draftId: id, providerKey: `sleeper:${id}`, status: 'drafting', type: 'linear',
     settings: { teams: TEAMS, rounds: ROUNDS, pickTimer: 0 }, draftOrder: null });
@@ -198,6 +202,7 @@ function createFixture() {
   };
   return {
     catalog(bytes) { catalogBytes = bytes; },
+    readiness(files) { for (const [url, value] of Object.entries(files)) readyFiles.set(url, JSON.stringify(value)); },
     stop() { for (const s of drafts.values()) { clearInterval(s.timer); for (const stream of [...s.streams, ...s.held]) stream.destroy(); } },
     outage(id) { const s = state(id); s.mode = 'outage'; for (const stream of s.streams) stream.destroy(); s.streams.clear(); },
     healthy(id, picks) {
@@ -207,6 +212,11 @@ function createFixture() {
     },
     handler(request, response, next) {
       const url = new URL(request.url ?? '/', 'http://fixture.local');
+      if (readyFiles.has(url.pathname)) {
+        if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405).end('Fixture does not run refreshes'); return; }
+        response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store');
+        response.end(request.method === 'HEAD' ? undefined : readyFiles.get(url.pathname)); return;
+      }
       if (catalogBytes && url.pathname === '/data/fantasypros-snapshot.json') { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); response.end(catalogBytes); return; }
       if (url.pathname === '/__ui-fixture/blank') { response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><title>fixture</title><main>blank</main>'); return; }
       const match = /^\/api\/sync\/sleeper\/drafts\/([^/]+)(\/refresh|\/events)?$/.exec(url.pathname);
@@ -239,15 +249,25 @@ async function prepareCatalogFixture() {
   decodeFantasyProsSnapshot(original);
   const identities = decodePlayerIdentityFile(identityInput);
   const originalCount = original.rankings.length;
-  const { snapshot, catalog } = buildCatalogFixture(original, identities, predictions);
+  let { snapshot, catalog } = buildCatalogFixture(original, identities, predictions);
+  if (fixtureReadyScope) {
+    const sleeper = JSON.parse(await readFile(path.join(root, 'demo-data/sleeper-adp.json'), 'utf8'));
+    fixtureCatalog = selectCatalog(catalog, 300);
+    readinessFixture = buildReadinessFixture({ snapshot, identities, sleeper, catalog });
+    snapshot = readinessFixture.files['/data/fantasypros-snapshot.json'];
+    fixture.readiness(readinessFixture.files);
+    const files = Object.fromEntries(Object.entries(readinessFixture.files).map(([url, value]) => [url, createHash('sha256').update(JSON.stringify(value)).digest('hex')]));
+    results.metadata.readinessFixture = { timestamp: readinessFixture.timestamp, note: readinessFixture.note, leaguePreferences: readinessFixture.leaguePreferences, files };
+    await writeFile(path.join(outDir, 'readiness-fixture.json'), JSON.stringify(readinessFixture, null, 2));
+  }
   const decoded = decodeFantasyProsSnapshot(snapshot);
   check(catalog.length === 900, `Expected 900 real identities, got ${catalog.length}`);
-  const plan = extensionSetupOnly ? { actors: [[], []], picks: [], queue: [] } : planSession(selectCatalog(catalog, config.perActor * 2), config.perActor);
-  const problems = extensionSetupOnly ? [] : assertPlan(plan);
+  const plan = (extensionSetupOnly || rootTier2Preflight) ? { actors: [[], []], picks: [], queue: [] } : planSession(selectCatalog(catalog, config.perActor * 2), config.perActor);
+  const problems = (extensionSetupOnly || rootTier2Preflight) ? [] : assertPlan(plan);
   check(!problems.length, `Catalog plan invalid: ${problems.join(', ')}`);
   results.metadata.plan = { perActor: config.perActor, sessionCommands: plan.actors.flat().length,
     picks: plan.picks.length, queue: plan.queue.length, scenarioCommands: config.suites * config.seeds * config.perActor * 2,
-    actorSlots: extensionSetupOnly ? [] : plan.actors.map(rows => { const picks = rows.filter(c => c.type === 'pick'); return [picks[0].slot, picks.at(-1).slot]; }), problems };
+    actorSlots: (extensionSetupOnly || rootTier2Preflight) ? [] : plan.actors.map(rows => { const picks = rows.filter(c => c.type === 'pick'); return [picks[0].slot, picks.at(-1).slot]; }), problems };
   const bytes = JSON.stringify(snapshot);
   fixture.catalog(bytes);
   results.metadata.catalogFixture = { path: '/data/fantasypros-snapshot.json', originalCount, rankingCount: decoded.rankings.length, identityCount: catalog.length,
@@ -301,7 +321,7 @@ async function launch(label, { extensionDir } = {}) {
   return { ctx, worker, extensionId: id, runtime, launchOptions, profile };
 }
 
-const draftUrl = (id, host = 'localhost') => `http://${host}:${config.port}/draft?provider=sleeper&draftId=${id}&position=1`;
+const draftUrl = (id, host = 'localhost') => `http://${host}:${config.port}/draft?provider=sleeper&draftId=${id}&position=1${fixtureReadyScope ? '&settings=quick-mock' : ''}`;
 const header = ctx => ctx.getByRole('button', { name: UI.workspaceNav, exact: true });
 
 async function appState(ctx, timeout = 60000) {
@@ -345,7 +365,7 @@ async function readCommitted(page, id) {
     try {
       const session = await new Promise((resolve, reject) => { const g = db.transaction(['sessions'], 'readonly').objectStore('sessions').get(key); g.onsuccess = () => resolve(g.result ?? null); g.onerror = () => reject(g.error); });
       if (!session) return { present: false, picks: [], queue: [] };
-      return { present: true, revision: session.revision, picks: (session.draftHistory ?? []).map(p => ({ pickNumber: p.pickNumber, playerId: p.playerId, source: p.source })), queue: session.shortlistedPlayerIds ?? [], sessionMode: session.sessionMode };
+      return { present: true, revision: session.revision, picks: (session.draftHistory ?? []).map(p => ({ pickNumber: p.pickNumber, playerId: p.playerId, source: p.source })), queue: session.shortlistedPlayerIds ?? [], sessionMode: session.sessionMode, manualContinuityBaselineAt: session.manualContinuityBaselineAt, lastConfirmedSyncAt: session.lastConfirmedSyncAt };
     } finally { db.close(); }
   }, [DATABASE, `sleeper:${id}`]), 10000, 'Read-only committed session audit');
 }
@@ -367,12 +387,12 @@ async function countSessions(page) {
 }
 
 let seedSequence = 0;
-async function seedV1(page, ids) {
+async function seedV1(page, ids, { queues = {}, leaguePreferences } = {}) {
   const prefix = `v1-seed-${++seedSequence}`;
   const input = path.join(outDir, `${prefix}-input.json`);
   const output = path.join(outDir, `${prefix}-entries.json`);
   const processProofOutput = path.join(outDir, `${prefix}-process.json`);
-  await writeFile(input, JSON.stringify({ ids, teams: TEAMS, rounds: ROUNDS, output, processProofOutput }), { flag: 'wx' });
+  await writeFile(input, JSON.stringify({ ids, teams: TEAMS, rounds: ROUNDS, output, processProofOutput, queues, leaguePreferences }), { flag: 'wx' });
   await Processes.run(process.execPath, [requireScripts.resolve('tsx/cli'), '--conditions=@fantasy-draft/source', path.join(here, 'ui-seed.mjs'), input],
     { cwd: root, timeoutMs: 30000 });
   const child = JSON.parse(await readFile(processProofOutput, 'utf8'));
@@ -534,6 +554,7 @@ async function dismissFailedDialog(ctx) {
   }
 }
 async function recordAction(actor, cmd, operation) {
+  assertWorkloadAllowed(rootTier2Preflight);
   check(!results.productionNavigationDefect, 'Production navigation stopped the workload');
   const startedAt = Date.now();
   const actionId = `${currentLabel}/${actor.session ?? 'mock'}/${cmd.id}`;
@@ -578,6 +599,7 @@ async function openTab(ctxInfo, id, name = 'tab0') {
   const page = await ctxInfo.ctx.newPage();
   await page.goto(draftUrl(id));
   await appReady(page, name);
+  if (fixtureReadyScope) await fixtureRules(page);
   return { name, page, ctx: page, kind: 'tab' };
 }
 async function installDraftContextAndRestartWorker(ctxInfo, id) {
@@ -612,11 +634,13 @@ async function mountPanel(panel, ctxInfo, id) {
   if (ready === 'error') throw new Error(`Side panel reported a setup error: ${(await page.locator('#error-state').innerText()).trim()}`);
   await diagnostics.attachFrame(frame, ctxInfo.ctx, currentLabel);
   const documentStarted = await frame.evaluate(() => performance.timeOrigin);
+  const openControl = fixtureReadyScope ? await inspectControl(open, 'Open local workspace') : undefined;
   await open.click();
   await appReady(frame, 'panel');
   check(await frame.evaluate(() => performance.timeOrigin) === documentStarted, 'Open local workspace navigated the iframe document');
-  results.progress.push({ stage: 'panel-local-workspace', id, frameUrl: frame.url() }); await save();
+  results.progress.push({ stage: 'panel-local-workspace', id, frameUrl: frame.url(), openControl }); await save();
   panel.ctx = frame; panel.frame = frame;
+  if (fixtureReadyScope) await fixtureRules(frame);
   navigation?.panelReady(page);
 }
 async function reloadActors(ctxInfo, actors, id) {
@@ -715,6 +739,124 @@ async function loadCatalog(ctxInfo, needed) {
   } finally { await page.close(); }
 }
 
+async function fixtureRules(ctx) {
+  const status = ctx.getByRole('button', { name: /^Draft status:/ });
+  await status.waitFor({ timeout: 30000 }); await status.click();
+  if (await ctx.getByRole('heading', { name: 'Quick mock settings', exact: true }).count()) {
+    await ctx.getByRole('button', { name: 'Close draft details', exact: true }).click();
+  } else {
+    await ctx.getByRole('button', { name: 'League setup', exact: true }).click();
+    const dialog = ctx.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Quick mock', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Use quick mock settings', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+  }
+  await drained(ctx);
+  await waitFor(async () => !(await ctx.getByRole('heading', { name: 'Finish setup to turn on recommendations', exact: true }).count()), 20000,
+    'Legitimate fixture data and league settings did not pass product readiness');
+}
+async function inspectPoolControl(actor, player, queued) {
+  const search = await ensurePool(actor.ctx); await search.fill(player.name);
+  const name = `${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} local shortlist`;
+  return { ...await inspectControl(actor.ctx.getByRole('button', { name, exact: true }), name), playerId: player.id };
+}
+async function inspectPickControls(actors, commands) {
+  const dialogs = [];
+  for (const actor of actors) dialogs.push(await openPickDialog(actor.ctx));
+  const prepared = await prepareConflict(dialogs, commands, fillPick);
+  try {
+    return { controls: await Promise.all(dialogs.map(dialog => inspectControl(dialog.getByRole('button', { name: UI.record, exact: true }), UI.record))),
+      barrier: prepared.barrier, commands };
+  } finally {
+    await Promise.all(prepared.observers.map(observer => observer.dispose()));
+    for (const dialog of dialogs) await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  }
+}
+async function waitForProviderRecovery(actors, id, provider) {
+  let committed;
+  await waitFor(async () => {
+    committed = await readCommitted(actors[0].ctx, id);
+    return committed.manualContinuityBaselineAt === null && committed.lastConfirmedSyncAt > 0 &&
+      provider.every(pick => committed.picks.some(row => row.pickNumber === pick.pickNumber && row.playerId === pick.playerId && row.source !== 'provisional')) &&
+      (await Promise.all(actors.map(async actor => !(await actor.ctx.getByRole('dialog').count()) && !(await actor.ctx.getByRole('button', { name: UI.addProvisional }).count())))).every(Boolean);
+  }, 30000, 'Provider recovery did not confirm truth and retire Manual Continuity controls');
+  return { committed, noOpenDialogs: true, manualControlsAbsent: true };
+}
+async function installedPanelSetup(ctxInfo, appTab, id) {
+  const hostPermission = await ctxInfo.worker.evaluate(pattern => chrome.permissions.contains({ origins: [pattern] }), `${origin}/*`);
+  check(hostPermission, 'Installed extension lacks the actual canonical host permission');
+  const actor = await openPanel(ctxInfo, id);
+  const frameUrl = actor.ctx.url(); const before = await readCommitted(actor.ctx, id);
+  await reloadActors(ctxInfo, [actor], id);
+  const frameUrlAfter = actor.ctx.url(); const after = await readCommitted(actor.ctx, id);
+  const proof = { hostPermission, canonicalAppTab: appTab.url(), runtime: ctxInfo.runtime, frameUrl, frameUrlAfter, before, after,
+    nonceBefore: new URL(frameUrl).searchParams.get('__storageNonce'), nonceAfter: new URL(frameUrlAfter).searchParams.get('__storageNonce'),
+    workerReset: results.progress.findLast(value => value.stage === 'extension-worker-explicitly-woken' && value.id === id),
+    openControl: results.progress.findLast(value => value.stage === 'panel-local-workspace' && value.id === id)?.openControl };
+  await actor.page.screenshot({ path: path.join(outDir, 'root-smoke-installed-setup.png') });
+  await closeActors([actor]); return proof;
+}
+async function reachabilityScenario(scenario, scenarioIndex) {
+  const panel = scenario.label === 'extension-granted';
+  const base = 1800000000000 + scenarioIndex * 1000;
+  const ids = Array.from({ length: panel ? 4 : 7 }, (_, index) => String(base + index + 1));
+  const names = panel ? ['setup', 'slice', 'conflict', 'move'] : ['conflict', 'move', 'reconcile', 'sender0', 'receiver0', 'sender1', 'receiver1'];
+  const sessions = Object.fromEntries(names.map((name, index) => [name, ids[index]]));
+  const queues = { [sessions.move]: fixtureCatalog.slice(0, 4).map(player => player.id),
+    ...(!panel ? { [sessions.receiver0]: [fixtureCatalog[10].id], [sessions.receiver1]: [fixtureCatalog[10].id] } : {}) };
+  scenario.fixtureSessions = sessions; scenario.seedQueues = queues; scenario.reachability = [];
+  const ctxInfo = await launch(scenario.label); context = ctxInfo.ctx;
+  scenario.runtime = ctxInfo.runtime; scenario.profile = ctxInfo.profile; scenario.launchOptions = ctxInfo.launchOptions;
+  const appTab = await context.newPage();
+  await seedV1(appTab, [...ids, '1699999999999'], { queues, leaguePreferences: FIXTURE_LEAGUE });
+  scenario.activation = await activateThroughPrompt(appTab, [...ids, '1699999999999']);
+  scenario.v1AtActivation = scenario.activation.v1Snapshot; delete scenario.activation.v1Snapshot;
+  const catalog = await loadCatalog(ctxInfo, 300);
+  check(catalog.slice(0, 4).every((player, index) => player.id === fixtureCatalog[index].id), 'Imported preflight queue differs from the actual dialog catalog');
+  await appTab.goto(draftUrl(ids[0])); await appReady(appTab, 'ordinary preflight rendezvous'); await fixtureRules(appTab);
+  const commands = (slot0, slot1) => [0, 1].map(actor => ({ id: `preflight:${actor}`, type: 'pick', actor, slot: actor ? slot1 : slot0, playerId: catalog[actor].id, name: catalog[actor].name }));
+  for (const kind of PREFLIGHT_PLAN[scenario.label]) {
+    let row = { kind };
+    if (kind === 'setup') row.proof = await installedPanelSetup(ctxInfo, appTab, sessions.setup);
+    else if (kind.startsWith('lifecycle')) {
+      const sender = kind.endsWith('0') ? 0 : 1, player = catalog[10];
+      const source = await openTab(ctxInfo, sessions[`sender${sender}`], `sender${sender}`);
+      const receiver = await openTab(ctxInfo, sessions[`receiver${sender}`], `receiver${1 - sender}`);
+      row = { ...row, sender, senderSession: sessions[`sender${sender}`], receiverSession: sessions[`receiver${sender}`],
+        fixtureOnly: 'Distinct declared v1 sessions inspect empty-sender and queued-receiver controls without dispatching a queue write or claiming focus recovery',
+        controls: [await inspectPoolControl(source, player, false), await inspectPoolControl(receiver, player, true)] };
+      await closeActors([source, receiver]);
+    } else {
+      const actors = await startSession(ctxInfo, sessions[kind], { panel });
+      if (kind === 'move') {
+        for (const actor of actors) await actor.ctx.getByRole('button', { name: 'Assistant', exact: true }).click();
+        row.controls = (await Promise.all(actors.map(actor => inspectAssistantMoves(actor.ctx, catalog[1].name)))).flat();
+        row.seedQueue = (await readCommitted(actors[0].ctx, sessions.move)).queue;
+        check(JSON.stringify(row.seedQueue) === JSON.stringify(queues[sessions.move]), 'Preflight queue did not import unchanged');
+      } else {
+        const intended = kind === 'slice' ? planSession(catalog, 150).actors.map(rows => rows[0]) : commands(1, 1);
+        const pick = await inspectPickControls(actors, intended); row = { ...row, ...pick };
+        if (kind === 'slice') {
+          const plan = planSession(catalog, 150); row.plannedSlice = { total: plan.actors.flat().length, perActor: 150 };
+          row.controls.push(...await Promise.all(actors.map((actor, index) => {
+            const cmd = plan.actors[index].find(cmd => cmd.type === 'queueAdd');
+            return inspectPoolControl(actor, { id: cmd.playerId, name: cmd.name }, false);
+          })));
+        }
+        if (kind === 'reconcile') {
+          fixture.healthy(sessions.reconcile, []);
+          row.recovery = await waitForProviderRecovery(actors, sessions.reconcile, []);
+          row.restoredWithoutDialog = true;
+        }
+      }
+      await closeActors(actors);
+    }
+    assertNoPreflightWorkload(results); scenario.reachability.push(row); await save();
+  }
+  scenario.v1FinalSnapshot = await localStorageV1(appTab);
+  await appTab.close();
+}
+
 async function rootSmokeScenario(scenario, scenarioIndex) {
   const panel = scenario.label === 'extension-granted';
   const count = panel ? 42 : 43;
@@ -722,7 +864,7 @@ async function rootSmokeScenario(scenario, scenarioIndex) {
   const ctxInfo = await launch(scenario.label); context = ctxInfo.ctx;
   scenario.runtime = ctxInfo.runtime; scenario.profile = ctxInfo.profile; scenario.launchOptions = ctxInfo.launchOptions; scenario.steps = [];
   const setup = await context.newPage();
-  await seedV1(setup, [...ids, '1699999999999']);
+  await seedV1(setup, [...ids, '1699999999999'], { leaguePreferences: FIXTURE_LEAGUE });
   scenario.activation = await activateThroughPrompt(setup, [...ids, '1699999999999']);
   scenario.v1AtActivation = scenario.activation.v1Snapshot; delete scenario.activation.v1Snapshot;
   const catalog = await loadCatalog(ctxInfo, 300); scenario.catalog = catalog;
@@ -734,20 +876,7 @@ async function rootSmokeScenario(scenario, scenarioIndex) {
     reconcile: () => reconcileBurst(ctxInfo, next(), catalog, false),
     lifecycle: () => lifecycle(ctxInfo, [next(), next()], catalog, nameToId),
     slice: () => measuredSession({ ctxInfo, id: next(), nameToId, plan: planSession(catalog, 150), seed: 1009, panel: true }),
-    setup: async () => {
-      const id = next();
-      const hostPermission = await ctxInfo.worker.evaluate(pattern => chrome.permissions.contains({ origins: [pattern] }), `${origin}/*`);
-      check(hostPermission, 'Installed extension lacks the actual canonical host permission');
-      const actor = await openPanel(ctxInfo, id);
-      const frameUrl = actor.ctx.url(); const before = await readCommitted(actor.ctx, id);
-      await reloadActors(ctxInfo, [actor], id);
-      const frameUrlAfter = actor.ctx.url(); const after = await readCommitted(actor.ctx, id);
-      const row = { hostPermission, canonicalAppTab: setup.url(), runtime: ctxInfo.runtime, frameUrl, frameUrlAfter, before, after,
-        nonceBefore: new URL(frameUrl).searchParams.get('__storageNonce'), nonceAfter: new URL(frameUrlAfter).searchParams.get('__storageNonce'),
-        workerReset: results.progress.findLast(value => value.stage === 'extension-worker-explicitly-woken' && value.id === id) };
-      await actor.page.screenshot({ path: path.join(outDir, 'root-smoke-installed-setup.png') });
-      await closeActors([actor]); return row;
-    },
+    setup: () => installedPanelSetup(ctxInfo, setup, next()),
   };
   await runRootSmokeSteps(scenario.label, operations, async (kind, row, sample) => {
     if (kind === 'pickConflict') scenario.pickConflicts.push(row);
@@ -905,7 +1034,8 @@ async function moveConflict(ctxInfo, id, catalog, nameToId, sample, panel) {
   for (const actor of actors) await actor.ctx.getByRole('button', { name: 'Assistant', exact: true }).click();
   const target = four[1].name;
   const moves = [`Move ${target} up in queue`, `Move ${target} down in queue`];
-  await Promise.all(actors.map((a, i) => a.ctx.getByRole('button', { name: moves[i], exact: true }).waitFor()));
+  const controls = await Promise.all(actors.map(actor => inspectAssistantMoves(actor.ctx, target)));
+  results.progress.push({ stage: 'move-controls-ready', id, controls }); await save();
   const revisionBefore = (await readCommitted(actors[0].page, id)).revision;
   const receipts = await Promise.all(actors.map((a, i) => recordAction(a, { id: `move:${i}`, type: 'queueMove', playerId: four[1].id, offset: i ? 1 : -1 }, async () => {
     await a.ctx.getByRole('button', { name: moves[i], exact: true }).click();
@@ -945,14 +1075,18 @@ async function reconcileBurst(ctxInfo, id, catalog, panel) {
     return { pickNumber: c.slot, round: info.round, rosterId: null, draftSlot: info.draftSlot, teamIndex: info.teamIndex, playerId: p.id, playerName: p.name, position: p.position, nflTeam: p.team,
       isKeeper: false, source: 'sleeper-api', confidence: 'confirmed', observedAt: Date.now() }; });
   const actors = await startSession(ctxInfo, id, { panel });
-  let acks = 0; let flipped = false; let flippedAt = null;
-  const observer = row => { if (row.outcome === 'ack') acks++; if (!flipped && acks >= Math.floor(per * 0.6)) { flipped = true; flippedAt = acks; fixture.healthy(id, provider); } };
-  const issued = (await Promise.all(actors.map((a, i) => runActor(a, cmds[i], 4242 + i, observer)))).flat();
+  let flippedAt = null; let recovery;
+  const issued = await runReconcilePhases(cmds, (commands, actor) => runActor(actors[actor], commands, 4242 + actor, () => {}), async count => {
+    for (const actor of actors) check(!(await actor.ctx.getByRole('dialog').count()), 'Close every pick dialog before provider recovery');
+    flippedAt = count; fixture.healthy(id, provider);
+    recovery = await waitForProviderRecovery(actors, id, provider);
+    results.progress.push({ stage: 'provider-restored-between-pick-commands', id, flippedAt, recovery }); await save();
+  });
   await sleep(1500);
   const reconciledVisible = await actors[0].ctx.getByText(/Reconcil/i).count();
   await reloadActors(ctxInfo, actors, id);
   const committed = await readCommitted(actors[0].page, id);
-  const evidence = { issued, committed, provider, flippedAt };
+  const evidence = { issued, committed, provider, flippedAt, recovery };
   const row = { session: id, reconciledVisible, ...evidence, checks: auditReconcileBurst(evidence) };
   await closeActors(actors); return row;
 }
@@ -1012,6 +1146,7 @@ async function lifecycle(ctxInfo, ids, catalog, nameToId) {
     await Promise.all(pages.map(p => p.goto(draftUrl(id)))); await Promise.all(pages.map(p => appReady(p, 'lifecycle')));
     const actors = pages.map((page, i) => ({ name: `tab${i}`, page, ctx: page, kind: 'tab', session: id }));
     const receiver = 1 - sender; const player = catalog[10];
+    for (const actor of actors) { if (fixtureReadyScope) await fixtureRules(actor.ctx); await inspectPoolControl(actor, player, false); }
     await pages[sender].bringToFront();
     const receipt = await runCommand(actors[sender], { id: 'lifecycle:add', type: 'queueAdd', playerId: player.id, name: player.name });
     check(receipt.outcome === 'ack', 'Lifecycle sender queue add failed');
@@ -1143,6 +1278,7 @@ try {
     const servedFixture = await (await import('@fantasy-draft/shared/http')).http.text(`${origin}/data/fantasypros-snapshot.json`, { timeoutMs: 10000, retries: 0, retryAfter: false });
     check(createHash('sha256').update(servedFixture).digest('hex') === results.metadata.catalogFixture.sha256, 'HTTP catalog fixture bytes differ from the decoded 900-identity fixture');
     results.metadata.productionHttp.catalogFixtureSha256 = results.metadata.catalogFixture.sha256;
+    if (readinessFixture) results.metadata.productionHttp.readinessFiles = await verifyFixtureHttp(origin, readinessFixture.files);
     results.metadata.sourceHashes = await sourceSnapshot();
   }
   results.metadata.serverStarted = new Date().toISOString();
@@ -1156,7 +1292,8 @@ try {
     results.scenarios.push(scenario);
     try {
       await guarded(async () => {
-        if (rootTier2Smoke) await rootSmokeScenario(scenario, scenarioIndex);
+        if (rootTier2Preflight) await reachabilityScenario(scenario, scenarioIndex);
+        else if (rootTier2Smoke) await rootSmokeScenario(scenario, scenarioIndex);
         else if (focused) await focusedScenario(scenario);
         else if (POSITIVE.includes(label)) await positiveScenario(scenario, scenarioIndex);
         else await negativeScenario(scenario);
@@ -1168,7 +1305,7 @@ try {
       }
       await save();
     } finally { await closeContext(); await save(); }
-    if (results.productionNavigationDefect || ((flag('gate') || rootTier2Smoke) && (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length))) break;
+    if (results.productionNavigationDefect || ((flag('gate') || fixtureReadyScope) && (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length))) break;
   }
   if (focused || extensionSetupOnly) {
     try { await guarded(focusedExtensionSetup); }
@@ -1179,12 +1316,13 @@ try {
     finally { await closeContext(); await save(); }
   }
   results.metadata.finished = new Date().toISOString();
-  if (!extensionSetupOnly && !rootTier2Smoke) results.gate = evaluateUiGate(results);
+  if (!extensionSetupOnly && !fixtureReadyScope) results.gate = evaluateUiGate(results);
   if (rootTier2Smoke) results.rootSmoke = evaluateRootSmoke(results);
+  if (rootTier2Preflight) results.reachability = evaluateReachability(results);
   if (tier2) results.tier2 = evaluateTier2(results);
   await save();
 
-  if (results.scenarioErrors.length || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes)) process.exitCode = 1;
+  if (results.scenarioErrors.length || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes) || (rootTier2Preflight && !results.reachability?.passes)) process.exitCode = 1;
 } catch (error) {
   results.fatal = { name: error.name, message: error.message, stack: error.stack }; await save(); console.error(error); process.exitCode = 1;
 } finally {
@@ -1197,7 +1335,7 @@ try {
   results.metadata.sourceHashesEnd = await sourceSnapshot();
   results.metadata.changedSourceFiles = [...new Set([...Object.keys(results.metadata.sourceHashes), ...Object.keys(results.metadata.sourceHashesEnd)])].filter(file => results.metadata.sourceHashes[file] !== results.metadata.sourceHashesEnd[file]);
   results.metadata.sourceStable = results.metadata.changedSourceFiles.length === 0;
-  if (!extensionSetupOnly && !rootTier2Smoke) results.gate = evaluateUiGate(results);
+  if (!extensionSetupOnly && !fixtureReadyScope) results.gate = evaluateUiGate(results);
   else if (extensionSetupOnly) {
     results.setupCheck = { passes: !!results.extensionSetup?.ready && results.metadata.sourceStable &&
       results.metadata.gitEnd.head === gitStart.head && !results.metadata.gitEnd.status && !results.commandStarts.length && !results.commandLog.length &&
@@ -1206,10 +1344,11 @@ try {
     if (!results.setupCheck.passes) process.exitCode = 1;
   }
   if (rootTier2Smoke) results.rootSmoke = evaluateRootSmoke(results);
+  if (rootTier2Preflight) results.reachability = evaluateReachability(results);
   if (tier2) results.tier2 = evaluateTier2(results);
-  if (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes)) process.exitCode = 1;
+  if (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes) || (rootTier2Preflight && !results.reachability?.passes)) process.exitCode = 1;
   await save();
 }
 
 
-console.log(JSON.stringify({ smoke, rootSmoke: results.rootSmoke, setupCheck: results.setupCheck, tier2: results.tier2, plan: results.metadata.plan, sourceStable: results.metadata.sourceStable, gate: results.gate, scenarioErrors: results.scenarioErrors.map(e => `${e.label}: ${e.message}`), pageErrors: results.pageErrors.length }, null, 2));
+console.log(JSON.stringify({ smoke, reachability: results.reachability, rootSmoke: results.rootSmoke, setupCheck: results.setupCheck, tier2: results.tier2, plan: results.metadata.plan, sourceStable: results.metadata.sourceStable, gate: results.gate, scenarioErrors: results.scenarioErrors.map(e => `${e.label}: ${e.message}`), pageErrors: results.pageErrors.length }, null, 2));
