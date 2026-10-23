@@ -1,69 +1,32 @@
-import type {
-  FantasyProsSnapshot,
-  NFLTeam,
-  Player,
-  Position,
-  Roster,
-  RosterRequirements,
-  ScoringRules,
-  TeamEnvironment,
-} from '@fantasy-draft/shared';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
+  type Player,
+  type Position,
+  POSITIONS,
+} from '@fantasy-draft/shared/league';
+import {
+  type FantasyProsSnapshot,
+  decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeTeamEnvDataFile, decodePlayerIdentityFile, decodeKeeperFile, decodeLeagueSurvivalModel,
+} from '@fantasy-draft/shared/catalog';
+import {
+  createSlotSequence,
+} from '@fantasy-draft/shared/draft';
+import {
+  type Roster,
+  type RosterRequirements,
+  type ScoringRules,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
-  POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import identityJson from '../../../data/player-identity.json';
 import keeperJson from '../../../data/league-history/current-keepers.json';
 import sleeperJson from '../../../data/sleeper-adp.json';
 import survivalModelJson from '../../../data/league-history/survival-model.json';
 import teamEnvironmentJson from '../../../data/team-environment.json';
-import { calculateAllScarcityScores } from '../lib/calculations/scarcity';
-import { getRecommendations } from '../lib/calculations/recommendations';
-import {
-  mergePlayerData,
-  normalizePlayerName,
-  type PlayerIdentityData,
-  type SleeperADPPlayer,
-} from '../lib/calculations/player-value';
-import { applyLeagueSurvivalModel, type LeagueSurvivalModel } from '../lib/calculations/survival';
-import { calculateTeamNeeds } from '../lib/calculations/team-needs';
-import {
-  estimateMockSurvivalProbabilities,
-  formatRoundPick,
-  getKeeperAtPick,
-  getTeamIndexForPick,
-  selectCpuPlayer,
-  type MockDraftEngineConfig,
-  type MockDraftPickLike,
-  type MockKeeperAssignment,
-  type MockLeagueHistoryModel,
-} from '../lib/mock-draft-engine';
+import { calculateAllScarcityScores, getRecommendations, mergePlayerData, normalizePlayerName, applyLeagueSurvivalModel, type LeagueSurvivalModel, calculateTeamNeeds, estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
 
 type CorePosition = 'QB' | 'RB' | 'WR' | 'TE';
-
-interface SleeperFile {
-  readonly players: readonly SleeperADPPlayer[];
-}
-
-interface TeamEnvironmentFile {
-  readonly teams: Record<NFLTeam, TeamEnvironment>;
-}
-
-interface IdentityFile {
-  readonly players: readonly PlayerIdentityData[];
-}
-
-interface KeeperFile {
-  readonly keepers: readonly {
-    readonly playerName: string;
-    readonly position: Position;
-    readonly team: number;
-    readonly round: number;
-    readonly isMyKeeper?: boolean;
-  }[];
-}
 
 interface ExperimentPolicy {
   readonly id: string;
@@ -393,10 +356,10 @@ function cloneScoringRules(overrides: {
 }
 
 function buildPlayers(scoringRules: ScoringRules): Player[] {
-  const fantasyPros = fantasyProsJson as unknown as FantasyProsSnapshot;
-  const sleeper = sleeperJson as unknown as SleeperFile;
-  const environments = teamEnvironmentJson as unknown as TeamEnvironmentFile;
-  const identities = identityJson as unknown as IdentityFile;
+  const fantasyPros = decodeFantasyProsSnapshot(fantasyProsJson);
+  const sleeper = decodeSleeperDataFile(sleeperJson, { onWarning: console.warn });
+  const environments = decodeTeamEnvDataFile(teamEnvironmentJson, { onWarning: console.warn });
+  const identities = decodePlayerIdentityFile(identityJson);
   return mergePlayerData(
     fantasyPros.rankings,
     fantasyPros.projections,
@@ -404,6 +367,7 @@ function buildPlayers(scoringRules: ScoringRules): Player[] {
     sleeper.players,
     environments.teams,
     {
+      onWarning: (message) => { console.warn(message); },
       fantasyProsAdp: fantasyPros.adp ?? [],
       identities: identities.players,
       leagueContext: {
@@ -419,7 +383,7 @@ function buildPlayers(scoringRules: ScoringRules): Player[] {
 }
 
 function resolveKeepers(players: readonly Player[]): MockKeeperAssignment[] {
-  const keeperFile = keeperJson as unknown as KeeperFile;
+  const keeperFile = decodeKeeperFile(keeperJson);
   return keeperFile.keepers.map((keeper) => {
     const match = players.find((player) =>
       player.position === keeper.position &&
@@ -437,7 +401,7 @@ function resolveKeepers(players: readonly Player[]): MockKeeperAssignment[] {
 }
 
 function createInputs(players: readonly Player[] = buildPlayers(DEFAULT_SCORING_RULES)): ExperimentInputs {
-  const keeperFile = keeperJson as unknown as KeeperFile;
+  const keeperFile = decodeKeeperFile(keeperJson);
   const myKeeperEntry = keeperFile.keepers.find((keeper) => keeper.isMyKeeper);
   if (!myKeeperEntry) throw new Error('The Primary League keeper file has no isMyKeeper entry.');
   const keepers = resolveKeepers(players);
@@ -448,8 +412,8 @@ function createInputs(players: readonly Player[] = buildPlayers(DEFAULT_SCORING_
   return {
     players,
     keepers,
-    historyModel: survivalModelJson as unknown as LeagueSurvivalModel & MockLeagueHistoryModel,
-    config: {
+    historyModel: decodeLeagueSurvivalModel(survivalModelJson, { onWarning: console.warn }),
+    config: { draftType: 'snake',
       totalTeams: 10,
       totalRounds: 14,
       myPickPosition: myKeeperEntry.team,
@@ -485,7 +449,7 @@ function getLeagueAdjustedPlayers(
   const adjusted = applyLeagueSurvivalModel(
     experiment.players,
     experiment.historyModel,
-    {
+    { draftType: 'snake',
       currentPick,
       myPickPosition: experiment.config.myPickPosition,
       totalTeams: experiment.config.totalTeams,
@@ -628,7 +592,7 @@ function runDraft(input: {
   const totalPicks = config.totalTeams * config.totalRounds;
 
   for (let pickNumber = 1; pickNumber <= totalPicks; pickNumber += 1) {
-    const keeper = getKeeperAtPick(experiment.keepers, pickNumber, config.totalTeams);
+    const keeper = getKeeperAtPick(experiment.keepers, pickNumber, config.totalTeams, config.draftType);
     if (keeper) {
       history.push({
         pickNumber,
@@ -641,7 +605,7 @@ function runDraft(input: {
       continue;
     }
 
-    const teamIndex = getTeamIndexForPick(pickNumber, config.totalTeams);
+    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(pickNumber).teamIndex;
     if (teamIndex !== experiment.myTeamIndex) {
       const selection = selectCpuPlayer({
         players: opponentPlayers,
@@ -695,7 +659,8 @@ function runDraft(input: {
           .map((playerId) => playersById.get(playerId))
           .filter((player): player is Player => player !== undefined),
         selectionsRemaining: Math.max(0, config.totalRounds - myRosterIds.size),
-      }
+      },
+      DRAFT_DISPLAY
     );
     const recommendedIds = new Set(recommendations.draftNow.map((candidate) => candidate.playerId));
     const canonicalBestPick = recommendations.draftNow[0];
@@ -721,7 +686,7 @@ function runDraft(input: {
     };
     audit.push({
       pickNumber,
-      roundPick: formatRoundPick(pickNumber, config.totalTeams),
+      roundPick: createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pickNumber),
       bestPickId: bestPickPlayer.id,
       bestPickName: bestPickPlayer.name,
       bestPickPosition: bestPickPlayer.position,
@@ -779,7 +744,7 @@ function runDraft(input: {
         });
       input.waitMap.decisions.push({
         pickNumber,
-        roundPick: formatRoundPick(pickNumber, config.totalTeams),
+        roundPick: createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pickNumber),
         selectedPlayer: bestPickPlayer.name,
         selectedPosition: bestPickPlayer.position,
         nextPickNumber: nextUserPick,
@@ -1017,7 +982,7 @@ function averageFirstFourPositionCounts(
 export function runPrimaryLeagueExperiments(
   options: PrimaryLeagueExperimentOptions = {}
 ): PrimaryLeagueExperimentReport {
-  const fantasyPros = fantasyProsJson as unknown as FantasyProsSnapshot;
+  const fantasyPros = decodeFantasyProsSnapshot(fantasyProsJson);
   const seed = options.seed ?? 20260831;
   const scale: ExperimentScale = { ...DEFAULT_SCALE, ...options.scale };
   const experiment = createInputs();

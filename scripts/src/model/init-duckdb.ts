@@ -5,6 +5,7 @@
  */
 
 import { Effect } from 'effect';
+import { decodeContractDataFile, decodeTeamEnvDataFile } from '@fantasy-draft/shared/catalog';
 import {
   EXCLUDES_FANTASYPROS,
   MODEL_DB_PATH,
@@ -16,27 +17,6 @@ import {
   sqlString,
 } from './duckdb.js';
 import { io, runMain } from '../effect-runtime.js';
-
-interface ContractsJson {
-  readonly players?: readonly unknown[];
-}
-
-interface TeamEnvironmentJson {
-  readonly teams: Record<
-    string,
-    {
-      readonly team: string;
-      readonly name: string;
-      readonly offenseScore: number;
-      readonly passVolume: string;
-      readonly rushVolume: string;
-      readonly pointsRank: number;
-      readonly passAttemptsRank: number;
-      readonly rushAttemptsRank: number;
-      readonly coachingStability: boolean;
-    }
-  >;
-}
 
 const normalizeNameSql = (column: string): string =>
   `regexp_replace(lower(${column}), '[^a-z0-9]', '', 'g')`;
@@ -68,8 +48,8 @@ function fantasyProsTable(
 const program = Effect.gen(function* () {
   yield* io(() => ensureModelDirs());
 
-  const contracts = yield* io(() => readJsonFile<ContractsJson>(MODEL_PATHS.contractsJson));
-  const teamEnvironment = yield* io(() => readJsonFile<TeamEnvironmentJson>(MODEL_PATHS.teamEnvironmentJson));
+  const contracts = yield* io(() => readJsonFile(MODEL_PATHS.contractsJson, value => decodeContractDataFile(value, { onWarning: console.warn })));
+  const teamEnvironment = yield* io(() => readJsonFile(MODEL_PATHS.teamEnvironmentJson, value => decodeTeamEnvDataFile(value, { onWarning: console.warn })));
   const hasContracts = (contracts.players?.length ?? 0) > 0;
   const teamEnvironmentValues = (
     Object.values(teamEnvironment.teams)

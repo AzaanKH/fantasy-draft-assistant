@@ -4,7 +4,7 @@ import {
   REFRESHABLE_CORE_DRAFT_DATA_KEYS,
   type DraftReadinessItem,
   type DraftReadinessReport,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { Button } from '@/components/ui/button';
 import { useDraftDataRefresh } from '@/hooks/useDraftDataRefresh';
 import { IS_DEMO } from '@/lib/demo-mode';

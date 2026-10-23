@@ -1,32 +1,31 @@
-import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { createWorkspace, type Workspace } from '@/workspace/workspace';
+import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { getDraftView } from '@/workspace/useDraftView';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
+import {
+  type Player,
+  type Position,
+} from '@fantasy-draft/shared/league';
+import {
+  createSlotSequence,
+} from '@fantasy-draft/shared/draft';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
   createLeagueSettings,
-  type Player,
-  type Position,
   type Roster,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
   calculateAllScarcityScores,
   calculateTeamNeeds,
   getRecommendations,
-} from '@/lib/calculations';
-import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
+  createDraftDecisionOutput,
+} from '@fantasy-draft/shared/draft';
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { hasRemainingDraftDecision } from '@/hooks/useRecommendations';
-import {
-  getPickNumberForTeamRound,
-  getTeamIndexForPick,
-} from '@/lib/mock-draft-engine';
-import {
-  calculateIsMyTurn,
-  useDraftStore,
-  type DraftTeamRoster,
-  type PreloadedKeeper,
-  type SyncedImportedPick,
-} from '@/stores/draftStore';
+import { createDraftStore, type DraftTeamRoster, type PreloadedKeeper, type SyncedImportedPick } from '@/stores/draftStore';
 import { ReconciliationSummary } from './ReconciliationSummary';
 
 const TOTAL_TEAMS = 10;
@@ -164,7 +163,7 @@ function buildSchedule(): {
   readonly provisionalPlayers: readonly Player[];
 } {
   const keeperByPick = new Map(KEEPERS.map((keeper) => [
-    getPickNumberForTeamRound(keeper.teamIndex, keeper.round, TOTAL_TEAMS),
+    createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: keeper.round }).forTeamRound(keeper.teamIndex, keeper.round).pick,
     keeper,
   ]));
   const positionQueues = Array.from({ length: TOTAL_TEAMS }, (_, teamIndex) => {
@@ -189,7 +188,7 @@ function buildSchedule(): {
   const picks: ScheduledPick[] = [];
 
   for (let pickNumber = 1; pickNumber <= TOTAL_PICKS; pickNumber += 1) {
-    const teamIndex = getTeamIndexForPick(pickNumber, TOTAL_TEAMS);
+    const teamIndex = createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: Math.ceil(pickNumber / TOTAL_TEAMS) }).at(pickNumber).teamIndex;
     const keeper = keeperByPick.get(pickNumber);
     const position = keeper?.position ?? positionQueues[teamIndex]?.shift();
     if (!position) throw new Error(`No position planned for pick ${String(pickNumber)}.`);
@@ -273,7 +272,7 @@ function repeatedStrings(values: readonly string[]): string[] {
 
 function compareRosters(
   expected: readonly DraftTeamRoster[],
-  actual: readonly DraftTeamRoster[]
+  actual: readonly Roster[]
 ): string[] {
   const mismatches: string[] = [];
   expected.forEach((expectedRoster, teamIndex) => {
@@ -307,6 +306,18 @@ function compareRosters(
 export function runPrimaryLeagueRehearsal(
   now: number = Date.now()
 ): PrimaryLeagueRehearsalResult {
+  const workspace = createWorkspace({
+    draftStore: createDraftStore(),
+    connectionStore: createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined }),
+  });
+  try {
+    return rehearsePrimaryLeague(workspace, now);
+  } finally {
+    workspace.dispose();
+  }
+}
+
+function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeagueRehearsalResult {
   const failures: string[] = [];
   const failUnless = (condition: boolean, message: string): void => {
     if (!condition) failures.push(message);
@@ -332,22 +343,21 @@ export function runPrimaryLeagueRehearsal(
     rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
     keepersEnabled: true,
   }, now);
-  const store = useDraftStore.getState();
-  store.preloadKeepers([]);
-  store.setConfig({
+  workspace.send('preloadKeepers', []);
+  workspace.send('setConfig', { draftType: 'snake',
     totalTeams: TOTAL_TEAMS,
     totalRounds: TOTAL_ROUNDS,
     myPickPosition: MY_PICK_POSITION,
     rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
   });
-  store.applyLeagueSettings(leagueSettings);
-  store.setSessionMode('live');
-  store.preloadKeepers(KEEPERS);
-  store.resetDraft();
-  store.setDecisionLens('best-pick');
+  workspace.send('applyLeagueSettings', leagueSettings);
+  workspace.send('setSessionMode', 'live');
+  workspace.send('preloadKeepers', KEEPERS);
+  workspace.send('resetDraft');
+  workspace.send('setDecisionLens', 'best-pick');
 
-  failUnless(useDraftStore.getState().keepersInitialized, 'Keeper supply did not initialize.');
-  failUnless(useDraftStore.getState().preloadedKeepers.length === 10, 'Keeper supply did not contain 10 assignments.');
+  failUnless(workspace.draft.getState().keepersInitialized, 'Keeper supply did not initialize.');
+  failUnless(workspace.draft.getState().preloadedKeepers.length === 10, 'Keeper supply did not contain 10 assignments.');
   failUnless(leagueSettings.scoringRules.receiving.reception === 1, 'Full PPR was not applied.');
   failUnless(leagueSettings.scoringRules.receiving.tePremium === 0.5, 'TE premium was not applied.');
   failUnless(leagueSettings.scoringRules.rushing.attemptBonus === 0.2, 'Rush-attempt scoring was not applied.');
@@ -362,7 +372,8 @@ export function runPrimaryLeagueRehearsal(
 
   const observeDecision = (label: string): void => {
     observedTransitions += 1;
-    const state = useDraftStore.getState();
+    const state = getDraftView(workspace.draft, allPlayers);
+    const { config, decisionLens } = workspace.draft.getState();
     const myRosterSize = rosterSize(state.myRoster);
     const shouldRecommend = hasRemainingDraftDecision(
       state.currentPick,
@@ -378,15 +389,11 @@ export function runPrimaryLeagueRehearsal(
     const availablePlayers = allPlayers.filter(
       (player) => !state.draftedPlayerIds.has(player.id)
     );
-    const managerIsOnTheClock = calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams
-    );
+    const managerIsOnTheClock = state.isMyTurn;
     const scarcity = calculateAllScarcityScores(availablePlayers);
     const needs = calculateTeamNeeds(
       state.myRoster,
-      state.config.rosterRequirements,
+      config.rosterRequirements,
       scarcity,
       {
         currentPick: state.currentPick,
@@ -412,7 +419,7 @@ export function runPrimaryLeagueRehearsal(
       totalPicks: TOTAL_PICKS,
       totalTeams: TOTAL_TEAMS,
       isMyTurn: managerIsOnTheClock,
-      requirements: state.config.rosterRequirements,
+      requirements: config.rosterRequirements,
       rosterPlayers,
       selectionsRemaining: TOTAL_ROUNDS - myRosterSize,
       rosterCounts: {
@@ -423,12 +430,13 @@ export function runPrimaryLeagueRehearsal(
         K: state.myRoster.K.length,
         DEF: state.myRoster.DEF.length,
       },
-    });
+    }, DRAFT_DISPLAY);
     const decision = createDraftDecisionOutput(
       recommendations.draftNow,
       recommendations.selection,
       recommendations.bestAvailable,
-      state.decisionLens
+      decisionLens,
+      DRAFT_DISPLAY
     );
     recommendationChecks += 1;
     if (!managerIsOnTheClock) waitingRecommendationChecks += 1;
@@ -457,8 +465,7 @@ export function runPrimaryLeagueRehearsal(
 
   for (const scheduled of providerSchedule.filter((pick) => pick.pickNumber <= 64)) {
     providerPicks.push(toProviderPick(scheduled));
-    useDraftStore.getState().reconcileSyncedPicks(
-      providerPicks,
+    workspace.send('reconcileSyncedPicks', providerPicks,
       nextOpenPick(scheduled.pickNumber, keeperPickNumbers)
     );
     observeDecision(`Provider pick ${String(scheduled.pickNumber)}`);
@@ -480,7 +487,7 @@ export function runPrimaryLeagueRehearsal(
   const recordProvisional = (
     scheduled: ScheduledPick,
     player: Player
-  ): boolean => useDraftStore.getState().recordProvisionalPick({
+  ): boolean => workspace.send('recordProvisionalPick', {
     pickNumber: scheduled.pickNumber,
     playerId: player.id,
     playerName: player.name,
@@ -502,15 +509,14 @@ export function runPrimaryLeagueRehearsal(
   );
   providerPicks.push(...restoredThroughPick67.map(toProviderPick));
   synchronizationStates.push(getDraftSynchronizationState('syncing'));
-  const reconciliation = useDraftStore.getState().reconcileSyncedPicks(
-    providerPicks,
+  const reconciliation = workspace.send('reconcileSyncedPicks', providerPicks,
     68
   );
   synchronizationStates.push(getDraftSynchronizationState('connected'));
   observeDecision('Restored Provider Truth');
 
   const reconciliationMarkup = renderToStaticMarkup(
-    React.createElement(ReconciliationSummary, {
+    React.createElement(ReconciliationSummary, { draftType: 'snake',
       summary: {
         confirmedAt: now,
         confirmations: reconciliation.confirmations,
@@ -535,19 +541,19 @@ export function runPrimaryLeagueRehearsal(
 
   for (const scheduled of providerSchedule.filter((pick) => pick.pickNumber >= 68)) {
     providerPicks.push(toProviderPick(scheduled));
-    useDraftStore.getState().reconcileSyncedPicks(
-      providerPicks,
+    workspace.send('reconcileSyncedPicks', providerPicks,
       nextOpenPick(scheduled.pickNumber, keeperPickNumbers)
     );
     observeDecision(`Provider pick ${String(scheduled.pickNumber)}`);
   }
   synchronizationStates.push(getDraftSynchronizationState('complete'));
 
-  const finalState = useDraftStore.getState();
+  const finalState = getDraftView(workspace.draft, allPlayers);
+  const { draftHistory } = workspace.draft.getState();
   const canonicalPicks = [
     ...providerPicks.map((pick) => ({ pickNumber: pick.pickNumber, playerId: pick.playerId })),
     ...KEEPERS.map((keeper) => ({
-      pickNumber: getPickNumberForTeamRound(keeper.teamIndex, keeper.round, TOTAL_TEAMS),
+      pickNumber: createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: keeper.round }).forTeamRound(keeper.teamIndex, keeper.round).pick,
       playerId: keeper.playerId,
     })),
   ].sort((left, right) => left.pickNumber - right.pickNumber);
@@ -569,8 +575,8 @@ export function runPrimaryLeagueRehearsal(
   failUnless(duplicatePickNumbers.length === 0, `Duplicate pick numbers: ${duplicatePickNumbers.join(', ')}.`);
   failUnless(duplicatePlayerIds.length === 0, `Duplicate players: ${duplicatePlayerIds.join(', ')}.`);
   failUnless(rosterMismatches.length === 0, rosterMismatches.join(' '));
-  failUnless(finalState.draftHistory.length === 130, 'Final provider history does not contain 130 ordinary picks.');
-  failUnless(finalState.draftHistory.every((pick) => pick.source === 'sync'), 'A provisional pick remained after final reconciliation.');
+  failUnless(draftHistory.length === 130, 'Final provider history does not contain 130 ordinary picks.');
+  failUnless(draftHistory.every((pick) => pick.source === 'sync'), 'A provisional pick remained after final reconciliation.');
   failUnless(finalState.draftedPlayerIds.size === TOTAL_PICKS, 'Final unavailable-player set does not contain exactly 140 drafted players.');
   failUnless(finalState.currentPick === TOTAL_PICKS + 1, 'Draft did not advance to its completed cursor.');
   failUnless(

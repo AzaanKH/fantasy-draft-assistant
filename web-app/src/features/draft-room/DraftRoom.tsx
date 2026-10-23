@@ -1,3 +1,4 @@
+import { useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
 import * as React from 'react';
 import { RouteSkeleton } from '@/components/skeletons';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
@@ -5,7 +6,6 @@ import { MockDraftControls } from '@/features/draft-board/MockDraftControls';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { useDraftSessionMode, useDraftStore } from '@/stores/draftStore';
 import { DraftReadinessBlockedNotice } from './DraftReadinessBlockedNotice';
 import { DraftWorkspace } from './DraftWorkspace';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
@@ -22,7 +22,7 @@ export function DraftRoom({
   const { players, isLoading } = usePlayerDataQuery();
   const sessionMode = useDraftSessionMode();
   const { sync } = useLiveDraftSync();
-  const config = useDraftStore((state) => state.config);
+  const config = useDraftState((state) => state.config);
   const { readiness, recommendationsBlocked } = useDraftDecision();
   if (isLoading) {
     return <RouteSkeleton route="draft" />;
@@ -38,6 +38,7 @@ export function DraftRoom({
             <ReconciliationSummary
               summary={sync.reconciliationSummary}
               totalTeams={config.totalTeams}
+              draftType={config.draftType}
               onDismiss={sync.dismissReconciliationSummary}
             />
           ) : null}

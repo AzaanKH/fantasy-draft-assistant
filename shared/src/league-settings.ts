@@ -1,9 +1,10 @@
+import { isPlainObject as isRecord } from './objects.js';
 import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   type RosterRequirements,
 } from './draft.js';
-import { isPosition, type Position } from './player.js';
+import { isPosition, POSITIONS, type Position } from './player.js';
 import { DEFAULT_SCORING_RULES, type ScoringRules } from './scoring.js';
 
 type LeagueSettingsSource = 'default' | 'sleeper' | 'espn';
@@ -46,10 +47,6 @@ export interface LeagueSettings {
   readonly updatedAt: number;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
@@ -71,7 +68,7 @@ export function isRosterRequirements(value: unknown): value is RosterRequirement
     return false;
   }
 
-  const fixedRequirements = FIXED_POSITIONS.map((position) => value[position]);
+  const fixedRequirements = POSITIONS.map((position) => value[position]);
   if (!(
     fixedRequirements.every(isPositionRequirement) &&
     isBoundedInteger(value['FLEX']['starters'], 0, MAX_ROSTER_SPOTS) &&
@@ -87,34 +84,21 @@ export function isRosterRequirements(value: unknown): value is RosterRequirement
   return fixedStarters + value['FLEX']['starters'] + value['BENCH']['spots'] <= MAX_ROSTER_SPOTS;
 }
 
+function isScoringGroup(value: unknown, fields: object): boolean {
+  if (!isRecord(value)) return false;
+  const validField = (key: string, item: unknown): boolean => {
+    const expected: unknown = Object.hasOwn(fields, key) ? Reflect.get(fields, key) : undefined;
+    return typeof expected === 'object' && expected !== null
+      ? isScoringGroup(item, expected)
+      : isFiniteNumber(item);
+  };
+  return Object.keys(fields).every(key => validField(key, value[key])) &&
+    Object.entries(value).every(([key, item]) => validField(key, item));
+}
+
 function isScoringRules(value: unknown): value is ScoringRules {
-  if (
-    !isRecord(value) ||
-    !isRecord(value['passing']) ||
-    !isRecord(value['rushing']) ||
-    !isRecord(value['receiving']) ||
-    !isRecord(value['kicking']) ||
-    !isRecord(value['defense']) ||
-    !isRecord(value['misc']) ||
-    !isRecord(value['defense']['pointsAllowed'])
-  ) {
-    return false;
-  }
-
-  const allFinite = (record: Record<string, unknown>): boolean =>
-    Object.values(record).every(isFiniteNumber);
-
-  return (
-    allFinite(value['passing']) &&
-    allFinite(value['rushing']) &&
-    allFinite(value['receiving']) &&
-    allFinite(value['kicking']) &&
-    allFinite(value['defense']['pointsAllowed']) &&
-    allFinite(value['misc']) &&
-    Object.entries(value['defense'])
-      .filter(([key]) => key !== 'pointsAllowed')
-      .every(([, item]) => isFiniteNumber(item))
-  );
+  const groups = ['passing', 'rushing', 'receiving', 'kicking', 'defense', 'misc'] as const;
+  return isRecord(value) && groups.every(group => isScoringGroup(value[group], DEFAULT_SCORING_RULES[group]));
 }
 
 export function isSleeperLeague(value: unknown): value is SleeperLeague {
@@ -159,10 +143,13 @@ function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableSerialize).join(',')}]`;
   }
-  if (isRecord(value)) {
+  if (typeof value === 'object' && value !== null) {
     return `{${Object.keys(value)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
+      .map((key) => {
+        const item: unknown = Reflect.get(value, key);
+        return `${JSON.stringify(key)}:${stableSerialize(item)}`;
+      })
       .join(',')}}`;
   }
   return JSON.stringify(value) ?? 'null';
@@ -370,8 +357,6 @@ function normalizeScoringRules(values: Readonly<Record<string, number>>): Scorin
   };
 }
 
-const FIXED_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
-
 function getConfiguredMax(
   settings: Readonly<Record<string, unknown>> | undefined,
   position: Position,
@@ -403,8 +388,8 @@ function normalizeRosterRequirements(league: SleeperLeague): {
     const slot = rawSlot.toUpperCase();
     if (slot === 'DST' || slot === 'D/ST') {
       fixedStarters.DEF += 1;
-    } else if (FIXED_POSITIONS.includes(slot as Position)) {
-      fixedStarters[slot as Position] += 1;
+    } else if (isPosition(slot)) {
+      fixedStarters[slot] += 1;
     } else if (slot === 'FLEX' || slot === 'WRRB_FLEX' || slot === 'RB_WR_TE') {
       flexStarters += 1;
       flexEligibilityGroups.add('RB,WR,TE');

@@ -1,3 +1,5 @@
+import { useNow } from '@/workspace/useNow';
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 /**
  * Draft Connection Component
@@ -35,12 +37,12 @@ import {
 import { Select } from '@/components/ui/select';
 import {
   formatDraftReadinessTimestamp,
-  type DraftProvider,
   type DraftReadinessReport,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
+import {
+  type DraftProvider,
+} from '@fantasy-draft/shared/sync';
 import { formatDraftSyncAge } from '@/hooks/useDraftSync';
-import { useDraftStore } from '@/stores/draftStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { cn } from '@/lib/utils';
 import type { DataFreshnessItem } from '@/lib/data-freshness';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
@@ -209,8 +211,8 @@ export function DraftConnect({
   const localProfile = useLeagueSetupStore((state) => state.profile);
   const quickMockPreferences = useLeagueSetupStore((state) => state.quickMock);
   const [pendingSettingsProfile, setPendingSettingsProfile] = React.useState('provider');
-  const setQuickMockSettings = useDraftSyncConnectionStore((state) => state.setQuickMockSettings);
-  const setPrimaryLeagueSettings = useDraftSyncConnectionStore((state) => state.setPrimaryLeagueSettings);
+  const workspace = useWorkspace();
+
   const [localDialogOpen, setLocalDialogOpen] = React.useState(false);
   const isDialogOpen = open ?? localDialogOpen;
   const setIsDialogOpen = onOpenChange ?? setLocalDialogOpen;
@@ -231,21 +233,11 @@ export function DraftConnect({
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isReadinessDrawerOpen, setIsReadinessDrawerOpen] = React.useState(false);
   const [isOptionalSignalsExpanded, setIsOptionalSignalsExpanded] = React.useState(false);
-  const [now, setNow] = React.useState(() => Date.now());
+  const now = useNow();
   const isStrip = variant === 'strip';
 
-  React.useEffect(() => {
-    const interval = window.setInterval(() => {
-      setNow(Date.now());
-    }, 60_000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
-  const leagueSettings = useDraftStore((state) => state.leagueSettings);
+  const myPickPosition = useDraftState((state) => state.config.myPickPosition);
+  const leagueSettings = useDraftState((state) => state.leagueSettings);
   const connectedDraftId = connection?.draftId ?? null;
   const isDraftPositionConfirmed =
     connection !== null && connection.draftPosition !== null;
@@ -257,7 +249,6 @@ export function DraftConnect({
     isError: hasSnapshotError,
     lastError,
     connectionState,
-    lastSyncAgeMs,
     isDrafting,
     isPaused,
     isComplete,
@@ -265,6 +256,7 @@ export function DraftConnect({
     rejectedPickCount,
     refresh,
   } = sync;
+  const lastSyncAgeMs = sync.lastSuccessfulSyncAt === null ? null : Math.max(0, now - sync.lastSuccessfulSyncAt);
   const isError = hasSnapshotError || connectionState === 'error';
 
   React.useEffect(() => {
@@ -528,8 +520,8 @@ export function DraftConnect({
     setDraftIdInput(parsedConnection.draftId);
     startConnection(parsedConnection);
     if (parsedConnection.provider === 'sleeper') {
-      setPrimaryLeagueSettings(pendingSettingsProfile === 'primary-league-mock');
-      setQuickMockSettings(pendingSettingsProfile === 'quick-mock');
+      workspace.send('connection.setPrimaryLeagueSettings', pendingSettingsProfile === 'primary-league-mock');
+      workspace.send('connection.setQuickMockSettings', pendingSettingsProfile === 'quick-mock');
     }
   };
 
@@ -807,8 +799,8 @@ export function DraftConnect({
         { value: 'provider', label: 'Actual Primary League · Verify with Sleeper' },
       ]} onValueChange={(value) => {
         if (!connection) { setPendingSettingsProfile(value); return; }
-        setPrimaryLeagueSettings(value === 'primary-league-mock');
-        setQuickMockSettings(value === 'quick-mock');
+        workspace.send('connection.setPrimaryLeagueSettings', value === 'primary-league-mock');
+        workspace.send('connection.setQuickMockSettings', value === 'quick-mock');
       }} />
       <p className="text-xs leading-relaxed text-muted-foreground">
         {settingsProfile === 'quick-mock'

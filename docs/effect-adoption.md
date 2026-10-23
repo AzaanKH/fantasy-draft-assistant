@@ -9,10 +9,10 @@ This repository uses [Effect 4](https://effect.website/docs/v4/onboarding) for c
 | `cli/` | Server client, event stream, file I/O, command dispatch | Argument parsing, draft context, roster |
 | `server/` | Session polling, provider adapters, ADP provider, shadow log, request handling, Core Draft Data refresh | `local-auth.ts`, which runs synchronously at startup and is shared with Vite |
 | `scripts/` | FantasyPros, Sleeper, and league-history requests; DuckDB connections; Playwright browsers; script entry points that use them | Data-crunching bodies such as model training and backtests |
-| `extension/` | Background sync client and controller | Content scripts, which Chrome injects into draft pages |
-| `shared/`, `web-app/` | None | Everything |
+| `extension/` | Background sync client, controller and message/storage decoders | Content scripts, ESPN page bridge, side panel and options |
+| `shared/`, `web-app/` | Catalog schemas and explicit HTTP/storage decoder boundaries | Draft calculations, domain predicates, React, simple preferences, and the Node process runner |
 
-The content scripts stay plain because each one ships inside ESPN or Sleeper pages, and Effect would add about 70 kB to every injected bundle. `shared` and `web-app` contain pure calculations and React state, which have no effects to manage.
+Extension UI entries use plain predicates for the fields they consume. The background fully decodes external snapshots and messages. The extension build follows every UI entry dependency and rejects any Effect module with the fix: "decode in the background; UI entries use plain predicates". Shared leaf modules keep plain types and predicates; Effect Schema stays in catalog and explicit I/O decoder owners.
 
 Follow the patterns in [AGENTS.md](../AGENTS.md#effect) when writing new Effect code.
 
@@ -41,20 +41,38 @@ These counts cover the four converted workspaces, from `main` to the end of the 
 | Declarative timeouts | 0 → 3 | 0 → 5 | 0 → 1 | 0 → 1 |
 | Tagged error classes | 0 → 2 | 0 → 3 | 0 → 2 | 0 → 1 |
 
-Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. The CLI and scripts each read HTTP bodies with an explicit reader that cancels on abort, which accounts for some of the remaining `try` blocks and signal handling. The remaining extension timers belong to the content scripts, which were left alone on purpose.
+Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. These historical counts precede unit 8. HTTP bodies now run through the Effect-free `@fantasy-draft/shared/http` runner. The CLI and script adapters preserve their Effect error channels and pass interruption signals to that runner. The remaining extension timers belong to the content scripts, which were left alone on purpose.
 
 ## Runtime cost
 
 | Measurement | `main` | Effect | Change |
 | --- | ---: | ---: | ---: |
 | CLI bundle (`cli/dist/draft.js`) | 227 kB (53 kB gzip) | 366 kB (85 kB gzip) | +139 kB |
-| Extension service worker (`background.js`) | 18.2 kB (5.1 kB gzip) | 91.2 kB (22.4 kB gzip) | +73.0 kB |
-| Extension content scripts | 11.3 and 20.4 kB | 11.3 and 20.4 kB | none |
 | `draft --help`, median of 20 runs | 73 ms | 78 ms | +5 ms |
 | `draft readiness --json`, median of 20 runs | 108 ms | 116 ms | +8 ms |
 | Sync server request, median of 3,000 | 0.144 ms | 0.158 ms | +0.014 ms |
 
 The CLI timings ran both builds alternately against the same data directory. The server timings used `GET /api/sync/sessions` with an authenticated token. All runs were on one MacBook with Node 22.21.
+
+## Current extension bundle boundaries
+
+The table below compares unit 7 wave 2 at `a66fe12` with the current wave 3 head. Each entry includes its transitive shared chunks once. Sizes exclude source maps; gzip uses level 9. These measurements supersede the original adoption-era extension figures.
+
+<!-- u07-extension-sizes:start -->
+
+| Entry | Base raw B | Head raw B | Base gzip B | Head gzip B | Gzip change B | Head Effect modules |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `content.js` | 11,320 | 9,274 | 3,225 | 2,785 | -440 | 0 |
+| `espn-page.js` | 23,056 | 23,483 | 6,294 | 6,325 | +31 | 0 |
+| `background.js` | 106,378 | 207,701 | 26,325 | 46,483 | +20,158 | 45 |
+| `sidepanel.js` | 19,527 | 7,796 | 5,535 | 2,623 | -2,912 | 0 |
+| `options.js` | 17,086 | 4,116 | 4,943 | 1,819 | -3,124 | 0 |
+
+<!-- u07-extension-sizes:end -->
+
+Only the background loads Effect. The side panel checks the small response projection it uses after background decoding. Content scripts relay ESPN snapshots undecoded to the background. The build enforces zero Effect modules in the side panel, content, ESPN page and options dependency graphs.
+
+`isLeagueSettings`, `isRosterRequirements` and `isSleeperLeague` remain composite validators by plan. They are not scalar predicates. The sync ID, session identity and simple preference helpers live in Effect-free leaf modules, so callers do not load the catalog just to check those values.
 
 ## Behavior changes
 

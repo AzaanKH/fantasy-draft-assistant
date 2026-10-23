@@ -1,23 +1,18 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { deriveDraftState } from '@/stores/draft/source';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
+import {
+  type Player,
+} from '@fantasy-draft/shared/league';
+import {
+  createSlotSequence,
+  type PositionNeed,
+} from '@fantasy-draft/shared/draft';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
-  type Player,
-  type PositionNeed,
-} from '@fantasy-draft/shared';
-import {
-  canonicalizeKeeperSupply,
-  getEffectiveKeeperAssignments,
-  isKeeperSupplyComplete,
-} from './keeper-supply';
-import { filterDrafted, getRecommendations } from '@/lib/calculations';
-import { getPickNumberForTeamRound } from '@/lib/mock-draft-engine';
-import {
-  createDraftDecisionOutput,
-} from '@/features/recommendations/draft-decision';
-import { useDraftStore } from '@/stores/draftStore';
-
-const TOTAL_TEAMS = 10;
-const TOTAL_ROUNDS = 15;
+} from '@fantasy-draft/shared/league';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { filterDrafted, getRecommendations, createDraftDecisionOutput } from '@fantasy-draft/shared/draft';
+import { createDraftStore } from '@/stores/draftStore';
 
 function entry(
   playerId: string,
@@ -30,92 +25,8 @@ function entry(
   return { playerId, playerName, position, teamIndex, round, isMyKeeper };
 }
 
-describe('canonicalizeKeeperSupply', () => {
-  it('uses linear pick order when assigning and reconciling keeper reservations', () => {
-    const supply = canonicalizeKeeperSupply([
-      entry('keeper', 'Keeper', 'WR', 1, 2),
-    ], { totalTeams: 10, totalRounds: 14, draftType: 'linear' });
-    expect(supply.assignments[0]?.pickNumber).toBe(12);
-    expect(getEffectiveKeeperAssignments(supply.assignments,
-      [{ playerId: 'keeper', pickNumber: 12 }], 10, 'linear')).toEqual(supply.assignments);
-    expect(getEffectiveKeeperAssignments(supply.assignments,
-      [{ playerId: 'other', pickNumber: 12 }], 10, 'linear')).toEqual([]);
-    expect(getEffectiveKeeperAssignments(supply.assignments,
-      [{ playerId: 'other', pickNumber: 19 }], 10, 'linear')).toEqual(supply.assignments);
-  });
-
-  it('assigns each keeper its exact snake-draft selection at the configured round cost', () => {
-    const supply = canonicalizeKeeperSupply([
-      entry('jt', 'Jonathan Taylor', 'RB', 6, 1),
-      entry('jsn', 'Jaxon Smith-Njigba', 'WR', 0, 2),
-      entry('javonte', 'Javonte Williams', 'RB', 4, 10, true),
-    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS, draftType: 'snake' });
-
-    expect(supply.duplicatePlayerIds).toEqual([]);
-    expect(supply.invalidEntries).toEqual([]);
-    expect(supply.conflictingEntries).toEqual([]);
-    expect(supply.assignments.map((keeper) => [keeper.playerId, keeper.pickNumber])).toEqual([
-      ['jt', 7],
-      ['jsn', 20],
-      ['javonte', 96],
-    ]);
-  });
-
-  it('keeps one deterministic assignment per kept player when entries duplicate a player', () => {
-    const supply = canonicalizeKeeperSupply([
-      entry('dup', 'Duplicate Keeper', 'WR', 1, 3),
-      entry('dup', 'Duplicate Keeper', 'WR', 1, 4),
-      entry('other', 'Other Keeper', 'RB', 2, 5),
-    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS, draftType: 'snake' });
-
-    expect(supply.duplicatePlayerIds).toEqual(['dup']);
-    expect(supply.assignments.map((keeper) => [keeper.playerId, keeper.pickNumber])).toEqual([
-      ['dup', 22],
-      ['other', 43],
-    ]);
-  });
-
-  it('drops entries outside the draft and resolves same-slot conflicts deterministically', () => {
-    const supply = canonicalizeKeeperSupply([
-      entry('late', 'Late Keeper', 'WR', 3, TOTAL_ROUNDS + 1),
-      entry('bad-team', 'Bad Team Keeper', 'QB', TOTAL_TEAMS, 2),
-      entry('slot-a', 'Slot A', 'RB', 2, 6),
-      entry('slot-b', 'Slot B', 'TE', 2, 6),
-    ], { totalTeams: TOTAL_TEAMS, totalRounds: TOTAL_ROUNDS, draftType: 'snake' });
-
-    expect(supply.assignments.map((keeper) => keeper.playerId)).toEqual(['slot-a']);
-    expect(supply.invalidEntries.map((keeper) => keeper.playerId)).toEqual([
-      'late',
-      'bad-team',
-    ]);
-    expect(supply.conflictingEntries.map((keeper) => keeper.playerId)).toEqual(['slot-b']);
-  });
-
-  it('requires the full current-season supply before mock recommendations can run', () => {
-    const ready = {
-      keepersEnabled: true,
-      season: 2026,
-      expectedSeason: 2026,
-      isConfirmed: true,
-      configuredCount: 10,
-      expectedCount: 10,
-      resolvedCount: 10,
-      canonicalCount: 10,
-      unresolvedNames: [],
-      duplicateNames: [],
-      invalidAssignments: [],
-    } as const;
-
-    expect(isKeeperSupplyComplete(ready)).toBe(true);
-    expect(isKeeperSupplyComplete({ ...ready, season: 2025 })).toBe(false);
-    expect(isKeeperSupplyComplete({ ...ready, configuredCount: 9 })).toBe(false);
-    expect(isKeeperSupplyComplete({
-      ...ready,
-      canonicalCount: 9,
-      invalidAssignments: ['Player, team 2, round 4'],
-    })).toBe(false);
-  });
-});
+const TOTAL_TEAMS = 10;
+const TOTAL_ROUNDS = 15;
 
 const KEEPER_FIXTURE = [
   { playerName: 'Jaxon Smith-Njigba', position: 'WR', teamIndex: 0, round: 2 },
@@ -207,28 +118,30 @@ function resolveFixtureKeepers(pool: readonly Player[]) {
     };
   });
 }
+const draftStore = createDraftStore();
+
 describe('Primary League keeper supply end-to-end', () => {
   const pool = buildPrimaryLeaguePool();
   const resolvedKeepers = resolveFixtureKeepers(pool);
   const keeperPlayerIds = new Set(resolvedKeepers.map((keeper) => keeper.playerId));
 
   const resetStore = (): void => {
-    useDraftStore.getState().setSessionMode('setup');
-    useDraftStore.getState().setConfig({
+    draftStore.getState().setSessionMode('setup');
+    draftStore.getState().setConfig({
       totalTeams: TOTAL_TEAMS,
       totalRounds: TOTAL_ROUNDS,
       myPickPosition: 5,
       rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
     });
-    useDraftStore.getState().preloadKeepers([]);
-    useDraftStore.getState().resetDraft();
+    draftStore.getState().preloadKeepers([]);
+    draftStore.getState().resetDraft();
   };
 
   const availablePlayers = () => {
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     return filterDrafted(
       pool,
-      state.draftedPlayerIds,
+      deriveDraftState(state).draftedPlayerIds,
       [...state.draftHistory, ...state.preloadedKeepers]
     );
   };
@@ -239,32 +152,33 @@ describe('Primary League keeper supply end-to-end', () => {
       { position: 'WR', priority: 'critical' },
     ]);
     const bestPick = getRecommendations(availablePlayers(), needs, 10, {
-      currentPick: useDraftStore.getState().currentPick,
+      currentPick: deriveDraftState(draftStore.getState()).currentPick,
       totalPicks: TOTAL_TEAMS * TOTAL_ROUNDS,
       totalTeams: TOTAL_TEAMS,
       rosterCounts: { RB: 0, WR: 0 },
-    });
+    }, DRAFT_DISPLAY);
     return createDraftDecisionOutput(
       bestPick.draftNow,
       bestPick.selection,
       bestPick.bestAvailable,
-      'best-pick'
+      'best-pick',
+      DRAFT_DISPLAY
     );
   };
 
   beforeEach(resetStore);
 
   it('reserves every confirmed keeper before ordinary picks and hides them from both lenses', () => {
-    useDraftStore.getState().preloadKeepers(resolvedKeepers);
+    draftStore.getState().preloadKeepers(resolvedKeepers);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.preloadedKeepers).toHaveLength(KEEPER_FIXTURE.length);
-    expect(state.currentPick).toBe(1);
+    expect(deriveDraftState(state).currentPick).toBe(1);
     expect(state.draftHistory).toHaveLength(0);
-    expect([...state.draftedPlayerIds].sort()).toEqual(
+    expect([...deriveDraftState(state).draftedPlayerIds].sort()).toEqual(
       [...keeperPlayerIds].sort()
     );
-    expect(state.myRoster.RB).toEqual(['keeper-4']);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper-4']);
 
     const output = decisionOutputForBothLenses();
     for (const view of [output.bestPickView, output.bestPlayerView]) {
@@ -277,19 +191,19 @@ describe('Primary League keeper supply end-to-end', () => {
   });
 
   it('places each keeper exactly once at its configured slot as the cursor advances', () => {
-    useDraftStore.getState().preloadKeepers(resolvedKeepers);
+    draftStore.getState().preloadKeepers(resolvedKeepers);
 
     let candidateIndex = 0;
     for (let pickNumber = 1; pickNumber <= 30; pickNumber += 1) {
-      const state = useDraftStore.getState();
+      const state = draftStore.getState();
       const keeperAtPick = state.preloadedKeepers.find(
         (keeper) =>
-          getPickNumberForTeamRound(keeper.teamIndex, keeper.round, TOTAL_TEAMS) === pickNumber
+          createSlotSequence({ type: 'snake', teams: TOTAL_TEAMS, rounds: keeper.round }).forTeamRound(keeper.teamIndex, keeper.round).pick === pickNumber
       );
 
       if (keeperAtPick) {
-        useDraftStore.getState().consumeKeeperAtCurrentPick();
-        expect(useDraftStore.getState().currentPick).toBe(pickNumber + 1);
+        draftStore.getState().consumeKeeperAtCurrentPick();
+        expect(deriveDraftState(draftStore.getState()).currentPick).toBe(pickNumber + 1);
         continue;
       }
 
@@ -297,7 +211,7 @@ describe('Primary League keeper supply end-to-end', () => {
       candidateIndex += 1;
       if (!candidate) throw new Error('Ran out of candidates');
       const teamIndex = (pickNumber - 1) % TOTAL_TEAMS;
-      useDraftStore.getState().markPlayerDrafted(
+      draftStore.getState().markPlayerDrafted(
         candidate.id,
         candidate.name,
         candidate.position,
@@ -306,7 +220,7 @@ describe('Primary League keeper supply end-to-end', () => {
       );
     }
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     const historyByPlayerId = new Map<string, number[]>();
     for (const pick of state.draftHistory) {
       historyByPlayerId.set(pick.playerId, [
@@ -331,20 +245,20 @@ describe('Primary League keeper supply end-to-end', () => {
     for (const [index, keeper] of resolvedKeepers.entries()) {
       if (expectedPicksWithinWindow.some(([slotIndex]) => slotIndex === index)) continue;
       expect(historyByPlayerId.has(keeper.playerId)).toBe(false);
-      expect(state.draftedPlayerIds.has(keeper.playerId)).toBe(true);
+      expect(deriveDraftState(state).draftedPlayerIds.has(keeper.playerId)).toBe(true);
     }
     for (const keeper of state.preloadedKeepers) {
-      expect(state.draftedPlayerIds.has(keeper.playerId)).toBe(true);
+      expect(deriveDraftState(state).draftedPlayerIds.has(keeper.playerId)).toBe(true);
     }
-    expect(state.myRoster.RB).toEqual(['keeper-4', 'candidate-21']);
-    expect(state.myRoster).toEqual(state.teamRosters[state.config.myPickPosition - 1]);
-    expect(state.currentPick).toBe(31);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper-4', 'candidate-21']);
+    expect(deriveDraftState(state).myRoster).toEqual(deriveDraftState(state).teamRosters[state.config.myPickPosition - 1]);
+    expect(deriveDraftState(state).currentPick).toBe(31);
   });
 
   it('prevents a provider snapshot containing reserved keepers from importing them again', () => {
-    useDraftStore.getState().preloadKeepers(resolvedKeepers);
+    draftStore.getState().preloadKeepers(resolvedKeepers);
 
-    useDraftStore.getState().reconcileSyncedPicks([
+    draftStore.getState().reconcileSyncedPicks([
       {
         pickNumber: 1,
         playerId: 'fresh-1',
@@ -383,17 +297,17 @@ describe('Primary League keeper supply end-to-end', () => {
       },
     ], 10);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     for (const keeperId of keeperPlayerIds) {
       const representations = state.draftHistory.filter(
         (pick) => pick.playerId === keeperId
       );
       expect(representations).toHaveLength(0);
     }
-    expect(state.draftedPlayerIds.size).toBe(KEEPER_FIXTURE.length + 1);
-    expect(state.myRoster.RB).toEqual(['keeper-4']);
+    expect(deriveDraftState(state).draftedPlayerIds.size).toBe(KEEPER_FIXTURE.length + 1);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper-4']);
 
-    useDraftStore.getState().markPlayerDrafted(
+    draftStore.getState().markPlayerDrafted(
       'keeper-4',
       'Javonte Williams',
       'RB',
@@ -402,35 +316,52 @@ describe('Primary League keeper supply end-to-end', () => {
       96,
       'sync'
     );
-    const afterImport = useDraftStore.getState();
+    const afterImport = draftStore.getState();
     expect(afterImport.draftHistory.some((pick) => pick.playerId === 'keeper-4')).toBe(false);
-    expect(afterImport.myRoster.RB).toEqual(['keeper-4']);
+    expect(deriveDraftState(afterImport).myRoster.RB).toEqual(['keeper-4']);
   });
 
   it('preserves the confirmed keeper baseline across resets and mode changes', () => {
-    useDraftStore.getState().preloadKeepers(resolvedKeepers);
-    useDraftStore.getState().setSessionMode('mock');
-    useDraftStore.getState().markPlayerDrafted('candidate-0', 'Candidate Zero', 'WR', 0, 'Team 1');
-    useDraftStore.getState().resetDraft();
+    draftStore.getState().preloadKeepers(resolvedKeepers);
+    draftStore.getState().setSessionMode('mock');
+    draftStore.getState().markPlayerDrafted('candidate-0', 'Candidate Zero', 'WR', 0, 'Team 1');
+    draftStore.getState().resetDraft();
 
-    let state = useDraftStore.getState();
+    let state = draftStore.getState();
     expect(state.sessionMode).toBe('mock');
     expect(state.draftHistory).toHaveLength(0);
-    expect(state.currentPick).toBe(1);
-    expect(state.draftedPlayerIds.size).toBe(KEEPER_FIXTURE.length);
-    expect(state.myRoster.RB).toEqual(['keeper-4']);
+    expect(deriveDraftState(state).currentPick).toBe(1);
+    expect(deriveDraftState(state).draftedPlayerIds.size).toBe(KEEPER_FIXTURE.length);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper-4']);
     expect(state.preloadedKeepers).toHaveLength(KEEPER_FIXTURE.length);
 
-    useDraftStore.getState().setSessionMode('live');
-    useDraftStore.getState().setConfig({ myPickPosition: 3 });
-    state = useDraftStore.getState();
-    expect(state.draftedPlayerIds.size).toBe(KEEPER_FIXTURE.length);
+    draftStore.getState().setSessionMode('live');
+    draftStore.getState().setConfig({ myPickPosition: 3 });
+    state = draftStore.getState();
+    expect(deriveDraftState(state).draftedPlayerIds.size).toBe(KEEPER_FIXTURE.length);
     // Slot 3 inherits team 3's keeper (Quinshon Judkins) without duplication.
-    expect(state.myRoster.RB).toEqual(['keeper-2']);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper-2']);
     expect(state.preloadedKeepers).toHaveLength(KEEPER_FIXTURE.length);
 
-    useDraftStore.getState().setSessionMode('setup');
-    useDraftStore.getState().setConfig({ myPickPosition: 5 });
-    expect(useDraftStore.getState().myRoster.RB).toEqual(['keeper-4']);
+    draftStore.getState().setSessionMode('setup');
+    draftStore.getState().setConfig({ myPickPosition: 5 });
+    expect(deriveDraftState(draftStore.getState()).myRoster.RB).toEqual(['keeper-4']);
+  });
+});
+
+
+describe('keeper supply after a league size change', () => {
+  it.each([
+    { initialTeams: 12, teamIndex: 11, initialRounds: 15, round: 2, next: { totalTeams: 10 } },
+    { initialTeams: 10, teamIndex: 1, initialRounds: 15, round: 15, next: { totalRounds: 14 } },
+  ])('invalidates reservations outside the new config $next', ({ initialTeams, teamIndex, initialRounds, round, next }) => {
+    const store = createDraftStore();
+    store.getState().setConfig({ totalTeams: initialTeams, totalRounds: initialRounds });
+    store.getState().preloadKeepers([entry('keeper', 'Keeper', 'WR', teamIndex, round)]);
+    expect(deriveDraftState(store.getState()).draftedPlayerIds.has('keeper')).toBe(true);
+    expect(() => { store.getState().setConfig(next); }).not.toThrow();
+    expect(store.getState().preloadedKeepers).toEqual([]);
+    expect(store.getState().keepersInitialized).toBe(false);
+    expect(deriveDraftState(store.getState()).draftedPlayerIds.has('keeper')).toBe(false);
   });
 });

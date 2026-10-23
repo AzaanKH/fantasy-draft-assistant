@@ -3,7 +3,7 @@ import type {
   DraftStatus,
   DraftSyncState,
   DraftSyncSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import type {
   DraftPickCorrection,
   DraftPickRemoval,

@@ -39,16 +39,16 @@ Every workspace depends on [Effect 4](https://effect.website/docs/v4/onboarding)
 - Start with the [onboarding path](https://effect.website/docs/v4/onboarding): [the Effect type](https://effect.website/docs/v4/getting-started/the-effect-type), [generators](https://effect.website/docs/v4/getting-started/using-generators), [expected and unexpected errors](https://effect.website/docs/v4/error-management/two-error-types), and [concurrency](https://effect.website/docs/v4/concurrency/basic-concurrency). Look up signatures in the [API reference](https://effect.website/docs/v4/api).
 - Import from `effect` (for example, `import { Effect } from "effect"`), write sequential logic with `Effect.gen`, and keep runners such as `Effect.runPromise` at entry points.
 - Follow the CLI's patterns: I/O returns `Effect` values built with `Effect.fn`, expected failures are `Data.TaggedError` classes such as `CliError` in [cli/src/errors.ts](cli/src/errors.ts), and pure helpers stay plain functions. Wrap pure helpers that throw with `attempt` so their errors stay typed, and preserve each command's existing error codes and exit codes.
-- Read an HTTP body inside the same `Effect.tryPromise` as its `fetch`, and cancel the body reader when the signal aborts, so a timeout closes a stalled connection. Parse external payloads with `Effect.try`, never inside `Effect.map`, so malformed data is an expected failure rather than a defect. Cleanup returned from `Effect.callback` must wait until the resource is actually released, such as a child process exiting.
+- Use `@fantasy-draft/shared/http` for HTTP. Pass a decoder and an explicit timeout/retry policy to `http.json` or `http.events`; text and bytes are for non-JSON responses. The plain TypeScript runner owns body reads, cancellation and Retry-After. Effect callers wrap the runner in `Effect.tryPromise` and pass its abort signal. Cleanup returned from `Effect.callback` must wait until the resource is actually released, such as a child process exiting.
 
 ## Local verification
 
 The local Vitest suites use fixtures, local data (or `demo-data/` in CI), mocked provider calls, and temporary local servers and files. They do not require provider credentials or live provider requests. Run them, fix failures caused by the requested change, and rerun affected tests without asking for approval at each step.
 
 - Match verification to the change. Add tests for meaningful behavior or regression risks, not tests that merely repeat the implementation. Once the relevant checks pass, broaden or repeat them only when new changes, failures, or unresolved concerns justify it.
-- Use `pnpm --filter <workspace> test <test-file>` for affected tests. Test workspaces are `web-app`, `server`, `extension`, and `scripts`.
-- Run `pnpm --filter @fantasy-draft/shared build` first when shared code changed or its build output is missing.
-- Use `pnpm test` for all local suites and `pnpm verify` for type checking, lint, tests, and builds when a change spans packages or needs the full code gate. These checks are authorized as part of the requested work.
+- Use `pnpm --filter <workspace> test <test-file>` for affected tests and `pnpm test` for all local suites.
+- Use `pnpm verify` for type checking, lint, tests, and builds when a change spans packages or needs the full code gate. These checks are authorized as part of the requested work.
+- See [workspace gates](docs/workspace-gates.md) for root configs, source resolution, lint baselines, and the built-package contract check.
 - Code checks do not require starting the app or refreshing live data. For documentation-only changes, check the edited guidance, command names, and links; run code checks only if the change affects executable behavior.
 
 ## Starting the app

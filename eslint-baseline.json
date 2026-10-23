@@ -1,0 +1,62 @@
+{
+  "cli/src/context.ts": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 2
+    }
+  },
+  "cli/src/roster.ts": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 1
+    }
+  },
+  "web-app/src/components/ui/badge.tsx": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 1
+    }
+  },
+  "web-app/src/components/ui/dialog.tsx": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 7
+    }
+  },
+  "web-app/src/components/ui/input.tsx": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 1
+    }
+  },
+  "web-app/src/components/ui/tabs.tsx": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 4
+    }
+  },
+  "web-app/src/features/draft-room/DraftConnectionControl.tsx": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 1
+    }
+  },
+  "web-app/src/hooks/useDraftSyncReconciliation.ts": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 1
+    }
+  },
+  "web-app/src/hooks/useLeagueTimingEvidence.ts": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 1
+    }
+  },
+  "web-app/src/hooks/usePlayerData.ts": {
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "counts": {
+      "@typescript-eslint/explicit-module-boundary-types": 2
+    }
+  }
+}

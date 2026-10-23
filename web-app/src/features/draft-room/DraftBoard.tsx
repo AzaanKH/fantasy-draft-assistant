@@ -1,14 +1,17 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
+import { type Player, type Position } from '@fantasy-draft/shared/league';
+import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
+import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
-import type { DraftType, Player, Position } from '@fantasy-draft/shared';
 import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3 } from 'lucide-react';
 import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { isMotionDisabled, usePrefersReducedMotion } from '@/components/motion';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
-import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
+import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
-import { useDraftStore, type RecordedDraftPick } from '@/stores/draftStore';
+import { type RecordedDraftPick } from '@/stores/draftStore';
 import { getDraftBoardScrollTarget } from './draft-board-scroll';
 import { getDraftBoardCurrentView } from './draft-board-view';
 
@@ -46,7 +49,7 @@ function getTeamNames(
 
 function EmptyPick({
   pickNumber,
-  totalTeams,
+  slot,
   currentPick,
   isActive,
   isUpcoming,
@@ -54,18 +57,17 @@ function EmptyPick({
   compact,
 }: {
   readonly pickNumber: number;
-  readonly totalTeams: number;
+  readonly slot: SlotRef;
   readonly currentPick: number;
   readonly isActive: boolean;
   readonly isUpcoming: boolean;
   readonly isMyTeam: boolean;
   readonly compact: boolean;
 }): React.ReactElement {
-  const round = Math.ceil(pickNumber / totalTeams);
-  const Direction = pickNumber % totalTeams === 0 ? ArrowDown : round % 2 === 1 ? ArrowRight : ArrowLeft;
+  const Direction = slot.endsRound ? ArrowDown : slot.direction === 'forward' ? ArrowRight : ArrowLeft;
   return (
     <div className={cn('board-empty-pick', compact && 'is-compact')}>
-      <span className="board-pick-number">{formatRoundPick(pickNumber, totalTeams)}</span>
+      <span className="board-pick-number">{slot.label}</span>
       {isActive ? (
         <div className="board-clock-label">
           <strong>{isMyTeam ? 'Your turn' : 'On the clock'}</strong>
@@ -84,16 +86,15 @@ function FilledPick({
   player,
   isSettling,
   compact,
-  totalTeams,
+  slot,
 }: {
   readonly pick: BoardPick;
   readonly player?: Player;
   readonly isSettling: boolean;
   readonly compact: boolean;
-  readonly totalTeams: number;
+  readonly slot: SlotRef;
 }): React.ReactElement {
-  const round = Math.ceil(pick.pickNumber / totalTeams);
-  const Direction = pick.pickNumber % totalTeams === 0 ? ArrowDown : round % 2 === 1 ? ArrowRight : ArrowLeft;
+  const Direction = slot.endsRound ? ArrowDown : slot.direction === 'forward' ? ArrowRight : ArrowLeft;
   return (
     <div className={cn(
       'board-filled-pick',
@@ -103,7 +104,7 @@ function FilledPick({
       pick.source === 'reserved' && 'is-keeper',
       isSettling && 'draft-pick-confirmed'
     )}>
-      <span className="board-pick-number">{formatRoundPick(pick.pickNumber, totalTeams)}</span>
+      <span className="board-pick-number">{slot.label}</span>
       <div data-pick-identity className="board-player-identity">
         <div className="board-player-name" title={pick.playerName}>{pick.playerName}</div>
         <div className="board-player-meta">
@@ -174,6 +175,8 @@ function DraftGrid({
   upcomingMyPickNumber,
   wrapperClassName,
 }: DraftGridProps): React.ReactElement {
+  const order = React.useMemo(() => createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(totalPicks / totalTeams) }),
+    [draftType, totalTeams, totalPicks]);
   const roundColumnWidth = compact
     ? MOBILE_ROUND_COLUMN_WIDTH
     : STICKY_ROUND_COLUMN_WIDTH;
@@ -236,11 +239,8 @@ function DraftGrid({
                 ) : null}
               </div>
               {teamIndices.map((teamIndex) => {
-                const pickNumber = getKeeperPickNumber(
-                  { teamIndex, round: roundNumber },
-                  totalTeams,
-                  draftType
-                );
+                const slot = order.forTeamRound(teamIndex, roundNumber);
+                const pickNumber = slot.pick;
                 const pick = picksByNumber.get(pickNumber);
                 const isActive = currentPick === pickNumber && currentPick <= totalPicks;
                 const isMyTeam = teamIndex === myTeamIndex;
@@ -259,12 +259,12 @@ function DraftGrid({
                       isActive && 'is-on-clock',
                       isUpcoming && isMyTeam && 'is-next-pick'
                     )}
-                    aria-label={`Pick ${formatRoundPick(pickNumber, totalTeams)}${pick ? `, ${pick.playerName}${pick.source === 'provisional' ? ', Provisional Pick' : ''}${isLatest ? ', latest pick' : ''}` : ''}${isActive ? ', on the clock' : ''}${isMyTeam ? ', My Team' : ''}${isUpcoming ? ', in the upcoming selection window' : ''}`}
+                    aria-label={`Pick ${slot.label}${pick ? `, ${pick.playerName}${pick.source === 'provisional' ? ', Provisional Pick' : ''}${isLatest ? ', latest pick' : ''}` : ''}${isActive ? ', on the clock' : ''}${isMyTeam ? ', My Team' : ''}${isUpcoming ? ', in the upcoming selection window' : ''}`}
                   >
                     {pick ? (
                       <FilledPick
                         pick={pick}
-                        totalTeams={totalTeams}
+                        slot={slot}
                         player={playersById.get(pick.playerId)}
                         isSettling={pickNumber === settlingPickNumber}
                         compact={compact}
@@ -272,7 +272,7 @@ function DraftGrid({
                     ) : (
                       <EmptyPick
                         pickNumber={pickNumber}
-                        totalTeams={totalTeams}
+                        slot={slot}
                         currentPick={currentPick}
                         isActive={isActive}
                         isUpcoming={isUpcoming}
@@ -353,10 +353,11 @@ export function DraftBoard({
   readonly toolbarActions?: React.ReactNode;
 } = {}): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
   const [mode, setMode] = React.useState<BoardMode>('current');
   const turnIndicatorRef = React.useRef<HTMLSpanElement>(null);
   const reduceMotion = usePrefersReducedMotion();
@@ -486,7 +487,7 @@ export function DraftBoard({
 
   // A keeper slot is filled automatically, so it is never the user's selection.
   const isKeeperOnClock = picksByNumber.get(currentPick)?.source === 'reserved';
-  const isYourTurn = !isKeeperOnClock && currentPick <= totalPicks && currentView.upcomingMyPickNumber === currentPick;
+  const isYourTurn = !isKeeperOnClock && isMyTurn;
   const previouslyYourTurn = React.useRef(isYourTurn);
   React.useEffect(() => {
     const justStarted = isYourTurn && !previouslyYourTurn.current;
@@ -532,7 +533,7 @@ export function DraftBoard({
           <span ref={turnIndicatorRef} role="status" className={cn("board-current-pick", isYourTurn && "is-your-turn", currentPick > totalPicks && "is-complete")}><Clock3 size={14} aria-hidden="true" />
             {currentPick > totalPicks
               ? 'Complete'
-              : `${isYourTurn ? 'Your turn ·' : isKeeperOnClock ? 'Keeper ·' : 'Pick'} ${formatRoundPick(currentPick, config.totalTeams)}`}
+              : `${isYourTurn ? 'Your turn ·' : isKeeperOnClock ? 'Keeper ·' : 'Pick'} ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(currentPick)}`}
           </span>
           <div className="board-view-toggle" role="group" aria-label="Draft board view">
             <BoardModeButton active={mode === 'current'} onClick={() => { setMode('current'); }}>
