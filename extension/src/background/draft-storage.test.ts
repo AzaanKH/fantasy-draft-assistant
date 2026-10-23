@@ -36,3 +36,18 @@ describe('pairing token storage', () => {
     await expect(storage.getSyncToken()).resolves.toBe('x'.repeat(43));
   });
 });
+
+
+describe('storage read shape boundaries', () => {
+  it('falls back when the persisted sync URL is not a string', async () => {
+    const area = {
+      get: vi.fn(async () => ({ syncServerUrl: { port: 3001 } })),
+      set: vi.fn(async () => undefined),
+    } as unknown as ConstructorParameters<typeof ChromeDraftStorage>[0];
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      await expect(new ChromeDraftStorage(area).getSyncServerUrl()).resolves.toMatch(/^http:\/\/localhost:/);
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining('Rejected stored syncServerUrl'), expect.anything());
+    } finally { warning.mockRestore(); }
+  });
+});

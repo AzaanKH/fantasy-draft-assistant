@@ -1,7 +1,8 @@
+import { decodeShadowRecommendationEvent } from '@fantasy-draft/shared/catalog';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Effect, Fiber } from 'effect';
 import type { ShadowRecommendationEvent } from '@fantasy-draft/shared/draft';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
@@ -46,6 +47,18 @@ const EVENT: ShadowRecommendationEvent = {
 };
 
 describe('ShadowRecommendationLogger', () => {
+  it('ignores and logs malformed persisted rows before deriving the dedupe window', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-invalid-'));
+    const path = join(directory, 'events.ndjson');
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      await writeFile(path, `${JSON.stringify({ eventId: EVENT.eventId })}\n{bad-json\n`);
+      expect(await record(new ShadowRecommendationLogger(path), EVENT)).toBe(true);
+      expect(warning).toHaveBeenCalledTimes(2);
+      expect(await readFile(path, 'utf8')).toContain('{bad-json');
+    } finally { warning.mockRestore(); await rm(directory, { recursive: true, force: true }); }
+  });
+
   it.each([false, true])('restricts legacy active and archived files, oversized=%s', async (oversized) => {
     const directory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-permissions-'));
     const path = join(directory, 'events.ndjson');
@@ -73,7 +86,7 @@ describe('ShadowRecommendationLogger', () => {
       await Effect.runPromise(Fiber.interrupt(waiting));
       await Effect.runPromise(Fiber.interrupt(writing));
       const lines = (await readFile(path, 'utf8')).trim().split('\n');
-      expect(lines.map((line) => (JSON.parse(line) as { eventId: string }).eventId)).toEqual([EVENT.eventId]);
+      expect(lines.map((line) => decodeShadowRecommendationEvent(JSON.parse(line)).eventId)).toEqual([EVENT.eventId]);
       await expect(record(logger, EVENT)).resolves.toBe(false);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });

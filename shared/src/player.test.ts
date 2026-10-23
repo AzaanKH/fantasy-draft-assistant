@@ -3,11 +3,14 @@ import {
   isNFLTeam,
   isPlayer,
   isPosition,
+  isPredictionSource,
+  isNewsStatus,
   NFL_TEAMS,
   type Player,
 } from './player.js';
+import { isTeamEnvironment } from './catalog/decoders.js';
+import { isNeedPriority } from './draft.js';
 import {
-  isTeamEnvironment,
   isTopOffense,
   isDecentOffense,
   type TeamEnvironment,
@@ -114,5 +117,29 @@ describe('team environment', () => {
     expect(isTopOffense({ ...environment, offenseScore: 7.9 })).toBe(false);
     expect(isDecentOffense({ ...environment, offenseScore: 6 })).toBe(true);
     expect(isDecentOffense({ ...environment, offenseScore: 5.9 })).toBe(false);
+  });
+});
+
+
+describe('elementary enum predicates', () => {
+  it('accepts each supported prediction source, news status, and need priority', () => {
+    expect(['model', 'fantasypros', 'heuristic'].every(isPredictionSource)).toBe(true);
+    expect(['healthy', 'limited', 'questionable', 'out', 'unknown'].every(isNewsStatus)).toBe(true);
+    expect(['critical', 'high', 'medium', 'low', 'defer', 'filled'].every(isNeedPriority)).toBe(true);
+  });
+
+  it('rejects non-string and unknown enum members', () => {
+    for (const predicate of [isPosition, isNFLTeam, isPredictionSource, isNewsStatus, isNeedPriority]) {
+      for (const value of [undefined, null, 1, {}, [], 'not-supported']) expect(predicate(value)).toBe(false);
+    }
+  });
+
+  it('rejects arrays carrying player fields because the declared player boundary is an object', () => {
+    expect(isPlayer(Object.assign([], player))).toBe(false);
+  });
+
+  it('preserves player numeric acceptance and optional fields not checked by the existing guard', () => {
+    expect(isPlayer({ ...player, ecrRank: Number.NaN, consensusAdp: Number.POSITIVE_INFINITY })).toBe(true);
+    expect(isPlayer({ ...player, contractEndYear: 'unchecked', customProjectedPoints: 'unchecked' })).toBe(true);
   });
 });

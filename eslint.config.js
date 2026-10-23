@@ -16,6 +16,25 @@ const draftOrderRules = [
   },
 ];
 
+const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates. List new I/O owners in effectOwners in eslint.config.js.';
+const effectOwners = [
+  'shared/src/catalog/**',
+  'scripts/src/{contract-source-schema,script-file-schemas}.ts',
+  '**/*.test.{ts,tsx,mjs}',
+  'cli/src/{archive,client,connections,data,errors,files,run}.ts',
+  'extension/src/background/{background-controller,sync-snapshot-client}.ts',
+  'extension/src/shared/boundary-decoders.ts',
+  'extension/config/manifest-decoder.ts',
+  'server/src/{draft-data-refresh,fantasy-football-calculator,http-security,shadow-logger,sleeper-adapter,sync-adapter,sync-server,yahoo-adapter}.ts',
+  'scripts/src/{browser-gate,build-demo-data,build-historical-snapshots,build-prediction-dataset,check-data-quality,check-demo-data,effect-runtime,fantasypros-api,fetch-sleeper-adp,generate-team-env,import-league-draft-history,install-demo-data,measure-effect-adoption,playwright-browser,primary-league-release-gate,refresh-contracts,refresh-fantasypros-snapshot,scrape-contracts,scrape-ecr,recommendation-evaluation}.ts',
+  'scripts/src/model/{duckdb,init-duckdb,profile-model-sources}.ts',
+];
+
+const processExceptions = [
+  '**/*.test.{ts,tsx,mjs}',
+  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports}.mjs',
+];
+
 const environments = {
   node: globals.node,
   browser: globals.browser,
@@ -47,6 +66,33 @@ export default tseslint.config(
     rules: { 'agent/no-closed-root-import': 'error' },
   },
   {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['**/*.test.{ts,tsx,mjs}'],
+    rules: { 'agent/no-bare-fetch': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['shared/src/node/**', ...processExceptions],
+    rules: { 'agent/no-bare-child-process': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: effectOwners,
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['effect', 'effect/*'], message: effectBoundaryMessage }] }],
+      'no-restricted-syntax': ['error', ...draftOrderRules,
+        { selector: "ImportExpression[source.value=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+        { selector: "ImportExpression[source.expressions.length=0][source.quasis.0.value.cooked=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+        { selector: "CallExpression[callee.name='require'][arguments.0.value=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+        { selector: "CallExpression[callee.name='require'][arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
+      ],
+    },
+  },
+  {
+    files: ['{web-app,extension}/src/**/*.{ts,tsx,js,mjs,cjs}'],
+    rules: { 'agent/no-node-in-browser': 'error' },
+  },
+  {
     files: ['web-app/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
@@ -69,7 +115,6 @@ export default tseslint.config(
     plugins: { agent: agentRules },
     rules: {
       'agent/no-json-cast': 'error',
-      'agent/no-bare-fetch': 'error',
       'agent/no-cross-package-import': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
     },

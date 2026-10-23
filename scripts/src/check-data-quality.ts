@@ -1,3 +1,8 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
+import { Schema } from 'effect';
+import { decodeFantasyProsSnapshot, decodeSportsbookSnapshot, decodeSleeperDataFile, decodePlayerIdentityFile, decodeTeamEnvDataFile, decodePredictionsDataFile, decodeRecommendationPolicyFile, decodeLeagueSurvivalModel, decodeContractDataFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
+import { decodeModelReport, decodeHistoricalSnapshotReport } from './script-file-schemas.js';
+import { isRecommendationEvaluation } from './recommendation-evaluation.js';
 import { LIVE_RECOMMENDATION_ARCHITECTURE } from '@fantasy-draft/shared/draft';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -6,7 +11,7 @@ import { MIN_TRAINING_ROWS } from './model/position-residual-model.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DATA_DIR = join(REPO_ROOT, 'data');
-const OUTPUT_FILE = join(DATA_DIR, 'data-quality-report.json');
+const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.qualityReport));
 const strict = process.argv.includes('--strict');
 const CURRENT_SEASON = new Date().getFullYear();
 
@@ -20,13 +25,7 @@ interface QualityCheck {
   readonly expected?: number | string;
 }
 
-interface JsonRecord {
-  readonly [key: string]: unknown;
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 
 function asArray(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
@@ -45,8 +44,30 @@ function timestamp(value: unknown): number {
   return typeof value === 'string' ? Date.parse(value) : Number.NaN;
 }
 
-async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(join(DATA_DIR, path), 'utf8')) as unknown;
+async function readJson(path: string, checks: QualityCheck[]): Promise<unknown> {
+  const value: unknown = JSON.parse(await readFile(join(DATA_DIR, path), 'utf8'));
+  const options = { onWarning: (message: string) => {
+    add(checks, `rows.${path}`, path === 'sportsbook-snapshot.json' || path === 'predictions.json' ? 'fail' : 'warn', message);
+    console.warn(`${path}: ${message}`);
+  } };
+  switch (path) {
+    case 'fantasypros-snapshot.json': return decodeFantasyProsSnapshot(value);
+    case 'sportsbook-snapshot.json': return decodeSportsbookSnapshot(value, options);
+    case 'sleeper-adp.json': return decodeSleeperDataFile(value, options);
+    case 'player-identity.json': return decodePlayerIdentityFile(value);
+    case 'team-environment.json': return decodeTeamEnvDataFile(value, options);
+    case 'predictions.json': return decodePredictionsDataFile(value, options);
+    case 'model-report.json': return decodeModelReport(value);
+    case 'recommendation-policy.json': return decodeRecommendationPolicyFile(value);
+    case 'recommendation-evaluation.json':
+      if (!isRecommendationEvaluation(value)) throw new Error('Invalid recommendation evaluation evidence');
+      return value;
+    case 'league-history/survival-model.json': return decodeLeagueSurvivalModel(value, options);
+    case 'contracts.json': return decodeContractDataFile(value, options);
+    case 'historical-snapshot-report.json': return decodeHistoricalSnapshotReport(value);
+    case 'league-history/current-keepers.json': return decodeKeeperFile(value);
+    default: throw new Error(`Unsupported data quality file: ${path}`);
+  }
 }
 
 function add(
@@ -60,9 +81,7 @@ function add(
   checks.push({ id, status, message, actual, expected });
 }
 
-function finiteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
+const finiteNumber = Schema.is(Schema.Finite);
 
 async function main(): Promise<void> {
   const checks: QualityCheck[] = [];
@@ -85,7 +104,7 @@ async function main(): Promise<void> {
 
   for (const file of files) {
     try {
-      loaded.set(file, await readJson(file));
+      loaded.set(file, await readJson(file, checks));
       add(checks, `json.${file}`, 'pass', `${file} is valid JSON.`);
     } catch (error) {
       add(
@@ -155,21 +174,7 @@ async function main(): Promise<void> {
   const overUnderLines = asArray(nested(sportsbook, 'overUnder'));
   const milestoneLines = asArray(nested(sportsbook, 'milestones'));
   const sportsbookSeason = nested(sportsbook, 'metadata', 'season');
-  const invalidOverUnderLines = overUnderLines.filter((entry) =>
-    !isRecord(entry) ||
-    typeof entry['playerName'] !== 'string' ||
-    typeof entry['market'] !== 'string' ||
-    !finiteNumber(entry['line']) ||
-    !finiteNumber(entry['overOdds']) ||
-    !finiteNumber(entry['underOdds'])
-  ).length;
-  const invalidMilestoneLines = milestoneLines.filter((entry) =>
-    !isRecord(entry) ||
-    typeof entry['playerName'] !== 'string' ||
-    typeof entry['market'] !== 'string' ||
-    !finiteNumber(entry['threshold']) ||
-    !finiteNumber(entry['americanOdds'])
-  ).length;
+  const sportsbookRowWarnings = checks.filter(check => check.id === 'rows.sportsbook-snapshot.json');
   add(checks, 'sportsbook.season',
     sportsbookSeason === CURRENT_SEASON ? 'pass' : 'fail',
     'Sportsbook snapshot season matches the draft season.',
@@ -183,9 +188,9 @@ async function main(): Promise<void> {
     'Sportsbook snapshot contains a usable milestone price set.',
     milestoneLines.length, '>= 800');
   add(checks, 'sportsbook.lines.valid',
-    invalidOverUnderLines + invalidMilestoneLines === 0 ? 'pass' : 'fail',
+    sportsbookRowWarnings.length === 0 ? 'pass' : 'fail',
     'All sportsbook lines contain finite prices and thresholds.',
-    invalidOverUnderLines + invalidMilestoneLines, '0 invalid');
+    sportsbookRowWarnings.length ? sportsbookRowWarnings.map(check => check.message).join(' ') : 0, '0 invalid');
 
   const sleeper = loaded.get('sleeper-adp.json');
   const sleeperPlayers = asArray(nested(sleeper, 'players'));
@@ -242,13 +247,16 @@ async function main(): Promise<void> {
 
   const predictions = loaded.get('predictions.json');
   const predictionPlayers = asArray(nested(predictions, 'players'));
+  const predictionRowWarnings = checks.filter(check => check.id === 'rows.predictions.json');
+  const predictionRowsValid = predictionRowWarnings.length === 0;
   const invalidPredictions = predictionPlayers.filter((entry) =>
     !isRecord(entry) || !finiteNumber(entry['projectedPoints'])
   ).length;
   add(checks, 'predictions.count', predictionPlayers.length >= 800 ? 'pass' : 'fail',
     'Prediction output meets the minimum usable count.', predictionPlayers.length, '>= 800');
-  add(checks, 'predictions.finite', invalidPredictions === 0 ? 'pass' : 'fail',
-    'All projected point values are finite.', invalidPredictions, '0 invalid');
+  add(checks, 'predictions.finite', predictionRowsValid && invalidPredictions === 0 ? 'pass' : 'fail',
+    'All projected point values are finite.',
+    predictionRowsValid ? invalidPredictions : predictionRowWarnings.map(check => check.message).join(' '), '0 invalid');
   const invalidCommonOutputs = predictionPlayers.filter((entry) => {
     if (!isRecord(entry)) return true;
     const projected = entry['projectedPoints'];
@@ -260,9 +268,9 @@ async function main(): Promise<void> {
       !finiteNumber(entry['valueOverReplacement']) || floor > projected || projected > ceiling ||
       percentile < 0 || percentile > 100 || typeof entry['modelFamily'] !== 'string';
   }).length;
-  add(checks, 'predictions.common-output-contract', invalidCommonOutputs === 0 ? 'pass' : 'fail',
+  add(checks, 'predictions.common-output-contract', predictionRowsValid && invalidCommonOutputs === 0 ? 'pass' : 'fail',
     'Every model emits league points, floor, ceiling, uncertainty, position percentile, and VOR.',
-    invalidCommonOutputs, '0 invalid');
+    predictionRowsValid ? invalidCommonOutputs : predictionRowWarnings.map(check => check.message).join(' '), '0 invalid');
   const offensiveModelFamilies = new Set(
     predictionPlayers
       .filter((entry) => isRecord(entry) && ['QB', 'RB', 'WR', 'TE'].includes(String(entry['position'])))

@@ -1,83 +1,17 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Position } from '@fantasy-draft/shared/league';
+import { decodeFantasyProsSnapshot, decodeLeagueSurvivalModel, decodeTeamEnvDataFile, decodePredictionsDataFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
+import { decodeLeagueHistory } from './script-file-schemas.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const DATA_DIR = join(REPO_ROOT, 'data');
-const JSON_OUTPUT = join(DATA_DIR, 'draft-prep-report.json');
+const JSON_OUTPUT = join(REPO_ROOT, catalogPath(CATALOG.prepReport));
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'draft-prep-report.md');
 const POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const satisfies readonly Position[];
 
-interface Pick {
-  readonly pickNo: number;
-  readonly round: number;
-  readonly playerName: string;
-  readonly position: Position;
-  readonly isKeeper: boolean;
-}
-
-interface Season {
-  readonly season: number;
-  readonly userSlot: number;
-  readonly picks: readonly Pick[];
-  readonly userPicks: readonly Pick[];
-}
-
-interface LeagueHistory {
-  readonly leagueName: string;
-  readonly seasons: readonly Season[];
-}
-
-interface PositionSummary {
-  readonly leagueMedianPick: number;
-  readonly sleeperMedianPick: number;
-  readonly pickPremium: number;
-  readonly sampleSize: number;
-}
-
-interface SurvivalModel {
-  readonly generatedAt: string;
-  readonly positions: Record<Position, PositionSummary>;
-}
-
-interface Ranking {
-  readonly rank: number;
-  readonly name: string;
-  readonly position: Position;
-  readonly positionalRank: number;
-}
-
-interface FantasyProsSnapshot {
-  readonly metadata: {
-    readonly season: number;
-    readonly refreshedAt: string;
-  };
-  readonly rankings: readonly Ranking[];
-}
-
-interface TeamEnvironment {
-  readonly generatedAt: string;
-  readonly season: number;
-}
-
-interface Predictions {
-  readonly generatedAt: string;
-  readonly modelVersion: string;
-}
-
-interface CurrentKeepers {
-  readonly updatedAt: string | null;
-  readonly season: number;
-  readonly keepers: readonly {
-    readonly playerId?: string;
-    readonly playerName: string;
-    readonly position: Position;
-    readonly team: number;
-    readonly round: number;
-    readonly isMyKeeper?: boolean;
-  }[];
-}
+type Pick = ReturnType<typeof decodeLeagueHistory>['seasons'][number]['picks'][number];
 
 function normalizePlayerName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -93,14 +27,14 @@ function findFirstFreshPick(picks: readonly Pick[], position: Position): number 
   return picks.find((pick) => !pick.isKeeper && pick.position === position)?.pickNo ?? null;
 }
 
-async function readJson<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(path, 'utf8')) as T;
+async function readJson<A>(path: string, decode: (value: unknown) => A): Promise<A> {
+  return decode(JSON.parse(await readFile(path, 'utf8')));
 }
 
-export async function readOptionalJson<T>(path: string): Promise<T | null> {
+export async function readOptionalJson(path: string): Promise<ReturnType<typeof decodeKeeperFile> | null> {
   try {
     await access(path);
-    return await readJson<T>(path);
+    return await readJson(path, decodeKeeperFile);
   } catch {
     return null;
   }
@@ -117,13 +51,13 @@ function markdownTable(headers: readonly string[], rows: readonly (readonly unkn
 async function main(): Promise<void> {
   const [history, survival, fantasyPros, teamEnvironment, predictions, currentKeepers] =
     await Promise.all([
-      readJson<LeagueHistory>(join(DATA_DIR, 'league-history', 'leagueDraftHistory.json')),
-      readJson<SurvivalModel>(join(DATA_DIR, 'league-history', 'survival-model.json')),
-      readJson<FantasyProsSnapshot>(join(DATA_DIR, 'fantasypros-snapshot.json')),
-      readJson<TeamEnvironment>(join(DATA_DIR, 'team-environment.json')),
-      readJson<Predictions>(join(DATA_DIR, 'predictions.json')),
-      readOptionalJson<CurrentKeepers>(
-        join(DATA_DIR, 'league-history', 'current-keepers.json')
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.leagueHistory)), decodeLeagueHistory),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.survival)), value => decodeLeagueSurvivalModel(value, { onWarning: console.warn })),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.snapshot)), decodeFantasyProsSnapshot),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.environment)), value => decodeTeamEnvDataFile(value, { onWarning: console.warn })),
+      readJson(join(REPO_ROOT, catalogPath(CATALOG.predictions)), value => decodePredictionsDataFile(value, { onWarning: console.warn })),
+      readOptionalJson(
+        join(REPO_ROOT, catalogPath(CATALOG.keepers))
       ),
     ]);
 
