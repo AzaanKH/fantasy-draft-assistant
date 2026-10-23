@@ -1,15 +1,20 @@
+import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
+import { createWorkspace } from '@/workspace/workspace';
+import { DraftDataRefreshRequestContext } from '@/hooks/useDraftDataRefresh';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  type NFLTeam,
+  type Player,
+  type Position,
+} from '@fantasy-draft/shared/league';
 import {
   DRAFT_DATA_REFRESH_STEPS,
   evaluateDraftReadiness,
   type DraftDataRefreshState,
   type DraftDataRefreshStatus,
-  type NFLTeam,
-  type Player,
-  type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { DraftHeader } from '@/components/DraftHeader';
 import { MotionProvider } from '@/components/motion';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -32,12 +37,7 @@ import {
   type PlayerDataQueryResult,
 } from '@/hooks/usePlayerData';
 import { createDataFreshnessItem } from '@/lib/data-freshness';
-import {
-  createDraftStore,
-  DraftStoreProvider,
-  type DraftStoreApi,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi, type RecordedDraftPick } from '@/stores/draftStore';
 import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 
 export const VISUAL_NOW = Date.UTC(2026, 7, 27, 17, 0, 0);
@@ -255,7 +255,8 @@ function createFixtureHistory(): RecordedDraftPick[] {
   return Array.from({ length: 46 }, (_, index) => {
     const pickNumber = index + 1;
     const teamIndex = createSlotSequence({ type: 'snake', teams: 10, rounds: Math.ceil(pickNumber / 10) }).at(pickNumber).teamIndex;
-    const position = (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
+    const managerPositions: Readonly<Record<number, Player['position']>> = { 5: 'RB', 16: 'RB', 25: 'QB', 36: 'WR', 45: 'TE' };
+    const position = managerPositions[pickNumber] ?? (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
     return {
       pickNumber,
       playerId: `visual-drafted-${String(pickNumber)}`,
@@ -274,19 +275,10 @@ export function createVisualDraftStore(): DraftStoreApi {
   const draftHistory = createFixtureHistory();
   store.setState({
     sessionMode: 'mock',
-    currentPick: 47,
-    draftedPlayerIds: new Set(draftHistory.map((pick) => pick.playerId)),
+    draftProgress: { anchor: { kind: 'carry', pickNumber: 47 }, historyLength: draftHistory.length },
     draftHistory,
     shortlistedPlayerIds: ['visual-player-2', 'visual-player-6'],
     keepersInitialized: true,
-    myRoster: {
-      QB: ['visual-drafted-25'],
-      RB: ['visual-drafted-5', 'visual-drafted-16'],
-      WR: ['visual-drafted-36'],
-      TE: ['visual-drafted-45'],
-      K: [],
-      DEF: [],
-    },
   });
   return store;
 }
@@ -306,19 +298,6 @@ function visualRefreshStatus(state: VisualRefreshState): DraftDataRefreshStatus 
     finishedAt: state === 'failed' ? new Date(VISUAL_NOW).toISOString() : null,
     error: state === 'failed' ? 'FantasyPros rankings failed.' : null,
     detail: state === 'failed' ? 'Error: FantasyPros returned 503 Service Unavailable\n    at fetchRankings (scripts/src/refresh-fantasypros-snapshot.ts)' : null,
-  };
-}
-
-/**
- * Answers the refresh API with a fixed status, so readiness fixtures show the refresh
- * action and its progress without reaching the local server or running a refresh.
- */
-function installVisualRefreshApi(state: VisualRefreshState): void {
-  const realFetch = window.fetch.bind(window);
-  window.fetch = (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (new URL(url, window.location.href).pathname !== '/api/draft-data/refresh') return realFetch(input, init);
-    return Promise.resolve(Response.json(visualRefreshStatus(state)));
   };
 }
 
@@ -469,11 +448,15 @@ export function VisualApp(): React.ReactElement {
     initialConnection: null,
     persist: () => undefined,
   }));
+  const [workspace] = React.useState(() => createWorkspace({ draftStore, connectionStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),
     []
   );
-  React.useState(() => { installVisualRefreshApi(route.screen === 'readiness' ? route.refresh : 'idle'); });
+  const requestRefreshStatus = React.useCallback(
+    () => Promise.resolve(visualRefreshStatus(route.screen === 'readiness' ? route.refresh : 'idle')),
+    [route]
+  );
   const [queryClient] = React.useState(() => {
     const client = new QueryClient({
       defaultOptions: {
@@ -490,22 +473,24 @@ export function VisualApp(): React.ReactElement {
   return (
     <ThemeProvider initialTheme="light" persist={false}>
       <QueryClientProvider client={queryClient}>
-        <DraftStoreProvider store={draftStore}>
-          <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
-            <NotificationProvider>
-              <TooltipProvider><MotionProvider>
-                <LiveDraftSyncProvider connectionStore={connectionStore}>
-                  <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
-                    <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
-                      <VisualRouteContent route={route} />
-                    </div>
-                    <VisualReadySignal />
-                  </DraftDecisionProvider>
-                </LiveDraftSyncProvider>
-              </MotionProvider></TooltipProvider>
-            </NotificationProvider>
-          </PlayerDataFixtureProvider>
-        </DraftStoreProvider>
+        <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
+          <WorkspaceProvider workspace={workspace}>
+            <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
+              <NotificationProvider>
+                <TooltipProvider><MotionProvider>
+                  <LiveDraftSyncProvider>
+                    <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                      <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
+                        <VisualRouteContent route={route} />
+                      </div>
+                      <VisualReadySignal />
+                    </DraftDecisionProvider>
+                  </LiveDraftSyncProvider>
+                </MotionProvider></TooltipProvider>
+              </NotificationProvider>
+            </PlayerDataFixtureProvider>
+          </WorkspaceProvider>
+        </DraftDataRefreshRequestContext.Provider>
       </QueryClientProvider>
     </ThemeProvider>
   );

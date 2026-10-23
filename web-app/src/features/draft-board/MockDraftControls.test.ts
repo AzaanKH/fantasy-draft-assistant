@@ -2,8 +2,10 @@
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Player } from '@fantasy-draft/shared';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import type { Player } from '@fantasy-draft/shared/league';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
+import { getDraftView } from '@/workspace/useDraftView';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 
 import { MockDraftControls } from './MockDraftControls';
@@ -31,7 +33,7 @@ let store: DraftStoreApi;
 // MockDraftAutoAdvance sits above the routes; the controls exist only on the draft board.
 function render({ onBoard }: { readonly onBoard: boolean }): void {
   act(() => {
-    root.render(createElement(DraftStoreProvider, {
+    root.render(createElement(WorkspaceTestProvider, {
       store,
       children: createElement(
         Fragment,
@@ -70,7 +72,7 @@ function advance(ms: number): void {
 }
 
 function draftMyPick(): void {
-  const next = players.find((item) => !store.getState().draftedPlayerIds.has(item.id));
+  const next = players.find((item) => !getDraftView(store).draftedPlayerIds.has(item.id));
   if (!next) throw new Error('No players left');
   act(() => {
     store.getState().markPlayerDrafted(next.id, next.name, next.position, 2, 'Team 3');
@@ -88,12 +90,12 @@ describe('mock draft auto-advance', () => {
   it('runs CPU picks to the user slot and resumes after the user drafts', () => {
     render({ onBoard: true });
     advance(3000);
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
 
     draftMyPick();
     advance(3000);
     // Snake order: picks 4 and 5 belong to CPU teams, pick 6 to slot 3.
-    expect(store.getState().currentPick).toBe(6);
+    expect(getDraftView(store).currentPick).toBe(6);
     expect(store.getState().draftHistory.map((pick) => pick.source))
       .toEqual(['cpu', 'cpu', 'manual', 'cpu', 'cpu']);
   });
@@ -102,12 +104,12 @@ describe('mock draft auto-advance', () => {
     store.getState().setConfig({ draftType: 'linear' });
     render({ onBoard: true });
     advance(3000);
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
 
     draftMyPick();
     advance(3000);
     // Linear order repeats round one, so slot 3 picks again at 7, not 6.
-    expect(store.getState().currentPick).toBe(7);
+    expect(getDraftView(store).currentPick).toBe(7);
     expect(store.getState().draftHistory.at(-1)?.teamIndex).toBe(1);
   });
 
@@ -115,27 +117,27 @@ describe('mock draft auto-advance', () => {
     render({ onBoard: true });
     act(() => { button('Pause').click(); });
     advance(3000);
-    expect(store.getState().currentPick).toBe(1);
+    expect(getDraftView(store).currentPick).toBe(1);
 
     act(() => { button('CPU pick').click(); });
-    expect(store.getState().currentPick).toBe(2);
+    expect(getDraftView(store).currentPick).toBe(2);
 
     act(() => { button('Resume').click(); });
     advance(3000);
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
   });
 
   it('does not run CPU picks while the settings dialog is open', () => {
     render({ onBoard: true });
     act(() => { button('Settings').click(); });
     advance(3000);
-    expect(store.getState().currentPick).toBe(1);
+    expect(getDraftView(store).currentPick).toBe(1);
   });
 
   it('does not branch past the current pick', () => {
     render({ onBoard: true });
     advance(3000);
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
 
     act(() => { button('Settings').click(); });
     const input = Array.from(document.body.querySelectorAll('label'))
@@ -149,7 +151,7 @@ describe('mock draft auto-advance', () => {
     const create = Array.from(document.body.querySelectorAll('button'))
       .find((element) => element.textContent?.trim() === 'Create branch');
     act(() => { create?.click(); });
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
     expect(store.getState().draftHistory).toHaveLength(2);
   });
 
@@ -159,17 +161,17 @@ describe('mock draft auto-advance', () => {
     render({ onBoard: false });
     render({ onBoard: true });
     advance(3000);
-    expect(store.getState().currentPick).toBe(1);
+    expect(getDraftView(store).currentPick).toBe(1);
   });
 
   it('continues after a pick made away from the draft board', () => {
     render({ onBoard: false });
     advance(3000);
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
 
     draftMyPick();
     advance(3000);
-    expect(store.getState().currentPick).toBe(6);
+    expect(getDraftView(store).currentPick).toBe(6);
   });
 
   it('holds an undone keeper slot until the user resumes', () => {
@@ -185,12 +187,12 @@ describe('mock draft auto-advance', () => {
       store.getState().undoLastPick();
     });
     advance(3000);
-    expect(store.getState().currentPick).toBe(1);
+    expect(getDraftView(store).currentPick).toBe(1);
     expect(store.getState().draftHistory).toEqual([]);
 
     act(() => { button('Resume').click(); });
     advance(3000);
-    expect(store.getState().currentPick).toBe(3);
+    expect(getDraftView(store).currentPick).toBe(3);
   });
 
   it('holds keeper slots while the settings dialog is open', () => {

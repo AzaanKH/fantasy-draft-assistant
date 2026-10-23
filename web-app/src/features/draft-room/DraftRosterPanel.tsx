@@ -1,15 +1,16 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { useDraftStore } from '@/stores/draftStore';
 import { getRosterSlots } from './roster-slots';
 
 export function DraftRosterPanel(): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const config = useDraftStore((state) => state.config);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const config = useDraftState((state) => state.config);
+  const draftHistory = useDraftState((state) => state.draftHistory);
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]

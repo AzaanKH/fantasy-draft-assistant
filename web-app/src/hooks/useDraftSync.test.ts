@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   Player,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type {
   DraftPickEvent,
   DraftSyncSnapshot,

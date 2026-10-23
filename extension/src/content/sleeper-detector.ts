@@ -3,12 +3,12 @@
  * orchestration, and Chrome I/O live in separate testable modules.
  */
 
-import { createChromeMessageSender } from './chrome-messenger';
+import { createChromeMessageSender, createChromeUndecodedEspnSnapshotRelay } from './chrome-messenger';
 import { createDraftRoomLifecycle } from './draft-room-lifecycle';
 import { startEspnContentBridge } from './espn-content-bridge';
 
 const sendMessage = createChromeMessageSender();
-startEspnContentBridge(sendMessage);
+startEspnContentBridge(createChromeUndecodedEspnSnapshotRelay());
 
 const lifecycle = createDraftRoomLifecycle(
   {

@@ -1,6 +1,7 @@
+import { requestJson } from '@/lib/http';
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { isDraftDataRefreshStatus, type DraftDataRefreshStatus } from '@fantasy-draft/shared';
+import { decodeDraftDataRefreshStatus, type DraftDataRefreshStatus } from '@fantasy-draft/shared/catalog';
 import { toast } from 'sonner';
 
 const REFRESH_URL = '/api/draft-data/refresh';
@@ -9,12 +10,14 @@ const STATUS_QUERY_KEY = ['draft-data-refresh'] as const;
 const REFRESHED_DATA_QUERY_KEYS = [['fantasypros-snapshot'], ['sleeper-adp'], ['player-identity']] as const;
 const POLL_INTERVAL_MS = 1000;
 
-async function readStatus(response: Response): Promise<DraftDataRefreshStatus> {
-  if (!response.ok) throw new Error(`Draft data refresh request failed: ${String(response.status)}`);
-  const body: unknown = await response.json();
-  if (!isDraftDataRefreshStatus(body)) throw new Error('Draft data refresh returned an unexpected status');
-  return body;
+async function requestStatus(init?: RequestInit): Promise<DraftDataRefreshStatus> {
+  return requestJson(REFRESH_URL, body => {
+    try { return decodeDraftDataRefreshStatus(body); }
+    catch { throw new Error('Draft data refresh returned an unexpected status'); }
+  }, 'Draft data refresh request failed', { init });
 }
+
+export const DraftDataRefreshRequestContext = React.createContext(requestStatus);
 
 interface DraftDataRefresh {
   readonly status: DraftDataRefreshStatus | undefined;
@@ -26,16 +29,17 @@ interface DraftDataRefresh {
 
 export function useDraftDataRefresh(enabled = true): DraftDataRefresh {
   const queryClient = useQueryClient();
+  const request = React.useContext(DraftDataRefreshRequestContext);
   const statusQuery = useQuery({
     queryKey: STATUS_QUERY_KEY,
-    queryFn: async () => readStatus(await fetch(REFRESH_URL)),
+    queryFn: () => request(),
     enabled,
     retry: false,
     staleTime: 0,
     refetchInterval: (query) => query.state.data?.state === 'running' ? POLL_INTERVAL_MS : false,
   });
   const startMutation = useMutation({
-    mutationFn: async () => readStatus(await fetch(REFRESH_URL, { method: 'POST' })),
+    mutationFn: () => request({ method: 'POST' }),
     // A status read still in flight could land after the POST and overwrite `running` with `idle`.
     onMutate: async () => { await queryClient.cancelQueries({ queryKey: STATUS_QUERY_KEY }); },
     onSuccess: (status) => { queryClient.setQueryData(STATUS_QUERY_KEY, status); },

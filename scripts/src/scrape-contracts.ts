@@ -15,12 +15,14 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  type ContractPlayer,
   type NFLTeam,
   type Position,
   POSITIONS,
   NFL_TEAMS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
+import {
+  type ContractPlayer,
+} from '@fantasy-draft/shared/catalog';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');

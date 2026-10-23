@@ -2,7 +2,7 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   POSITIONS,
   type Player,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type PositionNeed,
 } from '@fantasy-draft/shared/draft';

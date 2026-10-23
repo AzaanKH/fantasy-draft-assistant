@@ -1,3 +1,5 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 /**
  * Team Needs Hook
  *
@@ -8,7 +10,7 @@
  */
 
 import { useMemo } from 'react';
-import type { Position } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
 import type { PositionNeed } from '@fantasy-draft/shared/draft';
 import {
   calculateAllScarcityScores,
@@ -16,7 +18,6 @@ import {
   getCriticalPositions,
 } from '@fantasy-draft/shared/draft';
 import { usePlayerDataQuery } from './usePlayerData';
-import { useDraftStore } from '@/stores/draftStore';
 
 /**
  * Hook to calculate team positional needs
@@ -28,10 +29,10 @@ export function useTeamNeeds(): {
   isLoading: boolean;
 } {
   const { players, isLoading } = usePlayerDataQuery();
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const config = useDraftStore((state) => state.config);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const config = useDraftState((state) => state.config);
 
   const scarcityScores = useMemo(() => {
     const availablePlayers = players.filter((p) => !draftedPlayerIds.has(p.id));

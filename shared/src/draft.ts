@@ -290,5 +290,5 @@ export interface DecisionOutput {
  * Type guard to check if a value is a valid NeedPriority
  */
 export function isNeedPriority(value: unknown): value is NeedPriority {
-  return typeof value === 'string' && NEED_PRIORITIES.includes(value as NeedPriority);
+  return NEED_PRIORITIES.some(priority => priority === value);
 }

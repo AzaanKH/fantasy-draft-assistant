@@ -1,4 +1,4 @@
-import { type Position } from '@fantasy-draft/shared';
+import { type Position } from '@fantasy-draft/shared/league';
 import { DEFAULT_SCORING_RULES } from '@fantasy-draft/shared/league';
 
 interface LeagueScoringAdjustmentInput {
