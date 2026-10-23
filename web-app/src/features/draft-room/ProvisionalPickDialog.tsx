@@ -133,6 +133,15 @@ function ProvisionalPickForm({
   });
   const [error, setError] = React.useState<string | null>(null);
 
+  // A native select falls back to another enabled option when its selected
+  // option disappears. Render the invalid state in the same commit, before
+  // passive effects persist the cleared choice.
+  const selectedPickAvailable = editablePickNumbers.includes(Number(selectedPickNumber));
+  const displayedPickNumber = selectedPickAvailable ? selectedPickNumber : '';
+  const displayedError = !pending && selectedPickNumber && !selectedPickAvailable
+    ? `Pick ${selectedPickNumber} was just recorded elsewhere. Choose a pick.`
+    : error;
+
   React.useEffect(() => {
     if (!selectablePlayers.some((player) => player.id === selectedPlayerId)) {
       setSelectedPlayerId(selectablePlayers[0]?.id ?? '');
@@ -226,7 +235,7 @@ function ProvisionalPickForm({
           <Select
             className="w-full"
             aria-label="Team and draft position"
-            value={selectedPickNumber}
+            value={displayedPickNumber}
             onValueChange={(value) => { setSelectedPickNumber(value); setError(null); }}
             options={[{ value: '', label: 'Choose a pick', disabled: true }, ...editablePickNumbers.map((pickNumber) => {
               const teamIndex = order.at(pickNumber).teamIndex;
@@ -243,9 +252,9 @@ function ProvisionalPickForm({
             ? 'The corrected entry stays provisional and remains visible for later Reconciliation.'
             : 'The board will label this as a Provisional Pick. Provider Truth stays intact for later Reconciliation.'}
         </div>
-        {error ? (
+        {displayedError ? (
           <p className="text-xs font-semibold text-destructive" role="alert">
-            {error}
+            {displayedError}
           </p>
         ) : null}
       </div>
@@ -258,7 +267,7 @@ function ProvisionalPickForm({
           onClick={() => { void handleSave(); }}
           disabled={pending || !canRecord ||
             !selectedPlayerId ||
-            !selectedPickNumber ||
+            !displayedPickNumber ||
             Boolean(
               editingPick &&
               editingPick.playerId === selectedPlayerId &&

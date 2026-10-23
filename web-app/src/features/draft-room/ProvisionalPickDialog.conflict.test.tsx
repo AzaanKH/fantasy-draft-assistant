@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, Fragment, useLayoutEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Player } from '@fantasy-draft/shared/league';
@@ -7,11 +7,15 @@ import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
+import { ManualContinuityControl } from './ManualContinuityControl';
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 
 const [observed, elsewhere] = VISUAL_PLAYERS;
 if (!observed || !elsewhere) throw new Error('Missing player fixtures');
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
-vi.mock('./LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connection: { provider: 'sleeper' } }) }));
+vi.mock('./LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connection: { provider: 'sleeper' }, canEnterManualContinuity: true,
+  synchronizationState: 'manual-continuity', lastConfirmedPickNumber: 0, provisionalPickCount: 0,
+  viewState: { connectionState: 'connected' } }) }));
 
 let store: DraftStoreApi;
 let root: Root;
@@ -79,4 +83,50 @@ it.each([false, true])('requires an explicit new choice when another writer occu
   await act(async () => { saveButton(correcting).click(); });
   expect(store.getState().draftHistory.find(row => row.pickNumber === selected + 1)?.playerId).toBe(observed.id);
   expect(close).toHaveBeenCalledWith(false);
+});
+
+interface CommittedChoice {
+  readonly select: HTMLSelectElement;
+  readonly value: string;
+  readonly disabled: boolean;
+  readonly alert: string | null;
+}
+
+// Observe the DOM commit that removes the occupied option, before passive effects.
+// Post-act assertions alone miss the browser's native select fallback window.
+function CommitProbe({ capture, correcting }: { readonly capture: (choice: CommittedChoice) => void; readonly correcting: boolean }) {
+  const history = useDraftState(state => state.draftHistory);
+  useLayoutEffect(() => {
+    const select = document.querySelector<HTMLSelectElement>('select[aria-label="Team and draft position"]');
+    if (select) capture({ select, value: select.value, disabled: saveButton(correcting).disabled,
+      alert: document.querySelector('[role="alert"]')?.textContent ?? null });
+  }, [capture, correcting, history]);
+  return null;
+}
+
+it.each([false, true])('invalidates the real parent-opened control in the first commit without remounting, correction=%s', correcting => {
+  if (correcting) expect(store.getState().recordProvisionalPick(pick(1, observed))).toBe(true);
+  const commits: CommittedChoice[] = [];
+  const capture = (choice: CommittedChoice) => { commits.push(choice); };
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store,
+    children: createElement(Fragment, null, createElement(ManualContinuityControl), createElement(CommitProbe, { capture, correcting })) })); });
+  const open = [...container.querySelectorAll('button')].find(button => correcting
+    ? button.getAttribute('aria-label') === `Correct Provisional Pick for ${observed.name}`
+    : button.textContent?.includes('Add Provisional Pick'));
+  if (!open) throw new Error('Missing real parent entry button');
+  act(() => { open.click(); });
+  const originalSelect = slotSelect();
+  const selected = correcting ? 2 : 1;
+  choosePick(String(selected));
+  expect(originalSelect.value).toBe(String(selected));
+  commits.length = 0;
+  act(() => { expect(store.getState().recordProvisionalPick(pick(selected, elsewhere))).toBe(true); });
+
+  expect(commits.length).toBeGreaterThan(0);
+  expect(commits.every(choice => choice.select === originalSelect)).toBe(true);
+  expect(commits.map(choice => ({ value: choice.value, disabled: choice.disabled, alert: choice.alert }))).toEqual([
+    { value: '', disabled: true, alert: `Pick ${String(selected)} was just recorded elsewhere. Choose a pick.` },
+  ]);
+  expect(slotSelect()).toBe(originalSelect);
+  expect(store.getState().draftHistory.some(row => row.pickNumber === selected + 1)).toBe(false);
 });
