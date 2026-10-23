@@ -140,12 +140,10 @@ function ProvisionalPickForm({
   }, [selectablePlayers, selectedPlayerId]);
 
   React.useEffect(() => {
-    if (editablePickNumbers.includes(Number(selectedPickNumber))) return;
-    const nextPick = editablePickNumbers.includes(currentPick)
-      ? currentPick
-      : editablePickNumbers[0];
-    setSelectedPickNumber(nextPick === undefined ? '' : String(nextPick));
-  }, [currentPick, editablePickNumbers, selectedPickNumber]);
+    if (pending || !selectedPickNumber || editablePickNumbers.includes(Number(selectedPickNumber))) return;
+    setError(`Pick ${selectedPickNumber} was just recorded elsewhere. Choose a pick.`);
+    setSelectedPickNumber('');
+  }, [editablePickNumbers, pending, selectedPickNumber]);
 
   const handleSave = async (): Promise<void> => {
     if (pending) return;
@@ -189,6 +187,7 @@ function ProvisionalPickForm({
       return;
     }
 
+    setSelectedPickNumber('');
     onClose();
   };
 
@@ -228,14 +227,14 @@ function ProvisionalPickForm({
             className="w-full"
             aria-label="Team and draft position"
             value={selectedPickNumber}
-            onValueChange={setSelectedPickNumber}
-            options={editablePickNumbers.map((pickNumber) => {
+            onValueChange={(value) => { setSelectedPickNumber(value); setError(null); }}
+            options={[{ value: '', label: 'Choose a pick', disabled: true }, ...editablePickNumbers.map((pickNumber) => {
               const teamIndex = order.at(pickNumber).teamIndex;
               return {
                 value: String(pickNumber),
                 label: `Pick ${order.label(pickNumber)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
               };
-            })}
+            })]}
           />
         </label>
 
