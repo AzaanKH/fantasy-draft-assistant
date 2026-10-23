@@ -11,7 +11,7 @@ import { PREFLIGHT_SCOPE, PREFLIGHT_PLAN, evaluateReachability, assertNoPrefligh
 import { runnerMode, runnerExitCode } from './ui-runner-mode.mjs';
 import { resetExtensionWorker, workerResetPasses } from './ui-worker.mjs';
 import { prepareConflict, submitConflict, auditObservedConflict } from './ui-conflict.mjs';
-import { ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN, runRootSmokeSteps, evaluateRootSmoke } from './ui-root-smoke.mjs';
+import { ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN, runRootSmokeSteps, evaluateRootSmoke, focusAfterAck } from './ui-root-smoke.mjs';
 import { Processes } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
 import {
@@ -1139,15 +1139,16 @@ async function lifecycle(ctxInfo, ids, catalog, nameToId) {
     const pages = [await ctxInfo.ctx.newPage(), await ctxInfo.ctx.newPage()];
     for (const page of pages) {
       await page.addInitScript(() => { BroadcastChannel.prototype.postMessage = () => undefined; window.__lifecycle = [];
-        window.addEventListener('focus', e => window.__lifecycle.push({ type: 'focus', trusted: e.isTrusted }));
-        document.addEventListener('visibilitychange', e => window.__lifecycle.push({ type: 'visibility', state: document.visibilityState, trusted: e.isTrusted })); });
+        window.addEventListener('focus', e => window.__lifecycle.push({ type: 'focus', trusted: e.isTrusted, at: performance.timeOrigin + e.timeStamp }));
+        document.addEventListener('visibilitychange', e => window.__lifecycle.push({ type: 'visibility', state: document.visibilityState, trusted: e.isTrusted, at: performance.timeOrigin + e.timeStamp })); });
       const focus = await ctxInfo.ctx.newCDPSession(page); await focus.send('Emulation.setFocusEmulationEnabled', { enabled: false }); await focus.detach();
     }
     await Promise.all(pages.map(p => p.goto(draftUrl(id)))); await Promise.all(pages.map(p => appReady(p, 'lifecycle')));
     const actors = pages.map((page, i) => ({ name: `tab${i}`, page, ctx: page, kind: 'tab', session: id }));
     const receiver = 1 - sender; const player = catalog[10];
     for (const actor of actors) { if (fixtureReadyScope) await fixtureRules(actor.ctx); await inspectPoolControl(actor, player, false); }
-    await pages[sender].bringToFront();
+    // The receiver must lose focus before the write, or bringing it back fires no focus and nothing re-reads.
+    await pages[receiver].bringToFront(); await pages[sender].bringToFront();
     const receipt = await runCommand(actors[sender], { id: 'lifecycle:add', type: 'queueAdd', playerId: player.id, name: player.name });
     check(receipt.outcome === 'ack', 'Lifecycle sender queue add failed');
     row.receipt = receipt;
@@ -1155,8 +1156,9 @@ async function lifecycle(ctxInfo, ids, catalog, nameToId) {
     await pages[receiver].bringToFront();
     try {
       await pages[receiver].getByRole('button', { name: `Remove ${player.name} from local shortlist`, exact: true }).waitFor({ timeout: 20000 });
-      row.focusRecovery = { proven: true, events: await pages[receiver].evaluate(() => window.__lifecycle) };
-    } catch (error) { row.focusRecovery = { proven: false, reason: error.message }; }
+      const events = await pages[receiver].evaluate(() => window.__lifecycle);
+      row.focusRecovery = { proven: focusAfterAck(events, receipt), events };
+    } catch (error) { row.focusRecovery = { proven: false, reason: error.message, events: await pages[receiver].evaluate(() => window.__lifecycle).catch(() => []) }; }
     const cdp = await ctxInfo.ctx.newCDPSession(pages[receiver]);
     try {
       if (!config.headed) throw new Error('headless browser: native window visibility cannot be proven');

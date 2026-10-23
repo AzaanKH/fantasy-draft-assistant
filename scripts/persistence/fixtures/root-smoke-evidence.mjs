@@ -44,7 +44,8 @@ export async function rootSmokeEvidence() {
       const issued = Array.from({ length: 120 }, (_, i) => receipt(label, 'reconcile', { id: `b:${i}`, type: 'pick', slot: i + 1, playerId: `r${i}` }));
       const picks = issued.map(row => ({ pickNumber: row.cmd.slot, playerId: row.cmd.playerId, source: 'sleeper-api' }));
       scenario.bursts.reconcile = { issued, provider: picks, committed: { picks }, flippedAt: 36 };
-      scenario.lifecycle = [0, 1].map(index => ({ sender: index, receipt: receipt(label, `life-${index}`, { id: 'lifecycle:add', type: 'queueAdd', playerId: 'life' }), focusRecovery: { proven: true }, nativeVisibility: { proven: false } }));
+      scenario.lifecycle = [0, 1].map(index => ({ sender: index, receipt: receipt(label, `life-${index}`, { id: 'lifecycle:add', type: 'queueAdd', playerId: 'life' }, 'ack', { startedAt: 1000, ms: 200 }),
+        focusRecovery: { proven: true, events: [{ type: 'focus', trusted: true, at: 1300 }] }, nativeVisibility: { proven: false } }));
     } else {
       const plan = planSession(Array.from({ length: 300 }, (_, i) => ({ id: `p${i}`, name: `Player ${i}` })), 150);
       const issued = plan.actors.flatMap((commands, actor) => commands.map(cmd => receipt(label, 'slice', cmd, 'ack', { actor: actor ? 'panel' : 'tab0' })));

@@ -4,6 +4,12 @@ import { workerResetPasses } from './ui-worker.mjs';
 import { hasReadinessProof } from './ui-readiness.mjs';
 
 export const ROOT_SMOKE_SCOPE = 'root-tier2-production-smoke';
+/** Recovery counts only when a trusted focus reached the receiver after the sender's write was acknowledged. */
+export function focusAfterAck(events, receipt) {
+  const ackedAt = receipt?.startedAt + receipt?.ms;
+  return Number.isFinite(ackedAt) && Array.isArray(events) && events.some(event => event.type === 'focus' && event.trusted && event.at > ackedAt);
+}
+
 export const ROOT_SMOKE_PLAN = Object.freeze({ tabs: Object.freeze([['pickConflict', 20], ['moveConflict', 20], ['reconcile', 1], ['lifecycle', 1]]),
   'extension-granted': Object.freeze([['setup', 1], ['slice', 1], ['pickConflict', 20], ['moveConflict', 20]]) });
 export function panelSetupPasses(row) {
@@ -19,7 +25,7 @@ const passesStep = (kind, row) => {
     case 'pickConflict': return auditObservedConflict(row).good;
     case 'moveConflict': return auditMoveConflict(row).good;
     case 'reconcile': return row.issued.length === 120 && auditReconcileBurst(row).good;
-    case 'lifecycle': return row.length === 2 && row.every(value => value.receipt?.outcome === 'ack' && value.focusRecovery?.proven);
+    case 'lifecycle': return row.length === 2 && row.every(value => value.receipt?.outcome === 'ack' && value.focusRecovery?.proven && focusAfterAck(value.focusRecovery.events, value.receipt));
     case 'setup': return panelSetupPasses(row);
     case 'slice': return row.issued.length === 300 && row.issued.filter(value => value.actor === 'panel').length === 150 && row.issued.filter(value => value.actor === 'tab0').length === 150 && sessionPasses(auditSession(row), 300) && !row.notSavedVisible.some(Boolean);
     default: throw new Error(`Unknown root smoke step ${kind}`);

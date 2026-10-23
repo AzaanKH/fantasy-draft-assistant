@@ -1,6 +1,7 @@
 import { test, expect } from 'vitest';
 import { rootSmokeEvidence } from './persistence/fixtures/root-smoke-evidence.mjs';
-import { ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN, evaluateRootSmoke, runRootSmokeSteps } from './persistence/ui-root-smoke.mjs';
+import { ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN, evaluateRootSmoke, runRootSmokeSteps, focusAfterAck } from './persistence/ui-root-smoke.mjs';
+import { readFile } from 'node:fs/promises';
 import { validateSmokeAuthorization } from './persistence/root-smoke-driver.mjs';
 
 test('the smoke driver rejects unpushed, dirty, reused or non-green head evidence before launch', () => {
@@ -68,4 +69,25 @@ test('each plan executes once in its exact order and stops on the first failed s
     expect(stopped.at(-1)).toEqual(['pickConflict', 1]);
     expect(stopped.filter(([kind]) => kind === 'moveConflict')).toHaveLength(0);
   }
+});
+
+test('lifecycle recovery needs a trusted receiver focus after the sender ack', async () => {
+  const ack = { startedAt: 1000, ms: 200 };
+  expect(focusAfterAck([{ type: 'focus', trusted: true, at: 1300 }], ack)).toBe(true);
+  for (const events of [
+    [], [{ type: 'focus', trusted: true, at: 1100 }], [{ type: 'focus', trusted: false, at: 1300 }],
+    [{ type: 'visibility', trusted: true, at: 1300 }], [{ type: 'focus', trusted: true }],
+  ]) expect(focusAfterAck(events, ack), JSON.stringify(events)).toBe(false);
+  const result = await rootSmokeEvidence();
+  result.scenarios[0].lifecycle[1].focusRecovery.events[0].at = 900;
+  expect(evaluateRootSmoke(result).passes).toBe(false);
+});
+
+test('the lifecycle scenario blurs the receiver before the write and judges focus by timestamp', async () => {
+  const source = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
+  const body = source.slice(source.indexOf('async function lifecycle('));
+  expect(body.indexOf('await pages[receiver].bringToFront(); await pages[sender].bringToFront();')).toBeGreaterThan(-1);
+  expect(body.indexOf('await pages[sender].bringToFront();')).toBeLessThan(body.indexOf("id: 'lifecycle:add'"));
+  expect(body).toContain('proven: focusAfterAck(events, receipt)');
+  expect(body).toContain('at: performance.timeOrigin + e.timeStamp');
 });
