@@ -86,7 +86,7 @@ export function getDraftSyncSearch(
   return serialized ? `?${serialized}` : '';
 }
 
-function readStoredConnection(): PersistedDraftSyncConnection | null {
+export function readStoredConnection(): PersistedDraftSyncConnection | null {
   if (typeof window === 'undefined' || IS_DEMO) return null;
 
   try {
@@ -98,7 +98,7 @@ function readStoredConnection(): PersistedDraftSyncConnection | null {
   }
 }
 
-function persistConnection(connection: PersistedDraftSyncConnection | null): void {
+export function persistConnection(connection: PersistedDraftSyncConnection | null): void {
   if (typeof window === 'undefined') return;
 
   try {
@@ -189,18 +189,13 @@ export function createDraftSyncConnectionStore({
   }));
 }
 
-export const useDraftSyncConnectionStore = createDraftSyncConnectionStore({
-  initialConnection: readStoredConnection(),
-  persist: persistConnection,
-});
-
-export function initializeDraftSyncConnection(search: string): void {
+export function initializeDraftSyncConnection(connectionStore: StoreApi<DraftSyncConnectionStore>, search: string): void {
   // The static demo has no sync server to connect to.
   if (IS_DEMO) return;
   const urlConnection = getDraftSyncConnectionFromSearch(search);
   if (!urlConnection) return;
 
-  const store = useDraftSyncConnectionStore.getState();
+  const store = connectionStore.getState();
   const storedConnection = store.connection;
   const sameDraft = storedConnection?.provider === urlConnection.provider &&
     storedConnection.draftId === urlConnection.draftId;

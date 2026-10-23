@@ -46,7 +46,7 @@ function emptyRoster(): MutableRoster {
   return { QB: [], RB: [], WR: [], TE: [], K: [], DEF: [] };
 }
 
-/** Shadow selector for the stored draft fields. It has no production consumer yet. */
+/** Complete draft view derived from accepted commands, selections and the catalog. */
 export function deriveDraft(source: DraftSource, format: DraftFormat, players: readonly Player[] = []): DerivedDraft {
   const order = createSlotSequence(format);
   const effectiveKeepers = source.keepers.flatMap(keeper => {
