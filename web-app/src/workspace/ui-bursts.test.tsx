@@ -10,10 +10,12 @@ import { WorkspaceProvider } from './WorkspaceProvider';
 import { observeDurableWorkspace } from './ui-dispatch';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { useSimulateNextCpuPick } from '@/features/draft-board/mock-auto-advance';
+import { useQueueActions } from '@/hooks/useQueueActions';
 import { useDraftSyncReconciliation } from '@/hooks/useDraftSyncReconciliation';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 
+vi.mock('@fantasy-draft/shared/sync', async importOriginal => ({ ...await importOriginal<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
 vi.mock('@/hooks/useLeagueTimingEvidence', () => ({ useLeagueTimingEvidence: () => ({ model: null, isLoading: false }) }));
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); });
@@ -89,24 +91,34 @@ it('submits one reconciliation for an unchanged snapshot and retains its committ
 
 
 it('persists a newer unchanged sync boundary before reload so older cached history cannot remove an acknowledged pick', async () => {
+  const messages = vi.fn();
+  vi.stubGlobal('BroadcastChannel', class { postMessage = messages; addEventListener() {} removeEventListener() {} close() {} });
   const factory = new IDBFactory();
   const identity = { provider: 'sleeper', draftId: '123', draftPosition: 1 } as const;
   const database = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => undefined });
   const raw = createDurableWorkspace({ database, search: '', initialConnection: identity });
   await raw.sendDurable(['setSessionMode', 'live']);
+  const calls = vi.spyOn(raw, 'sendDurable');
   const container = document.createElement('div'); const root = createRoot(container);
   let feedback: ReturnType<typeof useDraftSyncReconciliation> | undefined;
-  function Consumer({ at }: { readonly at: number }) {
-    const snapshot: DraftSyncSnapshot = { provider: 'sleeper', draftId: '123', status: 'synced', draft: null, picks: [], lastSuccessfulSyncAt: at, lastPolledAt: at, lastError: null };
+  function Consumer({ at, status = 'synced' }: { readonly at: number; readonly status?: DraftSyncSnapshot['status'] }) {
+    const snapshot: DraftSyncSnapshot = { provider: 'sleeper', draftId: '123', status, draft: null, picks: [], lastSuccessfulSyncAt: at, lastPolledAt: at, lastError: null };
     feedback = useDraftSyncReconciliation('sleeper', '123', snapshot, true); return null;
   }
-  async function render(at: number) {
-    await act(async () => { root.render(createElement(WorkspaceProvider, { workspace: raw, children: createElement(Consumer, { at }) })); });
+  async function render(at: number, status: DraftSyncSnapshot['status'] = 'synced') {
+    await act(async () => { root.render(createElement(WorkspaceProvider, { workspace: raw, children: createElement(Consumer, { at, status }) })); });
     await act(async () => { await raw.sendDurable(['setSearchQuery', 'drain']); });
   }
   try {
     await render(100);
+    const revision = (await database.read(identity))?.revision;
+    messages.mockClear();
+    await render(100, 'syncing');
     await render(200);
+    expect((await database.read(identity))?.revision).toBe(revision);
+    expect(messages).not.toHaveBeenCalled();
+    expect(calls.mock.calls.filter(([command]) => command[0] === 'reconcileSyncedPicks')).toHaveLength(1);
+    expect(calls.mock.calls.filter(([command]) => command[0] === 'advanceSyncFreshness')).toHaveLength(1);
     expect(feedback?.lastReconciledSnapshotAt).toBe(200);
     expect((await database.read(identity))?.lastConfirmedSyncAt).toBe(200);
   } finally { act(() => { root.unmount(); }); raw.dispose(); }
@@ -123,4 +135,37 @@ it('persists a newer unchanged sync boundary before reload so older cached histo
     expect(stale.result).toMatchObject({ changed: false, removals: [] });
     expect(reopened.draft.getState().draftHistory.map(pick => pick.playerId)).toEqual([first.id]);
   } finally { reopened.dispose(); }
+});
+
+
+it('keeps stale queue clicks absolute and preserves the latest exact order after reload', async () => {
+  const factory = new IDBFactory();
+  const identity = { provider: 'sleeper', draftId: '123', draftPosition: 1 } as const;
+  const database = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => undefined });
+  const raw = createDurableWorkspace({ database, search: '', initialConnection: identity });
+  await raw.sendDurable(['setSessionMode', 'live']);
+  let actions: ReturnType<typeof useQueueActions> | undefined;
+  function Consumer() { actions = useQueueActions(VISUAL_PLAYERS); return null; }
+  const root = createRoot(document.createElement('div'));
+  try {
+    act(() => { root.render(createElement(WorkspaceProvider, { workspace: raw, children: createElement(Consumer) })); });
+    const other = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => undefined });
+    await other.update(identity, latest => {
+      if (!latest) throw new Error('Missing session');
+      return { session: { ...latest, revision: latest.revision + 1, shortlistedPlayerIds: ['a', 'b', first.id, 'c'] }, result: undefined };
+    });
+    expect(raw.draft.getState().shortlistedPlayerIds).toEqual([]);
+    await act(async () => { actions?.togglePlayerQueued(first.id); actions?.togglePlayerQueued(first.id); await raw.sendDurable(['setSearchQuery', 'drain']); });
+    expect((await other.read(identity))?.shortlistedPlayerIds).toEqual(['a', 'b', first.id, 'c']);
+    await other.update(identity, latest => {
+      if (!latest) throw new Error('Missing session');
+      return { session: { ...latest, revision: latest.revision + 1, shortlistedPlayerIds: ['a', 'b', 'c'] }, result: undefined };
+    });
+    await act(async () => { actions?.togglePlayerQueued(first.id); await raw.sendDurable(['setSearchQuery', 'drain']); });
+    expect((await other.read(identity))?.shortlistedPlayerIds).toEqual(['a', 'b', 'c']);
+    other.close();
+  } finally { act(() => { root.unmount(); }); raw.dispose(); }
+  const reopened = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => undefined });
+  expect((await reopened.read(identity))?.shortlistedPlayerIds).toEqual(['a', 'b', 'c']);
+  reopened.close();
 });

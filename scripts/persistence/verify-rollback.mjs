@@ -9,6 +9,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw new Error('Usage: node scripts/persistence/verify-rollback.mjs <export.json> <verification.json>. Run old-modules.mjs first.');
 const exported = JSON.parse(await readFile(input, 'utf8'));
+const { digest: exportDigest, ...exportBody } = exported;
+assert.equal(createHash('sha256').update(JSON.stringify(exportBody)).digest('hex'), exportDigest, 'Rollback export digest does not match its payload');
+const journalRows = exported.writes.filter(row => row.key.startsWith('fantasy-draft-session-unconfirmed-v1:')).sort((a, b) => a.key.localeCompare(b.key));
+assert.deepEqual(journalRows, exported.journals.map(({ key, serialized }) => ({ key, serialized })), 'Every exported journal must appear in the manifest');
+const journalBytesDigest = createHash('sha256').update(JSON.stringify(journalRows)).digest('hex');
 const readers = [['main', '8f1d26a621f4893f0c948f282e464573dd57b679', '.local/compat-main'], ['stack', '41debb3ccf175f6b5bbeef1806a1486043602635', '.local/compat-stack']];
 const directory = path.dirname(path.resolve(output));
 await mkdir(directory, { recursive: true });
@@ -34,11 +39,15 @@ for (const [name, revision, directory] of readers) {
   await writeFile(`${resultPath}.log`, result.stdout + result.stderr);
   const proof = JSON.parse(await readFile(resultPath, 'utf8'));
   assert.equal(proof.revision, revision);
+  assert.equal(proof.exportDigest, exported.digest);
   assert.deepEqual(await pinnedSources(checkout, revision), source);
   assert.equal(proof.load, exported.expectedFactsDigest);
   assert.equal(proof.writeback, exported.expectedFactsDigest);
   assert.equal(proof.loadJournalsDigest, exported.expectedJournalsDigest);
   assert.equal(proof.writeJournalsDigest, exported.expectedJournalsDigest);
+  assert.equal(proof.loadJournalBytesDigest, journalBytesDigest, 'Pinned reader did not load every exact exported journal byte');
+  assert.deepEqual(proof.loadJournals.rawKeys, journalRows.map(row => row.key));
+  assert.deepEqual(proof.writeJournals.rawKeys, journalRows.map(row => row.key));
   evidence.push({ commit: revision, phase: 'load', factsDigest: proof.load, moduleDigest: source.digest, journalsDigest: proof.loadJournalsDigest }, { commit: revision, phase: 'writeback', factsDigest: proof.writeback, moduleDigest: source.digest, journalsDigest: proof.writeJournalsDigest });
 }
 await writeFile(output, JSON.stringify({ exportDigest: exported.digest, readers: evidence, verifiedAt: Date.now(), verifiedBy: 'scripts/persistence/verify-rollback.mjs' }, null, 2));

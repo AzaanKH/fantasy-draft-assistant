@@ -25,7 +25,7 @@ function reviewRollback(exported: RollbackExport, accept: (decisions: readonly R
   dialog.setAttribute('aria-label', 'Review rollback entries');
   dialog.style.cssText = 'position:fixed;inset:5%;z-index:99999;overflow:auto;max-height:90vh;padding:24px';
   const title = document.createElement('h1'); title.textContent = 'Review retained draft entries before rollback'; dialog.append(title);
-  const explanation = document.createElement('p'); explanation.textContent = 'Each choice keeps the committed IndexedDB version in the writable v1 draft. The displayed alternative stays in the recovery export. Cancel leaves writers stopped and the migration marker in place.'; dialog.append(explanation);
+  const explanation = document.createElement('p'); explanation.textContent = 'Each choice keeps the committed IndexedDB head. Every decodable retained journal is also exported to v1 journal storage. Old apps may consume resolved journals or delete unsupported orphan journals; exact originals remain recoverable in IndexedDB and the export. Corrupt or unencodable alternatives remain in the recovery export after your explicit choice. Cancel leaves writers stopped and the migration marker in place.'; dialog.append(explanation);
   const choices = new Map<string, RollbackDecision>();
   const submit = document.createElement('button'); submit.textContent = 'Export reconciled rollback'; submit.disabled = true;
   for (const blocker of exported.reconciliation.blockers) {
@@ -37,7 +37,10 @@ function reviewRollback(exported: RollbackExport, accept: (decisions: readonly R
       else choices.delete(blocker.id);
       submit.disabled = choices.size !== exported.reconciliation.blockers.length;
     });
-    label.append(input, document.createTextNode(` Keep the IndexedDB version instead of ${blocker.entry.key}`)); section.append(detail, label); dialog.append(section);
+    const journal = exported.journals.some(row => row.serialized === blocker.entry.serialized);
+    label.append(input, document.createTextNode(journal
+      ? ` Keep the IndexedDB head and export ${blocker.entry.key} as a separate v1 journal`
+      : ` Keep the IndexedDB version instead of ${blocker.entry.key}; retain this alternative only in recovery data`)); section.append(detail, label); dialog.append(section);
   }
   const status = document.createElement('p'); status.setAttribute('role', 'status');
   submit.addEventListener('click', () => {

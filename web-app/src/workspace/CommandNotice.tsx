@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import type { ReactElement } from 'react';
 import { useStore } from 'zustand';
 import { useWorkspace } from './WorkspaceProvider';
@@ -12,7 +13,12 @@ function Notice({ status, dismissError }: { readonly status: NonNullable<Workspa
   </>;
 }
 
-export function CommandNotice(): ReactElement | null {
+function ActivatedCommandNotice(): ReactElement | null {
   const { status, dismissError } = useWorkspace();
   return status ? <Notice status={status} dismissError={dismissError} /> : null;
+}
+
+
+export function CommandNotice(): ReactElement | null {
+  return STORAGE_ACTIVATION_ENABLED ? <ActivatedCommandNotice /> : null;
 }

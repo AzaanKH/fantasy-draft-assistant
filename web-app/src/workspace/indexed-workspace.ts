@@ -28,7 +28,11 @@ export function createIndexedWorkspace({ database, identity, lifecycle, channel,
   let localEpoch = 0;
   const localFields = (state: DraftState) => ({ filter: state.filter, mockSettings: state.mockSettings, mockAutoAdvance: state.mockAutoAdvance, mockSurvivalProbabilities: state.mockSurvivalProbabilities });
   function adopt(session: Awaited<ReturnType<DraftDatabase['read']>>): void {
-    if (disposed || !session || session.revision <= revision) return;
+    if (disposed || !session || session.revision < revision) return;
+    if (session.revision === revision) {
+      if ((session.lastConfirmedSyncAt ?? -1) > (draft.getState().lastConfirmedSyncAt ?? -1)) draft.setState({ lastConfirmedSyncAt: session.lastConfirmedSyncAt });
+      return;
+    }
     revision = session.revision; draft.setState({ ...stateFromSession(session), ...localFields(draft.getState()) }, true);
   }
   async function refresh(): Promise<void> { if (!disposed) adopt(await database.read(identity)); }
@@ -62,7 +66,10 @@ export function createIndexedWorkspace({ database, identity, lifecycle, channel,
         reducedLocal = localFields(reduced.state);
         const candidate = sessionFromState(reduced.state, identity, latest?.revision ?? 0, latest?.lineage);
         const previous = latest ? sessionFromState(stateFromSession(latest), identity, latest.revision, latest.lineage) : null;
-        changed = JSON.stringify(candidate) !== JSON.stringify(previous);
+        // Freshness survives reload independently of the history revision.
+        const historyCandidate = command[0] === 'advanceSyncFreshness' || command[0] === 'reconcileSyncedPicks'
+          ? { ...candidate, lastConfirmedSyncAt: previous?.lastConfirmedSyncAt ?? null } : candidate;
+        changed = JSON.stringify(historyCandidate) !== JSON.stringify(previous);
         return { session: changed ? { ...candidate, revision: candidate.revision + 1 } : candidate, result: reduced.result };
       });
       adopt(committed.session);

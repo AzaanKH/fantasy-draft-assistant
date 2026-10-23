@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView, useDraftView } from '@/workspace/useDraftView';
@@ -26,17 +27,17 @@ export function useDraftPlayerAction(): {
     const view = getDraftView(workspace.draft);
     if (!view.canDraftByPosition[player.position]) return;
     const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(view.currentPick).teamIndex;
-    if (workspace.sendDurable) {
+    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
       void workspace.sendDurable(['markPlayerDrafted', player.id, player.name, player.position, teamIndex, 'My Team', view.currentPick, 'manual', { pickNumber: view.currentPick, actor: 'user' }]).catch(() => undefined);
       return;
     }
-    dispatchWorkspace(workspace, 'markPlayerDrafted',
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'markPlayerDrafted',
       player.id,
       player.name,
       player.position,
       teamIndex,
       'My Team'
-    );
+    ); } else { workspace.send('markPlayerDrafted', player.id, player.name, player.position, teamIndex, 'My Team'); }
   }, [workspace]);
 
   return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };

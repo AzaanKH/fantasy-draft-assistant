@@ -6,9 +6,16 @@ import { Processes } from '@fantasy-draft/shared/node';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+if (!process.argv.includes('--browser-authorized')) throw new Error('The parent must authorize this final-head rollback browser roundtrip');
+const expectedHead = process.env.ROUNDTRIP_EXPECTED_HEAD;
+assert.match(expectedHead ?? '', /^[0-9a-f]{40}$/, 'Set ROUNDTRIP_EXPECTED_HEAD to the parent-authorized committed SHA');
+const actualHead = await Processes.run('git', ['rev-parse', 'HEAD'], { cwd: root, timeoutMs: 10000 });
+assert.equal(actualHead.stdout.trim(), expectedHead, 'Rollback roundtrip is not on its authorized head');
+const dirty = await Processes.run('git', ['status', '--porcelain'], { cwd: root, timeoutMs: 10000 });
+assert.equal(dirty.stdout.trim(), '', 'Commit and freeze sources before the rollback browser roundtrip');
 const out = path.resolve(process.env.ROUNDTRIP_OUTPUT || path.join(root, 'artifacts/activation-roundtrip'));
 const fixtures = path.resolve(process.env.ROUNDTRIP_FIXTURES || path.join(out, '../old-modules'));
-await mkdir(out, { recursive: true });
+await mkdir(out, { recursive: false });
 const requireWeb = createRequire(path.join(root, 'web-app/package.json'));
 const { createServer } = await import(requireWeb.resolve('vite'));
 const { chromium } = createRequire(path.join(root, 'scripts/package.json'))('playwright');
@@ -19,7 +26,7 @@ const oldRoot = path.join(root, '.local/compat-stack');
 let old, server, browser;
 const loadBearing = ['web-app/src/main.tsx','web-app/src/workspace/activation-entry.tsx','web-app/src/workspace/activation-storage.ts','web-app/src/workspace/indexed-db.ts','web-app/src/workspace/rollback-export.ts','web-app/src/workspace/operator-rollback.ts','web-app/src/workspace/durable-workspace.ts','web-app/src/workspace/indexed-workspace.ts','web-app/src/workspace/v1-import.ts','web-app/src/workspace/draft-reducer.ts','web-app/src/workspace/ui-dispatch.ts','web-app/src/hooks/useDraftSyncReconciliation.ts','web-app/src/hooks/useKeeperPreload.ts','web-app/src/stores/draft/pick-actions.ts','shared/src/sync/storage-activation.ts','scripts/persistence/activation-roundtrip.mjs','scripts/persistence/verify-rollback.mjs','scripts/persistence/check-rollback-reader.mts'];
 const manifest = async () => Object.fromEntries(await Promise.all(loadBearing.map(async file => [file,createHash('sha256').update(await readFile(path.join(root,file))).digest('hex')])));
-const report = { started: new Date().toISOString(), sourceHashes: await manifest(), scenarios: [], errors: [] };
+const report = { started: new Date().toISOString(), head: expectedHead, sourceHashes: await manifest(), scenarios: [], errors: [] };
 const save = () => writeFile(path.join(out, 'results.json'), JSON.stringify(report, null, 2));
 async function run(command, args, cwd) {
   const result = await Processes.run(command, args, { cwd, timeoutMs: 180000, maxOutputBytes: 1000000 });
@@ -44,6 +51,8 @@ try {
     server: { middlewareMode: true, hmr: false, watch: null, fs: { allow: [oldRoot], strict: false, deny: [] } }, appType: 'custom', plugins: [{ name: 'allow-extracted-old-modules', configResolved(config) { config.server.fs.deny = []; config.server.fs.strict = false; } }] });
   const html = `<!doctype html><html><body><button id="write">Record old pick</button><output id="receipt"></output><script type="module">
     import {createDraftStore,subscribeToBrowserStorageEvents} from '/legacy/src/stores/draftStore.ts';
+    import {readDraftSessionChanges} from '/legacy/src/stores/draftSessionUnconfirmedSaves.ts';
+    window.oldJournalsBeforeStore=readDraftSessionChanges(localStorage,{provider:'sleeper',draftId:'123'});
     const store=createDraftStore({storage:localStorage,session:{provider:'sleeper',draftId:'123'},externalChanges:subscribeToBrowserStorageEvents});
     store.getState().setSessionMode('live');window.oldStore=store;
     document.querySelector('#write').onclick=()=>{document.querySelector('#receipt').textContent=String(store.getState().recordProvisionalPick({pickNumber:6,playerId:'old-tab-attempt',playerName:'Old tab attempt',position:'WR',teamIndex:5,teamName:'Team 6'}));};
@@ -116,17 +125,29 @@ try {
       exported = JSON.parse(await readFile(exportPath, 'utf8'));
     } else await writeFile(exportPath,JSON.stringify(exported,null,2));
     assert.deepEqual(exported.reconciliation.pending, []);
+    assert.ok(exported.journals.length > 0, 'Rollback must write actual retained v1 journals');
+    const exportedJournals = exported.writes.filter(row=>row.key.startsWith('fantasy-draft-session-unconfirmed-v1:'));
+    assert.deepEqual(exportedJournals, exported.journals.map(({key,serialized})=>({key,serialized})));
+    assert.deepEqual(await page.evaluate(rows=>rows.map(({key})=>({key,serialized:localStorage.getItem(key)})),exportedJournals),exportedJournals);
     await page.reload(); await page.waitForFunction(()=>Boolean(window.draftStorageOperator));
     const proofLog = await run('node',['scripts/persistence/verify-rollback.mjs',exportPath,verificationPath],root);
     await writeFile(path.join(out,`${name}-${scenario}-proof.log`),proofLog);
     const verification = JSON.parse(await readFile(verificationPath,'utf8'));
+    assert.equal(verification.readers.length,4);
+    assert.ok(verification.readers.every(row=>row.journalsDigest===exported.expectedJournalsDigest));
     await page.evaluate(verification=>window.draftStorageOperator.finalize(verification,{otherTabsClosed:true,operator:'activation-roundtrip.mjs'}),verification);
     assert.equal(await page.evaluate(()=>localStorage.getItem('fantasy-draft-storage-migrated')),null);
     const reopened = await context.newPage(); await reopened.goto(`${origin}/legacy-proof`); await reopened.waitForFunction(()=>window.oldReady);
+    const oldJournalLoad = await reopened.evaluate(()=>window.oldJournalsBeforeStore);
+    assert.deepEqual(oldJournalLoad.map(({key,serialized})=>({key,serialized})).sort((a,b)=>a.key.localeCompare(b.key)),exportedJournals);
+    assert.ok(JSON.stringify((await readDatabase(page)).metadata).includes(JSON.stringify(exportedJournals[0].serialized)), 'Exact journal originals must remain recoverable in IndexedDB');
     const restored = await reopened.evaluate(()=>({history:window.oldStore.getState().draftHistory,queue:window.oldStore.getState().shortlistedPlayerIds}));
     assert.deepEqual([...restored.history].sort((a,b)=>a.pickNumber-b.pickNumber),[...active.draftHistory].sort((a,b)=>a.pickNumber-b.pickNumber)); assert.deepEqual(restored.queue,active.shortlistedPlayerIds);
     await reopened.getByRole('button',{name:'Record old pick'}).click();assert.equal(await reopened.locator('#receipt').innerText(),'true');
-    report.scenarios.push({name,scenario,sourceKeys:source.length,readOnlyBeforeConfirm:true,imported:expectedFacts(active),oldTabFrozen:true,rollbackReaders:verification.readers,tombstoneRemoved:true,v1WritesRestored:true,retainedMetadata:imported.metadata.length,before});
+    const oldJournalKeysAfterStore = await reopened.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('fantasy-draft-session-unconfirmed-v1:')).sort());
+    report.scenarios.push({name,scenario,sourceKeys:source.length,readOnlyBeforeConfirm:true,imported:expectedFacts(active),oldTabFrozen:true,rollbackReaders:verification.readers,
+      exportedJournals,oldJournalLoad,oldJournalKeysAfterStore,ordinaryStoreMayConsumeOrDeleteJournals:true,exactOriginalsRetainedInIndexedDB:true,
+      tombstoneRemoved:true,v1WritesRestored:true,retainedMetadata:imported.metadata.length,before});
     await page.screenshot({path:path.join(out,`${name}-${scenario}.png`)}); await context.close(); await save();
   }
   assert.equal(report.scenarios.length,4);assert.deepEqual(report.errors,[]);report.endSourceHashes=await manifest();report.sourceStable=JSON.stringify(report.sourceHashes)===JSON.stringify(report.endSourceHashes);assert.equal(report.sourceStable,true);report.passed=true;

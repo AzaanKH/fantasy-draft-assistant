@@ -133,11 +133,18 @@ export function auditSession({ issued, committed, committedBefore, queueDom, pic
   const missingPicks = picks.filter(row => slotPlayer.get(row.cmd.slot) !== row.cmd.playerId).map(row => row.cmd.id);
   const queueSet = new Set(committed.queue);
   const missingQueue = queued.filter(row => !queueSet.has(row.cmd.playerId)).map(row => row.cmd.id);
-  const expectedPlayers = new Set(acknowledged.map(row => row.cmd.playerId));
-  const unexpected = [
-    ...committed.picks.filter(p => !expectedPlayers.has(p.playerId)).map(p => `pick:${p.pickNumber}:${p.playerId}`),
-    ...committed.queue.filter(id => !expectedPlayers.has(id)).map(id => `queue:${id}`),
-  ];
+  const factKey = cmd => cmd.type === 'pick' ? `pick:${cmd.slot}:${cmd.playerId}` : cmd.type === 'queueAdd' ? `queue:${cmd.playerId}` : null;
+  const acknowledgedFacts = new Set(acknowledged.map(row => factKey(row.cmd)));
+  const unacknowledgedFacts = new Map(issued.filter(row => row.outcome !== 'ack').map(row => [factKey(row.cmd), row]));
+  const unmatched = [
+    ...committed.picks.map(p => `pick:${p.pickNumber}:${p.playerId}`),
+    ...committed.queue.map(id => `queue:${id}`),
+  ].filter(fact => !acknowledgedFacts.has(fact));
+  const unacknowledgedCommitted = unmatched.filter(fact => unacknowledgedFacts.has(fact)).map(fact => {
+    const row = unacknowledgedFacts.get(fact);
+    return { fact, commandId: row.cmd.id, outcome: row.outcome };
+  });
+  const unexpected = unmatched.filter(fact => !unacknowledgedFacts.has(fact));
   const unique = new Set(committed.picks.map(p => p.playerId)).size === committed.picks.length &&
     new Set(committed.picks.map(p => p.pickNumber)).size === committed.picks.length &&
     new Set(committed.queue).size === committed.queue.length;
@@ -157,7 +164,7 @@ export function auditSession({ issued, committed, committedBefore, queueDom, pic
     rejected: issued.filter(row => row.outcome === 'rejected').length,
     errors: issued.filter(row => row.outcome === 'error' || row.outcome === 'blocked').length,
     kept: acknowledged.length - missingPicks.length - missingQueue.length,
-    lost: missingPicks.length + missingQueue.length, missingPicks, missingQueue, unexpected, unique,
+    lost: missingPicks.length + missingQueue.length, missingPicks, missingQueue, unexpected, unacknowledgedCommitted, unique,
     queueBeforeReloadEqual, queueAfterReloadEqual, queueMatchesCommitted, queueStableAcrossReload,
     committedPicks: committed.picks.length, committedQueue: committed.queue.length,
     canonical: JSON.stringify({ picks: canonicalPicks(committed.picks), queue: committed.queue }),
@@ -247,6 +254,20 @@ export function auditMockBurst(burst) {
     burst.notSaved === false && Boolean(burst.v1Before && burst.v1After) && JSON.stringify(burst.v1Before) === JSON.stringify(burst.v1After) };
 }
 
+function hasProductionProof(meta) {
+  const env = meta.resolvedEnv;
+  const build = meta.productionBuild;
+  const http = meta.productionHttp;
+  if (meta.serve !== 'production-static' || env?.MODE !== 'production' || env.DEV !== false || env.PROD !== true ||
+      env.VITE_STORAGE_ACTIVATION !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined ||
+      JSON.stringify(build?.env) !== JSON.stringify(env) || !build?.noViteClientOrHmr || !build.files?.['index.html']) return false;
+  const executable = Object.entries(build.files).filter(([file]) => /\.(?:html|m?js|css)$/.test(file));
+  if (!executable.length || executable.some(([file, hash]) => !/^[a-f0-9]{64}$/.test(hash) || http?.verified?.[file] !== hash ||
+      meta.sourceHashes?.[`web-app/dist/${file}`] !== hash || meta.sourceHashesEnd?.[`web-app/dist/${file}`] !== hash)) return false;
+  return ['/@vite/client', '/@react-refresh', '/src/main.tsx', '/node_modules/vite/dist/client/client.mjs'].every(file => http?.rejected?.[file] === 404) &&
+    /^[a-f0-9]{64}$/.test(meta.catalogFixture?.sha256 ?? '') && http?.catalogFixtureSha256 === meta.catalogFixture.sha256;
+}
+
 /** Gate over a saved results.json. A smoke run never passes. */
 export function evaluateUiGate(results) {
   try { return evaluateUiGateEvidence(results); }
@@ -256,6 +277,7 @@ function evaluateUiGateEvidence(results) {
   const failures = [];
   const meta = results.metadata ?? {};
   if (!meta.finished) failures.push('Run did not finish');
+  if (!hasProductionProof(meta)) failures.push('Final gate requires hashed production build/HTTP bytes, no Vite runtime, and harness/demo mode unset');
   if (!meta.sourceHashes || !meta.sourceHashesEnd || JSON.stringify(meta.sourceHashes) !== JSON.stringify(meta.sourceHashesEnd)) failures.push('Source hash snapshots differ or are absent');
   if (!meta.sourceStable) failures.push('Load-bearing sources or extension build changed during run');
   if (!meta.git?.head || meta.git.head !== meta.expectedHead || !meta.git.clean || !meta.gitEnd || meta.gitEnd.head !== meta.git.head || meta.gitEnd.status) failures.push('Final gate requires the frozen committed head');
@@ -269,6 +291,7 @@ function evaluateUiGateEvidence(results) {
   if (results.pageErrors?.length) failures.push(`${results.pageErrors.length} page errors`);
   if (results.scenarioErrors?.length) failures.push(`${results.scenarioErrors.length} scenario errors`);
   if (results.fatal) failures.push('Fatal runner error');
+  if (results.productionNavigationDefect) failures.push('STOP product defect: unprompted production document navigation');
   const labels = (results.scenarios ?? []).map(s => s.label).sort();
   if (JSON.stringify(labels) !== JSON.stringify([...SCENARIOS].sort())) failures.push('Requires all four scenarios');
   for (const scenario of results.scenarios ?? []) {

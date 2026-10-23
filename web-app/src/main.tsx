@@ -39,7 +39,7 @@ function renderNormalApp(app: ReactElement, harnessFactory?: () => import('./wor
           <WorkspaceProvider workspace={workspace}>
             <LivePlayerDataProvider>
               <NotificationProvider>
-                <TooltipProvider><MotionProvider><CommandNotice />{app}</MotionProvider></TooltipProvider>
+                <TooltipProvider><MotionProvider>{STORAGE_ACTIVATION_ENABLED ? <CommandNotice /> : null}{app}</MotionProvider></TooltipProvider>
               </NotificationProvider>
             </LivePlayerDataProvider>
           </WorkspaceProvider>
@@ -62,13 +62,15 @@ if (import.meta.env.DEV && visualRouteRequested) {
   });
 } else if (visualRouteRequested) {
   root.render(<main>Not found</main>);
-} else if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb')) && new URLSearchParams(location.search).has('__storageProbe')) {
+} else if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' && new URLSearchParams(location.search).has('__storageProbe')) {
   void import('./workspace/storage-sharing').then(({ serveStorageProbe }) => serveStorageProbe(new URLSearchParams(location.search).get('__storageProbe') ?? '', { canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN) })).catch((error: unknown) => { root.render(<main role="alert">{String(error)}</main>); });
 } else {
   void import('./App').then(async ({ App }) => {
     applyTheme(readStoredTheme());
     if (STORAGE_ACTIVATION_ENABLED) {
-      const { verifyStorageSharing } = await import('./workspace/storage-sharing');
+      const { verifyStorageSharing, installStorageSharingResponder } = await import('./workspace/storage-sharing');
+      const stopSharing = installStorageSharingResponder({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN) });
+      window.addEventListener('pagehide', stopSharing, { once: true });
       const verified = await verifyStorageSharing({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN), location: window.location });
       const { showStorageActivation } = await import('./workspace/activation-entry');
       showStorageActivation({ root, verified, ready: workspace => { renderNormalApp(<App />, () => workspace); } });

@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import type { Position } from '@fantasy-draft/shared/league';
@@ -33,7 +34,7 @@ export function RosterSettings(): React.ReactElement {
     const next = field === 'starters'
       ? { starters: value, max: Math.max(value, current.max) }
       : { starters: Math.min(current.starters, value), max: value };
-    dispatchWorkspace(workspace, 'setRosterRequirements', { ...requirements, [position]: next });
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', { ...requirements, [position]: next }); } else { workspace.send('setRosterRequirements', { ...requirements, [position]: next }); }
   };
 
   return (
@@ -93,13 +94,19 @@ export function RosterSettings(): React.ReactElement {
                 max={10}
                 value={requirements.FLEX.starters}
                 onChange={(event) => {
-                  dispatchWorkspace(workspace, 'setRosterRequirements', {
+                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', {
                     ...requirements,
                     FLEX: {
                       ...requirements.FLEX,
                       starters: numericValue(event.target.value, 10),
                     },
-                  });
+                  }); } else { workspace.send('setRosterRequirements', {
+                    ...requirements,
+                    FLEX: {
+                      ...requirements.FLEX,
+                      starters: numericValue(event.target.value, 10),
+                    },
+                  }); }
                 }}
               />
               <span className="block text-xs text-muted-foreground">RB / WR / TE</span>
@@ -113,10 +120,13 @@ export function RosterSettings(): React.ReactElement {
                 max={20}
                 value={requirements.BENCH.spots}
                 onChange={(event) => {
-                  dispatchWorkspace(workspace, 'setRosterRequirements', {
+                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', {
                     ...requirements,
                     BENCH: { spots: numericValue(event.target.value) },
-                  });
+                  }); } else { workspace.send('setRosterRequirements', {
+                    ...requirements,
+                    BENCH: { spots: numericValue(event.target.value) },
+                  }); }
                 }}
               />
             </label>
@@ -128,7 +138,7 @@ export function RosterSettings(): React.ReactElement {
               variant="outline"
               size="sm"
               onClick={() => {
-                dispatchWorkspace(workspace, 'setRosterRequirements', leagueRoster);
+                if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', leagueRoster); } else { workspace.send('setRosterRequirements', leagueRoster); }
               }}
             >
               Reset to league rules

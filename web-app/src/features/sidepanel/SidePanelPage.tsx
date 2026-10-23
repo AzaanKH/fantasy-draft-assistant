@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
@@ -162,12 +163,12 @@ function useSidePanelSync(connection: SidePanelConnection) {
 
   React.useEffect(() => {
     if (connection.draftPosition !== null) {
-      dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition });
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition }); } else { workspace.send('setConfig', { myPickPosition: connection.draftPosition }); }
     }
   }, [connection.draftPosition, workspace]);
 
   React.useEffect(() => {
-    if (sync.draft) dispatchWorkspace(workspace, 'setSessionMode', 'live');
+    if (sync.draft) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'live'); } else { workspace.send('setSessionMode', 'live'); }
   }, [workspace, sync.draft]);
 
   return sync;
@@ -759,7 +760,7 @@ export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: 
   const sync = useSidePanelSync(connection);
   return (
     <RouteErrorBoundary>
-        {onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
+        {STORAGE_ACTIVATION_ENABLED && onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
       <SidePanelContent connection={connection} sync={sync} />
     </RouteErrorBoundary>
   );

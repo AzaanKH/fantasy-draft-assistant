@@ -9,8 +9,9 @@ import type { RecordedDraftPick } from '@/stores/draft/types';
 import { createActivationStorage, type ActivationController } from './activation-storage';
 import { ACTIVATION_RECORD, DRAFT_DATABASE, DraftWritersStoppedError, digest, openDraftDatabase, type DraftDatabase } from './indexed-db';
 import { decodeIndexedSession } from './idb-session';
+import { readDraftSessionChanges } from '@/stores/draftSessionUnconfirmedSaves';
 import {
-  ROLLBACK_METADATA, ROLLBACK_READERS, digestRollbackFacts, finalizeRollback, prepareRollback, recoverRollbackExport, rollbackFacts, toV1Session, writeRollbackExport,
+  ROLLBACK_METADATA, ROLLBACK_READERS, digestRollbackFacts, digestRollbackJournals, finalizeRollback, prepareRollback, recoverRollbackExport, rollbackFacts, toV1Session, writeRollbackExport,
   type RollbackExport, type RollbackVerification,
 } from './rollback-export';
 
@@ -382,6 +383,69 @@ describe('rollback finalization', () => {
 
 
 describe('retained rollback reconciliation', () => {
+  function journal(writeId: string, playerId = writeId): string {
+    return JSON.stringify({ version: 1, writeId, baseWriteId: 'missing-base', revision: 9,
+      picks: [{ pickNumber: 3, before: null, after: { ...pick(3), playerId } }], queueAdded: [], queueRemoved: [], fields: {} });
+  }
+
+  it.each(['retained-source', 'historical-export'])('exports retained-only journal facts from %s as readable v1 bytes', async location => {
+    const value = await activated();
+    const entry = { key: JOURNAL, serialized: ` \n${journal('retained-only')}\t` };
+    await value.commit({ expect: {}, metadata: [{ key: location === 'historical-export' ? `${ROLLBACK_METADATA}:historical` : 'retained-source',
+      value: { source: [entry] } }] });
+    const exported = await explicitlyKeepIndexed(value);
+    expect(exported.writes.filter(row => row.key.startsWith('fantasy-draft-session-unconfirmed-v1:')).map(row => row.serialized)).toEqual([entry.serialized]);
+    await writeRollbackExport({ database: value, storage: localStorage, export: exported });
+    const decoded = readDraftSessionChanges(localStorage, session().identity).sort((a, b) => a.key.localeCompare(b.key));
+    expect(decoded.map(row => row.change.picks[0]?.after?.playerId)).toEqual(['retained-only']);
+    expect(exported.expectedJournalsDigest).toBe(await digestRollbackJournals(decoded));
+    expect(exported.expectedJournalsDigest).not.toBe(await digestRollbackJournals([]));
+    expect(exported.clearKeys.some(key => exported.writes.some(row => row.key === key))).toBe(false);
+    expect(exported.journals[0]).toMatchObject({ coverage: 'unresolved', change: { baseWriteId: 'missing-base', writeId: 'retained-only', revision: 9 } });
+    expect(exported.sessions.map(row => decodeIndexedSession(JSON.parse(row.serialized)).lineage)).toEqual([['base', 'branch'], ['base', 'branch']]);
+    const preparedAgain = await explicitlyKeepIndexed(value);
+    expect(preparedAgain.journals).toEqual(exported.journals);
+  });
+
+  it('exports a lineage-covered journal with its original meaning and bytes', async () => {
+    const value = await activated();
+    const serialized = journal('branch', 'already-covered');
+    await value.commit({ expect: {}, metadata: [{ key: 'covered-journal', value: [{ key: JOURNAL, serialized }] }] });
+    const exported = await explicitlyKeepIndexed(value);
+    expect(exported.journals).toMatchObject([{ serialized, coverage: 'covered', change: { writeId: 'branch', baseWriteId: 'missing-base' } }]);
+    await writeRollbackExport({ database: value, storage: localStorage, export: exported });
+    expect(readDraftSessionChanges(localStorage, session().identity)).toHaveLength(1);
+  });
+
+  it('exports both same-key journal variants and retries exact bytes after an interruption', async () => {
+    const value = await activated();
+    const entries = [journal('same-write', 'variant-a'), journal('same-write', 'variant-b')].map(serialized => ({ key: JOURNAL, serialized }));
+    await value.commit({ expect: {}, metadata: [{ key: 'same-key-variants', value: entries }] });
+    const exported = await explicitlyKeepIndexed(value);
+    const journals = exported.writes.filter(row => row.key.startsWith('fantasy-draft-session-unconfirmed-v1:'));
+    expect(journals).toHaveLength(2);
+    expect(new Set(journals.map(row => row.key)).size).toBe(2);
+    const set = localStorage.setItem.bind(localStorage);
+    const failure = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, serialized) => {
+      if (key === journals[1]?.key) throw new Error('interrupted journal export');
+      set(key, serialized);
+    });
+    await expect(writeRollbackExport({ database: value, storage: localStorage, export: exported })).rejects.toThrow('interrupted journal export');
+    failure.mockRestore();
+    const recovered = await recoverRollbackExport(await databaseHandle());
+    expect(recovered).toEqual(exported);
+    if (!recovered) throw new Error('Missing saved journal export');
+    await writeRollbackExport({ database: value, storage: localStorage, export: recovered });
+    const decoded = readDraftSessionChanges(localStorage, session().identity);
+    expect(decoded.map(row => row.change.writeId)).toEqual(['same-write', 'same-write']);
+    expect(decoded.map(row => row.change.picks[0]?.after?.playerId).sort()).toEqual(['variant-a', 'variant-b']);
+    await writeRollbackExport({ database: value, storage: localStorage, export: recovered });
+    expect(await recoverRollbackExport(value)).toEqual(exported);
+    await finalizeRollback({ database: value, storage: localStorage, export: recovered, verification: syntheticVerification(recovered), confirmation });
+    for (const row of journals) expect(localStorage.getItem(row.key)).toBe(row.serialized);
+    expect(localStorage.getItem(DRAFT_STORAGE_MIGRATION_KEY)).toBeNull();
+  });
+
   it('blocks rollback bytes when a retained journal contains a recoverable pick absent from committed heads', async () => {
     const value = await activated();
     const retainedPick = { ...pick(3), playerId: 'retained-only' };

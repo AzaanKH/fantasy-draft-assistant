@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useNow } from '@/workspace/useNow';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
@@ -521,8 +522,8 @@ export function DraftConnect({
     setDraftIdInput(parsedConnection.draftId);
     startConnection(parsedConnection);
     if (parsedConnection.provider === 'sleeper') {
-      dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', pendingSettingsProfile === 'primary-league-mock');
-      dispatchWorkspace(workspace, 'connection.setQuickMockSettings', pendingSettingsProfile === 'quick-mock');
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', pendingSettingsProfile === 'primary-league-mock'); } else { workspace.send('connection.setPrimaryLeagueSettings', pendingSettingsProfile === 'primary-league-mock'); }
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setQuickMockSettings', pendingSettingsProfile === 'quick-mock'); } else { workspace.send('connection.setQuickMockSettings', pendingSettingsProfile === 'quick-mock'); }
     }
   };
 
@@ -800,8 +801,8 @@ export function DraftConnect({
         { value: 'provider', label: 'Actual Primary League · Verify with Sleeper' },
       ]} onValueChange={(value) => {
         if (!connection) { setPendingSettingsProfile(value); return; }
-        dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', value === 'primary-league-mock');
-        dispatchWorkspace(workspace, 'connection.setQuickMockSettings', value === 'quick-mock');
+        if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', value === 'primary-league-mock'); } else { workspace.send('connection.setPrimaryLeagueSettings', value === 'primary-league-mock'); }
+        if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setQuickMockSettings', value === 'quick-mock'); } else { workspace.send('connection.setQuickMockSettings', value === 'quick-mock'); }
       }} />
       <p className="text-xs leading-relaxed text-muted-foreground">
         {settingsProfile === 'quick-mock'

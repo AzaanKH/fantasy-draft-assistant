@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
@@ -90,7 +91,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
     setRemovalPending(true);
     let removed: boolean;
     try {
-      const result = requestWorkspace(workspace, 'removeProvisionalPick', pendingRemovalPick.pickNumber);
+      const result = (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'removeProvisionalPick', pendingRemovalPick.pickNumber) : workspace.send('removeProvisionalPick', pendingRemovalPick.pickNumber));
       removed = result instanceof Promise ? await result : result;
     } catch (error) {
       setRemovalError(error instanceof Error ? error.message : String(error));

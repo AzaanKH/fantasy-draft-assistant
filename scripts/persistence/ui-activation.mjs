@@ -2,6 +2,11 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, appendFile, rename, open, mkdir, cp, mkdtemp, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { createServer as createHttpServer } from 'node:http';
+import { decodeFantasyProsSnapshot, decodePlayerIdentityFile } from '@fantasy-draft/shared/catalog';
+import { inspectProductionBuild, createStaticHandler, verifyProductionHttp } from './ui-production.mjs';
+import { createDiagnostics, createNavigationGuard } from './ui-diagnostics.mjs';
+import { runnerMode } from './ui-runner-mode.mjs';
 import { Processes } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
 import {
@@ -12,6 +17,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const args = process.argv.slice(2);
+const { extensionSetupOnly, workload } = runnerMode(args);
 const flag = name => args.includes(`--${name}`);
 const option = name => args.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
 const int = (name, fallback) => { const value = process.env[name] === undefined ? fallback : Number(process.env[name]); if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`); return value; };
@@ -23,7 +29,9 @@ async function bounded(operation, ms, label) {
   })]); } finally { clearTimeout(timer); }
 }
 const tier2 = flag('tier2');
-const offline = flag('plan') || flag('fixture-check');
+const focused = flag('focused-navigation');
+const prepareProduction = flag('prepare-production');
+const offline = flag('plan') || flag('fixture-check') || prepareProduction;
 
 const UI = {
   activation: '[data-storage-activation="review"]',
@@ -41,16 +49,19 @@ const UI = {
 };
 
 const config = {
-  suites: int('UI_SUITES', tier2 ? 1 : DEFAULTS.suites), seeds: int('UI_SEEDS', tier2 ? 1 : DEFAULTS.seeds), perActor: int('UI_COMMANDS_PER_ACTOR', DEFAULTS.perActor),
-  pickConflicts: int('UI_PICK_CONFLICTS', DEFAULTS.pickConflicts), moveConflicts: int('UI_MOVE_CONFLICTS', tier2 ? 20 : DEFAULTS.moveConflicts),
-  bursts: int('UI_BURSTS', 1) === 1, control: int('UI_CONTROL', tier2 ? 0 : 1) === 1, lifecycle: int('UI_LIFECYCLE', 1) === 1,
+  suites: int('UI_SUITES', tier2 || focused ? 1 : DEFAULTS.suites), seeds: int('UI_SEEDS', tier2 || focused ? 1 : DEFAULTS.seeds), perActor: int('UI_COMMANDS_PER_ACTOR', DEFAULTS.perActor),
+  pickConflicts: int('UI_PICK_CONFLICTS', focused ? 0 : DEFAULTS.pickConflicts), moveConflicts: int('UI_MOVE_CONFLICTS', focused ? 0 : tier2 ? 20 : DEFAULTS.moveConflicts),
+  bursts: int('UI_BURSTS', focused ? 0 : 1) === 1, control: int('UI_CONTROL', tier2 || focused ? 0 : 1) === 1, lifecycle: int('UI_LIFECYCLE', focused ? 0 : 1) === 1,
   burstPicksPerActor: int('UI_BURST_PICKS', 60), headed: process.env.UI_HEADED === 'true' || process.env.PERSISTENCE_HEADED === 'true',
+  commandIntervalMs: focused ? 6000 : 0,
   port: 3000, executable: process.env.UI_EXECUTABLE || process.env.PERSISTENCE_EXECUTABLE,
+  ...workload,
 };
 const smoke = flag('smoke') || config.suites !== DEFAULTS.suites || config.seeds !== DEFAULTS.seeds || config.perActor !== DEFAULTS.perActor ||
   config.pickConflicts < DEFAULTS.pickConflicts || config.moveConflicts < DEFAULTS.moveConflicts || !config.bursts;
 const scenarioArg = option('scenarios') ?? process.env.UI_SCENARIOS;
-const selected = offline ? [] : scenarioArg ? scenarioArg.split(',').map(s => s.trim()) : SCENARIOS;
+if (extensionSetupOnly && scenarioArg) throw new Error('Setup-only cannot select workload scenarios');
+const selected = offline || extensionSetupOnly ? [] : focused ? ['tabs'] : scenarioArg ? scenarioArg.split(',').map(s => s.trim()) : SCENARIOS;
 if (new Set(selected).size !== selected.length || selected.some(s => !SCENARIOS.includes(s))) throw new Error('Unknown scenario');
 const outDir = path.resolve(process.env.UI_OUTPUT || '/Users/azaankhalfe/Desktop/fantasy-draft/artifacts/agent-friendly-plan/units/u11c2/ui-proof');
 
@@ -61,7 +72,7 @@ if (flag('check')) {
 }
 
 if (!offline && !flag('browser-authorized')) throw new Error('Browser paused: pass --browser-authorized only after the parent confirms fixes are ready');
-if (!offline && !flag('smoke') && !tier2 && !flag('gate')) throw new Error('Choose --tier2, --smoke or --gate explicitly');
+if (!offline && !flag('smoke') && !tier2 && !flag('gate') && !focused && !extensionSetupOnly) throw new Error('Choose --tier2, --smoke, --gate or --extension-setup-only explicitly');
 if (tier2 && (config.suites !== 1 || config.seeds !== 1 || config.perActor !== 300 || config.pickConflicts !== 20 || config.moveConflicts !== 20 || config.control)) {
   throw new Error('Tier 2 requires 1 suite, 1 seed, 300 commands per actor, 20 pick conflicts, 20 moves, no sequential control');
 }
@@ -76,6 +87,9 @@ if (gitStart.branch !== 'feat/agent-u11c2-activation') throw new Error('Wrong br
 if (flag('gate') && (!process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean || smoke)) {
   throw new Error('Final matrix requires UI_EXPECTED_HEAD equal to the clean committed HEAD and the complete default matrix');
 }
+if (extensionSetupOnly && (!process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean)) {
+  throw new Error('Setup-only requires UI_EXPECTED_HEAD equal to the clean committed HEAD');
+}
 
 delete process.env.VITE_PERSISTENCE_HARNESS;
 delete process.env.VITE_DEMO_MODE;
@@ -88,17 +102,25 @@ const { chromium } = requireScripts('playwright');
 const requirePlaywright = createRequire(requireScripts.resolve('playwright'));
 const coreRoot = path.dirname(requirePlaywright.resolve('playwright-core/package.json'));
 const { chromiumSwitches } = requirePlaywright(path.join(coreRoot, 'lib/server/chromium/chromiumSwitches.js'));
-const { createServer } = await import(requireWeb.resolve('vite'));
+const { createServer, createLogger, build } = await import(requireWeb.resolve('vite'));
 const origin = `http://localhost:${config.port}`;
 await mkdir(outDir, { recursive: true });
+let stopNavigation;
+const navigationStopped = new Promise(resolve => { stopNavigation = resolve; });
+const navigation = !offline && !focused ? createNavigationGuard({ origin, onDefect: defect => {
+  results.productionNavigationDefect = defect;
+  stopNavigation(defect);
+} }) : undefined;
+const diagnostics = createDiagnostics(outDir, { navigation });
+const guarded = operation => navigation ? Promise.race([operation(), navigationStopped.then(defect => { throw new Error(defect.message); })]) : operation();
 const claim = await open(path.join(outDir, 'run-claim.json'), 'wx');
 await claim.writeFile(JSON.stringify({ started: new Date().toISOString(), pid: process.pid, args, head: gitStart.head }));
 await claim.close();
 
-const results = { metadata: { started: new Date().toISOString(), root, node: process.version, smoke, tier: offline ? 'offline' : tier2 ? 2 : flag('gate') ? 3 : 'exploratory', git: gitStart, expectedHead: process.env.UI_EXPECTED_HEAD, serve: 'vite-dev',
+const results = { metadata: { started: new Date().toISOString(), root, node: process.version, smoke, tier: offline ? 'offline' : extensionSetupOnly ? 'extension-setup-only' : focused ? 'focused-navigation' : tier2 ? 2 : flag('gate') ? 3 : 'exploratory', git: gitStart, expectedHead: process.env.UI_EXPECTED_HEAD, serve: focused ? 'vite-dev' : 'production-static',
   suites: config.suites, seeds: config.seeds, commandsPerActor: config.perActor, config, origin, scenarios: selected,
   env: { VITE_STORAGE_ACTIVATION: process.env.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: process.env.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: process.env.VITE_DEMO_MODE, BROWSER_DATA_SOURCE: process.env.BROWSER_DATA_SOURCE },
-  workload: 'real DOM: Provisional Pick dialog + pool queue buttons; P9 LCG 0..5ms jitter' },
+  workload: extensionSetupOnly ? 'setup only; zero pick or queue commands; no full matrix claim' : 'real DOM: Provisional Pick dialog + pool queue buttons; P9 LCG 0..5ms jitter' },
   commandStarts: [], commandLog: [], cleanupErrors: [], failureEvidence: [], progress: [], scenarios: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
 async function browserDataFallbackFiles() {
   const manifest = await readFile(path.join(root, 'shared/src/catalog/manifest.ts'), 'utf8');
@@ -106,6 +128,7 @@ async function browserDataFallbackFiles() {
 }
 async function sourceSnapshot() {
   const files = ['scripts/persistence/ui-activation.mjs', 'scripts/persistence/ui-adapter.mjs', 'pnpm-lock.yaml',
+    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
     'package.json', 'pnpm-workspace.yaml', 'source-condition.js', '.npmrc'];
   async function walk(dir) {
     let entries;
@@ -199,7 +222,7 @@ let server; let context; let currentLabel = '';
 const pageSessions = new WeakMap();
 const pageErrors = results.pageErrors;
 
-function check(condition, message) { if (!condition) throw new Error(message); }
+function check(condition, message) { if (results.productionNavigationDefect) throw new Error(results.productionNavigationDefect.message); if (!condition) throw new Error(message); }
 
 async function prepareCatalogFixture() {
   const sourceNames = ['fantasypros-snapshot.json', 'player-identity.json', 'predictions.json'];
@@ -207,7 +230,6 @@ async function prepareCatalogFixture() {
     const bytes = await readFile(path.join(root, 'demo-data', name), 'utf8');
     return { name: `demo-data/${name}`, sha256: createHash('sha256').update(bytes).digest('hex'), data: JSON.parse(bytes) };
   }));
-  const { decodeFantasyProsSnapshot, decodePlayerIdentityFile } = await server.ssrLoadModule(path.join(root, 'shared/src/catalog/decoders.ts'));
   const [original, identityInput, predictions] = sources.map(row => row.data);
   decodeFantasyProsSnapshot(original);
   const identities = decodePlayerIdentityFile(identityInput);
@@ -215,12 +237,12 @@ async function prepareCatalogFixture() {
   const { snapshot, catalog } = buildCatalogFixture(original, identities, predictions);
   const decoded = decodeFantasyProsSnapshot(snapshot);
   check(catalog.length === 900, `Expected 900 real identities, got ${catalog.length}`);
-  const plan = planSession(selectCatalog(catalog, config.perActor * 2), config.perActor);
-  const problems = assertPlan(plan);
+  const plan = extensionSetupOnly ? { actors: [[], []], picks: [], queue: [] } : planSession(selectCatalog(catalog, config.perActor * 2), config.perActor);
+  const problems = extensionSetupOnly ? [] : assertPlan(plan);
   check(!problems.length, `Catalog plan invalid: ${problems.join(', ')}`);
   results.metadata.plan = { perActor: config.perActor, sessionCommands: plan.actors.flat().length,
     picks: plan.picks.length, queue: plan.queue.length, scenarioCommands: config.suites * config.seeds * config.perActor * 2,
-    actorSlots: plan.actors.map(rows => { const picks = rows.filter(c => c.type === 'pick'); return [picks[0].slot, picks.at(-1).slot]; }), problems };
+    actorSlots: extensionSetupOnly ? [] : plan.actors.map(rows => { const picks = rows.filter(c => c.type === 'pick'); return [picks[0].slot, picks.at(-1).slot]; }), problems };
   const bytes = JSON.stringify(snapshot);
   fixture.catalog(bytes);
   results.metadata.catalogFixture = { path: '/data/fantasypros-snapshot.json', originalCount, rankingCount: decoded.rankings.length, identityCount: catalog.length,
@@ -244,14 +266,26 @@ async function launch(label, { extensionDir } = {}) {
   ctx.setDefaultTimeout(15000);
   ctx.setDefaultNavigationTimeout(30000);
   ctx.on('page', page => {
+    diagnostics.attach(page, ctx, label).catch(error => results.pageErrors.push({ label, message: `diagnostics: ${error.message}` }));
     page.on('pageerror', error => pageErrors.push({ label, url: page.url(), message: error.message }));
     page.on('framenavigated', frame => results.navigations.push({ label, at: new Date().toISOString(), url: frame.url() }));
   });
   await ctx.route('**/*', route => {
+    if (navigation?.failure()) return route.abort();
     const url = new URL(route.request().url());
     if (['localhost', '127.0.0.1'].includes(url.hostname) || ['chrome-extension:', 'data:', 'about:', 'blob:'].includes(url.protocol)) return route.continue();
     results.blockedRequests.push(url.origin); return route.abort();
   });
+  const newPage = ctx.newPage.bind(ctx);
+  ctx.newPage = async () => {
+    const page = await newPage(); await diagnostics.attach(page, ctx, label);
+    if (navigation) {
+      const goto = page.goto.bind(page); const reload = page.reload.bind(page);
+      page.goto = (url, options) => navigation.navigate(page, 'runner goto', url, () => goto(url, options));
+      page.reload = options => navigation.navigate(page, 'runner reload', page.url(), () => reload(options));
+    }
+    return page;
+  };
   const worker = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker', { timeout: 30000 });
   const id = new URL(worker.url()).hostname;
   await worker.evaluate(() => chrome.storage.local.set({ syncToken: 'persistence-demo-fixture-no-provider-connection' }));
@@ -327,19 +361,17 @@ async function countSessions(page) {
   }, [DATABASE]), 10000, 'Read-only session count');
 }
 
+let seedSequence = 0;
 async function seedV1(page, ids) {
+  const prefix = `v1-seed-${++seedSequence}`;
+  const input = path.join(outDir, `${prefix}-input.json`);
+  const output = path.join(outDir, `${prefix}-entries.json`);
+  await writeFile(input, JSON.stringify({ ids, teams: TEAMS, rounds: ROUNDS, output }), { flag: 'wx' });
+  await Processes.run(process.execPath, ['--conditions=@fantasy-draft/source', requireScripts.resolve('tsx/cli'), path.join(here, 'ui-seed.mjs'), input],
+    { cwd: root, timeoutMs: 30000 });
+  const entries = JSON.parse(await readFile(output, 'utf8'));
   await page.goto(`${origin}/__ui-fixture/blank`);
-  return page.evaluate(async ({ ids, teams, rounds }) => {
-    const { createDraftStore } = await import('/src/stores/draftStore.ts');
-    for (const draftId of ids) {
-      const store = createDraftStore({ storage: localStorage, session: { provider: 'sleeper', draftId } });
-      const actions = store.getState();
-      actions.setSessionMode('live');
-      actions.setConfig({ totalTeams: teams, totalRounds: rounds, draftType: 'linear', myPickPosition: 1 });
-      store.dispose?.();
-    }
-    return Object.keys(localStorage).filter(k => k.startsWith('fantasy-draft-session')).length;
-  }, { ids, teams: TEAMS, rounds: ROUNDS });
+  return page.evaluate(entries => { for (const [key, value] of entries) localStorage.setItem(key, value); return entries.length; }, entries);
 }
 
 async function activateThroughPrompt(page, seededIds) {
@@ -483,6 +515,7 @@ async function dismissFailedDialog(ctx) {
   }
 }
 async function recordAction(actor, cmd, operation) {
+  check(!results.productionNavigationDefect, 'Production navigation stopped the workload');
   const startedAt = Date.now();
   const actionId = `${currentLabel}/${actor.session ?? 'mock'}/${cmd.id}`;
   const start = { actionId, scenario: currentLabel, session: actor.session, cmd, actor: actor.name, startedAt };
@@ -513,6 +546,7 @@ async function runActor(actor, commands, seed, observer, stop = { failed: false 
   const random = lcg(seed); const issued = [];
   for (const cmd of commands) {
     if (stop.failed) break;
+    if (config.commandIntervalMs) await sleep(Math.max(0, actor.pacingStarted + issued.length * config.commandIntervalMs - Date.now()));
     await sleep(Math.floor(random() * 6));
     const row = await runCommand(actor, cmd);
     issued.push(row); observer?.(row);
@@ -532,18 +566,64 @@ async function installDraftContextAndRestartWorker(ctxInfo, id) {
     await chrome.storage.local.set({ draftStatus: { isInDraftRoom: true, provider: 'sleeper', draftId, myDraftSlot: 1 } });
   }, id);
   const previous = ctxInfo.worker;
-  const restarted = ctxInfo.ctx.waitForEvent('serviceworker', { predicate: worker => worker !== previous, timeout: 30000 });
-  restarted.catch(() => undefined);
-  await bounded(() => previous.evaluate(() => chrome.runtime.reload()).catch(() => undefined), 10000, 'extension reload');
-  ctxInfo.worker = await restarted;
-  await waitFor(async () => {
+  const scriptURL = previous.url();
+  check(new URL(scriptURL).hostname === ctxInfo.extensionId, 'Refusing to stop a foreign extension worker');
+  const wakePage = await ctxInfo.ctx.newPage();
+  let cdp;
+  try {
+    await wakePage.goto(`chrome-extension://${ctxInfo.extensionId}/options.html`);
+    cdp = await ctxInfo.ctx.newCDPSession(wakePage);
+    const versions = new Map();
+    cdp.on('ServiceWorker.workerVersionUpdated', event => {
+      for (const version of event.versions) versions.set(version.versionId, version);
+      void diagnostics.write('browser.ndjson', { type: 'ServiceWorker.workerVersionUpdated', ...event });
+    });
+    await bounded(() => cdp.send('ServiceWorker.enable'), 10000, 'enable worker version discovery');
+    let owned;
+    await waitFor(() => {
+      const running = [...versions.values()].filter(version => version.scriptURL === scriptURL && version.runningStatus === 'running');
+      check(running.length <= 1, 'Ambiguous running versions for the owned extension worker');
+      owned = running[0];
+      return !!owned;
+    }, 10000, 'Owned extension worker version was not reported by CDP');
+    const restarted = ctxInfo.ctx.waitForEvent('serviceworker', { predicate: worker => worker !== previous && worker.url() === scriptURL, timeout: 30000 });
+    restarted.catch(() => undefined);
+    const closed = previous.waitForEvent('close', { timeout: 10000 });
+    closed.catch(() => undefined);
+    await diagnostics.write('browser.ndjson', { type: 'runner-worker-stop', id, scriptURL, versionId: owned.versionId });
+    await bounded(() => cdp.send('ServiceWorker.stopWorker', { versionId: owned.versionId }), 10000, 'stop owned worker version');
+    await closed;
+    let response = await bounded(() => wakePage.evaluate(() => chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' })), 10000, 'explicit extension worker wake');
+    const firstWakeResponse = response;
+    ctxInfo.worker = await restarted;
+    await waitFor(async () => {
+      if (response?.success && response.data?.status?.draftId === id) return true;
+      response = await wakePage.evaluate(() => chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' }));
+      return response?.success && response.data?.status?.draftId === id;
+    }, 10000, 'Replacement worker did not hydrate the seeded draft context');
     const stored = await bounded(() => ctxInfo.worker.evaluate(() => chrome.storage.local.get('draftStatus')), 5000, 'extension context read');
-    return stored.draftStatus?.draftId === id && stored.draftStatus?.isInDraftRoom === true;
-  }, 10000, 'Extension worker did not retain seeded draft context');
+    check(stored.draftStatus?.draftId === id && stored.draftStatus?.isInDraftRoom === true, 'Extension worker did not retain seeded draft context');
+    const proof = { stage: 'extension-worker-explicitly-woken', id, scriptURL, stoppedVersionId: owned.versionId,
+      oldClosed: true, newWorker: ctxInfo.worker !== previous, firstWakeResponse, wakeResponse: response, stored, at: new Date().toISOString() };
+    results.progress.push(proof);
+    await diagnostics.write('browser.ndjson', proof);
+    await save();
+  } finally {
+    try { if (cdp) await cdp.detach(); }
+    finally { await wakePage.close(); }
+  }
 }
+
 async function openPanel(ctxInfo, id) {
+  const appTab = ctxInfo.ctx.pages().find(page => {
+    const url = new URL(page.url());
+    return url.origin === origin && url.pathname === '/draft' && !url.searchParams.has('__storageProbe');
+  });
+  check(appTab, 'Open an ordinary canonical draft app tab before the installed panel');
+  await appReady(appTab, 'panel storage-sharing rendezvous tab');
   await installDraftContextAndRestartWorker(ctxInfo, id);
   const page = await ctxInfo.ctx.newPage();
+  navigation?.expectPanel(page, id);
   await page.goto(`chrome-extension://${ctxInfo.extensionId}/sidepanel.html`);
   const panel = { name: 'panel', page, kind: 'panel', id };
   await mountPanel(panel, ctxInfo, id);
@@ -558,15 +638,18 @@ async function mountPanel(panel, ctxInfo, id) {
   await waitFor(async () => await open.isVisible() || await page.locator('#error-state:not([hidden])').isVisible(), 45000, 'Panel neither mounted nor showed a setup error');
   const ready = await page.locator('#error-state:not([hidden])').isVisible() ? 'error' : 'open';
   if (ready === 'error') throw new Error(`Side panel reported a setup error: ${(await page.locator('#error-state').innerText()).trim()}`);
+  await diagnostics.attachFrame(frame, ctxInfo.ctx, currentLabel);
   const documentStarted = await frame.evaluate(() => performance.timeOrigin);
   await open.click();
   await appReady(frame, 'panel');
   check(await frame.evaluate(() => performance.timeOrigin) === documentStarted, 'Open local workspace navigated the iframe document');
   results.progress.push({ stage: 'panel-local-workspace', id, frameUrl: frame.url() }); await save();
   panel.ctx = frame; panel.frame = frame;
+  navigation?.panelReady(page);
 }
 async function reloadActors(ctxInfo, actors, id) {
   for (const actor of actors) {
+    if (actor.kind === 'panel') navigation?.expectPanel(actor.page, id);
     await actor.page.reload();
     if (actor.kind === 'panel') await mountPanel(actor, ctxInfo, id);
     else await appReady(actor.page, actor.name);
@@ -606,31 +689,43 @@ async function closeContext() {
 }
 const closeActors = async actors => { for (const actor of actors) await actor.page.close().catch(() => undefined); };
 
-async function measuredSession({ ctxInfo, id, nameToId, plan, seed, panel, sequential = false }) {
+async function measuredSession({ ctxInfo, id, nameToId, plan, seed, panel, sequential = false, observeUntil = 0 }) {
   const actors = await startSession(ctxInfo, id, { panel });
+  for (const actor of actors) actor.pacingStarted = Date.now();
   let issued;
   if (sequential) { issued = []; for (const [a, actor] of actors.entries()) issued.push(...await runActor(actor, plan.actors[a], seed + a * 9973)); }
   else { const stop = { failed: false }; issued = (await Promise.all(actors.map((actor, a) => runActor(actor, plan.actors[a], seed + a * 9973, undefined, stop)))).flat(); }
-  await sleep(300);
+  while (Date.now() < observeUntil) { await sleep(Math.min(30000, observeUntil - Date.now())); console.log(JSON.stringify({ stage: 'focused-observation', id, remainingMs: observeUntil - Date.now() })); }
   const notSaved = await Promise.all(actors.map(a => notSavedVisible(a.ctx)));
   results.progress.push({ stage: 'workload-complete', id, issued: issued.length }); await save();
   await Promise.all(actors.map(a => drained(a.ctx)));
-  const queueCount = issued.filter(row => row.outcome === 'ack' && row.cmd.type === 'queueAdd').length;
-  const pickCount = issued.filter(row => row.outcome === 'ack' && row.cmd.type === 'pick').length;
+  const committedBefore = await readCommitted(actors[0].page, id);
+  const queueCount = committedBefore.queue.length;
+  const pickCount = committedBefore.picks.length;
   const before = await Promise.all(actors.map(a => readQueueIds(a, nameToId, queueCount)));
   const pickBefore = await Promise.all(actors.map(a => readProvisionalPicks(a, nameToId, pickCount)));
-  const committedBefore = await readCommitted(actors[0].page, id);
   results.progress.push({ stage: 'queue-before-reload', id, before }); await save();
   await reloadActors(ctxInfo, actors, id);
   results.progress.push({ stage: 'actors-reloaded', id }); await save();
   await sleep(300);
-  const after = await Promise.all(actors.map(a => readQueueIds(a, nameToId, queueCount)));
   const committed = await readCommitted(actors[0].page, id);
-  const pickAfter = await Promise.all(actors.map(a => readProvisionalPicks(a, nameToId, pickCount)));
+  const after = await Promise.all(actors.map(a => readQueueIds(a, nameToId, committed.queue.length)));
+  const pickAfter = await Promise.all(actors.map(a => readProvisionalPicks(a, nameToId, committed.picks.length)));
   const pickDom = { before: pickBefore, after: pickAfter };
   const checks = auditSession({ issued, committed, committedBefore, queueDom: { before, after }, pickDom });
   const v1 = await localStorageV1(actors[0].page);
   const row = { session: id, issued, queueDom: { before, after }, pickDom, committedBefore, committed, notSavedVisible: notSaved, checks, v1 };
+  if (observeUntil && flag('disconnect-control')) {
+    const beforeControl = await Promise.all(actors.map(actor => actor.ctx.evaluate(() => performance.timeOrigin)));
+    const clients = [...server.ws.clients];
+    await diagnostics.server('controlled-websocket-disconnect', { clients: clients.length, session: id });
+    row.disconnectControl = { before: beforeControl, clients: clients.length, started: new Date().toISOString() };
+    for (const client of clients) client.socket.terminate();
+    await waitFor(async () => (await Promise.all(actors.map(actor => actor.ctx.evaluate(() => performance.timeOrigin).catch(() => 0)))).every((time, index) => time && time !== beforeControl[index]), 30000, 'Controlled Vite disconnect did not replace both documents');
+    await Promise.all(actors.map(actor => appReady(actor.ctx, actor.name)));
+    row.disconnectControl.after = await Promise.all(actors.map(actor => actor.ctx.evaluate(() => performance.timeOrigin)));
+    row.disconnectControl.finished = new Date().toISOString();
+  }
   await closeActors(actors);
   return row;
 }
@@ -646,6 +741,57 @@ async function loadCatalog(ctxInfo, needed) {
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
     return selectCatalog(rows.map(parseCatalogOption), needed);
   } finally { await page.close(); }
+}
+
+async function focusedScenario(scenario) {
+  const id = '1700000000009';
+  const ctxInfo = await launch('focused-tabs');
+  const setup = await ctxInfo.ctx.newPage();
+  await seedV1(setup, [id]);
+  scenario.activation = await activateThroughPrompt(setup, [id]);
+  await setup.close();
+  const catalog = await loadCatalog(ctxInfo, 600);
+  const nameToId = new Map(catalog.map(player => [player.name, player.id]));
+  const plan = planSession(catalog, 300);
+  scenario.observationStarted = new Date().toISOString();
+  const row = await measuredSession({ ctxInfo, id, nameToId, plan, seed: 3 * 1009 + 2 * 31, panel: false,
+    observeUntil: Date.now() + 30 * 60 * 1000 });
+  scenario.runs.push(row);
+  scenario.observationFinished = new Date().toISOString();
+  await save();
+  check(sessionPasses(row.checks, 600), 'Focused session failed; no retry authorized');
+}
+async function focusedExtensionSetup() {
+  currentLabel = 'extension-setup';
+  const id = '1700000100009';
+  const proof = results.extensionSetup = { started: new Date().toISOString(), workloadCommands: 0 };
+  const ctxInfo = await launch('extension-setup');
+  proof.runtime = ctxInfo.runtime; proof.launchOptions = ctxInfo.launchOptions; proof.profile = ctxInfo.profile;
+  check(ctxInfo.runtime.manifest.manifest_version === 3, 'Installed extension is not Manifest V3');
+  proof.hostPermission = await ctxInfo.worker.evaluate(pattern => chrome.permissions.contains({ origins: [pattern] }), `${origin}/*`);
+  check(proof.hostPermission, 'Installed extension lacks the actual canonical host permission');
+  const setup = await ctxInfo.ctx.newPage();
+  await seedV1(setup, [id]);
+  proof.activation = await activateThroughPrompt(setup, [id]);
+  proof.canonicalAppTab = setup.url();
+  const panel = await openPanel(ctxInfo, id);
+  proof.frameUrl = panel.ctx.url();
+  proof.nonceBefore = new URL(proof.frameUrl).searchParams.get('__storageNonce');
+  proof.before = await readCommitted(panel.ctx, id);
+  await reloadActors(ctxInfo, [panel], id);
+  proof.frameUrlAfter = panel.ctx.url();
+  proof.nonceAfter = new URL(proof.frameUrlAfter).searchParams.get('__storageNonce');
+  proof.after = await readCommitted(panel.ctx, id);
+  proof.draftStatus = await ctxInfo.worker.evaluate(() => chrome.storage.local.get('draftStatus'));
+  proof.workerReset = results.progress.findLast(row => row.stage === 'extension-worker-explicitly-woken' && row.id === id);
+  proof.ready = proof.activation.completed && proof.hostPermission && proof.draftStatus.draftStatus?.draftId === id &&
+    proof.workerReset?.oldClosed && proof.workerReset?.newWorker && !!proof.nonceBefore && !!proof.nonceAfter && proof.nonceBefore !== proof.nonceAfter &&
+    proof.before.present && proof.after.present && JSON.stringify(proof.before.picks) === JSON.stringify(proof.after.picks) &&
+    JSON.stringify(proof.before.queue) === JSON.stringify(proof.after.queue);
+  proof.finished = new Date().toISOString();
+  await panel.page.screenshot({ path: path.join(outDir, 'extension-setup.png') });
+  await save();
+  check(proof.ready, 'Independent extension setup failed');
 }
 
 async function positiveScenario(scenario, scenarioIndex) {
@@ -671,7 +817,7 @@ async function positiveScenario(scenario, scenarioIndex) {
   scenario.v1AtActivation = v1AtActivation;
   check(scenario.activation.completed && scenario.activation.secondTabNoPrompt, 'Activation prompt flow incomplete');
 
-  if (config.bursts && label === 'tabs') { scenario.bursts.mock = await mockBurst(setup); await save(); }
+  if (config.bursts && label === 'tabs') { scenario.bursts.mock = await mockBurst(setup); await save(); check(scenario.bursts.mock.checks.good, 'mock auto-advance burst failed; no further workload authorized'); }
   await setup.close();
 
   const catalog = await loadCatalog(ctxInfo, need);
@@ -695,15 +841,16 @@ async function positiveScenario(scenario, scenarioIndex) {
   scenario.v1WritesAfterActivation = 0;
   for (const run of scenario.runs) if (JSON.stringify(sessionRows(run.v1)) !== JSON.stringify(sessionRows(v1AtActivation))) scenario.v1WritesAfterActivation++;
 
-  if (config.control) { scenario.control = await measuredSession({ ctxInfo, id: next(), catalog, nameToId, plan, seed: 707, panel, sequential: true }); await save(); }
+  if (config.control) { scenario.control = await measuredSession({ ctxInfo, id: next(), catalog, nameToId, plan, seed: 707, panel, sequential: true }); await save(); check(sessionPasses(scenario.control.checks, 2 * perActor), `${label}: sequential control failed`); }
   for (let sample = 1; sample <= config.pickConflicts; sample++) { scenario.pickConflicts.push(await pickConflict(ctxInfo, next(), catalog, sample, panel)); await save(); check(scenario.pickConflicts.at(-1).checks.good, `${label}: pick conflict ${sample} failed`); }
   for (let sample = 1; sample <= config.moveConflicts; sample++) { scenario.moveConflicts.push(await moveConflict(ctxInfo, next(), catalog, nameToId, sample, panel)); await save(); check(scenario.moveConflicts.at(-1).checks.good, `${label}: move conflict ${sample} failed`); }
-  if (config.bursts) { scenario.bursts.reconcile = await reconcileBurst(ctxInfo, next(), catalog, panel); await save(); }
+  if (config.bursts) { scenario.bursts.reconcile = await reconcileBurst(ctxInfo, next(), catalog, panel); await save(); check(scenario.bursts.reconcile.checks.good, `${label}: reconciliation burst failed`); }
   if (config.lifecycle && label === 'tabs') scenario.lifecycle = await lifecycle(ctxInfo, [next(), next()], catalog, nameToId);
   const audit = await context.newPage(); await audit.goto(`${origin}/__ui-fixture/blank`);
   scenario.v1FinalSnapshot = await localStorageV1(audit);
   scenario.v1WritesAfterActivation = JSON.stringify(sessionRows(scenario.v1FinalSnapshot)) === JSON.stringify(sessionRows(v1AtActivation)) ? 0 : 1;
   await audit.close();
+  check(scenario.v1WritesAfterActivation === 0, `${label}: v1 session bytes changed after activation`);
 }
 
 async function pickConflict(ctxInfo, id, catalog, sample, panel) {
@@ -798,7 +945,7 @@ async function mockBurst(page) {
     let picked = 0;
     const actor = { name: 'mock-user', page, ctx: page };
     for (let round = 0; round < 4; round++) {
-      const draft = page.locator('button[aria-label^="Draft "]:not([disabled])').first();
+      const draft = page.locator('[data-player-row] button[aria-label^="Draft "]:not([disabled])').first();
       await draft.waitFor({ timeout: 30000 });
       const name = ((await draft.getAttribute('aria-label')) ?? '').replace(/^Draft /, '');
       const receipt = await recordAction(actor, { id: `mock:${round}`, type: 'mockPick', name }, async () => {
@@ -927,17 +1074,54 @@ try {
     return false;
   })();
   results.metadata.extensionBuiltWithActivation = extensionBuilt;
-  if (selected.some(s => s.startsWith('extension')) && !extensionBuilt) throw new Error('extension/dist lacks the storage-sharing nonce path; run VITE_STORAGE_ACTIVATION=idb pnpm build:extension first');
+  if ((extensionSetupOnly || selected.some(s => s.startsWith('extension'))) && !extensionBuilt) throw new Error('extension/dist lacks the storage-sharing nonce path; run VITE_STORAGE_ACTIVATION=idb pnpm build:extension first');
 
-  server = await createServer({ root: path.join(root, 'web-app'), configFile: path.join(root, 'web-app/vite.config.ts'),
-    server: { host: '127.0.0.1', port: config.port, strictPort: true, hmr: false, watch: null },
-    plugins: [{ name: 'ui-activation-fixture', enforce: 'pre', configResolved(c) { c.server.watch = null; }, configureServer(vite) { vite.middlewares.use((req, res, next) => fixture.handler(req, res, next)); } }] });
-  const env = server.config.env;
-  results.metadata.resolvedEnv = { VITE_STORAGE_ACTIVATION: env.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: env.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: env.VITE_DEMO_MODE, DEV: env.DEV };
-  if (env.VITE_STORAGE_ACTIVATION !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined) throw new Error('Vite resolved the wrong build environment');
-  if (server.config.server.hmr !== false || server.config.server.watch !== null) throw new Error('HMR/watch must be disabled');
+  const logger = createLogger('info', { allowClearScreen: false });
+  for (const level of ['info', 'warn', 'warnOnce', 'error']) {
+    const log = logger[level].bind(logger);
+    logger[level] = (message, options) => { diagnostics.server(`vite-${level}`, { message: String(message) }); log(message, options); };
+  }
   await prepareCatalogFixture();
-  if (!offline) await server.listen();
+  if (focused) {
+    server = await createServer({ customLogger: logger, root: path.join(root, 'web-app'), configFile: path.join(root, 'web-app/vite.config.ts'),
+      server: { host: '127.0.0.1', port: config.port, strictPort: true, hmr: false, watch: null },
+      plugins: [{ name: 'ui-activation-fixture', enforce: 'pre', configResolved(c) { c.server.watch = null; }, configureServer(vite) { vite.middlewares.use((req, res, next) => fixture.handler(req, res, next)); } }] });
+    const env = server.config.env;
+    results.metadata.resolvedEnv = { VITE_STORAGE_ACTIVATION: env.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: env.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: env.VITE_DEMO_MODE, MODE: env.MODE, DEV: env.DEV, PROD: env.PROD };
+    if (env.VITE_STORAGE_ACTIVATION !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined) throw new Error('Vite resolved the wrong build environment');
+    if (server.config.server.hmr !== false || server.config.server.watch !== null) throw new Error('HMR/watch must be disabled');
+    server.watcher.on('all', (event, file) => diagnostics.server('watcher', { event, file }));
+    server.ws.on('connection', socket => {
+      diagnostics.server('websocket-connection');
+      socket.on('close', (code, reason) => diagnostics.server('websocket-close', { code, reason: String(reason) }));
+      socket.on('error', error => diagnostics.server('websocket-error', { message: error.message }));
+      socket.on('message', data => diagnostics.server('websocket-received', { payload: String(data) }));
+    });
+    const send = server.ws.send.bind(server.ws);
+    server.ws.send = (...payload) => { diagnostics.server('websocket-broadcast', { payload }); return send(...payload); };
+    await server.listen();
+  } else if (!offline || prepareProduction) {
+    let env;
+    await build({ root: path.join(root, 'web-app'), configFile: path.join(root, 'web-app/vite.config.ts'), mode: 'production', customLogger: logger,
+      plugins: [{ name: 'ui-production-provenance', configResolved(config) {
+        const resolved = config.env;
+        env = { VITE_STORAGE_ACTIVATION: resolved.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: resolved.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: resolved.VITE_DEMO_MODE,
+          MODE: resolved.MODE, DEV: resolved.DEV, PROD: resolved.PROD };
+      } }] });
+    results.metadata.resolvedEnv = env;
+    const dist = path.join(root, 'web-app/dist');
+    results.metadata.productionBuild = await inspectProductionBuild(dist, env);
+    const httpServer = createHttpServer(createStaticHandler({ dist, fixture: fixture.handler, log: diagnostics.server }));
+    server = { close: () => new Promise((resolve, reject) => { httpServer.close(error => error ? reject(error) : resolve()); httpServer.closeAllConnections(); }) };
+    await new Promise((resolve, reject) => { httpServer.once('error', reject); httpServer.listen(config.port, '127.0.0.1', resolve); });
+    results.metadata.productionHttp = await verifyProductionHttp(origin, results.metadata.productionBuild);
+    const servedFixture = await (await import('@fantasy-draft/shared/http')).http.text(`${origin}/data/fantasypros-snapshot.json`, { timeoutMs: 10000, retries: 0, retryAfter: false });
+    check(createHash('sha256').update(servedFixture).digest('hex') === results.metadata.catalogFixture.sha256, 'HTTP catalog fixture bytes differ from the decoded 900-identity fixture');
+    results.metadata.productionHttp.catalogFixtureSha256 = results.metadata.catalogFixture.sha256;
+    results.metadata.sourceHashes = await sourceSnapshot();
+  }
+  results.metadata.serverStarted = new Date().toISOString();
+  await diagnostics.server('server-started', { serve: results.metadata.serve, env: results.metadata.resolvedEnv });
   await save();
 
   for (const label of selected) {
@@ -946,8 +1130,11 @@ try {
     const scenario = { label, runs: [], pickConflicts: [], moveConflicts: [], bursts: {} };
     results.scenarios.push(scenario);
     try {
-      if (POSITIVE.includes(label)) await positiveScenario(scenario, scenarioIndex);
-      else await negativeScenario(scenario);
+      await guarded(async () => {
+        if (focused) await focusedScenario(scenario);
+        else if (POSITIVE.includes(label)) await positiveScenario(scenario, scenarioIndex);
+        else await negativeScenario(scenario);
+      });
     } catch (error) {
       results.scenarioErrors.push({ label, message: error.message, stack: error.stack });
       for (const [i, page] of (context?.pages() ?? []).entries()) {
@@ -955,9 +1142,18 @@ try {
       }
       await save();
     } finally { await closeContext(); await save(); }
+    if (results.productionNavigationDefect || (flag('gate') && (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length))) break;
+  }
+  if (focused || extensionSetupOnly) {
+    try { await guarded(focusedExtensionSetup); }
+    catch (error) {
+      results.scenarioErrors.push({ label: 'extension-setup', message: error.message, stack: error.stack });
+      for (const [index, page] of (context?.pages() ?? []).entries()) await failureEvidence({ page, ctx: page }, { actionId: `extension-setup/${index}`, message: error.message });
+    }
+    finally { await closeContext(); await save(); }
   }
   results.metadata.finished = new Date().toISOString();
-  results.gate = evaluateUiGate(results);
+  if (!extensionSetupOnly) results.gate = evaluateUiGate(results);
   if (tier2) results.tier2 = evaluateTier2(results);
   await save();
 
@@ -967,17 +1163,25 @@ try {
 } finally {
   await closeContext();
   fixture.stop();
-  if (server) await bounded(() => server.close(), 15000, 'Vite cleanup').catch(error => results.cleanupErrors.push(error.message));
+  if (server) await bounded(() => server.close(), 15000, 'HTTP server cleanup').catch(error => results.cleanupErrors.push(error.message));
   await receiptTail;
+  await diagnostics.flush();
   results.metadata.gitEnd = await git();
   results.metadata.sourceHashesEnd = await sourceSnapshot();
   results.metadata.changedSourceFiles = [...new Set([...Object.keys(results.metadata.sourceHashes), ...Object.keys(results.metadata.sourceHashesEnd)])].filter(file => results.metadata.sourceHashes[file] !== results.metadata.sourceHashesEnd[file]);
   results.metadata.sourceStable = results.metadata.changedSourceFiles.length === 0;
-  results.gate = evaluateUiGate(results);
+  if (!extensionSetupOnly) results.gate = evaluateUiGate(results);
+  else {
+    results.setupCheck = { passes: !!results.extensionSetup?.ready && results.metadata.sourceStable &&
+      results.metadata.gitEnd.head === gitStart.head && !results.metadata.gitEnd.status && !results.commandStarts.length && !results.commandLog.length &&
+      !results.productionNavigationDefect && !results.fatal && !results.scenarioErrors.length && !results.pageErrors.length && !results.cleanupErrors.length,
+      workloadCommands: results.commandStarts.length, fullMatrixClaim: false };
+    if (!results.setupCheck.passes) process.exitCode = 1;
+  }
   if (tier2) results.tier2 = evaluateTier2(results);
   if (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes)) process.exitCode = 1;
   await save();
 }
 
 
-console.log(JSON.stringify({ smoke, tier2: results.tier2, plan: results.metadata.plan, sourceStable: results.metadata.sourceStable, gate: results.gate, scenarioErrors: results.scenarioErrors.map(e => `${e.label}: ${e.message}`), pageErrors: results.pageErrors.length }, null, 2));
+console.log(JSON.stringify({ smoke, setupCheck: results.setupCheck, tier2: results.tier2, plan: results.metadata.plan, sourceStable: results.metadata.sourceStable, gate: results.gate, scenarioErrors: results.scenarioErrors.map(e => `${e.label}: ${e.message}`), pageErrors: results.pageErrors.length }, null, 2));

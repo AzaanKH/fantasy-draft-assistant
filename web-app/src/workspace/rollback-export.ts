@@ -3,6 +3,7 @@ import { decodeIndexedSession } from './idb-session';
 import { DRAFT_STORAGE_MIGRATION_KEY } from '@fantasy-draft/shared/sync';
 import { deriveDraftCursor, type DraftProgress } from '@fantasy-draft/shared/draft';
 import type { PersistedDraftSession } from '@/stores/draftSessionStorage';
+import type { StoredDraftSessionChange } from '@/stores/draftSessionUnconfirmedSaves';
 import { activationRecordOf, readTombstone, type ActivationRecord } from './activation-storage';
 import { ACTIVATION_RECORD, digest, type DatabaseSnapshot, type DraftDatabase } from './indexed-db';
 import { importV1, snapshotV1Storage, type RawV1Entry, type V1Import } from './v1-import';
@@ -19,7 +20,7 @@ export const ROLLBACK_READERS = [
   { name: 'stack tombstone release', commit: '41debb3ccf175f6b5bbeef1806a1486043602635' },
 ] as const;
 
-/** A concrete retained variant the operator explicitly chooses to omit from writable v1 data. */
+/** A concrete retained variant requiring a digest-bound operator acknowledgement. */
 export interface RollbackBlocker {
   readonly id: string;
   readonly digest: string;
@@ -39,9 +40,10 @@ export interface RollbackExport {
   readonly version: 1;
   /** SHA-256 over every other field; verification evidence binds to it. */
   readonly digest: string;
-  /** v1 session heads, sorted by key. */
+  /** v1 session heads and every decodable retained journal variant, sorted by key. */
   readonly writes: readonly { readonly key: string; readonly serialized: string }[];
-  /** Identity keys whose stale v1 journals are removed after their bytes are retained in IndexedDB. */
+  readonly journals: readonly (StoredDraftSessionChange & { readonly coverage: 'covered' | 'unresolved' })[];
+  /** Informational session identities. Only explicit clearKeys authorize stale key removal. */
   readonly clearJournalsFor: readonly string[];
   /** IndexedDB rows as captured behind the writer fence. */
   readonly sessions: readonly { readonly key: string; readonly revision: number; readonly serialized: string }[];
@@ -69,7 +71,7 @@ export interface RollbackReaderEvidence {
   readonly phase: 'load' | 'writeback';
   /** `digestRollbackFacts(rollbackFacts(sessions the old module loaded))`. */
   readonly factsDigest: string;
-  /** Digest of decoded journals not covered by their written head lineage; the proof enumerates every raw journal key. */
+  /** Digest of every exported journal key and decoded change, including lineage-covered rows. */
   readonly journalsDigest: string;
 }
 
@@ -112,7 +114,11 @@ export function rollbackFacts(sessions: readonly unknown[]): RollbackSessionFact
   }).sort((a, b) => a.key.localeCompare(b.key));
 }
 
-export const digestRollbackJournals = (journals: readonly unknown[]): Promise<string> => digest(canonical(journals));
+/** Original serialization is bound by the export digest; old writers may normalize JSON whitespace. */
+export const digestRollbackJournals = (journals: readonly Pick<StoredDraftSessionChange, 'key' | 'change'>[]): Promise<string> =>
+  digest(canonical(journals.map(({ key, change }) => ({ key,
+    change: Object.fromEntries(Object.entries(change).filter(([field]) => field !== 'version')),
+  })).sort((a, b) => a.key.localeCompare(b.key))));
 
 export const digestRollbackFacts = (facts: readonly RollbackSessionFacts[]): Promise<string> => digest(facts);
 
@@ -180,12 +186,30 @@ function rawEntries(value: unknown): RawV1Entry[] {
   return Object.values(value).flatMap(rawEntries);
 }
 
-async function rollbackBlockers(snapshot: DatabaseSnapshot, source: readonly RawV1Entry[]): Promise<RollbackBlocker[]> {
+async function rollbackJournals(snapshot: DatabaseSnapshot, source: readonly RawV1Entry[]): Promise<RollbackExport['journals']> {
+  const journals = new Map<string, RollbackExport['journals'][number]>();
+  for (const entry of [...rawEntries(snapshot.metadata.filter(row => row.key !== ACTIVE_EXPORT)), ...source]) {
+    if (!entry.key.startsWith(JOURNAL_PREFIX)) continue;
+    const incoming = importV1([entry]);
+    const row = incoming.unresolved[0];
+    if (incoming.rejected.length || !row) continue;
+    const identity = entry.key.slice(JOURNAL_PREFIX.length).split(':').slice(0, 2).join(':');
+    // Hash the identity and bytes, not the old tab key, so recovery cannot create another generation of aliases.
+    const key = `${JOURNAL_PREFIX}${identity}:rollback-${await digest({ identity, serialized: entry.serialized })}`;
+    const head = snapshot.sessions.find(row => row.key === identity)?.session;
+    journals.set(key, { key, serialized: entry.serialized, change: decodeDraftSessionChange(JSON.parse(entry.serialized)),
+      coverage: head?.lineage.includes(row.change.writeId) ? 'covered' : 'unresolved' });
+  }
+  return [...journals.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+async function rollbackBlockers(snapshot: DatabaseSnapshot, source: readonly RawV1Entry[], writes: readonly RawV1Entry[] = []): Promise<RollbackBlocker[]> {
   const entries = new Map<string, RawV1Entry>();
   const retained = snapshot.metadata.filter(row => row.key !== ACTIVE_EXPORT);
   for (const entry of [...rawEntries(retained), ...source]) entries.set(JSON.stringify(entry), entry);
   const fields: Omit<RollbackBlocker, 'id' | 'digest'>[] = [];
   for (const entry of entries.values()) {
+    if (writes.some(write => write.key === entry.key && write.serialized === entry.serialized)) continue;
     const incoming = importV1([entry]);
     const key = entry.key.slice(entry.key.startsWith(SESSION_PREFIX) ? SESSION_PREFIX.length : JOURNAL_PREFIX.length).split(':').slice(0, 2).join(':');
     const indexed = snapshot.sessions.find(row => row.key === key)?.session ?? null;
@@ -221,23 +245,25 @@ export async function prepareRollback(database: DraftDatabase, { storage, decisi
   const activation = requireRecord(snapshot).record;
   if (activation.state !== 'rolling-back') throw new Error('The rollback fence was not recorded');
   const source = storage ? snapshotV1Storage(storage) : [];
-  const blockers = await rollbackBlockers(snapshot, source);
+  const journals = await rollbackJournals(snapshot, source);
+  const blockers = await rollbackBlockers(snapshot, source, journals);
   const accepted = decisions.filter(decision => blockers.some(blocker => blocker.id === decision.blockerId && blocker.digest === decision.digest && decision.action === 'keep-indexed'));
   const reconciliation = { blockers, decisions: accepted,
     pending: blockers.filter(blocker => !accepted.some(decision => decision.blockerId === blocker.id)).map(blocker => blocker.id),
     stale: decisions.filter(decision => !accepted.includes(decision)).map(decision => decision.blockerId) };
   const converted = snapshot.sessions.map(row => ({ row, ...toV1Session(row.session) }));
-  const writes = converted.map(({ row, serialized }) => ({ key: `${SESSION_PREFIX}${row.key}`, serialized })).sort((a, b) => a.key.localeCompare(b.key));
+  const heads = converted.map(({ row, serialized }) => ({ key: `${SESSION_PREFIX}${row.key}`, serialized }));
+  const writes = [...heads, ...journals.map(({ key, serialized }) => ({ key, serialized }))].sort((a, b) => a.key.localeCompare(b.key));
   const body: Omit<RollbackExport, 'digest'> = {
-    version: 1, writes, reconciliation,
+    version: 1, writes, journals, reconciliation,
     clearKeys: source.filter(entry => !writes.some(write => write.key === entry.key)).map(entry => entry.key).sort(),
-    expectedJournalsDigest: await digestRollbackJournals([]),
+    expectedJournalsDigest: await digestRollbackJournals(journals),
     clearJournalsFor: snapshot.sessions.map(row => row.key).sort(),
     sessions: snapshot.sessions.map(({ key, session, serialized }) => ({ key, revision: session.revision, serialized })),
     invalid: snapshot.invalid,
     retained: snapshot.metadata.filter(row => row.key !== ACTIVE_EXPORT).filter(row => activation.rollback?.metadataKeys?.includes(row.key) ?? !row.key.startsWith(`${ROLLBACK_METADATA}:`)).map(({ key, value }) => ({ key, value })),
     translations: converted.flatMap(row => row.translation ? [row.translation] : []),
-    expectedFactsDigest: await digestRollbackFacts(rollbackFacts(writes.map(write => { const parsed: unknown = JSON.parse(write.serialized); return parsed; }))),
+    expectedFactsDigest: await digestRollbackFacts(rollbackFacts(heads.map(write => { const parsed: unknown = JSON.parse(write.serialized); return parsed; }))),
   };
   const value = { ...body, digest: await digest(body) };
   assertDatabaseUnchanged(snapshot, value);
@@ -264,6 +290,8 @@ function validImport(value: unknown): boolean {
 function isRollbackExport(value: unknown): value is RollbackExport {
   if (!record(value) || value.version !== 1 || !validString(value.digest) || !validString(value.expectedFactsDigest) ||
     !validString(value.expectedJournalsDigest) || !validArray(value.writes, validRawEntry) ||
+    !validArray(value.journals, row => validRawEntry(row) && record(row) && decodes(row.change, decodeDraftSessionChange) &&
+      (row.coverage === 'covered' || row.coverage === 'unresolved')) ||
     !validArray(value.clearKeys, validString) || !validArray(value.clearJournalsFor, validString) ||
     !validArray(value.sessions, row => validRawEntry(row) && record(row) && typeof row.revision === 'number' && Number.isSafeInteger(row.revision)) ||
     !validArray(value.invalid, row => validRawEntry(row) && record(row) && 'value' in row && validString(row.reason)) ||
@@ -308,7 +336,7 @@ export async function writeRollbackExport({ database, storage, export: value }: 
   const exportKey = `${ROLLBACK_METADATA}:${value.digest}`;
   const preKey = `${exportKey}:pre-export`;
   const source = snapshotV1Storage(storage);
-  const currentBlockers = await rollbackBlockers(snapshot, source);
+  const currentBlockers = await rollbackBlockers(snapshot, source, value.writes);
   if (currentBlockers.some(blocker => !value.reconciliation.decisions.some(decision => decision.blockerId === blocker.id && decision.digest === blocker.digest))) throw new RollbackReconciliationError();
   if (source.some(entry => !value.writes.some(write => write.key === entry.key) && !value.clearKeys.includes(entry.key))) throw new RollbackReconciliationError();
   const sourceKey = `${exportKey}:source:${await digest(source)}`;
@@ -319,7 +347,7 @@ export async function writeRollbackExport({ database, storage, export: value }: 
   if (!['present', 'malformed'].includes(readTombstone(storage))) throw new Error('The storage tombstone disappeared while retaining the rollback source');
   for (const { key, serialized } of value.writes) storage.setItem(key, serialized);
   for (const { key, serialized } of source) {
-    if (!value.clearKeys.includes(key)) continue;
+    if (!value.clearKeys.includes(key) || value.writes.some(write => write.key === key)) continue;
     if (storage.getItem(key) !== serialized) throw new Error(`A v1 journal changed before deletion: ${key}`);
     storage.removeItem(key);
   }
@@ -363,7 +391,7 @@ export async function finalizeRollback({ database, storage, export: value, verif
   if (record.state === 'imported') throw new Error('Prepare the rollback before finalizing it');
   if (record.state === 'rolled-back' && record.rollback?.exportDigest !== value.digest) throw new Error('Storage was rolled back with a different export');
   assertStorageMatches(storage, value);
-  const currentBlockers = await rollbackBlockers(snapshot, snapshotV1Storage(storage));
+  const currentBlockers = await rollbackBlockers(snapshot, snapshotV1Storage(storage), value.writes);
   if (currentBlockers.some(blocker => !value.reconciliation.decisions.some(decision => decision.blockerId === blocker.id && decision.digest === blocker.digest))) throw new RollbackReconciliationError();
   if (record.state === 'rolling-back') {
     const sessions = Object.fromEntries(value.sessions.map(row => [row.key, row.revision]));

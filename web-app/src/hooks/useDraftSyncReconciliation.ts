@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace, requestWorkspace } from '@/workspace/ui-dispatch';
 import type { DraftReconciliationResult } from '@/stores/draft/types';
 import { useWorkspace, useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
@@ -93,18 +94,28 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       return;
     }
 
-    dispatchWorkspace(workspace, 'setConfig', {
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', {
       totalTeams: snapshot.draft.settings.teams,
       totalRounds: snapshot.draft.settings.rounds,
       draftType: snapshot.draft.type,
-    });
-    dispatchWorkspace(workspace, 'applyLeagueSettings', resolveSyncedLeagueSettings(
+    }); } else { workspace.send('setConfig', {
+      totalTeams: snapshot.draft.settings.teams,
+      totalRounds: snapshot.draft.settings.rounds,
+      draftType: snapshot.draft.type,
+    }); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'applyLeagueSettings', resolveSyncedLeagueSettings(
       provider,
       snapshot.draft.settings.teams,
       snapshot.draft.leagueSettings,
       usePrimaryLeagueSettings,
       useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
-    ));
+    )); } else { workspace.send('applyLeagueSettings', resolveSyncedLeagueSettings(
+      provider,
+      snapshot.draft.settings.teams,
+      snapshot.draft.leagueSettings,
+      usePrimaryLeagueSettings,
+      useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
+    )); }
   }, [workspace, snapshot?.draft, provider, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
 
   const pickHistory = snapshot?.picks;
@@ -155,17 +166,22 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       !shouldImportPicks ||
       isPlayerDataLoading
     ) {
-      lastImported.current = null;
+      if (!(STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) || !shouldImportPicks || manualContinuityBaselineAt !== null) lastImported.current = null;
       return;
     }
 
     const requestKey = JSON.stringify({ provider, draftId, picks: importResult.picks, rejected: importResult.rejectedPicks,
-      nextOpenPickNumber, confirmedAt: workspace.sendDurable ? snapshot.lastSuccessfulSyncAt : undefined });
+      nextOpenPickNumber });
     const previous = lastImported.current;
-    const alreadyImported = previous?.key === requestKey && (workspace.sendDurable !== undefined ||
+    const alreadyImported = previous?.key === requestKey && ((STORAGE_ACTIVATION_ENABLED && workspace.sendDurable !== undefined) ||
       (previous.picks === snapshot.picks && previous.importedPicks === importResult.picks && previous.rejectedPicks === importResult.rejectedPicks));
     if (alreadyImported) {
-      setLastReconciledSnapshotAt(snapshot.lastSuccessfulSyncAt);
+      if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable && snapshot.lastSuccessfulSyncAt > (lastConfirmedSyncAt ?? -1)) {
+        const confirmedAt = snapshot.lastSuccessfulSyncAt;
+        void workspace.sendDurable(['advanceSyncFreshness', confirmedAt]).then(() => {
+          if (currentIdentity.current.provider === provider && currentIdentity.current.draftId === draftId) setLastReconciledSnapshotAt(confirmedAt);
+        }).catch(() => undefined);
+      } else setLastReconciledSnapshotAt(snapshot.lastSuccessfulSyncAt);
       return;
     }
     if (inFlight.current === requestKey) return;
@@ -198,9 +214,14 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       }
       setLastReconciledSnapshotAt(snapshot.lastSuccessfulSyncAt);
     };
-    const receipt = requestWorkspace(workspace, 'reconcileSyncedPicks', importResult.picks, nextOpenPickNumber, importResult.rejectedPicks, snapshot.lastSuccessfulSyncAt);
-    if (receipt instanceof Promise) void receipt.then(applyReceipt).catch(() => { if (inFlight.current === requestKey) inFlight.current = null; });
-    else applyReceipt(receipt);
+    try {
+      const receipt = (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'reconcileSyncedPicks', importResult.picks, nextOpenPickNumber, importResult.rejectedPicks, snapshot.lastSuccessfulSyncAt) : workspace.send('reconcileSyncedPicks', importResult.picks, nextOpenPickNumber, importResult.rejectedPicks, snapshot.lastSuccessfulSyncAt));
+      if (receipt instanceof Promise) void receipt.then(applyReceipt).catch(() => { if (inFlight.current === requestKey) inFlight.current = null; });
+      else applyReceipt(receipt);
+    } catch (error) {
+      if (inFlight.current === requestKey) inFlight.current = null;
+      throw error;
+    }
   }, [
     provider,
     draftId,

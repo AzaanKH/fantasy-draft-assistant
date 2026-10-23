@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView, useDraftViewReader } from '@/workspace/useDraftView';
@@ -38,8 +39,8 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       state.config.draftType
     );
     if (keeper) {
-      if (workspace.sendDurable) return workspace.sendDurable(['consumeKeeperAtCurrentPick', view.currentPick]).then(() => true);
-      dispatchWorkspace(workspace, 'consumeKeeperAtCurrentPick');
+      if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(['consumeKeeperAtCurrentPick', view.currentPick]).then(() => true);
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'consumeKeeperAtCurrentPick'); } else { workspace.send('consumeKeeperAtCurrentPick'); }
       return true;
     }
 
@@ -72,12 +73,12 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       selection.player.position,
       teamIndex,
       `Team ${String(teamIndex + 1)}`,
-      workspace.sendDurable ? view.currentPick : undefined,
+      STORAGE_ACTIVATION_ENABLED && workspace.sendDurable ? view.currentPick : undefined,
       'cpu',
-      workspace.sendDurable ? { pickNumber: view.currentPick, actor: 'cpu' } : undefined
+      STORAGE_ACTIVATION_ENABLED && workspace.sendDurable ? { pickNumber: view.currentPick, actor: 'cpu' } : undefined
     ] satisfies import('@/workspace/commands').VoidWorkspaceCommand;
-    if (workspace.sendDurable) return workspace.sendDurable(command).then(() => true);
-    dispatchWorkspace(workspace, ...command);
+    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(command).then(() => true);
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, ...command); } else { workspace.send(...command); }
     return true;
   }, [workspace, readDraftView, timingEvidence.model, players]);
 }
@@ -119,9 +120,9 @@ export function MockDraftAutoAdvance(): null {
       // Pause rather than retry when no CPU candidate fits.
       const result = simulateNextCpuPick();
       if (result instanceof Promise) void result.then(advanced => {
-        if (!advanced) dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true);
-      }).catch(() => { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); });
-      else if (!result) dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true);
+        if (!advanced) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); } else { workspace.send('setMockAutoAdvancePaused', true); }
+      }).catch(() => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); } else { workspace.send('setMockAutoAdvancePaused', true); } });
+      else if (!result) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); } else { workspace.send('setMockAutoAdvancePaused', true); }
     }, cpuPickDelayMs);
     return () => { window.clearTimeout(timer); };
   }, [

@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView } from '@/workspace/useDraftView';
@@ -26,11 +27,15 @@ export function useQueueActions(
     toast(`${playerName} ${wasQueued ? 'removed from' : 'added to'} queue`, {
       id: `queue:${playerId}`,
       action: { label: 'Undo', onClick: () => {
+        if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+          void workspace.sendDurable(['setPlayerShortlisted', playerId, wasQueued]).catch(() => undefined);
+          return;
+        }
         const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
         if (wasQueued && !isQueued) {
-          dispatchWorkspace(workspace, 'togglePlayerShortlisted', playerId);
+          if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'togglePlayerShortlisted', playerId); } else { workspace.send('togglePlayerShortlisted', playerId); }
         } else if (!wasQueued && isQueued) {
-          dispatchWorkspace(workspace, 'removePlayerFromShortlist', playerId);
+          if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'removePlayerFromShortlist', playerId); } else { workspace.send('removePlayerFromShortlist', playerId); }
         }
       } },
     });
@@ -38,27 +43,27 @@ export function useQueueActions(
 
   const togglePlayerQueued = React.useCallback((playerId: string) => {
     const wasQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
-    if (workspace.sendDurable) {
-      void workspace.sendDurable(['togglePlayerShortlisted', playerId]).then(() => {
+    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+      void workspace.sendDurable(['setPlayerShortlisted', playerId, !wasQueued]).then(() => {
         const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
         if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
       }).catch(() => undefined);
       return;
     }
-    dispatchWorkspace(workspace, 'togglePlayerShortlisted', playerId);
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'togglePlayerShortlisted', playerId); } else { workspace.send('togglePlayerShortlisted', playerId); }
     const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
     if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
   }, [workspace, showQueueFeedback]);
 
   const removePlayerFromQueue = React.useCallback((playerId: string) => {
     if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) return;
-    if (workspace.sendDurable) {
-      void workspace.sendDurable(['removePlayerFromShortlist', playerId]).then(() => {
+    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+      void workspace.sendDurable(['setPlayerShortlisted', playerId, false]).then(() => {
         if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
       }).catch(() => undefined);
       return;
     }
-    dispatchWorkspace(workspace, 'removePlayerFromShortlist', playerId);
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'removePlayerFromShortlist', playerId); } else { workspace.send('removePlayerFromShortlist', playerId); }
     if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
   }, [workspace, showQueueFeedback]);
 

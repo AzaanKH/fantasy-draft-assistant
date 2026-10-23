@@ -45,7 +45,11 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
     setPending(true); setError(null);
     try { bind(await controller.activate(decisions, { otherTabsClosed: true })); }
     catch (failure) {
-      if (failure instanceof ActivationStaleError) { setReview(await controller.preflight()); setDecisions([]); setClosed(false); }
+      if (failure instanceof ActivationStaleError) {
+        setDecisions([]); setClosed(false);
+        try { setReview(await controller.preflight()); }
+        catch (reviewFailure) { setError(reviewFailure instanceof Error ? reviewFailure.message : String(reviewFailure)); return; }
+      }
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally { setPending(false); }
   };

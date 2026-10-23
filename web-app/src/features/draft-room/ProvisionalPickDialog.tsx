@@ -1,3 +1,4 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
@@ -174,8 +175,8 @@ function ProvisionalPickForm({
     let saved: boolean;
     try {
       const outcome = editingPick
-        ? requestWorkspace(workspace, 'correctProvisionalPick', editingPick.pickNumber, replacement)
-        : requestWorkspace(workspace, 'recordProvisionalPick', replacement);
+        ? (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'correctProvisionalPick', editingPick.pickNumber, replacement) : workspace.send('correctProvisionalPick', editingPick.pickNumber, replacement))
+        : (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'recordProvisionalPick', replacement) : workspace.send('recordProvisionalPick', replacement));
       saved = outcome instanceof Promise ? await outcome : outcome;
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
