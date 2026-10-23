@@ -1,4 +1,4 @@
-import { localDevPorts } from '@fantasy-draft/shared/node';
+import { localDevPorts } from '@fantasy-draft/shared/sync';
 
 declare const __DRAFT_LOCAL_PORTS__: ReturnType<typeof localDevPorts>;
 // Vite supplies this build's ports. Direct source tests retain production defaults.

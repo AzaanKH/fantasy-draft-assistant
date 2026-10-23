@@ -10,8 +10,8 @@ import type {
   FantasyProsProjection,
   FantasyProsSnapshot,
 } from '@fantasy-draft/shared/catalog';
-import { NFL_TEAMS, POSITIONS } from '@fantasy-draft/shared/league';
-import { Data, Effect } from 'effect';
+import { isNFLTeam, isPosition } from '@fantasy-draft/shared/league';
+import { Data, Effect, Schema } from 'effect';
 import { fetchJson, type HttpRequestError } from './effect-runtime.js';
 
 const FANTASYPROS_API_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
@@ -25,105 +25,104 @@ interface FantasyProsApiOptions {
   readonly scoring?: 'STD' | 'PPR' | 'HALF';
 }
 
-interface FantasyProsPlayersResponse {
-  readonly players?: readonly FantasyProsPlayerRecord[];
+function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
+  return Schema.StructWithRest(Schema.Struct(fields), [Schema.Record(Schema.String, Schema.Unknown)]);
 }
-
-interface FantasyProsConsensusResponse {
-  readonly source?: string;
-  readonly last_updated?: string;
-  readonly players?: readonly FantasyProsConsensusPlayer[];
-}
-
-interface FantasyProsProjectionResponse {
-  readonly players?: readonly FantasyProsProjectionPlayer[];
-}
-
-interface FantasyProsNewsResponse {
-  readonly items?: readonly FantasyProsNewsRecord[];
-  readonly news?: readonly FantasyProsNewsRecord[];
-}
-
-interface FantasyProsInjuriesResponse {
-  readonly injuries?: readonly FantasyProsInjuryRecord[];
-}
-
-interface FantasyProsPlayerRecord {
-  readonly player_id?: number | string | null;
-  readonly player_name?: string;
-  readonly position_id?: string;
-  readonly player_positions?: string;
-  readonly team_id?: string;
-}
-
-interface FantasyProsConsensusPlayer {
-  readonly player_id?: number | string | null;
-  readonly player_name?: string;
-  readonly player_team_id?: string;
-  readonly player_position_id?: string;
-  readonly player_bye_week?: string | number;
-  readonly rank_ecr?: string | number;
-  readonly rank_min?: string | number;
-  readonly rank_max?: string | number;
-  readonly rank_ave?: string | number;
-  readonly pos_rank?: string;
-}
-
-interface FantasyProsProjectionPlayer {
-  readonly fpid?: number | string | null;
-  readonly name?: string;
-  readonly position_id?: string;
-  readonly team_id?: string;
-  readonly stats?: {
-    readonly points?: number;
-    readonly points_ppr?: number;
-    readonly points_half?: number;
-    readonly rush_att?: number;
-    readonly rushing_attempts?: number;
-    readonly pass_yds?: number;
-    readonly pass_tds?: number;
-    readonly rush_yds?: number;
-    readonly rush_tds?: number;
-    readonly rec_rec?: number;
-    readonly rec?: number;
-    readonly receptions?: number;
-    readonly rec_yds?: number;
-    readonly rec_tds?: number;
-  };
-}
-
-interface FantasyProsNewsRecord {
-  readonly player_id?: number | string | null;
-  readonly player_name?: string;
-  readonly team_id?: string;
-  readonly title?: string;
-  readonly category?: string;
-  readonly categories?: readonly string[];
-  readonly status?: string;
-  readonly status_short?: string;
-  readonly created?: string;
-  readonly date?: string;
-  readonly updated?: string;
-  readonly published?: string;
-  readonly desc?: string;
-  readonly impact?: string;
-  readonly link?: string;
-}
-
-interface FantasyProsInjuryRecord {
-  readonly player_id?: number | string | null;
-  readonly name?: string;
-  readonly team_id?: string;
-  readonly position_id?: string;
-  readonly status?: string;
-  readonly status_short?: string;
-  readonly injury_type?: string;
-  readonly comment?: string;
-  readonly injury_update_date?: string | null;
-  readonly practice_1?: string | null;
-  readonly practice_2?: string | null;
-  readonly practice_3?: string | null;
-}
+const providerId = Schema.optional(Schema.NullOr(Schema.Union([Schema.Finite, Schema.String])));
+const optionalText = Schema.optional(Schema.String);
+const optionalNumericText = Schema.optional(Schema.Union([Schema.String, Schema.Finite]));
+const fantasyProsPlayerRecord = openStruct({
+  player_id: providerId,
+  player_name: optionalText,
+  position_id: optionalText,
+  player_positions: optionalText,
+  team_id: optionalText,
+});
+const fantasyProsConsensusPlayer = openStruct({
+  player_id: providerId,
+  player_name: optionalText,
+  player_team_id: optionalText,
+  player_position_id: optionalText,
+  player_bye_week: optionalNumericText,
+  rank_ecr: optionalNumericText,
+  rank_min: optionalNumericText,
+  rank_max: optionalNumericText,
+  rank_ave: optionalNumericText,
+  pos_rank: optionalText,
+});
+type FantasyProsConsensusPlayer = typeof fantasyProsConsensusPlayer.Type;
+const fantasyProsProjectionPlayer = openStruct({
+  fpid: providerId,
+  name: optionalText,
+  position_id: optionalText,
+  team_id: optionalText,
+  stats: Schema.optional(openStruct({
+    points: Schema.optional(Schema.Finite),
+    points_ppr: Schema.optional(Schema.Finite),
+    points_half: Schema.optional(Schema.Finite),
+    rush_att: Schema.optional(Schema.Finite),
+    rushing_attempts: Schema.optional(Schema.Finite),
+    pass_yds: Schema.optional(Schema.Finite),
+    pass_tds: Schema.optional(Schema.Finite),
+    rush_yds: Schema.optional(Schema.Finite),
+    rush_tds: Schema.optional(Schema.Finite),
+    rec_rec: Schema.optional(Schema.Finite),
+    rec: Schema.optional(Schema.Finite),
+    receptions: Schema.optional(Schema.Finite),
+    rec_yds: Schema.optional(Schema.Finite),
+    rec_tds: Schema.optional(Schema.Finite),
+  })),
+});
+type FantasyProsProjectionPlayer = typeof fantasyProsProjectionPlayer.Type;
+const fantasyProsNewsRecord = openStruct({
+  player_id: providerId,
+  player_name: optionalText,
+  team_id: optionalText,
+  title: optionalText,
+  category: optionalText,
+  categories: Schema.optional(Schema.Array(Schema.String)),
+  status: optionalText,
+  status_short: optionalText,
+  created: optionalText,
+  date: optionalText,
+  updated: optionalText,
+  published: optionalText,
+  desc: optionalText,
+  impact: optionalText,
+  link: optionalText,
+});
+type FantasyProsNewsRecord = typeof fantasyProsNewsRecord.Type;
+const fantasyProsInjuryRecord = openStruct({
+  player_id: providerId,
+  name: optionalText,
+  team_id: optionalText,
+  position_id: optionalText,
+  status: optionalText,
+  status_short: optionalText,
+  injury_type: optionalText,
+  comment: optionalText,
+  injury_update_date: Schema.optional(Schema.NullOr(Schema.String)),
+  practice_1: Schema.optional(Schema.NullOr(Schema.String)),
+  practice_2: Schema.optional(Schema.NullOr(Schema.String)),
+  practice_3: Schema.optional(Schema.NullOr(Schema.String)),
+});
+const fantasyProsPlayersResponse = openStruct({ players: Schema.optional(Schema.Array(fantasyProsPlayerRecord)) });
+const fantasyProsConsensusResponse = openStruct({
+  source: optionalText, last_updated: optionalText, players: Schema.optional(Schema.Array(fantasyProsConsensusPlayer)),
+});
+const fantasyProsProjectionResponse = openStruct({ players: Schema.optional(Schema.Array(fantasyProsProjectionPlayer)) });
+const fantasyProsNewsResponse = openStruct({
+  items: Schema.optional(Schema.Array(fantasyProsNewsRecord)), news: Schema.optional(Schema.Array(fantasyProsNewsRecord)),
+});
+const fantasyProsInjuriesResponse = openStruct({ injuries: Schema.optional(Schema.Array(fantasyProsInjuryRecord)) });
+type FantasyProsPlayersResponse = typeof fantasyProsPlayersResponse.Type;
+type FantasyProsNewsResponse = typeof fantasyProsNewsResponse.Type;
+type FantasyProsInjuriesResponse = typeof fantasyProsInjuriesResponse.Type;
+const decodePlayersResponse = Schema.decodeUnknownSync(fantasyProsPlayersResponse);
+const decodeConsensusResponse = Schema.decodeUnknownSync(fantasyProsConsensusResponse);
+const decodeProjectionsResponse = Schema.decodeUnknownSync(fantasyProsProjectionResponse);
+const decodeNewsResponse = Schema.decodeUnknownSync(fantasyProsNewsResponse);
+const decodeInjuriesResponse = Schema.decodeUnknownSync(fantasyProsInjuriesResponse);
 
 interface FantasyProsPlayerIndexEntry {
   readonly name: string;
@@ -152,9 +151,7 @@ function normalizeFantasyProsTeam(teamId: string | undefined): NFLTeam | null {
   const upper = teamId.toUpperCase();
   const normalized = upper === 'JAC' ? 'JAX' : upper;
 
-  return NFL_TEAMS.includes(normalized as NFLTeam)
-    ? (normalized as NFLTeam)
-    : null;
+  return isNFLTeam(normalized) ? normalized : null;
 }
 
 function normalizeFantasyProsPosition(positionId: string | undefined): Position | null {
@@ -163,9 +160,7 @@ function normalizeFantasyProsPosition(positionId: string | undefined): Position 
   const upper = positionId.toUpperCase();
   const normalized = upper === 'DST' ? 'DEF' : upper;
 
-  return POSITIONS.includes(normalized as Position)
-    ? (normalized as Position)
-    : null;
+  return isPosition(normalized) ? normalized : null;
 }
 
 function parsePositionalRank(posRank: string | undefined, fallbackRank: number): number {
@@ -306,24 +301,27 @@ const parsePayload = <A>(label: string, parse: () => A): Effect.Effect<A, Fantas
 function fetchFantasyProsJson<T>(
   path: string,
   apiKey: string,
+  decode: (value: unknown) => T,
   query: Record<string, string | number | undefined> = {}
-): Effect.Effect<T, HttpRequestError> {
+): Effect.Effect<T, HttpRequestError | FantasyProsPayloadError> {
   const url = new URL(`${FANTASYPROS_API_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) {
       url.searchParams.set(key, String(value));
     }
   }
-  return fetchJson<T>(url, {
+  return fetchJson(url, decode, {
     label: 'FantasyPros API',
     timeoutMs: FANTASYPROS_REQUEST_TIMEOUT_MS,
     headers: { 'x-api-key': apiKey, accept: 'application/json' },
-  });
+  }, cause => new FantasyProsPayloadError({
+    message: `FantasyPros returned an unexpected ${path} payload: ${cause instanceof Error ? cause.message : String(cause)}`, cause,
+  }));
 }
 
-const fetchFantasyProsPlayerIndex = (apiKey: string) => fetchFantasyProsJson<FantasyProsPlayersResponse>(
+const fetchFantasyProsPlayerIndex = (apiKey: string) => fetchFantasyProsJson(
   `/${FANTASYPROS_SPORT_PATH}/players`,
-  apiKey
+  apiKey, decodePlayersResponse
 ).pipe(Effect.flatMap((payload) => parsePayload('player index', () => buildPlayerIndex(payload))));
 
 function buildPlayerIndex(payload: FantasyProsPlayersResponse): Map<string, FantasyProsPlayerIndexEntry> {
@@ -581,7 +579,7 @@ function combineNewsWithInjuries(
 }
 
 /** Optional endpoints degrade to empty data with a warning instead of failing the refresh. */
-const optionalEndpoint = <T>(label: string, request: Effect.Effect<T, HttpRequestError>, fallback: T) =>
+const optionalEndpoint = <T>(label: string, request: Effect.Effect<T, HttpRequestError | FantasyProsPayloadError>, fallback: T) =>
   request.pipe(Effect.catch((error) => Effect.sync(() => {
     console.warn(`FantasyPros ${label} endpoint unavailable; continuing without ${label}.`);
     console.warn(error.message);
@@ -602,18 +600,18 @@ export const fetchFantasyProsSnapshot = Effect.fn('fetchFantasyProsSnapshot')(fu
     projectionsResponse,
   } = yield* Effect.all({
     playerIndex: fetchFantasyProsPlayerIndex(options.apiKey),
-    rankingsResponse: fetchFantasyProsJson<FantasyProsConsensusResponse>(
+    rankingsResponse: fetchFantasyProsJson(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
-      options.apiKey,
+      options.apiKey, decodeConsensusResponse,
       {
         position: 'ALL',
         scoring,
         week: 0,
       }
     ),
-    adpResponse: fetchFantasyProsJson<FantasyProsConsensusResponse>(
+    adpResponse: fetchFantasyProsJson(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/consensus-rankings`,
-      options.apiKey,
+      options.apiKey, decodeConsensusResponse,
       {
         position: 'ALL',
         scoring,
@@ -621,26 +619,26 @@ export const fetchFantasyProsSnapshot = Effect.fn('fetchFantasyProsSnapshot')(fu
         type: 'ADP',
       }
     ),
-    newsResponse: fetchFantasyProsJson<FantasyProsNewsResponse>(
+    newsResponse: fetchFantasyProsJson(
       `/${FANTASYPROS_SPORT_PATH}/news`,
-      options.apiKey,
+      options.apiKey, decodeNewsResponse,
       {
         limit: 100,
         category: 'injury',
         order_by: 'updated',
       }
     ),
-    injuriesResponse: optionalEndpoint('injuries', fetchFantasyProsJson<FantasyProsInjuriesResponse>(
+    injuriesResponse: optionalEndpoint('injuries', fetchFantasyProsJson(
       `/${FANTASYPROS_SPORT_PATH}/injuries`,
-      options.apiKey,
+      options.apiKey, decodeInjuriesResponse,
       {
         year: options.season,
         week: 0,
       }
     ), {}),
-    projectionsResponse: optionalEndpoint('projections', fetchFantasyProsJson<FantasyProsProjectionResponse>(
+    projectionsResponse: optionalEndpoint('projections', fetchFantasyProsJson(
       `/${FANTASYPROS_SPORT_PATH}/${options.season}/projections`,
-      options.apiKey,
+      options.apiKey, decodeProjectionsResponse,
       {
         week: 0,
         positions: 'QB:RB:WR:TE:K:DST',

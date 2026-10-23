@@ -1,8 +1,8 @@
+import { requestJson } from '@/lib/http';
+import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate, decodeOrNull } from '@fantasy-draft/shared/catalog';
 import { useCallback, useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import {
-  isDraftSyncSnapshot,
-  isDraftSyncUpdate,
   type DraftProvider,
   type DraftSyncSnapshot,
   type DraftSyncUpdate,
@@ -18,8 +18,8 @@ export function isRequestedDraftSnapshot(
   provider: DraftProvider,
   draftId: string
 ): snapshot is DraftSyncSnapshot {
-  return isDraftSyncSnapshot(snapshot) &&
-    snapshot.provider === provider && snapshot.draftId === draftId;
+  const decoded = decodeOrNull(decodeDraftSyncSnapshot, snapshot);
+  return decoded !== null && decoded.provider === provider && decoded.draftId === draftId;
 }
 
 export function applyDraftSyncHeartbeat(
@@ -74,45 +74,44 @@ function selectLatestDraftSnapshot(
   return incoming;
 }
 
-async function readDraftSnapshot(
-  response: Response,
+function readDraftSnapshot(
+  parsed: unknown,
   provider: DraftProvider,
   draftId: string
-): Promise<DraftSyncSnapshot> {
-  const parsed: unknown = await response.json();
-  if (!isRequestedDraftSnapshot(parsed, provider, draftId)) {
+): DraftSyncSnapshot {
+  const snapshot = decodeOrNull(decodeDraftSyncSnapshot, parsed);
+  if (!snapshot || snapshot.provider !== provider || snapshot.draftId !== draftId) {
+    console.warn('[draft-sync] Rejected invalid draft snapshot');
     throw new Error('Sync server returned an invalid draft snapshot');
   }
-  return parsed;
+  return snapshot;
 }
 
 async function fetchDraftSnapshot(
   provider: DraftProvider,
   draftId: string
 ): Promise<DraftSyncSnapshot> {
-  const response = await fetch(getSyncPath(provider, draftId));
-  if (!response.ok) {
-    throw new Error(`Failed to fetch draft snapshot: ${response.status}`);
-  }
-
-  return readDraftSnapshot(response, provider, draftId);
+  return requestJson(getSyncPath(provider, draftId),
+    parsed => readDraftSnapshot(parsed, provider, draftId), 'Failed to fetch draft snapshot');
 }
 
 async function requestRefresh(
   provider: DraftProvider,
   draftId: string
 ): Promise<DraftSyncSnapshot> {
-  const response = await fetch(`${getSyncPath(provider, draftId)}/refresh`, {
-    method: 'POST',
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to refresh draft snapshot: ${response.status}`);
-  }
-
-  return readDraftSnapshot(response, provider, draftId);
+  return requestJson(`${getSyncPath(provider, draftId)}/refresh`,
+    parsed => readDraftSnapshot(parsed, provider, draftId), 'Failed to refresh draft snapshot',
+    { init: { method: 'POST' } });
 }
 
-export function useDraftSyncTransport(provider: DraftProvider, draftId: string | null) {
+interface DraftSyncTransport {
+  readonly snapshot: DraftSyncSnapshot | null;
+  readonly snapshotQuery: UseQueryResult<DraftSyncSnapshot>;
+  readonly transportState: DraftSyncTransportState;
+  readonly refresh: () => Promise<void>;
+}
+
+export function useDraftSyncTransport(provider: DraftProvider, draftId: string | null): DraftSyncTransport {
   const queryClient = useQueryClient();
   const [liveSnapshot, setLiveSnapshot] = useState<DraftSyncSnapshot | null>(null);
   const [transportState, setTransportState] = useState<DraftSyncTransportState>(
@@ -149,12 +148,9 @@ export function useDraftSyncTransport(provider: DraftProvider, draftId: string |
     eventSource.onmessage = (event: MessageEvent<string>) => {
       try {
         const parsed: unknown = JSON.parse(event.data);
-        if (!isDraftSyncUpdate(parsed)) {
-          return;
-        }
-        const update = parsed;
+        const update = decodeDraftSyncUpdate(parsed);
         if (update.type === 'heartbeat') {
-          if (update.provider !== provider || update.draftId !== draftId) return;
+          if (update.provider !== provider || update.draftId !== draftId) throw new Error('Heartbeat session mismatch');
           setTransportState('connected');
           setLiveSnapshot((current) =>
             applyDraftSyncHeartbeat(current, update, provider, draftId)
@@ -167,9 +163,7 @@ export function useDraftSyncTransport(provider: DraftProvider, draftId: string |
           );
           return;
         }
-        if (!isRequestedDraftSnapshot(update.snapshot, provider, draftId)) {
-          return;
-        }
+        if (update.snapshot.provider !== provider || update.snapshot.draftId !== draftId) throw new Error('Snapshot session mismatch');
         setTransportState('connected');
         setLiveSnapshot(update.snapshot);
         queryClient.setQueryData(
@@ -177,8 +171,7 @@ export function useDraftSyncTransport(provider: DraftProvider, draftId: string |
           update.snapshot
         );
       } catch {
-        // Ignore a malformed event; EventSource remains connected and can
-        // recover on the next canonical snapshot.
+        console.warn('[draft-sync] Rejected invalid draft event');
       }
     };
 

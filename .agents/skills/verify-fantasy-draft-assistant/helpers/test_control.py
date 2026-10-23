@@ -6,6 +6,9 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import signal
+import sys
+import time
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -14,6 +17,34 @@ import control
 
 
 class CliIsolationTests(unittest.TestCase):
+    def test_stop_waits_for_detached_descendant_after_group_leader_exits(self):
+        child_code = "import os, signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); print(os.getpid(), flush=True); time.sleep(60)"
+        parent_code = f"import subprocess, sys, time; subprocess.Popen([sys.executable, '-c', {child_code!r}], start_new_session=True); time.sleep(60)"
+        parent = subprocess.Popen([sys.executable, "-c", parent_code], start_new_session=True,
+                                  stdout=subprocess.PIPE, text=True)
+        child_pid = None
+        try:
+            child_pid = int(parent.stdout.readline())
+            control.stop_process({"pid": parent.pid})
+            parent.wait(timeout=2)
+            for _ in range(20):
+                try:
+                    os.kill(child_pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.05)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
+        finally:
+            for pid in (child_pid, parent.pid):
+                if pid:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+            parent.wait(timeout=2)
+            parent.stdout.close()
+
     def test_environment_does_not_inherit_connection_or_credentials(self):
         with patch.dict(os.environ, {"DRAFT_ROOT": "/user", "DRAFT_SLOT": "9",
                                     "DRAFT_SESSION": "sleeper:user", "DRAFT_SERVER_URL": "http://localhost:9999",

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
-import { CATALOG, catalogPath, decodePrimaryLeagueSettingsFile, decodeOrNull, type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
+import { type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { type Recommendation } from '@fantasy-draft/shared/draft';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { buildDraftReadinessReport } from './readiness';
@@ -14,7 +14,7 @@ import {
 import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 import { invocationMode, parseArguments, parseSession, HELP, type Arguments, type SessionId } from './arguments';
 import { DraftClient, readPairingToken } from './client';
-import { loadDraftData, loadJson, resolveKeepers, type DraftData } from './data';
+import { loadDraftData, loadPrimaryLeagueSettings, resolveKeepers, type DraftData } from './data';
 import { connectedSettings, createSessionContext, withConnectedReadiness, withLocalKeeperReadiness, replaceCoreReadiness, requireAdvice, adviceBoard, type SessionContext } from './context';
 import { attempt, CliError, required, unexpected } from './errors';
 import { EMPTY_CONNECTIONS, loadConnections, saveConnection } from './connections';
@@ -114,8 +114,9 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
       readiness = markInvalidCoreData(readiness, loaded.failure);
       warnings.push(loaded.failure.message);
     }
+    const settings = yield* loadPrimaryLeagueSettings(root, { onWarning: message => warnings.push(message) });
     return { data: { scope: 'local-data', readyForAdvice: null, readiness,
-      settings: decodeOrNull(decodePrimaryLeagueSettingsFile, yield* loadJson(root, catalogPath(CATALOG.settings))),
+      settings,
       keepers: data ? { ...data.keeperStatus, error: data.keeperStatus.error?.message ?? null } : null,
       warnings }, exitCode: readiness.status === 'blocked' ? 3 : 0 };
   }

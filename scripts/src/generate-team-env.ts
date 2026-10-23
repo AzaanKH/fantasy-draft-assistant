@@ -17,7 +17,8 @@ import type {
   TeamEnvironment,
   VolumeLevel,
 } from '@fantasy-draft/shared/catalog';
-import { NFL_TEAMS } from '@fantasy-draft/shared/league';
+import { decodeTeamStatRows } from './script-file-schemas.js';
+import { NFL_TEAMS, isNFLTeam } from '@fantasy-draft/shared/league';
 import { io, runMain } from './effect-runtime.js';
 import { withMemoryDb } from './model/duckdb.js';
 
@@ -63,15 +64,7 @@ const TEAM_NAMES: Record<NFLTeam, string> = {
   WAS: 'Washington Commanders',
 };
 
-interface TeamStatRow {
-  readonly team: string;
-  readonly pass_attempts: number;
-  readonly rush_attempts: number;
-  readonly total_yards: number;
-  readonly offensive_tds: number;
-  readonly passing_epa: number;
-  readonly rushing_epa: number;
-}
+type TeamStatRow = ReturnType<typeof decodeTeamStatRows>[number];
 
 interface RankedTeamStat extends TeamStatRow {
   readonly team: NFLTeam;
@@ -89,7 +82,7 @@ function normalizeTeam(value: string): NFLTeam | null {
     : value === 'LA'
       ? 'LAR'
       : value;
-  return NFL_TEAMS.includes(normalized as NFLTeam) ? normalized as NFLTeam : null;
+  return isNFLTeam(normalized) ? normalized : null;
 }
 
 function rankDescending(
@@ -176,7 +169,7 @@ const fetchTeamStats = withMemoryDb((connection) => io(async () => {
     from read_parquet('${SOURCE_URL}')
     where season = ${COMPLETED_SEASON}
   `);
-  return reader.getRowObjects() as unknown as TeamStatRow[];
+  return decodeTeamStatRows(reader.getRowObjects());
 }));
 
 const program = Effect.gen(function* () {

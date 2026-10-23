@@ -22,16 +22,8 @@ import { calculateLeagueProjection } from './league-scoring.js';
 export type { SleeperADPPlayer, PlayerIdentityData } from '../../catalog/decoders.js';
 import type { SleeperADPPlayer, PlayerIdentityData } from '../../catalog/decoders.js';
 
-/**
- * Contract year player data structure
- */
-export interface ContractPlayerData {
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-  readonly contractEndYear: number;
-  readonly isContractYear: boolean;
-}
+export type { ContractPlayerData } from '../../catalog/decoders.js';
+import type { ContractPlayerData } from '../../catalog/decoders.js';
 
 export interface PlayerMergeLeagueContext {
   readonly marketAdp?: readonly MarketAdpPlayer[];
@@ -152,7 +144,7 @@ export function mergePlayerData(
   fantasyProsProjections: readonly FantasyProsProjection[],
   fantasyProsNews: readonly FantasyProsNewsItem[],
   sleeperPlayers: readonly SleeperADPPlayer[],
-  teamEnvironments: Record<NFLTeam, TeamEnvironment>,
+  teamEnvironments: Partial<Record<NFLTeam, TeamEnvironment>>,
   {
     contractPlayers = [],
     modelPredictions = [],

@@ -1,3 +1,5 @@
+import { createDraftStore, type RecordedDraftPick, type PreloadedKeeper } from '@/stores/draftStore';
+import { deriveDraftState } from '@/stores/draft/source';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   POSITIONS,
@@ -7,7 +9,6 @@ import {
   createSlotSequence,
 } from '@fantasy-draft/shared/draft';
 import {
-  createEmptyRoster,
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
 } from '@fantasy-draft/shared/league';
@@ -87,30 +88,41 @@ describe('live Best Pick and Best Player demo boards', () => {
   }[])('preserves complete lists and diagnostics at $name', async (state) => {
     const players = await demoPlayers();
     expect(players.length).toBeGreaterThan(400);
-    const rosters = Array.from({ length: 10 }, () => createEmptyRoster());
-    const drafted = new Set<string>();
-    if (state.keepers) {
-      for (const { team, playerIndex } of [{ team: 0, playerIndex: 25 }, { team: 1, playerIndex: 35 }]) {
+    const store = createDraftStore();
+    store.getState().setConfig({
+      totalTeams: 10, totalRounds: 15, myPickPosition: 1, draftType: state.draftType,
+      rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
+    });
+    const keepers: PreloadedKeeper[] = state.keepers
+      ? [{ team: 0, playerIndex: 25 }, { team: 1, playerIndex: 35 }].map(({ team, playerIndex }) => {
         const player = players[playerIndex];
         if (!player) throw new Error('Demo keeper is missing');
-        const roster = rosters[team];
-        if (!roster) throw new Error('Demo keeper team is missing');
-        rosters[team] = { ...roster, [player.position]: [...roster[player.position], player.id] };
-        drafted.add(player.id);
-      }
-    }
+        return {
+          playerId: player.id, playerName: player.name, position: player.position,
+          teamIndex: team, round: 15, isMyKeeper: team === 0,
+        };
+      })
+      : [];
+    store.setState({ preloadedKeepers: keepers });
+    const history: RecordedDraftPick[] = [];
     for (let pick = 1; pick < state.currentPick; pick += 1) {
-      const team = createSlotSequence({ type: state.draftType, teams: 10, rounds: Math.ceil(pick / 10) }).at(pick).teamIndex;
-      const roster = rosters[team];
+      const team = createSlotSequence({ type: state.draftType, teams: 10, rounds: 15 }).at(pick).teamIndex;
+      const view = deriveDraftState(store.getState());
+      const roster = view.teamRosters[team];
       if (!roster) throw new Error('Demo draft team is missing');
-      const player = players.find((candidate) => !drafted.has(candidate.id) &&
+      const player = players.find((candidate) => !view.draftedPlayerIds.has(candidate.id) &&
         roster[candidate.position].length < DEFAULT_ROSTER_REQUIREMENTS[candidate.position].max);
       if (!player) throw new Error('Demo draft pool is exhausted');
-      rosters[team] = { ...roster, [player.position]: [...roster[player.position], player.id] };
-      drafted.add(player.id);
+      history.push({
+        pickNumber: pick, playerId: player.id, playerName: player.name, position: player.position,
+        teamIndex: team, teamName: `Team ${String(team + 1)}`, timestamp: Date.now(), source: 'sync',
+      });
+      store.setState({ draftHistory: [...history] });
     }
-    const roster = rosters[0];
-    if (!roster) throw new Error('Demo manager team is missing');
+    store.setState({
+      draftProgress: { anchor: { kind: 'carry', pickNumber: state.currentPick }, historyLength: history.length },
+    });
+    const { myRoster: roster, draftedPlayerIds: drafted } = deriveDraftState(store.getState());
     const rosterIds = new Set(Object.values(roster).flat());
     const rosterPlayers = players.filter((player) => rosterIds.has(player.id));
     const available = applyLeagueSurvivalModel(players, null, {

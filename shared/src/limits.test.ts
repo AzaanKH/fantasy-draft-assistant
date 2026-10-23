@@ -44,3 +44,12 @@ describe('resource limits', () => {
     expect(isDraftSize('10', 14)).toBe(false);
   });
 });
+
+
+it('preserves caller-provided bounds including reversed and nonfinite bounds', () => {
+  expect(isBoundedInteger(0, -Infinity, Infinity)).toBe(true);
+  expect(isBoundedInteger(-5, -5, 0)).toBe(true);
+  expect(isBoundedInteger(1, 2, 1)).toBe(false);
+  expect(isBoundedInteger(1, NaN, 2)).toBe(false);
+  expect(isBoundedInteger(1, 0, NaN)).toBe(false);
+});

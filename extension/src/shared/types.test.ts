@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isDetectedPick,
-  isDraftRoomStatus,
-  isExtensionMessage,
-  isExtensionState,
-} from './types';
+  decodeDetectedPick,
+  decodeDraftRoomStatus,
+  decodeExtensionMessage,
+  decodeExtensionState,
+} from './boundary-decoders';
 
 const snapshot = {
   provider: 'sleeper',
@@ -17,29 +17,29 @@ const snapshot = {
   lastError: null,
 } as const;
 
-describe('extension runtime guards', () => {
+describe('extension runtime decoders', () => {
   it('validates detected picks and draft room fields', () => {
-    expect(isDetectedPick({
+    expect(() => decodeDetectedPick({
       playerName: 'Breece Hall',
       teamName: 'Team Alpha',
       timestamp: 1000,
-    })).toBe(true);
-    expect(isDetectedPick({
+    })).not.toThrow();
+    expect(() => decodeDetectedPick({
       playerName: 'Breece Hall',
       teamName: 'Team Alpha',
       timestamp: '1000',
-    })).toBe(false);
-    expect(isDraftRoomStatus({
+    })).toThrow();
+    expect(() => decodeDraftRoomStatus({
       isInDraftRoom: true,
       provider: 'espn',
       draftId: '42',
       myDraftSlot: 3,
-    })).toBe(true);
-    expect(isDraftRoomStatus({
+    })).not.toThrow();
+    expect(() => decodeDraftRoomStatus({
       isInDraftRoom: true,
       provider: 'invalid',
       myDraftSlot: 0,
-    })).toBe(false);
+    })).toThrow();
   });
 
   it('rejects invalid snapshots before accepting extension state', () => {
@@ -48,12 +48,25 @@ describe('extension runtime guards', () => {
       status: { isInDraftRoom: true, provider: 'sleeper', draftId: 'draft-123' },
       snapshot,
     };
-    expect(isExtensionState(state)).toBe(true);
-    expect(isExtensionMessage({ type: 'SYNC_STATE', data: state })).toBe(true);
-    expect(isExtensionState({
+    expect(decodeExtensionState(state)).toEqual(state);
+    expect(decodeExtensionMessage({ type: 'SYNC_STATE', data: state })).toEqual({ type: 'SYNC_STATE', data: state });
+    expect(() => decodeExtensionState({
       ...state,
       snapshot: { ...snapshot, provider: 'invalid' },
-    })).toBe(false);
-    expect(isExtensionMessage({ type: 'PICK_DETECTED', data: null })).toBe(false);
+    })).toThrow();
+    expect(() => decodeExtensionMessage({ type: 'PICK_DETECTED', data: null })).toThrow();
+  });
+});
+
+
+describe('extension boundary acceptance', () => {
+  it('preserves extra fields and rejects a whole malformed state', () => {
+    const pick = { playerName: 'Player', teamName: 'Manager', timestamp: 1000, extra: { provider: 42 } };
+    const state = { picks: [pick], status: { isInDraftRoom: false }, extra: 'kept' };
+    expect(decodeExtensionState(state)).toEqual(state);
+    expect(() => decodeExtensionState({ ...state, picks: [pick, { ...pick, timestamp: 'wrong' }] })).toThrow();
+    for (const type of ['GET_DRAFT_STATUS', 'OPEN_SIDE_PANEL']) {
+      expect(decodeExtensionMessage({ type, extra: 'kept' })).toEqual({ type, extra: 'kept' });
+    }
   });
 });

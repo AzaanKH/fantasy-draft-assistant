@@ -9,6 +9,8 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { decodeModelReport, decodeDemoPredictions, decodeDemoByeWeekRows, decodeDemoComponentRows } from './script-file-schemas.js';
+import { decodeSleeperDataFile, decodeTeamEnvDataFile, decodeRecommendationPolicyFile, decodeLeagueSurvivalModel, decodePrimaryLeagueSettingsFile } from '@fantasy-draft/shared/catalog';
 import type { NFLTeam } from '@fantasy-draft/shared/league';
 import { Effect } from 'effect';
 import {
@@ -18,8 +20,6 @@ import {
   buildDemoSnapshot,
   DEMO_LEAGUE_NAME,
   findDemoDataLeaks,
-  type DemoPredictionPlayer,
-  type DemoSleeperPlayer,
   type DemoStatHistory,
   type DemoVolume,
 } from './demo-data-core.js';
@@ -32,28 +32,8 @@ const FANTASYPROS_FREE_MODEL_DB = join(FANTASYPROS_FREE_MODEL_DIR, 'fantasy-draf
 const NFLVERSE_SCHEDULES_URL =
   'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.parquet';
 
-interface PredictionsFile {
-  readonly generatedAt: string;
-  readonly modelVersion: string;
-  readonly players: readonly DemoPredictionPlayer[];
-}
-
-interface ModelReportFile {
-  readonly currentSeason: number;
-}
-
-interface SleeperFile {
-  readonly fetchedAt: string;
-  readonly players: readonly DemoSleeperPlayer[];
-}
-
-interface ByeWeekRow {
-  readonly team: string;
-  readonly bye_week: number | bigint;
-}
-
-const readJson = <T>(path: string): Effect.Effect<T, Error> =>
-  io(async () => JSON.parse(await readFile(path, 'utf8')) as T);
+const readJson = <A>(path: string, decode: (value: unknown) => A): Effect.Effect<A, Error> =>
+  io(async () => decode(JSON.parse(await readFile(path, 'utf8'))));
 
 const serialize = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -86,26 +66,13 @@ const readByeWeeks = (season: number): Effect.Effect<Partial<Record<NFLTeam, num
       )
       group by teams.team
     `);
-    const rows = reader.getRowObjects() as unknown as ByeWeekRow[];
+    const rows = decodeDemoByeWeekRows(reader.getRowObjects());
     // nflverse uses LA for the Rams; the app uses LAR.
     return Object.fromEntries(rows.map((row) => [
       row.team === 'LA' ? 'LAR' : row.team,
       Number(row.bye_week),
-    ])) as Partial<Record<NFLTeam, number>>;
+    ]));
   }));
-
-interface ComponentRow {
-  readonly sleeper_player_id: string;
-  readonly projected_rush_attempts: number;
-  readonly projected_receptions: number;
-  readonly history_seasons: number | bigint;
-  readonly passing_yards: number | null;
-  readonly passing_tds: number | null;
-  readonly rushing_yards: number | null;
-  readonly rushing_tds: number | null;
-  readonly receiving_yards: number | null;
-  readonly receiving_tds: number | null;
-}
 
 interface ProjectionComponents {
   readonly volumes: ReadonlyMap<string, DemoVolume>;
@@ -143,7 +110,7 @@ const readProjectionComponents = (season: number): Effect.Effect<ProjectionCompo
       where features.sleeper_player_id is not null
     `);
     await connection.run('detach free');
-    const rows = reader.getRowObjects() as unknown as ComponentRow[];
+    const rows = decodeDemoComponentRows(reader.getRowObjects());
     return {
       volumes: new Map(rows.map((row) => [row.sleeper_player_id, {
         projectedRushAttempts: row.projected_rush_attempts,
@@ -164,21 +131,21 @@ const readProjectionComponents = (season: number): Effect.Effect<ProjectionCompo
   }));
 
 const program = Effect.gen(function* () {
-  const predictions = yield* readJson<PredictionsFile>(join(FANTASYPROS_FREE_MODEL_DIR, 'predictions.json'));
+  const predictions = yield* readJson(join(FANTASYPROS_FREE_MODEL_DIR, 'predictions.json'), value => decodeDemoPredictions(value, console.warn));
   if (!predictions.modelVersion.endsWith('-fantasypros-free')) {
     return yield* Effect.fail(new Error(
       `Expected FantasyPros-free predictions; found ${predictions.modelVersion}. ` +
       'Run MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset first.'
     ));
   }
-  const modelReport = yield* readJson<ModelReportFile>(join(FANTASYPROS_FREE_MODEL_DIR, 'model-report.json'));
-  const sleeper = yield* readJson<SleeperFile>(join(DATA_DIR, 'sleeper-adp.json'));
-  const teamEnvironment = yield* readJson<unknown>(join(DATA_DIR, 'team-environment.json'));
-  const policy = yield* readJson<Record<string, unknown>>(join(DATA_DIR, 'recommendation-policy.json'));
-  const survivalModel = yield* readJson<Parameters<typeof anonymizeSurvivalModel>[0]>(
-    join(DATA_DIR, 'league-history', 'survival-model.json')
+  const modelReport = yield* readJson(join(FANTASYPROS_FREE_MODEL_DIR, 'model-report.json'), decodeModelReport);
+  const sleeper = yield* readJson(join(DATA_DIR, 'sleeper-adp.json'), value => decodeSleeperDataFile(value, { onWarning: console.warn }));
+  const teamEnvironment = yield* readJson(join(DATA_DIR, 'team-environment.json'), value => decodeTeamEnvDataFile(value, { onWarning: console.warn }));
+  const policy = yield* readJson(join(DATA_DIR, 'recommendation-policy.json'), decodeRecommendationPolicyFile);
+  const survivalModel = yield* readJson(
+    join(DATA_DIR, 'league-history', 'survival-model.json'), value => decodeLeagueSurvivalModel(value, { onWarning: console.warn })
   );
-  const leagueSettings = yield* readJson<Record<string, unknown>>(join(DATA_DIR, 'primary-league-settings.json'));
+  const leagueSettings = yield* readJson(join(DATA_DIR, 'primary-league-settings.json'), decodePrimaryLeagueSettingsFile);
   const season = modelReport.currentSeason;
   const byeWeeks = yield* readByeWeeks(season);
   const { volumes, histories } = yield* readProjectionComponents(season);

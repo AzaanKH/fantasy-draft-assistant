@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const { IDBFactory } = createRequire(new URL('../../web-app/package.json', import.meta.url))('fake-indexeddb');
+import { importV1 } from '../../web-app/src/workspace/v1-import';
+import { decodeIndexedSession } from '../../web-app/src/workspace/idb-session';
+import { openDraftDatabase } from '../../web-app/src/workspace/indexed-db';
+import { deriveDraftCursor } from '../../shared/src/draft-progress';
+const [input, output] = process.argv.slice(2);
+const fixture = JSON.parse(readFileSync(input, 'utf8'));
+const rows = [];
+for (const scenario of ['complete', 'retained']) {
+  const source = fixture[scenario].map(([key, serialized]: [string, string]) => ({ key, serialized }));
+  const imported = importV1(source);
+  assert.equal(imported.rejected.length, 0, JSON.stringify(imported.rejected));
+  assert.equal(imported.unresolved.length, 0, JSON.stringify(imported.unresolved));
+  assert.equal(imported.sessions.length, 1);
+  const session = imported.sessions[0];
+  if (scenario === 'complete') assert.deepEqual(session.draftHistory, fixture.after.draftHistory);
+  assert.deepEqual([...session.draftHistory].sort((a,b)=>a.pickNumber-b.pickNumber), [...fixture.after.draftHistory].sort((a,b)=>a.pickNumber-b.pickNumber));
+  assert.deepEqual(session.preloadedKeepers, fixture.after.preloadedKeepers);
+  assert.deepEqual(session.shortlistedPlayerIds, fixture.after.shortlistedPlayerIds);
+  assert.equal(deriveDraftCursor(session.draftHistory, session.draftProgress), fixture.after.currentPick);
+  assert.equal(session.manualContinuityBaselineAt, fixture.after.manualContinuityBaselineAt);
+  const db = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: error => { throw error; } });
+  await db.importV1(imported); await db.importV1(imported);
+  assert.deepEqual(await db.read(fixture.identity), session); db.close();
+  rows.push({ scenario, picks: session.draftHistory.length, queue: session.shortlistedPlayerIds, cursor: session.currentPick, keepers: session.preloadedKeepers.length, preserved: true });
+}
+writeFileSync(output, JSON.stringify(rows, null, 2));

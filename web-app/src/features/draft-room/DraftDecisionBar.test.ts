@@ -1,5 +1,8 @@
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
+import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
+import { createElement, type ReactElement } from 'react';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   Recommendation,
@@ -8,6 +11,8 @@ import type {
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
+
+vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => VISUAL_PLAYER_DATA }));
 
 const decision = vi.hoisted(() => ({
   output: { bestPick: null as Recommendation | null },
@@ -183,3 +188,7 @@ describe('getDraftDecisionBarReason', () => {
     );
   });
 });
+
+function renderToStaticMarkup(element: ReactElement): string {
+  return renderMarkup(createElement(WorkspaceTestProvider, {store: createDraftStore(), children: element}));
+}

@@ -50,37 +50,7 @@ const SURVIVAL_MODEL_SOURCES = ['league-history', 'heuristic'] as const;
 
 export type SurvivalModelSource = (typeof SURVIVAL_MODEL_SOURCES)[number];
 
-export interface PlayerPrediction {
-  readonly playerId?: string;
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-  /** Base PPR projection before league-specific bonuses */
-  readonly baseProjectedPoints?: number;
-  /** Leakage-safe position-specific opportunity and efficiency residual */
-  readonly usageEfficiencyAdjustment?: number;
-  /** Rush-attempt and TE-premium points added for this league */
-  readonly customScoringAdjustment?: number;
-  readonly projectedPoints: number;
-  /** Projection after league-specific bonuses */
-  readonly customProjectedPoints?: number;
-  /** Low outcome from the model's league-scored point distribution */
-  readonly floorProjectedPoints?: number;
-  /** High outcome from the model's league-scored point distribution */
-  readonly ceilingProjectedPoints?: number;
-  /** Percentile of projected points within the player's position (0-100) */
-  readonly positionPercentile?: number;
-  readonly valueOverReplacement?: number;
-  readonly ceilingScore?: number;
-  readonly floorScore?: number;
-  readonly uncertaintyScore?: number;
-  readonly riskScore?: number;
-  readonly injuryRiskScore?: number;
-  readonly source: PredictionSource;
-  /** Position model that produced the common prediction outputs */
-  readonly modelFamily?: string;
-  readonly modelVersion?: string;
-}
+export type { PlayerPrediction } from './catalog/decoders.js';
 
 /**
  * Core player interface with all ranking and metadata fields
@@ -192,33 +162,33 @@ export interface Player {
  * Type guard to check if a value is a valid Position
  */
 export function isPosition(value: unknown): value is Position {
-  return typeof value === 'string' && POSITIONS.includes(value as Position);
+  return typeof value === 'string' && POSITIONS.some(item => item === value);
 }
 
 /**
  * Type guard to check if a value is a valid NFLTeam
  */
 export function isNFLTeam(value: unknown): value is NFLTeam {
-  return typeof value === 'string' && NFL_TEAMS.includes(value as NFLTeam);
+  return typeof value === 'string' && NFL_TEAMS.some(item => item === value);
 }
 
 /**
  * Type guard to check if a value is a valid HighlightLevel
  */
 function isHighlightLevel(value: unknown): value is HighlightLevel {
-  return typeof value === 'string' && HIGHLIGHT_LEVELS.includes(value as HighlightLevel);
+  return typeof value === 'string' && HIGHLIGHT_LEVELS.some(item => item === value);
 }
 
 export function isPredictionSource(value: unknown): value is PredictionSource {
-  return typeof value === 'string' && PREDICTION_SOURCES.includes(value as PredictionSource);
+  return typeof value === 'string' && PREDICTION_SOURCES.some(item => item === value);
 }
 
 function isTierSource(value: unknown): value is TierSource {
-  return typeof value === 'string' && TIER_SOURCES.includes(value as TierSource);
+  return typeof value === 'string' && TIER_SOURCES.some(item => item === value);
 }
 
 export function isNewsStatus(value: unknown): value is NewsStatus {
-  return typeof value === 'string' && NEWS_STATUSES.includes(value as NewsStatus);
+  return typeof value === 'string' && NEWS_STATUSES.some(item => item === value);
 }
 
 function isOptionalNumber(value: unknown): value is number | undefined {
@@ -226,14 +196,14 @@ function isOptionalNumber(value: unknown): value is number | undefined {
 }
 
 function isSurvivalModelSource(value: unknown): value is Player['survivalModelSource'] {
-  return value === undefined || SURVIVAL_MODEL_SOURCES.includes(value as SurvivalModelSource);
+  return value === undefined || SURVIVAL_MODEL_SOURCES.some(item => item === value);
 }
 
 /**
  * Type guard to validate Player object structure
  */
 export function isPlayer(obj: unknown): obj is Player {
-  if (typeof obj !== 'object' || obj === null) {
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
     return false;
   }
 

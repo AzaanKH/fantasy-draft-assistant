@@ -1,3 +1,5 @@
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,12 +10,9 @@ import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
 const draftState = vi.hoisted(() => ({ connection: null as PersistedDraftSyncConnection | null }));
-vi.mock('@/stores/draftSyncStore', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/stores/draftSyncStore')>(),
-  useDraftSyncConnectionStore: Object.assign(
-    (selector: (state: typeof draftState) => unknown) => selector(draftState),
-    { getState: () => draftState, subscribe: vi.fn() }
-  ),
+vi.mock('@/workspace/WorkspaceProvider', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/workspace/WorkspaceProvider')>(),
+  useConnectionState: (selector: (state: typeof draftState) => unknown) => selector(draftState),
 }));
 
 let loadedData: Record<string, unknown> = {};
@@ -22,7 +21,7 @@ let shadowEnabled = false;
 let predictionEnabled: unknown;
 let result: PlayerDataQueryResult;
 function Probe() { result = usePlayerDataQuery(); return null; }
-function render() { renderToStaticMarkup(createElement(LivePlayerDataProvider, null, createElement(Probe))); }
+function render() { renderToStaticMarkup(createElement(WorkspaceTestProvider, {store: createDraftStore(), children: createElement(LivePlayerDataProvider, null, createElement(Probe))})); }
 
 beforeEach(() => {
   loadedData = {};
@@ -52,6 +51,26 @@ describe('player data loading boundaries', () => {
     render();
     expect(result.dataInfo.readinessWarnings.find(warning => warning.key === 'experimental-predictions')?.message)
       .toContain('Dropped 1 invalid prediction');
+  });
+
+  it.each([
+    ['sleeper-adp', 'sleeper-player-directory', { players: [] }],
+    ['team-environment', 'team-environment', { teams: {} }],
+    ['contracts', 'contract-context', { players: [] }],
+    ['sportsbook-snapshot', 'sportsbook-context', { metadata: {}, overUnder: [], milestones: [] }],
+    ['fantasy-football-calculator-adp', 'market-adp', { players: [] }],
+    ['league-survival-model', 'league-survival-model', { positions: {} }],
+  ] as const)('shows %s decoder warnings in readiness', (query, key, data) => {
+    draftState.connection = { provider: 'sleeper', draftId: 'test', draftPosition: 1, usePrimaryLeagueSettings: true };
+    loadedData[query] = { ...data, [query === 'sportsbook-snapshot' ? 'decodeWarnings' : 'warnings']: ['Dropped 1 invalid optional rows.'] };
+    render();
+    expect(result.dataInfo.readinessWarnings).toContainEqual(expect.objectContaining({ key, message: 'Dropped 1 invalid optional rows.' }));
+  });
+
+  it('does not display sportsbook importer metadata as decoder warnings', () => {
+    loadedData['sportsbook-snapshot'] = { metadata: {}, overUnder: [], milestones: [], warnings: ['importer note'] };
+    render();
+    expect(result.dataInfo.readinessWarnings).not.toContainEqual(expect.objectContaining({ key: 'sportsbook-context', message: 'importer note' }));
   });
 
   it('does not hold the core loading state open for pending optional queries', () => {

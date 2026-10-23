@@ -1,16 +1,12 @@
+import { useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
-import { useDraftStore } from '@/stores/draftStore';
-import {
-  type NFLTeam,
-} from '@fantasy-draft/shared/league';
 import {
   type DraftReadinessSourceObservation,
   type DraftReadinessWarningInput,
-  type TeamEnvironment,
   evaluateDraftReadiness,
 } from '@fantasy-draft/shared/catalog';
+import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -38,9 +34,9 @@ const TRUSTED_RANKING_SOURCE_TYPES: readonly string[] = IS_DEMO
  * Hook to load and merge all player data sources
  */
 function useLivePlayerDataQuery() {
-  const leagueSettings = useDraftStore((state) => state.leagueSettings);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const rosterRequirements = useDraftStore(
+  const leagueSettings = useDraftState((state) => state.leagueSettings);
+  const totalTeams = useDraftState((state) => state.config.totalTeams);
+  const rosterRequirements = useDraftState(
     (state) => state.config.rosterRequirements
   );
   const fantasyProsQuery = useQuery({
@@ -61,7 +57,7 @@ function useLivePlayerDataQuery() {
     staleTime: Infinity,
   });
 
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
+  const connection = useConnectionState((state) => state.connection);
   // The static demo ships no contract context and has no API server.
   const contractQuery = useQuery({
     queryKey: ['contracts'],
@@ -223,6 +219,7 @@ function useLivePlayerDataQuery() {
     rankingsTimestamp, identityTimestamp, sleeperTimestamp, teamEnvironmentTimestamp,
   ]);
 
+  const timingEvidence = useLeagueTimingEvidence(false);
   const readinessWarnings = useMemo(() => {
     const warnings: DraftReadinessWarningInput[] = [];
     if (sleeperQuery.isError) {
@@ -252,13 +249,20 @@ function useLivePlayerDataQuery() {
         correctiveAction: 'Restore the recommendation policy configuration.',
       });
     }
-    for (const message of predictionQuery.data?.warnings ?? []) {
-      warnings.push({ key: 'experimental-predictions', label: 'Experimental predictions',
-        sourceLabel: 'Experimental prediction artifact', message });
+    for (const [key, label, messages] of [
+      ['experimental-predictions', 'Experimental predictions', predictionQuery.data?.warnings],
+      ['sleeper-player-directory', 'Sleeper player directory', sleeperQuery.data?.warnings],
+      ['team-environment', 'Team environment', teamEnvQuery.data?.warnings],
+      ['contract-context', 'Contract context', contractQuery.data?.warnings],
+      ['sportsbook-context', 'Sportsbook context', sportsbookQuery.data?.decodeWarnings],
+      ['market-adp', 'Market ADP', marketAdpQuery.data?.warnings],
+      ['league-survival-model', 'League survival model', timingEvidence.warnings],
+    ] as const) {
+      for (const message of messages ?? []) warnings.push({ key, label, sourceLabel: label, message });
     }
     return warnings;
   }, [
-    predictionQuery.data,
+    predictionQuery.data, sleeperQuery.data, teamEnvQuery.data, contractQuery.data, sportsbookQuery.data, marketAdpQuery.data, timingEvidence.warnings,
     sleeperQuery.error, sleeperQuery.isError,
     teamEnvQuery.error, teamEnvQuery.isError,
     recommendationPolicyQuery.error, recommendationPolicyQuery.isError,
@@ -375,7 +379,7 @@ function useLivePlayerDataQuery() {
       projections: fantasyProsQuery.data.projections,
       news: fantasyProsQuery.data.news,
       sleeperPlayers: sleeperQuery.data?.players ?? [],
-      teamEnvironments: teamEnvQuery.data?.teams ?? {} as Record<NFLTeam, TeamEnvironment>,
+      teamEnvironments: teamEnvQuery.data?.teams ?? {},
       fantasyProsAdp: fantasyProsQuery.data.adp ?? [],
       identities: identityQuery.data.players,
       leagueContext: {

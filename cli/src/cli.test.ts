@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
+import { Effect } from 'effect';
+import { readArchive, type SessionArchive } from './archive';
 import { runDraft } from './run';
 import { fixturePick, fixtureSettings, fixtureSnapshot, FIXTURE_NOW, writeFixtureData } from './fixtures';
 
@@ -220,6 +222,43 @@ describe('draft CLI against a local fixture server', () => {
     expect(result.result.data.readiness.optionalSignalDegradations).toHaveLength(3);
     expect(result.stderr).toBe('');
     expect(requestCount).toBe(0);
+  });
+
+  it('keeps a missing settings file quiet while readiness reports it missing', async () => {
+    const path = join(root, 'data/primary-league-settings.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await rm(path);
+      const result = await command(['readiness', '--json']);
+      expect(result.code).toBe(3);
+      expect(result.result.data.settings).toBeNull();
+      expect(result.result.data.warnings).not.toContainEqual(expect.stringContaining('primary-league-settings.json'));
+      expect(result.result.data.readiness.productBlockingFailures).toContainEqual(expect.objectContaining({ key: 'primary-league-settings', problem: 'missing' }));
+    } finally { await writeFile(path, original); }
+  });
+
+  it.each(['{broken', 'null'])('warns about malformed settings JSON %s', async content => {
+    const path = join(root, 'data/primary-league-settings.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await writeFile(path, content);
+      const result = await command(['readiness', '--json']);
+      expect(result.result.data.settings).toBeNull();
+      expect(result.result.data.warnings).toContainEqual(expect.stringContaining('data/primary-league-settings.json decode failed:'));
+    } finally { await writeFile(path, original); }
+  });
+
+  it('warns about the settings decode failure while preserving invalid readiness', async () => {
+    const path = join(root, 'data/primary-league-settings.json');
+    const original = await readFile(path, 'utf8');
+    try {
+      await writeFile(path, JSON.stringify({ ...JSON.parse(original), confirmedAt: 123 }));
+      const result = await command(['readiness', '--json']);
+      expect(result.code).toBe(3);
+      expect(result.result.data.settings).toBeNull();
+      expect(result.result.data.readiness.productBlockingFailures).toContainEqual(expect.objectContaining({ key: 'primary-league-settings', problem: 'invalid' }));
+      expect(result.result.data.warnings).toContainEqual(expect.stringMatching(/primary-league-settings\.json.*decode.*confirmedAt/s));
+    } finally { await writeFile(path, original); }
   });
 
   it('warns when a malformed Sleeper file is excluded from CLI data', async () => {
@@ -529,6 +568,30 @@ describe('draft CLI against a local fixture server', () => {
     expect(offline.result.error.code).toBe('SYNC_UNHEALTHY');
     const historicalReadiness = await command(['readiness', '--replay', path, '--json']);
     expect(historicalReadiness.result.data).toMatchObject({ scope: 'recorded-draft', readyForAdvice: false, source: 'replay' });
+  });
+
+  it.each([
+    ['summary counts', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      summary: { ...value.readiness.summary, actionableWarnings: 'invalid' } } })],
+    ['optional degradation rows', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      optionalSignalDegradations: [{ key: 'fake' }] } })],
+    ['warning rows', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      actionableWarnings: [{ message: 'missing its warning identity' }] } })],
+    ['engineering commands', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      engineeringChecks: { ...value.readiness.engineeringChecks, commands: ['invalid'] } } })],
+    ['readiness classification', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      coreDraftData: value.readiness.coreDraftData.map((item, index) => index === 0
+        ? { ...item, classification: 'invalid' } : item) } })],
+  ])('rejects incomplete archive %s atomically', async (_label, corrupt) => {
+    const path = join(root, '.local/session.json');
+    await command(['export', '--session', 'fixture', '--out', path, '--json']);
+    const archive = await Effect.runPromise(readArchive(path));
+    const requests = requestCount;
+    await writeFile(path, JSON.stringify(corrupt(archive)));
+    const result = await command(['replay', path, '--json']);
+    expect(result.code).toBe(2);
+    expect(result.result.error.code).toBe('INVALID_ARCHIVE');
+    expect(requestCount).toBe(requests);
   });
 
   it('rejects corrupted, unsupported, or inconsistent session archives', async () => {

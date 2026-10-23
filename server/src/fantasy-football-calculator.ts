@@ -10,8 +10,8 @@ import {
   type MarketAdpPlayer,
   type MarketAdpSnapshot,
 } from '@fantasy-draft/shared/catalog';
-import { Effect } from 'effect';
-import { parsePayload, ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
+import { Effect, Schema } from 'effect';
+import { ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
 
 export const FFC_API_BASE = 'https://fantasyfootballcalculator.com/api/v1/adp';
 const DEFAULT_MARKET_ADP_CACHE_MS = 60 * 60 * 1000;
@@ -21,9 +21,8 @@ interface CacheEntry {
   readonly snapshot: MarketAdpSnapshot;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
+const decodeProviderEnvelope = Schema.decodeUnknownSync(Schema.Struct({ status: Schema.Literal('Success'), players: Schema.Unknown, meta: Schema.optional(Schema.Unknown) }));
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -51,13 +50,14 @@ function normalizeTeam(value: unknown): NFLTeam | null {
   return isNFLTeam(normalized) ? normalized : null;
 }
 
-function normalizePlayers(value: unknown): MarketAdpPlayer[] {
-  if (!Array.isArray(value)) {
-    throw new Error('Fantasy Football Calculator returned an invalid player list');
-  }
+const decodeProviderPlayers = Schema.decodeUnknownSync(Schema.Array(Schema.Unknown));
 
+function normalizePlayers(value: unknown, warnings: string[]): MarketAdpPlayer[] {
+  let rows: readonly unknown[];
+  try { rows = decodeProviderPlayers(value); }
+  catch { throw new Error('Fantasy Football Calculator returned an invalid player list'); }
   const players: MarketAdpPlayer[] = [];
-  for (const item of value) {
+  for (const item of rows) {
     if (!isRecord(item)) continue;
     const name = typeof item['name'] === 'string' ? item['name'].trim() : '';
     const position = normalizePosition(item['position']);
@@ -77,6 +77,7 @@ function normalizePlayers(value: unknown): MarketAdpPlayer[] {
     });
   }
 
+  if (players.length !== rows.length) warnings.push(`Dropped ${rows.length - players.length} invalid Fantasy Football Calculator rows.`);
   if (players.length === 0) {
     throw new Error('Fantasy Football Calculator returned no usable ADP players');
   }
@@ -114,25 +115,27 @@ export class FantasyFootballCalculatorAdpProvider {
       if (cached && cached.expiresAt > now) return cached.snapshot;
 
       const url = `${FFC_API_BASE}/${format}?teams=${String(normalizedTeams)}&year=${String(normalizedSeason)}`;
-      const payload = yield* requestJson<unknown>(this.fetchJson, url);
-      if (!isRecord(payload) || payload['status'] !== 'Success') {
-        return yield* new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' });
-      }
-
-      const snapshot: MarketAdpSnapshot = {
-        source: 'fantasy-football-calculator',
-        format,
-        teams: normalizedTeams,
-        season: normalizedSeason,
-        refreshedAt: new Date(now).toISOString(),
-        draftCount: getDraftCount(payload),
-        players: yield* parsePayload(() => normalizePlayers(payload['players'])),
-      };
+      const decoded = yield* requestJson(this.fetchJson, url, value => {
+        let payload: ReturnType<typeof decodeProviderEnvelope>;
+        try { payload = decodeProviderEnvelope(value); }
+        catch { throw new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' }); }
+        const warnings: string[] = [];
+        const snapshot: MarketAdpSnapshot = {
+          source: 'fantasy-football-calculator',
+          format,
+          teams: normalizedTeams,
+          season: normalizedSeason,
+          refreshedAt: new Date(now).toISOString(),
+          draftCount: getDraftCount(payload),
+          players: normalizePlayers(payload.players, warnings),
+        };
+        return { ...snapshot, ...(warnings.length ? { warnings } : {}) };
+      });
       this.cache.set(cacheKey, {
         expiresAt: now + this.cacheDurationMs,
-        snapshot,
+        snapshot: decoded,
       });
-      return snapshot;
+      return decoded;
     });
   }
 }
