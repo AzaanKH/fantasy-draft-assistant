@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "tsx --conditions=@fantasy-draft/source src/dev.ts",
     "scrape:ecr": "tsx --conditions=@fantasy-draft/source src/scrape-ecr.ts",
     "refresh:fantasypros-snapshot": "tsx --conditions=@fantasy-draft/source src/refresh-fantasypros-snapshot.ts",
     "scrape:contracts": "tsx --conditions=@fantasy-draft/source src/scrape-contracts.ts",

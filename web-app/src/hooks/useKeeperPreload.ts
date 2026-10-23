@@ -1,14 +1,11 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Player, Position } from '@fantasy-draft/shared/league';
 import { normalizePlayerName, canonicalizeKeeperSupply, isKeeperSupplyComplete, type KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 import { IS_DEMO } from '@/lib/demo-mode';
-import {
-  useDraftStore,
-  type PreloadedKeeper,
-} from '@/stores/draftStore';
-
+import { type PreloadedKeeper } from '@/stores/draftStore';
 import { decodeKeeperFile, type KeeperFile } from '@fantasy-draft/shared/catalog';
 
 export type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
@@ -44,15 +41,15 @@ export function useKeeperPreload(
   players: readonly Player[],
   playersLoading: boolean
 ): KeeperPreloadStatus {
-  const keepersInitialized = useDraftStore((state) => state.keepersInitialized);
-  const keepersEnabled = useDraftStore(
+  const keepersInitialized = useDraftState((state) => state.keepersInitialized);
+  const keepersEnabled = useDraftState(
     (state) => state.leagueSettings.keepersEnabled
   );
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const totalRounds = useDraftStore((state) => state.config.totalRounds);
-  const draftType = useDraftStore((state) => state.config.draftType);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const preloadKeepers = useDraftStore((state) => state.preloadKeepers);
+  const totalTeams = useDraftState((state) => state.config.totalTeams);
+  const totalRounds = useDraftState((state) => state.config.totalRounds);
+  const draftType = useDraftState((state) => state.config.draftType);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
+  const workspace = useWorkspace();
   const query = useQuery({
     queryKey: ['current-keepers'],
     queryFn: fetchCurrentKeepers,
@@ -146,19 +143,19 @@ export function useKeeperPreload(
 
   useEffect(() => {
     if (keepersEnabled === false) {
-      preloadKeepers([]);
+      workspace.send('preloadKeepers', []);
       return;
     }
     if (!query.data || playersLoading) return;
     if (!supplyIsComplete) {
-      preloadKeepers([], false);
+      workspace.send('preloadKeepers', [], false);
       return;
     }
-    preloadKeepers(resolution.resolved);
+    workspace.send('preloadKeepers', resolution.resolved);
   }, [
     keepersEnabled,
     playersLoading,
-    preloadKeepers,
+    workspace,
     query.data,
     resolution.resolved,
     supplyIsComplete,

@@ -45,3 +45,4 @@ function shutdown(): void {
 
 process.once('SIGINT', shutdown);
 process.once('SIGTERM', shutdown);
+process.once('SIGHUP', shutdown);

@@ -1,7 +1,9 @@
+import { assertDraftStorageWritable } from './draftStorageMigration';
+import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import { type LeagueSettings } from '@fantasy-draft/shared/league';
 import { DRAFT_SESSION_LINEAGE_LIMIT, type DraftSessionIdentity } from '@fantasy-draft/shared/sync';
 export type { DraftSessionIdentity } from '@fantasy-draft/shared/sync';
-import { canonicalizeKeeperSupply } from '@fantasy-draft/shared/draft';
+import { canonicalizeKeeperSupply, type DraftProgress } from '@fantasy-draft/shared/draft';
 import { decodeStoredDraftSession } from '@fantasy-draft/shared/catalog';
 export { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/sync';
 import {
@@ -36,6 +38,8 @@ export interface PersistedDraftSession {
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
   readonly currentPick: number;
+  /** Optional in stored records; parsing imports missing progress from the legacy cursor. */
+  readonly draftProgress: DraftProgress;
   readonly draftHistory: RecordedDraftPick[];
   readonly shortlistedPlayerIds: string[];
   readonly preloadedKeepers: PreloadedKeeper[];
@@ -90,7 +94,8 @@ export function parseStoredDraftSession(
       config,
       leagueSettings: value.leagueSettings,
       currentPick: value.currentPick,
-      draftHistory: [...draftHistory].sort((left, right) => left.pickNumber - right.pickNumber),
+      draftProgress: value.draftProgress,
+      draftHistory: [...draftHistory],
       shortlistedPlayerIds: [...new Set(value.shortlistedPlayerIds)],
       preloadedKeepers: [...preloadedKeepers],
       keepersInitialized: value.keepersInitialized,
@@ -156,6 +161,7 @@ export function persistDraftSession(
   { force = false, tabId = null, mergedWriteIds = [] }: DraftSessionWriteOptions = {}
 ): DraftSessionWriteResult {
   if (!storage || !state.liveSession || state.sessionMode === 'mock') return { status: 'skipped' };
+  assertDraftStorageWritable(storage);
   const stored = readStoredDraftSessionText(storage, state.liveSession);
   // An unreadable entry cannot be adopted; overwrite it rather than stall.
   if (!force && stored !== base.serialized && parseStoredDraftSession(stored, state.liveSession)) {
@@ -170,7 +176,8 @@ export function persistDraftSession(
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
-    currentPick: state.currentPick,
+    currentPick: deriveDraftCursor(state.draftHistory, state.draftProgress),
+    draftProgress: state.draftProgress,
     draftHistory: state.draftHistory,
     shortlistedPlayerIds: state.shortlistedPlayerIds,
     preloadedKeepers: state.preloadedKeepers,
@@ -187,6 +194,7 @@ export function persistDraftSession(
     const change = computeDraftSessionChange(base.session, session, writeId);
     if (!isEmptyDraftSessionChange(change)) writeDraftSessionChange(storage, state.liveSession, tabId, change);
   }
+  assertDraftStorageWritable(storage);
   try {
     // A single synchronous write keeps picks and queue changes durable before reload.
     storage.setItem(getDraftSessionStorageKey(state.liveSession), serialized);

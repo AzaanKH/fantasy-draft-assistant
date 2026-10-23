@@ -1,10 +1,10 @@
-import '@/stores/draft/derive-shadow.setup';
 import { createElement, type EffectCallback, type SetStateAction } from 'react';
 import { renderToString } from 'react-dom/server';
 import { QueryClient } from '@tanstack/react-query';
 import type { DraftPickEvent, DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+import { workspaceForTestStore, WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { useDraftSync } from './useDraftSync';
 
 const mocks = vi.hoisted(() => ({
@@ -65,7 +65,7 @@ function renderDraft(draftId: string, store = createDraftStore()) {
     result = useDraftSync('sleeper', draftId);
     return null;
   }
-  renderToString(createElement(DraftStoreProvider, {
+  renderToString(createElement(WorkspaceTestProvider, {
     store,
     children: createElement(CaptureDraft),
   }));
@@ -167,8 +167,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     const snapshot = { ...mocks.snapshot };
     mocks.query.mockReturnValue({ data: snapshot });
     const store = createDraftStore();
-    const reconcile = vi.fn(store.getState().reconcileSyncedPicks);
-    vi.spyOn(store, 'getInitialState').mockReturnValue({ ...store.getInitialState(), reconcileSyncedPicks: reconcile });
+    const reconcile = vi.spyOn(workspaceForTestStore(store), 'send');
     const { cleanup } = renderDraft('Draft_1-abc', store);
     try {
       expect(reconcile).toHaveBeenCalledTimes(1);

@@ -1,3 +1,5 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 import { type Player, type Position } from '@fantasy-draft/shared/league';
 import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
@@ -9,7 +11,7 @@ import { isMotionDisabled, usePrefersReducedMotion } from '@/components/motion';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
-import { useDraftStore, type RecordedDraftPick } from '@/stores/draftStore';
+import { type RecordedDraftPick } from '@/stores/draftStore';
 import { getDraftBoardScrollTarget } from './draft-board-scroll';
 import { getDraftBoardCurrentView } from './draft-board-view';
 
@@ -351,10 +353,11 @@ export function DraftBoard({
   readonly toolbarActions?: React.ReactNode;
 } = {}): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
   const [mode, setMode] = React.useState<BoardMode>('current');
   const turnIndicatorRef = React.useRef<HTMLSpanElement>(null);
   const reduceMotion = usePrefersReducedMotion();
@@ -484,7 +487,7 @@ export function DraftBoard({
 
   // A keeper slot is filled automatically, so it is never the user's selection.
   const isKeeperOnClock = picksByNumber.get(currentPick)?.source === 'reserved';
-  const isYourTurn = !isKeeperOnClock && currentPick <= totalPicks && currentView.upcomingMyPickNumber === currentPick;
+  const isYourTurn = !isKeeperOnClock && isMyTurn;
   const previouslyYourTurn = React.useRef(isYourTurn);
   React.useEffect(() => {
     const justStarted = isYourTurn && !previouslyYourTurn.current;

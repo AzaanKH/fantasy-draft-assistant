@@ -113,3 +113,5 @@ export type { ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.
 export { optimizeLineupUtility } from '../lineup-utility.js';
 export type { LineupPlayer } from '../lineup-utility.js';
 export { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';
+
+export { deriveDraftCursor, type DraftProgress, type CursorAnchor } from '../draft-progress.js';
