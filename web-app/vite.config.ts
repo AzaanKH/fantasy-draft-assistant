@@ -12,7 +12,7 @@ import { localApiSecurity } from '../server/src/vite-security';
 const BROWSER_DATA_FILES = browserDataFiles('local');
 const DEMO_BROWSER_DATA_FILES = browserDataFiles('demo');
 
-const { webPort, apiOrigin } = localDevPorts(process.env);
+const { webPort, apiOrigin, webOrigin } = localDevPorts(process.env);
 
 const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
@@ -106,6 +106,7 @@ function browserDataPlugins(): Plugin[] {
 export default defineConfig({
   ...sourceCondition,
   publicDir: false,
+  define: { 'import.meta.env.VITE_CANONICAL_WEB_ORIGIN': JSON.stringify(webOrigin) },
   plugins: [localApiSecurity(), ...browserDataPlugins(), react(), tailwindcss()],
   resolve: {
     ...sourceCondition.resolve,

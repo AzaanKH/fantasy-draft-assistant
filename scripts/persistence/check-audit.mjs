@@ -1,3 +1,4 @@
+import { auditBlocked } from './blocked-adapter.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { runInNewContext } from 'node:vm';
@@ -394,4 +395,20 @@ test('reload handoff rejects an intermediate duplicate instead of scoring its la
     attach: async () => { attachments++; }, recordReplacement: () => undefined,
   }), /Duplicate/);
   assert.equal(attachments, 0);
+});
+
+test('blocked workspaces require an explicit setup error, zero acknowledgements and unchanged v1 bytes', () => {
+  const before = { blocked: true, ownerAbsent: true, setupError: 'Host permission required', initialBytes: [['v1', 'raw']], bytes: [['v1', 'raw']] };
+  const issued = [{ ...b, receipt: { accepted: false, reason: 'Host permission required' } }];
+  const good = auditBlocked(issued, before, before);
+  assert.equal(good.attempted, 1); assert.equal(good.acknowledged, 0); assert.equal(good.rejected, 1);
+  assert.equal(good.explicitSetupError, true); assert.equal(good.unchanged, true);
+  assert.equal(auditBlocked(issued, before, { ...before, bytes: [] }).unchanged, false);
+  assert.equal(auditBlocked(issued, before, { ...before, setupError: '' }).explicitSetupError, false);
+  const results = checks => ({ scenarios: [{ blocked: { checks } }], summary: [], pageErrors: [], scenarioErrors: [] });
+  assert.equal(failsGate(results(good)), false);
+  assert.equal(failsGate(results({ ...good, acknowledged: 1 })), true);
+  assert.equal(failsGate(results({ ...good, rejected: 0 })), true);
+  assert.equal(failsGate(results({ ...good, unchanged: false })), true);
+  assert.equal(failsGate(results({ ...good, explicitSetupError: false })), true);
 });

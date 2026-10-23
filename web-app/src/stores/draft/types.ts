@@ -121,6 +121,7 @@ export interface UnresolvedProviderPick {
 }
 
 export interface DraftReconciliationResult {
+  readonly refused?: true;
   /** Whether applying the provider snapshot changed canonical draft state. */
   readonly changed: boolean;
   /** Provisional Picks that matched Provider Truth at the same draft position. */
@@ -233,4 +234,4 @@ export interface DraftActions {
 export type DraftStore = DraftState & DraftActions;
 
 
-export type SetDraftState = (transition: (state: Draft<DraftStore>) => void) => void;
+export type SetDraftState = (transition: (state: Draft<DraftState>) => void) => boolean;

@@ -101,7 +101,7 @@ export function createReconciliationActions(
         unresolvedIdentities: [],
       };
       let result = unchanged;
-      set((state) => {
+      const applied = set((state) => {
         // A save conflict retries this on a newer session; report only the final attempt.
         result = unchanged;
         if (confirmedAt !== undefined && (!Number.isFinite(confirmedAt) || confirmedAt < 0 ||
@@ -257,7 +257,7 @@ export function createReconciliationActions(
             : [],
         };
       });
-      return result;
+      return applied ? result : { ...unchanged, refused: true };
     },
 
   };

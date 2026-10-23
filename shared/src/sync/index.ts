@@ -24,3 +24,5 @@ export type {
 } from '../sync.js';
 export { parseDraftRoomUrl } from '../draft-url.js';
 export type { DraftRoomStatus } from '../draft-url.js';
+
+export { DRAFT_STORAGE_MIGRATION_KEY, isDraftStorageMigration, type DraftStorageMigration } from './storage-migration.js';
