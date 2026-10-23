@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
@@ -12,6 +12,9 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { useSimulateNextCpuPick } from '@/features/draft-board/mock-auto-advance';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useDraftSyncReconciliation } from '@/hooks/useDraftSyncReconciliation';
+import { useKeeperPreload } from '@/hooks/useKeeperPreload';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useDraftState } from './WorkspaceProvider';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 
@@ -168,4 +171,30 @@ it('keeps stale queue clicks absolute and preserves the latest exact order after
   const reopened = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => undefined });
   expect((await reopened.read(identity))?.shortlistedPlayerIds).toEqual(['a', 'b', 'c']);
   reopened.close();
+});
+
+it.fails('settles bootstrap keeper preload when adopted sessions give player data new references', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updatedAt: '2026-01-01T00:00:00.000Z', season: new Date().getUTCFullYear(), keepers: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+  const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
+  const raw = createDurableWorkspace({ database, search: '', initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 } });
+  await raw.sendDurable(['setSessionMode', 'live']);
+  const calls = vi.spyOn(raw, 'sendDurable');
+  const workspace = observeDurableWorkspace(raw);
+  // Player data derives from league settings references, as usePlayerData does.
+  function Consumer() {
+    const leagueSettings = useDraftState(state => state.leagueSettings);
+    const players = useMemo(() => leagueSettings.totalTeams > 0 ? VISUAL_PLAYERS.map(player => ({ ...player })) : [], [leagueSettings]);
+    useKeeperPreload(players, false); return null;
+  }
+  const container = document.createElement('div'); const root = createRoot(container);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  try {
+    act(() => { root.render(createElement(QueryClientProvider, { client }, createElement(WorkspaceProvider, { workspace, children: createElement(Consumer) }))); });
+    for (let wait = 0; wait < 20; wait++) await act(async () => { await new Promise<void>(resolve => { setTimeout(resolve, 10); }); });
+    const settled = calls.mock.calls.filter(([command]) => command[0] === 'preloadKeepers').length;
+    for (let wait = 0; wait < 10; wait++) await act(async () => { await new Promise<void>(resolve => { setTimeout(resolve, 10); }); });
+    expect(workspace.status?.getState().pending).toBe(0);
+    expect(calls.mock.calls.filter(([command]) => command[0] === 'preloadKeepers')).toHaveLength(settled);
+    expect(settled).toBeLessThanOrEqual(2);
+  } finally { act(() => { root.unmount(); }); raw.dispose(); }
 });
