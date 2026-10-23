@@ -64,7 +64,8 @@
     "audit:security": "pnpm audit --audit-level=moderate",
     "draft": "node cli/bin/draft.mjs",
     "build:cli": "pnpm --filter @fantasy-draft/shared build && pnpm --filter @fantasy-draft/cli build",
-    "test:contracts": "vitest run --project scripts-contract"
+    "test:contracts": "vitest run --project scripts-contract",
+    "test:persistence": "node --test scripts/persistence/check-audit.mjs && node scripts/persistence/run.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
@@ -73,7 +74,7 @@
     "globals": "^15.13.0",
     "typescript-eslint": "^8.18.0",
     "eslint-plugin-react-hooks": "^5.1.0",
-    "vitest": "^4.1.0",
+    "vitest": "^4.1.12",
     "jsdom": "^26.0.0",
     "tinyglobby": "^0.2.15",
     "yaml": "^2.8.1"

@@ -2,7 +2,8 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import PositionalDepthChart from '@/features/assistant/PositionalDepthChart';
@@ -31,7 +32,7 @@ beforeEach(() => {
 afterEach(() => { act(() => { root.unmount(); }); container.remove(); });
 it('uses canonical name identity availability for the depth chart and counts repeated IDs once', () => {
   players = [...players, other];
-  act(() => { root.render(createElement(DraftStoreProvider, { store, children: createElement(TooltipProvider, null, createElement(PositionalDepthChart, { needs: [] })) })); });
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(TooltipProvider, null, createElement(PositionalDepthChart, { needs: [] })) })); });
   expect(container.querySelector('button[aria-label="WR Tier 1: 1 available players"]')).not.toBeNull();
   const button = container.querySelector<HTMLButtonElement>('button[aria-label="Show available WR players"]');
   act(() => { button?.click(); });
@@ -40,7 +41,7 @@ it('uses canonical name identity availability for the depth chart and counts rep
 });
 it('preserves ID-only observation choices and the edit-player exception', () => {
   const editingPick = store.getState().draftHistory[0]; if (!editingPick) throw new Error('Missing observation');
-  act(() => { root.render(createElement(DraftStoreProvider, { store, children: createElement(ProvisionalPickDialog, { open: true, onOpenChange: vi.fn(), editingPick }) })); });
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(ProvisionalPickDialog, { open: true, onOpenChange: vi.fn(), editingPick }) })); });
   const values = [...document.querySelectorAll<HTMLOptionElement>('option')].map(option => option.value);
   expect(values).toContain(drafted.id); expect(values).toContain(other.id); expect(values).toContain(alias.id);
   expect(store.getState().recordProvisionalPick({ pickNumber: 2, playerId: alias.id, playerName: alias.name, position: alias.position, teamIndex: 1, teamName: 'Team 2' })).toBe(true);

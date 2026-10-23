@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * Side panel bootstrap.
  *
@@ -63,6 +64,9 @@ let syncSnapshot: SnapshotProjection | null = null;
 let webAppUrl = DEFAULT_WEB_APP_URL;
 let currentFrameUrl = '';
 let loadTimeout: number | null = null;
+let sharingAttempt = 0;
+let sharingStatus: 'pending' | 'ready' | 'error' = 'pending';
+let stopSharingCheck: (() => void) | undefined;
 
 function getDraftContextUrl(pathname: '/sidepanel' | '/draft'): string {
   const url = new URL(webAppUrl);
@@ -109,6 +113,20 @@ function loadSidePanel(force = false): void {
   currentFrameUrl = nextUrl;
   showLoadingState();
   clearLoadTimeout();
+  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+    const attempt = ++sharingAttempt;
+    stopSharingCheck?.();
+    sharingStatus = 'pending';
+    frame.removeAttribute('src');
+    void import('./storage-sharing').then(({ startStorageSharing }) => {
+      if (attempt !== sharingAttempt) return;
+      stopSharingCheck = startStorageSharing({ frame, frameUrl: nextUrl,
+        ready: () => { sharingStatus = 'ready'; loadingState.hidden = true; errorState.hidden = true; },
+        failed: error => { sharingStatus = 'error'; console.warn('[Fantasy Draft] Storage sharing failed', error); showErrorState(); },
+      });
+    }).catch(() => { if (attempt === sharingAttempt) { sharingStatus = 'error'; showErrorState(); } });
+    return;
+  }
   loadTimeout = window.setTimeout(() => {
     showErrorState();
   }, 8_000);
@@ -163,10 +181,12 @@ function handleMessage(value: unknown): void {
 }
 
 async function openFullDraftRoom(): Promise<void> {
+  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') { loadSidePanel(true); return; }
   await chrome.tabs.create({ url: getDraftContextUrl('/draft') });
 }
 
 frame.addEventListener('load', () => {
+  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' && sharingStatus !== 'ready') return;
   clearLoadTimeout();
   loadingState.hidden = true;
   errorState.hidden = true;
@@ -180,6 +200,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
 retryButton.addEventListener('click', () => { loadSidePanel(true); });
 openWebAppButton.addEventListener('click', () => { void openFullDraftRoom(); });
 chrome.runtime.onMessage.addListener(handleMessage);
+if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+  window.addEventListener('pagehide', () => { ++sharingAttempt; stopSharingCheck?.(); }, { once: true });
+}
 
 void readExtensionState()
   .catch(() => undefined)

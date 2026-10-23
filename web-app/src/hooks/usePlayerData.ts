@@ -1,7 +1,6 @@
+import { useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
-import { useDraftStore } from '@/stores/draftStore';
 import {
   type DraftReadinessSourceObservation,
   type DraftReadinessWarningInput,
@@ -35,9 +34,9 @@ const TRUSTED_RANKING_SOURCE_TYPES: readonly string[] = IS_DEMO
  * Hook to load and merge all player data sources
  */
 function useLivePlayerDataQuery() {
-  const leagueSettings = useDraftStore((state) => state.leagueSettings);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const rosterRequirements = useDraftStore(
+  const leagueSettings = useDraftState((state) => state.leagueSettings);
+  const totalTeams = useDraftState((state) => state.config.totalTeams);
+  const rosterRequirements = useDraftState(
     (state) => state.config.rosterRequirements
   );
   const fantasyProsQuery = useQuery({
@@ -58,7 +57,7 @@ function useLivePlayerDataQuery() {
     staleTime: Infinity,
   });
 
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
+  const connection = useConnectionState((state) => state.connection);
   // The static demo ships no contract context and has no API server.
   const contractQuery = useQuery({
     queryKey: ['contracts'],

@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useSyncClockState } from '@/workspace/useSyncClockState';
 import { isValidDraftSyncId, type DraftProvider } from '@fantasy-draft/shared/sync';
 import { IS_DEMO } from '@/lib/demo-mode';
 import {
-  getDraftSyncConnectionState,
   getDraftSynchronizationState,
   type DraftSyncController,
 } from '@/lib/draft-sync-state';
@@ -45,21 +44,6 @@ export function useDraftSync(provider: DraftProvider, requestedDraftId: string |
   const draftId = getSyncedDraftId(provider, requestedDraftId);
   const { snapshot, snapshotQuery, transportState, refresh } = useDraftSyncTransport(provider, draftId);
   const { importResult, importWarning, lastReconciledSnapshotAt, reconciliationSummary, dismissReconciliationSummary } = useDraftSyncReconciliation(provider, draftId, snapshot, shouldImportPicks);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!draftId) return;
-
-    setNow(Date.now());
-    const interval = window.setInterval(() => {
-      setNow(Date.now());
-    }, 1_000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [draftId]);
-
   const myPicksCount = importResult.picks.filter(
     (pick) => pick.isMyPick
   ).length;
@@ -71,8 +55,8 @@ export function useDraftSync(provider: DraftProvider, requestedDraftId: string |
   const lastSuccessfulSyncAt = snapshot?.lastSuccessfulSyncAt ?? null;
   const lastSyncAgeMs = lastSuccessfulSyncAt === null
     ? null
-    : Math.max(0, now - lastSuccessfulSyncAt);
-  const connectionState = getDraftSyncConnectionState({
+    : Math.max(0, Date.now() - lastSuccessfulSyncAt);
+  const connectionState = useSyncClockState({
     hasDraftId: Boolean(draftId),
     draftStatus: snapshot?.draft?.status ?? null,
     syncStatus: snapshot?.status ?? 'idle',
@@ -80,7 +64,6 @@ export function useDraftSync(provider: DraftProvider, requestedDraftId: string |
     lastSuccessfulSyncAt,
     isQueryLoading: snapshotQuery.isLoading && !snapshot,
     isQueryError: snapshotQuery.isError && !snapshot,
-    now,
   });
   const synchronizationState = getDraftSynchronizationState(connectionState);
 

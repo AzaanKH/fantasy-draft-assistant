@@ -12,8 +12,10 @@ import {
   createDraftDecisionOutput,
 } from '@fantasy-draft/shared/draft';
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
-import { useDraftStore } from '@/stores/draftStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { createDraftStore } from '@/stores/draftStore';
+const draftStore = createDraftStore();
+import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+const connectionStore = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
 import { blocksProviderIdentityRecommendations } from '@/features/recommendations/DraftDecisionContext';
 import { ProviderIdentityBlockedNotice } from './ProviderIdentityBlockedNotice';
 import { ReconciliationSummary } from './ReconciliationSummary';
@@ -87,7 +89,7 @@ const NEEDS: readonly PositionNeed[] = [
 ];
 
 function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
-  const state = useDraftStore.getState();
+  const state = draftStore.getState();
   const rosterSize = (Object.values(deriveDraftState(state).myRoster) as string[][]).reduce(
     (total, playerIds) => total + playerIds.length,
     0
@@ -124,7 +126,7 @@ function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
 }
 
 function seedProviderTruthThroughPickFour(): void {
-  useDraftStore.getState().reconcileSyncedPicks(
+  draftStore.getState().reconcileSyncedPicks(
     Array.from({ length: 4 }, (_, index) => ({
       pickNumber: index + 1,
       playerId: `confirmed-${String(index + 1)}`,
@@ -140,12 +142,12 @@ function seedProviderTruthThroughPickFour(): void {
 
 describe('Draft Workspace decision integration', () => {
   beforeEach(() => {
-    useDraftSyncConnectionStore.getState().startConnection(
+    connectionStore.getState().startConnection(
       'sleeper',
       'primary-league-draft'
     );
-    useDraftSyncConnectionStore.getState().confirmDraftPosition(5);
-    const store = useDraftStore.getState();
+    connectionStore.getState().confirmDraftPosition(5);
+    const store = draftStore.getState();
     store.preloadKeepers([]);
     store.setConfig({ totalTeams: 10, totalRounds: 15, myPickPosition: 5 });
     store.resetDraft();
@@ -156,7 +158,7 @@ describe('Draft Workspace decision integration', () => {
   });
 
   afterEach(() => {
-    useDraftSyncConnectionStore.getState().disconnect();
+    connectionStore.getState().disconnect();
   });
 
   it('updates recommendations when the decision lens or confirmed picks change', () => {
@@ -173,10 +175,10 @@ describe('Draft Workspace decision integration', () => {
       'Prefer Roster Builder over ECR Leader because Roster Builder is +45 points above replacement, 43 more than ECR Leader in this league, while ECR Leader remains Best Player at ECR #1.'
     );
 
-    const stateBeforeSwitch = useDraftStore.getState();
-    const connectedBeforeSwitch = useDraftSyncConnectionStore.getState().connection;
+    const stateBeforeSwitch = draftStore.getState();
+    const connectedBeforeSwitch = connectionStore.getState().connection;
     stateBeforeSwitch.setDecisionLens('best-player');
-    const stateAfterSwitch = useDraftStore.getState();
+    const stateAfterSwitch = draftStore.getState();
     const switched = calculateFromDraftState();
     expect(switched.selected?.playerId).toBe('ecr-leader');
     expect(switched.bestPick?.playerId).toBe('roster-rb');
@@ -187,7 +189,7 @@ describe('Draft Workspace decision integration', () => {
       ...deriveDraftState(stateBeforeSwitch).draftedPlayerIds,
     ]);
     expect(stateAfterSwitch.filter).toEqual(stateBeforeSwitch.filter);
-    expect(useDraftSyncConnectionStore.getState().connection).toEqual(
+    expect(connectionStore.getState().connection).toEqual(
       connectedBeforeSwitch
     );
 
@@ -204,7 +206,7 @@ describe('Draft Workspace decision integration', () => {
     ], 2);
     const afterConfirmedPick = calculateFromDraftState();
 
-    expect(deriveDraftState(useDraftStore.getState()).isMyTurn).toBe(false);
+    expect(deriveDraftState(draftStore.getState()).isMyTurn).toBe(false);
     expect(afterConfirmedPick.selected).not.toBeNull();
     expect(afterConfirmedPick.bestPick?.playerId).not.toBe('ecr-leader');
     expect(afterConfirmedPick.bestPlayer?.playerId).not.toBe('ecr-leader');
@@ -217,7 +219,7 @@ describe('Draft Workspace decision integration', () => {
       player('continuity-rb', 'Continuity Runner', 'RB', 2, 45),
       player('continuity-wr', 'Continuity Receiver', 'WR', 3, 12),
     ];
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     state.setConfig({ myPickPosition: 5 });
     state.reconcileSyncedPicks([
       {
@@ -260,8 +262,8 @@ describe('Draft Workspace decision integration', () => {
 
     const before = calculateFromDraftState(continuityPlayers);
     const needsBefore = calculateTeamNeeds(
-      deriveDraftState(useDraftStore.getState()).myRoster,
-      useDraftStore.getState().config.rosterRequirements,
+      deriveDraftState(draftStore.getState()).myRoster,
+      draftStore.getState().config.rosterRequirements,
       new Map()
     );
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -274,7 +276,7 @@ describe('Draft Workspace decision integration', () => {
     expect(before.bestPick?.playerId).toBe('continuity-leader');
     expect(before.bestPlayer?.playerId).toBe('continuity-leader');
 
-    const recorded = useDraftStore.getState().recordProvisionalPick({
+    const recorded = draftStore.getState().recordProvisionalPick({
       pickNumber: 5,
       playerId: 'continuity-leader',
       playerName: 'Continuity Leader',
@@ -282,7 +284,7 @@ describe('Draft Workspace decision integration', () => {
       teamIndex: 4,
       teamName: 'My Team',
     });
-    const current = useDraftStore.getState();
+    const current = draftStore.getState();
     const after = calculateFromDraftState(continuityPlayers);
     const needsAfter = calculateTeamNeeds(
       deriveDraftState(current).myRoster,
@@ -309,7 +311,7 @@ describe('Draft Workspace decision integration', () => {
 
   it('confirms a perfect manual match without replaying the Recommendation transition', () => {
     seedProviderTruthThroughPickFour();
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 5,
       playerId: 'ecr-leader',
       playerName: 'ECR Leader',
@@ -342,14 +344,14 @@ describe('Draft Workspace decision integration', () => {
       },
     ];
     let draftTransitions = 0;
-    const unsubscribe = useDraftStore.subscribe(() => {
+    const unsubscribe = draftStore.subscribe(() => {
       draftTransitions += 1;
     });
-    const confirmation = useDraftStore.getState().reconcileSyncedPicks(
+    const confirmation = draftStore.getState().reconcileSyncedPicks(
       restoredProviderTruth,
       6
     );
-    const reconciled = useDraftStore.getState();
+    const reconciled = draftStore.getState();
     const recommendationAfterConfirmation = calculateFromDraftState();
 
     expect(confirmation.confirmations).toEqual([
@@ -406,7 +408,7 @@ describe('Draft Workspace decision integration', () => {
       removals: [],
       unresolvedIdentities: [],
     });
-    expect(useDraftStore.getState().draftHistory).toBe(historyAfterConfirmation);
+    expect(draftStore.getState().draftHistory).toBe(historyAfterConfirmation);
     expect(draftTransitions).toBe(1);
     expect(recommendationAfterRepeat.bestPick?.playerId).toBe(
       recommendationAfterConfirmation.bestPick?.playerId
@@ -420,7 +422,7 @@ describe('Draft Workspace decision integration', () => {
 
   it('reconciles every Provider Truth outcome before restoring live Recommendations', () => {
     seedProviderTruthThroughPickFour();
-    const confirmedBaseline = useDraftStore.getState().draftHistory.map((pick) => ({
+    const confirmedBaseline = draftStore.getState().draftHistory.map((pick) => ({
       pickNumber: pick.pickNumber,
       playerId: pick.playerId,
       playerName: pick.playerName,
@@ -429,7 +431,7 @@ describe('Draft Workspace decision integration', () => {
       teamName: pick.teamName,
       isMyPick: pick.teamIndex === 4,
     }));
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 5,
       playerId: 'ecr-leader',
       playerName: 'ECR Leader',
@@ -437,7 +439,7 @@ describe('Draft Workspace decision integration', () => {
       teamIndex: 4,
       teamName: 'My Team',
     })).toBe(true);
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 6,
       playerId: 'next-wr',
       playerName: 'Next Receiver',
@@ -445,7 +447,7 @@ describe('Draft Workspace decision integration', () => {
       teamIndex: 5,
       teamName: 'Team 6',
     })).toBe(true);
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 8,
       playerId: 'roster-rb',
       playerName: 'Roster Builder',
@@ -487,12 +489,12 @@ describe('Draft Workspace decision integration', () => {
       playerName: 'Unmapped Player',
       nflTeam: 'DET',
     };
-    const reconciliation = useDraftStore.getState().reconcileSyncedPicks(
+    const reconciliation = draftStore.getState().reconcileSyncedPicks(
       restoredProviderTruth,
       8,
       [unresolvedPick]
     );
-    const reconciled = useDraftStore.getState();
+    const reconciled = draftStore.getState();
 
     expect(reconciliation.confirmations).toEqual([
       expect.objectContaining({ pickNumber: 5, playerId: 'ecr-leader' }),
@@ -572,11 +574,11 @@ describe('Draft Workspace decision integration', () => {
         isMyPick: false,
       },
     ];
-    expect(useDraftStore.getState().reconcileSyncedPicks(
+    expect(draftStore.getState().reconcileSyncedPicks(
       resolvedProviderTruth,
       8
     ).changed).toBe(true);
-    const resolved = useDraftStore.getState();
+    const resolved = draftStore.getState();
     const recommendations = calculateFromDraftState();
     expect(blocksProviderIdentityRecommendations(
       resolved.sessionMode,
@@ -590,7 +592,7 @@ describe('Draft Workspace decision integration', () => {
 
     const canonicalHistory = resolved.draftHistory;
     expect(resolved.reconcileSyncedPicks(resolvedProviderTruth, 8).changed).toBe(false);
-    expect(useDraftStore.getState().draftHistory).toBe(canonicalHistory);
+    expect(draftStore.getState().draftHistory).toBe(canonicalHistory);
   });
 
   it('rebuilds both Decision Lenses after replacing a provisional player and team', () => {
@@ -600,7 +602,7 @@ describe('Draft Workspace decision integration', () => {
       player('continuity-wr', 'Continuity Receiver', 'WR', 3, 12),
     ];
     seedProviderTruthThroughPickFour();
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 5,
       playerId: 'continuity-leader',
       playerName: 'Continuity Leader',
@@ -613,7 +615,7 @@ describe('Draft Workspace decision integration', () => {
     expect(beforeCorrection.bestPick?.playerId).not.toBe('continuity-leader');
     expect(beforeCorrection.bestPlayer?.playerId).not.toBe('continuity-leader');
 
-    expect(useDraftStore.getState().correctProvisionalPick(5, {
+    expect(draftStore.getState().correctProvisionalPick(5, {
       pickNumber: 6,
       playerId: 'continuity-rb',
       playerName: 'Continuity Runner',
@@ -622,7 +624,7 @@ describe('Draft Workspace decision integration', () => {
       teamName: 'Team 6',
     })).toBe(true);
 
-    const current = useDraftStore.getState();
+    const current = draftStore.getState();
     const afterCorrection = calculateFromDraftState(continuityPlayers);
     const needsAfterCorrection = calculateTeamNeeds(
       deriveDraftState(current).myRoster,
@@ -661,10 +663,10 @@ describe('Draft Workspace decision integration', () => {
       player('continuity-wr', 'Continuity Receiver', 'WR', 3, 12),
     ];
     seedProviderTruthThroughPickFour();
-    const confirmedBefore = useDraftStore.getState().draftHistory.map(
+    const confirmedBefore = draftStore.getState().draftHistory.map(
       (pick) => ({ ...pick })
     );
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 5,
       playerId: 'continuity-leader',
       playerName: 'Continuity Leader',
@@ -672,9 +674,9 @@ describe('Draft Workspace decision integration', () => {
       teamIndex: 4,
       teamName: 'My Team',
     })).toBe(true);
-    expect(useDraftStore.getState().removeProvisionalPick(5)).toBe(true);
+    expect(draftStore.getState().removeProvisionalPick(5)).toBe(true);
 
-    const current = useDraftStore.getState();
+    const current = draftStore.getState();
     const afterRemoval = calculateFromDraftState(continuityPlayers);
     const needsAfterRemoval = calculateTeamNeeds(
       deriveDraftState(current).myRoster,

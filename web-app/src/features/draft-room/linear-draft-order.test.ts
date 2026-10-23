@@ -9,7 +9,8 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidePanelPage } from '@/features/sidepanel/SidePanelPage';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { getDraftView } from '@/workspace/useDraftView';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
@@ -92,7 +93,7 @@ afterEach(() => {
 
 function render(element: ReactElement): void {
   act(() => {
-    root.render(createElement(DraftStoreProvider, {
+    root.render(createElement(WorkspaceTestProvider, {
       store,
       children: createElement(ThemeProvider, {
         initialTheme: 'light', persist: false,

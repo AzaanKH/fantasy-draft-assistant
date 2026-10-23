@@ -1,6 +1,6 @@
 import { getDraftView } from '@/workspace/useDraftView';
 import { deriveDraftState } from './draft/source';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, type ProvisionalPickInput, type SyncedImportedPick } from './draftStore';
 import {
   DRAFT_SESSION_LINEAGE_LIMIT,
@@ -41,6 +41,67 @@ function openSession(storage: ReturnType<typeof memoryStorage>, session = identi
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('durable draft sessions', () => {
+  describe('unit 11c durability defects', () => {
+    let quota: { acknowledged: boolean; recovered: readonly string[] };
+    let race: readonly string[];
+    let orphan: { before: string; after: string | null };
+
+    beforeAll(() => {
+      const quotaStorage = memoryStorage();
+      const quotaTab = openSession(quotaStorage);
+      quotaStorage.setItem.mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+      const acknowledged = quotaTab.getState().recordProvisionalPick(pick(1, 'acknowledged'));
+      quotaStorage.setItem.mockImplementation((key: string, value: string) => { quotaStorage.values.set(key, value); });
+      quota = { acknowledged, recovered: createDraftStore({ storage: quotaStorage, session: identity })
+        .getState().draftHistory.map((entry) => entry.playerId) };
+
+      const storage = memoryStorage();
+      const key = getDraftSessionStorageKey(identity);
+      const tabA = openSession(storage);
+      let interleave = false;
+      const accepted: boolean[] = [];
+      const racingStorage = memoryStorage(storage.values);
+      racingStorage.setItem.mockImplementation((storedKey: string, value: string) => {
+        if (interleave && storedKey !== key) {
+          interleave = false;
+          accepted.push(tabA.getState().recordProvisionalPick(pick(1, 'first')));
+          accepted.push(tabA.getState().recordProvisionalPick(pick(2, 'second')));
+        }
+        storage.values.set(storedKey, value);
+      });
+      const tabB = openSession(racingStorage);
+      interleave = true;
+      tabB.getState().togglePlayerShortlisted('queued');
+      expect(accepted).toEqual([true, true]);
+      race = createDraftStore({ storage, session: identity }).getState().draftHistory.map((entry) => entry.playerId);
+
+      const orphanStorage = memoryStorage();
+      const orphanTab = openSession(orphanStorage);
+      const baseline = orphanStorage.getItem(key);
+      expect(orphanTab.getState().recordProvisionalPick(pick(1, 'base'))).toBe(true);
+      expect(orphanTab.getState().recordProvisionalPick(pick(2, 'dependent'))).toBe(true);
+      const journalKey = [...orphanStorage.values.keys()].find((name) => name !== key);
+      if (!journalKey || !baseline) throw new Error('Missing characterization fixture');
+      const journal = orphanStorage.getItem(journalKey);
+      if (!journal) throw new Error('Missing generated journal');
+      orphanStorage.values.set(key, baseline);
+      createDraftStore({ storage: orphanStorage, session: identity });
+      orphan = { before: journal, after: orphanStorage.getItem(journalKey) };
+    });
+
+    it.fails('never acknowledges a pick that both durable writes reject', () => {
+      expect(!quota.acknowledged || quota.recovered.includes('acknowledged')).toBe(true);
+    });
+
+    it.fails('retains two acknowledged saves overwritten by one stale writer', () => {
+      expect(race).toEqual(['first', 'second']);
+    });
+
+    it.fails('preserves a valid journal when its base write is missing', () => {
+      expect(orphan.after).toBe(orphan.before);
+    });
+  });
+
   it('restores the provisional journal, corrections, queue, keepers, and canonical rosters after reload', () => {
     const storage = memoryStorage();
     const first = openSession(storage);
@@ -256,7 +317,7 @@ describe('durable draft sessions', () => {
       const store = createDraftStore({
         storage,
         session: identity,
-        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); return () => { listeners.splice(listeners.indexOf(onChange), 1); }; },
       });
       store.getState().setSessionMode('live');
       return store;
@@ -450,7 +511,7 @@ describe('durable draft sessions', () => {
       const store = createDraftStore({
         storage,
         session: identity,
-        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); return () => { listeners.splice(listeners.indexOf(onChange), 1); }; },
       });
       store.getState().setSessionMode('live');
       return store;
@@ -572,7 +633,7 @@ describe('durable draft sessions', () => {
     expect(createDraftStore({ storage, session: identity }).getState().draftHistory).toEqual([]);
   });
 
-  it('hydrates the default store before rendering and follows saved and URL connection changes synchronously', async () => {
+  it('hydrates the browser workspace before rendering and follows saved and URL connection changes synchronously', async () => {
     vi.resetModules();
     const storage = memoryStorage();
     const store = openSession(storage);
@@ -580,17 +641,18 @@ describe('durable draft sessions', () => {
     store.getState().recordProvisionalPick(pick(1, 'saved-pick'));
     storage.setItem(DRAFT_SYNC_STORAGE_KEY, JSON.stringify({ ...identity, draftPosition: 2 }));
     vi.stubGlobal('window', { localStorage: storage });
-    const { useDraftStore } = await import('./draftStore');
-    const { useDraftSyncConnectionStore, initializeDraftSyncConnection } = await import('./draftSyncStore');
-    expect(useDraftStore.getState().draftHistory[0]?.playerId).toBe('saved-pick');
-    expect(useDraftStore.getState().manualContinuityBaselineAt).toBe(100);
-    initializeDraftSyncConnection('?provider=espn&draftId=123&position=1');
-    expect(useDraftStore.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
-    useDraftSyncConnectionStore.getState().startConnection('sleeper', '123');
-    expect(useDraftStore.getState().draftHistory[0]?.playerId).toBe('saved-pick');
-    useDraftSyncConnectionStore.getState().disconnect();
-    expect(useDraftStore.getState().liveSession).toBeNull();
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
+    const { createBrowserWorkspace } = await import('../workspace/browser-workspace');
+    const workspace = createBrowserWorkspace('');
+    expect(workspace.draft.getState().draftHistory[0]?.playerId).toBe('saved-pick');
+    expect(workspace.draft.getState().manualContinuityBaselineAt).toBe(100);
+    workspace.send('connection.restoreConnection', { provider: 'espn', draftId: '123', draftPosition: 1 });
+    expect(workspace.draft.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
+    expect(workspace.draft.getState().draftHistory).toEqual([]);
+    workspace.send('connection.startConnection', 'sleeper', '123');
+    expect(workspace.draft.getState().draftHistory[0]?.playerId).toBe('saved-pick');
+    workspace.send('connection.disconnect');
+    expect(workspace.draft.getState().liveSession).toBeNull();
+    expect(workspace.draft.getState().draftHistory).toEqual([]);
+    workspace.dispose();
   });
 });

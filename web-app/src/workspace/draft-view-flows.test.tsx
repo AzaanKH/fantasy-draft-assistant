@@ -2,7 +2,8 @@
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { POSITIONS, type Player } from '@fantasy-draft/shared/league';
 import { ProvisionalPickDialog } from '@/features/draft-room/ProvisionalPickDialog';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
@@ -37,7 +38,7 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => { root.unmount(); }); container.remove(); });
 function render(showDialog = false) {
-  act(() => { root.render(createElement(DraftStoreProvider, { store, children:
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children:
     createElement(TooltipProvider, null, createElement(Fragment, null,
       createElement(DraftBoard), createElement(DraftPlayerPool), createElement(DraftRosterPanel), createElement(DraftQueuePanel),
       showDialog ? createElement(ProvisionalPickDialog, { open: true, onOpenChange: vi.fn(), initialPlayerId: firstPlayer().id }) : null)) })); });

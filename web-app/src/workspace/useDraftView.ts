@@ -4,7 +4,7 @@ import { useStore } from 'zustand';
 import { getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
 import type { Player } from '@fantasy-draft/shared/league';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { useDraftStoreApi, type DraftStoreApi } from '@/stores/draftStore';
+import { useWorkspace } from './WorkspaceProvider';
 import type { DraftState } from '@/stores/draft/types';
 
 export interface DraftView extends DerivedDraft {
@@ -13,7 +13,7 @@ export interface DraftView extends DerivedDraft {
 
 type Inputs = Pick<DraftState, 'draftProgress' | 'sessionMode' | 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds'>;
 interface CachedView { readonly inputs: Inputs; readonly view: DraftView }
-type DraftViewStore = Pick<DraftStoreApi, 'getState'>;
+type DraftViewStore = { readonly getState: () => DraftState };
 const views = new WeakMap<DraftViewStore, WeakMap<readonly Player[], CachedView>>();
 const EMPTY_PLAYERS: readonly Player[] = [];
 
@@ -44,13 +44,13 @@ export function getDraftView(store: DraftViewStore, players: readonly Player[] =
 }
 
 export function useDraftView<T>(selector: (view: DraftView) => T): T {
-  const store = useDraftStoreApi();
+  const store = useWorkspace().draft;
   const { players } = usePlayerDataQuery();
   return useStore(store, state => selector(selectDraftView(store, state, players)));
 }
 
 export function useDraftViewReader(): () => DraftView {
-  const store = useDraftStoreApi();
+  const store = useWorkspace().draft;
   const { players } = usePlayerDataQuery();
   return useCallback(() => getDraftView(store, players), [store, players]);
 }

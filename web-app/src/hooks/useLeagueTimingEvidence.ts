@@ -1,12 +1,12 @@
+import { useConnectionState } from '@/workspace/WorkspaceProvider';
 import { useQuery } from '@tanstack/react-query';
 import { fetchLeagueSurvivalModel } from '@/lib/league-survival-model';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 
 /** History belongs to an explicitly selected league, never to a room size. */
 export function useLeagueTimingEvidence(enabled: boolean = true) {
   const profile = useLeagueSetupStore((state) => state.profile);
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
+  const connection = useConnectionState((state) => state.connection);
   const historyProfile = connection?.settingsProfile === 'quick-mock'
     ? null
     : connection?.usePrimaryLeagueSettings === true || profile === 'primary-league'

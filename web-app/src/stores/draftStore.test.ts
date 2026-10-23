@@ -1,35 +1,39 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { getDraftView } from '@/workspace/useDraftView';
 import { deriveDraftState } from './draft/source';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { createDraftStore, DraftStoreProvider, useDraftStore, useDraftStoreApi, type DraftStoreApi } from './draftStore';
+import { createDraftStore } from './draftStore';
+import { workspaceForTestStore, WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
+
+const draftStore = createDraftStore();
 
 describe('draftStore shortlist', () => {
   beforeEach(() => {
-    useDraftStore.getState().setSessionMode('setup');
-    useDraftStore.getState().setConfig({
+    draftStore.getState().setSessionMode('setup');
+    draftStore.getState().setConfig({
       totalTeams: 10,
       totalRounds: 15,
       myPickPosition: 5,
     });
-    useDraftStore.getState().preloadKeepers([]);
-    useDraftStore.getState().resetDraft();
-    useDraftStore.getState().setDecisionLens('best-pick');
+    draftStore.getState().preloadKeepers([]);
+    draftStore.getState().resetDraft();
+    draftStore.getState().setDecisionLens('best-pick');
   });
 
   it('keeps imperative callbacks scoped to the same provider as selectors', () => {
     const first = createDraftStore();
     const second = createDraftStore();
-    const captured: DraftStoreApi[] = [];
+    const captured: ReturnType<typeof useWorkspace>['draft'][] = [];
     const selected: number[] = [];
     function CaptureStore() {
-      captured.push(useDraftStoreApi());
-      selected.push(useDraftStore((state) => deriveDraftState(state).currentPick));
+      captured.push(useWorkspace().draft);
+      selected.push(useDraftState((state) => deriveDraftState(state).currentPick));
       return null;
     }
     for (const store of [first, second]) {
-      renderToString(createElement(DraftStoreProvider, {
+      renderToString(createElement(WorkspaceTestProvider, {
         store,
         children: createElement(CaptureStore),
       }));
@@ -40,11 +44,11 @@ describe('draftStore shortlist', () => {
     if (!api) throw new Error('Store provider did not render');
     let notifications = 0;
     const unsubscribe = api.subscribe(() => { notifications += 1; });
-    api.getState().branchFromPick(4);
+    workspaceForTestStore(first).send('branchFromPick', 4);
     expect(getDraftView(api).currentPick).toBe(4);
     expect(deriveDraftState(api.getInitialState()).currentPick).toBe(1);
     expect(getDraftView(second).currentPick).toBe(1);
-    expect(getDraftView(useDraftStore).currentPick).toBe(1);
+    expect(getDraftView(draftStore).currentPick).toBe(1);
     expect(notifications).toBe(1);
     unsubscribe();
   });
@@ -85,13 +89,13 @@ describe('draftStore shortlist', () => {
   });
 
   it('distinguishes setup, mock, and live draft sessions', () => {
-    expect(useDraftStore.getState().sessionMode).toBe('setup');
+    expect(draftStore.getState().sessionMode).toBe('setup');
 
-    useDraftStore.getState().setSessionMode('mock');
-    expect(useDraftStore.getState().sessionMode).toBe('mock');
+    draftStore.getState().setSessionMode('mock');
+    expect(draftStore.getState().sessionMode).toBe('mock');
 
-    useDraftStore.getState().setSessionMode('live');
-    expect(useDraftStore.getState().sessionMode).toBe('live');
+    draftStore.getState().setSessionMode('live');
+    expect(draftStore.getState().sessionMode).toBe('live');
   });
 
   it('keeps linear keeper reservations consistent through imports, corrections, and resets', () => {
@@ -166,7 +170,7 @@ describe('draftStore shortlist', () => {
   });
 
   it('records a Provisional Pick in the canonical sequence and every affected roster', () => {
-    const store = useDraftStore.getState();
+    const store = draftStore.getState();
     store.setSessionMode('live');
     store.setConfig({ myPickPosition: 3 });
     store.reconcileSyncedPicks([
@@ -190,7 +194,7 @@ describe('draftStore shortlist', () => {
       },
     ], 3);
 
-    const recorded = useDraftStore.getState().recordProvisionalPick({
+    const recorded = draftStore.getState().recordProvisionalPick({
       pickNumber: 3,
       playerId: 'observed-rb',
       playerName: 'Observed Running Back',
@@ -198,7 +202,7 @@ describe('draftStore shortlist', () => {
       teamIndex: 2,
       teamName: 'My Team',
     });
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
 
     expect(recorded).toBe(true);
     expect(state.draftHistory.at(-1)).toMatchObject({
@@ -211,7 +215,7 @@ describe('draftStore shortlist', () => {
     expect(deriveDraftState(state).myRoster.RB).toEqual(['observed-rb']);
     expect(deriveDraftState(state).currentPick).toBe(4);
 
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 4,
       playerId: 'observed-rb',
       playerName: 'Observed Running Back',
@@ -219,11 +223,11 @@ describe('draftStore shortlist', () => {
       teamIndex: 3,
       teamName: 'Team 4',
     })).toBe(false);
-    expect(useDraftStore.getState().draftHistory).toHaveLength(3);
+    expect(draftStore.getState().draftHistory).toHaveLength(3);
   });
 
   it('confirms a matching Provisional Pick once across repeated Provider Truth snapshots', () => {
-    const store = useDraftStore.getState();
+    const store = draftStore.getState();
     store.setSessionMode('live');
     store.setConfig({ myPickPosition: 3 });
     const providerPicks = [
@@ -247,7 +251,7 @@ describe('draftStore shortlist', () => {
       },
     ];
     store.reconcileSyncedPicks(providerPicks, 3);
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 3,
       playerId: 'observed-rb',
       playerName: 'Observed Running Back',
@@ -255,7 +259,7 @@ describe('draftStore shortlist', () => {
       teamIndex: 2,
       teamName: 'My Team',
     })).toBe(true);
-    useDraftStore.getState().setMockSurvivalProbabilities({
+    draftStore.getState().setMockSurvivalProbabilities({
       'next-player': 0.75,
     });
 
@@ -272,15 +276,15 @@ describe('draftStore shortlist', () => {
       },
     ];
     let transitions = 0;
-    const unsubscribe = useDraftStore.subscribe(() => {
+    const unsubscribe = draftStore.subscribe(() => {
       transitions += 1;
     });
 
-    const firstResult = useDraftStore.getState().reconcileSyncedPicks(
+    const firstResult = draftStore.getState().reconcileSyncedPicks(
       restoredProviderTruth,
       4
     );
-    const confirmed = useDraftStore.getState();
+    const confirmed = draftStore.getState();
 
     expect(firstResult).toEqual({
       changed: true,
@@ -308,19 +312,19 @@ describe('draftStore shortlist', () => {
     expect([...deriveDraftState(confirmed).draftedPlayerIds].filter(
       (playerId) => playerId === 'observed-rb'
     )).toHaveLength(1);
-    expect(getDraftView(useDraftStore).teamRosters[2]?.RB).toEqual(['observed-rb']);
+    expect(getDraftView(draftStore).teamRosters[2]?.RB).toEqual(['observed-rb']);
     expect(deriveDraftState(confirmed).myRoster.RB).toEqual(['observed-rb']);
     expect(deriveDraftState(confirmed).currentPick).toBe(4);
     expect(confirmed.mockSurvivalProbabilities).toEqual({});
     expect(transitions).toBe(1);
 
     const historyAfterConfirmation = confirmed.draftHistory;
-    const rostersAfterConfirmation = getDraftView(useDraftStore).teamRosters;
+    const rostersAfterConfirmation = getDraftView(draftStore).teamRosters;
     const repeatedResult = confirmed.reconcileSyncedPicks(
       restoredProviderTruth,
       4
     );
-    const repeated = useDraftStore.getState();
+    const repeated = draftStore.getState();
 
     expect(repeatedResult).toEqual({
       changed: false,
@@ -330,14 +334,14 @@ describe('draftStore shortlist', () => {
       unresolvedIdentities: [],
     });
     expect(repeated.draftHistory).toBe(historyAfterConfirmation);
-    expect(getDraftView(useDraftStore).teamRosters).toBe(rostersAfterConfirmation);
+    expect(getDraftView(draftStore).teamRosters).toBe(rostersAfterConfirmation);
     expect(transitions).toBe(1);
 
     unsubscribe();
   });
 
   it('rebuilds canonical state and reports conflicts, removals, provider corrections, and unresolved identities', () => {
-    const store = useDraftStore.getState();
+    const store = draftStore.getState();
     store.setSessionMode('live');
     store.setConfig({ myPickPosition: 4 });
     const initialProviderTruth = [
@@ -370,9 +374,9 @@ describe('draftStore shortlist', () => {
       },
     ];
     store.reconcileSyncedPicks(initialProviderTruth, 4);
-    useDraftStore.getState().togglePlayerShortlisted('wrong-local-te');
-    useDraftStore.getState().togglePlayerShortlisted('extra-local-wr');
-    expect(useDraftStore.getState().recordProvisionalPick({
+    draftStore.getState().togglePlayerShortlisted('wrong-local-te');
+    draftStore.getState().togglePlayerShortlisted('extra-local-wr');
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 4,
       playerId: 'wrong-local-te',
       playerName: 'Wrong Local Tight End',
@@ -380,7 +384,7 @@ describe('draftStore shortlist', () => {
       teamIndex: 3,
       teamName: 'My Team',
     })).toBe(true);
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 6,
       playerId: 'extra-local-wr',
       playerName: 'Extra Local Receiver',
@@ -414,16 +418,16 @@ describe('draftStore shortlist', () => {
       nflTeam: 'DET',
     };
     let transitions = 0;
-    const unsubscribe = useDraftStore.subscribe(() => {
+    const unsubscribe = draftStore.subscribe(() => {
       transitions += 1;
     });
 
-    const result = useDraftStore.getState().reconcileSyncedPicks(
+    const result = draftStore.getState().reconcileSyncedPicks(
       restoredProviderTruth,
       6,
       [unresolvedPick]
     );
-    const reconciled = useDraftStore.getState();
+    const reconciled = draftStore.getState();
 
     expect(result).toMatchObject({
       changed: true,
@@ -464,9 +468,9 @@ describe('draftStore shortlist', () => {
     expect(deriveDraftState(reconciled).draftedPlayerIds.has('extra-local-wr')).toBe(false);
     expect(deriveDraftState(reconciled).draftedPlayerIds.has('corrected-provider-rb')).toBe(true);
     expect(deriveDraftState(reconciled).draftedPlayerIds.has('official-provider-wr')).toBe(true);
-    expect(getDraftView(useDraftStore).teamRosters[0]?.RB).toEqual(['corrected-provider-rb']);
-    expect(getDraftView(useDraftStore).teamRosters[3]?.TE).toEqual([]);
-    expect(getDraftView(useDraftStore).teamRosters[3]?.WR).toEqual(['official-provider-wr']);
+    expect(getDraftView(draftStore).teamRosters[0]?.RB).toEqual(['corrected-provider-rb']);
+    expect(getDraftView(draftStore).teamRosters[3]?.TE).toEqual([]);
+    expect(getDraftView(draftStore).teamRosters[3]?.WR).toEqual(['official-provider-wr']);
     expect(deriveDraftState(reconciled).myRoster.WR).toEqual(['official-provider-wr']);
     expect(deriveDraftState(reconciled).currentPick).toBe(6);
     expect(reconciled.unresolvedProviderPicks).toEqual([unresolvedPick]);
@@ -477,7 +481,7 @@ describe('draftStore shortlist', () => {
     expect(transitions).toBe(1);
 
     const canonicalHistory = reconciled.draftHistory;
-    const canonicalRosters = getDraftView(useDraftStore).teamRosters;
+    const canonicalRosters = getDraftView(draftStore).teamRosters;
     expect(reconciled.reconcileSyncedPicks(
       restoredProviderTruth,
       6,
@@ -489,8 +493,8 @@ describe('draftStore shortlist', () => {
       removals: [],
       unresolvedIdentities: [],
     });
-    expect(useDraftStore.getState().draftHistory).toBe(canonicalHistory);
-    expect(getDraftView(useDraftStore).teamRosters).toBe(canonicalRosters);
+    expect(draftStore.getState().draftHistory).toBe(canonicalHistory);
+    expect(getDraftView(draftStore).teamRosters).toBe(canonicalRosters);
     expect(transitions).toBe(1);
 
     const identityResolvedProviderTruth = [
@@ -505,14 +509,14 @@ describe('draftStore shortlist', () => {
         isMyPick: false,
       },
     ];
-    expect(useDraftStore.getState().reconcileSyncedPicks(
+    expect(draftStore.getState().reconcileSyncedPicks(
       identityResolvedProviderTruth,
       6,
       []
     )).toMatchObject({ changed: true, unresolvedIdentities: [] });
-    expect(useDraftStore.getState().unresolvedProviderPicks).toEqual([]);
+    expect(draftStore.getState().unresolvedProviderPicks).toEqual([]);
 
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 6,
       playerId: 'cycle-two-local',
       playerName: 'Cycle Two Local',
@@ -532,7 +536,7 @@ describe('draftStore shortlist', () => {
         isMyPick: false,
       },
     ];
-    const secondCycle = useDraftStore.getState().reconcileSyncedPicks(
+    const secondCycle = draftStore.getState().reconcileSyncedPicks(
       cycleTwoProviderTruth,
       7
     );
@@ -545,7 +549,7 @@ describe('draftStore shortlist', () => {
       previousPlayerId: 'cycle-two-local',
       providerPlayerId: 'cycle-two-provider',
     }]);
-    expect(useDraftStore.getState().reconcileSyncedPicks(
+    expect(draftStore.getState().reconcileSyncedPicks(
       cycleTwoProviderTruth,
       7
     ).changed).toBe(false);
@@ -554,7 +558,7 @@ describe('draftStore shortlist', () => {
   });
 
   it('rejects provisional entries outside live mode or assigned to the wrong snake slot', () => {
-    const store = useDraftStore.getState();
+    const store = draftStore.getState();
     expect(store.recordProvisionalPick({
       pickNumber: 1,
       playerId: 'player-a',
@@ -565,7 +569,7 @@ describe('draftStore shortlist', () => {
     })).toBe(false);
 
     store.setSessionMode('live');
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 1,
       playerId: 'player-a',
       playerName: 'Player A',
@@ -573,11 +577,11 @@ describe('draftStore shortlist', () => {
       teamIndex: 4,
       teamName: 'My Team',
     })).toBe(false);
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
+    expect(draftStore.getState().draftHistory).toEqual([]);
   });
 
   it('corrects and removes only Provisional Picks without creating duplicate draft state', () => {
-    const store = useDraftStore.getState();
+    const store = draftStore.getState();
     store.setSessionMode('live');
     store.setConfig({ myPickPosition: 3 });
     store.togglePlayerShortlisted('observed-old');
@@ -602,7 +606,7 @@ describe('draftStore shortlist', () => {
         isMyPick: false,
       },
     ], 3);
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 3,
       playerId: 'observed-old',
       playerName: 'Observed Old Player',
@@ -610,7 +614,7 @@ describe('draftStore shortlist', () => {
       teamIndex: 2,
       teamName: 'My Team',
     })).toBe(true);
-    expect(useDraftStore.getState().recordProvisionalPick({
+    expect(draftStore.getState().recordProvisionalPick({
       pickNumber: 4,
       playerId: 'other-provisional',
       playerName: 'Other Provisional Player',
@@ -619,7 +623,7 @@ describe('draftStore shortlist', () => {
       teamName: 'Team 4',
     })).toBe(true);
 
-    const originalTimestamp = useDraftStore.getState().draftHistory.find(
+    const originalTimestamp = draftStore.getState().draftHistory.find(
       (pick) => pick.pickNumber === 3
     )?.timestamp;
     const replacement = {
@@ -631,23 +635,23 @@ describe('draftStore shortlist', () => {
       teamName: 'Team 5',
     };
 
-    expect(useDraftStore.getState().correctProvisionalPick(1, replacement)).toBe(false);
-    expect(useDraftStore.getState().removeProvisionalPick(1)).toBe(false);
-    expect(useDraftStore.getState().correctProvisionalPick(3, {
+    expect(draftStore.getState().correctProvisionalPick(1, replacement)).toBe(false);
+    expect(draftStore.getState().removeProvisionalPick(1)).toBe(false);
+    expect(draftStore.getState().correctProvisionalPick(3, {
       ...replacement,
       pickNumber: 4,
       teamIndex: 3,
       teamName: 'Team 4',
     })).toBe(false);
-    expect(useDraftStore.getState().correctProvisionalPick(3, {
+    expect(draftStore.getState().correctProvisionalPick(3, {
       ...replacement,
       playerId: 'other-provisional',
       playerName: 'Other Provisional Player',
       position: 'TE',
     })).toBe(false);
-    expect(useDraftStore.getState().correctProvisionalPick(3, replacement)).toBe(true);
+    expect(draftStore.getState().correctProvisionalPick(3, replacement)).toBe(true);
 
-    let state = useDraftStore.getState();
+    let state = draftStore.getState();
     const corrected = state.draftHistory.find((pick) => pick.pickNumber === 5);
     expect(corrected).toMatchObject({
       playerId: 'observed-new',
@@ -674,23 +678,23 @@ describe('draftStore shortlist', () => {
     );
 
     expect(state.removeProvisionalPick(5)).toBe(true);
-    state = useDraftStore.getState();
+    state = draftStore.getState();
     expect(state.draftHistory.some((pick) => pick.pickNumber === 5)).toBe(false);
     expect(deriveDraftState(state).draftedPlayerIds.has('observed-new')).toBe(false);
     expect(deriveDraftState(state).teamRosters[4]?.WR).toEqual([]);
     expect(state.shortlistedPlayerIds).toEqual(['observed-old', 'observed-new']);
     expect(state.removeProvisionalPick(5)).toBe(false);
-    expect(useDraftStore.getState().draftHistory).toHaveLength(3);
+    expect(draftStore.getState().draftHistory).toHaveLength(3);
   });
 
   it('defaults to Best Pick and changes only the Decision Lens', () => {
-    const store = useDraftStore.getState();
+    const store = draftStore.getState();
     store.setSessionMode('live');
     store.setPositionFilter('WR');
     store.setSearchQuery('lamb');
     store.markPlayerDrafted('drafted-rb', 'Drafted RB', 'RB', 0, 'Team 1', 1, 'sync');
 
-    const before = useDraftStore.getState();
+    const before = draftStore.getState();
     expect(before.decisionLens).toBe('best-pick');
     const preserved = {
       currentPick: deriveDraftState(before).currentPick,
@@ -701,7 +705,7 @@ describe('draftStore shortlist', () => {
     };
 
     before.setDecisionLens('best-player');
-    const after = useDraftStore.getState();
+    const after = draftStore.getState();
 
     expect(after.decisionLens).toBe('best-player');
     expect({
@@ -714,7 +718,7 @@ describe('draftStore shortlist', () => {
   });
 
   it('reserves keepers before the draft and preserves them on reset', () => {
-    const { preloadKeepers, markPlayerDrafted, resetDraft } = useDraftStore.getState();
+    const { preloadKeepers, markPlayerDrafted, resetDraft } = draftStore.getState();
 
     preloadKeepers([
       {
@@ -735,20 +739,20 @@ describe('draftStore shortlist', () => {
       },
     ]);
 
-    let state = useDraftStore.getState();
+    let state = draftStore.getState();
     expect(deriveDraftState(state).currentPick).toBe(1);
     expect(state.draftHistory).toHaveLength(0);
     expect([...deriveDraftState(state).draftedPlayerIds].sort()).toEqual(['my-keeper', 'other-keeper']);
     expect(deriveDraftState(state).myRoster.RB).toEqual(['my-keeper']);
 
     markPlayerDrafted('other-keeper', 'Other Keeper', 'WR', 1, 'Team 2');
-    expect(getDraftView(useDraftStore).currentPick).toBe(1);
+    expect(getDraftView(draftStore).currentPick).toBe(1);
 
     markPlayerDrafted('fresh-pick', 'Fresh Pick', 'QB', 0, 'My Team');
-    expect(getDraftView(useDraftStore).currentPick).toBe(2);
+    expect(getDraftView(draftStore).currentPick).toBe(2);
     resetDraft();
 
-    state = useDraftStore.getState();
+    state = draftStore.getState();
     expect(deriveDraftState(state).currentPick).toBe(1);
     expect(state.draftHistory).toHaveLength(0);
     expect([...deriveDraftState(state).draftedPlayerIds].sort()).toEqual(['my-keeper', 'other-keeper']);
@@ -756,7 +760,7 @@ describe('draftStore shortlist', () => {
   });
 
   it('retains preloaded keepers when synced draft picks are reconciled', () => {
-    const { preloadKeepers, reconcileSyncedPicks } = useDraftStore.getState();
+    const { preloadKeepers, reconcileSyncedPicks } = draftStore.getState();
     preloadKeepers([
       {
         playerId: 'keeper',
@@ -780,15 +784,15 @@ describe('draftStore shortlist', () => {
       },
     ], 2);
 
-    expect(getDraftView(useDraftStore).draftedPlayerIds).toEqual(new Set([
+    expect(getDraftView(draftStore).draftedPlayerIds).toEqual(new Set([
       'fresh-pick',
       'keeper',
     ]));
-    expect(getDraftView(useDraftStore).currentPick).toBe(2);
+    expect(getDraftView(draftStore).currentPick).toBe(2);
   });
 
   it('consumes a keeper at its assigned snake-draft selection', () => {
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     state.preloadKeepers([
       {
         playerId: 'javonte',
@@ -800,9 +804,9 @@ describe('draftStore shortlist', () => {
       },
     ]);
     state.branchFromPick(96);
-    useDraftStore.getState().consumeKeeperAtCurrentPick();
+    draftStore.getState().consumeKeeperAtCurrentPick();
 
-    let current = useDraftStore.getState();
+    let current = draftStore.getState();
     expect(deriveDraftState(current).currentPick).toBe(97);
     expect(current.draftHistory).toEqual([
       expect.objectContaining({
@@ -814,14 +818,14 @@ describe('draftStore shortlist', () => {
     ]);
 
     current.undoLastPick();
-    current = useDraftStore.getState();
+    current = draftStore.getState();
     expect(deriveDraftState(current).currentPick).toBe(96);
     expect(current.draftHistory).toHaveLength(0);
     expect(deriveDraftState(current).draftedPlayerIds.has('javonte')).toBe(true);
   });
 
   it('branches from any completed pick while preserving keeper reservations', () => {
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     state.preloadKeepers([
       {
         playerId: 'keeper',
@@ -833,82 +837,82 @@ describe('draftStore shortlist', () => {
       },
     ]);
     state.markPlayerDrafted('one', 'One', 'WR', 0, 'Team 1');
-    useDraftStore.getState().markPlayerDrafted('two', 'Two', 'QB', 1, 'Team 2');
-    useDraftStore.getState().markPlayerDrafted('three', 'Three', 'TE', 2, 'Team 3');
-    useDraftStore.getState().branchFromPick(2);
+    draftStore.getState().markPlayerDrafted('two', 'Two', 'QB', 1, 'Team 2');
+    draftStore.getState().markPlayerDrafted('three', 'Three', 'TE', 2, 'Team 3');
+    draftStore.getState().branchFromPick(2);
 
-    const branched = useDraftStore.getState();
+    const branched = draftStore.getState();
     expect(deriveDraftState(branched).currentPick).toBe(2);
     expect(branched.draftHistory.map((pick) => pick.playerId)).toEqual(['one']);
     expect([...deriveDraftState(branched).draftedPlayerIds].sort()).toEqual(['keeper', 'one']);
   });
 
   it('keeps players in the order they were starred and toggles them off', () => {
-    const { togglePlayerShortlisted } = useDraftStore.getState();
+    const { togglePlayerShortlisted } = draftStore.getState();
 
     togglePlayerShortlisted('player-a');
     togglePlayerShortlisted('player-b');
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual([
       'player-a',
       'player-b',
     ]);
 
     togglePlayerShortlisted('player-a');
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual(['player-b']);
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual(['player-b']);
   });
 
   it('reorders queued players and ignores moves past either end', () => {
-    const { moveShortlistedPlayer, togglePlayerShortlisted } = useDraftStore.getState();
+    const { moveShortlistedPlayer, togglePlayerShortlisted } = draftStore.getState();
     togglePlayerShortlisted('player-a');
     togglePlayerShortlisted('player-b');
     togglePlayerShortlisted('player-c');
 
     moveShortlistedPlayer('player-c', -1);
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual(['player-a', 'player-c', 'player-b']);
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual(['player-a', 'player-c', 'player-b']);
 
     moveShortlistedPlayer('player-a', -1);
     moveShortlistedPlayer('player-b', 1);
     moveShortlistedPlayer('missing', 1);
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual(['player-a', 'player-c', 'player-b']);
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual(['player-a', 'player-c', 'player-b']);
   });
 
   it('removes drafted players and does not add them back to the shortlist', () => {
-    const { markPlayerDrafted, togglePlayerShortlisted } = useDraftStore.getState();
+    const { markPlayerDrafted, togglePlayerShortlisted } = draftStore.getState();
 
     togglePlayerShortlisted('player-a');
     markPlayerDrafted('player-a', 'Player A', 'WR', 0, 'Team 1');
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([]);
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual([]);
 
     togglePlayerShortlisted('player-a');
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([]);
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual([]);
   });
 
   it('removes shortlisted players when importing a pick', () => {
-    const { markPlayerDrafted, togglePlayerShortlisted } = useDraftStore.getState();
+    const { markPlayerDrafted, togglePlayerShortlisted } = draftStore.getState();
 
     togglePlayerShortlisted('player-a');
     markPlayerDrafted('player-a', 'Player A', 'WR', 1, 'Team 1', 3);
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([]);
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual([]);
   });
 
   it('restores a shortlisted player in the same position when undoing a pick', () => {
     const { markPlayerDrafted, togglePlayerShortlisted, undoLastPick } =
-      useDraftStore.getState();
+      draftStore.getState();
 
     togglePlayerShortlisted('player-a');
     togglePlayerShortlisted('player-b');
     markPlayerDrafted('player-a', 'Player A', 'WR', 0, 'Team 1');
     undoLastPick();
 
-    expect(useDraftStore.getState().shortlistedPlayerIds).toEqual([
+    expect(draftStore.getState().shortlistedPlayerIds).toEqual([
       'player-a',
       'player-b',
     ]);
   });
 
   it('replaces imported Sleeper picks when the canonical snapshot changes', () => {
-    useDraftStore.getState().setConfig({ myPickPosition: 1 });
-    const { markPlayerDrafted, reconcileSyncedPicks } = useDraftStore.getState();
+    draftStore.getState().setConfig({ myPickPosition: 1 });
+    const { markPlayerDrafted, reconcileSyncedPicks } = draftStore.getState();
 
     markPlayerDrafted('manual-player', 'Manual Player', 'RB', 0, 'My Team', 1);
 
@@ -945,7 +949,7 @@ describe('draftStore shortlist', () => {
       },
     ], 2);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect([...deriveDraftState(state).draftedPlayerIds]).toEqual(['player-c']);
     expect(state.draftHistory).toHaveLength(1);
     expect(deriveDraftState(state).myRoster.TE).toEqual(['player-c']);
@@ -954,7 +958,7 @@ describe('draftStore shortlist', () => {
   });
 
   it('initializes canonical keeper supply identically across repeated preloads', () => {
-    const { preloadKeepers } = useDraftStore.getState();
+    const { preloadKeepers } = draftStore.getState();
     const keepers = [
       {
         playerId: 'keeper-a',
@@ -977,7 +981,7 @@ describe('draftStore shortlist', () => {
     preloadKeepers(keepers);
     preloadKeepers(keepers);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.preloadedKeepers).toHaveLength(2);
     expect(state.keepersInitialized).toBe(true);
     expect([...deriveDraftState(state).draftedPlayerIds].sort()).toEqual(['keeper-a', 'keeper-b']);
@@ -987,7 +991,7 @@ describe('draftStore shortlist', () => {
   });
 
   it('rejects duplicate and conflicting keeper supply instead of applying a partial baseline', () => {
-    useDraftStore.getState().preloadKeepers([
+    draftStore.getState().preloadKeepers([
       {
         playerId: 'dup',
         playerName: 'Duplicate Keeper',
@@ -1022,7 +1026,7 @@ describe('draftStore shortlist', () => {
       },
     ]);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.preloadedKeepers).toEqual([]);
     expect(state.keepersInitialized).toBe(false);
     expect(deriveDraftState(state).draftedPlayerIds.size).toBe(0);
@@ -1031,9 +1035,9 @@ describe('draftStore shortlist', () => {
   });
 
   it('keeps an explicitly incomplete empty supply uninitialized', () => {
-    useDraftStore.getState().preloadKeepers([], false);
+    draftStore.getState().preloadKeepers([], false);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.preloadedKeepers).toEqual([]);
     expect(state.keepersInitialized).toBe(false);
     expect(deriveDraftState(state).draftedPlayerIds.size).toBe(0);
@@ -1041,7 +1045,7 @@ describe('draftStore shortlist', () => {
 
   it('lets Provider Truth override a stale keeper assignment', () => {
     const { preloadKeepers, reconcileSyncedPicks } =
-      useDraftStore.getState();
+      draftStore.getState();
 
     // Keeper configures team 2, round 4 -> overall pick 39.
     preloadKeepers([
@@ -1068,7 +1072,7 @@ describe('draftStore shortlist', () => {
       },
     ], 39);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.draftHistory).toEqual([
       expect.objectContaining({
         pickNumber: 38,
@@ -1085,7 +1089,7 @@ describe('draftStore shortlist', () => {
 
   it('reconciles the Rashee Rice and Omarion Hampton keeper conflict from Provider Truth', () => {
     const { preloadKeepers, reconcileSyncedPicks } =
-      useDraftStore.getState();
+      draftStore.getState();
 
     preloadKeepers([
       {
@@ -1119,7 +1123,7 @@ describe('draftStore shortlist', () => {
       },
     ], 36);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.draftHistory.map((pick) => [pick.pickNumber, pick.playerId])).toEqual([
       [26, '10229'],
       [28, '12507'],
@@ -1133,8 +1137,8 @@ describe('draftStore shortlist', () => {
   });
 
   it('deduplicates a synced keeper on my roster', () => {
-    useDraftStore.getState().setConfig({ myPickPosition: 2 });
-    useDraftStore.getState().preloadKeepers([
+    draftStore.getState().setConfig({ myPickPosition: 2 });
+    draftStore.getState().preloadKeepers([
       {
         playerId: 'keeper',
         playerName: 'Keeper',
@@ -1145,7 +1149,7 @@ describe('draftStore shortlist', () => {
       },
     ]);
 
-    useDraftStore.getState().reconcileSyncedPicks([
+    draftStore.getState().reconcileSyncedPicks([
       {
         pickNumber: 39,
         playerId: 'keeper',
@@ -1157,15 +1161,15 @@ describe('draftStore shortlist', () => {
       },
     ], 40);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.draftHistory).toEqual([]);
     expect(deriveDraftState(state).myRoster.TE).toEqual(['keeper']);
     expect(deriveDraftState(state).currentPick).toBe(40);
   });
 
   it('preserves Provider Truth when keeper initialization finishes after sync', () => {
-    useDraftStore.getState().setSessionMode('live');
-    useDraftStore.getState().reconcileSyncedPicks([
+    draftStore.getState().setSessionMode('live');
+    draftStore.getState().reconcileSyncedPicks([
       {
         pickNumber: 38,
         playerId: 'keeper',
@@ -1177,7 +1181,7 @@ describe('draftStore shortlist', () => {
       },
     ], 39);
 
-    useDraftStore.getState().preloadKeepers([
+    draftStore.getState().preloadKeepers([
       {
         playerId: 'keeper',
         playerName: 'Keeper',
@@ -1188,7 +1192,7 @@ describe('draftStore shortlist', () => {
       },
     ]);
 
-    const state = useDraftStore.getState();
+    const state = draftStore.getState();
     expect(state.draftHistory).toEqual([
       expect.objectContaining({
         pickNumber: 38,

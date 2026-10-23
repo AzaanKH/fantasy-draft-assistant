@@ -3,7 +3,8 @@ import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Player } from '@fantasy-draft/shared/league';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { getDraftView } from '@/workspace/useDraftView';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 
@@ -32,7 +33,7 @@ let store: DraftStoreApi;
 // MockDraftAutoAdvance sits above the routes; the controls exist only on the draft board.
 function render({ onBoard }: { readonly onBoard: boolean }): void {
   act(() => {
-    root.render(createElement(DraftStoreProvider, {
+    root.render(createElement(WorkspaceTestProvider, {
       store,
       children: createElement(
         Fragment,

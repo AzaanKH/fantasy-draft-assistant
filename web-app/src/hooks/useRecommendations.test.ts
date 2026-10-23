@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQuery } from '@tanstack/react-query';
 import { POSITIONS, type Player } from '@fantasy-draft/shared/league';
 import { useRecommendations } from './useRecommendations';
-import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { createQuickMockSettings, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
 import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
 import type { LocalLeagueProfile } from '@/stores/leagueSetupStore';
@@ -16,12 +17,9 @@ const setup = vi.hoisted(() => ({
 vi.mock('@/stores/leagueSetupStore', () => ({
   useLeagueSetupStore: (selector: (state: typeof setup) => unknown) => selector(setup),
 }));
-vi.mock('@/stores/draftSyncStore', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/stores/draftSyncStore')>(),
-  useDraftSyncConnectionStore: Object.assign(
-    (selector: (state: typeof setup) => unknown) => selector(setup),
-    { getState: () => setup, subscribe: vi.fn() }
-  ),
+vi.mock('@/workspace/WorkspaceProvider', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/workspace/WorkspaceProvider')>(),
+  useConnectionState: (selector: (state: typeof setup) => unknown) => selector(setup),
 }));
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
 vi.mock('./usePlayerData', () => ({
@@ -61,7 +59,7 @@ function Probe() { result = useRecommendations(5, enabled); return null; }
 function render() {
   // Server rendering reads the initial snapshot; expose the configured test room.
   store.getInitialState = store.getState;
-  renderToStaticMarkup(createElement(DraftStoreProvider, { store, children: createElement(Probe) }));
+  renderToStaticMarkup(createElement(WorkspaceTestProvider, { store, children: createElement(Probe) }));
 }
 
 beforeEach(() => {
