@@ -1,3 +1,6 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,22 +14,14 @@ import {
 } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import {
-  formatRoundPick,
-  getPickNumberForTeamRound,
-  getTeamIndexForPick,
-} from '@/lib/mock-draft-engine';
 import { getProviderName } from '@/lib/provider-name';
-import {
-  useDraftStore,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { type RecordedDraftPick } from '@/stores/draftStore';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 
 function getTeamName(
   teamIndex: number,
   myTeamIndex: number,
-  history: ReturnType<typeof useDraftStore.getState>['draftHistory']
+  history: readonly RecordedDraftPick[]
 ): string {
   if (teamIndex === myTeamIndex) return 'My Team';
 
@@ -82,40 +77,33 @@ function ProvisionalPickForm({
 }): React.ReactElement {
   const { players } = usePlayerDataQuery();
   const { connection } = useLiveDraftSync();
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const recordProvisionalPick = useDraftStore(
-    (state) => state.recordProvisionalPick
-  );
-  const correctProvisionalPick = useDraftStore(
-    (state) => state.correctProvisionalPick
-  );
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const canRecord = useDraftView((view) => view.canRecord);
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
+  const workspace = useWorkspace();
 
   const selectablePlayers = React.useMemo(
     () => players
-      .filter((player) =>
-        !draftedPlayerIds.has(player.id) || player.id === editingPick?.playerId
-      )
+      .filter((player) => !draftedPlayerIds.has(player.id) || player.id === editingPick?.playerId)
       .sort((left, right) => left.ecrRank - right.ecrRank),
     [draftedPlayerIds, editingPick?.playerId, players]
   );
+  const order = React.useMemo(() => createSlotSequence({
+    type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds,
+  }), [config.draftType, config.totalTeams, config.totalRounds]);
   const openPickNumbers = React.useMemo(() => {
     const occupied = new Set(draftHistory.map((pick) => pick.pickNumber));
     for (const keeper of preloadedKeepers) {
-      occupied.add(getPickNumberForTeamRound(
-        keeper.teamIndex,
-        keeper.round,
-        config.totalTeams
-      ));
+      occupied.add(order.forTeamRound(keeper.teamIndex, keeper.round).pick);
     }
     return Array.from(
       { length: config.totalTeams * config.totalRounds },
       (_, index) => index + 1
     ).filter((pickNumber) => !occupied.has(pickNumber));
-  }, [config.totalRounds, config.totalTeams, draftHistory, preloadedKeepers]);
+  }, [config.totalRounds, config.totalTeams, order, draftHistory, preloadedKeepers]);
   const editablePickNumbers = React.useMemo(() => {
     const pickNumbers = [...openPickNumbers];
     if (
@@ -166,7 +154,7 @@ function ProvisionalPickForm({
       return;
     }
 
-    const teamIndex = getTeamIndexForPick(pickNumber, config.totalTeams);
+    const teamIndex = order.at(pickNumber).teamIndex;
     const replacement = {
       pickNumber,
       playerId: player.id,
@@ -180,8 +168,8 @@ function ProvisionalPickForm({
       ),
     };
     const saved = editingPick
-      ? correctProvisionalPick(editingPick.pickNumber, replacement)
-      : recordProvisionalPick(replacement);
+      ? workspace.send('correctProvisionalPick', editingPick.pickNumber, replacement)
+      : workspace.send('recordProvisionalPick', replacement);
     if (!saved) {
       setError(editingPick
         ? 'Choose a different player or an open draft position.'
@@ -230,13 +218,10 @@ function ProvisionalPickForm({
             value={selectedPickNumber}
             onValueChange={setSelectedPickNumber}
             options={editablePickNumbers.map((pickNumber) => {
-              const teamIndex = getTeamIndexForPick(
-                pickNumber,
-                config.totalTeams
-              );
+              const teamIndex = order.at(pickNumber).teamIndex;
               return {
                 value: String(pickNumber),
-                label: `Pick ${formatRoundPick(pickNumber, config.totalTeams)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
+                label: `Pick ${order.label(pickNumber)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
               };
             })}
           />
@@ -260,7 +245,7 @@ function ProvisionalPickForm({
         </Button>
         <Button
           onClick={handleSave}
-          disabled={
+          disabled={!canRecord ||
             !selectedPlayerId ||
             !selectedPickNumber ||
             Boolean(

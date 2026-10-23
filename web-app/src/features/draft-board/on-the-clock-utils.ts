@@ -1,20 +1,13 @@
-import type { DraftType } from '@fantasy-draft/shared';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
+import { type DraftType } from '@fantasy-draft/shared/sync';
 
 export function getPicksUntilMyTurn(
   currentPick: number,
   myPickPosition: number,
   totalTeams: number,
   totalRounds: number,
-  draftType: DraftType = 'snake'
+  draftType: DraftType
 ): number | null {
-  const totalPicks = totalTeams * totalRounds;
-
-  for (let pick = currentPick; pick <= totalPicks; pick += 1) {
-    if (getTeamIndexForDraftPick(pick, totalTeams, draftType) === myPickPosition - 1) {
-      return pick - currentPick;
-    }
-  }
-
-  return null;
+  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds })
+    .picksUntilTurn(myPickPosition - 1, currentPick);
 }

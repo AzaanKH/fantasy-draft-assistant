@@ -1,8 +1,9 @@
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
+import { deriveDraftState } from './source';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import {
   getKeeperPickNumbers,
   restoreShortlistedPlayer,
-  rebuildAfterProvisionalChange,
+  acceptProvisionalProgress,
 } from './state';
 import type { DraftActions, SetDraftState } from './types';
 
@@ -17,15 +18,12 @@ export function createProvisionalActions(
   return {
     recordProvisionalPick: (pick) => {
       let recorded = false;
-      set((state) => {
+      const applied = set((state) => {
         // A save conflict replays this transition on another tab's newer session.
         recorded = false;
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const expectedTeamIndex = getTeamIndexForDraftPick(
-          pick.pickNumber,
-          state.config.totalTeams,
-          state.config.draftType
-        );
+        if (!Number.isInteger(pick.pickNumber) || pick.pickNumber < 1 || pick.pickNumber > totalPicks) return;
+        const expectedTeamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(pick.pickNumber).teamIndex;
         const reservedKeeperPickNumbers = getKeeperPickNumbers(
           state.preloadedKeepers,
           state.config.totalTeams,
@@ -33,11 +31,8 @@ export function createProvisionalActions(
         );
         const invalidPick =
           state.sessionMode !== 'live' ||
-          !Number.isInteger(pick.pickNumber) ||
-          pick.pickNumber < 1 ||
-          pick.pickNumber > totalPicks ||
           pick.teamIndex !== expectedTeamIndex ||
-          state.draftedPlayerIds.has(pick.playerId) ||
+          deriveDraftState(state).draftedPlayerIds.has(pick.playerId) ||
           reservedKeeperPickNumbers.has(pick.pickNumber) ||
           state.draftHistory.some((draftPick) =>
             draftPick.pickNumber === pick.pickNumber ||
@@ -55,15 +50,15 @@ export function createProvisionalActions(
           source: 'provisional',
           ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
         });
-        rebuildAfterProvisionalChange(state);
+        acceptProvisionalProgress(state);
         recorded = true;
       });
-      return recorded;
+      return applied && recorded;
     },
 
     correctProvisionalPick: (originalPickNumber, replacement) => {
       let corrected = false;
-      set((state) => {
+      const applied = set((state) => {
         corrected = false;
         const originalIndex = state.draftHistory.findIndex(
           (pick) =>
@@ -74,11 +69,8 @@ export function createProvisionalActions(
         if (!original || state.sessionMode !== 'live') return;
 
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const expectedTeamIndex = getTeamIndexForDraftPick(
-          replacement.pickNumber,
-          state.config.totalTeams,
-          state.config.draftType
-        );
+        if (!Number.isInteger(replacement.pickNumber) || replacement.pickNumber < 1 || replacement.pickNumber > totalPicks) return;
+        const expectedTeamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(replacement.pickNumber).teamIndex;
         const keeperPlayerIds = new Set(
           state.preloadedKeepers.map((keeper) => keeper.playerId)
         );
@@ -96,9 +88,6 @@ export function createProvisionalActions(
             )
         );
         const invalidReplacement =
-          !Number.isInteger(replacement.pickNumber) ||
-          replacement.pickNumber < 1 ||
-          replacement.pickNumber > totalPicks ||
           replacement.teamIndex !== expectedTeamIndex ||
           keeperPlayerIds.has(replacement.playerId) ||
           reservedKeeperPickNumbers.has(replacement.pickNumber) ||
@@ -135,15 +124,15 @@ export function createProvisionalActions(
             ? { shortlistIndex }
             : {}),
         };
-        rebuildAfterProvisionalChange(state);
+        acceptProvisionalProgress(state);
         corrected = true;
       });
-      return corrected;
+      return applied && corrected;
     },
 
     removeProvisionalPick: (pickNumber) => {
       let removed = false;
-      set((state) => {
+      const applied = set((state) => {
         removed = false;
         if (state.sessionMode !== 'live') return;
         const pickIndex = state.draftHistory.findIndex(
@@ -155,10 +144,10 @@ export function createProvisionalActions(
 
         restoreShortlistedPlayer(state.shortlistedPlayerIds, pick);
         state.draftHistory.splice(pickIndex, 1);
-        rebuildAfterProvisionalChange(state);
+        acceptProvisionalProgress(state);
         removed = true;
       });
-      return removed;
+      return applied && removed;
     },
 
   };

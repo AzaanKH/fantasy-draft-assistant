@@ -1,12 +1,16 @@
 import {
-  DEFAULT_ROSTER_REQUIREMENTS,
   POSITIONS,
+  type Position,
+} from '@fantasy-draft/shared/league';
+import {
   optimizeLineupUtility,
   type LineupPlayer,
   type NeedPriority,
-  type Position,
+} from '@fantasy-draft/shared/draft';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
   type RosterRequirements,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 
 export interface PickEvPlayer {
   readonly id: string;
@@ -21,12 +25,12 @@ export interface PickEvPlayer {
   readonly injuryRiskScore: number;
 }
 
-export interface PickEvNeed {
+interface PickEvNeed {
   readonly position: Position;
   readonly priority: NeedPriority;
 }
 
-export interface PickEvContext {
+interface PickEvContext {
   readonly currentPick: number;
   readonly totalPicks: number;
   readonly totalTeams: number;
@@ -57,7 +61,7 @@ export interface PickEvScore {
   readonly expectedNextPickAlternativeValue: number;
 }
 
-export interface PickEvSelection {
+interface PickEvSelection {
   readonly playerId: string | undefined;
   readonly ecrChampionId: string | undefined;
   readonly challengerId: string | undefined;
@@ -75,7 +79,7 @@ export const DEFAULT_PICK_EV_LAYERS: PickEvLayers = {
 };
 
 /** PickEV is a tie-breaker around ECR, not permission to make large reaches. */
-export const PICK_EV_ECR_GUARDRAIL = 8;
+const PICK_EV_ECR_GUARDRAIL = 8;
 export const PICK_EV_OVERRIDE_THRESHOLD = 4;
 
 function clamp(value: number, min: number, max: number): number {

@@ -1,3 +1,5 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CircleAlert, PenLine, ShieldAlert, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,13 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { formatRoundPick } from '@/lib/mock-draft-engine';
 import { getProviderName } from '@/lib/provider-name';
 import { cn } from '@/lib/utils';
-import {
-  useDraftStore,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { type RecordedDraftPick } from '@/stores/draftStore';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
@@ -29,11 +27,9 @@ export function ManualContinuityControl(): React.ReactElement | null {
     synchronizationState,
     viewState,
   } = useLiveDraftSync();
-  const config = useDraftStore((state) => state.config);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const removeProvisionalPick = useDraftStore(
-    (state) => state.removeProvisionalPick
-  );
+  const config = useDraftState((state) => state.config);
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const workspace = useWorkspace();
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingPickNumber, setEditingPickNumber] = React.useState<
     number | null
@@ -88,7 +84,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
       setRemovalError('This Provisional Pick is no longer available to remove.');
       return;
     }
-    if (!removeProvisionalPick(pendingRemovalPick.pickNumber)) {
+    if (!workspace.send('removeProvisionalPick', pendingRemovalPick.pickNumber)) {
       setRemovalError('Only a local Provisional Pick can be removed.');
       return;
     }
@@ -164,7 +160,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                   key={pick.pickNumber}
                   className="flex flex-col gap-2 rounded-md border border-amber-500/35 bg-background/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   role="listitem"
-                  aria-label={`${pick.playerName}, ${pick.position}, pick ${formatRoundPick(pick.pickNumber, config.totalTeams)}, ${pick.teamName}, ${pick.provisionalRevision ? `corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}` : 'recorded locally'}`}
+                  aria-label={`${pick.playerName}, ${pick.position}, pick ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)}, ${pick.teamName}, ${pick.provisionalRevision ? `corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}` : 'recorded locally'}`}
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">
@@ -174,7 +170,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                       </span>
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Pick {formatRoundPick(pick.pickNumber, config.totalTeams)} · #{String(pick.pickNumber)} · {pick.teamName}
+                      Pick {createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)} · #{String(pick.pickNumber)} · {pick.teamName}
                       {pick.provisionalRevision
                         ? ` · Corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}`
                         : ' · Recorded locally'}

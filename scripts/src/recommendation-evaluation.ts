@@ -1,12 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export interface RecommendationEvaluation {
-  readonly generatedAt: string;
-  readonly modelVersion: string;
-  readonly evaluatedArchitecture: 'pick-ev-v1';
-  readonly [key: string]: unknown;
-}
+import { Schema } from 'effect';
 
 const CONTRACT_SIGNAL_FIELDS = [
   'contractSignalGeneratedAt',
@@ -24,15 +19,16 @@ const RUNTIME_FIELDS = [
   'shadowLogging',
 ];
 
-export function isRecommendationEvaluation(value: unknown): value is RecommendationEvaluation {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return typeof record['generatedAt'] === 'string' &&
-    Number.isFinite(Date.parse(record['generatedAt'])) &&
-    typeof record['modelVersion'] === 'string' &&
-    record['evaluatedArchitecture'] === 'pick-ev-v1' &&
-    RUNTIME_FIELDS.every((key) => !Object.hasOwn(record, key));
-}
+const recommendationEvaluation = Schema.StructWithRest(Schema.Struct({
+  generatedAt: Schema.String.check(Schema.makeFilter(value => Number.isFinite(Date.parse(value)))),
+  modelVersion: Schema.String,
+  evaluatedArchitecture: Schema.Literal('pick-ev-v1'),
+}), [Schema.Record(Schema.String, Schema.Unknown)]).check(
+  Schema.makeFilter(value => RUNTIME_FIELDS.every(key => !Object.hasOwn(value, key)))
+);
+
+type RecommendationEvaluation = typeof recommendationEvaluation.Type;
+export const isRecommendationEvaluation = Schema.is(recommendationEvaluation);
 
 /** Backtests own evaluation evidence; runtime policy is maintained separately. */
 export async function writeRecommendationEvaluation(
@@ -54,7 +50,7 @@ export async function readContractSignalEvidence(
   try {
     saved = JSON.parse(await readFile(join(dataDirectory, 'recommendation-evaluation.json'), 'utf8'));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return {};
     throw error;
   }
   if (!isRecommendationEvaluation(saved)) return {};

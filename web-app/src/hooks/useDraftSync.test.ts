@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  Player,
+} from '@fantasy-draft/shared/league';
+import type {
   DraftPickEvent,
   DraftSyncSnapshot,
-  Player,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import {
   applyDraftSyncHeartbeat,
   DRAFT_SYNC_STALE_AFTER_MS,
@@ -79,7 +81,7 @@ describe('resolveDraftPickImports', () => {
     const result = resolveDraftPickImports(
       [createPick()],
       [],
-      1
+      1, [], 0, 'snake'
     );
 
     expect(result.picks).toEqual([]);
@@ -102,7 +104,7 @@ describe('resolveDraftPickImports', () => {
         }),
       ],
       [createPlayer()],
-      1
+      1, [], 0, 'snake'
     );
 
     expect(result.rejectedPicks).toEqual([]);
@@ -123,7 +125,7 @@ describe('resolveDraftPickImports', () => {
         }),
       ],
       [],
-      2
+      2, [], 0, 'snake'
     );
 
     expect(result.picks).toEqual([]);
@@ -148,7 +150,7 @@ describe('resolveDraftPickImports', () => {
         }),
       ],
       [createPlayer()],
-      1
+      1, [], 0, 'snake'
     );
 
     expect(result.rejectedPicks).toEqual([]);
@@ -177,7 +179,7 @@ describe('resolveDraftPickImports', () => {
           team: 'CIN',
         }),
       ],
-      8
+      8, [], 0, 'snake'
     );
 
     expect(result.picks[0]).toMatchObject({
@@ -205,7 +207,7 @@ describe('resolveDraftPickImports', () => {
           team: 'WAS',
         }),
       ],
-      7
+      7, [], 0, 'snake'
     );
 
     expect(result.picks[0]).toMatchObject({
@@ -240,7 +242,7 @@ describe('resolveDraftPickImports', () => {
           team: 'LAR',
         }),
       ],
-      7
+      7, [], 0, 'snake'
     );
 
     expect(result.picks[0]).toMatchObject({
@@ -264,7 +266,7 @@ describe('resolveDraftPickImports', () => {
       teamIndex: 2,
       round: 7,
       isMyKeeper: false,
-    }], 10);
+    }], 10, 'snake');
 
     expect(result).toEqual({ picks: [], rejectedPicks: [] });
   });
@@ -295,7 +297,7 @@ describe('resolveDraftPickImports', () => {
       teamIndex: 5,
       round: 3,
       isMyKeeper: false,
-    }], 10);
+    }], 10, 'snake');
 
     expect(result.rejectedPicks).toEqual([]);
     expect(result.picks).toEqual([

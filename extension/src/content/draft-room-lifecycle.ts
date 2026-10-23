@@ -1,6 +1,6 @@
 import type { DraftRoomStatus } from '../shared/types';
 import type { ExtensionMessageSender } from './chrome-messenger';
-import { parseDraftRoomUrl } from './draft-url';
+import { parseDraftRoomUrl } from '@fantasy-draft/shared/sync';
 import {
   extractPicksFromDocument,
   getPickKey,
@@ -22,7 +22,7 @@ export interface DraftRoomLifecycleEnvironment {
   readonly now: () => number;
 }
 
-export interface DraftRoomLifecycle {
+interface DraftRoomLifecycle {
   start(): void;
   stop(): void;
 }

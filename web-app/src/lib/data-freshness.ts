@@ -9,7 +9,7 @@ export interface DataFreshnessItem {
   readonly isFresh: boolean;
 }
 
-export interface DataFreshnessInput {
+interface DataFreshnessInput {
   readonly key: string;
   readonly label: string;
   readonly timestamp: string | null | undefined;

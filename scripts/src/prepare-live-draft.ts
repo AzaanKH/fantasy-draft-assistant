@@ -1,12 +1,12 @@
-import { spawn } from 'node:child_process';
+import { Processes, ProcessError, runNodeMain } from '@fantasy-draft/shared/node';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { DRAFT_DATA_REFRESH_STEPS } from '@fantasy-draft/shared';
+import { DRAFT_DATA_REFRESH_STEPS } from '@fantasy-draft/shared/catalog';
 import type {
   DraftReadinessItem,
   DraftReadinessReport,
   DraftReadinessWarning,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 import { buildDraftReadinessReport } from './check-draft-readiness.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -26,34 +26,25 @@ export const LIVE_DRAFT_PREP_REPORT_STEP: RefreshStep = {
   script: 'report:draft-prep',
 };
 
-function runRefreshStep(step: RefreshStep): Promise<void> {
+async function runRefreshStep(step: RefreshStep, signal: AbortSignal): Promise<void> {
   console.log(`\n[Live preflight] Refreshing ${step.label}...`);
 
-  return new Promise((resolveStep, rejectStep) => {
-    const child = spawn(PNPM_COMMAND, [step.script], {
-      cwd: REPO_ROOT,
-      env: process.env,
-      stdio: 'inherit',
+  try {
+    await Processes.run(PNPM_COMMAND, [step.script], {
+      cwd: REPO_ROOT, env: process.env, output: 'inherit', stdin: 'inherit',
       // Node can only launch pnpm.cmd through a shell on Windows.
-      shell: process.platform === 'win32',
+      shell: process.platform === 'win32', timeoutMs: 5 * 60_000, signal,
     });
-
-    child.once('error', rejectStep);
-    child.once('exit', (code, signal) => {
-      if (code === 0) {
-        resolveStep();
-        return;
-      }
-
-      const outcome = signal ? `signal ${signal}` : `exit code ${String(code)}`;
-      rejectStep(new Error(`${step.label} refresh failed with ${outcome}.`));
-    });
-  });
+  } catch (error) {
+    if (!(error instanceof ProcessError) || error.kind !== 'exit') throw error;
+    const outcome = error.result.signal ? `signal ${error.result.signal}` : `exit code ${String(error.exitCode)}`;
+    throw new Error(`${step.label} refresh failed with ${outcome}.`);
+  }
 }
 
-async function updateDraftPrepReport(): Promise<void> {
+async function updateDraftPrepReport(signal: AbortSignal): Promise<void> {
   try {
-    await runRefreshStep(LIVE_DRAFT_PREP_REPORT_STEP);
+    await runRefreshStep(LIVE_DRAFT_PREP_REPORT_STEP, signal);
     console.log('[Live preflight] Draft prep report updated.');
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -88,9 +79,9 @@ function renderFailures(failures: readonly PreConnectFailure[]): void {
   }
 }
 
-export async function prepareLiveDraft(): Promise<void> {
+async function prepareLiveDraft(signal: AbortSignal): Promise<void> {
   for (const step of LIVE_CORE_REFRESH_STEPS) {
-    await runRefreshStep(step);
+    await runRefreshStep(step, signal);
   }
 
   const report = await buildDraftReadinessReport(Date.now());
@@ -100,7 +91,7 @@ export async function prepareLiveDraft(): Promise<void> {
     throw new Error('Live preflight could not prepare the required local draft data.');
   }
 
-  await updateDraftPrepReport();
+  await updateDraftPrepReport(signal);
 
   console.log('\n[Live preflight] Rankings, player identities, and keeper supply are ready.');
   console.log(
@@ -110,8 +101,5 @@ export async function prepareLiveDraft(): Promise<void> {
 
 const entryPoint = process.argv[1];
 if (entryPoint && import.meta.url === pathToFileURL(entryPoint).href) {
-  prepareLiveDraft().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
-  });
+  await runNodeMain(prepareLiveDraft);
 }

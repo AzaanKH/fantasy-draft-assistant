@@ -338,6 +338,18 @@ describe('fantasyProsApiInternals', () => {
 describe('fetchFantasyProsSnapshot', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
+  it.each([
+    { players: [{ player_id: 123, player_name: 42 }] },
+    { players: [{ player_id: { unexpected: true } }] },
+    { source: 42, players: [] },
+  ])('rejects malformed declared API fields before building core rows %j', async payload => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(payload), {
+      headers: { 'content-type': 'application/json' },
+    })));
+    const result = await Effect.runPromise(Effect.result(fetchFantasyProsSnapshot({ apiKey: 'key', season: 2026 })));
+    expect(result._tag).toBe('Failure');
+  });
+
   it('reports a malformed payload as an expected failure so callers can fall back', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"players": {}}', {
       status: 200, headers: { 'content-type': 'application/json' },

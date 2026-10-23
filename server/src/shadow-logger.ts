@@ -1,7 +1,8 @@
+import { decodeShadowRecommendationEvent } from '@fantasy-draft/shared/catalog';
 import { appendFile, mkdir, open, rename, rm, writeFile, type FileHandle } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { Data, Effect, Semaphore } from 'effect';
-import type { ShadowRecommendationEvent } from '@fantasy-draft/shared';
+import type { ShadowRecommendationEvent } from '@fantasy-draft/shared/draft';
 import { HttpError } from './http-security.js';
 
 interface StoredShadowRecommendationEvent extends ShadowRecommendationEvent {
@@ -9,7 +10,7 @@ interface StoredShadowRecommendationEvent extends ShadowRecommendationEvent {
 }
 
 /** The log could not be read or written; the request fails without blocking later events. */
-export class ShadowLogError extends Data.TaggedError('ShadowLogError')<{ readonly cause: unknown }> {
+class ShadowLogError extends Data.TaggedError('ShadowLogError')<{ readonly cause: unknown }> {
   public override get message(): string {
     return this.cause instanceof Error ? this.cause.message : 'Shadow log I/O failed';
   }
@@ -102,7 +103,7 @@ export class ShadowRecommendationLogger {
       }),
       (handle) => Effect.promise(() => handle.close()),
     ).pipe(Effect.catchIf(
-      (error) => (error.cause as NodeJS.ErrnoException | null)?.code === 'ENOENT',
+      (error) => error.cause instanceof Error && 'code' in error.cause && error.cause.code === 'ENOENT',
       () => Effect.succeed(null),
     ));
   }
@@ -118,17 +119,10 @@ export class ShadowRecommendationLogger {
         for (const line of contents.split('\n')) {
           if (!line.trim()) continue;
           try {
-            const parsed = JSON.parse(line) as unknown;
-            if (
-              typeof parsed === 'object' &&
-              parsed !== null &&
-              'eventId' in parsed &&
-              typeof parsed.eventId === 'string'
-            ) {
-              this.remember(parsed.eventId);
-            }
+            const parsed = decodeShadowRecommendationEvent(JSON.parse(line));
+            this.remember(parsed.eventId);
           } catch {
-            // Preserve an existing malformed line and continue accepting new events.
+            console.warn('[shadow-logger] Rejected invalid persisted shadow event');
           }
         }
       }

@@ -1,3 +1,5 @@
+import { useWorkspace, useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
+import { isQuickMockPreferences } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -5,10 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { IS_DEMO } from '@/lib/demo-mode';
-import { DEFAULT_QUICK_MOCK, isQuickMockPreferences } from '@/lib/quick-mock-settings';
+import { DEFAULT_QUICK_MOCK } from '@fantasy-draft/shared/draft';
 import { useLeagueSetupStore, type LocalLeagueProfile } from '@/stores/leagueSetupStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
-import { useDraftStore } from '@/stores/draftStore';
 
 export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
   readonly open: boolean;
@@ -18,12 +18,12 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
   const savedProfile = useLeagueSetupStore((state) => state.profile);
   const savedQuickMock = useLeagueSetupStore((state) => state.quickMock);
   const save = useLeagueSetupStore((state) => state.save);
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
-  const setQuickMock = useDraftSyncConnectionStore((state) => state.setQuickMockSettings);
-  const setPrimaryPractice = useDraftSyncConnectionStore((state) => state.setPrimaryLeagueSettings);
-  const hasPicks = useDraftStore((state) => state.draftHistory.some((pick) => pick.source !== 'keeper'));
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const config = useDraftStore((state) => state.config);
+  const connection = useConnectionState((state) => state.connection);
+  const workspace = useWorkspace();
+
+  const hasPicks = useDraftState((state) => state.draftHistory.some((pick) => pick.source !== 'keeper'));
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const config = useDraftState((state) => state.config);
   const [profile, setProfile] = React.useState<LocalLeagueProfile>(savedProfile);
   const [preferences, setPreferences] = React.useState(savedQuickMock);
   const transferringFocus = React.useRef(false);
@@ -40,8 +40,8 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
     if (!canApply) return;
     save(profile, profile === 'quick-mock' ? preferences : savedQuickMock);
     if (connection) {
-      if (profile === 'quick-mock') setQuickMock(true);
-      else setPrimaryPractice(true);
+      if (profile === 'quick-mock') workspace.send('connection.setQuickMockSettings', true);
+      else workspace.send('connection.setPrimaryLeagueSettings', true);
     }
     toast.success(profile === 'quick-mock' ? 'Quick mock settings saved' : 'Primary League practice settings selected', { id: 'league-settings' });
     onOpenChange(false);
@@ -82,8 +82,8 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
           <p className="text-sm leading-relaxed text-muted-foreground">For practice, use these rules with the Primary League keeper list. For your real draft, connect Sleeper to verify its scoring and roster settings.</p>
           <Button variant="outline" className="w-full" disabled={localDraftInProgress} onClick={() => {
             save('primary-league', savedQuickMock);
-            setPrimaryPractice(false);
-            setQuickMock(false);
+            workspace.send('connection.setPrimaryLeagueSettings', false);
+            workspace.send('connection.setQuickMockSettings', false);
             transferringFocus.current = true;
             onOpenChange(false);
             onConnectPrimary();

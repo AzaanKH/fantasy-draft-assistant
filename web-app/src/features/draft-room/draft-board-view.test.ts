@@ -21,7 +21,7 @@ describe('getCenteredTeamSlice', () => {
 
 describe('getDraftBoardCurrentView', () => {
   it('tracks the active snake slot and the selection window through My Team', () => {
-    expect(getDraftBoardCurrentView({
+    expect(getDraftBoardCurrentView({ draftType: 'snake',
       currentPick: 7,
       myPickPosition: 1,
       totalTeams: 10,
@@ -35,7 +35,7 @@ describe('getDraftBoardCurrentView', () => {
   });
 
   it('ends the selection window on the active pick when My Team is on the clock', () => {
-    expect(getDraftBoardCurrentView({
+    expect(getDraftBoardCurrentView({ draftType: 'snake',
       currentPick: 20,
       myPickPosition: 1,
       totalTeams: 10,
@@ -44,7 +44,7 @@ describe('getDraftBoardCurrentView', () => {
   });
 
   it('returns a stable My Team slice after the draft is complete', () => {
-    expect(getDraftBoardCurrentView({
+    expect(getDraftBoardCurrentView({ draftType: 'snake',
       currentPick: 151,
       myPickPosition: 5,
       totalTeams: 10,

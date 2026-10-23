@@ -1,12 +1,18 @@
 import type {
-  DecisionLens,
-  Player,
   Position,
+} from '@fantasy-draft/shared/league';
+import type {
+  DraftProgress,
+  DecisionLens,
   DraftPick,
+} from '@fantasy-draft/shared/draft';
+import type {
   DraftType,
+} from '@fantasy-draft/shared/sync';
+import type {
   LeagueSettings,
   RosterRequirements,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type { Draft } from 'immer';
 import type { DraftSessionIdentity } from '../draftSessionStorage';
 
@@ -49,7 +55,7 @@ export interface MockDraftSettings {
 export type MockCpuPickPace = 'watch' | 'fast' | 'instant';
 
 /** Tab-local controls for CPU auto-advance; never saved with the draft session. */
-export interface MockAutoAdvanceState {
+interface MockAutoAdvanceState {
   /** Set by Pause, undo, and branching; cleared by Resume, a manual pick, or a new mock. */
   paused: boolean;
   /** Holds CPU picks while the mock settings dialog is open. */
@@ -115,6 +121,7 @@ export interface UnresolvedProviderPick {
 }
 
 export interface DraftReconciliationResult {
+  readonly refused?: true;
   /** Whether applying the provider snapshot changed canonical draft state. */
   readonly changed: boolean;
   /** Provisional Picks that matched Provider Truth at the same draft position. */
@@ -152,9 +159,7 @@ export interface DraftState {
   mockAutoAdvance: MockAutoAdvanceState;
 
   // Draft progress
-  currentPick: number;
-  /** All unavailable players: completed picks plus keepers reserved for future round selections. */
-  draftedPlayerIds: Set<string>;
+  draftProgress: DraftProgress;
   draftHistory: RecordedDraftPick[];
   shortlistedPlayerIds: string[];
   preloadedKeepers: PreloadedKeeper[];
@@ -163,18 +168,9 @@ export interface DraftState {
   /** Provider picks excluded from canonical state until their player identity resolves. */
   unresolvedProviderPicks: UnresolvedProviderPick[];
 
-  // My team
-  myRoster: MutableRoster;
-  /** Canonical roster for every draft slot, including keepers and provisional picks. */
-  teamRosters: MutableRoster[];
-
   // UI state
   decisionLens: DecisionLens;
   filter: FilterState;
-
-  // Computed
-  isMyTurn: boolean;
-  totalPicks: number;
 }
 
 /**
@@ -222,7 +218,6 @@ export interface DraftActions {
   consumeKeeperAtCurrentPick: () => void;
   undoLastPick: () => void;
   branchFromPick: (pickNumber: number) => void;
-  addToMyRoster: (player: Player) => void;
   resetDraft: () => void;
   setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, number>>) => void;
   togglePlayerShortlisted: (playerId: string) => void;
@@ -239,4 +234,4 @@ export interface DraftActions {
 export type DraftStore = DraftState & DraftActions;
 
 
-export type SetDraftState = (transition: (state: Draft<DraftStore>) => void) => void;
+export type SetDraftState = (transition: (state: Draft<DraftState>) => void) => boolean;

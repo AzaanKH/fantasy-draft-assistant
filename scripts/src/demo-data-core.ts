@@ -1,11 +1,13 @@
 import type {
+  NFLTeam,
+  Position,
+} from '@fantasy-draft/shared/league';
+import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
   FantasyProsProjection,
   FantasyProsSnapshot,
-  NFLTeam,
-  Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 
 /**
  * The public demo ships real players with rankings from the FantasyPros-free
@@ -13,10 +15,10 @@ import type {
  * blend and the leak checks can be tested without the local data files.
  */
 
-export const DEMO_ID_PREFIX = 'demo-';
-export const DEMO_RANKING_COUNT = 400;
+const DEMO_ID_PREFIX = 'demo-';
+const DEMO_RANKING_COUNT = 400;
 export const DEMO_LEAGUE_NAME = 'Demo League';
-export const DEMO_SNAPSHOT_SOURCE =
+const DEMO_SNAPSHOT_SOURCE =
   'Demo: FantasyPros-free projection model blended with Sleeper search rank';
 
 export interface DemoPredictionPlayer {
@@ -55,7 +57,7 @@ export interface DemoSleeperPlayer {
   readonly sleeperAdp: number;
 }
 
-export interface DemoRankedPlayer {
+interface DemoRankedPlayer {
   readonly sleeperId: string;
   readonly name: string;
   readonly position: Position;
@@ -85,7 +87,7 @@ export function modelWeight(uncertaintyScore: number): number {
 
 const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
 
-export function demoPlayerId(sleeperId: string): string {
+function demoPlayerId(sleeperId: string): string {
   return `${DEMO_ID_PREFIX}${sleeperId}`;
 }
 
@@ -346,7 +348,7 @@ export function buildDemoSnapshot(
   };
 }
 
-export interface DemoIdentity {
+interface DemoIdentity {
   readonly canonicalId: string;
   readonly sleeperId: string;
   readonly fantasyProsId: string;

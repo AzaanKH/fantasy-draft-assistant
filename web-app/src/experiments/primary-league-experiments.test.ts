@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
-import * as recommendations from '../lib/calculations/recommendations';
+import * as recommendations from '@fantasy-draft/shared/draft';
 import {
   __testables,
   runPrimaryLeagueExperiments,
@@ -12,6 +12,14 @@ afterEach(() => { vi.restoreAllMocks(); });
 const usesDemoData = fantasyProsJson.metadata.sourceType === 'fixture';
 
 describe('Primary League experiments', () => {
+  it('rejects malformed core snapshot metadata before running experiments', () => {
+    const original = fantasyProsJson.metadata.sourceType;
+    try {
+      fantasyProsJson.metadata.sourceType = 'invalid';
+      expect(() => runPrimaryLeagueExperiments()).toThrow(/sourceType/);
+    } finally { fantasyProsJson.metadata.sourceType = original; }
+  });
+
   it('includes material depth value while preserving audit factor order', () => {
     const flags = { leagueValue: true, rosterFit: true, depthValue: true, tierSupply: true, draftTiming: true };
     expect(__testables.getAuditFactors(flags)).toEqual([

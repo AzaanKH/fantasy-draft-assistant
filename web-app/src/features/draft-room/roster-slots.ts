@@ -1,9 +1,10 @@
-import type { Position, RosterRequirements } from '@fantasy-draft/shared';
-import { POSITIONS } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
+import type { RosterRequirements } from '@fantasy-draft/shared/league';
+import { POSITIONS } from '@fantasy-draft/shared/league';
 
 type RosterSlotLabel = Position | 'FLEX' | 'BN';
 
-export interface RosterSlot {
+interface RosterSlot {
   readonly label: RosterSlotLabel;
   readonly playerId: string | null;
 }

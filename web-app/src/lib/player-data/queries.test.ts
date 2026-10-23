@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchPlayerIdentityData, fetchPredictionData, fetchSleeperData, fetchTeamEnvData } from './queries';
-import { isPlayerIdentityFile } from './validators';
+import { fetchContractData, fetchMarketAdp, fetchSportsbookSnapshot, fetchPlayerIdentityData, fetchPredictionData, fetchSleeperData, fetchTeamEnvData } from './queries';
+import { decodePlayerIdentityFile } from '@fantasy-draft/shared/catalog';
 
 const identity = {
   canonicalId: 'sleeper:123',
@@ -54,13 +54,13 @@ describe('player data loading', () => {
     const data: unknown = JSON.parse(readFileSync(
       new URL('../../../../data/player-identity.json', import.meta.url), 'utf8'
     ));
-    expect(isPlayerIdentityFile(data)).toBe(true);
+    expect(decodePlayerIdentityFile(data)).toEqual(data);
   });
 
   it('keeps missing experimental predictions optional', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
     await expect(fetchPredictionData()).resolves.toEqual({
-      generatedAt: null, modelVersion: 'none', players: [],
+      generatedAt: null, modelVersion: 'none', players: [], warnings: [],
     });
   });
 
@@ -68,12 +68,32 @@ describe('player data loading', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
     await expect(fetchPlayerIdentityData()).rejects.toThrow('Failed to load player identity data: 503');
   });
+
+  it('bounds a stalled optional prediction body without retrying or treating it as missing', async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    const fetchMock = vi.fn(async () => new Response(new ReadableStream({ cancel })));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const request = fetchPredictionData();
+      const rejection = expect(request).rejects.toMatchObject({ kind: 'timeout' });
+      await vi.advanceTimersByTimeAsync(20_000);
+      await rejection;
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not hide prediction failures other than 404', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+    await expect(fetchPredictionData()).rejects.toThrow('Failed to load prediction data: 503');
+  });
 });
 
 function mockJsonResponse(data: unknown): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-    ok: true, status: 200, json: async () => data,
-  }));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => Response.json(data)));
 }
 
 const prediction = {
@@ -92,16 +112,42 @@ function predictionsFile(player: unknown) {
 }
 
 describe('prediction response validation', () => {
-  it.each(optionalPredictionNumbers)('rejects invalid optional numeric field %s', async (field) => {
+  it.each(optionalPredictionNumbers)('drops a row with invalid optional numeric field %s', async (field) => {
     for (const value of ['200', null, true, {}, NaN, Infinity, -Infinity]) {
       mockJsonResponse(predictionsFile({ ...prediction, [field]: value }));
-      await expect(fetchPredictionData()).rejects.toThrow('Invalid prediction data format');
+      const data = await fetchPredictionData();
+      expect(data.players).toEqual([]);
+      expect(data.warnings?.[0]).toContain('Dropped 1 invalid prediction');
     }
   });
 
-  it.each(optionalPredictionStrings)('rejects invalid optional string field %s', async (field) => {
+  it.each(optionalPredictionStrings)('drops a row with invalid optional string field %s', async (field) => {
     for (const value of [123, null, true, {}]) {
       mockJsonResponse(predictionsFile({ ...prediction, [field]: value }));
+      const data = await fetchPredictionData();
+      expect(data.players).toEqual([]);
+      expect(data.warnings?.[0]).toContain('Dropped 1 invalid prediction');
+    }
+  });
+
+  it('keeps good prediction rows and warns about only the dropped rows', async () => {
+    mockJsonResponse({ generatedAt: null, modelVersion: 'fixture',
+      players: [prediction, { ...prediction, team: 'INVALID' }, prediction] });
+    const data = await fetchPredictionData();
+    expect(data.players).toEqual([prediction, prediction]);
+    expect(data.warnings).toEqual(['Dropped 1 invalid prediction rows.']);
+    expect(data.warnings).toHaveLength(1);
+  });
+
+  it('replaces untrusted warning metadata with warnings from this decode', async () => {
+    mockJsonResponse({ generatedAt: null, modelVersion: 'fixture', players: [prediction], warnings: 123 });
+    expect((await fetchPredictionData()).warnings).toEqual([]);
+  });
+
+  it('rejects malformed prediction envelopes', async () => {
+    for (const data of [null, {}, { generatedAt: null, modelVersion: '', players: [] },
+      { generatedAt: null, modelVersion: 'fixture', players: {} }]) {
+      mockJsonResponse(data);
       await expect(fetchPredictionData()).rejects.toThrow('Invalid prediction data format');
     }
   });
@@ -114,7 +160,7 @@ describe('prediction response validation', () => {
     }]) {
       const data = predictionsFile(player);
       mockJsonResponse(data);
-      await expect(fetchPredictionData()).resolves.toEqual(data);
+      await expect(fetchPredictionData()).resolves.toEqual({ ...data, warnings: [] });
     }
   });
 });
@@ -146,11 +192,6 @@ describe('Sleeper and team environment response validation', () => {
     null, {}, { ...sleeperFile, fetchedAt: null }, { ...sleeperFile, source: 1 },
     { ...sleeperFile, playerCount: Infinity }, { ...sleeperFile, playerCount: 2 },
     { ...sleeperFile, players: {} },
-    ...[null, {}, { ...sleeperPlayer, playerId: 123 }, { ...sleeperPlayer, name: null },
-      { ...sleeperPlayer, position: 'INVALID' }, { ...sleeperPlayer, team: 'INVALID' },
-      { ...sleeperPlayer, sleeperAdp: NaN }, { ...sleeperPlayer, age: '25' },
-      { ...sleeperPlayer, yearsExp: false }, { ...sleeperPlayer, status: null },
-    ].map((player) => ({ ...sleeperFile, playerCount: 2, players: [sleeperPlayer, player] })),
   ])('rejects malformed Sleeper data: %j', async (data) => {
     mockJsonResponse(data);
     await expect(fetchSleeperData()).rejects.toThrow('Invalid Sleeper data format');
@@ -160,7 +201,7 @@ describe('Sleeper and team environment response validation', () => {
     const defense = { playerId: 'DAL', name: 'DAL Defense', position: 'DEF', team: 'DAL', sleeperAdp: 999 };
     const data = { ...sleeperFile, playerCount: 2, players: [sleeperPlayer, defense] };
     mockJsonResponse(data);
-    await expect(fetchSleeperData()).resolves.toEqual(data);
+    await expect(fetchSleeperData()).resolves.toEqual({ ...data, warnings: [] });
   });
 
   it.each([
@@ -168,12 +209,6 @@ describe('Sleeper and team environment response validation', () => {
     { ...teamEnvironmentFile, season: '2026' }, { ...teamEnvironmentFile, teamCount: NaN },
     { ...teamEnvironmentFile, teamCount: 31 },
     { ...teamEnvironmentFile, teams: [] }, { ...teamEnvironmentFile, teams: {} },
-    ...[null, {}, { ...teamEnvironment, team: 'INVALID' }, { ...teamEnvironment, team: 'NYG' },
-      { ...teamEnvironment, name: null }, { ...teamEnvironment, offenseScore: Infinity },
-      { ...teamEnvironment, passVolume: 'INVALID' }, { ...teamEnvironment, rushVolume: 3 },
-      { ...teamEnvironment, pointsRank: '16' }, { ...teamEnvironment, passAttemptsRank: NaN },
-      { ...teamEnvironment, rushAttemptsRank: null }, { ...teamEnvironment, coachingStability: 'true' },
-    ].map(withTeamEnvironment),
   ])('rejects malformed team environment data: %j', async (data) => {
     mockJsonResponse(data);
     await expect(fetchTeamEnvData()).rejects.toThrow('Invalid team environment data format');
@@ -188,6 +223,64 @@ describe('Sleeper and team environment response validation', () => {
       new URL(`../../../../data/${file}.json`, import.meta.url), 'utf8'
     ));
     mockJsonResponse(data);
-    await expect(fetchData()).resolves.toEqual(data);
+    const loaded = await fetchData();
+    if ('warnings' in loaded) {
+      const { warnings, ...payload } = loaded;
+      expect(warnings).toEqual([]);
+      expect(payload).toEqual(data);
+    } else expect(loaded).toEqual(data);
+  });
+});
+
+
+describe('optional boundary row recovery', () => {
+  it('keeps usable Sleeper rows and reports discarded rows', async () => {
+    mockJsonResponse({ ...sleeperFile, playerCount: 2, players: [sleeperPlayer, null] });
+    await expect(fetchSleeperData()).resolves.toMatchObject({
+      players: [sleeperPlayer], playerCount: 1, warnings: ['Dropped 1 invalid Sleeper rows.'],
+    });
+  });
+
+  it('keeps other team environments when one team is malformed', async () => {
+    mockJsonResponse(withTeamEnvironment({ ...teamEnvironment, offenseScore: Infinity }));
+    const data = await fetchTeamEnvData();
+    expect(data.teams.DAL).toBeUndefined();
+    expect(Object.keys(data.teams)).toHaveLength(31);
+    expect(data).toHaveProperty('warnings', ['Dropped 1 invalid team environment rows.']);
+  });
+
+  it('keeps usable contracts and reports discarded rows', async () => {
+    const player = { name: 'Fixture', position: 'WR', team: 'DAL', contractEndYear: 2026, isContractYear: true };
+    mockJsonResponse({ contractYear: 2026, playerCount: 2, players: [player, { ...player, contractEndYear: null }] });
+    await expect(fetchContractData()).resolves.toMatchObject({
+      players: [player], playerCount: 1, warnings: ['Dropped 1 invalid contract rows.'],
+    });
+  });
+
+  it('keeps usable market ADP rows and reports discarded rows', async () => {
+    const player = { externalId: '1', name: 'Fixture', position: 'WR', team: 'DAL', adp: 10 };
+    mockJsonResponse({ source: 'fantasy-football-calculator', format: 'ppr', teams: 10, season: 2026,
+      refreshedAt: '2026-09-05', draftCount: null, players: [player, { ...player, adp: 0 }] });
+    await expect(fetchMarketAdp('ppr', 10, 2026)).resolves.toMatchObject({
+      players: [player], warnings: ['Dropped 1 invalid market ADP rows.'],
+    });
+  });
+
+  it('keeps sportsbook importer notes out of decoder warnings', async () => {
+    mockJsonResponse({ metadata: { season: 2026, capturedAt: '2026-09-05', importedAt: '2026-09-05',
+      sourceDirectory: 'fixture', overUnderCount: 0, milestoneCount: 0 }, overUnder: [], milestones: [], warnings: ['importer note'] });
+    const data = await fetchSportsbookSnapshot();
+    expect(data.warnings).toEqual(['importer note']);
+    expect(data).toHaveProperty('decodeWarnings', []);
+  });
+
+  it('keeps usable sportsbook lines and exposes recovery warnings', async () => {
+    const line = { sportsbook: 'draftkings', playerName: 'Fixture', market: 'receivingYards', line: 900,
+      overOdds: -110, underOdds: -110, sourceFile: 'fixture.csv' };
+    mockJsonResponse({ metadata: { season: 2026, capturedAt: '2026-09-05', importedAt: '2026-09-05',
+      sourceDirectory: 'fixture', overUnderCount: 2, milestoneCount: 0 }, overUnder: [line, null], milestones: [], warnings: [] });
+    await expect(fetchSportsbookSnapshot()).resolves.toMatchObject({
+      overUnder: [line], metadata: { overUnderCount: 1 }, decodeWarnings: ['Dropped 1 invalid sportsbook over/under rows.'],
+    });
   });
 });

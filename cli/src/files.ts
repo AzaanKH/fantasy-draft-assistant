@@ -5,13 +5,14 @@ import { Data, Effect } from 'effect';
 import { CliError, unexpected } from './errors';
 
 /** Callers choose their own message, so keep whether the file was simply absent. */
-export class JsonFileError extends Data.TaggedError('JsonFileError')<{
+class JsonFileError extends Data.TaggedError('JsonFileError')<{
   readonly path: string;
   readonly missing: boolean;
   readonly cause: unknown;
 }> {}
 
-const errorCode = (error: unknown) => (error as NodeJS.ErrnoException | null)?.code;
+const errorCode = (error: unknown) => typeof error === 'object' && error !== null && 'code' in error
+  ? error.code : undefined;
 
 export const readBoundedJson = Effect.fn('readBoundedJson')(function* (path: string, maxBytes: number) {
   const fail = (cause: unknown) => new JsonFileError({ path, missing: errorCode(cause) === 'ENOENT', cause });
@@ -21,7 +22,7 @@ export const readBoundedJson = Effect.fn('readBoundedJson')(function* (path: str
   }
   const content = yield* Effect.tryPromise({ try: () => readFile(path, 'utf8'), catch: fail });
   if (Buffer.byteLength(content) > maxBytes) return yield* new CliError('INVALID_FILE', 'The input exceeds the JSON file size limit.', 2);
-  return yield* Effect.try({ try: () => JSON.parse(content) as unknown, catch: fail });
+  return yield* Effect.try({ try: (): unknown => JSON.parse(content), catch: fail });
 });
 
 /** Publish complete JSON with private permissions, and avoid replacing files implicitly. */

@@ -1,7 +1,8 @@
-import { POSITIONS, type Player, type Position, type PositionNeed } from '@fantasy-draft/shared';
-import { calculateTierAvailability, getTierKey } from '@/lib/calculations/tiers';
+import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
+import { type PositionNeed } from '@fantasy-draft/shared/draft';
+import { calculateTierAvailability, getTierKey } from '@fantasy-draft/shared/draft';
 
-export interface PositionalDepth {
+interface PositionalDepth {
   readonly position: Position;
   tier1: number;
   tier2: number;
@@ -26,7 +27,7 @@ export function getPositionalDepth(players: readonly Pick<Player, 'id' | 'positi
   });
 }
 
-export type DepthTier = number | 'unranked';
+type DepthTier = number | 'unranked';
 export type DepthFilter = DepthTier | 'all';
 
 export function depthTier(tier: number): DepthTier {

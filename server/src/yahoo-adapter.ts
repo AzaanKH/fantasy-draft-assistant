@@ -1,12 +1,16 @@
+import { decodeDraftMetadata } from '@fantasy-draft/shared/catalog';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import {
   isPosition,
+  type Position,
+} from '@fantasy-draft/shared/league';
+import {
   type DraftMetadata,
   type DraftPickEvent,
   type DraftStatus,
   type DraftType,
-  type Position,
-} from '@fantasy-draft/shared';
-import { Effect } from 'effect';
+} from '@fantasy-draft/shared/sync';
+import { Effect, Schema } from 'effect';
 import {
   parsePayload,
   requestJson,
@@ -41,14 +45,12 @@ interface YahooInitialization {
   readonly playersByKey: ReadonlyMap<string, YahooPlayer>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const isYahooObject = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 
 function getRecord(value: unknown, key: string): Record<string, unknown> | null {
-  if (!isRecord(value)) return null;
+  if (!isYahooObject(value)) return null;
   const nested = value[key];
-  return isRecord(nested) ? nested : null;
+  return isYahooObject(nested) ? nested : null;
 }
 
 function getString(value: unknown): string | null {
@@ -99,8 +101,9 @@ function getDraftRounds(settings: Record<string, unknown>): number {
   }
 
   const nonDraftedPositions = new Set(['IR', 'IR+', 'IL', 'IL+', 'NA']);
-  const rounds = (positions as unknown[]).reduce<number>((total, entry) => {
-    if (!isRecord(entry)) return total;
+  const entries: readonly unknown[] = positions;
+  const rounds = entries.reduce<number>((total, entry) => {
+    if (!isYahooObject(entry)) return total;
     const position = getString(entry.position)?.toUpperCase();
     const count = getNumber(entry.count);
     if (!position || count === null || nonDraftedPositions.has(position)) {
@@ -152,7 +155,7 @@ function parseYahooSettings(leagueId: string, payload: unknown): DraftMetadata {
     throw new Error('Yahoo settings did not include a complete league key');
   }
 
-  return {
+  return decodeDraftMetadata({
     provider: 'yahoo',
     draftId: leagueId,
     providerKey,
@@ -164,7 +167,7 @@ function parseYahooSettings(leagueId: string, payload: unknown): DraftMetadata {
       pickTimer: getNumber(settings.draft_pick_duration) ?? 0,
     },
     draftOrder: null,
-  };
+  });
 }
 
 function parseYahooPlayers(payload: unknown): ReadonlyMap<string, YahooPlayer> {
@@ -174,10 +177,11 @@ function parseYahooPlayers(payload: unknown): ReadonlyMap<string, YahooPlayer> {
   }
 
   const playersByKey = new Map<string, YahooPlayer>();
-  for (const rawPlayer of service.player_list) {
-    if (!isRecord(rawPlayer)) continue;
+  const players: readonly unknown[] = service.player_list;
+  for (const rawPlayer of players) {
+    if (!isYahooObject(rawPlayer)) throw new Error('Yahoo returned an invalid player list');
     const playerKey = getString(rawPlayer.player_key);
-    if (!playerKey) continue;
+    if (!playerKey) throw new Error('Yahoo returned an invalid player list');
 
     const firstName = getString(rawPlayer.fname) ?? '';
     const lastName = getString(rawPlayer.lname) ?? '';
@@ -206,7 +210,15 @@ function collectYahooDraftResults(
     for (const item of value) collectYahooDraftResults(item, results);
     return;
   }
-  if (!isRecord(value)) return;
+  if (!isYahooObject(value)) return;
+  if ('draft_result' in value) {
+    const row = value.draft_result;
+    if (!isYahooObject(row) || getNumber(row.round) === null || getNumber(row.pick) === null || !getString(row.team_key)) {
+      throw new Error('Yahoo returned an invalid draft result');
+    }
+    collectYahooDraftResults(row, results);
+    return;
+  }
 
   const round = getNumber(value.round);
   const pickNumber = getNumber(value.pick);
@@ -245,11 +257,8 @@ function getDraftSlot(
   teams: number,
   type: DraftType
 ): number {
-  const pickInRound = result.pickNumber - teams * (result.round - 1);
-  if (type === 'snake' && result.round % 2 === 0) {
-    return teams - pickInRound + 1;
-  }
-  if (type !== 'auction') return pickInRound;
+  if (type !== 'auction') return createSlotSequence({ type, teams, rounds: result.round })
+    .at(result.pickNumber).teamIndex + 1;
 
   const teamId = getNumber(result.teamKey.match(/\.t\.(\d+)$/)?.[1]);
   return teamId !== null && teamId >= 1 && teamId <= teams ? teamId : 1;
@@ -364,13 +373,13 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
         '_sync',
         `${String(observedAt)}-${String(++this.draftResultsRequestSequence)}`
       );
-      const draftResults = yield* requestJson<unknown>(this.fetchJson, draftResultsUrl.toString(), {
+      const draftResults = yield* requestJson(this.fetchJson, draftResultsUrl.toString(), parseYahooDraftResults, {
         headers: {
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
         },
       });
-      const picks = (yield* parsePayload(() => parseYahooDraftResults(draftResults)))
+      const picks = yield* parsePayload(() => draftResults
         .map((result) =>
           normalizeYahooDraftResult(
             initialization.draft,
@@ -379,7 +388,7 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
             observedAt
           )
         )
-        .filter((pick): pick is DraftPickEvent => pick !== null);
+        .filter((pick): pick is DraftPickEvent => pick !== null));
 
       return {
         draft: updateYahooStatus(initialization.draft, picks.length),
@@ -392,18 +401,19 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
   private getInitialization(): Effect.Effect<YahooInitialization, ProviderError> {
     return Effect.gen({ self: this }, function* () {
       if (this.initialization) return this.initialization;
-      const settingsPayload = yield* requestJson<unknown>(
+      const draft = yield* requestJson(
         this.fetchJson,
-        `${YAHOO_PUBLIC_API_BASE}/settings/nfl/${this.draftId}?format=rawjson`
+        `${YAHOO_PUBLIC_API_BASE}/settings/nfl/${this.draftId}?format=rawjson`,
+        value => parseYahooSettings(this.draftId, value)
       );
-      const draft = yield* parsePayload(() => parseYahooSettings(this.draftId, settingsPayload));
-      const playersPayload = yield* requestJson<unknown>(
+      const playersByKey = yield* requestJson(
         this.fetchJson,
-        `${YAHOO_PUBLIC_API_BASE}/players/nfl/${this.draftId}?images=0&projected=0&average=0&format=rawjson`
+        `${YAHOO_PUBLIC_API_BASE}/players/nfl/${this.draftId}?images=0&projected=0&average=0&format=rawjson`,
+        parseYahooPlayers
       );
       this.initialization = {
         draft,
-        playersByKey: yield* parsePayload(() => parseYahooPlayers(playersPayload)),
+        playersByKey,
       };
       return this.initialization;
     });

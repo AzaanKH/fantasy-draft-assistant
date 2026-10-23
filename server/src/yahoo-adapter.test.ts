@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
+import { describe, expect, it, vi } from 'vitest';
+import { Effect, Result } from 'effect';
 import {
   yahooDraftResultsFixture,
   yahooPlayersFixture,
@@ -12,44 +13,92 @@ import {
   YAHOO_PUBLIC_API_BASE,
   YAHOO_PUBLIC_READ_API_BASE,
 } from './yahoo-adapter.js';
-import type { FetchJson } from './sync-adapter.js';
+
 
 function createYahooFetch(
   log: string[],
   optionsLog: Array<RequestInit | undefined> = [],
   playersPayload: unknown = yahooPlayersFixture
-): FetchJson {
-  return async <T>(
+): FixtureFetchJson {
+  return async (
     url: string,
     _signal: AbortSignal,
     init?: RequestInit
-  ): Promise<T> => {
+  ): Promise<unknown> => {
     log.push(url);
     optionsLog.push(init);
     if (
       url ===
       `${YAHOO_PUBLIC_API_BASE}/settings/nfl/7428778?format=rawjson`
     ) {
-      return yahooSettingsFixture as T;
+      return yahooSettingsFixture;
     }
     if (
       url ===
       `${YAHOO_PUBLIC_API_BASE}/players/nfl/7428778?images=0&projected=0&average=0&format=rawjson`
     ) {
-      return playersPayload as T;
+      return playersPayload;
     }
     if (
       url.startsWith(
         `${YAHOO_PUBLIC_READ_API_BASE}/league/999.l.7428778/draftresults?`
       )
     ) {
-      return yahooDraftResultsFixture as T;
+      return yahooDraftResultsFixture;
     }
     throw new Error(`Unexpected URL: ${url}`);
   };
 }
 
 describe('YahooSyncAdapter', () => {
+  it.each([null, { fname: 'Missing key' }])('rejects a malformed player row atomically and logs it', async invalid => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const players = { service: { player_list: [...yahooPlayersFixture.service.player_list, invalid] } };
+    try {
+      await expect(Effect.runPromise(new YahooSyncAdapter('7428778', fixtureFetchJson(createYahooFetch([], [], players))).poll())).rejects.toMatchObject({ _tag: 'ProviderError' });
+      expect(warning).toHaveBeenCalled();
+    } finally { warning.mockRestore(); }
+  });
+
+  it.each([null, { round: '1', pick: 'invalid', team_key: '999.l.7428778.t.1' }])('rejects malformed declared draft results atomically', invalid => {
+    expect(() => parseYahooDraftResults({ draft_result: invalid })).toThrow('Yahoo returned an invalid draft result');
+  });
+
+  it('uses the winning team key for auction picks even when nomination order differs', async () => {
+    const fetchFixture = createYahooFetch([]);
+    const fetchAuction: FixtureFetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
+      if (url.includes('/settings/')) return {
+        service: { ...yahooSettingsFixture.service, settings: {
+          ...yahooSettingsFixture.service.settings, is_auction_draft: 1,
+        } },
+      };
+      if (url.includes('/draftresults')) return {
+        draft_result: { pick: '3', round: '2', team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
+      };
+      return fetchFixture(url, signal, init);
+    };
+    const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fixtureFetchJson(fetchAuction)).poll());
+    expect(snapshot.draft.type).toBe('auction');
+    expect(snapshot.picks[0]).toMatchObject({ pickNumber: 3, draftSlot: 1, teamIndex: 0 });
+  });
+
+  it.each([
+    { round: '0', pick: '1' },
+    { round: '1.5', pick: '1' },
+    { round: '1', pick: '11' },
+  ])('reports invalid ordered result $round/$pick as a provider failure', async (invalid) => {
+    const fixture = createYahooFetch([]);
+    const fetchInvalid: FixtureFetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
+      if (url.includes('/draftresults')) return {
+        draft_result: { ...invalid, team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
+      };
+      return fixture(url, signal, init);
+    };
+    const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fixtureFetchJson(fetchInvalid)).poll()));
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure._tag).toBe('ProviderError');
+  });
+
   it('extracts a league ID from Yahoo league and draft room URLs', () => {
     expect(parseYahooLeagueId('7428778')).toBe('7428778');
     expect(
@@ -74,7 +123,7 @@ describe('YahooSyncAdapter', () => {
     const requests: string[] = [];
     const adapter = new YahooSyncAdapter(
       '7428778',
-      createYahooFetch(requests)
+      fixtureFetchJson(createYahooFetch(requests))
     );
 
     const snapshot = await Effect.runPromise(adapter.poll());
@@ -109,7 +158,7 @@ describe('YahooSyncAdapter', () => {
     const requests: string[] = [];
     const adapter = new YahooSyncAdapter(
       'https://football.fantasysports.yahoo.com/draftclient/f1/7428778/3',
-      createYahooFetch(requests)
+      fixtureFetchJson(createYahooFetch(requests))
     );
 
     await Effect.runPromise(adapter.poll());
@@ -125,7 +174,7 @@ describe('YahooSyncAdapter', () => {
     const requestOptions: Array<RequestInit | undefined> = [];
     const adapter = new YahooSyncAdapter(
       '7428778',
-      createYahooFetch(requests, requestOptions)
+      fixtureFetchJson(createYahooFetch(requests, requestOptions))
     );
 
     await Effect.runPromise(adapter.poll());
@@ -165,7 +214,7 @@ describe('YahooSyncAdapter', () => {
     };
     const adapter = new YahooSyncAdapter(
       '7428778',
-      createYahooFetch(requests, [], playersWithUnknownPosition)
+      fixtureFetchJson(createYahooFetch(requests, [], playersWithUnknownPosition))
     );
 
     const snapshot = await Effect.runPromise(adapter.poll());

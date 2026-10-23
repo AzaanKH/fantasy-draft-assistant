@@ -12,16 +12,16 @@ export const OPTIONAL_SIGNAL_KEYS = [
 ] as const;
 
 export type CoreDraftDataKey = (typeof CORE_DRAFT_DATA_KEYS)[number];
-export type OptionalSignalKey = (typeof OPTIONAL_SIGNAL_KEYS)[number];
+type OptionalSignalKey = (typeof OPTIONAL_SIGNAL_KEYS)[number];
 export type DraftReadinessKey = CoreDraftDataKey | OptionalSignalKey;
-export type DraftReadinessClassification = 'core-draft-data' | 'optional-signal';
-export type DraftReadinessAvailability = 'available' | 'missing' | 'invalid';
-export type DraftReadinessProblem =
+type DraftReadinessClassification = 'core-draft-data' | 'optional-signal';
+type DraftReadinessAvailability = 'available' | 'missing' | 'invalid';
+type DraftReadinessProblem =
   | 'missing'
   | 'invalid'
   | 'stale'
   | 'older-than-dependency';
-export type DraftReadinessItemStatus = 'ready' | 'blocking' | 'degraded';
+type DraftReadinessItemStatus = 'ready' | 'blocking' | 'degraded';
 
 export interface DraftReadinessDefinition {
   readonly key: DraftReadinessKey;
@@ -88,7 +88,7 @@ export interface DraftReadinessReport {
   };
 }
 
-export interface EvaluateDraftReadinessInput {
+interface EvaluateDraftReadinessInput {
   readonly sources: Readonly<Partial<Record<DraftReadinessKey, DraftReadinessSourceObservation>>>;
   readonly warnings?: readonly DraftReadinessWarningInput[];
   /**
