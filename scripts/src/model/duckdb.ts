@@ -1,3 +1,4 @@
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { mkdir, readFile } from 'node:fs/promises';
 import { availableParallelism } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -12,7 +13,7 @@ export const REPO_ROOT = join(__dirname, '../../..');
 export const DATA_DIR = join(REPO_ROOT, 'data');
 
 const MODEL_SOURCE_PROFILES = ['standard', 'fantasypros-free'] as const;
-export type ModelSourceProfile = (typeof MODEL_SOURCE_PROFILES)[number];
+type ModelSourceProfile = (typeof MODEL_SOURCE_PROFILES)[number];
 
 function readModelSourceProfile(): ModelSourceProfile {
   const value = process.env['MODEL_SOURCE_PROFILE'] ?? 'standard';
@@ -27,7 +28,7 @@ function readModelSourceProfile(): ModelSourceProfile {
  * ADP, news, or DynastyProcess's FantasyPros-derived rankings, so its outputs can
  * be published in the demo. It writes to its own directory and database.
  */
-export const MODEL_SOURCE_PROFILE = readModelSourceProfile();
+const MODEL_SOURCE_PROFILE = readModelSourceProfile();
 export const EXCLUDES_FANTASYPROS = MODEL_SOURCE_PROFILE === 'fantasypros-free';
 
 const MODEL_DIR = EXCLUDES_FANTASYPROS
@@ -38,7 +39,7 @@ const RAW_MODEL_DIR = join(MODEL_DIR, 'raw');
 const NORMALIZED_MODEL_DIR = join(MODEL_DIR, 'normalized');
 export const BACKTESTS_MODEL_DIR = join(MODEL_DIR, 'backtests');
 
-export interface ModelPaths {
+interface ModelPaths {
   readonly fantasyProsSnapshotJson: string;
   readonly sleeperAdpJson: string;
   readonly teamEnvironmentJson: string;
@@ -55,22 +56,22 @@ export interface ModelPaths {
 }
 
 export const MODEL_PATHS: ModelPaths = {
-  fantasyProsSnapshotJson: join(DATA_DIR, 'fantasypros-snapshot.json'),
-  sleeperAdpJson: join(DATA_DIR, 'sleeper-adp.json'),
-  teamEnvironmentJson: join(DATA_DIR, 'team-environment.json'),
-  contractsJson: join(DATA_DIR, 'contracts.json'),
-  leagueDraftHistoryJson: join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'),
+  fantasyProsSnapshotJson: join(REPO_ROOT, catalogPath(CATALOG.snapshot)),
+  sleeperAdpJson: join(REPO_ROOT, catalogPath(CATALOG.sleeper)),
+  teamEnvironmentJson: join(REPO_ROOT, catalogPath(CATALOG.environment)),
+  contractsJson: join(REPO_ROOT, catalogPath(CATALOG.contracts)),
+  leagueDraftHistoryJson: join(REPO_ROOT, catalogPath(CATALOG.leagueHistory)),
   leagueDraftRawDir: join(DATA_DIR, 'league-history', 'raw'),
   historicalSnapshotReportJson: EXCLUDES_FANTASYPROS
     ? join(MODEL_DIR, 'historical-snapshot-report.json')
-    : join(DATA_DIR, 'historical-snapshot-report.json'),
+    : join(REPO_ROOT, catalogPath(CATALOG.historicalReport)),
   historicalSnapshotsParquet: join(MODEL_DIR, 'historical-asof-snapshots.parquet'),
   predictionsJson: EXCLUDES_FANTASYPROS
     ? join(MODEL_DIR, 'predictions.json')
-    : join(DATA_DIR, 'predictions.json'),
+    : join(REPO_ROOT, catalogPath(CATALOG.predictions)),
   modelReportJson: EXCLUDES_FANTASYPROS
     ? join(MODEL_DIR, 'model-report.json')
-    : join(DATA_DIR, 'model-report.json'),
+    : join(REPO_ROOT, catalogPath(CATALOG.modelReport)),
   normalizedPlayersParquet: join(NORMALIZED_MODEL_DIR, 'current-player-join.parquet'),
   trainingDatasetParquet: join(MODEL_DIR, 'training-dataset.parquet'),
   profileReportJson: join(MODEL_DIR, 'profile-report.json'),
@@ -117,8 +118,8 @@ export function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-export async function readJsonFile<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(path, 'utf8')) as T;
+export async function readJsonFile<A>(path: string, decode: (value: unknown) => A): Promise<A> {
+  return decode(JSON.parse(await readFile(path, 'utf8')));
 }
 
 export async function runStatements(

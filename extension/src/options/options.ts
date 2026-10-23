@@ -1,3 +1,4 @@
+import { http } from '@fantasy-draft/shared/http';
 import { DEFAULT_SYNC_SERVER_URL, STORAGE_KEYS } from '../shared/types';
 import { localSyncBase } from '../shared/local-urls';
 
@@ -25,10 +26,14 @@ async function pair(): Promise<void> {
     await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
     const stored = await chrome.storage.local.get(STORAGE_KEYS.SYNC_SERVER_URL);
     const base = localSyncBase(String(stored[STORAGE_KEYS.SYNC_SERVER_URL] ?? DEFAULT_SYNC_SERVER_URL));
-    const response = await fetch(`${base}/api/auth/check`, {
-      headers: { 'X-Sync-Token': token }, redirect: 'error', signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) throw new Error('Pairing rejected');
+    await http.json(`${base}/api/auth/check`, value => {
+      if (typeof value !== 'object' || value === null || !('ok' in value) || value.ok !== true) {
+        throw new Error('Pairing rejected');
+      }
+      return { ok: true };
+    }, { timeoutMs: 5000, retries: 0, retryAfter: true }, { init: {
+      headers: { 'X-Sync-Token': token }, redirect: 'error',
+    } });
     await chrome.storage.local.set({ [STORAGE_KEYS.SYNC_TOKEN]: token });
     status.textContent = 'Paired. Refresh the provider draft tab to connect.';
   } catch {

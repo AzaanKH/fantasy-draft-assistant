@@ -45,27 +45,28 @@ market context. Keep timing evidence separate from player quality so a player
 becoming more popular does not automatically make them a better player.
 
 Current market fallback and player matching live in
-[player-value.ts](../web-app/src/lib/calculations/player-value.ts); return
+[player-value.ts](../shared/src/draft/calculations/player-value.ts); return
 probabilities are calculated in
-[survival.ts](../web-app/src/lib/calculations/survival.ts).
+[survival.ts](../shared/src/draft/calculations/survival.ts).
 
 ## Live Decision Policy
 
-The live hook selects `best-pick-policy`. Best Pick combines the ECR Anchor
+The live recommendation engine runs only Best Pick policy. Best Pick combines the ECR Anchor
 with bounded league value, roster fit, tier supply, and Draft Timing over the
 Next-Pick Horizon. Conservative overrides stay near the ECR leader or within
 the permitted tier boundary, except when a legal completed roster requires an
 exception. Best Player remains available as the player-quality comparison.
 
-Use [best-pick-policy.ts](../web-app/src/lib/calculations/best-pick-policy.ts)
+Use [best-pick-policy.ts](../shared/src/draft/calculations/best-pick-policy.ts)
 for score bounds and selection rules, and
 [useRecommendations.ts](../web-app/src/hooks/useRecommendations.ts) for the
-live draft inputs. PickEV remains an implementation used by experimental and
-comparison paths; it is not the architecture selected by the live hook.
+live draft inputs. Historical PickEV scoring lives in
+[scripts/src/research/pick-ev.ts](../scripts/src/research/pick-ev.ts) and is used
+only by backtest comparisons.
 
 The live player pool uses current rankings, league-scored FantasyPros
 projections, news/status, identities, team environment, and market context.
-[recommendation-player-variants.ts](../web-app/src/lib/calculations/recommendation-player-variants.ts)
+[recommendation-player-variants.ts](../shared/src/draft/calculations/recommendation-player-variants.ts)
 keeps experimental predictions, contract context, and sportsbook context out
 of the live player records. That separation applies even when optional
 artifacts are fresh or a backtest reports an improvement.

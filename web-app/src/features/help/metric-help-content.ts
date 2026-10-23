@@ -1,3 +1,4 @@
+import type { HelpMetric } from '@fantasy-draft/shared/draft';
 import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 
 export const METRIC_HELP = {
@@ -45,6 +46,6 @@ export const METRIC_HELP = {
     summary: "This player's place among available players in the current decision lens.",
     detail: 'Rank #1 is the first choice in that lens. Best Pick accounts for your roster and draft timing; Best Player follows the trusted player-quality ranking. This rank can change as players are drafted.',
   },
-} as const;
+} as const satisfies Record<HelpMetric, { readonly title: string; readonly summary: string; readonly detail: string }>;
 
-export type HelpMetric = keyof typeof METRIC_HELP;
+export type { HelpMetric } from '@fantasy-draft/shared/draft';

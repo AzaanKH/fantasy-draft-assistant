@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isDraftSessionSummary, type DraftSessionSummary } from './index.js';
+import { isDraftSessionSummary } from './catalog/sync-decoders.js';
+import { isDraftSessionIdentity, isDraftSyncConnection, isValidDraftSyncId, type DraftSessionSummary } from './sessions.js';
+import { isQuickMockPreferences, isLeagueSetupPreferences } from './draft/quick-mock-settings.js';
+import { decodeDraftSessionIdentity, decodeDraftSyncConnection, decodeQuickMockPreferences, decodeLeagueSetupPreferences } from './catalog/storage-decoders.js';
+import { decodeOrNull } from './catalog/decoders.js';
 
 const summary: DraftSessionSummary = {
   session: 'sleeper:draft-1',
@@ -50,10 +54,44 @@ describe('draft session summaries', () => {
     expect(isDraftSessionSummary({ ...summary, ...overrides })).toBe(false);
   });
 
+  it('rejects sync-state values that only stringify to a valid state', () => {
+    expect(isDraftSessionSummary({ ...summary, sync: { ...summary.sync, state: ['synced'] } })).toBe(false);
+    expect(isDraftSessionSummary({ ...summary, sync: { ...summary.sync, state: { toString: () => 'synced' } } })).toBe(false);
+  });
+
   it('validates the nested sync state', () => {
     expect(isDraftSessionSummary({ ...summary, sync: null })).toBe(false);
     expect(isDraftSessionSummary({ ...summary, sync: { ...summary.sync, state: 'offline' } })).toBe(false);
     expect(isDraftSessionSummary({ ...summary, sync: { ...summary.sync, lastError: 500 } })).toBe(false);
     expect(isDraftSessionSummary({ ...summary, sync: { state: 'error', lastSuccessfulSyncAt: 900, lastError: 'Sleeper request failed: 503' } })).toBe(true);
+  });
+});
+
+describe('plain draft helpers', () => {
+  it('matches the boundary decoders for identity, connection and quick-mock inputs', () => {
+    for (const provider of ['sleeper', 'espn', 'yahoo'] as const) {
+      for (const draftId of [null, 42, '', 'Draft_1-abc', '42', '1'.repeat(20), '1'.repeat(21), 'x'.repeat(128), 'x'.repeat(129), ' 42']) {
+        const identity = { provider, draftId };
+        expect(isDraftSessionIdentity(identity)).toBe(decodeOrNull(decodeDraftSessionIdentity, identity) !== null);
+        expect(isValidDraftSyncId(provider, draftId)).toBe(isDraftSessionIdentity(identity));
+        for (const draftPosition of [null, 0, 1, 20, 21]) {
+          const connection = { ...identity, draftPosition };
+          expect(isDraftSyncConnection(connection)).toBe(decodeOrNull(decodeDraftSyncConnection, connection) !== null);
+        }
+      }
+    }
+    const connection = { provider: 'sleeper', draftId: '42', draftPosition: null };
+    for (const extras of [{ settingsProfile: 'quick-mock' }, { settingsProfile: 'unknown' }, { usePrimaryLeagueSettings: true }, { usePrimaryLeagueSettings: 'true' }, { settingsProfile: 'quick-mock', usePrimaryLeagueSettings: true }]) {
+      const value = { ...connection, ...extras };
+      expect(isDraftSyncConnection(value)).toBe(decodeOrNull(decodeDraftSyncConnection, value) !== null);
+    }
+    const preferences = { totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 };
+    for (const value of [null, [], preferences, { ...preferences, totalTeams: 1 }, { ...preferences, totalTeams: 20 }, { ...preferences, totalRounds: 9 }, { ...preferences, reception: 0.5 }, { ...preferences, reception: '1' }, { ...preferences, passingTouchdown: 6 }, { ...preferences, passingTouchdown: 5 }]) {
+      expect(isQuickMockPreferences(value)).toBe(decodeOrNull(decodeQuickMockPreferences, value) !== null);
+      for (const profile of ['quick-mock', 'primary-league', 'invalid', null]) {
+        const setup = { profile, quickMock: value };
+        expect(isLeagueSetupPreferences(setup)).toBe(decodeOrNull(decodeLeagueSetupPreferences, setup) !== null);
+      }
+    }
   });
 });

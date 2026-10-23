@@ -1,7 +1,9 @@
 import { parseArgs } from 'node:util';
-import { isPosition, type DecisionLens, type DraftProvider, type Position } from '@fantasy-draft/shared';
+import { isPosition, type Position } from '@fantasy-draft/shared/league';
+import { type DecisionLens } from '@fantasy-draft/shared/draft';
+import { type DraftProvider } from '@fantasy-draft/shared/sync';
 import { CliError } from './errors';
-import { parseDraftRoomUrl } from '../../extension/src/content/draft-url';
+import { parseDraftRoomUrl } from '@fantasy-draft/shared/sync';
 
 const COMMANDS = ['readiness', 'status', 'players', 'recommend', 'compare', 'wait', 'watch',
   'sessions', 'connect', 'roster', 'export', 'replay'] as const;
@@ -26,7 +28,7 @@ export interface Arguments {
   readonly format?: 'ndjson';
 }
 
-export interface ArgumentDefaults {
+interface ArgumentDefaults {
   readonly session?: string;
   readonly connections?: readonly { session: string; slot?: number; serverUrl: string }[];
 }

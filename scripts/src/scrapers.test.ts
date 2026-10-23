@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getTeamByeWeeks } from '@fantasy-draft/shared';
+import { getTeamByeWeeks } from '@fantasy-draft/shared/catalog';
 
 describe('ECR scraper bye weeks', () => {
   it('uses the requested season and ignores missing or invalid bye weeks', () => {

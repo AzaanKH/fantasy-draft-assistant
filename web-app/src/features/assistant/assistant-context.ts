@@ -1,7 +1,9 @@
-import type { DraftPick, DraftProvider, DraftType, Player, Position, RosterRequirements } from '@fantasy-draft/shared';
+import { type Player, type Position } from '@fantasy-draft/shared/league';
+import { createSlotSequence, type DraftPick } from '@fantasy-draft/shared/draft';
+import { type DraftProvider, type DraftType } from '@fantasy-draft/shared/sync';
+import { type RosterRequirements } from '@fantasy-draft/shared/league';
 import { formatDraftSyncAge, type DraftSynchronizationState } from '@/lib/draft-sync-state';
 import { getProviderName } from '@/lib/provider-name';
-import { formatRoundPick, getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
 
 /** Starter positions shown as team needs; K and DEF are late-round context, not planning signals. */
 const NEED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const satisfies readonly Position[];
@@ -26,19 +28,6 @@ export interface PickWindow {
   readonly picksBetween: readonly number[];
 }
 
-function findTeamPick(
-  start: number,
-  totalPicks: number,
-  teamIndex: number,
-  totalTeams: number,
-  draftType: DraftType
-): number | null {
-  for (let pick = start; pick <= totalPicks; pick += 1) {
-    if (getTeamIndexForDraftPick(pick, totalTeams, draftType) === teamIndex) return pick;
-  }
-  return null;
-}
-
 /**
  * Matches the recommendation engine's Next-Pick Horizon: on the clock, the horizon is the manager's
  * following pick; otherwise it is their upcoming pick.
@@ -52,9 +41,10 @@ export function getPickWindow(
 ): PickWindow {
   const totalPicks = totalTeams * totalRounds;
   const myTeamIndex = myPickPosition - 1;
+  const order = createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds });
   const onClock = currentPick <= totalPicks &&
-    getTeamIndexForDraftPick(currentPick, totalTeams, draftType) === myTeamIndex;
-  const nextPick = findTeamPick(onClock ? currentPick + 1 : currentPick, totalPicks, myTeamIndex, totalTeams, draftType);
+    order.at(currentPick).teamIndex === myTeamIndex;
+  const nextPick = order.nextForTeam(myTeamIndex, onClock ? currentPick + 1 : currentPick)?.pick ?? null;
   const end = nextPick ?? totalPicks + 1;
   const picksBetween: number[] = [];
   for (let pick = onClock ? currentPick + 1 : currentPick; pick < end; pick += 1) picksBetween.push(pick);
@@ -86,10 +76,11 @@ export function getUpcomingTeamPicks({
     if (pick.teamName && pick.teamName !== 'My Team') teamNames.set(pick.teamIndex, pick.teamName);
   });
   const byTeam = new Map<number, UpcomingTeamPicks>();
+  const order = createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.max(1, Math.ceil(Math.max(0, ...picks) / totalTeams)) });
   picks.forEach((pick) => {
-    const teamIndex = getTeamIndexForDraftPick(pick, totalTeams, draftType);
+    const teamIndex = order.at(pick).teamIndex;
     const existing = byTeam.get(teamIndex);
-    const label = formatRoundPick(pick, totalTeams);
+    const label = order.label(pick);
     byTeam.set(teamIndex, existing
       ? { ...existing, pickLabels: [...existing.pickLabels, label] }
       : {
@@ -166,7 +157,6 @@ export function getAssistantDraftMode(
 
 export type SyncTone = 'ok' | 'pending' | 'local' | 'warn' | 'lost';
 
-
 /** Sync freshness for the context bar. Every recommendation is stale when this falls behind. */
 export function getSyncStatus({
   mode,
@@ -175,6 +165,7 @@ export function getSyncStatus({
   lastConfirmedPickNumber,
   lastSyncAgeMs,
   totalTeams,
+  draftType,
 }: {
   readonly mode: AssistantDraftMode;
   readonly provider: DraftProvider | null;
@@ -182,6 +173,7 @@ export function getSyncStatus({
   readonly lastConfirmedPickNumber: number;
   readonly lastSyncAgeMs: number | null;
   readonly totalTeams: number;
+  readonly draftType: DraftType;
 }): { readonly tone: SyncTone; readonly label: string } {
   if (mode === 'mock') return { tone: 'local', label: 'Local mock · no provider sync' };
   if (mode === 'preview') return { tone: 'local', label: 'Preview · no draft connected' };
@@ -189,7 +181,7 @@ export function getSyncStatus({
   if (mode === 'manual-continuity') return { tone: 'lost', label: `${name} sync unavailable · picks are provisional` };
   const age = formatDraftSyncAge(lastSyncAgeMs);
   const lastPick = lastConfirmedPickNumber > 0
-    ? ` · last pick ${formatRoundPick(lastConfirmedPickNumber, totalTeams)}`
+    ? ` · last pick ${createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(lastConfirmedPickNumber / totalTeams) }).label(lastConfirmedPickNumber)}`
     : '';
   if (synchronizationState === 'reconciling') return { tone: 'pending', label: `Syncing latest ${name} picks` };
   if (synchronizationState === 'delayed') return { tone: 'warn', label: `${name} delayed · last sync ${age}` };

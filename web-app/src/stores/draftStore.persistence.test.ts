@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getDraftView } from '@/workspace/useDraftView';
+import { deriveDraftState } from './draft/source';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDraftStore, type ProvisionalPickInput, type SyncedImportedPick } from './draftStore';
 import {
   DRAFT_SESSION_LINEAGE_LIMIT,
@@ -39,6 +41,67 @@ function openSession(storage: ReturnType<typeof memoryStorage>, session = identi
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('durable draft sessions', () => {
+  describe('unit 11c durability defects', () => {
+    let quota: { acknowledged: boolean; recovered: readonly string[] };
+    let race: readonly string[];
+    let orphan: { before: string; after: string | null };
+
+    beforeAll(() => {
+      const quotaStorage = memoryStorage();
+      const quotaTab = openSession(quotaStorage);
+      quotaStorage.setItem.mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+      const acknowledged = quotaTab.getState().recordProvisionalPick(pick(1, 'acknowledged'));
+      quotaStorage.setItem.mockImplementation((key: string, value: string) => { quotaStorage.values.set(key, value); });
+      quota = { acknowledged, recovered: createDraftStore({ storage: quotaStorage, session: identity })
+        .getState().draftHistory.map((entry) => entry.playerId) };
+
+      const storage = memoryStorage();
+      const key = getDraftSessionStorageKey(identity);
+      const tabA = openSession(storage);
+      let interleave = false;
+      const accepted: boolean[] = [];
+      const racingStorage = memoryStorage(storage.values);
+      racingStorage.setItem.mockImplementation((storedKey: string, value: string) => {
+        if (interleave && storedKey !== key) {
+          interleave = false;
+          accepted.push(tabA.getState().recordProvisionalPick(pick(1, 'first')));
+          accepted.push(tabA.getState().recordProvisionalPick(pick(2, 'second')));
+        }
+        storage.values.set(storedKey, value);
+      });
+      const tabB = openSession(racingStorage);
+      interleave = true;
+      tabB.getState().togglePlayerShortlisted('queued');
+      expect(accepted).toEqual([true, true]);
+      race = createDraftStore({ storage, session: identity }).getState().draftHistory.map((entry) => entry.playerId);
+
+      const orphanStorage = memoryStorage();
+      const orphanTab = openSession(orphanStorage);
+      const baseline = orphanStorage.getItem(key);
+      expect(orphanTab.getState().recordProvisionalPick(pick(1, 'base'))).toBe(true);
+      expect(orphanTab.getState().recordProvisionalPick(pick(2, 'dependent'))).toBe(true);
+      const journalKey = [...orphanStorage.values.keys()].find((name) => name !== key);
+      if (!journalKey || !baseline) throw new Error('Missing characterization fixture');
+      const journal = orphanStorage.getItem(journalKey);
+      if (!journal) throw new Error('Missing generated journal');
+      orphanStorage.values.set(key, baseline);
+      createDraftStore({ storage: orphanStorage, session: identity });
+      orphan = { before: journal, after: orphanStorage.getItem(journalKey) };
+    });
+
+    it.fails('never acknowledges a pick that both durable writes reject', () => {
+      expect(!quota.acknowledged || quota.recovered.includes('acknowledged')).toBe(true);
+    });
+
+    it.fails('retains two acknowledged saves overwritten by one stale writer', () => {
+      expect(race).toEqual(['first', 'second']);
+    });
+
+    it.fails('preserves a valid journal when its base write is missing', () => {
+      expect(orphan.after).toBe(orphan.before);
+    });
+  });
+
   it('restores the provisional journal, corrections, queue, keepers, and canonical rosters after reload', () => {
     const storage = memoryStorage();
     const first = openSession(storage);
@@ -72,11 +135,11 @@ describe('durable draft sessions', () => {
     expect(state.draftHistory).toEqual(first.getState().draftHistory);
     expect(state.draftHistory[1]).toMatchObject({ source: 'provisional', playerId: 'replacement', timestamp: originalTimestamp, provisionalRevision: 1 });
     expect(state.shortlistedPlayerIds).toEqual(['observed', 'removed', 'waiting']);
-    expect(state.currentPick).toBe(3);
-    expect(state.draftedPlayerIds).toEqual(new Set(['confirmed', 'replacement', 'keeper']));
-    expect(state.myRoster.WR).toEqual(['replacement']);
-    expect(state.myRoster.RB).toEqual(['keeper']);
-    expect(state.teamRosters[0]?.WR).toEqual(['confirmed']);
+    expect(deriveDraftState(state).currentPick).toBe(3);
+    expect(deriveDraftState(state).draftedPlayerIds).toEqual(new Set(['confirmed', 'replacement', 'keeper']));
+    expect(deriveDraftState(state).myRoster.WR).toEqual(['replacement']);
+    expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper']);
+    expect(deriveDraftState(state).teamRosters[0]?.WR).toEqual(['confirmed']);
     expect(state.decisionLens).toBe('best-player');
     expect(restarted.getState().correctProvisionalPick(2, pick(2, 'observed'))).toBe(true);
     expect(restarted.getState().draftHistory[1]).toMatchObject({ timestamp: originalTimestamp, provisionalRevision: 2 });
@@ -84,7 +147,7 @@ describe('durable draft sessions', () => {
     const afterAnotherReload = createDraftStore({ storage, session: identity }).getState();
     expect(afterAnotherReload.draftHistory.map((entry) => entry.playerId)).toEqual(['confirmed']);
     expect(afterAnotherReload.shortlistedPlayerIds).toEqual(['observed', 'replacement', 'removed', 'waiting']);
-    expect(afterAnotherReload.myRoster.WR).toEqual([]);
+    expect(deriveDraftState(afterAnotherReload).myRoster.WR).toEqual([]);
   });
 
   it('preserves restored observations until newer Provider Truth confirms, corrects, and removes them once', () => {
@@ -110,9 +173,9 @@ describe('durable draft sessions', () => {
     expect(result.removals.map((entry) => entry.playerId)).toEqual(['absent']);
     expect(restarted.getState().manualContinuityBaselineAt).toBeNull();
     expect(restarted.getState().shortlistedPlayerIds).toEqual(['absent', 'mistake', 'waiting']);
-    expect(restarted.getState().draftedPlayerIds).toEqual(new Set(['confirmed', 'match', 'correct']));
-    expect(restarted.getState().teamRosters[2]?.WR).toEqual(['correct']);
-    expect(restarted.getState().currentPick).toBe(4);
+    expect(getDraftView(restarted).draftedPlayerIds).toEqual(new Set(['confirmed', 'match', 'correct']));
+    expect(getDraftView(restarted).teamRosters[2]?.WR).toEqual(['correct']);
+    expect(getDraftView(restarted).currentPick).toBe(4);
     const afterReload = createDraftStore({ storage, session: identity });
     expect(afterReload.getState().draftHistory.every((entry) => entry.source === 'sync')).toBe(true);
     expect(afterReload.getState().lastConfirmedSyncAt).toBe(200);
@@ -128,8 +191,8 @@ describe('durable draft sessions', () => {
     first.getState().reconcileSyncedPicks([official(1, 'confirmed')], 3, [unresolved], 100);
     const restarted = createDraftStore({ storage, session: identity });
     expect(restarted.getState().unresolvedProviderPicks).toEqual([unresolved]);
-    expect(restarted.getState().draftedPlayerIds.has('unknown')).toBe(false);
-    expect(restarted.getState().currentPick).toBe(3);
+    expect(getDraftView(restarted).draftedPlayerIds.has('unknown')).toBe(false);
+    expect(getDraftView(restarted).currentPick).toBe(3);
     restarted.getState().reconcileSyncedPicks([official(1, 'confirmed'), official(2, 'resolved')], 3, [], 200);
     expect(createDraftStore({ storage, session: identity }).getState().unresolvedProviderPicks).toEqual([]);
   });
@@ -143,7 +206,7 @@ describe('durable draft sessions', () => {
     store.getState().setLiveDraftSession(otherDraft);
     expect(store.getState().draftHistory).toEqual([]);
     expect(store.getState().shortlistedPlayerIds).toEqual([]);
-    expect(store.getState().draftedPlayerIds.size).toBe(0);
+    expect(getDraftView(store).draftedPlayerIds.size).toBe(0);
     store.getState().togglePlayerShortlisted('other-draft-queue');
     const otherProvider: DraftSessionIdentity = { provider: 'espn', draftId: '123' };
     store.getState().setLiveDraftSession(otherProvider);
@@ -176,7 +239,7 @@ describe('durable draft sessions', () => {
     expect(restarted.draftHistory).toEqual([]);
     expect(restarted.shortlistedPlayerIds).toEqual([]);
     expect(restarted.manualContinuityBaselineAt).toBeNull();
-    expect(restarted.currentPick).toBe(1);
+    expect(deriveDraftState(restarted).currentPick).toBe(1);
   });
 
   it('keeps mocks, unbound stores, and transient calculations from overwriting a live journal', () => {
@@ -254,7 +317,7 @@ describe('durable draft sessions', () => {
       const store = createDraftStore({
         storage,
         session: identity,
-        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); return () => { listeners.splice(listeners.indexOf(onChange), 1); }; },
       });
       store.getState().setSessionMode('live');
       return store;
@@ -264,7 +327,7 @@ describe('durable draft sessions', () => {
 
     tabA.getState().recordProvisionalPick(pick(1, 'observed'));
     expect(tabB.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
-    expect(tabB.getState().draftedPlayerIds.has('observed')).toBe(true);
+    expect(getDraftView(tabB).draftedPlayerIds.has('observed')).toBe(true);
 
     tabB.getState().setDecisionLens('best-player');
     expect(tabA.getState().decisionLens).toBe('best-player');
@@ -448,7 +511,7 @@ describe('durable draft sessions', () => {
       const store = createDraftStore({
         storage,
         session: identity,
-        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); },
+        externalChanges: (onChange) => { self = onChange; listeners.push(onChange); return () => { listeners.splice(listeners.indexOf(onChange), 1); }; },
       });
       store.getState().setSessionMode('live');
       return store;
@@ -570,7 +633,7 @@ describe('durable draft sessions', () => {
     expect(createDraftStore({ storage, session: identity }).getState().draftHistory).toEqual([]);
   });
 
-  it('hydrates the default store before rendering and follows saved and URL connection changes synchronously', async () => {
+  it('hydrates the browser workspace before rendering and follows saved and URL connection changes synchronously', async () => {
     vi.resetModules();
     const storage = memoryStorage();
     const store = openSession(storage);
@@ -578,17 +641,18 @@ describe('durable draft sessions', () => {
     store.getState().recordProvisionalPick(pick(1, 'saved-pick'));
     storage.setItem(DRAFT_SYNC_STORAGE_KEY, JSON.stringify({ ...identity, draftPosition: 2 }));
     vi.stubGlobal('window', { localStorage: storage });
-    const { useDraftStore } = await import('./draftStore');
-    const { useDraftSyncConnectionStore, initializeDraftSyncConnection } = await import('./draftSyncStore');
-    expect(useDraftStore.getState().draftHistory[0]?.playerId).toBe('saved-pick');
-    expect(useDraftStore.getState().manualContinuityBaselineAt).toBe(100);
-    initializeDraftSyncConnection('?provider=espn&draftId=123&position=1');
-    expect(useDraftStore.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
-    useDraftSyncConnectionStore.getState().startConnection('sleeper', '123');
-    expect(useDraftStore.getState().draftHistory[0]?.playerId).toBe('saved-pick');
-    useDraftSyncConnectionStore.getState().disconnect();
-    expect(useDraftStore.getState().liveSession).toBeNull();
-    expect(useDraftStore.getState().draftHistory).toEqual([]);
+    const { createBrowserWorkspace } = await import('../workspace/browser-workspace');
+    const workspace = createBrowserWorkspace('');
+    expect(workspace.draft.getState().draftHistory[0]?.playerId).toBe('saved-pick');
+    expect(workspace.draft.getState().manualContinuityBaselineAt).toBe(100);
+    workspace.send('connection.restoreConnection', { provider: 'espn', draftId: '123', draftPosition: 1 });
+    expect(workspace.draft.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
+    expect(workspace.draft.getState().draftHistory).toEqual([]);
+    workspace.send('connection.startConnection', 'sleeper', '123');
+    expect(workspace.draft.getState().draftHistory[0]?.playerId).toBe('saved-pick');
+    workspace.send('connection.disconnect');
+    expect(workspace.draft.getState().liveSession).toBeNull();
+    expect(workspace.draft.getState().draftHistory).toEqual([]);
+    workspace.dispose();
   });
 });

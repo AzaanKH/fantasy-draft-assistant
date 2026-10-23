@@ -42,7 +42,7 @@ export interface SeasonComparison {
   readonly contract: PredictionMetrics;
 }
 
-export interface ContractReleaseGate {
+interface ContractReleaseGate {
   readonly passed: boolean;
   readonly seasonsWithLowerMae: number;
   readonly seasonsRequired: number;

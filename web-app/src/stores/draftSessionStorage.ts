@@ -1,17 +1,11 @@
-import {
-  isBoundedInteger,
-  isDraftSize,
-  isLeagueSettings,
-  isPosition,
-  isRosterRequirements,
-  MAX_DRAFT_PICKS,
-  type DraftProvider,
-  type DraftType,
-  type LeagueSettings,
-} from '@fantasy-draft/shared';
-import { canonicalizeKeeperSupply } from '@/lib/keeper-supply';
-import { getTeamIndexForDraftPick } from '@/lib/mock-draft-engine';
-import { isValidDraftSyncId } from './draftSyncStore';
+import { assertDraftStorageWritable } from './draftStorageMigration';
+import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
+import { type LeagueSettings } from '@fantasy-draft/shared/league';
+import { DRAFT_SESSION_LINEAGE_LIMIT, type DraftSessionIdentity } from '@fantasy-draft/shared/sync';
+export type { DraftSessionIdentity } from '@fantasy-draft/shared/sync';
+import { canonicalizeKeeperSupply, type DraftProgress } from '@fantasy-draft/shared/draft';
+import { decodeStoredDraftSession } from '@fantasy-draft/shared/catalog';
+export { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/sync';
 import {
   computeDraftSessionChange,
   isEmptyDraftSessionChange,
@@ -24,11 +18,6 @@ import type {
   RecordedDraftPick,
   UnresolvedProviderPick,
 } from './draft/types';
-
-export interface DraftSessionIdentity {
-  readonly provider: DraftProvider;
-  readonly draftId: string;
-}
 
 /** Enumeration and removal let any tab find and clear every tab's recorded saves. */
 export type DraftSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
@@ -49,6 +38,8 @@ export interface PersistedDraftSession {
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
   readonly currentPick: number;
+  /** Optional in stored records; parsing imports missing progress from the legacy cursor. */
+  readonly draftProgress: DraftProgress;
   readonly draftHistory: RecordedDraftPick[];
   readonly shortlistedPlayerIds: string[];
   readonly preloadedKeepers: PreloadedKeeper[];
@@ -60,18 +51,9 @@ export interface PersistedDraftSession {
   readonly lastConfirmedPickNumber: number;
 }
 
-export function isDraftSessionIdentity(value: unknown): value is DraftSessionIdentity {
-  if (!isRecord(value)) return false;
-  return (value.provider === 'sleeper' || value.provider === 'espn' || value.provider === 'yahoo') &&
-    isValidDraftSyncId(value.provider, value.draftId);
-}
-
 export function getDraftSessionStorageKey(identity: DraftSessionIdentity): string {
   return `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
 }
-
-/** Bounds the saved lineage; the revision advances once per entry so it stays aligned. */
-export const DRAFT_SESSION_LINEAGE_LIMIT = 100;
 
 export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {
   try {
@@ -81,90 +63,22 @@ export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isText(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 512;
-}
-
-function isTimestamp(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
-}
-
-function isNullableTimestamp(value: unknown): value is number | null {
-  return value === null || isTimestamp(value);
-}
-
-function isRecordedPick(value: unknown, config: DraftConfig): value is RecordedDraftPick {
-  if (!isRecord(value)) return false;
-  return isBoundedInteger(value.pickNumber, 1, config.totalTeams * config.totalRounds) &&
-    isText(value.playerId) && isText(value.playerName) && isPosition(value.position) &&
-    isBoundedInteger(value.teamIndex, 0, config.totalTeams - 1) && isText(value.teamName) &&
-    isTimestamp(value.timestamp) &&
-    (value.source === 'sync' || value.source === 'manual' || value.source === 'provisional' || value.source === 'keeper') &&
-    (value.source !== 'provisional' || value.teamIndex === getTeamIndexForDraftPick(value.pickNumber, config.totalTeams, config.draftType)) &&
-    (value.shortlistIndex === undefined || isBoundedInteger(value.shortlistIndex, 0, MAX_DRAFT_PICKS)) &&
-    (value.provisionalRevision === undefined || isBoundedInteger(value.provisionalRevision, 0, Number.MAX_SAFE_INTEGER)) &&
-    (value.provisionalUpdatedAt === undefined || isTimestamp(value.provisionalUpdatedAt));
-}
-
-function isKeeper(value: unknown, config: DraftConfig): value is PreloadedKeeper {
-  return isRecord(value) && isText(value.playerId) && isText(value.playerName) &&
-    isPosition(value.position) && isBoundedInteger(value.teamIndex, 0, config.totalTeams - 1) &&
-    isBoundedInteger(value.round, 1, config.totalRounds) && typeof value.isMyKeeper === 'boolean';
-}
-
-function isUnresolvedPick(value: unknown, totalPicks: number): value is UnresolvedProviderPick {
-  return isRecord(value) && isBoundedInteger(value.pickNumber, 1, totalPicks) &&
-    isText(value.playerId) && isText(value.playerName) &&
-    (value.nflTeam === null || isText(value.nflTeam));
-}
-
 export function parseStoredDraftSession(
   serialized: string | null,
   identity: DraftSessionIdentity
 ): PersistedDraftSession | null {
   if (!serialized || serialized.length > 2_000_000) return null;
   try {
-    const value: unknown = JSON.parse(serialized);
-    if (!isRecord(value) || value.version !== 1 || !isDraftSessionIdentity(value.identity) ||
-        value.identity.provider !== identity.provider || value.identity.draftId !== identity.draftId ||
-        !isRecord(value.config) || !isDraftSize(value.config.totalTeams, value.config.totalRounds) ||
-        !isBoundedInteger(value.config.myPickPosition, 1, Number(value.config.totalTeams)) ||
-        !isRosterRequirements(value.config.rosterRequirements) || !isLeagueSettings(value.leagueSettings) ||
-        // Sessions saved before linear-draft support carry no draft type and were always snake.
-        (value.config.draftType !== undefined && !(['snake', 'linear', 'auction'] as const).includes(value.config.draftType as DraftType))) return null;
-
+    const value = decodeStoredDraftSession(JSON.parse(serialized));
+    if (value.identity.provider !== identity.provider || value.identity.draftId !== identity.draftId) return null;
     const config: DraftConfig = {
-      totalTeams: Number(value.config.totalTeams),
-      totalRounds: Number(value.config.totalRounds),
-      draftType: (value.config.draftType as DraftType | undefined) ?? 'snake',
+      totalTeams: value.config.totalTeams,
+      totalRounds: value.config.totalRounds,
       myPickPosition: value.config.myPickPosition,
       rosterRequirements: value.config.rosterRequirements,
+      // eslint-disable-next-line no-restricted-syntax -- Version 1 sessions predating draftType used snake order.
+      draftType: value.config.draftType ?? 'snake',
     };
-    const totalPicks = config.totalTeams * config.totalRounds;
-    if (!isBoundedInteger(value.currentPick, 1, totalPicks + 1) ||
-        !Array.isArray(value.draftHistory) || value.draftHistory.length > totalPicks ||
-        !value.draftHistory.every((pick: unknown) => isRecordedPick(pick, config)) ||
-        !Array.isArray(value.preloadedKeepers) || value.preloadedKeepers.length > totalPicks ||
-        !value.preloadedKeepers.every((keeper: unknown) => isKeeper(keeper, config)) ||
-        !Array.isArray(value.shortlistedPlayerIds) || value.shortlistedPlayerIds.length > MAX_DRAFT_PICKS ||
-        !value.shortlistedPlayerIds.every(isText) ||
-        typeof value.keepersInitialized !== 'boolean' ||
-        !Array.isArray(value.unresolvedProviderPicks) || value.unresolvedProviderPicks.length > totalPicks ||
-        !value.unresolvedProviderPicks.every((pick: unknown) => isUnresolvedPick(pick, totalPicks)) ||
-        (value.decisionLens !== 'best-pick' && value.decisionLens !== 'best-player') ||
-        !isNullableTimestamp(value.manualContinuityBaselineAt) ||
-        !isNullableTimestamp(value.lastConfirmedSyncAt) ||
-        !isBoundedInteger(value.lastConfirmedPickNumber, 0, totalPicks) ||
-        // Sessions saved before tab coordination carry no revision.
-        (value.revision !== undefined && !isBoundedInteger(value.revision, 0, Number.MAX_SAFE_INTEGER)) ||
-        (value.lineage !== undefined && !(Array.isArray(value.lineage) &&
-          value.lineage.length <= DRAFT_SESSION_LINEAGE_LIMIT && value.lineage.every(isText))) ||
-        (value.manualContinuityBaselineAt !== null && identity.provider !== 'sleeper')) return null;
-
     const draftHistory = value.draftHistory;
     const lineage: readonly string[] = value.lineage ?? [];
     const preloadedKeepers = value.preloadedKeepers;
@@ -180,11 +94,12 @@ export function parseStoredDraftSession(
       config,
       leagueSettings: value.leagueSettings,
       currentPick: value.currentPick,
-      draftHistory: [...draftHistory].sort((left, right) => left.pickNumber - right.pickNumber),
+      draftProgress: value.draftProgress,
+      draftHistory: [...draftHistory],
       shortlistedPlayerIds: [...new Set(value.shortlistedPlayerIds)],
-      preloadedKeepers,
+      preloadedKeepers: [...preloadedKeepers],
       keepersInitialized: value.keepersInitialized,
-      unresolvedProviderPicks: value.unresolvedProviderPicks,
+      unresolvedProviderPicks: [...value.unresolvedProviderPicks],
       decisionLens: value.decisionLens,
       manualContinuityBaselineAt: value.manualContinuityBaselineAt,
       lastConfirmedSyncAt: value.lastConfirmedSyncAt,
@@ -217,7 +132,7 @@ export interface DraftSessionBase {
   readonly session: PersistedDraftSession | null;
 }
 
-export interface DraftSessionWriteOptions {
+interface DraftSessionWriteOptions {
   /** Skips the conflict check, leaving the overwritten tab's save to be merged back. */
   readonly force?: boolean;
   /** Records this save under the tab's own key so any tab can merge it back. */
@@ -226,7 +141,7 @@ export interface DraftSessionWriteOptions {
   readonly mergedWriteIds?: readonly string[];
 }
 
-export type DraftSessionWriteResult =
+type DraftSessionWriteResult =
   | { readonly status: 'written'; readonly writeId: string; readonly base: DraftSessionBase }
   | { readonly status: 'conflict' }
   | { readonly status: 'skipped' };
@@ -246,6 +161,7 @@ export function persistDraftSession(
   { force = false, tabId = null, mergedWriteIds = [] }: DraftSessionWriteOptions = {}
 ): DraftSessionWriteResult {
   if (!storage || !state.liveSession || state.sessionMode === 'mock') return { status: 'skipped' };
+  assertDraftStorageWritable(storage);
   const stored = readStoredDraftSessionText(storage, state.liveSession);
   // An unreadable entry cannot be adopted; overwrite it rather than stall.
   if (!force && stored !== base.serialized && parseStoredDraftSession(stored, state.liveSession)) {
@@ -260,7 +176,8 @@ export function persistDraftSession(
     identity: state.liveSession,
     config: state.config,
     leagueSettings: state.leagueSettings,
-    currentPick: state.currentPick,
+    currentPick: deriveDraftCursor(state.draftHistory, state.draftProgress),
+    draftProgress: state.draftProgress,
     draftHistory: state.draftHistory,
     shortlistedPlayerIds: state.shortlistedPlayerIds,
     preloadedKeepers: state.preloadedKeepers,
@@ -277,6 +194,7 @@ export function persistDraftSession(
     const change = computeDraftSessionChange(base.session, session, writeId);
     if (!isEmptyDraftSessionChange(change)) writeDraftSessionChange(storage, state.liveSession, tabId, change);
   }
+  assertDraftStorageWritable(storage);
   try {
     // A single synchronous write keeps picks and queue changes durable before reload.
     storage.setItem(getDraftSessionStorageKey(state.liveSession), serialized);

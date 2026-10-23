@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { localDevPorts } from '@fantasy-draft/shared';
+import { localDevPorts } from '@fantasy-draft/shared/node';
 
 describe('local service ports', () => {
   it('keeps local defaults and resolves the verification pair together', () => {

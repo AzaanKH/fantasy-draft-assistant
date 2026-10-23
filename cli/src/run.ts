@@ -1,25 +1,31 @@
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
-import { createDefaultLeagueSettings, type DraftReadinessReport, type Recommendation } from '@fantasy-draft/shared';
-import { buildDraftReadinessReport } from '../../scripts/src/draft-readiness-report';
-import { createDraftDecisionOutput } from '@/features/recommendations/draft-decision';
-import { getComparisonHighlights, getAvailabilitySignal, getWaitAnswer } from '@/features/assistant/assistant-analysis';
-import { getComparisonMetrics } from '@/features/assistant/comparison-metrics';
-import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
+import { type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
+import { type Recommendation } from '@fantasy-draft/shared/draft';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
+import { buildDraftReadinessReport } from './readiness';
+import {
+  createDraftDecisionOutput,
+  getComparisonHighlights,
+  getAvailabilitySignal,
+  getWaitAnswer,
+  getComparisonMetrics,
+} from '@fantasy-draft/shared/draft';
+import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 import { invocationMode, parseArguments, parseSession, HELP, type Arguments, type SessionId } from './arguments';
 import { DraftClient, readPairingToken } from './client';
-import { loadDraftData, loadJson, resolveKeepers, type DraftData } from './data';
+import { loadDraftData, loadPrimaryLeagueSettings, resolveKeepers, type DraftData } from './data';
 import { connectedSettings, createSessionContext, withConnectedReadiness, withLocalKeeperReadiness, replaceCoreReadiness, requireAdvice, adviceBoard, type SessionContext } from './context';
 import { attempt, CliError, required, unexpected } from './errors';
 import { EMPTY_CONNECTIONS, loadConnections, saveConnection } from './connections';
 import { archivedData, createArchive, readArchive, replayBoundaries, replaySnapshot, saveArchive, type SessionArchive } from './archive';
 import { inspectRoster } from './roster';
 
-export interface Output {
+interface Output {
   stdout: (text: string) => void | Promise<void>;
   stderr: (text: string) => void | Promise<void>;
 }
-export interface Runtime {
+interface Runtime {
   readonly root: string;
   readonly env: NodeJS.ProcessEnv;
   readonly signal: AbortSignal;
@@ -100,7 +106,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
     let readiness = yield* buildReadiness(now, root);
     let data: DraftData | null = null;
     const warnings: string[] = [];
-    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14));
+    const loaded = yield* Effect.result(loadDraftData(root, createDefaultLeagueSettings(now), 14, [], 'snake', { onWarning: message => warnings.push(message) }));
     if (Result.isSuccess(loaded)) {
       data = loaded.success;
       readiness = withLocalKeeperReadiness(readiness, data, now);
@@ -108,8 +114,9 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
       readiness = markInvalidCoreData(readiness, loaded.failure);
       warnings.push(loaded.failure.message);
     }
+    const settings = yield* loadPrimaryLeagueSettings(root, { onWarning: message => warnings.push(message) });
     return { data: { scope: 'local-data', readyForAdvice: null, readiness,
-      settings: yield* loadJson(root, 'data/primary-league-settings.json'),
+      settings,
       keepers: data ? { ...data.keeperStatus, error: data.keeperStatus.error?.message ?? null } : null,
       warnings }, exitCode: readiness.status === 'blocked' ? 3 : 0 };
   }
@@ -131,7 +138,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, new Date(now).getUTCFullYear()) : { players: [] };
   if (market.warning) warnings.push(market.warning);
   if (!archive) {
-    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type));
+    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null, { onWarning: message => warnings.push(message) }));
     if (Result.isSuccess(loaded)) data = loaded.success;
     else {
       const error = loaded.failure;
@@ -160,7 +167,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
     return { data: { ...statusData(context, session.id, warnings), ...origin }, exitCode: 0 };
   }
   // A missing player pool must still produce a connected readiness report with actionable failures.
-  const readinessData = data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds).status,
+  const readinessData = data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds, snapshot.draft?.type ?? null).status,
     survivalModel: null, policy: SAFE_RECOMMENDATION_POLICY };
   const readiness = withConnectedReadiness(required(localReadiness, 'readiness report'), snapshot, readinessData, now);
   if (args.command === 'readiness') {

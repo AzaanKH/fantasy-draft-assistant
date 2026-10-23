@@ -1,10 +1,11 @@
 import { Effect, Fiber } from 'effect';
 import {
-  isEspnDraftSnapshot,
-  MAX_DRAFT_PICKS,
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
+import {
+  MAX_DRAFT_PICKS,
+} from '@fantasy-draft/shared/units';
 import type {
   ExtensionMessage,
   MessageResponse,
@@ -26,7 +27,7 @@ export interface BackgroundControllerDependencies {
   readonly logger?: Pick<Console, 'log' | 'warn' | 'error'>;
 }
 
-export interface BackgroundController {
+interface BackgroundController {
   initialize(): Promise<void>;
   handleMessage(message: ExtensionMessage, sendResponse: SendResponse): boolean;
   handleActionClick(tabId: number | undefined): Promise<void>;
@@ -195,11 +196,6 @@ export function createBackgroundController(
       }
 
       case 'ESPN_DRAFT_SNAPSHOT': {
-        if (!isEspnDraftSnapshot(message.data)) {
-          sendResponse({ success: false, error: 'Invalid ESPN draft snapshot' });
-          break;
-        }
-
         const snapshot = attachEspnLeagueProfile(message.data);
 
         const requestedStatus: DraftRoomStatus = {

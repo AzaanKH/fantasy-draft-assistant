@@ -1,45 +1,32 @@
 import { join } from 'node:path';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { parseSession, type SessionId } from './arguments';
 import { readBoundedJson, writePrivateJson } from './files';
 import { CliError } from './errors';
 
-interface SavedConnection {
-  readonly session: string;
-  readonly slot?: number;
-  readonly serverUrl: string;
-  readonly connectedAt: string;
-}
-export interface ConnectionConfig {
-  readonly schemaVersion: 1;
-  readonly activeSession: string | null;
-  readonly connections: readonly SavedConnection[];
-}
+const savedConnection = Schema.StructWithRest(Schema.Struct({
+  session: Schema.String.check(Schema.makeFilter(value => {
+    try { return parseSession(value).id === value; } catch { return false; }
+  })),
+  slot: Schema.optional(Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 1 && value <= 32))),
+  serverUrl: Schema.String,
+  connectedAt: Schema.String.check(Schema.makeFilter(value => Number.isFinite(Date.parse(value)))),
+}), [Schema.Record(Schema.String, Schema.Unknown)]);
+const connectionConfig = Schema.StructWithRest(Schema.Struct({
+  schemaVersion: Schema.Literal(1), activeSession: Schema.NullOr(Schema.String),
+  connections: Schema.Array(savedConnection).check(Schema.makeFilter(value => value.length <= 128)),
+}), [Schema.Record(Schema.String, Schema.Unknown)]).check(Schema.makeFilter(value =>
+  value.activeSession === null || value.connections.some(row => row.session === value.activeSession)
+));
+const decodeConnectionConfig = Schema.decodeUnknownSync(connectionConfig);
+type ConnectionConfig = typeof connectionConfig.Type;
 export const EMPTY_CONNECTIONS: ConnectionConfig = { schemaVersion: 1, activeSession: null, connections: [] };
-
-function isSavedConnection(value: unknown): value is SavedConnection {
-  if (typeof value !== 'object' || value === null) return false;
-  const { session, serverUrl, slot, connectedAt } = value as Record<string, unknown>;
-  return typeof session === 'string' && parseSession(session).id === session && typeof serverUrl === 'string' &&
-    (slot === undefined || Number.isInteger(slot) && typeof slot === 'number' && slot >= 1 && slot <= 32) &&
-    typeof connectedAt === 'string' && Number.isFinite(Date.parse(connectedAt));
-}
-
-function isConnectionConfig(value: unknown): value is ConnectionConfig {
-  if (typeof value !== 'object' || value === null) return false;
-  const { schemaVersion, activeSession, connections } = value as Record<string, unknown>;
-  return schemaVersion === 1 && Array.isArray(connections) && connections.length <= 128 &&
-    (activeSession === null || typeof activeSession === 'string') &&
-    (connections as unknown[]).every(isSavedConnection) &&
-    (activeSession === null || (connections as SavedConnection[]).some(row => row.session === activeSession));
-}
 
 export const loadConnections = Effect.fn('loadConnections')(function* (root: string) {
   const invalid = new CliError('INVALID_CONNECTION_CONFIG', 'The saved CLI connections are invalid. Repair or remove .local/cli-connections.json.');
   return yield* readBoundedJson(join(root, '.local/cli-connections.json'), 64 * 1024).pipe(
-    // Validation parses each saved session, which throws for malformed IDs.
     Effect.flatMap(value => Effect.try({
-      try: () => { if (!isConnectionConfig(value)) throw invalid; return value; },
+      try: () => decodeConnectionConfig(value),
       catch: () => invalid,
     })),
     Effect.catchTag('JsonFileError', error => error.missing ? Effect.succeed(EMPTY_CONNECTIONS) : Effect.fail(invalid)),

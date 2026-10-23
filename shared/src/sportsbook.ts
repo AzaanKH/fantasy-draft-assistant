@@ -1,10 +1,9 @@
 import type { Position } from './player.js';
 import type { ScoringRules } from './scoring.js';
 
-export const SPORTSBOOKS = ['draftkings', 'fanduel'] as const;
-export type Sportsbook = (typeof SPORTSBOOKS)[number];
+type Sportsbook = SportsbookOverUnderLine['sportsbook'];
 
-export const SPORTSBOOK_MARKETS = [
+const SPORTSBOOK_MARKETS = [
   'passingYards',
   'passingTouchdowns',
   'rushingYards',
@@ -13,48 +12,16 @@ export const SPORTSBOOK_MARKETS = [
   'receivingTouchdowns',
   'receptions',
 ] as const;
-export type SportsbookMarket = (typeof SPORTSBOOK_MARKETS)[number];
+type SportsbookMarket = (typeof SPORTSBOOK_MARKETS)[number];
 
-export interface SportsbookOverUnderLine {
-  readonly sportsbook: Sportsbook;
-  readonly playerName: string;
-  readonly market: SportsbookMarket;
-  readonly line: number;
-  readonly overOdds: number;
-  readonly underOdds: number;
-  readonly sourceFile: string;
-}
-
-export interface SportsbookMilestoneLine {
-  readonly sportsbook: Sportsbook;
-  readonly playerName: string;
-  readonly market: SportsbookMarket;
-  readonly threshold: number;
-  readonly americanOdds: number;
-  readonly sourceFile: string;
-}
-
-export interface SportsbookSnapshotMetadata {
-  readonly season: number;
-  readonly capturedAt: string;
-  readonly importedAt: string;
-  readonly sourceDirectory: string;
-  readonly overUnderCount: number;
-  readonly milestoneCount: number;
-}
-
-export interface SportsbookSnapshot {
-  readonly metadata: SportsbookSnapshotMetadata;
-  readonly overUnder: readonly SportsbookOverUnderLine[];
-  readonly milestones: readonly SportsbookMilestoneLine[];
-  readonly warnings: readonly string[];
-}
+export type { SportsbookOverUnderLine, SportsbookSnapshot } from './catalog/decoders.js';
+import type { SportsbookOverUnderLine } from './catalog/decoders.js';
 
 export type FantasyProsMarketStats = Readonly<
   Partial<Record<SportsbookMarket, number>>
 >;
 
-export interface SportsbookMarketConsensus {
+interface SportsbookMarketConsensus {
   readonly market: SportsbookMarket;
   readonly consensusStat: number;
   readonly fantasyProsStat: number;
@@ -65,7 +32,7 @@ export interface SportsbookMarketConsensus {
   readonly sportsbooks: readonly Sportsbook[];
 }
 
-export interface SportsbookProjectionAdjustment {
+interface SportsbookProjectionAdjustment {
   readonly existingProjection: number;
   readonly marketAdjustment: number;
   readonly adjustedProjection: number;
@@ -84,78 +51,6 @@ function clamp(value: number, min: number, max: number): number {
 
 function round(value: number, digits: number = 2): number {
   return Number(value.toFixed(digits));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isSportsbook(value: unknown): value is Sportsbook {
-  return (
-    typeof value === 'string' &&
-    SPORTSBOOKS.includes(value as Sportsbook)
-  );
-}
-
-function isSportsbookMarket(value: unknown): value is SportsbookMarket {
-  return (
-    typeof value === 'string' &&
-    SPORTSBOOK_MARKETS.includes(value as SportsbookMarket)
-  );
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isOverUnderLine(value: unknown): value is SportsbookOverUnderLine {
-  return (
-    isRecord(value) &&
-    isSportsbook(value['sportsbook']) &&
-    typeof value['playerName'] === 'string' &&
-    isSportsbookMarket(value['market']) &&
-    isFiniteNumber(value['line']) &&
-    isFiniteNumber(value['overOdds']) &&
-    isFiniteNumber(value['underOdds']) &&
-    typeof value['sourceFile'] === 'string'
-  );
-}
-
-function isMilestoneLine(value: unknown): value is SportsbookMilestoneLine {
-  return (
-    isRecord(value) &&
-    isSportsbook(value['sportsbook']) &&
-    typeof value['playerName'] === 'string' &&
-    isSportsbookMarket(value['market']) &&
-    isFiniteNumber(value['threshold']) &&
-    isFiniteNumber(value['americanOdds']) &&
-    typeof value['sourceFile'] === 'string'
-  );
-}
-
-export function isSportsbookSnapshot(value: unknown): value is SportsbookSnapshot {
-  if (
-    !isRecord(value) ||
-    !isRecord(value['metadata']) ||
-    !Array.isArray(value['overUnder']) ||
-    !Array.isArray(value['milestones']) ||
-    !Array.isArray(value['warnings'])
-  ) {
-    return false;
-  }
-
-  const metadata = value['metadata'];
-  return (
-    isFiniteNumber(metadata['season']) &&
-    typeof metadata['capturedAt'] === 'string' &&
-    typeof metadata['importedAt'] === 'string' &&
-    typeof metadata['sourceDirectory'] === 'string' &&
-    isFiniteNumber(metadata['overUnderCount']) &&
-    isFiniteNumber(metadata['milestoneCount']) &&
-    value['overUnder'].every(isOverUnderLine) &&
-    value['milestones'].every(isMilestoneLine) &&
-    value['warnings'].every((warning) => typeof warning === 'string')
-  );
 }
 
 export function normalizeSportsbookPlayerName(name: string): string {
@@ -179,7 +74,7 @@ export function americanOddsToImpliedProbability(americanOdds: number): number {
     : -americanOdds / (-americanOdds + 100);
 }
 
-export function getLeagueScoringValue(
+function getLeagueScoringValue(
   market: SportsbookMarket,
   position: Position,
   scoringRules: ScoringRules

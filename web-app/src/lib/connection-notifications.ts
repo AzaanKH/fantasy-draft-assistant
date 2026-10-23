@@ -5,7 +5,7 @@ export interface ConnectionNoticeState {
   readonly provider: string;
   readonly state: DraftSyncConnectionState;
 }
-export interface ConnectionNotice {
+interface ConnectionNotice {
   readonly kind: 'success' | 'warning' | 'error' | 'info';
   readonly message: string;
   readonly description?: string;

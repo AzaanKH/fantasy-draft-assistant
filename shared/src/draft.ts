@@ -29,7 +29,7 @@ export function createEmptyRoster(): Roster {
 /**
  * Position slot requirements for starters and max roster
  */
-export interface PositionRequirement {
+interface PositionRequirement {
   readonly starters: number;
   readonly max: number;
 }
@@ -37,7 +37,7 @@ export interface PositionRequirement {
 /**
  * FLEX position configuration
  */
-export interface FlexRequirement {
+interface FlexRequirement {
   readonly starters: number;
   readonly eligiblePositions: readonly Position[];
 }
@@ -87,7 +87,7 @@ export interface DraftPick {
 /**
  * Priority levels for team positional needs
  */
-export const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'defer', 'filled'] as const;
+const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'defer', 'filled'] as const;
 
 export type NeedPriority = (typeof NEED_PRIORITIES)[number];
 
@@ -235,13 +235,7 @@ export interface Recommendation {
     readonly leagueAdjustedMarketRank?: number;
     readonly leagueMarketDelta?: number;
     readonly leaguePositionTendency?: string;
-    readonly pickEv?: number;
-    readonly ecrAnchorValue?: number;
-    readonly projectionResidualValue?: number;
-    readonly marginalRosterValue?: number;
     readonly costOfWaiting?: number;
-    readonly lateRoundOptionValue?: number;
-    readonly riskAdjustedLoss?: number;
     readonly replacementPoints?: number;
     readonly expectedNextPickAlternativeValue?: number;
     readonly expectedNextPickAlternative?: ExpectedNextPickAlternative;
@@ -263,13 +257,6 @@ export interface Recommendation {
     readonly needMultiplier?: number;
     readonly scarcityMultiplier?: number;
     readonly tePremiumBoost?: number;
-    readonly pickEv?: number;
-    readonly ecrAnchorValue?: number;
-    readonly projectionResidualValue?: number;
-    readonly marginalRosterValue?: number;
-    readonly costOfWaiting?: number;
-    readonly lateRoundOptionValue?: number;
-    readonly riskAdjustedLoss?: number;
   };
 }
 
@@ -277,20 +264,14 @@ export interface Recommendation {
  * Manager-selectable perspectives over the same available-player set.
  * Best Pick is the roster-completion policy; Best Player is the untouched ECR reference.
  */
-export const DECISION_LENSES = ['best-pick', 'best-player'] as const;
-
-export type DecisionLens = (typeof DECISION_LENSES)[number];
-
-export const DECISION_DIVERGENCE_FACTORS = [
-  'league-value',
-  'roster-fit',
-  'depth-value',
-  'tier-supply',
-  'draft-timing',
-] as const;
+export type DecisionLens = 'best-pick' | 'best-player';
 
 export type DecisionDivergenceFactor =
-  (typeof DECISION_DIVERGENCE_FACTORS)[number];
+  | 'league-value'
+  | 'roster-fit'
+  | 'depth-value'
+  | 'tier-supply'
+  | 'draft-timing';
 
 /**
  * Canonical answer shared by every rendered draft-decision surface.
@@ -309,5 +290,5 @@ export interface DecisionOutput {
  * Type guard to check if a value is a valid NeedPriority
  */
 export function isNeedPriority(value: unknown): value is NeedPriority {
-  return typeof value === 'string' && NEED_PRIORITIES.includes(value as NeedPriority);
+  return NEED_PRIORITIES.some(priority => priority === value);
 }

@@ -1,24 +1,17 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type {
-  FantasyProsSnapshot,
-  NFLTeam,
-  Player,
-  Position,
-  TeamEnvironment,
-} from '@fantasy-draft/shared';
-import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
 import {
-  mergePlayerData,
-  normalizePlayerName,
-  type PlayerIdentityData,
-  type SleeperADPPlayer,
-} from './calculations/player-value';
+  type NFLTeam,
+  type Player,
+  type Position,
+} from '@fantasy-draft/shared/league';
 import {
-  simulateCpuDraft,
-  type MockDraftEngineConfig,
-  type MockKeeperAssignment,
-  type MockLeagueHistoryModel,
-} from './mock-draft-engine';
+  type FantasyProsSnapshot,
+  type TeamEnvironment,
+} from '@fantasy-draft/shared/catalog';
+import {
+  DEFAULT_ROSTER_REQUIREMENTS,
+} from '@fantasy-draft/shared/league';
+import { mergePlayerData, normalizePlayerName, type PlayerIdentityData, type SleeperADPPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import sleeperJson from '../../../data/sleeper-adp.json';
 import teamEnvironmentJson from '../../../data/team-environment.json';
@@ -125,7 +118,7 @@ describe('2026 mock draft calibration', () => {
   });
 
   it('finishes a complete mock with legal starters, two FLEX slots, and roster maximums', () => {
-    const config: MockDraftEngineConfig = {
+    const config: MockDraftEngineConfig = { draftType: 'snake',
       totalTeams: 10,
       totalRounds: 15,
       myPickPosition: 5,
@@ -176,7 +169,7 @@ describe('2026 mock draft calibration', () => {
     const keeperIds = new Set(keepers.map((keeper) => keeper.playerId));
 
     for (let iteration = 0; iteration < iterations; iteration += 1) {
-      const config: MockDraftEngineConfig = {
+      const config: MockDraftEngineConfig = { draftType: 'snake',
         totalTeams: 10,
         totalRounds: 15,
         myPickPosition: 5,

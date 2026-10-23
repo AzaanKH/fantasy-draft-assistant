@@ -1,13 +1,24 @@
 import {
-  createDefaultLeagueSettings, createLeagueSettings, createEmptyRoster, LIVE_RECOMMENDATION_ARCHITECTURE, POSITIONS, type DraftSyncSnapshot,
-  type DraftReadinessReport, type LeagueSettings, type Player, type Roster,
-} from '@fantasy-draft/shared';
-import { resolveDraftPickImports, getNextOpenPickNumber } from '@/lib/draft-pick-imports';
-import { getEffectiveKeeperAssignments, isKeeperSupplyComplete } from '@/lib/keeper-supply';
-import { getTeamIndexForPick } from '@/lib/mock-draft-engine';
-import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
-import { applyLeagueSurvivalModel, filterDrafted, calculateTeamNeeds, calculateAllScarcityScores,
-  getRecommendations, type RecommendationContext } from '@/lib/calculations';
+  POSITIONS,
+  type Player,
+} from '@fantasy-draft/shared/league';
+import {
+  type DraftReadinessReport,
+} from '@fantasy-draft/shared/catalog';
+import {
+  createSlotSequence,
+} from '@fantasy-draft/shared/draft';
+import {
+  createDefaultLeagueSettings,
+  createLeagueSettings,
+  createEmptyRoster,
+  type LeagueSettings,
+  type Roster,
+} from '@fantasy-draft/shared/league';
+import {
+  type DraftSyncSnapshot,
+} from '@fantasy-draft/shared/sync';
+import { resolveDraftPickImports, getNextOpenPickNumber, getEffectiveKeeperAssignments, isKeeperSupplyComplete, evaluateWorkspaceDraftReadiness, applyLeagueSurvivalModel, filterDrafted, calculateTeamNeeds, calculateAllScarcityScores, getRecommendations, type RecommendationContext } from '@fantasy-draft/shared/draft';
 import type { DraftData } from './data';
 import { CliError } from './errors';
 
@@ -53,8 +64,8 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
   const totalRounds = draft?.settings.rounds ?? 0;
   const totalPicks = totalTeams * totalRounds;
   const settings = connectedSettings(snapshot, now);
-  const draftType = draft?.type ?? 'snake';
-  const imports = resolveDraftPickImports(snapshot.picks, data?.players ?? [], slot ?? 0);
+  const draftType = draft?.type ?? null;
+  const imports = resolveDraftPickImports(snapshot.picks, data?.players ?? [], slot ?? 0, [], totalTeams, draftType);
   const keeperSupplyReady = data !== null && settings.keepersEnabled !== false && isKeeperSupplyComplete({
     keepersEnabled: settings.keepersEnabled, season: data.keeperStatus.season,
     expectedSeason: new Date(now).getUTCFullYear(), isConfirmed: data.keeperStatus.isConfirmed,
@@ -63,18 +74,13 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
     unresolvedNames: data.keeperStatus.unresolvedNames, duplicateNames: data.keeperStatus.duplicateNames,
     invalidAssignments: data.keeperStatus.invalidAssignments,
   });
-  const effectiveKeepers = getEffectiveKeeperAssignments(keeperSupplyReady ? data.keepers : [], imports.picks, totalTeams, draftType);
+  const effectiveKeepers = draftType === null ? [] : getEffectiveKeeperAssignments(keeperSupplyReady ? data.keepers : [], imports.picks, totalTeams, draftType);
   const filled = new Set([...snapshot.picks, ...effectiveKeepers].map(pick => pick.pickNumber));
   const currentPick = draft ? draft.status === 'complete' ? totalPicks + 1
     : getNextOpenPickNumber([...snapshot.picks, ...effectiveKeepers], totalPicks) : null;
-  const teamAtPick = (pick: number): number => draft?.type === 'linear'
-    ? (pick - 1) % totalTeams : getTeamIndexForPick(pick, totalTeams);
-  let nextTurn: number | null = null;
-  if (slot !== undefined && currentPick !== null && draft?.type !== 'auction') {
-    for (let pick = currentPick; pick <= totalPicks; pick += 1) {
-      if (!filled.has(pick) && teamAtPick(pick) === slot - 1) { nextTurn = pick; break; }
-    }
-  }
+  const order = draft ? createSlotSequence({ type: draft.type, teams: totalTeams, rounds: totalRounds }) : null;
+  const nextTurn = slot !== undefined && currentPick !== null && draft?.type !== 'auction'
+    ? order?.nextForTeam(slot - 1, currentPick, filled)?.pick ?? null : null;
   const isMyTurn = nextTurn !== null && nextTurn === currentPick;
   const draftedIds = new Set([...imports.picks, ...effectiveKeepers].map(pick => pick.playerId));
   const roster = createEmptyRoster() as { [P in keyof Roster]: string[] };
@@ -89,7 +95,7 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
     : ageMs > 15_000 && draft?.status !== 'complete' ? 'stale' : 'healthy';
   return { snapshot, settings, totalTeams, totalRounds, totalPicks, currentPick,
     onTheClockSlot: currentPick !== null && currentPick <= totalPicks && draft?.type !== 'auction'
-      ? teamAtPick(currentPick) + 1 : null,
+      ? (order?.at(currentPick).teamIndex ?? -1) + 1 : null,
     slot: slot ?? null, nextTurn, isMyTurn, roster, draftedIds, availablePlayers,
     unresolvedPicks: data ? imports.rejectedPicks : [],
     sync: { health: syncHealth, state: snapshot.status, lastPolledAt: snapshot.lastPolledAt,
@@ -110,8 +116,11 @@ export function requireAdvice(context: SessionContext, readiness: DraftReadiness
 }
 
 export function adviceBoard(context: SessionContext, data: DraftData) {
+  const draft = context.snapshot.draft;
+  if (!draft) throw new CliError('SYNC_UNHEALTHY', 'The provider draft is unavailable. Restore draft sync before using advice.', 3);
   const currentPick = context.currentPick ?? 1;
   const players = applyLeagueSurvivalModel(data.players, data.survivalModel, {
+    draftType: draft.type,
     currentPick, myPickPosition: context.slot ?? 1, totalTeams: context.totalTeams, totalRounds: context.totalRounds,
     occupiedPickNumbers: new Set([...context.snapshot.picks, ...context.keeperReservations].map(pick => pick.pickNumber)),
   });
@@ -127,7 +136,7 @@ export function adviceBoard(context: SessionContext, data: DraftData) {
   const selectionsRemaining = Math.max(0, context.totalRounds - rosterPlayers.length);
   const recommendationContext: RecommendationContext = {
     currentPick, totalPicks: context.totalPicks, totalTeams: context.totalTeams, isMyTurn: context.isMyTurn,
-    architecture: LIVE_RECOMMENDATION_ARCHITECTURE, requirements: context.settings.rosterRequirements,
+    requirements: context.settings.rosterRequirements,
     rosterPlayers, selectionsRemaining,
     rosterCounts: Object.fromEntries(POSITIONS.map(position => [position, context.roster[position].length])),
   };

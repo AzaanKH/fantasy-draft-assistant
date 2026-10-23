@@ -1,9 +1,10 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { describe, expect, it } from 'vitest';
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import {
   createDraftDecisionView,
   getPreferredRecommendation,
-} from '@/features/recommendations/draft-decision';
+} from '@fantasy-draft/shared/draft';
 import { getPositionRecommendations } from './assistant-position-rankings';
 
 function createRecommendation(
@@ -15,7 +16,7 @@ function createRecommendation(
     playerId,
     playerName: playerId,
     position: 'WR',
-    reason: expertRank === 2 ? 'PickEV override +5.0' : 'ECR champion',
+    reason: expertRank === 2 ? 'League value +5.0' : 'ECR champion',
     score,
     diagnostics: {
       expertRank,
@@ -36,10 +37,9 @@ describe('getPositionRecommendations', () => {
       [leaguePreferred, ecrLeader],
       {
         preferredPlayerId: leaguePreferred.playerId,
-        policy: 'pick-ev-override',
-        overrideAdvantage: 5,
-        overrideThreshold: 4,
-      }
+        policy: 'primary-league-policy',
+      }, undefined,
+      DRAFT_DISPLAY
     );
 
     const recommendations = getPositionRecommendations(decision);
@@ -51,7 +51,7 @@ describe('getPositionRecommendations', () => {
     ]);
     expect(decision.preferredPlayerId).toBe('league-preferred');
     expect(decision.rankByPlayerId.get('league-preferred')).toBe(1);
-    expect(decision.selection.policy).toBe('pick-ev-override');
+    expect(decision.selection.policy).toBe('primary-league-policy');
     expect(decision.explanationByPlayerId.get('league-preferred')).toContain('league-preferred');
   });
 
@@ -63,9 +63,8 @@ describe('getPositionRecommendations', () => {
       {
         preferredPlayerId: ecrChampion.playerId,
         policy: 'ecr-anchor',
-        overrideAdvantage: 10,
-        overrideThreshold: 4,
-      }
+      }, undefined,
+      DRAFT_DISPLAY
     );
 
     expect(getPreferredRecommendation(decision, [higherRawScore, ecrChampion])).toBe(ecrChampion);

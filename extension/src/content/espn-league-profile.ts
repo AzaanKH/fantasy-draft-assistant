@@ -3,7 +3,7 @@ import {
   type LeagueSettings,
   type RosterRequirements,
   type ScoringRules,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 
 /** The active 2026 ESPN league configured for this extension build. */
 export const ESPN_ACTIVE_LEAGUE_ID = '1652783544';

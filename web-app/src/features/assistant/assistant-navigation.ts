@@ -1,4 +1,5 @@
-import type { Player, Position, Recommendation } from '@fantasy-draft/shared';
+import type { Player, Position } from '@fantasy-draft/shared/league';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 
 export type AssistantLens = 'why' | 'compare' | 'wait' | 'roster';
 
@@ -30,7 +31,7 @@ export function getAssistantNavigationTarget(value: unknown): AssistantNavigatio
 }
 
 /** The player the analysis panel describes. A selection keeps its identity even when no recommendation exists for it. */
-export type ViewedPlayer =
+type ViewedPlayer =
   | { readonly kind: 'recommendation'; readonly recommendation: Recommendation }
   | {
       readonly kind: 'unavailable';
