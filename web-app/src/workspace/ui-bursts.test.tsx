@@ -173,7 +173,7 @@ it('keeps stale queue clicks absolute and preserves the latest exact order after
   reopened.close();
 });
 
-it.fails('settles bootstrap keeper preload when adopted sessions give player data new references', async () => {
+it('settles bootstrap keeper preload when adopted sessions give player data new references', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updatedAt: '2026-01-01T00:00:00.000Z', season: new Date().getUTCFullYear(), keepers: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
   const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
   const raw = createDurableWorkspace({ database, search: '', initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 } });

@@ -29,7 +29,7 @@ function interceptPut(after: (store: IDBObjectStore, request: IDBRequest<unknown
 }
 
 describe('transactional workspace', () => {
-  it.fails('acknowledges a repeated keeper preload without a new revision when only key order differs from the decoded session', async () => {
+  it('acknowledges a repeated keeper preload without a new revision when only key order differs from the decoded session', async () => {
     const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: vi.fn() });
     const channel = { postMessage: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), close: vi.fn() };
     const workspace = createIndexedWorkspace({ database, identity, report: vi.fn(), channel });

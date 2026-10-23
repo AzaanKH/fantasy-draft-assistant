@@ -13,6 +13,11 @@ export interface IndexedWorkspace {
   dispose(): void;
 }
 
+/** The decoder rebuilds persisted objects in its own key order, so a change is judged by content, not insertion order. */
+const canonicalJson = (value: unknown): string => JSON.stringify(value, (_key, field: unknown) =>
+  field !== null && typeof field === 'object' && !Array.isArray(field)
+    ? Object.fromEntries(Object.entries(field).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)) : field);
+
 export function createIndexedWorkspace({ database, identity, lifecycle, channel, report, initialState, closeDatabase = true }: {
   database: DraftDatabase;
   identity: DraftSessionIdentity;
@@ -69,7 +74,7 @@ export function createIndexedWorkspace({ database, identity, lifecycle, channel,
         // Freshness survives reload independently of the history revision.
         const historyCandidate = command[0] === 'advanceSyncFreshness' || command[0] === 'reconcileSyncedPicks'
           ? { ...candidate, lastConfirmedSyncAt: previous?.lastConfirmedSyncAt ?? null } : candidate;
-        changed = JSON.stringify(historyCandidate) !== JSON.stringify(previous);
+        changed = canonicalJson(historyCandidate) !== canonicalJson(previous);
         return { session: changed ? { ...candidate, revision: candidate.revision + 1 } : candidate, result: reduced.result };
       });
       adopt(committed.session);
