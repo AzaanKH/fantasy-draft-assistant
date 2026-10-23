@@ -1,7 +1,7 @@
-import '@/stores/draft/derive-shadow.setup';
+import { deriveDraftState } from '@/stores/draft/source';
 import { DEFAULT_QUICK_MOCK } from '@fantasy-draft/shared/draft';
 import { describe, expect, it } from 'vitest';
-import { createDefaultLeagueSettings, createLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings, createLeagueSettings } from '@fantasy-draft/shared/league';
 import { createDraftStore } from '@/stores/draftStore';
 import { resolveSyncedLeagueSettings } from './synced-league-settings';
 
@@ -40,9 +40,9 @@ describe('synced mock scoring and roster overrides', () => {
     const history = store.getState().draftHistory;
     store.getState().applyLeagueSettings(resolveSyncedLeagueSettings('sleeper', 10, providerSettings, true));
     expect(store.getState().draftHistory).toEqual(history);
-    expect(store.getState().myRoster.WR).toContain('player-5');
+    expect(deriveDraftState(store.getState()).myRoster.WR).toContain('player-5');
     expect(store.getState().config).toMatchObject({ totalTeams: 10, totalRounds: 15, myPickPosition: 5 });
-    expect(store.getState().currentPick).toBe(6);
+    expect(deriveDraftState(store.getState()).currentPick).toBe(6);
     store.getState().applyLeagueSettings(resolveSyncedLeagueSettings('sleeper', 10, providerSettings, false));
     expect(store.getState().draftHistory).toEqual(history);
     expect(store.getState().leagueSettings.scoringRules.receiving.reception).toBe(0);
@@ -68,7 +68,7 @@ it('uses explicit quick mock scoring with provider size while keeping canonical 
   store.getState().applyLeagueSettings(rules);
   store.getState().preloadKeepers([]);
   expect(store.getState().draftHistory).toEqual(history);
-  expect(store.getState().myRoster.WR).toContain('player-5');
+  expect(deriveDraftState(store.getState()).myRoster.WR).toContain('player-5');
   expect(store.getState().config).toMatchObject({ totalTeams: 10, totalRounds: 16, myPickPosition: 5 });
-  expect(store.getState().currentPick).toBe(6);
+  expect(deriveDraftState(store.getState()).currentPick).toBe(6);
 });

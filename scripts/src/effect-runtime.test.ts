@@ -22,8 +22,8 @@ async function serve(handler: Handler) {
 
 afterEach(async () => { await Promise.all(servers.splice(0).map((stop) => stop())); });
 
-const run = <T>(url: string, timeoutMs = 2000) =>
-  Effect.runPromise(Effect.result(fetchJson<T>(url, { label: 'Test', timeoutMs })));
+const run = (url: string, timeoutMs = 2000, retries = 2) =>
+  Effect.runPromise(Effect.result(fetchJson(url, (value: unknown) => value, { label: 'Test', timeoutMs, retries })));
 
 describe('fetchJson', () => {
   it('retries rate limits after the Retry-After delay, then succeeds', async () => {
@@ -32,7 +32,7 @@ describe('fetchJson', () => {
       else response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
     });
     const started = Date.now();
-    const result = await run<{ ok: boolean }>(server.url);
+    const result = await run(server.url);
     expect(result).toMatchObject({ _tag: 'Success', success: { ok: true } });
     expect(server.hits()).toBe(2);
     expect(Date.now() - started).toBeGreaterThanOrEqual(900);
@@ -65,13 +65,13 @@ describe('fetchJson', () => {
     expect(server.closed()).toBe(1);
   });
 
-  it('times out a stalled error body and closes its connection', async () => {
+  it('cancels a stalled error body without waiting for the timeout', async () => {
     const server = await serve((_request, response) => {
       response.writeHead(503, { 'content-type': 'text/plain' });
       response.write('overloaded');
     });
-    const result = await run(server.url, 150);
-    expect(result).toMatchObject({ _tag: 'Failure' });
+    const result = await run(server.url, 150, 0);
+    expect(result).toMatchObject({ _tag: 'Failure', failure: { status: 503 } });
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(server.hits()).toBe(1);
     expect(server.closed()).toBe(1);

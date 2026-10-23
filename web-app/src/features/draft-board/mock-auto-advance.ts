@@ -1,13 +1,11 @@
-import { createSlotSequence, type Player } from '@fantasy-draft/shared';
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView, useDraftViewReader } from '@/workspace/useDraftView';
+import { type Player } from '@fantasy-draft/shared/league';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { useLeagueTimingEvidence } from '@/hooks/useLeagueTimingEvidence';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import {
-  calculateIsMyTurn,
-  useDraftStore,
-  useDraftStoreApi,
-  type MockCpuPickPace,
-} from '@/stores/draftStore';
+import { type MockCpuPickPace } from '@/stores/draftStore';
 import { getKeeperAtPick, selectCpuPlayer } from '@fantasy-draft/shared/draft';
 
 const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
@@ -21,42 +19,38 @@ const CPU_PICK_DELAY_MS: Record<MockCpuPickPace, number> = {
  * Returns false at the user's own pick, at draft end, or when no player fits.
  */
 export function useSimulateNextCpuPick(players: readonly Player[]): () => boolean {
-  const draftStore = useDraftStoreApi();
-  const sessionMode = useDraftStore((state) => state.sessionMode);
+  const workspace = useWorkspace();
+  const readDraftView = useDraftViewReader();
+  const sessionMode = useDraftState((state) => state.sessionMode);
   const timingEvidence = useLeagueTimingEvidence(sessionMode !== 'live');
 
   return React.useCallback((): boolean => {
-    const state = draftStore.getState();
+    const state = workspace.draft.getState();
+    const view = readDraftView();
     const totalPicks = state.config.totalTeams * state.config.totalRounds;
-    if (state.currentPick > totalPicks) return false;
+    if (view.currentPick > totalPicks) return false;
 
     const keeper = getKeeperAtPick(
       state.preloadedKeepers,
-      state.currentPick,
+      view.currentPick,
       state.config.totalTeams,
       state.config.draftType
     );
     if (keeper) {
-      state.consumeKeeperAtCurrentPick();
+      workspace.send('consumeKeeperAtCurrentPick');
       return true;
     }
 
-    if (calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams,
-        state.config.totalRounds,
-      state.config.draftType
-    )) {
+    if (view.isMyTurn) {
       return false;
     }
 
     const selection = selectCpuPlayer({
       players,
-      draftedPlayerIds: state.draftedPlayerIds,
+      draftedPlayerIds: view.draftedPlayerIds,
       history: state.draftHistory,
       keepers: state.preloadedKeepers,
-      currentPick: state.currentPick,
+      currentPick: view.currentPick,
       config: {
         totalTeams: state.config.totalTeams,
         totalRounds: state.config.totalRounds,
@@ -70,9 +64,8 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     });
     if (!selection) return false;
 
-    const teamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(state.currentPick).teamIndex;
-    state.markPlayerDrafted(
-      selection.player.id,
+    const teamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(view.currentPick).teamIndex;
+    workspace.send('markPlayerDrafted', selection.player.id,
       selection.player.name,
       selection.player.position,
       teamIndex,
@@ -81,7 +74,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       'cpu'
     );
     return true;
-  }, [draftStore, timingEvidence.model, players]);
+  }, [workspace, readDraftView, timingEvidence.model, players]);
 }
 
 /**
@@ -90,47 +83,44 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
  */
 export function MockDraftAutoAdvance(): null {
   const { players } = usePlayerDataQuery();
-  const draftStore = useDraftStoreApi();
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const config = useDraftStore((state) => state.config);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const { paused, settingsOpen } = useDraftStore((state) => state.mockAutoAdvance);
-  const cpuPickDelayMs = useDraftStore(
+  const workspace = useWorkspace();
+  const readDraftView = useDraftViewReader();
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const config = useDraftState((state) => state.config);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
+  const { paused, settingsOpen } = useDraftState((state) => state.mockAutoAdvance);
+  const cpuPickDelayMs = useDraftState(
     (state) => CPU_PICK_DELAY_MS[state.mockSettings.cpuPickPace]
   );
   const simulateNextCpuPick = useSimulateNextCpuPick(players);
 
   React.useEffect(() => {
     if (sessionMode !== 'mock' || paused || settingsOpen || players.length === 0) return;
-    const state = draftStore.getState();
+    const state = workspace.draft.getState();
+    const view = readDraftView();
     const totalPicks = state.config.totalTeams * state.config.totalRounds;
-    if (state.currentPick > totalPicks) return;
+    if (view.currentPick > totalPicks) return;
     const keeper = getKeeperAtPick(
       state.preloadedKeepers,
-      state.currentPick,
+      view.currentPick,
       state.config.totalTeams,
       state.config.draftType
     );
-    if (!keeper && calculateIsMyTurn(
-      state.currentPick,
-      state.config.myPickPosition,
-      state.config.totalTeams,
-        state.config.totalRounds,
-      state.config.draftType
-    )) {
+    if (!keeper && view.isMyTurn) {
       return;
     }
     const timer = window.setTimeout(() => {
       // Pause rather than retry when no CPU candidate fits.
-      if (!simulateNextCpuPick()) draftStore.getState().setMockAutoAdvancePaused(true);
+      if (!simulateNextCpuPick()) workspace.send('setMockAutoAdvancePaused', true);
     }, cpuPickDelayMs);
     return () => { window.clearTimeout(timer); };
   }, [
     config,
     cpuPickDelayMs,
     currentPick,
-    draftStore,
+    workspace,
+    readDraftView,
     paused,
     players.length,
     preloadedKeepers,

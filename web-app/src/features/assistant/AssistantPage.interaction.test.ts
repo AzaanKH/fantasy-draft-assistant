@@ -1,19 +1,25 @@
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 // @vitest-environment jsdom
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  type DraftProvider,
   type Player,
   type Position,
+  POSITIONS,
+} from '@fantasy-draft/shared/league';
+import {
   type PositionNeed,
   type Recommendation,
-  POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
+import {
+  type DraftProvider,
+} from '@fantasy-draft/shared/sync';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { DraftDecisionView } from '@fantasy-draft/shared/draft';
 import type { DraftSynchronizationState } from '@/lib/draft-sync-state';
-import { useDraftStore } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+const draftStore = createDraftStore();
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { AssistantPage } from './AssistantPage';
 
@@ -103,7 +109,7 @@ vi.mock('@/features/draft-room/LiveDraftSyncProvider', () => ({
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players }) }));
 vi.mock('@/hooks/useTeamNeeds', () => ({ useTeamNeeds: () => ({ needs }) }));
 vi.mock('@/hooks/useDraftPlayerAction', () => ({
-  useDraftPlayerAction: () => ({ canDraft: mocks.canDraft, isMyTurn: true, draftPlayer: mocks.draftPlayer }),
+  useDraftPlayerAction: () => ({ canDraft: mocks.canDraft, canDraftPlayer: () => mocks.canDraft, isMyTurn: true, draftPlayer: mocks.draftPlayer }),
 }));
 vi.mock('@/hooks/useQueueActions', () => ({
   useQueueActions: () => ({ togglePlayerQueued: mocks.togglePlayerQueued, removePlayerFromQueue: vi.fn() }),
@@ -135,9 +141,9 @@ afterEach(() => {
 });
 
 function renderPage(sessionMode: 'live' | 'mock'): void {
-  act(() => { useDraftStore.setState({ sessionMode }); });
+  act(() => { draftStore.setState({ sessionMode }); });
   act(() => {
-    root.render(createElement(TooltipProvider, null, createElement(AssistantPage, { onReturnToDraft: vi.fn() })));
+    root.render(createElement(WorkspaceTestProvider, { store: draftStore, children: createElement(TooltipProvider, null, createElement(AssistantPage, { onReturnToDraft: vi.fn() })) }));
   });
 }
 

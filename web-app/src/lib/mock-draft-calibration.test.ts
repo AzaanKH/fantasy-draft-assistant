@@ -1,12 +1,16 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  type FantasyProsSnapshot,
   type NFLTeam,
   type Player,
   type Position,
+} from '@fantasy-draft/shared/league';
+import {
+  type FantasyProsSnapshot,
   type TeamEnvironment,
+} from '@fantasy-draft/shared/catalog';
+import {
   DEFAULT_ROSTER_REQUIREMENTS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import { mergePlayerData, normalizePlayerName, type PlayerIdentityData, type SleeperADPPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
 import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
 import sleeperJson from '../../../data/sleeper-adp.json';

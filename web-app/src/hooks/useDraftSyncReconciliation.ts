@@ -1,8 +1,7 @@
+import { useWorkspace, useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DraftProvider, DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftProvider, DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
-import { useDraftStore } from '@/stores/draftStore';
 import { resolveSyncedLeagueSettings } from '@/lib/synced-league-settings';
 import {
   getNextOpenPickNumber,
@@ -42,10 +41,10 @@ function getImportWarning(
 
 export function useDraftSyncReconciliation(provider: DraftProvider, draftId: string | null, snapshot: DraftSyncSnapshot | null, shouldImportPicks: boolean) {
   const quickMockPreferences = useLeagueSetupStore((state) => state.quickMock);
-  const useQuickMockSettings = useDraftSyncConnectionStore((state) =>
+  const useQuickMockSettings = useConnectionState((state) =>
     state.connection?.provider === provider && state.connection.draftId === draftId && state.connection.settingsProfile === 'quick-mock'
   );
-  const usePrimaryLeagueSettings = useDraftSyncConnectionStore((state) =>
+  const usePrimaryLeagueSettings = useConnectionState((state) =>
     provider === 'sleeper' && state.connection?.provider === provider &&
     state.connection.draftId === draftId && state.connection.usePrimaryLeagueSettings === true
   );
@@ -66,15 +65,13 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
     rejectedPicks: DraftPickImportResult['rejectedPicks'];
     nextOpenPickNumber: number;
   } | null>(null);
-  const reconcileSyncedPicks = useDraftStore((state) => state.reconcileSyncedPicks);
-  const manualContinuityBaselineAt = useDraftStore((state) => state.manualContinuityBaselineAt);
-  const lastConfirmedSyncAt = useDraftStore((state) => state.lastConfirmedSyncAt);
-  const myPickPosition = useDraftStore((state) => state.config.myPickPosition);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const configuredDraftType = useDraftStore((state) => state.config.draftType);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const setConfig = useDraftStore((state) => state.setConfig);
-  const applyLeagueSettings = useDraftStore((state) => state.applyLeagueSettings);
+  const workspace = useWorkspace();
+  const manualContinuityBaselineAt = useDraftState((state) => state.manualContinuityBaselineAt);
+  const lastConfirmedSyncAt = useDraftState((state) => state.lastConfirmedSyncAt);
+  const myPickPosition = useDraftState((state) => state.config.myPickPosition);
+  const totalTeams = useDraftState((state) => state.config.totalTeams);
+  const configuredDraftType = useDraftState((state) => state.config.draftType);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
 
   useEffect(() => {
     setLastReconciledSnapshotAt(null);
@@ -86,19 +83,19 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       return;
     }
 
-    setConfig({
+    workspace.send('setConfig', {
       totalTeams: snapshot.draft.settings.teams,
       totalRounds: snapshot.draft.settings.rounds,
       draftType: snapshot.draft.type,
     });
-    applyLeagueSettings(resolveSyncedLeagueSettings(
+    workspace.send('applyLeagueSettings', resolveSyncedLeagueSettings(
       provider,
       snapshot.draft.settings.teams,
       snapshot.draft.leagueSettings,
       usePrimaryLeagueSettings,
       useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
     ));
-  }, [applyLeagueSettings, setConfig, snapshot?.draft, provider, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
+  }, [workspace, snapshot?.draft, provider, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
 
   const pickHistory = snapshot?.picks;
   const draftSettings = snapshot?.draft?.settings;
@@ -164,12 +161,13 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       return;
     }
 
-    const reconciliation = reconcileSyncedPicks(
+    const reconciliation = workspace.send('reconcileSyncedPicks',
       importResult.picks,
       nextOpenPickNumber,
       importResult.rejectedPicks,
       snapshot.lastSuccessfulSyncAt
     );
+    if (reconciliation.refused) return;
     lastImported.current = {
       draftId: snapshot.draftId,
       picks: snapshot.picks,
@@ -209,7 +207,7 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
     importResult.picks,
     importResult.rejectedPicks,
     nextOpenPickNumber,
-    reconcileSyncedPicks,
+    workspace,
   ]);
 
   const dismissReconciliationSummary = useCallback(() => {

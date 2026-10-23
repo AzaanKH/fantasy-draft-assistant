@@ -1,4 +1,4 @@
-import type { Position } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
 import { describe, expect, it } from 'vitest';
 import {
   anonymizeSurvivalModel,

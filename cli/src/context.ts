@@ -1,15 +1,23 @@
 import {
+  POSITIONS,
+  type Player,
+} from '@fantasy-draft/shared/league';
+import {
+  type DraftReadinessReport,
+} from '@fantasy-draft/shared/catalog';
+import {
   createSlotSequence,
+} from '@fantasy-draft/shared/draft';
+import {
   createDefaultLeagueSettings,
   createLeagueSettings,
   createEmptyRoster,
-  POSITIONS,
-  type DraftSyncSnapshot,
-  type DraftReadinessReport,
   type LeagueSettings,
-  type Player,
   type Roster,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
+import {
+  type DraftSyncSnapshot,
+} from '@fantasy-draft/shared/sync';
 import { resolveDraftPickImports, getNextOpenPickNumber, getEffectiveKeeperAssignments, isKeeperSupplyComplete, evaluateWorkspaceDraftReadiness, applyLeagueSurvivalModel, filterDrafted, calculateTeamNeeds, calculateAllScarcityScores, getRecommendations, type RecommendationContext } from '@fantasy-draft/shared/draft';
 import type { DraftData } from './data';
 import { CliError } from './errors';

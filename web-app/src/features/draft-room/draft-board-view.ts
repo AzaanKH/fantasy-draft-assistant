@@ -1,6 +1,6 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
-import type { DraftType } from '@fantasy-draft/shared';
+import type { DraftType } from '@fantasy-draft/shared/sync';
 
 interface DraftBoardCurrentView {
   readonly activeRound: number | null;

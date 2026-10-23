@@ -1,5 +1,6 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
-import type { Player, Recommendation } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionTag } from '@/components/PositionTag';
 import { MetricHelp } from '@/features/help/MetricHelp';

@@ -1,3 +1,5 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 /**
  * Recommendations Hook
  *
@@ -12,11 +14,12 @@ import { useMemo } from 'react';
 import {
   POSITIONS,
   type Position,
+} from '@fantasy-draft/shared/league';
+import {
   type Recommendation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import {
   applyLeagueSurvivalModel,
-  filterDrafted,
   getRecommendationBoard,
   type RecommendationContext,
   type RecommendationResult,
@@ -25,8 +28,6 @@ import {
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
-import { useDraftedPlayers } from './useUndraftedPlayers';
-import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 
 const EMPTY_SELECTION: RecommendationSelection = {
   policy: 'league-aware-score',
@@ -78,18 +79,17 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
 } {
   const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const config = useDraftStore((state) => state.config);
-  const draftedPlayers = useDraftedPlayers();
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const mockSurvivalProbabilities = useDraftStore(
+  const available = useDraftView((view) => view.available);
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const mockSurvivalProbabilities = useDraftState(
     (state) => state.mockSurvivalProbabilities
   );
-  const isMyTurn = useIsMyTurn();
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
   const rosterSize = useMemo(
-    () => (Object.values(myRoster) as string[][]).reduce(
+    () => POSITIONS.map(position => myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     ),
@@ -97,7 +97,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   );
   const rosterPlayers = useMemo(() => {
     const playersById = new Map(players.map((player) => [player.id, player]));
-    return (Object.values(myRoster) as string[][]).flatMap((ids) =>
+    return POSITIONS.map(position => myRoster[position]).flatMap((ids) =>
       ids.flatMap((id: string) => {
         const player = playersById.get(id);
         return player
@@ -122,11 +122,8 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       totalRounds: config.totalRounds,
       draftType: config.draftType,
     });
-    const leagueAdjusted = filterDrafted(
-      leagueAdjustedPool,
-      draftedPlayerIds,
-      draftedPlayers
-    );
+    const availableIds = new Set(available.map(player => player.id));
+    const leagueAdjusted = leagueAdjustedPool.filter(player => availableIds.has(player.id));
     if (sessionMode !== 'mock' || !timingEvidence.model) return leagueAdjusted;
     return leagueAdjusted.map((player) => {
       const mockProbability = mockSurvivalProbabilities[player.id];
@@ -138,7 +135,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
             survivalModelSource: 'league-history' as const,
           };
     });
-  }, [enabled, players, draftedPlayerIds, draftedPlayers, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
+  }, [enabled, players, available, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
 
   const recommendationContext = useMemo<RecommendationContext>(() => ({
       currentPick,

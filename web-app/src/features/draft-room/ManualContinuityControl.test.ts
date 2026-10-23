@@ -1,7 +1,9 @@
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
+import { createElement, type ReactElement } from 'react';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { DraftProvider } from '@fantasy-draft/shared';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { ManualContinuityControl } from './ManualContinuityControl';
 
 const sync = vi.hoisted(() => ({
@@ -46,3 +48,7 @@ describe('ManualContinuityControl provider copy', () => {
     expect(render()).toContain('never be submitted or queued with the provider.');
   });
 });
+
+function renderToStaticMarkup(element: ReactElement): string {
+  return renderMarkup(createElement(WorkspaceTestProvider, {store: createDraftStore(), children: element}));
+}

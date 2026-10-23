@@ -1,11 +1,10 @@
+import { isDraftMetadata, isEspnDraftSnapshot } from './catalog/sync-decoders.js';
 import { describe, expect, it } from 'vitest';
 import {
-  isDraftMetadata,
-  isEspnDraftSnapshot,
   type DraftMetadata,
   type DraftPickEvent,
   type EspnDraftSnapshot,
-} from './index.js';
+} from './sync.js';
 
 const draft: DraftMetadata = {
   provider: 'espn',
@@ -55,15 +54,15 @@ describe('ESPN snapshot validation', () => {
 
   it.each([
     ['another draft', { draftId: '9999' }],
-    ['a non-extension source', { source: 'sleeper-api' as const }],
+    ['a non-extension source', { source: 'sleeper-api' }],
     ['a pick past the end of the draft', { pickNumber: 141 }],
     ['a round past the configured rounds', { round: 15 }],
     ['a slot past the configured teams', { draftSlot: 11 }],
     ['a team index past the configured teams', { teamIndex: 10 }],
-    ['an unknown position', { position: 'LB' as never }],
+    ['an unknown position', { position: 'LB' }],
     ['an oversized player name', { playerName: 'x'.repeat(257) }],
   ])('rejects picks from %s', (_label, overrides) => {
-    expect(isEspnDraftSnapshot(snapshot({ picks: [pick(overrides)] }))).toBe(false);
+    expect(isEspnDraftSnapshot({ ...snapshot(), picks: [{ ...pick(), ...overrides }] })).toBe(false);
   });
 
   it('rejects more picks than the draft can hold', () => {

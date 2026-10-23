@@ -1,28 +1,8 @@
-import { createSlotSequence, type Player, type Position, type RosterRequirements } from '@fantasy-draft/shared';
+import { useWorkspace } from '@/workspace/WorkspaceProvider';
+import { getDraftView, useDraftView } from '@/workspace/useDraftView';
+import { type Player } from '@fantasy-draft/shared/league';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
-import {
-  useDraftSessionMode,
-  useDraftStore,
-  useIsMyTurn,
-} from '@/stores/draftStore';
-import { getKeeperAtPick } from '@fantasy-draft/shared/draft';
-
-export function canDraftFromWorkspace(
-  sessionMode: ReturnType<typeof useDraftSessionMode>,
-  isMyTurn: boolean,
-  hasKeeperAtCurrentPick: boolean
-): boolean {
-  return sessionMode === 'mock' && isMyTurn && !hasKeeperAtCurrentPick;
-}
-
-/** A position whose roster maximum is reached is not a legal pick, matching the recommendation pool. */
-export function isPositionFull(
-  position: Position,
-  roster: Readonly<Record<Position, readonly string[]>>,
-  requirements: RosterRequirements
-): boolean {
-  return roster[position].length >= requirements[position].max;
-}
 
 export function useDraftPlayerAction(): {
   readonly canDraft: boolean;
@@ -31,41 +11,28 @@ export function useDraftPlayerAction(): {
   readonly canDraftPlayer: (player: Pick<Player, 'position'>) => boolean;
   readonly draftPlayer: (player: Player) => void;
 } {
-  const sessionMode = useDraftSessionMode();
-  const isMyTurn = useIsMyTurn();
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const markPlayerDrafted = useDraftStore((state) => state.markPlayerDrafted);
-  const keeperAtCurrentPick = sessionMode === 'mock'
-    ? getKeeperAtPick(preloadedKeepers, currentPick, config.totalTeams, config.draftType)
-    : undefined;
-  // The Draft Workspace is read-only for connected provider drafts. Local pick
-  // mutation is reserved for deterministic mock rehearsal; provider picks are
-  // observed through sync and are always completed in the provider UI.
-  const canDraft = canDraftFromWorkspace(
-    sessionMode,
-    isMyTurn,
-    keeperAtCurrentPick !== undefined
-  );
-
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
+  const canDraft = useDraftView((view) => view.canDraft);
+  const canDraftByPosition = useDraftView((view) => view.canDraftByPosition);
+  const workspace = useWorkspace();
   const canDraftPlayer = React.useCallback(
-    (player: Pick<Player, 'position'>) => canDraft && !isPositionFull(player.position, myRoster, config.rosterRequirements),
-    [canDraft, config.rosterRequirements, myRoster]
+    (player: Pick<Player, 'position'>) => canDraftByPosition[player.position],
+    [canDraftByPosition]
   );
 
   const draftPlayer = React.useCallback((player: Player) => {
-    if (!canDraftPlayer(player)) return;
-    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(currentPick).teamIndex;
-    markPlayerDrafted(
+    const { config } = workspace.draft.getState();
+    const view = getDraftView(workspace.draft);
+    if (!view.canDraftByPosition[player.position]) return;
+    const teamIndex = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).at(view.currentPick).teamIndex;
+    workspace.send('markPlayerDrafted',
       player.id,
       player.name,
       player.position,
       teamIndex,
       'My Team'
     );
-  }, [canDraftPlayer, config.draftType, config.totalTeams, config.totalRounds, currentPick, markPlayerDrafted]);
+  }, [workspace]);
 
   return { canDraft, isMyTurn, canDraftPlayer, draftPlayer };
 }
