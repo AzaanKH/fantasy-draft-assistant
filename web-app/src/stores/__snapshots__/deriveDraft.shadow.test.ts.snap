@@ -1,5 +1,0 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
-
-exports[`10 by 14 mock with keepers at 1, 70, and 140 > replays every CPU pick and keeper consumption through the real store > documented deriveDraft mismatches 1`] = `[]`;
-
-exports[`reconstructs distinct branch cursors from their source facts > documented deriveDraft mismatches 1`] = `[]`;

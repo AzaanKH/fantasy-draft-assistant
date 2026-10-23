@@ -1,3 +1,4 @@
+import { assertDraftStorageWritable, DraftStorageMigratedError } from './draftStorageMigration';
 import { decodeDraftSessionChange } from '@fantasy-draft/shared/catalog';
 import type { RecordedDraftPick } from './draft/types';
 import type {
@@ -209,8 +210,10 @@ export function writeDraftSessionChange(
   tabId: string,
   change: DraftSessionChange
 ): void {
+  const serialized = JSON.stringify({ version: 1, ...change });
+  assertDraftStorageWritable(storage);
   try {
-    storage.setItem(getUnconfirmedSaveKey(identity, tabId), JSON.stringify({ version: 1, ...change }));
+    storage.setItem(getUnconfirmedSaveKey(identity, tabId), serialized);
   } catch {
     // Without this record the save still lands; only overwrite recovery after reload is lost.
   }
@@ -249,9 +252,14 @@ export function readDraftSessionChanges(
 
 /** Removes a recorded save unless its tab replaced it since it was read. */
 export function removeDraftSessionChange(storage: DraftSessionStorage, stored: StoredDraftSessionChange): void {
+  assertDraftStorageWritable(storage);
   try {
-    if (storage.getItem(stored.key) === stored.serialized) storage.removeItem(stored.key);
-  } catch {
+    if (storage.getItem(stored.key) === stored.serialized) {
+      assertDraftStorageWritable(storage);
+      storage.removeItem(stored.key);
+    }
+  } catch (error) {
+    if (error instanceof DraftStorageMigratedError) throw error;
     // A leftover entry is removed by a later check.
   }
 }

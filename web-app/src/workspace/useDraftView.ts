@@ -1,9 +1,10 @@
+import { deriveDraftState } from '@/stores/draft/source';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
-import { deriveDraft, getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
+import { getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
 import type { Player } from '@fantasy-draft/shared/league';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { useDraftStoreApi, type DraftStoreApi } from '@/stores/draftStore';
+import { useWorkspace } from './WorkspaceProvider';
 import type { DraftState } from '@/stores/draft/types';
 
 export interface DraftView extends DerivedDraft {
@@ -12,7 +13,7 @@ export interface DraftView extends DerivedDraft {
 
 type Inputs = Pick<DraftState, 'draftProgress' | 'sessionMode' | 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds'>;
 interface CachedView { readonly inputs: Inputs; readonly view: DraftView }
-type DraftViewStore = Pick<DraftStoreApi, 'getState'>;
+type DraftViewStore = { readonly getState: () => DraftState };
 const views = new WeakMap<DraftViewStore, WeakMap<readonly Player[], CachedView>>();
 const EMPTY_PLAYERS: readonly Player[] = [];
 
@@ -25,15 +26,7 @@ function selectDraftView(store: DraftViewStore, state: Inputs, players: readonly
       before.draftHistory === state.draftHistory && before.preloadedKeepers === state.preloadedKeepers &&
       before.config === state.config && before.shortlistedPlayerIds === state.shortlistedPlayerIds) return previous.view;
   const { config } = state;
-  const derived = deriveDraft({
-    progress: state.draftProgress,
-    sessionMode: state.sessionMode,
-    rosterRequirements: config.rosterRequirements,
-    history: state.draftHistory,
-    keepers: state.preloadedKeepers,
-    myTeamIndex: config.myPickPosition - 1,
-    shortlistOrder: state.shortlistedPlayerIds,
-  }, { type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }, players);
+  const derived = deriveDraftState(state, players);
   const view: DraftView = {
     ...derived,
     draftedPlayers: [
@@ -51,13 +44,13 @@ export function getDraftView(store: DraftViewStore, players: readonly Player[] =
 }
 
 export function useDraftView<T>(selector: (view: DraftView) => T): T {
-  const store = useDraftStoreApi();
+  const store = useWorkspace().draft;
   const { players } = usePlayerDataQuery();
   return useStore(store, state => selector(selectDraftView(store, state, players)));
 }
 
 export function useDraftViewReader(): () => DraftView {
-  const store = useDraftStoreApi();
+  const store = useWorkspace().draft;
   const { players } = usePlayerDataQuery();
   return useCallback(() => getDraftView(store, players), [store, players]);
 }

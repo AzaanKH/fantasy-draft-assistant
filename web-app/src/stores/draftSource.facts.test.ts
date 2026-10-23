@@ -1,25 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { deriveDraft } from '@fantasy-draft/shared/draft';
 import { createDraftStore } from './draftStore';
-import { shadowFormat, shadowSource } from './draft/derive-shadow-source';
-import { shadowPlayers } from './draft/derive-shadow-catalog';
-import { selectIsMyTurn } from './draft/state';
+import { draftSource, deriveDraftState } from './draft/source';
+import { draftPlayers } from './draft/draft-catalog';
 
 function expectCursor(store: ReturnType<typeof createDraftStore>, cursor: number): void {
   const state = store.getState();
-  expect(state.currentPick).toBe(cursor);
-  expect(deriveDraft(shadowSource(state), shadowFormat(state)).currentPick).toBe(cursor);
+  expect(deriveDraftState(state).currentPick).toBe(cursor);
 }
 
 describe('DraftSource progress facts', () => {
   it('selects the manager turn after Immer copies state, and clears it after a pick', () => {
     const store = createDraftStore();
     store.getState().setConfig({ myPickPosition: 1 });
-    expect(selectIsMyTurn(store.getState())).toBe(true);
+    expect(deriveDraftState(store.getState()).isMyTurn).toBe(true);
     store.getState().setDecisionLens('best-player');
-    expect(selectIsMyTurn(store.getState())).toBe(true);
+    expect(deriveDraftState(store.getState()).isMyTurn).toBe(true);
     store.getState().markPlayerDrafted('mine', 'Mine', 'WR', 0, 'My Team');
-    expect(selectIsMyTurn(store.getState())).toBe(false);
+    expect(deriveDraftState(store.getState()).isMyTurn).toBe(false);
   });
 
   it('honors sparse provider progress and provider replacement over branch progress', () => {
@@ -37,7 +34,7 @@ describe('DraftSource progress facts', () => {
     branched.getState().branchFromPick(96);
     expectCursor(first, 1);
     expectCursor(branched, 96);
-    expect(shadowSource(first.getState())).not.toEqual(shadowSource(branched.getState()));
+    expect(draftSource(first.getState())).not.toEqual(draftSource(branched.getState()));
   });
 
   it('pauses on a reserved keeper, consumes it, and reopens it on undo', () => {
@@ -45,8 +42,8 @@ describe('DraftSource progress facts', () => {
     store.getState().setSessionMode('mock');
     store.getState().preloadKeepers([{ playerId: 'keeper', playerName: 'Keeper', position: 'RB', teamIndex: 0, round: 1, isMyKeeper: false }]);
     expectCursor(store, 1);
-    expect(store.getState().draftedPlayerIds.has('keeper')).toBe(true);
-    expect(store.getState().teamRosters[0]?.RB).toEqual(['keeper']);
+    expect(deriveDraftState(store.getState()).draftedPlayerIds.has('keeper')).toBe(true);
+    expect(deriveDraftState(store.getState()).teamRosters[0]?.RB).toEqual(['keeper']);
     store.getState().consumeKeeperAtCurrentPick();
     expectCursor(store, 2);
     store.getState().undoLastPick();
@@ -60,20 +57,20 @@ it('derives the complete available pool by id and normalized name, plus turn and
   const store = createDraftStore();
   store.getState().setConfig({ myPickPosition: 1 });
   store.getState().setSessionMode('mock');
-  const player = shadowPlayers[0];
+  const player = draftPlayers[0];
   if (!player) throw new Error('Missing catalog fixture');
-  const catalog = [...shadowPlayers, { ...player, id: 'alias', name: 'PLAYER 1' }];
+  const catalog = [...draftPlayers, { ...player, id: 'alias', name: 'PLAYER 1' }];
   store.getState().markPlayerDrafted('player-1', 'Player 1', 'QB', 0, 'My Team');
-  let view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), catalog);
+  let view = deriveDraftState(store.getState(), catalog);
   expect(view.available.some(player => player.id === 'alias' || player.id === 'player-1')).toBe(false);
   expect(view.available).toHaveLength(599);
   expect(view.canDraft).toBe(false);
   store.getState().branchFromPick(1);
-  view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), catalog);
+  view = deriveDraftState(store.getState(), catalog);
   expect(view.canDraft).toBe(true);
   expect(view.canRecord).toBe(false);
   store.getState().setSessionMode('live');
-  view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), catalog);
+  view = deriveDraftState(store.getState(), catalog);
   expect(view.canDraft).toBe(false);
   expect(view.canRecord).toBe(true);
 });
@@ -113,8 +110,8 @@ it('pins the browse pool disagreement with ID-only scarcity and the provisional 
   const store = createDraftStore();
   store.getState().setSessionMode('live');
   store.getState().markPlayerDrafted('different-id', 'Player 1', 'QB', 0, 'Team 1');
-  const view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), shadowPlayers);
-  const idOnly = shadowPlayers.filter(player => !store.getState().draftedPlayerIds.has(player.id));
+  const view = deriveDraftState(store.getState(), draftPlayers);
+  const idOnly = draftPlayers.filter(player => !view.draftedPlayerIds.has(player.id));
   expect(idOnly).toHaveLength(600);
   expect(view.available).toHaveLength(599);
   // The action accepts provisional observations in live mode without the UI's outage prerequisite.
@@ -130,14 +127,14 @@ it('denies drafting at a keeper slot and at each position limit', () => {
   store.getState().setSessionMode('mock');
   store.getState().setConfig({ myPickPosition: 1 });
   store.getState().preloadKeepers([{ playerId: 'keeper', playerName: 'Keeper', position: 'QB', teamIndex: 0, round: 1, isMyKeeper: true }]);
-  let view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), shadowPlayers);
+  let view = deriveDraftState(store.getState(), draftPlayers);
   expect(view.canDraft).toBe(false);
   store.getState().branchFromPick(20);
   store.getState().setRosterRequirements({
     ...store.getState().config.rosterRequirements,
     QB: { ...store.getState().config.rosterRequirements.QB, max: 1 },
   });
-  view = deriveDraft(shadowSource(store.getState()), shadowFormat(store.getState()), shadowPlayers);
+  view = deriveDraftState(store.getState(), draftPlayers);
   expect(view.canDraft).toBe(true);
   expect(view.canDraftByPosition.QB).toBe(false);
   expect(view.canDraftByPosition.WR).toBe(true);

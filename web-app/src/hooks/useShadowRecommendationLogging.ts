@@ -1,3 +1,4 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { POSITIONS } from '@fantasy-draft/shared/league';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -13,7 +14,7 @@ import {
   buildShadowRecommendationEvent,
   postShadowRecommendation,
 } from '@/lib/shadow-recommendation';
-import { useDraftStore } from '@/stores/draftStore';
+
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 
@@ -43,8 +44,8 @@ export function useShadowRecommendationLogging(
   const { needs } = useTeamNeeds();
   const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const myRoster = useDraftView((view) => view.myRoster);
-  const config = useDraftStore((state) => state.config);
-  const leagueSettingsFingerprint = useDraftStore(
+  const config = useDraftState((state) => state.config);
+  const leagueSettingsFingerprint = useDraftState(
     (state) => state.leagueSettings.fingerprint
   );
   const currentPick = useDraftView((view) => view.currentPick);

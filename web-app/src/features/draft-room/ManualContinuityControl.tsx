@@ -1,3 +1,4 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CircleAlert, PenLine, ShieldAlert, Trash2 } from 'lucide-react';
@@ -12,10 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { getProviderName } from '@/lib/provider-name';
 import { cn } from '@/lib/utils';
-import {
-  useDraftStore,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { type RecordedDraftPick } from '@/stores/draftStore';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
@@ -29,11 +27,9 @@ export function ManualContinuityControl(): React.ReactElement | null {
     synchronizationState,
     viewState,
   } = useLiveDraftSync();
-  const config = useDraftStore((state) => state.config);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const removeProvisionalPick = useDraftStore(
-    (state) => state.removeProvisionalPick
-  );
+  const config = useDraftState((state) => state.config);
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const workspace = useWorkspace();
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingPickNumber, setEditingPickNumber] = React.useState<
     number | null
@@ -88,7 +84,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
       setRemovalError('This Provisional Pick is no longer available to remove.');
       return;
     }
-    if (!removeProvisionalPick(pendingRemovalPick.pickNumber)) {
+    if (!workspace.send('removeProvisionalPick', pendingRemovalPick.pickNumber)) {
       setRemovalError('Only a local Provisional Pick can be removed.');
       return;
     }

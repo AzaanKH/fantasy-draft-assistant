@@ -1,4 +1,5 @@
-import '@/stores/draft/derive-shadow.setup';
+import { getDraftView } from '@/workspace/useDraftView';
+import { deriveDraftState } from './draft/source';
 import { describe, expect, it, vi } from 'vitest';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
@@ -41,7 +42,7 @@ describe('persisted progress facts', () => {
     first.getState().reconcileSyncedPicks([], 96, [], 100);
     first.getState().branchFromPick(96);
     const reloaded = createDraftStore({ storage, session: identity }).getState();
-    expect(reloaded.currentPick).toBe(96);
+    expect(deriveDraftState(reloaded).currentPick).toBe(96);
     expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'branch', pickNumber: 96 }, historyLength: 0 });
     expect(deriveDraftCursor(reloaded.draftHistory, reloaded.draftProgress)).toBe(96);
   });
@@ -54,16 +55,16 @@ describe('persisted progress facts', () => {
       teamIndex: 1, round: 1, isMyKeeper: false }]);
     mock.getState().markPlayerDrafted('first', 'First', 'WR', 0, 'Team 1');
     expect(storage.values.size).toBe(0);
-    expect(mock.getState().currentPick).toBe(2);
+    expect(getDraftView(mock).currentPick).toBe(2);
     // Exercise the existing live-session serializer with the paused mock's source facts.
     const result = persistDraftSession(storage, { ...mock.getState(), sessionMode: 'live', liveSession: identity }, EMPTY_DRAFT_SESSION_BASE);
     expect(result.status).toBe('written');
     const reloaded = createDraftStore({ storage, session: identity });
-    expect(reloaded.getState().currentPick).toBe(2);
+    expect(getDraftView(reloaded).currentPick).toBe(2);
     expect(reloaded.getState().draftProgress).toEqual(mock.getState().draftProgress);
     reloaded.getState().setSessionMode('mock');
     reloaded.getState().consumeKeeperAtCurrentPick();
-    expect(reloaded.getState().currentPick).toBe(3);
+    expect(getDraftView(reloaded).currentPick).toBe(3);
     expect(reloaded.getState().draftHistory.at(-1)?.playerId).toBe('keeper');
   });
 
@@ -75,7 +76,7 @@ describe('persisted progress facts', () => {
     first.getState().reconcileSyncedPicks([{ pickNumber: 3, playerId: 'third', playerName: 'Third', position: 'WR',
       teamIndex: 2, teamName: 'Team 3', isMyPick: false }], 96, [], 100);
     const reloaded = createDraftStore({ storage, session: identity }).getState();
-    expect(reloaded.currentPick).toBe(96);
+    expect(deriveDraftState(reloaded).currentPick).toBe(96);
     expect(reloaded.draftProgress).toEqual(first.getState().draftProgress);
     expect(reloaded.draftProgress.anchor).toMatchObject({ kind: 'provider', keeperSlots: [99], totalPicks: 140 });
     expect(reloaded.draftHistory.map(pick => pick.pickNumber)).toEqual([3]);
@@ -85,7 +86,8 @@ describe('persisted progress facts', () => {
     const storage = memoryStorage();
     storage.setItem(key, JSON.stringify(legacy));
     const first = createDraftStore({ storage, session: identity });
-    expect(first.getState()).toMatchObject({ currentPick: 96, draftHistory: legacy.draftHistory,
+    expect(getDraftView(first).currentPick).toBe(96);
+    expect(first.getState()).toMatchObject({ draftHistory: legacy.draftHistory,
       shortlistedPlayerIds: ['waiting'], lastConfirmedSyncAt: 100,
       draftProgress: { anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 1 } });
     first.getState().setDecisionLens('best-player');
@@ -105,7 +107,7 @@ describe('persisted progress facts', () => {
     storage.setItem(key, JSON.stringify({ ...legacy, draftProgress }));
     const reloaded = createDraftStore({ storage, session: identity }).getState();
     expect(reloaded.draftHistory).toEqual(legacy.draftHistory);
-    expect(reloaded.currentPick).toBe(96);
+    expect(deriveDraftState(reloaded).currentPick).toBe(96);
     expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 1 });
     expect(warning).toHaveBeenCalledWith(expect.stringContaining('progress'), expect.anything());
     expect(parseStoredDraftSession(storage.getItem(key), identity)).not.toBeNull();
@@ -124,7 +126,7 @@ describe('persisted progress facts', () => {
     tabB.getState().setDecisionLens('best-player');
     hideWrites = false;
     const reloaded = createDraftStore({ storage, session: identity }).getState();
-    expect(reloaded.currentPick).toBe(96);
+    expect(deriveDraftState(reloaded).currentPick).toBe(96);
     expect(reloaded.decisionLens).toBe('best-player');
     expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 0 });
   });
@@ -142,7 +144,7 @@ it('keeps v1 journal picks when their cursor update needs a carry import', () =>
   const reloaded = createDraftStore({ storage, session: identity }).getState();
   expect(reloaded.draftHistory.map(pick => pick.playerId)).toEqual(['first', 'second']);
   expect(reloaded.shortlistedPlayerIds).toEqual(['waiting', 'recovered']);
-  expect(reloaded.currentPick).toBe(97);
+  expect(deriveDraftState(reloaded).currentPick).toBe(97);
   expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 97 }, historyLength: 2 });
 });
 
@@ -153,10 +155,10 @@ it('preserves the legacy sorted reload cursor when the command prefix interleave
   first.getState().reconcileSyncedPicks([{ pickNumber: 100, playerId: 'hundred', playerName: 'Hundred', position: 'WR',
     teamIndex: 0, teamName: 'Team 1', isMyPick: false }], 2, [], 100);
   first.getState().markPlayerDrafted('third', 'Third', 'WR', 2, 'Team 3', 3);
-  expect(first.getState().currentPick).toBe(4);
+  expect(getDraftView(first).currentPick).toBe(4);
   const reloaded = createDraftStore({ storage, session: identity }).getState();
   expect(reloaded.draftHistory.map(pick => pick.pickNumber)).toEqual([3, 100]);
-  expect(reloaded.currentPick).toBe(4);
+  expect(deriveDraftState(reloaded).currentPick).toBe(4);
   expect(deriveDraftCursor(reloaded.draftHistory, reloaded.draftProgress)).toBe(4);
   expect(warning).toHaveBeenCalledWith(expect.stringContaining('progress'), expect.anything());
 });
@@ -169,7 +171,7 @@ it('keeps progress on an unrelated stale-tab queue edit and restores a reopen an
   first.getState().undoLastPick();
   stale.getState().togglePlayerShortlisted('waiting');
   const reloaded = createDraftStore({ storage, session: identity }).getState();
-  expect(reloaded.currentPick).toBe(1);
+  expect(deriveDraftState(reloaded).currentPick).toBe(1);
   expect(reloaded.shortlistedPlayerIds).toEqual(['waiting']);
   expect(reloaded.draftProgress).toEqual({ anchor: { kind: 'reopen', pickNumber: 1 }, historyLength: 0 });
 });
@@ -180,7 +182,7 @@ it.each([0, 2.5, 5000])('persists the raw provider cursor fact before command cl
   first.getState().branchFromPick(96);
   first.getState().reconcileSyncedPicks([], nextPickNumber, [], 100);
   const reloaded = createDraftStore({ storage, session: identity }).getState();
-  expect(reloaded.currentPick).toBe(first.getState().currentPick);
+  expect(deriveDraftState(reloaded).currentPick).toBe(getDraftView(first).currentPick);
   expect(reloaded.draftProgress).toEqual(first.getState().draftProgress);
   expect(reloaded.draftProgress.anchor).toMatchObject({ kind: 'provider', nextPickNumber });
 });
@@ -195,7 +197,7 @@ it('retains command-time past-keepers bounds after the number of rounds changes'
   first.getState().setConfig({ totalRounds: 15 });
   const reloaded = createDraftStore({ storage, session: identity }).getState();
   expect(reloaded.config.totalRounds).toBe(15);
-  expect(reloaded.currentPick).toBe(2);
+  expect(deriveDraftState(reloaded).currentPick).toBe(2);
   expect(reloaded.draftProgress).toEqual(accepted);
 });
 
@@ -212,7 +214,7 @@ it('writes optional progress in a v1 session and keeps picks when an older write
   const restarted = createDraftStore({ storage, session: identity }).getState();
   expect(restarted.sessionMode).toBe('live');
   expect(restarted.draftHistory).toEqual(first.getState().draftHistory);
-  expect(restarted.currentPick).toBe(96);
+  expect(deriveDraftState(restarted).currentPick).toBe(96);
   expect(restarted.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 1 });
 });
 

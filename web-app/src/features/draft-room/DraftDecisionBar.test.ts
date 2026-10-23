@@ -1,6 +1,8 @@
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement, type ReactElement } from 'react';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   Recommendation,
@@ -186,3 +188,7 @@ describe('getDraftDecisionBarReason', () => {
     );
   });
 });
+
+function renderToStaticMarkup(element: ReactElement): string {
+  return renderMarkup(createElement(WorkspaceTestProvider, {store: createDraftStore(), children: element}));
+}
