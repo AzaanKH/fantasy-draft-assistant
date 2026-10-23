@@ -1,4 +1,4 @@
-import type { DraftProvider } from '@fantasy-draft/shared';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 
 const PROVIDER_NAMES: Readonly<Record<DraftProvider, string>> = { sleeper: 'Sleeper', yahoo: 'Yahoo', espn: 'ESPN' };
 

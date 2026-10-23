@@ -151,10 +151,11 @@ describe('refresh script processes', () => {
     } finally { mirror.mockRestore(); }
   });
 
-  it.skipIf(process.platform === 'win32')('keeps scripts in the server process group, so a supervisor killing the group stops them', async () => {
+  it.skipIf(process.platform === 'win32')('starts each script in its own process group', async () => {
     const pgid = (pid: number) => execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim();
     await withScript(['-e', 'console.log(process.pid); setInterval(() => {}, 1000);'], /\d+/, async ([pid]) => {
-      expect(pgid(Number(pid))).toBe(pgid(process.pid));
+      expect(pgid(Number(pid))).toBe(pid);
+      expect(pgid(Number(pid))).not.toBe(pgid(process.pid));
     });
   });
 

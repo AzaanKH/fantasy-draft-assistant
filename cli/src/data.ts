@@ -2,30 +2,24 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect } from 'effect';
 import {
-  isPosition, isNFLTeam, isNewsStatus, isTeamEnvironment, type FantasyProsSnapshot, type LeagueSettings,
-  type DraftType, type MarketAdpPlayer, type NFLTeam, type Player, type Position, type TeamEnvironment,
-} from '@fantasy-draft/shared';
-import { mergeCoreSources } from '@/lib/calculations/recommendation-player-variants';
-import { normalizePlayerName } from '@/lib/calculations/player-value';
-import { canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry } from '@/lib/keeper-supply';
-import { isLeagueSurvivalModel } from '@/lib/league-survival-model';
-import type { LeagueSurvivalModel } from '@/lib/calculations/survival';
-import { isPlayerIdentityFile, isRecommendationPolicyFile, isRecord } from '@/lib/player-data/validators';
-import { SAFE_RECOMMENDATION_POLICY } from '@/lib/player-data/policy';
-import type { RecommendationPolicyFile, SleeperDataFile } from '@/lib/player-data/types';
-import type { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
+  type NFLTeam,
+  type Player,
+  type Position,
+} from '@fantasy-draft/shared/league';
+import {
+  type MarketAdpPlayer,
+} from '@fantasy-draft/shared/catalog';
+import {
+  type LeagueSettings,
+} from '@fantasy-draft/shared/league';
+import {
+  type DraftType,
+} from '@fantasy-draft/shared/sync';
+import { mergeCoreSources, normalizePlayerName, type LeagueSurvivalModel, canonicalizeKeeperSupply, type CanonicalKeeperAssignment, type KeeperSupplyEntry, type evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
+import { decodePrimaryLeagueSettingsFile, decodeLeagueSurvivalModel, decodeTeamEnvDataFile, decodeRecommendationPolicyFile, decodePlayerIdentityFile, decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeKeeperFile, decodeOrNull, CATALOG, catalogPath, SAFE_RECOMMENDATION_POLICY, type RecommendationPolicyFile, type DecodeOptions, type SleeperDataFile } from '@fantasy-draft/shared/catalog';
 import { CliError, unexpected } from './errors';
 
 type KeeperStatus = Parameters<typeof evaluateWorkspaceDraftReadiness>[0]['keeperStatus'];
-interface KeeperEntry {
-  readonly playerId?: string;
-  readonly playerName: string;
-  readonly position: Position;
-  readonly team: number;
-  readonly round: number;
-  readonly isMyKeeper?: boolean;
-}
-interface KeeperFile { readonly season: number; readonly updatedAt: string | null; readonly keepers: readonly KeeperEntry[] }
 export interface DraftData {
   readonly players: readonly Player[];
   readonly keepers: readonly CanonicalKeeperAssignment[];
@@ -36,40 +30,27 @@ export interface DraftData {
 
 /** Read optional JSON, treating a missing or malformed file as absent. */
 export const loadJson = (root: string, path: string): Effect.Effect<unknown> => Effect.tryPromise(
-  async () => JSON.parse(await readFile(join(root, path), 'utf8')) as unknown,
+  async (): Promise<unknown> => JSON.parse(await readFile(join(root, path), 'utf8')),
 ).pipe(Effect.orElseSucceed(() => null));
 
-function isSnapshot(value: unknown): value is FantasyProsSnapshot {
-  return isRecord(value) && isRecord(value.metadata) && Array.isArray(value.rankings) &&
-    value.rankings.every(row => isRecord(row) && typeof row.name === 'string' && isPosition(row.position) &&
-      isNFLTeam(row.team) && ['rank', 'byeWeek', 'positionalRank', 'bestRank', 'worstRank', 'avgRank'].every(
-        key => typeof row[key] === 'number' && Number.isFinite(row[key]))) &&
-    Array.isArray(value.projections) && value.projections.every(row => isRecord(row) &&
-      typeof row.name === 'string' && isPosition(row.position) && isNFLTeam(row.team) &&
-      typeof row.projectedPoints === 'number' && Number.isFinite(row.projectedPoints) &&
-      Object.entries(row).every(([key, stat]) => !key.startsWith('projected') && !['baseProjectedPoints', 'ceilingPoints', 'floorPoints'].includes(key) ||
-        stat === undefined || typeof stat === 'number' && Number.isFinite(stat))) &&
-    Array.isArray(value.news) && value.news.every(row => isRecord(row) && typeof row.name === 'string' &&
-      isPosition(row.position) && isNFLTeam(row.team) && isNewsStatus(row.status)) &&
-    Array.isArray(value.adp) && value.adp.every(row => isRecord(row) && typeof row.name === 'string' &&
-      isPosition(row.position) && isNFLTeam(row.team) && ['rank', 'positionalRank', 'bestRank', 'worstRank', 'averageRank'].every(
-        key => typeof row[key] === 'number' && Number.isFinite(row[key])));
-}
-
-function isKeeperFile(value: unknown): value is KeeperFile {
-  return isRecord(value) && typeof value.season === 'number' &&
-    (value.updatedAt === null || typeof value.updatedAt === 'string') && Array.isArray(value.keepers) &&
-    value.keepers.every(entry => isRecord(entry) && typeof entry.playerName === 'string' && isPosition(entry.position) &&
-      typeof entry.team === 'number' && Number.isInteger(entry.team) &&
-      typeof entry.round === 'number' && Number.isInteger(entry.round) &&
-      (entry.playerId === undefined || typeof entry.playerId === 'string'));
+export function loadPrimaryLeagueSettings(root: string, options: DecodeOptions = {}): Effect.Effect<ReturnType<typeof decodePrimaryLeagueSettingsFile> | null> {
+  const path = catalogPath(CATALOG.settings);
+  return Effect.tryPromise({
+    try: async () => decodePrimaryLeagueSettingsFile(JSON.parse(await readFile(join(root, path), 'utf8'))),
+    catch: (error: unknown) => error,
+  }).pipe(Effect.catch(error => Effect.sync(() => {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+      options.onWarning?.(`${path} decode failed: ${String(error)}`);
+    }
+    return null;
+  })));
 }
 
 export function resolveKeepers(value: unknown, players: readonly Player[], teams: number, rounds: number,
   draftType: DraftType | null): {
   keepers: readonly CanonicalKeeperAssignment[]; status: KeeperStatus;
 } {
-  const file = isKeeperFile(value) ? value : null;
+  const file = decodeOrNull(decodeKeeperFile, value);
   const byId = new Map(players.map(player => [player.id, player]));
   const byName = new Map(players.map(player => [`${normalizePlayerName(player.name)}:${player.position}`, player]));
   const resolved: KeeperSupplyEntry[] = [];
@@ -99,25 +80,29 @@ export function resolveKeepers(value: unknown, players: readonly Player[], teams
 }
 
 export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string, settings: LeagueSettings, rounds: number,
-  marketAdp: readonly MarketAdpPlayer[], draftType: DraftType | null) {
-  const [snapshot, identities, sleeper, environment, keeperFile, survival, policy] = yield* Effect.all([
-    loadJson(root, 'data/fantasypros-snapshot.json'), loadJson(root, 'data/player-identity.json'),
-    loadJson(root, 'data/sleeper-adp.json'), loadJson(root, 'data/team-environment.json'),
-    loadJson(root, 'data/league-history/current-keepers.json'), loadJson(root, 'data/league-history/survival-model.json'),
-    loadJson(root, 'data/recommendation-policy.json'),
+  marketAdp: readonly MarketAdpPlayer[], draftType: DraftType | null, options: DecodeOptions = {}) {
+  const [rawSnapshot, rawIdentities, sleeper, environment, keeperFile, survival, policy] = yield* Effect.all([
+    loadJson(root, catalogPath(CATALOG.snapshot)), loadJson(root, catalogPath(CATALOG.identities)),
+    loadJson(root, catalogPath(CATALOG.sleeper)), loadJson(root, catalogPath(CATALOG.environment)),
+    loadJson(root, catalogPath(CATALOG.keepers)), loadJson(root, catalogPath(CATALOG.survival)),
+    loadJson(root, catalogPath(CATALOG.policy)),
   ], { concurrency: 'unbounded' });
-  if (!isSnapshot(snapshot) || !isPlayerIdentityFile(identities)) {
+  const snapshot = decodeOrNull(decodeFantasyProsSnapshot, rawSnapshot);
+  const identities = decodeOrNull(decodePlayerIdentityFile, rawIdentities);
+  if (!snapshot || !identities) {
     return yield* new CliError('CORE_DATA_INVALID', 'Rankings or canonical player identities are missing or invalid. Run draft readiness --json for corrective actions.', 3,
-      { invalidCoreKeys: [...(!isSnapshot(snapshot) ? ['trusted-rankings'] : []), ...(!isPlayerIdentityFile(identities) ? ['canonical-player-identities'] : [])] });
+      { invalidCoreKeys: [...(!snapshot ? ['trusted-rankings'] : []), ...(!identities ? ['canonical-player-identities'] : [])] });
   }
-  const sleeperPlayers = isRecord(sleeper) && Array.isArray(sleeper.players) && sleeper.players.every(row =>
-    isRecord(row) && typeof row.playerId === 'string' && typeof row.name === 'string' && isPosition(row.position) && isNFLTeam(row.team) &&
-    typeof row.sleeperAdp === 'number' && Number.isFinite(row.sleeperAdp))
-    ? (sleeper as unknown as SleeperDataFile).players : [];
-  const teamEnvironments = isRecord(environment) && isRecord(environment.teams) && Object.values(environment.teams).every(isTeamEnvironment)
-    ? environment.teams as Record<NFLTeam, TeamEnvironment> : {} as Record<NFLTeam, TeamEnvironment>;
+  function optional<A>(raw: unknown, decode: (value: unknown, options?: DecodeOptions) => A, label: string): A | null {
+    if (raw === null) return null;
+    try { return decode(raw, options); }
+    catch (error) { options.onWarning?.(`${label} is unavailable: ${String(error)}`); return null; }
+  }
+  const sleeperPlayers: SleeperDataFile['players'] = optional(sleeper, decodeSleeperDataFile, 'Sleeper player directory')?.players ?? [];
+  const teamEnvironments = optional(environment, decodeTeamEnvDataFile, 'Team environment')?.teams ?? {};
   // Status commands report a failed merge as a warning, so keep it in the error channel.
   const merged = yield* Effect.try({ try: () => mergeCoreSources({
+    onWarning: (message) => { console.warn(message); },
     rankings: snapshot.rankings, projections: snapshot.projections, news: snapshot.news,
     sleeperPlayers, teamEnvironments, fantasyProsAdp: snapshot.adp, identities: identities.players,
     leagueContext: { marketAdp, scoringRules: settings.scoringRules, totalTeams: settings.totalTeams,
@@ -141,7 +126,7 @@ export const loadDraftData = Effect.fn('loadDraftData')(function* (root: string,
   }
   const keeperResolution = resolveKeepers(keeperFile, players, settings.totalTeams, rounds, draftType);
   const data: DraftData = { players, keepers: keeperResolution.keepers, keeperStatus: keeperResolution.status,
-    survivalModel: isLeagueSurvivalModel(survival) ? survival : null,
-    policy: isRecommendationPolicyFile(policy) ? policy : SAFE_RECOMMENDATION_POLICY };
+    survivalModel: optional(survival, decodeLeagueSurvivalModel, 'League survival model'),
+    policy: optional(policy, value => decodeRecommendationPolicyFile(value), 'Recommendation policy') ?? SAFE_RECOMMENDATION_POLICY };
   return data;
 });

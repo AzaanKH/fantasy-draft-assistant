@@ -3,14 +3,15 @@ import type {
   DraftMetadata,
   DraftPickEvent,
   DraftProvider,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 
 /** The network boundary, injected by tests; Effect supplies the signal and aborts it on interruption. */
-export type FetchJson = <T>(
+export type FetchJson = <A>(
   url: string,
   signal: AbortSignal,
+  decode: (value: unknown) => A,
   init?: RequestInit
-) => Promise<T>;
+) => Promise<A>;
 
 /** A provider request or payload failed; the message is shown to the user as the sync error. */
 export class ProviderError extends Data.TaggedError('ProviderError')<{
@@ -24,12 +25,26 @@ const providerError = (cause: unknown, fallback = 'Unknown sync error'): Provide
     cause,
   });
 
-export const requestJson = <T>(fetchJson: FetchJson, url: string, init?: RequestInit): Effect.Effect<T, ProviderError> =>
-  Effect.tryPromise({ try: (signal) => fetchJson<T>(url, signal, init), catch: (cause) => providerError(cause) });
+export const requestJson = <A>(fetchJson: FetchJson, url: string, decode: (value: unknown) => A, init?: RequestInit): Effect.Effect<A, ProviderError> =>
+  Effect.tryPromise({
+    try: (signal) => fetchJson(url, signal, value => {
+      try { return decode(value); }
+      catch (cause) {
+        const error = providerError(cause);
+        console.warn('[sync-adapter] Rejected provider payload', error.message);
+        throw error;
+      }
+    }, init),
+    catch: (cause) => providerError(cause),
+  });
 
 /** Validate a payload inside the error channel; the validators report problems by throwing. */
 export const parsePayload = <A>(parse: () => A): Effect.Effect<A, ProviderError> =>
-  Effect.try({ try: parse, catch: (cause) => providerError(cause) });
+  Effect.try({ try: parse, catch: (cause) => {
+    const error = providerError(cause);
+    console.warn('[sync-adapter] Rejected provider payload', error.message);
+    return error;
+  } });
 
 export interface DraftAdapterSnapshot {
   readonly draft: DraftMetadata;

@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import type { Position } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
 
 /** Position abbreviation in its design-system position color. */
 export function PositionLabel({ position }: { readonly position: Position }): React.ReactElement {

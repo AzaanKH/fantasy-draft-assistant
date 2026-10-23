@@ -1,3 +1,5 @@
+import { http, HttpError as RequestHttpError } from '@fantasy-draft/shared/http';
+import { decodeProviderDraftSnapshot } from '@fantasy-draft/shared/catalog';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -5,17 +7,18 @@ import { randomBytes } from 'node:crypto';
 import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
+  isMarketAdpFormat, CATALOG, catalogPath, decodeKeeperFile, decodeSportsbookSnapshot, decodeEspnDraftSnapshot, decodeShadowRecommendationEvent, decodeOrNull,
+} from '@fantasy-draft/shared/catalog';
+import {
   DraftSyncEngine,
-  isEspnDraftSnapshot,
-  isMarketAdpFormat,
-  isShadowRecommendationEvent,
+  isDraftProvider,
   type DraftMetadata,
   type DraftSessionSummary,
   type DraftPickEvent,
   type DraftProvider,
   type DraftSyncSnapshot,
   type DraftSyncUpdate,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/sync';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
 import {
   SleeperSyncAdapter,
@@ -39,10 +42,10 @@ const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
   new URL('../../data/shadow-logs/2026-recommendations.ndjson', import.meta.url)
 );
 const DEFAULT_CURRENT_KEEPERS_PATH = fileURLToPath(
-  new URL('../../data/league-history/current-keepers.json', import.meta.url)
+  new URL(`../../${catalogPath(CATALOG.keepers)}`, import.meta.url)
 );
 const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
-  new URL('../../data/sportsbook-snapshot.json', import.meta.url)
+  new URL(`../../${catalogPath(CATALOG.sportsbook)}`, import.meta.url)
 );
 const MAX_JSON_BODY_BYTES = 256 * 1024;
 
@@ -285,7 +288,8 @@ class DraftSession {
         Effect.flatMap((adapterSnapshot) => Effect.try({
           try: () => {
             const polledAt = Date.now();
-            return { polledAt, ...this.engine.reconcile(adapterSnapshot.draft, adapterSnapshot.picks, polledAt) };
+            const decoded = decodeProviderDraftSnapshot(adapterSnapshot);
+            return { polledAt, ...this.engine.reconcile(decoded.draft, decoded.picks, polledAt) };
           },
           catch: (cause) => new ProviderError({ message: cause instanceof Error ? cause.message : 'Unknown sync error', cause }),
         })),
@@ -293,6 +297,7 @@ class DraftSession {
       );
 
       if (polled._tag === 'Failure') {
+        console.warn('[sync-server] Provider sync rejected', polled.failure.message);
         adapter.invalidateSettings?.();
         this.broadcast({
           type: 'status',
@@ -410,7 +415,8 @@ function parseDraftRoute(pathname: string): {
     return null;
   }
 
-  const provider = (providerMatch?.[1] ?? 'sleeper') as DraftProvider;
+  const provider = providerMatch?.[1] ?? 'sleeper';
+  if (!isDraftProvider(provider)) return null;
   const encodedDraftId = providerMatch?.[2] ?? legacyMatch?.[1];
   const action = providerMatch?.[3] ?? legacyMatch?.[2];
   if (!encodedDraftId) return null;
@@ -435,8 +441,10 @@ function readJsonBody(request: IncomingMessage): Effect.Effect<unknown, HttpErro
       try: async () => {
         const chunks: Buffer[] = [];
         let receivedBytes = 0;
-        for await (const chunk of request as AsyncIterable<Buffer | string>) {
-          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        for await (const chunk of request) {
+          const value: unknown = chunk;
+          if (!Buffer.isBuffer(value) && typeof value !== 'string') throw new Error('Invalid request body');
+          const buffer: Buffer = Buffer.isBuffer(value) ? value : Buffer.from(value);
           receivedBytes += buffer.length;
           if (receivedBytes > MAX_JSON_BODY_BYTES) throw new Error('Request body is too large');
           chunks.push(buffer);
@@ -447,33 +455,37 @@ function readJsonBody(request: IncomingMessage): Effect.Effect<unknown, HttpErro
     });
     if (!body) return yield* new HttpError(400, 'Request body is required');
     return yield* Effect.try({
-      try: () => JSON.parse(body) as unknown,
+      try: (): unknown => JSON.parse(body),
       catch: (error) => new HttpError(400, error instanceof Error ? error.message : 'Invalid request body'),
     });
   });
 }
 
-async function defaultFetchJson<T>(
+async function defaultFetchJson<A>(
   url: string,
   signal: AbortSignal,
-  init: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(url, { ...init, signal });
-
-  if (!response.ok) {
-    // Nothing reads an error body. Cancel it, or a stalled one holds the connection
-    // open after this rejects, when the request timeout can no longer abort it.
-    void response.body?.cancel().catch(() => undefined);
-    const hostname = new URL(url).hostname;
-    const provider = hostname.includes('yahoo')
-      ? 'Yahoo'
-      : hostname.includes('fantasyfootballcalculator')
-        ? 'Fantasy Football Calculator'
-        : 'Sleeper';
-    throw new Error(`${provider} request failed: ${response.status}`);
+  decode: (value: unknown) => A,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS
+): Promise<A> {
+  try {
+    return await http.json(url, decode, { timeoutMs, retries: 0, retryAfter: true }, {
+      init: { ...init, signal },
+    });
+  } catch (error) {
+    if (error instanceof RequestHttpError && (error.kind === 'status' || error.kind === 'timeout')) {
+      const hostname = new URL(url).hostname;
+      const provider = hostname.includes('yahoo')
+        ? 'Yahoo'
+        : hostname.includes('fantasyfootballcalculator')
+          ? 'Fantasy Football Calculator'
+          : 'Sleeper';
+      throw new Error(error.kind === 'timeout'
+        ? `${provider} request timed out`
+        : `${provider} request failed: ${error.status}`);
+    }
+    throw error;
   }
-
-  return response.json() as Promise<T>;
 }
 
 /** Exposed for tests of provider request cleanup. */
@@ -490,7 +502,8 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const sessions = new Map<string, DraftSession>();
   const pollIntervalMs = Math.max(1000, options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const fetchJson = options.fetchJson ?? defaultFetchJson;
+  const fetchJson: FetchJson = options.fetchJson ?? ((url, signal, decode, init) =>
+    defaultFetchJson(url, signal, decode, init, requestTimeoutMs));
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
     : ['http://localhost:3000'];
@@ -514,12 +527,18 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     kind: 'currentKeepers' | 'sportsbookSnapshot'
   ): Effect.Effect<unknown, HttpError> {
     const provided = options.draftData?.[kind];
-    if (provided !== undefined) return Effect.succeed(provided);
+    const decode = (value: unknown): unknown => {
+      if (kind === 'currentKeepers') return decodeKeeperFile(value);
+      const warnings: string[] = [];
+      const snapshot = decodeSportsbookSnapshot(value, { onWarning: message => warnings.push(message) });
+      return { ...snapshot, decodeWarnings: warnings };
+    };
+    if (provided !== undefined) return Effect.try({ try: () => decode(provided), catch: () => new HttpError(503, 'Draft data is unavailable') });
     const filePath = kind === 'currentKeepers'
       ? DEFAULT_CURRENT_KEEPERS_PATH
       : DEFAULT_SPORTSBOOK_SNAPSHOT_PATH;
     return Effect.tryPromise({
-      try: async () => JSON.parse(await readFile(filePath, 'utf8')) as unknown,
+      try: async () => decode(JSON.parse(await readFile(filePath, 'utf8'))),
       catch: () => new HttpError(503, 'Draft data is unavailable'),
     });
   }
@@ -671,8 +690,9 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     }
 
     if (url.pathname === '/api/shadow-recommendations' && request.method === 'POST') {
-      const event = yield* readJsonBody(request);
-      if (!isShadowRecommendationEvent(event)) {
+      const event = decodeOrNull(decodeShadowRecommendationEvent, yield* readJsonBody(request));
+      if (!event) {
+        console.warn('[sync-server] Rejected invalid shadow recommendation event');
         sendJson(request, response, 400, { error: 'Invalid shadow recommendation event' }, allowedOrigins);
         return;
       }
@@ -729,13 +749,15 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         return;
       }
 
-      const payload = yield* readJsonBody(request);
-      if (!isEspnDraftSnapshot(payload)) {
+      const payload = decodeOrNull(decodeEspnDraftSnapshot, yield* readJsonBody(request));
+      if (!payload) {
+        console.warn('[sync-server] Rejected invalid ESPN draft snapshot');
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
       const espnPayload = payload;
       if (espnPayload.draft.draftId !== route.draftId) {
+        console.warn('[sync-server] Rejected ESPN draft snapshot for another session');
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
@@ -857,11 +879,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   };
   server.once('close', disposeSessions);
 
-  const syncServer = server as SyncServer;
-  syncServer.shutdown = (callback) => {
-    disposeSessions();
-    server.close(callback);
-  };
-
-  return syncServer;
+  return Object.assign(server, {
+    shutdown: (callback?: (error?: Error) => void) => {
+      disposeSessions();
+      server.close(callback);
+    },
+  });
 }

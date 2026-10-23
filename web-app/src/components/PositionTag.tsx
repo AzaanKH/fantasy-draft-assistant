@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import type { Position } from '@fantasy-draft/shared';
+import type { Position } from '@fantasy-draft/shared/league';
 
 /** Filled position tag in its design-system position color; the label is always visible. */
 export function PositionTag({ position }: { readonly position: Position | 'FLEX' }): React.ReactElement {

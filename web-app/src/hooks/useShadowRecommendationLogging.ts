@@ -1,15 +1,20 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { POSITIONS } from '@fantasy-draft/shared/league';
+import { useDraftView } from '@/workspace/useDraftView';
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
-import type { DraftProvider, Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import {
   applyLeagueSurvivalModel,
   getRecommendations,
-} from '@/lib/calculations';
+} from '@fantasy-draft/shared/draft';
 import {
   buildShadowRecommendationEvent,
   postShadowRecommendation,
 } from '@/lib/shadow-recommendation';
-import { useDraftStore, useIsMyTurn } from '@/stores/draftStore';
+
 import { usePlayerDataQuery } from './usePlayerData';
 import { useTeamNeeds } from './useTeamNeeds';
 
@@ -37,14 +42,14 @@ export function useShadowRecommendationLogging(
   } = input;
   const { shadowPlayers, dataInfo } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const config = useDraftStore((state) => state.config);
-  const leagueSettingsFingerprint = useDraftStore(
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const config = useDraftState((state) => state.config);
+  const leagueSettingsFingerprint = useDraftState(
     (state) => state.leagueSettings.fingerprint
   );
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const isMyTurn = useIsMyTurn();
+  const currentPick = useDraftView((view) => view.currentPick);
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
   const attemptedEventIds = useRef(new Set<string>());
   const timingEvidence = useLeagueTimingEvidence(dataInfo.shadowLoggingEnabled && draftReady);
   const context = useMemo(() => ({
@@ -97,8 +102,8 @@ export function useShadowRecommendationLogging(
         const playersById = new Map(
           shadowPlayers.map((player) => [player.id, player])
         );
-        const rosterPlayers = (Object.values(myRoster) as string[][]).flatMap((ids) =>
-          ids.flatMap((id) => {
+        const rosterPlayers = POSITIONS.map(position => myRoster[position]).flatMap((ids) =>
+          ids.flatMap((id: string) => {
             const player = playersById.get(id);
             return player
               ? [{
@@ -130,7 +135,8 @@ export function useShadowRecommendationLogging(
               K: myRoster.K.length,
               DEF: myRoster.DEF.length,
             },
-          }
+          },
+          DRAFT_DISPLAY
         ).draftNow;
 
         if (shadowRecommendations.length === 0) {
@@ -156,7 +162,7 @@ export function useShadowRecommendationLogging(
           totalRounds: config.totalRounds,
           myPickPosition: config.myPickPosition,
           draftedPlayerIds: [...draftedPlayerIds],
-          rosterPlayerIds: Object.values(myRoster).flat(),
+          rosterPlayerIds: POSITIONS.map(position => myRoster[position]).flat(),
           positionNeeds: needs,
         });
 

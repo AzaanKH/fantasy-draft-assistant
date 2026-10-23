@@ -1,4 +1,5 @@
-import type { Position } from '@fantasy-draft/shared';
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import type { Position } from '@fantasy-draft/shared/league';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -9,7 +10,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useDraftStore } from '@/stores/draftStore';
 
 const EDITABLE_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const satisfies readonly Position[];
 
@@ -19,9 +19,9 @@ function numericValue(value: string, maximum: number = 20): number {
 }
 
 export function RosterSettings(): React.ReactElement {
-  const requirements = useDraftStore((state) => state.config.rosterRequirements);
-  const leagueRoster = useDraftStore((state) => state.leagueSettings.rosterRequirements);
-  const setRosterRequirements = useDraftStore((state) => state.setRosterRequirements);
+  const requirements = useDraftState((state) => state.config.rosterRequirements);
+  const leagueRoster = useDraftState((state) => state.leagueSettings.rosterRequirements);
+  const workspace = useWorkspace();
 
   const updatePosition = (
     position: (typeof EDITABLE_POSITIONS)[number],
@@ -32,7 +32,7 @@ export function RosterSettings(): React.ReactElement {
     const next = field === 'starters'
       ? { starters: value, max: Math.max(value, current.max) }
       : { starters: Math.min(current.starters, value), max: value };
-    setRosterRequirements({ ...requirements, [position]: next });
+    workspace.send('setRosterRequirements', { ...requirements, [position]: next });
   };
 
   return (
@@ -92,7 +92,7 @@ export function RosterSettings(): React.ReactElement {
                 max={10}
                 value={requirements.FLEX.starters}
                 onChange={(event) => {
-                  setRosterRequirements({
+                  workspace.send('setRosterRequirements', {
                     ...requirements,
                     FLEX: {
                       ...requirements.FLEX,
@@ -112,7 +112,7 @@ export function RosterSettings(): React.ReactElement {
                 max={20}
                 value={requirements.BENCH.spots}
                 onChange={(event) => {
-                  setRosterRequirements({
+                  workspace.send('setRosterRequirements', {
                     ...requirements,
                     BENCH: { spots: numericValue(event.target.value) },
                   });
@@ -127,7 +127,7 @@ export function RosterSettings(): React.ReactElement {
               variant="outline"
               size="sm"
               onClick={() => {
-                setRosterRequirements(leagueRoster);
+                workspace.send('setRosterRequirements', leagueRoster);
               }}
             >
               Reset to league rules

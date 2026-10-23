@@ -1,15 +1,14 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
+import { DRAFT_DISPLAY, IS_DEMO } from '@/lib/demo-mode';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CircleAlert, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import { getRecommendationPolicyLabel } from '@/features/recommendations/draft-decision';
-import { useDraftStore } from '@/stores/draftStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { getRecommendationPolicyLabel } from '@fantasy-draft/shared/draft';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { KeeperStatus } from '@/features/draft-room/KeeperStatus';
-import { IS_DEMO } from '@/lib/demo-mode';
 
 export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
   readonly keeperStatus?: KeeperPreloadStatus;
@@ -17,11 +16,11 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const transferringFocus = React.useRef(false);
-  const config = useDraftStore((state) => state.config);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
-  const quickMock = useDraftStore((state) => state.leagueSettings.keepersEnabled === false && state.leagueSettings.source === 'default');
-  const settingsSource = useDraftStore((state) => state.leagueSettings.source);
+  const config = useDraftState((state) => state.config);
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const connection = useConnectionState((state) => state.connection);
+  const quickMock = useDraftState((state) => state.leagueSettings.keepersEnabled === false && state.leagueSettings.source === 'default');
+  const settingsSource = useDraftState((state) => state.leagueSettings.source);
   const decision = useDraftDecision();
   const primarySettings = decision.readiness?.coreDraftData.find((item) => item.key === 'primary-league-settings');
   const settingsReady = primarySettings?.status === 'ready';
@@ -51,7 +50,7 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
         <h2 className="pr-8 text-sm font-semibold">Draft session</h2>
         <p className="mt-2 text-sm">{pick} · {mode}</p>
         <p className="mt-2 text-sm text-muted-foreground">{String(config.totalTeams)} teams · {String(config.totalRounds)} rounds · Snake</p>
-        <p className="mt-2 text-sm text-muted-foreground">{quickMock ? 'Quick mock scoring and roster rules' : getRecommendationPolicyLabel(decision.overall.selection)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{quickMock ? 'Quick mock scoring and roster rules' : getRecommendationPolicyLabel(decision.overall.selection, DRAFT_DISPLAY)}</p>
         {keeperStatus ? <div className="mt-4"><KeeperStatus status={keeperStatus} /></div> : null}
         <section className="mt-4 border-t border-border pt-4" aria-label="League settings">
           <h3 className="text-sm font-semibold">{quickMock ? 'Quick mock settings' : 'Primary League settings'}</h3>

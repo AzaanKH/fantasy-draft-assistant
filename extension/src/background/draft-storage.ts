@@ -1,12 +1,19 @@
+import { decodeDetectedPicks, decodeDraftRoomStatus, decodeStoredString, decodeSyncToken } from '../shared/boundary-decoders';
 import {
   DEFAULT_SYNC_SERVER_URL,
   STORAGE_KEYS,
-  isDetectedPick,
-  isDraftRoomStatus,
   type DetectedPick,
   type DraftRoomStatus,
 } from '../shared/types';
 import { EMPTY_DRAFT_STATE, type PersistedDraftState } from './draft-state';
+
+function readStored<A>(decode: (value: unknown) => A, value: unknown, fallback: A, key: string): A {
+  if (value === undefined) return fallback;
+  try { return decode(value); } catch (error) {
+    console.warn(`[Fantasy Draft BG] Rejected stored ${key}:`, error);
+    return fallback;
+  }
+}
 
 type LocalStorageArea = Pick<typeof chrome.storage.local, 'get' | 'set'>;
 
@@ -31,12 +38,8 @@ export class ChromeDraftStorage implements DraftStorage {
     const storedStatus: unknown = result[STORAGE_KEYS.DRAFT_STATUS];
 
     return {
-      picks: Array.isArray(storedPicks) && storedPicks.every(isDetectedPick)
-        ? storedPicks
-        : EMPTY_DRAFT_STATE.picks,
-      status: isDraftRoomStatus(storedStatus)
-        ? storedStatus
-        : EMPTY_DRAFT_STATE.status,
+      picks: [...readStored(decodeDetectedPicks, storedPicks, EMPTY_DRAFT_STATE.picks, STORAGE_KEYS.DETECTED_PICKS)],
+      status: readStored(decodeDraftRoomStatus, storedStatus, EMPTY_DRAFT_STATE.status, STORAGE_KEYS.DRAFT_STATUS),
     };
   }
 
@@ -54,19 +57,14 @@ export class ChromeDraftStorage implements DraftStorage {
 
   public async getSyncServerUrl(): Promise<string> {
     const result = await this.storage.get([STORAGE_KEYS.SYNC_SERVER_URL]);
-    return (
-      (result[STORAGE_KEYS.SYNC_SERVER_URL] as string | undefined) ??
-      DEFAULT_SYNC_SERVER_URL
-    );
+    return readStored(decodeStoredString, result[STORAGE_KEYS.SYNC_SERVER_URL], DEFAULT_SYNC_SERVER_URL, STORAGE_KEYS.SYNC_SERVER_URL);
   }
 
   public async getSyncToken(): Promise<string> {
     const result = await this.storage.get([STORAGE_KEYS.SYNC_TOKEN]);
-    const token: unknown = result[STORAGE_KEYS.SYNC_TOKEN];
-    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43,128}$/.test(token)) {
-      throw new Error('Pair the extension in its options before connecting a draft');
+    try { return decodeSyncToken(result[STORAGE_KEYS.SYNC_TOKEN]); } catch (cause) {
+      throw new Error('Pair the extension in its options before connecting a draft', { cause });
     }
-    return token;
   }
 
   public async setInstallationDefaults(): Promise<void> {

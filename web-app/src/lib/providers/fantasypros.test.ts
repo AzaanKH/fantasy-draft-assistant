@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FantasyProsSnapshot } from '@fantasy-draft/shared';
+import type { FantasyProsSnapshot } from '@fantasy-draft/shared/catalog';
 import { CachedFantasyProsProvider } from './fantasypros';
 
 describe('CachedFantasyProsProvider', () => {
@@ -37,24 +37,19 @@ describe('CachedFantasyProsProvider', () => {
       news: [],
     };
 
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => snapshot,
-    });
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json(snapshot));
     vi.stubGlobal('fetch', fetchMock);
 
     const provider = new CachedFantasyProsProvider('/data/test-snapshot.json');
     await expect(provider.getSnapshot()).resolves.toEqual(snapshot);
-    expect(fetchMock).toHaveBeenCalledWith('/data/test-snapshot.json');
+    expect(fetchMock).toHaveBeenCalledWith('/data/test-snapshot.json', expect.anything());
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('throws on failed fetch', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      })
+      vi.fn().mockResolvedValue(new Response(null, { status: 404 }))
     );
 
     const provider = new CachedFantasyProsProvider('/data/missing.json');

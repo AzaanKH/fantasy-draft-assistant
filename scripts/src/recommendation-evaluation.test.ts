@@ -21,6 +21,14 @@ afterEach(async () => {
 });
 
 describe('historical recommendation evaluation', () => {
+  it.each([null, [], {}, { ...evaluation, generatedAt: 'invalid' }, { ...evaluation, modelVersion: 1 }, { ...evaluation, evaluatedArchitecture: 'other' }])('preserves rejection of malformed evidence %j', value => {
+    expect(isRecommendationEvaluation(value)).toBe(false);
+  });
+
+  it('preserves excess evidence and empty version strings', () => {
+    expect(isRecommendationEvaluation({ ...evaluation, modelVersion: '', futureEvidence: { value: 1 } })).toBe(true);
+  });
+
   it('writes passing evaluation evidence without changing runtime policy', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'recommendation-evaluation-'));
     directories.push(directory);
