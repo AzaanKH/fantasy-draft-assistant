@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createDiagnostics, createNavigationGuard } from './persistence/ui-diagnostics.mjs';
+import { conflictDialog } from './persistence/fixtures/conflict-dialog.mjs';
+import { prepareConflict, submitConflict, auditObservedConflict } from './persistence/ui-conflict.mjs';
 import { runnerMode } from './persistence/ui-runner-mode.mjs';
 import { resetExtensionWorker, workerResetPasses } from './persistence/ui-worker.mjs';
 import { workerProtocol } from './persistence/fixtures/worker-protocol.mjs';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
-import { auditSession, sessionPasses } from './persistence/ui-adapter.mjs';
+import { auditSession, sessionPasses, auditPickConflict } from './persistence/ui-adapter.mjs';
 
 const { JSDOM, VirtualConsole } = createRequire(new URL('../web-app/package.json', import.meta.url))('jsdom');
 const source = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
@@ -313,4 +315,77 @@ test.each([false, true])('setup-only retains an ordinary app tab, audits iframe 
   expect(results.extensionSetup.workloadCommands).toBe(0);
   expect(results.extensionSetup.canonicalAppTab).toBe(canonical);
   expect(results.extensionSetup.nonceBefore).not.toBe(results.extensionSetup.nonceAfter);
+});
+
+
+const fillConflict = async (dialog, cmd) => {
+  await dialog.getByLabel('Observed player').selectOption({ value: cmd.playerId });
+  await dialog.getByLabel('Team and draft position').selectOption({ value: String(cmd.slot) });
+};
+const conflictCommands = [{ id: 'c:0', slot: 1, playerId: 'p1' }, { id: 'c:1', slot: 1, playerId: 'p2' }];
+function dialogsForConflict({ retarget = false, reducerReject = false } = {}) {
+  const document = new JSDOM('<body></body>').window.document;
+  const loser = conflictDialog(document, 'p2', () => { if (reducerReject) loser.alert.textContent = 'Pick slot is already occupied'; else loser.node.remove(); }, () => { if (retarget) loser.slot.value = '2'; });
+  const winner = conflictDialog(document, 'p1', () => {
+    winner.node.remove();
+    if (!retarget && !reducerReject) { loser.slot.value = ''; loser.button.disabled = true; loser.alert.textContent = 'Pick 1 was just recorded elsewhere. Choose a pick.'; }
+  });
+  return [winner, loser];
+}
+
+test('a conflict loser cleared and disabled after the winner is observed without waiting on its disabled click', async () => {
+  const views = dialogsForConflict(); const dialogs = views.map(value => value.dialog);
+  const run = runInNewContext(`(${functionSource('pickConflict', 'moveConflict')})`, {
+    startSession: async () => dialogs.map((dialog, i) => ({ name: `tab${i}`, page: {}, ctx: dialog })),
+    openPickDialog: async dialog => dialog, fillPick: fillConflict, prepareConflict, submitConflict, auditObservedConflict,
+    recordAction: async (_actor, cmd, operation) => ({ cmd, ...await operation() }), results: { progress: [] }, save: async () => {},
+    sleep: async () => {}, reloadActors: async () => {}, readCommitted: async () => ({ picks: [{ pickNumber: 1, playerId: 'p1' }], queue: [] }), closeActors: async () => {},
+  });
+  const row = await run({}, 'draft', [{ id: 'p1' }, { id: 'p2' }], 1, false);
+  expect(row.checks.good).toBe(true); expect(row.results[1].rejectionKind).toBe('invalidated-selection');
+  expect(row.barrier.map(value => value.slot)).toEqual(['1', '1']);
+});
+
+test.each([false, true])('both actual dialogs select the intended slot before release, reducerReject=%s', async reducerReject => {
+  const views = dialogsForConflict({ reducerReject }); const dialogs = views.map(value => value.dialog);
+  const prepared = await prepareConflict(dialogs, conflictCommands, fillConflict);
+  expect(prepared.barrier.map(value => [value.slot, value.player])).toEqual([['1', 'p1'], ['1', 'p2']]);
+  const outcomes = await Promise.all(dialogs.map(async (dialog, index) => ({ cmd: conflictCommands[index], ...await submitConflict(dialog, conflictCommands[index], prepared.barrier[index], prepared.observers[index]) })));
+  const row = { slot: 1, players: ['p1', 'p2'], barrier: prepared.barrier, results: outcomes, committed: { picks: [{ pickNumber: 1, playerId: 'p1' }] } };
+  expect(auditObservedConflict(row).good).toBe(true);
+  expect(outcomes[1].rejectionKind).toBe(reducerReject ? 'submitted-command' : 'invalidated-selection');
+  await Promise.all(prepared.observers.map(observer => observer.dispose()));
+});
+
+test('a slot retarget at the actual click is captured even when its dialog immediately closes', async () => {
+  const views = dialogsForConflict({ retarget: true }); const dialogs = views.map(value => value.dialog);
+  const prepared = await prepareConflict(dialogs, conflictCommands, fillConflict);
+  const outcomes = await Promise.all(dialogs.map(async (dialog, index) => ({ cmd: conflictCommands[index], ...await submitConflict(dialog, conflictCommands[index], prepared.barrier[index], prepared.observers[index]) })));
+  expect(outcomes[1].outcome).toBe('error'); expect(outcomes[1].observations.final.clicks[0].slot).toBe('2');
+  await Promise.all(prepared.observers.map(observer => observer.dispose()));
+});
+
+test('an actor which never selected the intended slot cannot count as an explicit loser', async () => {
+  const views = dialogsForConflict(); const dialogs = views.map(value => value.dialog);
+  await expect(prepareConflict(dialogs, conflictCommands, async (dialog, cmd) => fillConflict(dialog, { ...cmd, slot: 2 }))).rejects.toThrow('barrier did not select');
+});
+
+test('a stale or misleading loser alert cannot replace a verified intended selection', async () => {
+  const views = dialogsForConflict(); const dialogs = views.map(value => value.dialog);
+  const prepared = await prepareConflict(dialogs, conflictCommands, fillConflict);
+  views[1].slot.value = ''; views[1].button.disabled = true; views[1].alert.textContent = 'Choose a player';
+  const outcome = await submitConflict(dialogs[1], conflictCommands[1], prepared.barrier[1], prepared.observers[1]);
+  expect(outcome.outcome).toBe('error');
+  await expect(submitConflict(dialogs[1], conflictCommands[1], { ...prepared.barrier[1], slot: '2' }, prepared.observers[1])).rejects.toThrow('never selected');
+  await Promise.all(prepared.observers.map(observer => observer.dispose()));
+});
+
+
+test('root Tier 2 smoke is exactly 150 commands per actor with no full-matrix or extra-scope flags', () => {
+  const mode = runnerMode(['--root-tier2-smoke', '--browser-authorized']);
+  expect(mode.rootTier2Smoke).toBe(true);
+  expect(mode.workload).toMatchObject({ suites: 1, seeds: 1, perActor: 150, pickConflicts: 20, moveConflicts: 20, control: false, bursts: false, lifecycle: true });
+  for (const flag of ['--gate', '--tier2', '--smoke', '--extension-setup-only', '--focused-navigation', '--scenarios=tabs']) {
+    expect(() => runnerMode(['--root-tier2-smoke', flag])).toThrow('another runner scope');
+  }
 });

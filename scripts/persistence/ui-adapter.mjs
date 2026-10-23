@@ -226,7 +226,7 @@ export function auditBlocked({ before, after }) {
     unchanged: same, good: Boolean(after.errorText?.trim()) && after.draftRoomAbsent === true && same };
 }
 
-function completeReceiptLedger(results) {
+export function completeReceiptLedger(results) {
   const starts = results.commandStarts ?? [];
   const receipts = results.commandLog ?? [];
   const started = new Map(starts.map(row => [row.actionId, row]));
@@ -254,7 +254,7 @@ export function auditMockBurst(burst) {
     burst.notSaved === false && Boolean(burst.v1Before && burst.v1After) && JSON.stringify(burst.v1Before) === JSON.stringify(burst.v1After) };
 }
 
-function hasProductionProof(meta) {
+export function hasProductionProof(meta) {
   const env = meta.resolvedEnv;
   const build = meta.productionBuild;
   const http = meta.productionHttp;

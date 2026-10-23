@@ -8,6 +8,8 @@ import { inspectProductionBuild, createStaticHandler, verifyProductionHttp } fro
 import { createDiagnostics, createNavigationGuard } from './ui-diagnostics.mjs';
 import { runnerMode } from './ui-runner-mode.mjs';
 import { resetExtensionWorker, workerResetPasses } from './ui-worker.mjs';
+import { prepareConflict, submitConflict, auditObservedConflict } from './ui-conflict.mjs';
+import { ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN, runRootSmokeSteps, evaluateRootSmoke } from './ui-root-smoke.mjs';
 import { Processes } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
 import {
@@ -18,7 +20,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const args = process.argv.slice(2);
-const { extensionSetupOnly, workload } = runnerMode(args);
+const { extensionSetupOnly, rootTier2Smoke, workload } = runnerMode(args);
 const flag = name => args.includes(`--${name}`);
 const option = name => args.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
 const int = (name, fallback) => { const value = process.env[name] === undefined ? fallback : Number(process.env[name]); if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`); return value; };
@@ -61,8 +63,8 @@ const config = {
 const smoke = flag('smoke') || config.suites !== DEFAULTS.suites || config.seeds !== DEFAULTS.seeds || config.perActor !== DEFAULTS.perActor ||
   config.pickConflicts < DEFAULTS.pickConflicts || config.moveConflicts < DEFAULTS.moveConflicts || !config.bursts;
 const scenarioArg = option('scenarios') ?? process.env.UI_SCENARIOS;
-if (extensionSetupOnly && scenarioArg) throw new Error('Setup-only cannot select workload scenarios');
-const selected = offline || extensionSetupOnly ? [] : focused ? ['tabs'] : scenarioArg ? scenarioArg.split(',').map(s => s.trim()) : SCENARIOS;
+if ((extensionSetupOnly || rootTier2Smoke) && scenarioArg) throw new Error('Setup-only cannot select workload scenarios');
+const selected = offline || extensionSetupOnly ? [] : rootTier2Smoke ? ['tabs', 'extension-granted'] : focused ? ['tabs'] : scenarioArg ? scenarioArg.split(',').map(s => s.trim()) : SCENARIOS;
 if (new Set(selected).size !== selected.length || selected.some(s => !SCENARIOS.includes(s))) throw new Error('Unknown scenario');
 const outDir = path.resolve(process.env.UI_OUTPUT || '/Users/azaankhalfe/Desktop/fantasy-draft/artifacts/agent-friendly-plan/units/u11c2/ui-proof');
 
@@ -73,7 +75,7 @@ if (flag('check')) {
 }
 
 if (!offline && !flag('browser-authorized')) throw new Error('Browser paused: pass --browser-authorized only after the parent confirms fixes are ready');
-if (!offline && !flag('smoke') && !tier2 && !flag('gate') && !focused && !extensionSetupOnly) throw new Error('Choose --tier2, --smoke, --gate or --extension-setup-only explicitly');
+if (!offline && !flag('smoke') && !tier2 && !flag('gate') && !focused && !extensionSetupOnly && !rootTier2Smoke) throw new Error('Choose --tier2, --smoke, --gate or --extension-setup-only explicitly');
 if (tier2 && (config.suites !== 1 || config.seeds !== 1 || config.perActor !== 300 || config.pickConflicts !== 20 || config.moveConflicts !== 20 || config.control)) {
   throw new Error('Tier 2 requires 1 suite, 1 seed, 300 commands per actor, 20 pick conflicts, 20 moves, no sequential control');
 }
@@ -88,9 +90,11 @@ if (gitStart.branch !== 'feat/agent-u11c2-activation') throw new Error('Wrong br
 if (flag('gate') && (!process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean || smoke)) {
   throw new Error('Final matrix requires UI_EXPECTED_HEAD equal to the clean committed HEAD and the complete default matrix');
 }
-if (extensionSetupOnly && (!process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean)) {
+if ((extensionSetupOnly || rootTier2Smoke) && (!/^[a-f0-9]{40}$/.test(process.env.UI_EXPECTED_HEAD ?? '') || !process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean)) {
   throw new Error('Setup-only requires UI_EXPECTED_HEAD equal to the clean committed HEAD');
 }
+
+if (rootTier2Smoke && ['UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_PICK_CONFLICTS', 'UI_MOVE_CONFLICTS', 'UI_BURSTS', 'UI_CONTROL', 'UI_LIFECYCLE', 'UI_BURST_PICKS'].some(name => process.env[name] !== undefined)) throw new Error('Root smoke rejects workload overrides');
 
 delete process.env.VITE_PERSISTENCE_HARNESS;
 delete process.env.VITE_DEMO_MODE;
@@ -118,10 +122,10 @@ const claim = await open(path.join(outDir, 'run-claim.json'), 'wx');
 await claim.writeFile(JSON.stringify({ started: new Date().toISOString(), pid: process.pid, args, head: gitStart.head }));
 await claim.close();
 
-const results = { metadata: { started: new Date().toISOString(), root, node: process.version, smoke, tier: offline ? 'offline' : extensionSetupOnly ? 'extension-setup-only' : focused ? 'focused-navigation' : tier2 ? 2 : flag('gate') ? 3 : 'exploratory', git: gitStart, expectedHead: process.env.UI_EXPECTED_HEAD, serve: focused ? 'vite-dev' : 'production-static',
+const results = { metadata: { started: new Date().toISOString(), root, node: process.version, smoke, tier: offline ? 'offline' : rootTier2Smoke ? ROOT_SMOKE_SCOPE : extensionSetupOnly ? 'extension-setup-only' : focused ? 'focused-navigation' : tier2 ? 2 : flag('gate') ? 3 : 'exploratory', git: gitStart, expectedHead: process.env.UI_EXPECTED_HEAD, serve: focused ? 'vite-dev' : 'production-static',
   suites: config.suites, seeds: config.seeds, commandsPerActor: config.perActor, config, origin, scenarios: selected,
   env: { VITE_STORAGE_ACTIVATION: process.env.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: process.env.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: process.env.VITE_DEMO_MODE, BROWSER_DATA_SOURCE: process.env.BROWSER_DATA_SOURCE },
-  workload: extensionSetupOnly ? 'setup only; zero pick or queue commands; no full matrix claim' : 'real DOM: Provisional Pick dialog + pool queue buttons; P9 LCG 0..5ms jitter' },
+  rootSmokePlan: rootTier2Smoke ? ROOT_SMOKE_PLAN : undefined, workload: rootTier2Smoke ? 'root-authorized Tier 2 production smoke; 300 total installed-iframe slice commands; no tab measured workload or full matrix claim' : extensionSetupOnly ? 'setup only; zero pick or queue commands; no full matrix claim' : 'real DOM: Provisional Pick dialog + pool queue buttons; P9 LCG 0..5ms jitter' },
   commandStarts: [], commandLog: [], cleanupErrors: [], failureEvidence: [], progress: [], scenarios: [], pageErrors: [], blockedRequests: [], navigations: [], scenarioErrors: [] };
 async function browserDataFallbackFiles() {
   const manifest = await readFile(path.join(root, 'shared/src/catalog/manifest.ts'), 'utf8');
@@ -129,7 +133,7 @@ async function browserDataFallbackFiles() {
 }
 async function sourceSnapshot() {
   const files = ['scripts/persistence/ui-activation.mjs', 'scripts/persistence/ui-adapter.mjs', 'pnpm-lock.yaml',
-    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/persistence/ui-worker.mjs', 'scripts/persistence/fixtures/worker-stop-without-close.json', 'scripts/persistence/fixtures/worker-protocol.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
+    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/persistence/ui-worker.mjs', 'scripts/persistence/ui-conflict.mjs', 'scripts/persistence/ui-root-smoke.mjs', 'scripts/persistence/root-smoke-driver.mjs', 'scripts/persistence/fixtures/root-smoke-evidence.mjs', 'scripts/persistence/fixtures/conflict-dialog.mjs', 'scripts/ui-root-smoke.test.mjs', 'scripts/persistence/fixtures/worker-stop-without-close.json', 'scripts/persistence/fixtures/worker-protocol.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
     'package.json', 'pnpm-workspace.yaml', 'source-condition.js', '.npmrc'];
   async function walk(dir) {
     let entries;
@@ -701,6 +705,55 @@ async function loadCatalog(ctxInfo, needed) {
   } finally { await page.close(); }
 }
 
+async function rootSmokeScenario(scenario, scenarioIndex) {
+  const panel = scenario.label === 'extension-granted';
+  const count = panel ? 42 : 43;
+  const ids = draftIds(scenarioIndex, count); let cursor = 0; const next = () => ids[cursor++];
+  const ctxInfo = await launch(scenario.label); context = ctxInfo.ctx;
+  scenario.runtime = ctxInfo.runtime; scenario.profile = ctxInfo.profile; scenario.launchOptions = ctxInfo.launchOptions; scenario.steps = [];
+  const setup = await context.newPage();
+  await seedV1(setup, [...ids, '1699999999999']);
+  scenario.activation = await activateThroughPrompt(setup, [...ids, '1699999999999']);
+  scenario.v1AtActivation = scenario.activation.v1Snapshot; delete scenario.activation.v1Snapshot;
+  const catalog = await loadCatalog(ctxInfo, 300); scenario.catalog = catalog;
+  const nameToId = new Map(catalog.map(value => [value.name, value.id]));
+  if (!panel) await setup.close();
+  const operations = {
+    pickConflict: sample => pickConflict(ctxInfo, next(), catalog, sample, panel),
+    moveConflict: sample => moveConflict(ctxInfo, next(), catalog, nameToId, sample, panel),
+    reconcile: () => reconcileBurst(ctxInfo, next(), catalog, false),
+    lifecycle: () => lifecycle(ctxInfo, [next(), next()], catalog, nameToId),
+    slice: () => measuredSession({ ctxInfo, id: next(), nameToId, plan: planSession(catalog, 150), seed: 1009, panel: true }),
+    setup: async () => {
+      const id = next();
+      const hostPermission = await ctxInfo.worker.evaluate(pattern => chrome.permissions.contains({ origins: [pattern] }), `${origin}/*`);
+      check(hostPermission, 'Installed extension lacks the actual canonical host permission');
+      const actor = await openPanel(ctxInfo, id);
+      const frameUrl = actor.ctx.url(); const before = await readCommitted(actor.ctx, id);
+      await reloadActors(ctxInfo, [actor], id);
+      const frameUrlAfter = actor.ctx.url(); const after = await readCommitted(actor.ctx, id);
+      const row = { hostPermission, canonicalAppTab: setup.url(), runtime: ctxInfo.runtime, frameUrl, frameUrlAfter, before, after,
+        nonceBefore: new URL(frameUrl).searchParams.get('__storageNonce'), nonceAfter: new URL(frameUrlAfter).searchParams.get('__storageNonce'),
+        workerReset: results.progress.findLast(value => value.stage === 'extension-worker-explicitly-woken' && value.id === id) };
+      await actor.page.screenshot({ path: path.join(outDir, 'root-smoke-installed-setup.png') });
+      await closeActors([actor]); return row;
+    },
+  };
+  await runRootSmokeSteps(scenario.label, operations, async (kind, row, sample) => {
+    if (kind === 'pickConflict') scenario.pickConflicts.push(row);
+    else if (kind === 'moveConflict') scenario.moveConflicts.push(row);
+    else if (kind === 'reconcile') scenario.bursts.reconcile = row;
+    else if (kind === 'lifecycle') scenario.lifecycle = row;
+    else if (kind === 'slice') scenario.runs.push(row);
+    else scenario.panelSetup = row;
+    scenario.steps.push({ kind, sample }); await save();
+  });
+  const audit = await context.newPage(); await audit.goto(`${origin}/__ui-fixture/blank`);
+  scenario.v1FinalSnapshot = await localStorageV1(audit); await audit.close();
+  check(JSON.stringify(sessionRows(scenario.v1AtActivation)) === JSON.stringify(sessionRows(scenario.v1FinalSnapshot)), 'Root smoke changed v1 session bytes after activation');
+  if (panel) await setup.close();
+}
+
 async function focusedScenario(scenario) {
   const id = '1700000000009';
   const ctxInfo = await launch('focused-tabs');
@@ -816,15 +869,19 @@ async function pickConflict(ctxInfo, id, catalog, sample, panel) {
   const slot = 1; const players = [catalog[0], catalog[1]];
   const cmds = players.map((p, a) => ({ id: `c:${a}`, actor: a, type: 'pick', slot, playerId: p.id, name: p.name }));
   const dialogs = [];
-  for (const [a, actor] of actors.entries()) { const dialog = await openPickDialog(actor.ctx); await fillPick(dialog, cmds[a]); dialogs.push(dialog); }
-  const results = await Promise.all(actors.map((actor, a) => recordAction(actor, cmds[a], async () => {
-    await dialogs[a].getByRole('button', { name: UI.record, exact: true }).click();
-    return awaitDialogOutcome(dialogs[a]);
-  })));
+  for (const actor of actors) dialogs.push(await openPickDialog(actor.ctx));
+  const prepared = await prepareConflict(dialogs, cmds, fillPick);
+  results.progress.push({ stage: 'pick-conflict-barrier', id, sample, commands: cmds, selected: prepared.barrier }); await save();
+  let outcomes;
+  try {
+    outcomes = await Promise.all(actors.map((actor, a) => recordAction(actor, cmds[a], () =>
+      submitConflict(dialogs[a], cmds[a], prepared.barrier[a], prepared.observers[a]))));
+  } finally { await Promise.all(prepared.observers.map(observer => observer.dispose())); }
   await sleep(300);
   await reloadActors(ctxInfo, actors, id);
   const committed = await readCommitted(actors[0].page, id);
-  const row = { sample, session: id, results, committed, slot, players, checks: auditPickConflict({ results, committed, slot, players }) };
+  const row = { sample, session: id, results: outcomes, committed, slot, players, barrier: prepared.barrier };
+  row.checks = auditObservedConflict(row);
   await closeActors(actors); return row;
 }
 
@@ -1089,7 +1146,8 @@ try {
     results.scenarios.push(scenario);
     try {
       await guarded(async () => {
-        if (focused) await focusedScenario(scenario);
+        if (rootTier2Smoke) await rootSmokeScenario(scenario, scenarioIndex);
+        else if (focused) await focusedScenario(scenario);
         else if (POSITIVE.includes(label)) await positiveScenario(scenario, scenarioIndex);
         else await negativeScenario(scenario);
       });
@@ -1100,7 +1158,7 @@ try {
       }
       await save();
     } finally { await closeContext(); await save(); }
-    if (results.productionNavigationDefect || (flag('gate') && (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length))) break;
+    if (results.productionNavigationDefect || ((flag('gate') || rootTier2Smoke) && (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length))) break;
   }
   if (focused || extensionSetupOnly) {
     try { await guarded(focusedExtensionSetup); }
@@ -1111,11 +1169,12 @@ try {
     finally { await closeContext(); await save(); }
   }
   results.metadata.finished = new Date().toISOString();
-  if (!extensionSetupOnly) results.gate = evaluateUiGate(results);
+  if (!extensionSetupOnly && !rootTier2Smoke) results.gate = evaluateUiGate(results);
+  if (rootTier2Smoke) results.rootSmoke = evaluateRootSmoke(results);
   if (tier2) results.tier2 = evaluateTier2(results);
   await save();
 
-  if (results.scenarioErrors.length || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes)) process.exitCode = 1;
+  if (results.scenarioErrors.length || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes)) process.exitCode = 1;
 } catch (error) {
   results.fatal = { name: error.name, message: error.message, stack: error.stack }; await save(); console.error(error); process.exitCode = 1;
 } finally {
@@ -1128,18 +1187,19 @@ try {
   results.metadata.sourceHashesEnd = await sourceSnapshot();
   results.metadata.changedSourceFiles = [...new Set([...Object.keys(results.metadata.sourceHashes), ...Object.keys(results.metadata.sourceHashesEnd)])].filter(file => results.metadata.sourceHashes[file] !== results.metadata.sourceHashesEnd[file]);
   results.metadata.sourceStable = results.metadata.changedSourceFiles.length === 0;
-  if (!extensionSetupOnly) results.gate = evaluateUiGate(results);
-  else {
+  if (!extensionSetupOnly && !rootTier2Smoke) results.gate = evaluateUiGate(results);
+  else if (extensionSetupOnly) {
     results.setupCheck = { passes: !!results.extensionSetup?.ready && results.metadata.sourceStable &&
       results.metadata.gitEnd.head === gitStart.head && !results.metadata.gitEnd.status && !results.commandStarts.length && !results.commandLog.length &&
       !results.productionNavigationDefect && !results.fatal && !results.scenarioErrors.length && !results.pageErrors.length && !results.cleanupErrors.length,
       workloadCommands: results.commandStarts.length, fullMatrixClaim: false };
     if (!results.setupCheck.passes) process.exitCode = 1;
   }
+  if (rootTier2Smoke) results.rootSmoke = evaluateRootSmoke(results);
   if (tier2) results.tier2 = evaluateTier2(results);
-  if (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes)) process.exitCode = 1;
+  if (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes)) process.exitCode = 1;
   await save();
 }
 
 
-console.log(JSON.stringify({ smoke, setupCheck: results.setupCheck, tier2: results.tier2, plan: results.metadata.plan, sourceStable: results.metadata.sourceStable, gate: results.gate, scenarioErrors: results.scenarioErrors.map(e => `${e.label}: ${e.message}`), pageErrors: results.pageErrors.length }, null, 2));
+console.log(JSON.stringify({ smoke, rootSmoke: results.rootSmoke, setupCheck: results.setupCheck, tier2: results.tier2, plan: results.metadata.plan, sourceStable: results.metadata.sourceStable, gate: results.gate, scenarioErrors: results.scenarioErrors.map(e => `${e.label}: ${e.message}`), pageErrors: results.pageErrors.length }, null, 2));
