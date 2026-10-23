@@ -1,3 +1,5 @@
+import { useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
 import { ArrowRight, Check, ListPlus, LoaderCircle } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
@@ -10,7 +12,6 @@ import type { AssistantNavigationTarget } from '@/features/assistant/assistant-n
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useQueueActions } from '@/hooks/useQueueActions';
-import { useDraftSessionMode, useDraftStore } from '@/stores/draftStore';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 
 function EmptyDecisionBar({
@@ -56,10 +57,10 @@ export function DraftDecisionBar({
   const { output, isLoading, recommendationsBlocked } = useDraftDecision();
   const bestPick = output.bestPick;
   const sessionMode = useDraftSessionMode();
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const isQueued = useDraftStore((state) =>
-    bestPick ? state.shortlistedPlayerIds.includes(bestPick.playerId) : false
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const isQueued = useDraftView((view) =>
+    bestPick ? view.shortlistedPlayerIds.includes(bestPick.playerId) : false
   );
   const queuePlayerIdentity = React.useMemo(
     () => bestPick ? [{ id: bestPick.playerId, name: bestPick.playerName }] : [],

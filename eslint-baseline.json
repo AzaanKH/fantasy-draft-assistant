@@ -58,11 +58,5 @@
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 2
     }
-  },
-  "web-app/src/stores/draftStore.ts": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
-    }
   }
 }

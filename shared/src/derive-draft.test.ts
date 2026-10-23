@@ -10,7 +10,7 @@ const source: DraftSource = {
   history: [], keepers: [], myTeamIndex: 0, shortlistOrder: [],
 };
 
-describe('shadow draft derivation', () => {
+describe('draft derivation', () => {
   it.each(['snake', 'linear', 'auction'] as const)('reserves keeper costs and finds the first gap using %s slots', type => {
     const config = { ...format, type };
     const order = createSlotSequence(config);

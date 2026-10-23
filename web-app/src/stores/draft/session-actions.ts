@@ -1,7 +1,8 @@
+import { createModeActions } from './mode-actions';
+import { deriveDraftState } from './source';
 import { isDraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { castDraft, type Draft } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
-import { getEffectiveKeeperAssignments } from '@fantasy-draft/shared/draft';
 import {
   parseStoredDraftSession,
   readStoredDraftSessionText,
@@ -10,8 +11,8 @@ import {
   type DraftSessionStorage,
   type PersistedDraftSession,
 } from '../draftSessionStorage';
-import { defaultConfig, defaultFilter, rebuildCanonicalRosters } from './state';
-import type { DraftActions, SetDraftState, DraftStore } from './types';
+import { defaultConfig, defaultFilter } from './state';
+import type { DraftActions, SetDraftState, DraftStore, DraftState } from './types';
 
 /** The saved session this store last loaded or wrote, shared with the persistence subscriber. */
 export interface DraftSessionPersistence {
@@ -20,9 +21,8 @@ export interface DraftSessionPersistence {
 
 export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [], session: null };
 
-/** Replaces durable session state with a saved session, rebuilding derived sets and rosters. */
 export function applySavedDraftSession(
-  state: Draft<DraftStore>,
+  state: Draft<DraftState>,
   identity: DraftSessionIdentity | null,
   saved: PersistedDraftSession | null
 ): void {
@@ -30,12 +30,10 @@ export function applySavedDraftSession(
   state.sessionMode = saved ? 'live' : 'setup';
   state.config = castDraft(saved?.config ?? { ...defaultConfig });
   state.leagueSettings = castDraft(saved?.leagueSettings ?? createDefaultLeagueSettings());
-  state.currentPick = saved?.currentPick ?? 1;
   state.draftHistory = saved?.draftHistory ?? [];
-  state.draftProgress = {
-    anchor: { kind: 'carry', pickNumber: saved?.currentPick ?? 1 },
-    historyLength: state.draftHistory.length,
-  };
+  state.draftProgress = castDraft(saved?.draftProgress ?? {
+    anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 0,
+  });
   state.shortlistedPlayerIds = saved?.shortlistedPlayerIds ?? [];
   state.preloadedKeepers = saved?.preloadedKeepers ?? [];
   state.keepersInitialized = saved?.keepersInitialized ?? false;
@@ -45,25 +43,15 @@ export function applySavedDraftSession(
   state.lastConfirmedPickNumber = saved?.lastConfirmedPickNumber ?? 0;
   state.decisionLens = saved?.decisionLens ?? 'best-pick';
   state.mockSurvivalProbabilities = {};
-  const effectiveKeepers = getEffectiveKeeperAssignments(
-    state.preloadedKeepers, state.draftHistory, state.config.totalTeams,
-    state.config.draftType
-  );
-  state.draftedPlayerIds = new Set([
-    ...state.draftHistory.map((pick) => pick.playerId),
-    ...effectiveKeepers.map((keeper) => keeper.playerId),
-  ]);
-  state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-    (playerId) => !state.draftedPlayerIds.has(playerId)
-  );
-  rebuildCanonicalRosters(state);
+  state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
 }
 
 export function createSessionActions(
   set: SetDraftState,
   get: () => DraftStore,
   storage: DraftSessionStorage | null,
-  persistence: DraftSessionPersistence
+  persistence: DraftSessionPersistence,
+  loadSession: SetDraftState = set
 ): Pick<
   DraftActions,
   'setSessionMode' |
@@ -71,24 +59,14 @@ export function createSessionActions(
   'enterManualContinuity'
 > {
   return {
-    setSessionMode: (mode) =>
-      { set((state) => {
-        state.sessionMode = mode;
-        state.mockAutoAdvance.paused = false;
-        if (mode === 'mock') {
-          state.liveSession = null;
-          state.manualContinuityBaselineAt = null;
-          state.lastConfirmedSyncAt = null;
-          state.lastConfirmedPickNumber = 0;
-        }
-      }); },
+    ...createModeActions(set),
     setLiveDraftSession: (identity) => {
       if (identity !== null && !isDraftSessionIdentity(identity)) return;
       const current = get().liveSession;
       if (current?.provider === identity?.provider && current?.draftId === identity?.draftId) return;
       const serialized = identity ? readStoredDraftSessionText(storage, identity) : null;
       const saved = identity ? parseStoredDraftSession(serialized, identity) : null;
-      set((state) => {
+      loadSession((state) => {
         // Rebase inside the transition, after the pre-change check of the previous session.
         persistence.base = saved
           ? { revision: saved.revision, serialized, lineage: saved.lineage, session: saved }
@@ -97,12 +75,6 @@ export function createSessionActions(
         state.filter = { ...defaultFilter };
       });
     },
-    enterManualContinuity: (baselineAt) => {
-      if (!Number.isFinite(baselineAt) || baselineAt < 0) return;
-      set((state) => {
-        if (state.sessionMode !== 'live' || state.liveSession?.provider !== 'sleeper') return;
-        state.manualContinuityBaselineAt = baselineAt;
-      });
-    },
+
   };
 }

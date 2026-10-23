@@ -1,9 +1,0 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
-
-exports[`synced mock scoring and roster overrides > never reuses another league profile when the new draft supplies none > documented deriveDraft mismatches 1`] = `[]`;
-
-exports[`synced mock scoring and roster overrides > preserves synced picks, snake slot, and mock rounds when changing practice rules > documented deriveDraft mismatches 1`] = `[]`;
-
-exports[`synced mock scoring and roster overrides > uses the Primary League profile only with explicit Sleeper opt-in > documented deriveDraft mismatches 1`] = `[]`;
-
-exports[`uses explicit quick mock scoring with provider size while keeping canonical picks > documented deriveDraft mismatches 1`] = `[]`;

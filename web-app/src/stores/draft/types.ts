@@ -121,6 +121,7 @@ export interface UnresolvedProviderPick {
 }
 
 export interface DraftReconciliationResult {
+  readonly refused?: true;
   /** Whether applying the provider snapshot changed canonical draft state. */
   readonly changed: boolean;
   /** Provisional Picks that matched Provider Truth at the same draft position. */
@@ -158,10 +159,7 @@ export interface DraftState {
   mockAutoAdvance: MockAutoAdvanceState;
 
   // Draft progress
-  currentPick: number;
   draftProgress: DraftProgress;
-  /** All unavailable players: completed picks plus keepers reserved for future round selections. */
-  draftedPlayerIds: Set<string>;
   draftHistory: RecordedDraftPick[];
   shortlistedPlayerIds: string[];
   preloadedKeepers: PreloadedKeeper[];
@@ -170,17 +168,9 @@ export interface DraftState {
   /** Provider picks excluded from canonical state until their player identity resolves. */
   unresolvedProviderPicks: UnresolvedProviderPick[];
 
-  // My team
-  myRoster: MutableRoster;
-  /** Canonical roster for every draft slot, including keepers and provisional picks. */
-  teamRosters: MutableRoster[];
-
   // UI state
   decisionLens: DecisionLens;
   filter: FilterState;
-
-  // Computed
-  totalPicks: number;
 }
 
 /**
@@ -244,4 +234,4 @@ export interface DraftActions {
 export type DraftStore = DraftState & DraftActions;
 
 
-export type SetDraftState = (transition: (state: Draft<DraftStore>) => void) => void;
+export type SetDraftState = (transition: (state: Draft<DraftState>) => void) => boolean;

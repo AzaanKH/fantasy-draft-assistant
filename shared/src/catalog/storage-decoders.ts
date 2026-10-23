@@ -2,6 +2,7 @@ import { DRAFT_SESSION_LINEAGE_LIMIT, isDraftSessionIdentity, isDraftSyncConnect
 import { isQuickMockPreferences } from '../draft/quick-mock-settings.js';
 export { DRAFT_SESSION_LINEAGE_LIMIT, isDraftSessionIdentity, isDraftSyncConnection, isValidDraftSyncId, isQuickMockPreferences };
 import { Schema } from 'effect';
+import { deriveDraftCursor, type DraftProgress } from '../draft-progress.js';
 import { isLeagueSettings, isRosterRequirements } from '../league-settings.js';
 import { createSlotSequence } from '../draft-order.js';
 import { MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS, isDraftSize } from '../limits.js';
@@ -59,6 +60,7 @@ const keepers = /* @__PURE__ */ Schema.Array(keeper).check(/* @__PURE__ */ Schem
 const unresolved = /* @__PURE__ */ Schema.Array(unresolvedPick).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
 const lens = /* @__PURE__ */ Schema.Literals(['best-pick', 'best-player']);
 const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal(1), identity, config, leagueSettings,
+  draftProgress: /* @__PURE__ */ Schema.optional(Schema.Unknown),
   currentPick: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1), draftHistory: history, preloadedKeepers: keepers,
   shortlistedPlayerIds: playerIds, keepersInitialized: Schema.Boolean, unresolvedProviderPicks: unresolved,
   decisionLens: lens, manualContinuityBaselineAt: nullableTimestamp, lastConfirmedSyncAt: nullableTimestamp,
@@ -77,7 +79,59 @@ const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal
     value.preloadedKeepers.every(row => row.teamIndex < c.totalTeams && row.round <= c.totalRounds) &&
     value.unresolvedProviderPicks.every(row => row.pickNumber <= total);
 }));
-export const decodeStoredDraftSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
+const progressPick = /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1);
+// Keeper slots and bounds belong to the accepted command, even after the draft format changes.
+const reservedSlots = {
+  keeperSlots: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS))
+    .check(/* @__PURE__ */ Schema.makeFilter(slots => slots.length <= MAX_DRAFT_PICKS && new Set(slots).size === slots.length)),
+  totalPicks: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS),
+};
+const reservedAnchor = /* @__PURE__ */ Schema.Union([
+  /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('provider'), nextPickNumber: Schema.Finite, ...reservedSlots }),
+  /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('first-open'), ...reservedSlots }),
+  /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('past-keepers'), fromPick: progressPick, ...reservedSlots }),
+]).check(/* @__PURE__ */ Schema.makeFilter(anchor => anchor.keeperSlots.every(slot => slot <= anchor.totalPicks)));
+const progress = /* @__PURE__ */ object({
+  anchor: /* @__PURE__ */ Schema.Union([
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('start') }),
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('branch'), pickNumber: progressPick }),
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('reopen'), pickNumber: progressPick }),
+    /* @__PURE__ */ object({ kind: /* @__PURE__ */ Schema.Literal('carry'), pickNumber: progressPick }),
+    reservedAnchor,
+  ]),
+  historyLength: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS),
+  historyPrefix: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Array(/* @__PURE__ */ integer(1, MAX_DRAFT_PICKS))),
+}).check(/* @__PURE__ */ Schema.makeFilter(value => value.historyPrefix === undefined ||
+  value.historyPrefix.length === value.historyLength && new Set(value.historyPrefix).size === value.historyPrefix.length));
+const decodeProgress = /* @__PURE__ */ Schema.decodeUnknownSync(progress);
+const decodeSession = /* @__PURE__ */ Schema.decodeUnknownSync(session);
+export const decodeStoredDraftSessionRecord = decodeSession;
+export const decodeStoredDraftPick = /* @__PURE__ */ Schema.decodeUnknownSync(recordedPick);
+export const decodeStoredDraftKeeper = /* @__PURE__ */ Schema.decodeUnknownSync(keeper);
+export const decodeStoredUnresolvedPick = /* @__PURE__ */ Schema.decodeUnknownSync(unresolvedPick);
+export const decodeStoredPlayerId = /* @__PURE__ */ Schema.decodeUnknownSync(text);
+export const decodeStoredDraftProgress = decodeProgress;
+export function decodeStoredDraftSession(input: unknown): ReturnType<typeof decodeSession> & { readonly draftProgress: DraftProgress } {
+  const value = decodeSession(input);
+  // Legacy reloads sort picks; validate the command prefix against that same order.
+  const draftHistory = [...value.draftHistory].sort((left, right) => left.pickNumber - right.pickNumber);
+  let draftProgress: DraftProgress = {
+    anchor: { kind: 'carry', pickNumber: value.currentPick }, historyLength: value.draftHistory.length,
+  };
+  if (value.draftProgress !== undefined) {
+    try {
+      const decoded = decodeProgress(value.draftProgress);
+      if (decoded.historyLength > value.draftHistory.length ||
+          deriveDraftCursor(draftHistory, decoded) !== value.currentPick) {
+        throw new Error('Progress does not match the saved history and cursor');
+      }
+      draftProgress = decoded;
+    } catch {
+      console.warn('[Fantasy Draft] Could not restore stored draft progress; imported the saved cursor as carry.', { identity: value.identity });
+    }
+  }
+  return { ...value, draftHistory, draftProgress };
+}
 
 function change<S extends Schema.Top>(schema: S) { return /* @__PURE__ */ object({ before: schema, after: schema }); }
 const changeFields = {
