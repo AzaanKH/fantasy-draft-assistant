@@ -8,7 +8,7 @@ import { inspectProductionBuild, createStaticHandler, verifyProductionHttp, veri
 import { createDiagnostics, createNavigationGuard } from './ui-diagnostics.mjs';
 import { buildReadinessFixture, FIXTURE_LEAGUE } from './ui-readiness.mjs';
 import { PREFLIGHT_SCOPE, PREFLIGHT_PLAN, evaluateReachability, assertNoPreflightWorkload, assertWorkloadAllowed, inspectControl, inspectAssistantMoves, runReconcilePhases } from './ui-reachability.mjs';
-import { runnerMode } from './ui-runner-mode.mjs';
+import { runnerMode, runnerExitCode } from './ui-runner-mode.mjs';
 import { resetExtensionWorker, workerResetPasses } from './ui-worker.mjs';
 import { prepareConflict, submitConflict, auditObservedConflict } from './ui-conflict.mjs';
 import { ROOT_SMOKE_SCOPE, ROOT_SMOKE_PLAN, runRootSmokeSteps, evaluateRootSmoke } from './ui-root-smoke.mjs';
@@ -1322,7 +1322,6 @@ try {
   if (tier2) results.tier2 = evaluateTier2(results);
   await save();
 
-  if (results.scenarioErrors.length || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes) || (rootTier2Preflight && !results.reachability?.passes)) process.exitCode = 1;
 } catch (error) {
   results.fatal = { name: error.name, message: error.message, stack: error.stack }; await save(); console.error(error); process.exitCode = 1;
 } finally {
@@ -1341,12 +1340,11 @@ try {
       results.metadata.gitEnd.head === gitStart.head && !results.metadata.gitEnd.status && !results.commandStarts.length && !results.commandLog.length &&
       !results.productionNavigationDefect && !results.fatal && !results.scenarioErrors.length && !results.pageErrors.length && !results.cleanupErrors.length,
       workloadCommands: results.commandStarts.length, fullMatrixClaim: false };
-    if (!results.setupCheck.passes) process.exitCode = 1;
   }
   if (rootTier2Smoke) results.rootSmoke = evaluateRootSmoke(results);
   if (rootTier2Preflight) results.reachability = evaluateReachability(results);
   if (tier2) results.tier2 = evaluateTier2(results);
-  if (results.scenarioErrors.length || results.pageErrors.length || results.cleanupErrors.length || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (flag('gate') && !results.gate.passes) || (rootTier2Smoke && !results.rootSmoke?.passes) || (rootTier2Preflight && !results.reachability?.passes)) process.exitCode = 1;
+  process.exitCode = runnerExitCode(results, { tier2, gate: flag('gate'), rootTier2Smoke, rootTier2Preflight });
   await save();
 }
 

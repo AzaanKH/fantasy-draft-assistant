@@ -10,3 +10,11 @@ export function runnerMode(args) {
     bursts: false, control: false, lifecycle: false, burstPicksPerActor: 0 } : rootTier2Smoke ? { suites: 1, seeds: 1, perActor: 150,
     pickConflicts: 20, moveConflicts: 20, bursts: false, control: false, lifecycle: true, burstPicksPerActor: 60 } : {} };
 }
+
+/** Decided once, after cleanup: the scoped evaluators need the end-of-run git and hash snapshot, so a pre-cleanup verdict is never final. */
+export function runnerExitCode(results, { tier2 = false, gate = false, rootTier2Smoke = false, rootTier2Preflight = false } = {}) {
+  const failed = !!results.fatal || results.setupCheck?.passes === false || results.scenarioErrors.length > 0 || results.pageErrors.length > 0 ||
+    results.cleanupErrors.length > 0 || !results.metadata.sourceStable || (tier2 && !results.tier2?.passes) || (gate && !results.gate?.passes) ||
+    (rootTier2Smoke && !results.rootSmoke?.passes) || (rootTier2Preflight && !results.reachability?.passes);
+  return failed ? 1 : 0;
+}
