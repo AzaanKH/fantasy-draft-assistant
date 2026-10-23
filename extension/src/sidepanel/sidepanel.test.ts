@@ -72,3 +72,57 @@ describe('side panel stored URL', () => {
     });
   });
 });
+
+
+describe('side panel background projections', () => {
+  function stubBackground(response: unknown): { readonly receive: (message: unknown) => void } {
+    let listener: ((message: unknown) => void) | undefined;
+    vi.stubGlobal('chrome', {
+      storage: { local: { get: vi.fn().mockResolvedValue({}) }, onChanged: { addListener: vi.fn() } },
+      runtime: {
+        sendMessage: vi.fn().mockResolvedValue(response),
+        onMessage: { addListener: (handler: (message: unknown) => void) => { listener = handler; } },
+      },
+    });
+    return { receive: (message) => { listener?.(message); } };
+  }
+
+  it('uses only the response status and draft context, without decoding draft rows', async () => {
+    stubBackground({ success: true, data: {
+      status: { isInDraftRoom: true, provider: 'espn', draftId: '4242', myDraftSlot: 5, status: 'unused-by-ui' },
+      picks: [null],
+    } });
+    await import('./sidepanel');
+    await vi.waitFor(() => {
+      expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?position=5&provider=espn&draftId=4242`);
+    });
+  });
+
+  it('reads snapshot provider and draftId without claiming a complete sync snapshot', async () => {
+    stubBackground({ success: true, data: {
+      status: { isInDraftRoom: true }, snapshot: { provider: 'yahoo', draftId: 'league-42' },
+    } });
+    await import('./sidepanel');
+    await vi.waitFor(() => {
+      expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?provider=yahoo&leagueId=league-42`);
+    });
+  });
+
+  it('projects SYNC_STATE messages and rejects malformed consumed fields', async () => {
+    const { receive } = stubBackground({ success: true, data: { status: { isInDraftRoom: false } } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await import('./sidepanel');
+    await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?provider=espn`); });
+    receive({ type: 'SYNC_STATE', data: {
+      status: { isInDraftRoom: true, provider: 'sleeper', draftId: '123', myDraftSlot: 4 },
+      snapshot: null,
+    } });
+    const expected = `${DEFAULT_WEB_APP_URL}/sidepanel?position=4&provider=sleeper&draftId=123`;
+    expect(document.querySelector('iframe')?.src).toBe(expected);
+    for (const status of [{ isInDraftRoom: 'yes' }, { isInDraftRoom: true, myDraftSlot: 1.5 }, { isInDraftRoom: true, provider: 42 }]) {
+      receive({ type: 'SYNC_STATE', data: { status } });
+      expect(document.querySelector('iframe')?.src).toBe(expected);
+    }
+    expect(warn).toHaveBeenCalledTimes(3);
+  });
+});

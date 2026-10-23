@@ -1,11 +1,15 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
   type Player,
   type Position,
-  type RosterRequirements,
   POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
+import {
+  type RosterRequirements,
+} from '@fantasy-draft/shared/league';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, ListPlus, Search } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
@@ -20,7 +24,6 @@ import { useQueueActions } from '@/hooks/useQueueActions';
 import { useUndraftedPlayers } from '@/hooks/useUndraftedPlayers';
 import { cn } from '@/lib/utils';
 import { formatSignedNumber } from '@fantasy-draft/shared/draft';
-import { useDraftStore } from '@/stores/draftStore';
 import { describePausedAdvice, getPlayerPoolRows, type PositionFilter } from './player-pool-rows';
 import { getRosterSlots } from './roster-slots';
 
@@ -123,11 +126,11 @@ export function DraftPlayerPool(): React.ReactElement {
   const [searchQuery, setSearchQuery] = React.useState('');
   const playerListRef = React.useRef<HTMLDivElement>(null);
   const deferredSearchQuery = React.useDeferredValue(searchQuery.trim().toLowerCase());
-  const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(basePlayers);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const config = useDraftStore((state) => state.config);
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const config = useDraftState((state) => state.config);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 

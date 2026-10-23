@@ -1,4 +1,5 @@
-import { DEFAULT_ROSTER_REQUIREMENTS, type Position } from '@fantasy-draft/shared';
+import { type Position } from '@fantasy-draft/shared/league';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared/league';
 import { describe, expect, it } from 'vitest';
 
 import {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared/league';
 import {
   DEFAULT_PICK_EV_LAYERS,
   scorePickEvBoard,

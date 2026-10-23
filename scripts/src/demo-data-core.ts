@@ -1,11 +1,13 @@
 import type {
+  NFLTeam,
+  Position,
+} from '@fantasy-draft/shared/league';
+import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
   FantasyProsProjection,
   FantasyProsSnapshot,
-  NFLTeam,
-  Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 
 /**
  * The public demo ships real players with rankings from the FantasyPros-free

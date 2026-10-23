@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { fetchJson, HttpRequestError, io, isEntryPoint, runMain } from './effect-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -44,63 +44,48 @@ interface LeagueDraftPickOverride {
   readonly note: string;
 }
 
-interface SleeperDraft {
-  readonly draft_id: string;
-  readonly league_id: string;
-  readonly season: string;
-  readonly status: string;
-  readonly type: string;
-  readonly start_time: number;
-  readonly settings: Record<string, number>;
-  readonly metadata: {
-    readonly name?: string;
-    readonly scoring_type?: string;
-  } | null;
-  readonly draft_order: Record<string, number> | null;
+function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
+  return Schema.StructWithRest(Schema.Struct(fields), [Schema.Record(Schema.String, Schema.Unknown)]);
 }
-
-interface SleeperLeague {
-  readonly league_id: string;
-  readonly name: string;
-  readonly season: string;
-  readonly settings: Record<string, number>;
-  readonly scoring_settings: Record<string, number>;
-  readonly roster_positions: readonly string[];
-}
-
-interface SleeperDraftPick {
-  readonly round: number;
-  readonly roster_id: number;
-  readonly player_id: string;
-  readonly picked_by: string;
-  readonly pick_no: number;
-  readonly metadata: {
-    readonly first_name?: string;
-    readonly last_name?: string;
-    readonly position?: string;
-    readonly team?: string;
-    readonly status?: string;
-  } | null;
-  readonly is_keeper: boolean | null;
-  readonly draft_slot: number;
-  readonly draft_id: string;
-}
-
-interface SleeperRoster {
-  readonly roster_id: number;
-  readonly owner_id: string | null;
-  readonly league_id: string;
-  readonly metadata?: Record<string, unknown> | null;
-  readonly settings?: Record<string, number>;
-  readonly players?: readonly string[] | null;
-}
-
-interface SleeperUser {
-  readonly user_id: string;
-  readonly display_name: string;
-  readonly metadata?: Record<string, unknown> | null;
-  readonly settings?: Record<string, unknown> | null;
-}
+const numberRecord = Schema.Record(Schema.String, Schema.Finite);
+const unknownRecord = Schema.Record(Schema.String, Schema.Unknown);
+const sleeperDraftSchema = openStruct({
+  draft_id: Schema.String, league_id: Schema.String, season: Schema.String, status: Schema.String,
+  type: Schema.String, start_time: Schema.Finite, settings: numberRecord,
+  metadata: Schema.NullOr(openStruct({ name: Schema.optional(Schema.String), scoring_type: Schema.optional(Schema.String) })),
+  draft_order: Schema.NullOr(numberRecord),
+});
+const sleeperLeagueSchema = openStruct({
+  league_id: Schema.String, name: Schema.String, season: Schema.String,
+  settings: numberRecord, scoring_settings: numberRecord, roster_positions: Schema.Array(Schema.String),
+});
+const sleeperDraftPickSchema = openStruct({
+  round: Schema.Finite, roster_id: Schema.Finite, player_id: Schema.String, picked_by: Schema.String,
+  pick_no: Schema.Finite, draft_slot: Schema.Finite, draft_id: Schema.String,
+  metadata: Schema.NullOr(openStruct({
+    first_name: Schema.optional(Schema.String), last_name: Schema.optional(Schema.String),
+    position: Schema.optional(Schema.String), team: Schema.optional(Schema.String), status: Schema.optional(Schema.String),
+  })),
+  is_keeper: Schema.NullOr(Schema.Boolean),
+});
+const sleeperRosterSchema = openStruct({
+  roster_id: Schema.Finite, owner_id: Schema.NullOr(Schema.String), league_id: Schema.String,
+  metadata: Schema.optional(Schema.NullOr(unknownRecord)), settings: Schema.optional(numberRecord),
+  players: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+});
+const sleeperUserSchema = openStruct({
+  user_id: Schema.String, display_name: Schema.String,
+  metadata: Schema.optional(Schema.NullOr(unknownRecord)), settings: Schema.optional(Schema.NullOr(unknownRecord)),
+});
+type SleeperDraftPick = typeof sleeperDraftPickSchema.Type;
+type SleeperRoster = typeof sleeperRosterSchema.Type;
+type SleeperUser = typeof sleeperUserSchema.Type;
+export const decodeLeagueHistoryDraft = Schema.decodeUnknownSync(sleeperDraftSchema);
+export const decodeLeagueHistoryPicks = Schema.decodeUnknownSync(Schema.Array(sleeperDraftPickSchema));
+const decodeLeagueHistoryLeague = Schema.decodeUnknownSync(sleeperLeagueSchema);
+export const decodeLeagueHistoryRosters = Schema.decodeUnknownSync(Schema.Array(sleeperRosterSchema));
+export const decodeLeagueHistoryUsers = Schema.decodeUnknownSync(Schema.Array(sleeperUserSchema));
+const isNumberMap = Schema.is(numberRecord);
 
 interface LeagueDraftPick {
   readonly season: number;
@@ -237,95 +222,12 @@ const USER_2024_PICK_OVERRIDES: readonly LeagueDraftPickOverride[] = [
   },
 ];
 
-type Validator<T> = (value: unknown) => value is T;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isNumberRecord(value: unknown): value is Record<string, number> {
-  return isRecord(value) && Object.values(value).every((entry) => typeof entry === 'number');
-}
-
-function isStringNumberRecord(value: unknown): value is Record<string, number> {
-  return isNumberRecord(value);
-}
-
-function isNullableString(value: unknown): value is string | null {
-  return typeof value === 'string' || value === null;
-}
-
-function isSleeperDraft(value: unknown): value is SleeperDraft {
-  return (
-    isRecord(value) &&
-    typeof value.draft_id === 'string' &&
-    typeof value.league_id === 'string' &&
-    typeof value.season === 'string' &&
-    typeof value.status === 'string' &&
-    typeof value.type === 'string' &&
-    typeof value.start_time === 'number' &&
-    isNumberRecord(value.settings) &&
-    (value.draft_order === null || isStringNumberRecord(value.draft_order))
-  );
-}
-
-function isSleeperLeague(value: unknown): value is SleeperLeague {
-  return (
-    isRecord(value) &&
-    typeof value.league_id === 'string' &&
-    typeof value.name === 'string' &&
-    typeof value.season === 'string' &&
-    isNumberRecord(value.settings) &&
-    isNumberRecord(value.scoring_settings) &&
-    Array.isArray(value.roster_positions) &&
-    value.roster_positions.every((position) => typeof position === 'string')
-  );
-}
-
-function isSleeperDraftPick(value: unknown): value is SleeperDraftPick {
-  return (
-    isRecord(value) &&
-    typeof value.round === 'number' &&
-    typeof value.roster_id === 'number' &&
-    typeof value.player_id === 'string' &&
-    typeof value.picked_by === 'string' &&
-    typeof value.pick_no === 'number' &&
-    typeof value.draft_slot === 'number' &&
-    typeof value.draft_id === 'string' &&
-    (value.metadata === null || isRecord(value.metadata))
-  );
-}
-
-function isSleeperRoster(value: unknown): value is SleeperRoster {
-  return (
-    isRecord(value) &&
-    typeof value.roster_id === 'number' &&
-    isNullableString(value.owner_id) &&
-    typeof value.league_id === 'string'
-  );
-}
-
-function isSleeperUser(value: unknown): value is SleeperUser {
-  return (
-    isRecord(value) &&
-    typeof value.user_id === 'string' &&
-    typeof value.display_name === 'string'
-  );
-}
-
-function isArrayOf<T>(validator: Validator<T>): Validator<readonly T[]> {
-  return (value: unknown): value is readonly T[] =>
-    Array.isArray(value) && value.every((entry) => validator(entry));
-}
-
-function sleeperRequest<T>(path: string, validator: Validator<T>): Effect.Effect<T, HttpRequestError> {
+function sleeperRequest<T>(path: string, decode: (value: unknown) => T): Effect.Effect<T, HttpRequestError> {
   const url = `${SLEEPER_API_BASE}${path}`;
-  return fetchJson<unknown>(url, { label: 'Sleeper', timeoutMs: FETCH_TIMEOUT_MS }).pipe(
-    Effect.filterOrFail(validator, () => new HttpRequestError({
-      message: `Sleeper response did not match expected shape for ${url}`,
-      url,
-    })),
-  );
+  return fetchJson(url, decode, { label: 'Sleeper', timeoutMs: FETCH_TIMEOUT_MS }, error => new HttpRequestError({
+    message: `Sleeper response did not match expected shape for ${url}: ${String(error)}`,
+    url,
+  }));
 }
 
 async function writeJson(path: string, data: unknown): Promise<void> {
@@ -375,12 +277,13 @@ export function sanitizeRawValue(value: unknown): unknown {
     return value.map((entry) => sanitizeRawValue(entry));
   }
 
-  if (!isRecord(value)) {
+  if (typeof value !== 'object' || value === null) {
     return value;
   }
 
+  const entries: [string, unknown][] = Object.entries(value);
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => {
+    entries.map(([key, entry]) => {
       if (key.startsWith('p_nick_')) {
         return [key, REDACTED];
       }
@@ -389,7 +292,7 @@ export function sanitizeRawValue(value: unknown): unknown {
         return [key, typeof entry === 'string' ? pseudonymizeUserId(entry) : entry];
       }
 
-      if (key === 'draft_order' && isStringNumberRecord(entry)) {
+      if (key === 'draft_order' && isNumberMap(entry)) {
         return [
           key,
           Object.fromEntries(
@@ -401,7 +304,7 @@ export function sanitizeRawValue(value: unknown): unknown {
         ];
       }
 
-      if (key === 'reactions' && isRecord(entry)) {
+      if (key === 'reactions' && typeof entry === 'object' && entry !== null && !Array.isArray(entry)) {
         return [
           key,
           Object.fromEntries(
@@ -559,19 +462,19 @@ function buildWarnings(seasons: readonly LeagueSeasonHistory[]): readonly string
 
 const importSeason = Effect.fn('importSeason')(function* (config: LeagueDraftConfig) {
   const [draft, picks, league, rosters, users] = yield* Effect.all([
-    sleeperRequest<SleeperDraft>(`/draft/${config.draftId}`, isSleeperDraft),
-    sleeperRequest<readonly SleeperDraftPick[]>(
+    sleeperRequest(`/draft/${config.draftId}`, decodeLeagueHistoryDraft),
+    sleeperRequest(
       `/draft/${config.draftId}/picks`,
-      isArrayOf(isSleeperDraftPick)
+      decodeLeagueHistoryPicks
     ),
-    sleeperRequest<SleeperLeague>(`/league/${config.leagueId}`, isSleeperLeague),
-    sleeperRequest<readonly SleeperRoster[]>(
+    sleeperRequest(`/league/${config.leagueId}`, decodeLeagueHistoryLeague),
+    sleeperRequest(
       `/league/${config.leagueId}/rosters`,
-      isArrayOf(isSleeperRoster)
+      decodeLeagueHistoryRosters
     ),
-    sleeperRequest<readonly SleeperUser[]>(
+    sleeperRequest(
       `/league/${config.leagueId}/users`,
-      isArrayOf(isSleeperUser)
+      decodeLeagueHistoryUsers
     ),
   ], { concurrency: 'unbounded' });
   const resolvedTeamCount = draft.settings.teams ?? league.settings.num_teams ?? null;

@@ -2,7 +2,7 @@ import { RANKING_LABELS } from '@/lib/demo-mode';
 import type {
   DecisionDivergenceFactor,
   Recommendation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/draft';
 import { formatSignedNumber } from '@fantasy-draft/shared/draft';
 
 function sentenceCase(value: string): string {

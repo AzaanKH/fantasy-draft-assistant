@@ -1,68 +1,24 @@
-import { POSITIONS } from '@fantasy-draft/shared';
+import { http, HttpError } from '@fantasy-draft/shared/http';
+import { BROWSER_HTTP_POLICY } from '@/lib/http';
+import { CATALOG, catalogPath, decodeLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
 import type { LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isLeagueSurvivalPositionSummary(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof value['position'] === 'string' &&
-    isNumber(value['leagueMedianPick']) &&
-    isNumber(value['sleeperMedianPick']) &&
-    isNumber(value['pickPremium']) &&
-    isNumber(value['top50RateDelta']) &&
-    isNumber(value['top100RateDelta']) &&
-    isNumber(value['sampleSize'])
-  );
-}
-
-export function isLeagueSurvivalModel(value: unknown): value is LeagueSurvivalModel {
-  if (
-    !isRecord(value) ||
-    typeof value['generatedAt'] !== 'string' ||
-    typeof value['modelVersion'] !== 'string' ||
-    typeof value['leagueName'] !== 'string' ||
-    !Array.isArray(value['seasons']) ||
-    !value['seasons'].every(isNumber) ||
-    !isNumber(value['sampleSize']) ||
-    !isRecord(value['positions'])
-  ) {
-    return false;
+export async function fetchLeagueSurvivalModel(): Promise<(LeagueSurvivalModel & { readonly warnings: readonly string[] }) | null> {
+  try {
+    return await http.json(`/${catalogPath(CATALOG.survival)}`, parsed => {
+      const warnings: string[] = [];
+      try {
+        const model = decodeLeagueSurvivalModel(parsed, { onWarning: message => warnings.push(message) });
+        return { ...model, warnings };
+      } catch (error) {
+        throw new Error(`Invalid league survival model shape from /${catalogPath(CATALOG.survival)}: ${String(error)}`);
+      }
+    }, BROWSER_HTTP_POLICY);
+  } catch (error) {
+    if (error instanceof HttpError && error.kind === 'status') {
+      if (error.status === 404) return null;
+      throw new Error(`Failed to load league survival model: ${String(error.status)}`);
+    }
+    throw error;
   }
-
-  const positions = value['positions'];
-  const historicalPickNumbers = value['historicalPickNumbers'];
-  return POSITIONS.every((position) =>
-    isLeagueSurvivalPositionSummary(positions[position])
-  ) && (
-    historicalPickNumbers === undefined ||
-    (
-      isRecord(historicalPickNumbers) &&
-      POSITIONS.every((position) =>
-        Array.isArray(historicalPickNumbers[position]) &&
-        historicalPickNumbers[position].every(isNumber)
-      )
-    )
-  );
-}
-
-export async function fetchLeagueSurvivalModel(): Promise<LeagueSurvivalModel | null> {
-  const response = await fetch('/data/league-history/survival-model.json');
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok) {
-    throw new Error(`Failed to load league survival model: ${String(response.status)}`);
-  }
-  const parsed = await response.json() as unknown;
-  if (!isLeagueSurvivalModel(parsed)) {
-    throw new Error('Invalid league survival model shape from /data/league-history/survival-model.json');
-  }
-  return parsed;
 }

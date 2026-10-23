@@ -7,7 +7,8 @@ import { NotificationProvider } from './components/notifications';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 import { applyTheme, readStoredTheme } from './features/theme/theme';
 import { LivePlayerDataProvider } from './hooks/usePlayerData';
-import { initializeDraftSyncConnection } from './stores/draftSyncStore';
+import { createBrowserWorkspace } from './workspace/browser-workspace';
+import { WorkspaceProvider } from './workspace/WorkspaceProvider';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -18,7 +19,8 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 const visualRouteRequested = window.location.pathname.startsWith('/__visual/');
 
-function renderNormalApp(app: ReactElement): void {
+function renderNormalApp(app: ReactElement, harnessFactory?: () => import('./workspace/workspace').Workspace): void {
+  const workspace = createBrowserWorkspace(window.location.search, harnessFactory);
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -32,11 +34,13 @@ function renderNormalApp(app: ReactElement): void {
     <StrictMode>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <LivePlayerDataProvider>
-            <NotificationProvider>
-              <TooltipProvider><MotionProvider>{app}</MotionProvider></TooltipProvider>
-            </NotificationProvider>
-          </LivePlayerDataProvider>
+          <WorkspaceProvider workspace={workspace}>
+            <LivePlayerDataProvider>
+              <NotificationProvider>
+                <TooltipProvider><MotionProvider>{app}</MotionProvider></TooltipProvider>
+              </NotificationProvider>
+            </LivePlayerDataProvider>
+          </WorkspaceProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </StrictMode>
@@ -56,14 +60,22 @@ if (import.meta.env.DEV && visualRouteRequested) {
   });
 } else if (visualRouteRequested) {
   root.render(<main>Not found</main>);
+} else if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' && new URLSearchParams(location.search).has('__storageProbe')) {
+  void import('./workspace/storage-sharing').then(({ serveStorageProbe }) => serveStorageProbe(new URLSearchParams(location.search).get('__storageProbe') ?? '', { canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN) })).catch((error: unknown) => { root.render(<main role="alert">{String(error)}</main>); });
 } else {
-  void import('./App').then(({ App }) => {
+  void import('./App').then(async ({ App }) => {
     applyTheme(readStoredTheme());
-    initializeDraftSyncConnection(window.location.search);
-    renderNormalApp(<App />);
-  }).catch(() => {
+    let harnessFactory: (() => import('./workspace/workspace').Workspace) | undefined;
+    if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+      const { verifyStorageSharing } = await import('./workspace/storage-sharing');
+      const verified = await verifyStorageSharing({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN), location: window.location });
+      const { createHarnessWorkspace } = await import('./workspace/harness-workspace');
+      harnessFactory = () => createHarnessWorkspace(verified);
+    }
+    renderNormalApp(<App />, harnessFactory);
+  }).catch((error: unknown) => {
     root.render(
-      <main role="alert">Unable to load the draft app. Please reload the page.</main>
+      <main role="alert" data-storage-blocked={import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' ? String(error) : undefined}>Unable to load the draft app. Please reload the page.</main>
     );
   });
 }

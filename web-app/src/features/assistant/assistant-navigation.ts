@@ -1,4 +1,5 @@
-import type { Player, Position, Recommendation } from '@fantasy-draft/shared';
+import type { Player, Position } from '@fantasy-draft/shared/league';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 
 export type AssistantLens = 'why' | 'compare' | 'wait' | 'roster';
 

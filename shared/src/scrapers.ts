@@ -1,28 +1,6 @@
 import type { NFLTeam, Position } from './player.js';
 
-/**
- * Raw player data from FantasyPros ECR scraping
- * This is the intermediate format before enrichment
- */
-export interface ECRPlayer {
-  /** Stable FantasyPros player identifier when the API supplied it. */
-  readonly fantasyProsId?: string;
-  /** Published FantasyPros tier when the rankings source exposes tier headers. */
-  readonly fantasyProsTier?: number;
-  readonly rank: number;
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-  readonly byeWeek: number;
-  /** Position-specific rank (e.g., WR5 = 5) */
-  readonly positionalRank: number;
-  /** Best rank from experts */
-  readonly bestRank: number;
-  /** Worst rank from experts */
-  readonly worstRank: number;
-  /** Average rank from experts */
-  readonly avgRank: number;
-}
+export type { ECRPlayer } from './catalog/decoders.js';
 
 /**
  * Contract year player data from Spotrac

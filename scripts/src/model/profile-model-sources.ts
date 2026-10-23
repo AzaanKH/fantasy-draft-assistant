@@ -1,3 +1,4 @@
+import { decodeDuckDbTableCounts, decodeProfileCoverageRows, decodeProfilePositionRows } from '../script-file-schemas.js';
 /**
  * Profiles the local DuckDB model sources and writes a compact JSON report.
  *
@@ -12,30 +13,6 @@ import {
   withModelDb,
 } from './duckdb.js';
 import { io, runMain } from '../effect-runtime.js';
-
-interface CountRow {
-  readonly table_name: string;
-  readonly row_count: bigint;
-}
-
-interface CoverageRow {
-  readonly total_players: bigint;
-  readonly with_ecr: bigint;
-  readonly with_projection: bigint;
-  readonly with_team_environment: bigint;
-  readonly with_news: bigint;
-  readonly rookies: bigint;
-  readonly limited_experience: bigint;
-}
-
-interface PositionRow {
-  readonly position: string;
-  readonly total_players: bigint;
-  readonly with_ecr: bigint;
-  readonly with_projection: bigint;
-  readonly avg_sleeper_adp: number | null;
-  readonly avg_ecr_rank: number | null;
-}
 
 function asNumber(value: bigint | number | null): number | null {
   if (value === null) return null;
@@ -106,11 +83,11 @@ const program = Effect.gen(function* () {
       limit 25
     `);
 
-    const coverage = coverageReader.getRowObjects()[0] as CoverageRow | undefined;
+    const coverage = decodeProfileCoverageRows(coverageReader.getRowObjects())[0];
     const report = {
       generatedAt: new Date().toISOString(),
       source: MODEL_DB_PATH,
-      tables: (countsReader.getRowObjects() as unknown as CountRow[]).map((row) => ({
+      tables: decodeDuckDbTableCounts(countsReader.getRowObjects()).map((row) => ({
         tableName: row.table_name,
         rowCount: Number(row.row_count),
       })),
@@ -125,7 +102,7 @@ const program = Effect.gen(function* () {
             limitedExperience: Number(coverage.limited_experience),
           }
         : null,
-      byPosition: (positionReader.getRowObjects() as unknown as PositionRow[]).map((row) => ({
+      byPosition: decodeProfilePositionRows(positionReader.getRowObjects()).map((row) => ({
         position: row.position,
         totalPlayers: Number(row.total_players),
         withEcr: Number(row.with_ecr),

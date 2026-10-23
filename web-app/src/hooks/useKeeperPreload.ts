@@ -1,99 +1,20 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Player, Position } from '@fantasy-draft/shared';
-import { normalizePlayerName } from '@fantasy-draft/shared/draft';
+import type { Player, Position } from '@fantasy-draft/shared/league';
+import { normalizePlayerName, canonicalizeKeeperSupply, isKeeperSupplyComplete, type KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 import { IS_DEMO } from '@/lib/demo-mode';
-import {
-  canonicalizeKeeperSupply,
-  isKeeperSupplyComplete,
-} from '@/lib/keeper-supply';
-import {
-  useDraftStore,
-  type PreloadedKeeper,
-} from '@/stores/draftStore';
+import { type PreloadedKeeper } from '@/stores/draftStore';
+import { decodeKeeperFile, type KeeperFile } from '@fantasy-draft/shared/catalog';
 
-interface CurrentKeeperEntry {
-  readonly playerId?: string;
-  readonly playerName: string;
-  readonly position: Position;
-  /** One-based league team number. */
-  readonly team: number;
-  readonly round: number;
-  readonly isMyKeeper?: boolean;
-}
+export type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 
-interface CurrentKeepersFile {
-  readonly updatedAt: string | null;
-  readonly season: number;
-  readonly keepers: readonly CurrentKeeperEntry[];
-}
-
-export interface KeeperPreloadStatus {
-  readonly season?: number;
-  readonly confirmedAt: string | null;
-  readonly configuredCount: number;
-  readonly resolvedCount: number;
-  readonly canonicalCount: number;
-  readonly unresolvedNames: readonly string[];
-  /** Keeper entries that resolved to a player already kept by another entry. */
-  readonly duplicateNames: readonly string[];
-  /** Keeper entries with an illegal team/round or a team/round collision. */
-  readonly invalidAssignments: readonly string[];
-  readonly isLoading: boolean;
-  readonly isError: boolean;
-  readonly isInitialized: boolean;
-  readonly isConfirmed: boolean;
-  readonly isMockReady: boolean;
-  readonly error: Error | null;
-}
-
-const POSITIONS: readonly Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isPosition(value: unknown): value is Position {
-  return typeof value === 'string' && POSITIONS.includes(value as Position);
-}
-
-function isCurrentKeeperEntry(value: unknown): value is CurrentKeeperEntry {
-  return (
-    isRecord(value) &&
-    (value['playerId'] === undefined || typeof value['playerId'] === 'string') &&
-    typeof value['playerName'] === 'string' &&
-    isPosition(value['position']) &&
-    typeof value['team'] === 'number' &&
-    Number.isInteger(value['team']) &&
-    value['team'] >= 1 &&
-    typeof value['round'] === 'number' &&
-    Number.isInteger(value['round']) &&
-    value['round'] >= 1 &&
-    (value['isMyKeeper'] === undefined || typeof value['isMyKeeper'] === 'boolean')
-  );
-}
-
-function isCurrentKeepersFile(value: unknown): value is CurrentKeepersFile {
-  return (
-    isRecord(value) &&
-    (value['updatedAt'] === null || typeof value['updatedAt'] === 'string') &&
-    typeof value['season'] === 'number' &&
-    Number.isFinite(value['season']) &&
-    Array.isArray(value['keepers']) &&
-    value['keepers'].every(isCurrentKeeperEntry)
-  );
-}
-
-async function fetchCurrentKeepers(): Promise<CurrentKeepersFile> {
-  const response = await fetch('/api/draft-data/current-keepers');
-  if (!response.ok) {
-    throw new Error(`Failed to load current keepers: ${String(response.status)}`);
-  }
-  const parsed: unknown = await response.json();
-  if (!isCurrentKeepersFile(parsed)) {
-    throw new Error('Invalid current keeper data format');
-  }
-  return parsed;
+async function fetchCurrentKeepers(): Promise<KeeperFile> {
+  return requestJson('/api/draft-data/current-keepers', parsed => {
+    try { return decodeKeeperFile(parsed); }
+    catch (error) { throw new Error('Invalid current keeper data format: ' + String(error)); }
+  }, 'Failed to load current keepers');
 }
 
 function getKeeperKey(name: string, position: Position): string {
@@ -120,15 +41,15 @@ export function useKeeperPreload(
   players: readonly Player[],
   playersLoading: boolean
 ): KeeperPreloadStatus {
-  const keepersInitialized = useDraftStore((state) => state.keepersInitialized);
-  const keepersEnabled = useDraftStore(
+  const keepersInitialized = useDraftState((state) => state.keepersInitialized);
+  const keepersEnabled = useDraftState(
     (state) => state.leagueSettings.keepersEnabled
   );
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const totalRounds = useDraftStore((state) => state.config.totalRounds);
-  const draftType = useDraftStore((state) => state.config.draftType);
-  const preloadedKeepers = useDraftStore((state) => state.preloadedKeepers);
-  const preloadKeepers = useDraftStore((state) => state.preloadKeepers);
+  const totalTeams = useDraftState((state) => state.config.totalTeams);
+  const totalRounds = useDraftState((state) => state.config.totalRounds);
+  const draftType = useDraftState((state) => state.config.draftType);
+  const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
+  const workspace = useWorkspace();
   const query = useQuery({
     queryKey: ['current-keepers'],
     queryFn: fetchCurrentKeepers,
@@ -222,19 +143,19 @@ export function useKeeperPreload(
 
   useEffect(() => {
     if (keepersEnabled === false) {
-      preloadKeepers([]);
+      workspace.send('preloadKeepers', []);
       return;
     }
     if (!query.data || playersLoading) return;
     if (!supplyIsComplete) {
-      preloadKeepers([], false);
+      workspace.send('preloadKeepers', [], false);
       return;
     }
-    preloadKeepers(resolution.resolved);
+    workspace.send('preloadKeepers', resolution.resolved);
   }, [
     keepersEnabled,
     playersLoading,
-    preloadKeepers,
+    workspace,
     query.data,
     resolution.resolved,
     supplyIsComplete,

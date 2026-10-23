@@ -1,3 +1,4 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
@@ -8,11 +9,10 @@ import { Button } from '@/components/ui/button';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
-import { useDraftStore } from '@/stores/draftStore';
 
 export function DraftQueuePanel(): React.ReactElement {
   const { players } = usePlayerDataQuery();
-  const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { removePlayerFromQueue } = useQueueActions(players);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const playerById = React.useMemo(

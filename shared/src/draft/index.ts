@@ -1,8 +1,14 @@
-export { createEmptyRoster, DEFAULT_ROSTER_REQUIREMENTS, isNeedPriority } from '../draft.js';
+export { isNeedPriority } from '../draft.js';
 export type {
-  Roster, RosterRequirements, DraftPick, NeedPriority, PositionNeed,
-  ExpectedNextPickAlternative, RecommendationDecisionFactors, Recommendation,
-  DecisionLens, DecisionDivergenceFactor, DecisionOutput,
+  DraftPick,
+  NeedPriority,
+  PositionNeed,
+  ExpectedNextPickAlternative,
+  RecommendationDecisionFactors,
+  Recommendation,
+  DecisionLens,
+  DecisionDivergenceFactor,
+  DecisionOutput,
 } from '../draft.js';
 
 export {
@@ -91,3 +97,21 @@ export {
   type DraftKeeper,
   type DerivedDraft,
 } from '../derive-draft.js';
+
+export { DEFAULT_QUICK_MOCK, createQuickMockSettings, isQuickMockPreferences, isLeagueSetupPreferences } from './quick-mock-settings.js';
+export type { QuickMockPreferences } from './quick-mock-settings.js';
+export { getNextOpenPickNumber, resolveDraftPickImports } from './draft-pick-imports.js';
+export type { DraftPickImportRejection, DraftPickImportResult } from './draft-pick-imports.js';
+export { evaluateWorkspaceDraftReadiness, blocksLiveRecommendations, blocksRecommendations } from './draft-readiness.js';
+export { getKeeperPickNumber, isKeeperSupplyComplete, getEffectiveKeeperAssignments, canonicalizeKeeperSupply } from './keeper-supply.js';
+export type { KeeperSupplyEntry, CanonicalKeeperAssignment } from './keeper-supply.js';
+export { getKeeperAtPick, selectCpuPlayer, estimateMockSurvivalProbabilities, simulateCpuDraft } from './mock-draft-engine.js';
+export type { MockDraftPickLike, MockKeeperAssignment, MockLeagueHistoryModel, MockDraftEngineConfig, SelectCpuPlayerInput, CpuSelection, SimulatedMockPick } from './mock-draft-engine.js';
+export type { KeeperPreloadStatus } from './keeper-preload-status.js';
+
+export type { ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.js';
+export { optimizeLineupUtility } from '../lineup-utility.js';
+export type { LineupPlayer } from '../lineup-utility.js';
+export { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';
+
+export { deriveDraftCursor, type DraftProgress, type CursorAnchor } from '../draft-progress.js';

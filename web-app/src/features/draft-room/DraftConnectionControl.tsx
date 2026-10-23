@@ -1,4 +1,4 @@
-import type { DraftReadinessReport } from '@fantasy-draft/shared';
+import type { DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { DraftConnect } from '@/features/draft-board/DraftConnect';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 

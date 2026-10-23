@@ -1,10 +1,10 @@
-import '@/stores/draft/derive-shadow.setup';
 import { createElement, type EffectCallback, type SetStateAction } from 'react';
 import { renderToString } from 'react-dom/server';
 import { QueryClient } from '@tanstack/react-query';
-import type { DraftPickEvent, DraftSyncSnapshot } from '@fantasy-draft/shared';
+import type { DraftPickEvent, DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+import { workspaceForTestStore, WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { useDraftSync } from './useDraftSync';
 
 const mocks = vi.hoisted(() => ({
@@ -65,7 +65,7 @@ function renderDraft(draftId: string, store = createDraftStore()) {
     result = useDraftSync('sleeper', draftId);
     return null;
   }
-  renderToString(createElement(DraftStoreProvider, {
+  renderToString(createElement(WorkspaceTestProvider, {
     store,
     children: createElement(CaptureDraft),
   }));
@@ -80,7 +80,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     onmessage: null as ((event: MessageEvent<string>) => void) | null,
   };
   const eventSource = vi.fn(function () { return stream; });
-  const fetcher = vi.fn();
+  const fetcher = vi.fn<typeof fetch>();
   beforeEach(() => {
     mocks.effects.length = 0;
     mocks.states.length = 0;
@@ -89,7 +89,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     mocks.query.mockReset().mockReturnValue({ data: mocks.snapshot });
     stream.onmessage = null;
     eventSource.mockClear();
-    fetcher.mockReset().mockResolvedValue({ ok: true, json: async () => mocks.snapshot });
+    fetcher.mockReset().mockImplementation(async () => Response.json(mocks.snapshot));
     vi.stubGlobal('window', { setInterval: vi.fn(), clearInterval: vi.fn() });
     vi.stubGlobal('EventSource', eventSource);
     vi.stubGlobal('fetch', fetcher);
@@ -116,6 +116,18 @@ describe('Sleeper sync ingress and reconciliation', () => {
   function liveSnapshot() {
     return mocks.states[0] as DraftSyncSnapshot;
   }
+
+  it('logs rejected SSE JSON, shape and session messages without publishing them', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const mounted = renderDraft('Draft_1-abc');
+    stream.onmessage?.({ data: '{bad-json' } as MessageEvent<string>);
+    sendUpdate({ type: 'snapshot', snapshot: {} });
+    sendUpdate({ type: 'heartbeat', provider: 'yahoo', draftId: 'other', lastPolledAt: 200, lastSuccessfulSyncAt: 200 });
+    expect(warning).toHaveBeenCalledTimes(3);
+    expect(mocks.queryClient?.getQueryData(queryKey)).toBeUndefined();
+    mounted.cleanup();
+    warning.mockRestore();
+  });
 
   it('keeps a restored journal through a stale snapshot and reconciles it when only the heartbeat time changes', () => {
     const values = new Map<string, string>();
@@ -155,8 +167,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     const snapshot = { ...mocks.snapshot };
     mocks.query.mockReturnValue({ data: snapshot });
     const store = createDraftStore();
-    const reconcile = vi.fn(store.getState().reconcileSyncedPicks);
-    vi.spyOn(store, 'getInitialState').mockReturnValue({ ...store.getInitialState(), reconcileSyncedPicks: reconcile });
+    const reconcile = vi.spyOn(workspaceForTestStore(store), 'send');
     const { cleanup } = renderDraft('Draft_1-abc', store);
     try {
       expect(reconcile).toHaveBeenCalledTimes(1);
@@ -192,14 +203,15 @@ describe('Sleeper sync ingress and reconciliation', () => {
   });
 
   it('preserves newer streamed picks when a delayed refresh arrives before heartbeats', async () => {
-    let finishRefresh!: (response: unknown) => void;
+    let finishRefresh!: (response: Response) => void;
     fetcher.mockImplementationOnce(() => new Promise((resolve) => { finishRefresh = resolve; }));
     const { result, cleanup } = renderDraft('Draft_1-abc');
     try {
       const pending = result.refresh();
+      await vi.waitFor(() => { expect(fetcher).toHaveBeenCalledTimes(1); });
       sendUpdate({ type: 'snapshot', snapshot: newerSnapshot });
       expect(liveSnapshot().picks).toHaveLength(1);
-      finishRefresh({ ok: true, json: async () => mocks.snapshot });
+      finishRefresh(Response.json(mocks.snapshot));
       await pending;
 
       expect(liveSnapshot()).toEqual(newerSnapshot);
@@ -220,7 +232,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     try {
       sendUpdate({ type: 'snapshot', snapshot: newerSnapshot });
       const corrected = { ...newerSnapshot, picks: [], lastPolledAt: 300, lastSuccessfulSyncAt: 300 };
-      fetcher.mockResolvedValueOnce({ ok: true, json: async () => corrected });
+      fetcher.mockResolvedValueOnce(Response.json(corrected));
       await result.refresh();
       expect(liveSnapshot()).toEqual(corrected);
       expect(mocks.queryClient?.getQueryData(queryKey)).toEqual(corrected);
@@ -234,7 +246,7 @@ describe('Sleeper sync ingress and reconciliation', () => {
     try {
       const failed = { ...newerSnapshot, status: 'error', lastPolledAt: 300, lastError: 'Unavailable' };
       sendUpdate({ type: 'status', snapshot: failed });
-      fetcher.mockResolvedValueOnce({ ok: true, json: async () => newerSnapshot });
+      fetcher.mockResolvedValueOnce(Response.json(newerSnapshot));
       await result.refresh();
       expect(liveSnapshot()).toEqual(failed);
       expect(mocks.queryClient?.getQueryData(queryKey)).toEqual(failed);
@@ -262,9 +274,12 @@ describe('Sleeper sync ingress and reconciliation', () => {
     expect(options.enabled).toBe(true);
     await options.queryFn();
     await result.refresh();
-    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc');
+    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc',
+      expect.anything());
     expect(eventSource).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc/events');
-    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc/refresh', { method: 'POST' });
+    expect(fetcher).toHaveBeenCalledWith('/api/sync/sleeper/drafts/Draft_1-abc/refresh',
+      expect.objectContaining({ method: 'POST' }));
+    expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
     cleanup();
   });
 });
