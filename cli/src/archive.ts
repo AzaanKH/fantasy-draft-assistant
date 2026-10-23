@@ -1,19 +1,16 @@
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import {
   isPlayer,
-  isPosition,
-  type Player,
-} from '@fantasy-draft/shared';
+  POSITIONS,
+} from '@fantasy-draft/shared/league';
 import {
   CORE_DRAFT_DATA_KEYS,
   OPTIONAL_SIGNAL_KEYS,
   type DraftReadinessReport,
 } from '@fantasy-draft/shared/catalog';
-import {
-  isDraftSyncSnapshot,
-  type DraftSyncSnapshot,
-} from '@fantasy-draft/shared/sync';
-import { isRecord, isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
+import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
+import { decodeDraftSyncSnapshot } from '@fantasy-draft/shared/catalog';
+import { isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
 import { getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { createSessionContext } from './context';
 import { parseSession } from './arguments';
@@ -37,25 +34,66 @@ export interface SessionArchive {
 }
 
 const MAX_ARCHIVE_BYTES = 20 * 1024 * 1024;
-const strings = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 5000 && value.every(item => typeof item === 'string');
-const count = (value: unknown, max = 5000): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max;
-const finiteFields = (record: Record<string, unknown>) => Object.values(record).every(value => typeof value !== 'number' || Number.isFinite(value));
 
-function validReadiness(value: unknown): value is DraftReadinessReport {
-  if (!isRecord(value) || !isRecord(value.summary) || !isRecord(value.engineeringChecks) ||
-      typeof value.generatedAt !== 'string' || !Number.isFinite(Date.parse(value.generatedAt)) ||
-      !Array.isArray(value.coreDraftData) || !Array.isArray(value.optionalSignals) ||
-      !Array.isArray(value.productBlockingFailures) || !Array.isArray(value.optionalSignalDegradations) ||
-      !Array.isArray(value.actionableWarnings)) return false;
-  const items: unknown[] = [...(value.coreDraftData as unknown[]), ...(value.optionalSignals as unknown[])];
-  if (!items.every(item => isRecord(item) && typeof item.key === 'string' &&
-      ['ready', 'blocking', 'degraded'].includes(String(item.status)) &&
-      ['label', 'sourceLabel', 'timestampLabel', 'correctiveAction', 'message'].every(key => typeof item[key] === 'string') &&
-      (item.timestamp === null || typeof item.timestamp === 'string') &&
-      (item.ageHours === null || typeof item.ageHours === 'number' && Number.isFinite(item.ageHours)) &&
-      (item.maxAgeHours === null || typeof item.maxAgeHours === 'number' && Number.isFinite(item.maxAgeHours)))) return false;
-  const core = value.coreDraftData as DraftReadinessReport['coreDraftData'];
-  const optional = value.optionalSignals as DraftReadinessReport['optionalSignals'];
+function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
+  return Schema.StructWithRest(Schema.Struct(fields), [Schema.Record(Schema.String, Schema.Unknown)]);
+}
+
+const count = Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 0 && value <= 5000));
+const timestamp = Schema.String.check(Schema.makeFilter(value => Number.isFinite(Date.parse(value))));
+const strings = Schema.Array(Schema.String).check(Schema.makeFilter(value => value.length <= 5000));
+const readinessItem = openStruct({
+  key: Schema.Literals([...CORE_DRAFT_DATA_KEYS, ...OPTIONAL_SIGNAL_KEYS]),
+  label: Schema.String, classification: Schema.Literals(['core-draft-data', 'optional-signal']),
+  sourceLabel: Schema.String, timestampLabel: Schema.String, correctiveAction: Schema.String,
+  status: Schema.Literals(['ready', 'blocking', 'degraded']),
+  problem: Schema.NullOr(Schema.Literals(['missing', 'invalid', 'stale', 'older-than-dependency'])),
+  timestamp: Schema.NullOr(Schema.String), ageHours: Schema.NullOr(Schema.Finite),
+  maxAgeHours: Schema.NullOr(Schema.Finite), message: Schema.String,
+});
+const readiness = openStruct({
+  generatedAt: timestamp, status: Schema.Literals(['ready', 'blocked']),
+  summary: openStruct({ productBlockingFailures: count, actionableWarnings: count, optionalSignalDegradations: count }),
+  coreDraftData: Schema.Array(readinessItem), optionalSignals: Schema.Array(readinessItem),
+  productBlockingFailures: Schema.Array(readinessItem), optionalSignalDegradations: Schema.Array(readinessItem),
+  actionableWarnings: Schema.Array(openStruct({
+    key: Schema.String, label: Schema.String, sourceLabel: Schema.String, message: Schema.String,
+    correctiveAction: Schema.optional(Schema.String), timestamp: Schema.optional(Schema.NullOr(Schema.String)),
+    status: Schema.Literal('warning'),
+  })),
+  engineeringChecks: openStruct({
+    status: Schema.Literal('not-run'), message: Schema.String,
+    commands: Schema.Tuple([Schema.Literal('pnpm typecheck'), Schema.Literal('pnpm lint'),
+      Schema.Literal('pnpm test'), Schema.Literal('pnpm build')]),
+  }),
+});
+const player = Schema.declare(isPlayer).check(Schema.makeFilter(value => value.id.length > 0 &&
+  Object.values(value).every(field => typeof field !== 'number' || Number.isFinite(field))));
+const archivedDataSchema = openStruct({
+  players: Schema.Array(player).check(Schema.makeFilter(value => value.length > 0 && value.length <= 5000)),
+  policy: Schema.declare(isRecommendationPolicyFile),
+  survivalModel: Schema.NullOr(Schema.declare(isLeagueSurvivalModel)),
+  keepers: Schema.Array(openStruct({
+    playerId: Schema.String, playerName: Schema.String, position: Schema.Literals(POSITIONS),
+    isMyKeeper: Schema.Boolean, teamIndex: count, round: count, pickNumber: count,
+  })).check(Schema.makeFilter(value => value.length <= 32)),
+  keeperStatus: openStruct({
+    season: Schema.optional(Schema.Finite.check(Schema.makeFilter(value => Number.isInteger(value) && value >= 0 && value <= 9999))),
+    confirmedAt: Schema.NullOr(Schema.String), configuredCount: count, resolvedCount: count, canonicalCount: count,
+    unresolvedNames: strings, duplicateNames: strings, invalidAssignments: strings,
+    isLoading: Schema.Boolean, isError: Schema.Boolean, isInitialized: Schema.Boolean,
+    isConfirmed: Schema.Boolean, isMockReady: Schema.Boolean, error: Schema.NullOr(Schema.String),
+  }),
+});
+const decodeArchiveEnvelope = Schema.decodeUnknownSync(openStruct({
+  schemaVersion: Schema.Literal(1), kind: Schema.Literal('fantasy-draft-session'),
+  capturedAt: timestamp, session: Schema.String, slot: Schema.NullOr(count), snapshot: Schema.Unknown,
+  data: archivedDataSchema, readiness, warnings: strings,
+}));
+
+function hasConsistentReadiness(value: DraftReadinessReport): boolean {
+  const core = value.coreDraftData;
+  const optional = value.optionalSignals;
   const failures = core.filter(item => item.status === 'blocking');
   return core.length === CORE_DRAFT_DATA_KEYS.length && CORE_DRAFT_DATA_KEYS.every(key => core.filter(item => item.key === key).length === 1) &&
     core.every(item => item.status === 'ready' || item.status === 'blocking') &&
@@ -63,36 +101,20 @@ function validReadiness(value: unknown): value is DraftReadinessReport {
     optional.every(item => item.status === 'ready' || item.status === 'degraded') &&
     value.status === (failures.length > 0 ? 'blocked' : 'ready') && value.summary.productBlockingFailures === failures.length &&
     value.productBlockingFailures.length === failures.length &&
-    value.productBlockingFailures.every(item => isRecord(item) && failures.some(failure => failure.key === item.key)) &&
-    value.actionableWarnings.every(item => isRecord(item) && typeof item.message === 'string') &&
-    value.engineeringChecks.status === 'not-run';
+    value.productBlockingFailures.every(item => failures.some(failure => failure.key === item.key));
 }
 
-function validData(value: unknown, snapshot: DraftSyncSnapshot): value is ArchivedDraftData {
-  if (!isRecord(value) || !Array.isArray(value.players) || value.players.length === 0 || value.players.length > 5000 ||
-      !value.players.every(player => isPlayer(player) && player.id.length > 0 && finiteFields(player as unknown as Record<string, unknown>)) ||
-      new Set(value.players.map(player => (player as Player).id)).size !== value.players.length ||
-      !isRecommendationPolicyFile(value.policy) ||
-      !(value.survivalModel === null || isLeagueSurvivalModel(value.survivalModel)) ||
-      !Array.isArray(value.keepers) || value.keepers.length > 32 || !isRecord(value.keeperStatus)) return false;
-  const status = value.keeperStatus;
-  if (!(status.season === undefined || count(status.season, 9999)) ||
-      !(status.confirmedAt === null || typeof status.confirmedAt === 'string') ||
-      !['configuredCount', 'resolvedCount', 'canonicalCount'].every(key => count(status[key])) ||
-      !['unresolvedNames', 'duplicateNames', 'invalidAssignments'].every(key => strings(status[key])) ||
-      !['isLoading', 'isError', 'isInitialized', 'isConfirmed', 'isMockReady'].every(key => typeof status[key] === 'boolean') ||
-      !(status.error === null || typeof status.error === 'string')) return false;
+function hasConsistentData(value: ArchivedDraftData, snapshot: DraftSyncSnapshot): boolean {
   const draft = snapshot.draft;
   if (!draft) return false;
   const { teams, rounds } = draft.settings;
-  const byId = new Map((value.players as Player[]).map(player => [player.id, player]));
-  return value.keepers.every(keeper => isRecord(keeper) && typeof keeper.playerId === 'string' &&
-    typeof keeper.playerName === 'string' && isPosition(keeper.position) && typeof keeper.isMyKeeper === 'boolean' &&
-    count(keeper.teamIndex, teams - 1) && typeof keeper.round === 'number' && keeper.round >= 1 && count(keeper.round, rounds) &&
-    keeper.pickNumber === getKeeperPickNumber({ teamIndex: keeper.teamIndex, round: keeper.round }, teams, draft.type) &&
+  const byId = new Map(value.players.map(player => [player.id, player]));
+  return byId.size === value.players.length && value.keepers.every(keeper =>
+    keeper.teamIndex < teams && keeper.round >= 1 && keeper.round <= rounds &&
+    keeper.pickNumber === getKeeperPickNumber(keeper, teams, draft.type) &&
     byId.get(keeper.playerId)?.position === keeper.position) &&
-    new Set(value.keepers.map(keeper => (keeper as { playerId: string }).playerId)).size === value.keepers.length &&
-    new Set(value.keepers.map(keeper => (keeper as { pickNumber: number }).pickNumber)).size === value.keepers.length;
+    new Set(value.keepers.map(keeper => keeper.playerId)).size === value.keepers.length &&
+    new Set(value.keepers.map(keeper => keeper.pickNumber)).size === value.keepers.length;
 }
 
 export function createArchive(snapshot: DraftSyncSnapshot, data: DraftData, readiness: DraftReadinessReport,
@@ -122,21 +144,22 @@ export const readArchive = Effect.fn('readArchive')(function* (path: string) {
 });
 
 function validArchive(value: unknown): SessionArchive {
-  if (!isRecord(value) || value.schemaVersion !== 1 || value.kind !== 'fantasy-draft-session' ||
-      typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
-      typeof value.session !== 'string' || !isDraftSyncSnapshot(value.snapshot) || !value.snapshot.draft ||
-      parseSession(value.session).id !== `${value.snapshot.provider}:${value.snapshot.draftId}` ||
-      value.snapshot.draft.provider !== value.snapshot.provider || value.snapshot.draft.draftId !== value.snapshot.draftId ||
-      !(value.slot === null || typeof value.slot === 'number' && value.slot >= 1 && count(value.slot, value.snapshot.draft.settings.teams)) ||
-      !validData(value.data, value.snapshot) || !validReadiness(value.readiness) || !strings(value.warnings)) throw new Error('Invalid archive');
-  const snapshot = value.snapshot;
-  const { teams } = value.snapshot.draft.settings;
-  const totalPicks = teams * value.snapshot.draft.settings.rounds;
+  const envelope = decodeArchiveEnvelope(value);
+  const snapshot = decodeDraftSyncSnapshot(envelope.snapshot);
+  const draft = snapshot.draft;
+  if (!draft || parseSession(envelope.session).id !== `${snapshot.provider}:${snapshot.draftId}` ||
+      draft.provider !== snapshot.provider || draft.draftId !== snapshot.draftId ||
+      !(envelope.slot === null || envelope.slot >= 1 && envelope.slot <= draft.settings.teams) ||
+      !hasConsistentData(envelope.data, snapshot) || !hasConsistentReadiness(envelope.readiness)) {
+    throw new Error('Invalid archive');
+  }
+  const { teams, rounds } = draft.settings;
+  const totalPicks = teams * rounds;
   if (snapshot.picks.some(pick => pick.draftId !== snapshot.draftId || pick.pickNumber > totalPicks ||
       pick.draftSlot > teams || pick.teamIndex >= teams) ||
       new Set(snapshot.picks.map(pick => pick.pickNumber)).size !== snapshot.picks.length ||
       new Set(snapshot.picks.map(pick => pick.playerId)).size !== snapshot.picks.length) throw new Error('Inconsistent picks');
-  return value as unknown as SessionArchive;
+  return { ...envelope, snapshot };
 }
 
 export function archivedData(archive: SessionArchive): DraftData {

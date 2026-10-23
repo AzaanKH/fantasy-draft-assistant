@@ -8,45 +8,14 @@ import {
   runStatements,
   sqlString,
 } from './duckdb.js';
+import { decodeHistoricalDraft, decodeHistoricalValidationRows, decodeHistoricalCoverageRows } from '../script-file-schemas.js';
 import { assertInformationCutoff } from './historical-snapshot-core.js';
-
-interface RawSleeperDraft {
-  readonly draft_id?: string;
-  readonly league_id?: string;
-  readonly season?: string;
-  readonly start_time?: number;
-}
 
 interface DraftCutoff {
   readonly season: number;
   readonly draftId: string;
   readonly leagueId: string;
   readonly draftTimestamp: string;
-}
-
-interface CoverageRow {
-  readonly season: number | bigint;
-  readonly draft_id: string;
-  readonly draft_timestamp: string;
-  readonly players: number | bigint;
-  readonly with_team: number | bigint;
-  readonly with_roster_status: number | bigint;
-  readonly with_active_status: number | bigint;
-  readonly with_pup_status: number | bigint;
-  readonly with_ir_status: number | bigint;
-  readonly with_injury_designation: number | bigint;
-  readonly with_depth_chart: number | bigint;
-  readonly with_prior_season_missed_games: number | bigint;
-  readonly with_same_position_competition: number | bigint;
-  readonly with_recent_trade: number | bigint;
-  readonly cutoff_violations: number | bigint;
-}
-
-interface ValidationRow {
-  readonly season: number | bigint;
-  readonly sleeper_player_id: string | null;
-  readonly max_information_timestamp: string | null;
-  readonly draft_timestamp: string;
 }
 
 const RANKINGS_URL =
@@ -122,9 +91,9 @@ async function loadDraftCutoffs(): Promise<readonly DraftCutoff[]> {
 
   const cutoffs = await Promise.all(
     fileNames.map(async (fileName): Promise<DraftCutoff> => {
-      const draft = JSON.parse(
+      const draft = decodeHistoricalDraft(JSON.parse(
         await readFile(join(MODEL_PATHS.leagueDraftRawDir, fileName), 'utf8')
-      ) as RawSleeperDraft;
+      ));
       const season = Number(draft.season);
       if (
         !Number.isInteger(season) ||
@@ -162,61 +131,6 @@ function draftValuesSql(cutoffs: readonly DraftCutoff[]): string {
 
 function normalizeCount(value: number | bigint): number {
   return Number(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isCount(value: unknown): value is number | bigint {
-  return typeof value === 'number' || typeof value === 'bigint';
-}
-
-function isValidationRow(value: unknown): value is ValidationRow {
-  return (
-    isRecord(value) &&
-    isCount(value['season']) &&
-    (value['sleeper_player_id'] === null || typeof value['sleeper_player_id'] === 'string') &&
-    (value['max_information_timestamp'] === null ||
-      typeof value['max_information_timestamp'] === 'string') &&
-    typeof value['draft_timestamp'] === 'string'
-  );
-}
-
-function isCoverageRow(value: unknown): value is CoverageRow {
-  return (
-    isRecord(value) &&
-    isCount(value['season']) &&
-    typeof value['draft_id'] === 'string' &&
-    typeof value['draft_timestamp'] === 'string' &&
-    isCount(value['players']) &&
-    isCount(value['with_team']) &&
-    isCount(value['with_roster_status']) &&
-    isCount(value['with_active_status']) &&
-    isCount(value['with_pup_status']) &&
-    isCount(value['with_ir_status']) &&
-    isCount(value['with_injury_designation']) &&
-    isCount(value['with_depth_chart']) &&
-    isCount(value['with_prior_season_missed_games']) &&
-    isCount(value['with_same_position_competition']) &&
-    isCount(value['with_recent_trade']) &&
-    isCount(value['cutoff_violations'])
-  );
-}
-
-function validateRows<Row>(
-  rows: readonly unknown[],
-  guard: (value: unknown) => value is Row,
-  label: string
-): Row[] {
-  const validRows: Row[] = [];
-  for (const [index, row] of rows.entries()) {
-    if (!guard(row)) {
-      throw new Error(`DuckDB returned an invalid ${label} row at index ${String(index)}.`);
-    }
-    validRows.push(row);
-  }
-  return validRows;
 }
 
 export async function buildHistoricalSnapshots(connection: DuckDBConnection): Promise<void> {
@@ -630,11 +544,7 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
     from model.historical_asof_snapshots
     where cutoff_violation
   `);
-  const violations = validateRows(
-    validationReader.getRowObjects(),
-    isValidationRow,
-    'historical snapshot validation'
-  );
+  const violations = decodeHistoricalValidationRows(validationReader.getRowObjects());
   for (const violation of violations) {
     assertInformationCutoff(
       violation.max_information_timestamp,
@@ -665,11 +575,7 @@ export async function buildHistoricalSnapshots(connection: DuckDBConnection): Pr
     group by season
     order by season
   `);
-  const coverageRows = validateRows(
-    coverageReader.getRowObjects(),
-    isCoverageRow,
-    'historical snapshot coverage'
-  );
+  const coverageRows = decodeHistoricalCoverageRows(coverageReader.getRowObjects());
   const report = {
     generatedAt: new Date().toISOString(),
     rule: 'information_timestamp <= historical_draft_timestamp',

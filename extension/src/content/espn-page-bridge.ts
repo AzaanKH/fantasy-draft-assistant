@@ -1,11 +1,8 @@
+import { objectValue, readProperty } from './unknown-properties';
 import {
   buildEspnDraftSnapshot,
   getEspnDraftFrameCommand,
 } from './espn-draft-snapshot';
-
-interface UnknownRecord {
-  [key: string]: unknown;
-}
 
 const ESPN_BRIDGE_SOURCE = 'fantasy-draft-assistant:espn';
 const ESPN_BRIDGE_VERSION = 1;
@@ -24,21 +21,6 @@ const FIBER_LINKS = new Set([
   'updater',
 ]);
 
-function asRecord(value: unknown): UnknownRecord | null {
-  return typeof value === 'object' && value !== null
-    ? (value as UnknownRecord)
-    : null;
-}
-
-function read(record: UnknownRecord | null, key: string): unknown {
-  if (!record) return undefined;
-  try {
-    return record[key];
-  } catch {
-    return undefined;
-  }
-}
-
 function isEspnDraftEndpoint(value: string | URL): boolean {
   try {
     return new URL(String(value), window.location.href).hostname === ESPN_DRAFT_HOST;
@@ -47,38 +29,38 @@ function isEspnDraftEndpoint(value: string | URL): boolean {
   }
 }
 
-function findReactRootFiber(): UnknownRecord | null {
+function findReactRootFiber(): object | null {
   const root = document.getElementById('__next');
   if (!root) return null;
   const key = Object.getOwnPropertyNames(root).find(
     (property) =>
       property.startsWith('__reactContainer') || property.startsWith('__reactFiber')
   );
-  return key ? asRecord((root as unknown as UnknownRecord)[key]) : null;
+  return key ? objectValue(readProperty(root, key)) : null;
 }
 
-function findDraftStore(): UnknownRecord | null {
+function findDraftStore(): object | null {
   const rootFiber = findReactRootFiber();
   if (!rootFiber) return null;
 
-  const fiberQueue: UnknownRecord[] = [rootFiber];
-  const fibers: UnknownRecord[] = [];
+  const fiberQueue: object[] = [rootFiber];
+  const fibers: object[] = [];
   const seenFibers = new WeakSet();
   while (fiberQueue.length > 0 && fibers.length < 20_000) {
     const fiber = fiberQueue.shift();
     if (!fiber || seenFibers.has(fiber)) continue;
     seenFibers.add(fiber);
     fibers.push(fiber);
-    const child = asRecord(read(fiber, 'child'));
-    const sibling = asRecord(read(fiber, 'sibling'));
+    const child = objectValue(readProperty(fiber, 'child'));
+    const sibling = objectValue(readProperty(fiber, 'sibling'));
     if (child) fiberQueue.push(child);
     if (sibling) fiberQueue.push(sibling);
   }
 
   const objectQueue: unknown[] = [];
   for (const fiber of fibers) {
-    objectQueue.push(read(fiber, 'memoizedProps'), read(fiber, 'memoizedState'));
-    const stateNode = read(fiber, 'stateNode');
+    objectQueue.push(readProperty(fiber, 'memoizedProps'), readProperty(fiber, 'memoizedState'));
+    const stateNode = readProperty(fiber, 'stateNode');
     if (stateNode && !(stateNode instanceof Node)) objectQueue.push(stateNode);
   }
 
@@ -97,12 +79,12 @@ function findDraftStore(): UnknownRecord | null {
     seenObjects.add(candidate);
     inspected += 1;
 
-    const record = candidate as UnknownRecord;
-    const picks = read(record, 'picks');
+    const record = candidate;
+    const picks = readProperty(record, 'picks');
     if (
       Array.isArray(picks) &&
-      read(record, 'leagueId') !== undefined &&
-      read(record, 'draftType') !== undefined
+      readProperty(record, 'leagueId') !== undefined &&
+      readProperty(record, 'draftType') !== undefined
     ) {
       return record;
     }
@@ -116,7 +98,7 @@ function findDraftStore(): UnknownRecord | null {
 
     for (const key of keys) {
       if (FIBER_LINKS.has(key) || SENSITIVE_PROPERTY.test(key)) continue;
-      const child = read(record, key);
+      const child = readProperty(record, key);
       if (
         child === null ||
         (typeof child !== 'object' && typeof child !== 'function') ||
@@ -144,11 +126,11 @@ async function readMessageData(value: unknown): Promise<string | null> {
 }
 
 function installBridge(): void {
-  const markedWindow = window as unknown as UnknownRecord;
-  if (markedWindow[PATCH_MARKER] === true) return;
-  markedWindow[PATCH_MARKER] = true;
+  const markedWindow = window;
+  if (readProperty(markedWindow, PATCH_MARKER) === true) return;
+  Reflect.set(markedWindow, PATCH_MARKER, true);
 
-  let draftStore: UnknownRecord | null = null;
+  let draftStore: object | null = null;
   let draftStoreDiscoveredAt: number | null = null;
   let lastSignature = '';
   let lastSnapshotEmittedAt = 0;
@@ -265,13 +247,13 @@ function installBridge(): void {
   }
 
   window.addEventListener('message', (event: MessageEvent<unknown>) => {
-    const data = asRecord(event.data);
+    const data = objectValue(event.data);
     if (
       event.source === window &&
       event.origin === window.location.origin &&
-      read(data, 'source') === ESPN_BRIDGE_SOURCE &&
-      read(data, 'version') === ESPN_BRIDGE_VERSION &&
-      read(data, 'type') === 'REQUEST_ESPN_DRAFT_SNAPSHOT'
+      readProperty(data, 'source') === ESPN_BRIDGE_SOURCE &&
+      readProperty(data, 'version') === ESPN_BRIDGE_VERSION &&
+      readProperty(data, 'type') === 'REQUEST_ESPN_DRAFT_SNAPSHOT'
     ) {
       scheduleSnapshot();
     }

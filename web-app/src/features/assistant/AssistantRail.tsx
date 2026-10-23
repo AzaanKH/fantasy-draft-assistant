@@ -1,5 +1,5 @@
 import { PositionTag } from '@/components/PositionTag';
-import type { Player, Position } from '@fantasy-draft/shared';
+import type { Player, Position } from '@fantasy-draft/shared/league';
 import type { PositionNeed, Recommendation } from '@fantasy-draft/shared/draft';
 import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';

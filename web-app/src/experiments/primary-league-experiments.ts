@@ -1,13 +1,12 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  type NFLTeam,
   type Player,
   type Position,
   POSITIONS,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type FantasyProsSnapshot,
-  type TeamEnvironment,
+  decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeTeamEnvDataFile, decodePlayerIdentityFile, decodeKeeperFile, decodeLeagueSurvivalModel,
 } from '@fantasy-draft/shared/catalog';
 import {
   createSlotSequence,
@@ -25,31 +24,9 @@ import keeperJson from '../../../data/league-history/current-keepers.json';
 import sleeperJson from '../../../data/sleeper-adp.json';
 import survivalModelJson from '../../../data/league-history/survival-model.json';
 import teamEnvironmentJson from '../../../data/team-environment.json';
-import { calculateAllScarcityScores, getRecommendations, mergePlayerData, normalizePlayerName, type PlayerIdentityData, type SleeperADPPlayer, applyLeagueSurvivalModel, type LeagueSurvivalModel, calculateTeamNeeds, estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
+import { calculateAllScarcityScores, getRecommendations, mergePlayerData, normalizePlayerName, applyLeagueSurvivalModel, type LeagueSurvivalModel, calculateTeamNeeds, estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
 
 type CorePosition = 'QB' | 'RB' | 'WR' | 'TE';
-
-interface SleeperFile {
-  readonly players: readonly SleeperADPPlayer[];
-}
-
-interface TeamEnvironmentFile {
-  readonly teams: Record<NFLTeam, TeamEnvironment>;
-}
-
-interface IdentityFile {
-  readonly players: readonly PlayerIdentityData[];
-}
-
-interface KeeperFile {
-  readonly keepers: readonly {
-    readonly playerName: string;
-    readonly position: Position;
-    readonly team: number;
-    readonly round: number;
-    readonly isMyKeeper?: boolean;
-  }[];
-}
 
 interface ExperimentPolicy {
   readonly id: string;
@@ -379,10 +356,10 @@ function cloneScoringRules(overrides: {
 }
 
 function buildPlayers(scoringRules: ScoringRules): Player[] {
-  const fantasyPros = fantasyProsJson as unknown as FantasyProsSnapshot;
-  const sleeper = sleeperJson as unknown as SleeperFile;
-  const environments = teamEnvironmentJson as unknown as TeamEnvironmentFile;
-  const identities = identityJson as unknown as IdentityFile;
+  const fantasyPros = decodeFantasyProsSnapshot(fantasyProsJson);
+  const sleeper = decodeSleeperDataFile(sleeperJson, { onWarning: console.warn });
+  const environments = decodeTeamEnvDataFile(teamEnvironmentJson, { onWarning: console.warn });
+  const identities = decodePlayerIdentityFile(identityJson);
   return mergePlayerData(
     fantasyPros.rankings,
     fantasyPros.projections,
@@ -406,7 +383,7 @@ function buildPlayers(scoringRules: ScoringRules): Player[] {
 }
 
 function resolveKeepers(players: readonly Player[]): MockKeeperAssignment[] {
-  const keeperFile = keeperJson as unknown as KeeperFile;
+  const keeperFile = decodeKeeperFile(keeperJson);
   return keeperFile.keepers.map((keeper) => {
     const match = players.find((player) =>
       player.position === keeper.position &&
@@ -424,7 +401,7 @@ function resolveKeepers(players: readonly Player[]): MockKeeperAssignment[] {
 }
 
 function createInputs(players: readonly Player[] = buildPlayers(DEFAULT_SCORING_RULES)): ExperimentInputs {
-  const keeperFile = keeperJson as unknown as KeeperFile;
+  const keeperFile = decodeKeeperFile(keeperJson);
   const myKeeperEntry = keeperFile.keepers.find((keeper) => keeper.isMyKeeper);
   if (!myKeeperEntry) throw new Error('The Primary League keeper file has no isMyKeeper entry.');
   const keepers = resolveKeepers(players);
@@ -435,7 +412,7 @@ function createInputs(players: readonly Player[] = buildPlayers(DEFAULT_SCORING_
   return {
     players,
     keepers,
-    historyModel: survivalModelJson as unknown as LeagueSurvivalModel & MockLeagueHistoryModel,
+    historyModel: decodeLeagueSurvivalModel(survivalModelJson, { onWarning: console.warn }),
     config: { draftType: 'snake',
       totalTeams: 10,
       totalRounds: 14,
@@ -1005,7 +982,7 @@ function averageFirstFourPositionCounts(
 export function runPrimaryLeagueExperiments(
   options: PrimaryLeagueExperimentOptions = {}
 ): PrimaryLeagueExperimentReport {
-  const fantasyPros = fantasyProsJson as unknown as FantasyProsSnapshot;
+  const fantasyPros = decodeFantasyProsSnapshot(fantasyProsJson);
   const seed = options.seed ?? 20260831;
   const scale: ExperimentScale = { ...DEFAULT_SCALE, ...options.scale };
   const experiment = createInputs();

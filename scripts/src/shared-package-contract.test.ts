@@ -42,112 +42,176 @@ function consumerDiagnostics(source: string): { code: number; message: string }[
 }
 
 describe('@fantasy-draft/shared package contract', () => {
-  it('imports the built package under plain Node ESM resolution', () => {
-    const output = execFileSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        "const shared = await import('@fantasy-draft/shared'); console.log(typeof shared.isPlayer);",
-      ],
-      { cwd: SCRIPTS_DIR, encoding: 'utf8' }
-    );
+  const subpaths = ['draft', 'catalog', 'league', 'node', 'sync', 'units', 'http'];
 
-    expect(output.trim()).toBe('function');
-  });
-
-  it('loads the closed draft subpath without adding recommendation exports to the root', () => {
+  it('rejects the root, temporary draft URL path and undeclared deep paths in plain Node', () => {
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
-const draft = await import('@fantasy-draft/shared/draft');
-const root = await import('@fantasy-draft/shared');
-let deepImportError;
-try {
-  await import('@fantasy-draft/shared/draft/calculations/recommendations');
-} catch (error) {
-  deepImportError = error.code;
+const errors = [];
+for (const path of ['', '/draft-url', '/draft/calculations/recommendations']) {
+  try {
+    await import('@fantasy-draft/shared' + path);
+    errors.push('resolved');
+  } catch (error) {
+    errors.push(error.code);
+  }
 }
-console.log(JSON.stringify({
-  recommendation: typeof draft.getRecommendationBoard,
-  order: typeof draft.createSlotSequence,
-  derive: typeof draft.deriveDraft,
-  rootRecommendation: typeof root.getRecommendationBoard,
-  deepImportError,
-}));
+console.log(JSON.stringify(errors));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-
-    expect(JSON.parse(output)).toEqual({
-      recommendation: 'function',
-      order: 'function',
-      derive: 'function',
-      rootRecommendation: 'undefined',
-      deepImportError: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
-    });
+    expect(JSON.parse(output)).toEqual(Array(3).fill('ERR_PACKAGE_PATH_NOT_EXPORTED'));
   });
 
-  it('loads catalog and draft URL exports without exposing them through the root', () => {
+  it('loads every exact subpath and every declared runtime export from built output', () => {
+    const manifest = JSON.parse(readFileSync(join(SCRIPTS_DIR, '..', 'shared', 'package.json'), 'utf8'));
+    expect(Object.keys(manifest.exports).sort()).toEqual(subpaths.map(subpath => `./${subpath}`).sort());
+    expect(manifest).not.toHaveProperty('main');
+    expect(manifest).not.toHaveProperty('types');
+    const expected = Object.fromEntries(subpaths.map(subpath => {
+      const source = readFileSync(join(SCRIPTS_DIR, '..', 'shared', 'src', subpath, 'index.ts'), 'utf8');
+      const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.Latest, true);
+      const names = file.statements.flatMap(node =>
+        ts.isExportDeclaration(node) && !node.isTypeOnly && node.exportClause && ts.isNamedExports(node.exportClause)
+          ? node.exportClause.elements.filter(element => !element.isTypeOnly).map(element => element.name.text)
+          : []);
+      return [subpath, names.sort()];
+    }));
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
-const catalog = await import('@fantasy-draft/shared/catalog');
-const { parseDraftRoomUrl } = await import('@fantasy-draft/shared/draft-url');
-const draft = await import('@fantasy-draft/shared/draft');
-const root = await import('@fantasy-draft/shared');
-console.log(JSON.stringify({
-  validator: typeof catalog.isPlayerIdentityFile,
-  readiness: typeof catalog.buildDraftReadinessReport,
-  mock: typeof draft.simulateCpuDraft,
-  route: parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo'),
-  rootCatalog: typeof root.isPlayerIdentityFile,
-  rootUrl: typeof root.parseDraftRoomUrl,
-}));
+const { registerHooks } = await import('node:module');
+const plainImports = [];
+const hook = registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === 'effect' || specifier.startsWith('effect/')) plainImports.push(specifier);
+  return nextResolve(specifier, context);
+} });
+for (const subpath of ['league', 'draft', 'units', 'sync', 'http', 'node']) await import('@fantasy-draft/shared/' + subpath);
+hook.deregister();
+const exports = {};
+for (const subpath of ${JSON.stringify(subpaths)}) {
+  exports[subpath] = Object.keys(await import('@fantasy-draft/shared/' + subpath)).sort();
+}
+const sync = await import('@fantasy-draft/shared/sync');
+console.log(JSON.stringify({ exports, plainImports, route: sync.parseDraftRoomUrl('https://sleeper.com/draft/nfl/demo') }));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-
     expect(JSON.parse(output)).toEqual({
-      validator: 'function',
-      readiness: 'function',
-      mock: 'function',
+      exports: expected,
+      plainImports: [],
       route: { isInDraftRoom: true, provider: 'sleeper', draftId: 'demo' },
-      rootCatalog: 'undefined',
-      rootUrl: 'undefined',
     });
   });
 
-  it('closes every completed wave runtime name on the root and loads its exact subpath', () => {
-    const closed: Record<string, string> = JSON.parse(readFileSync(
-      join(SCRIPTS_DIR, 'shared-closed-exports.json'), 'utf8'
-    ));
-    const runtimeNames: string[] = JSON.parse(readFileSync(
-      join(SCRIPTS_DIR, 'shared-closed-runtime-exports.json'), 'utf8'
-    ));
-    const entries = Object.entries(closed);
+  it('loads the helpers used by draft consumers without loading Effect', () => {
+    const consumers = [
+      ['web-app/src/hooks/useDraftSync.ts', 'isValidDraftSyncId', ['sleeper', 'Draft_1-abc']],
+      ['web-app/src/stores/draft/session-actions.ts', 'isDraftSessionIdentity', [{ provider: 'espn', draftId: '4242' }]],
+      ['web-app/src/features/league-setup/LeagueSetupDialog.tsx', 'isQuickMockPreferences', [{ totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 }]],
+    ] as const;
+    const probes = consumers.map(([path, name, args]) => {
+      const source = readFileSync(join(SCRIPTS_DIR, '..', path), 'utf8');
+      const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+      const owner = file.statements.find(node => ts.isImportDeclaration(node) &&
+        node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+        node.importClause.namedBindings.elements.some(element => element.name.text === name));
+      if (!owner || !ts.isImportDeclaration(owner) || !ts.isStringLiteral(owner.moduleSpecifier)) throw new Error(`No import owner for ${name} in ${path}`);
+      return { owner: owner.moduleSpecifier.text, name, args };
+    });
     const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
-const root = await import('@fantasy-draft/shared');
-const failures = [];
-const runtimeNames = [];
-for (const [name, target] of ${JSON.stringify(entries)}) {
-  const subpath = await import(target);
-  if (name in root) failures.push(target + '/' + name);
-  if (name in subpath) runtimeNames.push(name);
+const { registerHooks } = await import('node:module');
+const effects = [];
+const hook = registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === 'effect' || specifier.startsWith('effect/')) effects.push(specifier);
+  return nextResolve(specifier, context);
+} });
+const accepted = [];
+for (const probe of ${JSON.stringify(probes)}) {
+  const helpers = await import(probe.owner);
+  accepted.push(helpers[probe.name](...probe.args));
 }
-console.log(JSON.stringify({ failures, runtimeNames }));
+hook.deregister();
+console.log(JSON.stringify({ effectLoads: effects.length, accepted }));
 `], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
-    const result = JSON.parse(output);
-    expect(result.failures).toEqual([]);
-    expect(result.runtimeNames.sort()).toEqual([...runtimeNames].sort());
+    expect(JSON.parse(output)).toEqual({ effectLoads: 0, accepted: [true, true, true] });
   });
 
-  it('rejects all closed root names in NodeNext and resolves their subpath types', () => {
-    const closed: Record<string, string> = JSON.parse(readFileSync(
-      join(SCRIPTS_DIR, 'shared-closed-exports.json'), 'utf8'
-    ));
-    const entries = Object.entries(closed);
-    const rootSource = entries.map(([name]) => `import type { ${name} } from '@fantasy-draft/shared';`).join('\n');
-    const diagnostics = consumerDiagnostics(rootSource);
-    expect(diagnostics).toHaveLength(entries.length);
-    for (const [index, [name]] of entries.entries()) {
-      expect(diagnostics[index]?.code).toBeOneOf([2305, 2724]);
-      expect(diagnostics[index]?.message).toContain(name);
-    }
-    const subpathSource = entries.map(([name, subpath]) => `import type { ${name} } from '${subpath}';`).join('\n');
-    expect(consumerDiagnostics(subpathSource)).toEqual([]);
+  it('loads simple stored preferences and connections without loading Effect', () => {
+    const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
+const { registerHooks } = await import('node:module');
+const { register } = await import('tsx/esm/api');
+const unregister = register({ tsconfig: '../web-app/tsconfig.json' });
+const effects = [];
+const hook = registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === 'effect' || specifier.startsWith('effect/')) effects.push(specifier);
+  return nextResolve(specifier, context);
+} });
+globalThis.localStorage = { getItem: () => JSON.stringify({ profile: 'primary-league', quickMock: { totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 } }) };
+const connections = await import('../web-app/src/stores/draftSyncStore.ts');
+const preferences = await import('../web-app/src/stores/leagueSetupStore.ts');
+const connection = connections.parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: null }));
+const rejected = connections.parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: 0 }));
+hook.deregister();
+unregister();
+console.log(JSON.stringify({ effectLoads: effects.length, connection, rejected, profile: preferences.useLeagueSetupStore.getState().profile }));
+`], { cwd: SCRIPTS_DIR, encoding: 'utf8' });
+    expect(JSON.parse(output)).toEqual({ effectLoads: 0, connection: { provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: null }, rejected: null, profile: 'primary-league' });
+  });
+
+  it('rejects root access in NodeNext and resolves every declared subpath contract', () => {
+    const diagnostics = consumerDiagnostics(`
+import type { Player } from '@fantasy-draft/shared';
+import type * as Shared from '@fantasy-draft/shared';
+import type { DraftRoomStatus } from '@fantasy-draft/shared/draft-url';
+`);
+    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics.map(diagnostic => diagnostic.code)).toEqual([2307, 2307, 2307]);
+    const contracts = Object.fromEntries(subpaths.map(subpath => {
+      const source = readFileSync(join(SCRIPTS_DIR, '..', 'shared', 'src', subpath, 'index.ts'), 'utf8');
+      const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.Latest, true);
+      const names = file.statements.flatMap(node =>
+        ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)
+          ? node.exportClause.elements.map(element => `${node.isTypeOnly || element.isTypeOnly ? 'type ' : ''}${element.name.text}`)
+          : []);
+      return [subpath, names.sort().join(', ')] as const;
+    }));
+    expect(contracts).toMatchInlineSnapshot(`
+      {
+        "catalog": "CATALOG, CORE_DRAFT_DATA_KEYS, DRAFT_DATA_REFRESH_STEPS, DRAFT_READINESS_DEFINITIONS, DRAFT_SESSION_LINEAGE_LIMIT, OPTIONAL_SIGNAL_KEYS, REFRESHABLE_CORE_DRAFT_DATA_KEYS, SAFE_RECOMMENDATION_POLICY, americanOddsToImpliedProbability, areKeepersValid, browserDataFiles, buildDraftReadinessReport, calculateSportsbookProjectionAdjustment, catalogDataClassification, catalogPath, createSafeRecommendationPolicy, decodeContractDataFile, decodeDraftDataRefreshStatus, decodeDraftMetadata, decodeDraftSessionChange, decodeDraftSessionIdentity, decodeDraftSessionList, decodeDraftSessionSummary, decodeDraftSyncConnection, decodeDraftSyncSnapshot, decodeDraftSyncUpdate, decodeEspnDraftSnapshot, decodeFantasyProsSnapshot, decodeKeeperFile, decodeLeagueSetupPreferences, decodeLeagueSurvivalModel, decodeMarketAdpSnapshot, decodeOrNull, decodePlayerIdentityFile, decodePredictionsDataFile, decodePrimaryLeagueSettingsFile, decodeProviderDraftSnapshot, decodeQuickMockPreferences, decodeRecommendationPolicyFile, decodeShadowRecommendationEvent, decodeSleeperDataFile, decodeSleeperDraftMetadata, decodeSleeperDraftPick, decodeSleeperDraftPickList, decodeSportsbookSnapshot, decodeStoredDraftKeeper, decodeStoredDraftPick, decodeStoredDraftProgress, decodeStoredDraftSession, decodeStoredDraftSessionRecord, decodeStoredPlayerId, decodeStoredUnresolvedPick, decodeTeamEnvDataFile, evaluateDraftReadiness, formatDraftReadinessAge, formatDraftReadinessTimestamp, getTeamByeWeeks, isDecentOffense, isDraftDataRefreshStatus, isDraftMetadata, isDraftSessionIdentity, isDraftSessionSummary, isDraftSyncConnection, isDraftSyncSnapshot, isDraftSyncUpdate, isEspnDraftSnapshot, isLeagueSurvivalModel, isMarketAdpFormat, isMarketAdpSnapshot, isQuickMockPreferences, isRecommendationPolicyFile, isShadowRecommendationEvent, isSleeperDraftMetadata, isSleeperDraftPick, isSleeperDraftPickList, isSportsbookSnapshot, isTeamEnvironment, isTopOffense, isValidDraftSyncId, normalizeSportsbookPlayerName, parsePlayerNameAndTeam, parsePositionString, type ContractDataFile, type ContractPlayer, type CoreDraftDataKey, type DecodeOptions, type DraftDataRefreshState, type DraftDataRefreshStatus, type DraftDataRefreshStepState, type DraftReadinessDefinition, type DraftReadinessDependencyObservation, type DraftReadinessItem, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarning, type DraftReadinessWarningInput, type ECRPlayer, type FantasyProsAdpPlayer, type FantasyProsMarketStats, type FantasyProsNewsItem, type FantasyProsProjection, type FantasyProsSnapshot, type KeeperFile, type LoadedArtifact, type MarketAdpFormat, type MarketAdpPlayer, type MarketAdpSnapshot, type PlayerIdentityFile, type PredictionsDataFile, type RecommendationPolicyFile, type SleeperDataFile, type SportsbookOverUnderLine, type SportsbookSnapshot, type TeamEnvDataFile, type TeamEnvironment, type VolumeLevel",
+        "draft": "DEFAULT_QUICK_MOCK, LIVE_RECOMMENDATION_ARCHITECTURE, applyLeagueSurvivalModel, applyPositionTiers, blocksLiveRecommendations, blocksRecommendations, calculateAllScarcityScores, calculateTeamNeeds, calculateTierAvailability, canonicalizeKeeperSupply, comparisonBar, createDraftDecisionOutput, createDraftDecisionView, createDraftDisplayContext, createQuickMockSettings, createSlotSequence, deriveDraft, deriveDraftCursor, estimateLeagueSurvivalProbability, estimateMockSurvivalProbabilities, evaluateWorkspaceDraftReadiness, filterDrafted, formatSignedNumber, getAvailabilitySignal, getComparisonHighlights, getComparisonMetrics, getCriticalPositions, getEffectiveKeeperAssignments, getKeeperAtPick, getKeeperPickNumber, getNextOpenPickNumber, getNextUserPick, getPreferredRecommendation, getRecommendationBoard, getRecommendationExplanation, getRecommendationPolicyLabel, getRecommendations, getRosterAnswer, getTierKey, getWaitAnswer, getWaitingCostSummary, getWhyRows, isKeeperSupplyComplete, isLeagueSetupPreferences, isNeedPriority, isQuickMockPreferences, mergeCoreSources, mergePlayerData, normalizePlayerName, optimizeLineupUtility, resolveDraftPickImports, selectCpuPlayer, simulateCpuDraft, sortRecommendationsForPool, survivalPercent, type AssistantAnswerRow, type CanonicalKeeperAssignment, type ComparisonMetric, type ContractPlayerData, type CorePlayerDataSources, type CpuSelection, type CursorAnchor, type DecisionDivergenceFactor, type DecisionLens, type DecisionOutput, type DerivedDraft, type DraftDecisionOutput, type DraftDecisionView, type DraftDisplayContext, type DraftFormat, type DraftKeeper, type DraftPick, type DraftPickImportRejection, type DraftPickImportResult, type DraftProgress, type DraftSelection, type DraftSource, type ExpectedNextPickAlternative, type HelpMetric, type KeeperPreloadStatus, type KeeperSupplyEntry, type LeagueSurvivalModel, type LineupPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel, type NeedPriority, type PlayerIdentityData, type PoolSort, type PositionNeed, type QuickMockPreferences, type Recommendation, type RecommendationContext, type RecommendationDecisionFactors, type RecommendationResult, type RecommendationSelection, type SelectCpuPlayerInput, type ShadowRecommendation, type ShadowRecommendationEvent, type SimulatedMockPick, type SleeperADPPlayer, type SlotRef, type SlotSequence",
+        "http": "HttpError, http, parseRetryAfter, type HttpEventPolicy, type HttpOptions, type HttpPolicy",
+        "league": "DEFAULT_ROSTER_REQUIREMENTS, DEFAULT_SCORING_RULES, NFL_TEAMS, POSITIONS, createDefaultLeagueSettings, createEmptyRoster, createLeagueSettings, isLeagueSettings, isNFLTeam, isNewsStatus, isPlayer, isPosition, isPredictionSource, isRosterRequirements, isSleeperLeague, normalizeSleeperLeagueSettings, type HighlightLevel, type LeagueSettings, type NFLTeam, type NewsStatus, type Player, type PlayerPrediction, type Position, type PredictionSource, type Roster, type RosterRequirements, type ScoringRules, type SleeperLeague, type SurvivalModelSource, type TierSource",
+        "node": "ProcessError, Processes, localDevPorts, readCatalogArtifact, runNodeMain, type NodeMainOptions, type ProcessErrorKind, type ProcessOptions, type ProcessResult, type ProcessService",
+        "sync": "DRAFT_SESSION_LINEAGE_LIMIT, DRAFT_STORAGE_MIGRATION_KEY, DraftSyncEngine, isDraftProvider, isDraftSessionIdentity, isDraftStorageMigration, isDraftSyncConnection, isValidDraftSyncId, localDevPorts, normalizeSleeperDraftMetadata, normalizeSleeperPick, parseDraftRoomUrl, resolveSleeperDraftLeagueId, type DraftMetadata, type DraftPickEvent, type DraftProvider, type DraftRoomStatus, type DraftSessionIdentity, type DraftSessionSummary, type DraftStatus, type DraftStorageMigration, type DraftSyncSnapshot, type DraftSyncState, type DraftSyncUpdate, type DraftType, type EspnDraftSnapshot, type SleeperDraftMetadata, type SleeperDraftPick",
+        "units": "MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS, isBoundedInteger, isDraftSize",
+      }
+    `);
+    const source = Object.entries(contracts).flatMap(([subpath, names]) => names.split(', ').map(name => {
+      const exported = name.replace(/^type /, '');
+      return `import type { ${exported} as ${subpath}_${exported} } from '@fantasy-draft/shared/${subpath}';`;
+    })).join('\n');
+    expect(consumerDiagnostics(source)).toEqual([]);
+  });
+
+  it('keeps sync, session and shadow types closed while preserving runtime extras', () => {
+    const diagnostics = consumerDiagnostics(`
+import type { DraftMetadata, DraftPickEvent, EspnDraftSnapshot, DraftSyncSnapshot, DraftSyncUpdate, SleeperDraftPick, SleeperDraftMetadata, DraftSessionSummary } from '@fantasy-draft/shared/sync';
+import type { ShadowRecommendationEvent, ShadowRecommendation } from '@fantasy-draft/shared/draft';
+type Closed<T extends false> = T;
+${['DraftMetadata','DraftPickEvent','EspnDraftSnapshot','DraftSyncSnapshot','DraftSyncUpdate','SleeperDraftPick','SleeperDraftMetadata','DraftSessionSummary','ShadowRecommendationEvent','ShadowRecommendation'].map(name => `type ${name}Closed = Closed<string extends keyof ${name} ? true : false>;`).join('\n')}
+declare const pick: DraftPickEvent;
+pick.playerNmae;
+declare const draft: DraftMetadata;
+draft.leagueSetings;
+declare const shadow: ShadowRecommendationEvent;
+shadow.context.leagueSetingsFingerprint;
+`);
+    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics.some(item => item.code === 2344)).toBe(false);
+  });
+
+  it('rejects unregistered catalog handles at the type boundary', () => {
+    const diagnostics = consumerDiagnostics(`
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
+catalogPath(CATALOG.identities);
+catalogPath(Symbol('unregistered'));
+`);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]?.code).toBe(2345);
   });
 
   it('closes duplicate roster exports on draft in Node and NodeNext', () => {

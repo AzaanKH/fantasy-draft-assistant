@@ -4,7 +4,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type {
   NFLTeam,
   Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
+import { decodeFantasyProsSnapshot, decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
 import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
@@ -16,17 +17,7 @@ const FANTASYPROS_FILE = join(DATA_DIR, 'fantasypros-snapshot.json');
 const SLEEPER_FILE = join(DATA_DIR, 'sleeper-adp.json');
 const OUTPUT_FILE = join(DATA_DIR, 'player-identity.json');
 
-interface SleeperPlayer {
-  readonly playerId: string;
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-}
-
-interface SleeperFile {
-  readonly fetchedAt: string;
-  readonly players: readonly SleeperPlayer[];
-}
+type SleeperPlayer = ReturnType<typeof decodeSleeperDataFile>['players'][number];
 
 type FantasyProsPlayer = ECRPlayer | FantasyProsAdpPlayer;
 type MatchMethod = 'exact-name-team' | 'unique-name-position' | 'team-defense' | 'unmatched';
@@ -103,8 +94,8 @@ async function main(): Promise<void> {
     readFile(FANTASYPROS_FILE, 'utf8'),
     readFile(SLEEPER_FILE, 'utf8'),
   ]);
-  const fantasyPros = JSON.parse(fantasyProsRaw) as FantasyProsSnapshot;
-  const sleeper = JSON.parse(sleeperRaw) as SleeperFile;
+  const fantasyPros = decodeFantasyProsSnapshot(JSON.parse(fantasyProsRaw));
+  const sleeper = decodeSleeperDataFile(JSON.parse(sleeperRaw), { onWarning: console.warn });
   const fantasyProsPlayers = dedupeFantasyProsPlayers(fantasyPros);
   const sleeperExact = new Map(sleeper.players.map((player) => [exactKey(player), player]));
   const sleeperNamePosition = uniqueNamePositionMap(sleeper.players);

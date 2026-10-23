@@ -26,6 +26,8 @@ import {
   type SeasonComparison,
 } from './contract-year-backtest-core.js';
 import {
+  decodeContractBacktestRows,
+  type ContractBacktestRow,
   isContractSourceColumn,
   resolveSeasonHistoryColumn,
 } from './contract-source-schema.js';
@@ -42,25 +44,6 @@ const RIDGE_LAMBDA = Number(process.env['CONTRACT_BACKTEST_RIDGE_LAMBDA'] ?? 10)
 const MODEL_VERSION = 'contract-year-walk-forward-ridge-v1';
 const PROVENANCE_COMMAND = 'pnpm model:backtest:contracts';
 const CONTRACT_INPUT_IDENTIFIER = 'nflverse/contracts/historical_contracts.parquet';
-
-interface QueryRow {
-  readonly season: number | bigint;
-  readonly gsis_id: string;
-  readonly player_name: string;
-  readonly position: string;
-  readonly actual_points: number | bigint | null;
-  readonly age: number | bigint | null;
-  readonly experience: number | bigint | null;
-  readonly prior_points: number | bigint | null;
-  readonly prior_points_per_game_3yr: number | bigint | null;
-  readonly prior_games: number | bigint | null;
-  readonly prior_opportunity_per_game: number | bigint | null;
-  readonly prior_target_share: number | bigint | null;
-  readonly is_rookie: boolean | null;
-  readonly expected_role: string;
-  readonly contract_known: boolean | null;
-  readonly is_contract_year: boolean | null;
-}
 
 function range(start: number, end: number): number[] {
   return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
@@ -96,7 +79,7 @@ function isExpectedRole(value: string): value is ExpectedRole {
   return value === 'high' || value === 'medium' || value === 'low' || value === 'rookie-unknown';
 }
 
-function mapRow(row: QueryRow): PlayerSeasonRow | null {
+function mapRow(row: ContractBacktestRow): PlayerSeasonRow | null {
   if (!isPosition(row.position) || !isExpectedRole(row.expected_role)) return null;
   return {
     season: asNumber(row.season),
@@ -282,7 +265,7 @@ async function loadPlayerSeasons(): Promise<PlayerSeasonRow[]> {
         or (is_rookie and coalesce(draft_number, 999) <= 250)
       order by season, position, player_name
     `);
-    return (reader.getRowObjects() as unknown as QueryRow[])
+    return decodeContractBacktestRows(reader.getRowObjects())
       .map(mapRow)
       .filter((row): row is PlayerSeasonRow => row !== null);
   } finally {

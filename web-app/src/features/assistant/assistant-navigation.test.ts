@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Player } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
 import {
   DEFAULT_ASSISTANT_NAVIGATION_TARGET,

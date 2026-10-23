@@ -1,7 +1,7 @@
 import type {
   NFLTeam,
   Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import type {
   ECRPlayer,
   FantasyProsAdpPlayer,

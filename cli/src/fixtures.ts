@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { type Position } from '@fantasy-draft/shared';
+import { type Position } from '@fantasy-draft/shared/league';
 import { createDefaultLeagueSettings, createLeagueSettings } from '@fantasy-draft/shared/league';
 import { type DraftPickEvent, type DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 

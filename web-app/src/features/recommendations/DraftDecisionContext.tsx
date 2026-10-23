@@ -1,9 +1,11 @@
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
 import {
   POSITIONS,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   type DraftReadinessReport,
 } from '@fantasy-draft/shared/catalog';
@@ -12,7 +14,7 @@ import {
 } from '@fantasy-draft/shared/draft';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { blocksRecommendations, createDraftDecisionOutput, type DraftDecisionOutput, type DraftDecisionView } from '@fantasy-draft/shared/draft';
-import { useDraftStore, type DraftSessionMode, type UnresolvedProviderPick } from '@/stores/draftStore';
+import { type DraftSessionMode, type UnresolvedProviderPick } from '@/stores/draftStore';
 
 type RecommendationState = ReturnType<typeof useRecommendations>;
 
@@ -46,9 +48,9 @@ export function DraftDecisionProvider({
   readonly children: React.ReactNode;
   readonly readiness?: DraftReadinessReport | null;
 }): React.ReactElement {
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const quickMockRules = useDraftStore((state) => state.leagueSettings.source === 'default' && state.leagueSettings.keepersEnabled === false);
-  const unresolvedProviderPicks = useDraftStore(
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const quickMockRules = useDraftState((state) => state.leagueSettings.source === 'default' && state.leagueSettings.keepersEnabled === false);
+  const unresolvedProviderPicks = useDraftState(
     (state) => state.unresolvedProviderPicks
   );
   const recommendationsBlockedByProviderIdentity =
@@ -72,12 +74,12 @@ export function DraftDecisionProvider({
     topPick,
     isLoading,
   } = recommendationState;
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const selectedLens = useDraftStore((state) => state.decisionLens);
-  const setSelectedLens = useDraftStore((state) => state.setDecisionLens);
-  const historyLength = useDraftStore((state) => state.draftHistory.length);
-  const rosterSize = useDraftStore((state) =>
-    (Object.values(state.myRoster) as string[][]).reduce(
+  const currentPick = useDraftView((view) => view.currentPick);
+  const selectedLens = useDraftState((state) => state.decisionLens);
+  const workspace = useWorkspace();
+  const historyLength = useDraftState((state) => state.draftHistory.length);
+  const rosterSize = useDraftView((view) =>
+    POSITIONS.map(position => view.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     )
@@ -126,7 +128,7 @@ export function DraftDecisionProvider({
     topPick,
     isLoading,
     output,
-    setSelectedLens,
+    setSelectedLens: (lens) => { workspace.send('setDecisionLens', lens); },
     overall: output.selectedView,
     byPosition,
     outputByPosition,
@@ -155,7 +157,7 @@ export function DraftDecisionProvider({
     recommendationsBlockedByProviderIdentity,
     rosterSize,
     selection,
-    setSelectedLens,
+    workspace,
     topPick,
     unresolvedProviderPicks,
   ]);

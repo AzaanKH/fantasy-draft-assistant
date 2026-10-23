@@ -1,7 +1,7 @@
 import {
   POSITIONS,
   type Position,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 import {
   optimizeLineupUtility,
   type LineupPlayer,

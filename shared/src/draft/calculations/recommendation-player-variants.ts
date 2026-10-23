@@ -17,7 +17,7 @@ export interface CorePlayerDataSources {
   readonly projections: readonly FantasyProsProjection[];
   readonly news: readonly FantasyProsNewsItem[];
   readonly sleeperPlayers: readonly SleeperADPPlayer[];
-  readonly teamEnvironments: Readonly<Record<NFLTeam, TeamEnvironment>>;
+  readonly teamEnvironments: Readonly<Partial<Record<NFLTeam, TeamEnvironment>>>;
   readonly fantasyProsAdp: readonly FantasyProsAdpPlayer[];
   readonly identities: readonly PlayerIdentityData[];
   readonly leagueContext: PlayerMergeLeagueContext;
@@ -53,7 +53,7 @@ export function mergeCoreSources(
     sources.projections,
     sources.news,
     sources.sleeperPlayers,
-    sources.teamEnvironments as Record<NFLTeam, TeamEnvironment>,
+    sources.teamEnvironments,
     {
       modelPredictions,
       onWarning: sources.onWarning,

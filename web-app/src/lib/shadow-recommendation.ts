@@ -1,3 +1,5 @@
+import { http } from '@fantasy-draft/shared/http';
+import { BROWSER_HTTP_POLICY } from '@/lib/http';
 import type {
   PositionNeed,
   Recommendation,
@@ -90,15 +92,21 @@ export function buildShadowRecommendationEvent(
 export async function postShadowRecommendation(
   endpoint: string,
   event: ShadowRecommendationEvent,
-  fetcher: typeof fetch = fetch
+  fetcher?: typeof fetch
 ): Promise<boolean> {
   try {
-    const response = await fetcher(endpoint, {
+    await http.json(endpoint, value => {
+      if (typeof value !== 'object' || value === null || !('eventId' in value) ||
+        typeof value.eventId !== 'string' || !('recorded' in value) || typeof value.recorded !== 'boolean') {
+        throw new Error('Invalid shadow recommendation receipt');
+      }
+      return { eventId: value.eventId, recorded: value.recorded };
+    }, BROWSER_HTTP_POLICY, { fetch: fetcher, init: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(event),
-    });
-    return response.ok;
+    } });
+    return true;
   } catch {
     return false;
   }
