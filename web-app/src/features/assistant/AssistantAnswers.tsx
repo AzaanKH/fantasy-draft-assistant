@@ -7,7 +7,8 @@ import {
   getWhyRows,
 } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
-import { type Player, type PositionNeed, type Recommendation } from '@fantasy-draft/shared';
+import { type Player } from '@fantasy-draft/shared/league';
+import { type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
 import { ChevronDown } from 'lucide-react';
 import * as React from 'react';
 

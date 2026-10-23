@@ -1,4 +1,4 @@
-import { POSITIONS } from '@fantasy-draft/shared';
+import { POSITIONS } from '@fantasy-draft/shared/league';
 import { calculateAllScarcityScores, calculateTeamNeeds, resolveDraftPickImports } from '@fantasy-draft/shared/draft';
 import type { DraftData } from './data';
 import type { SessionContext } from './context';

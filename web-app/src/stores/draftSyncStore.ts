@@ -1,6 +1,7 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
-import type { DraftProvider } from '@fantasy-draft/shared/sync';
+import { isDraftProvider, isDraftSyncConnection, isValidDraftSyncId, type DraftProvider } from '@fantasy-draft/shared/sync';
 import { IS_DEMO } from '@/lib/demo-mode';
+
 
 export const DRAFT_SYNC_STORAGE_KEY = 'fantasy-draft-live-sync-v1';
 
@@ -22,37 +23,8 @@ export interface DraftSyncConnectionStore {
   disconnect: () => void;
 }
 
-function isDraftProvider(value: unknown): value is DraftProvider {
-  return value === 'sleeper' || value === 'yahoo' || value === 'espn';
-}
-
-export function isValidDraftSyncId(provider: DraftProvider, value: unknown): value is string {
-  return typeof value === 'string' && (
-    provider === 'sleeper'
-      ? /^[A-Za-z0-9_-]{1,128}$/.test(value)
-      : /^\d{1,20}$/.test(value)
-  );
-}
-
 function isDraftPosition(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 20;
-}
-
-function isPersistedDraftSyncConnection(
-  value: unknown
-): value is PersistedDraftSyncConnection {
-  if (typeof value !== 'object' || value === null) return false;
-
-  const candidate = value as Record<string, unknown>;
-  return (
-    isDraftProvider(candidate.provider) &&
-    isValidDraftSyncId(candidate.provider, candidate.draftId) &&
-    (candidate.draftPosition === null || isDraftPosition(candidate.draftPosition)) &&
-    (candidate.settingsProfile === undefined || (candidate.settingsProfile === 'quick-mock' && candidate.provider === 'sleeper' && candidate.usePrimaryLeagueSettings !== true)) &&
-    (candidate.usePrimaryLeagueSettings === undefined ||
-      (typeof candidate.usePrimaryLeagueSettings === 'boolean' &&
-       (candidate.provider === 'sleeper' || !candidate.usePrimaryLeagueSettings)))
-  );
 }
 
 export function parseStoredDraftSyncConnection(
@@ -61,8 +33,8 @@ export function parseStoredDraftSyncConnection(
   if (!serialized) return null;
 
   try {
-    const parsed: unknown = JSON.parse(serialized);
-    return isPersistedDraftSyncConnection(parsed) ? parsed : null;
+    const value: unknown = JSON.parse(serialized);
+    return isDraftSyncConnection(value) ? value : null;
   } catch {
     return null;
   }
@@ -114,7 +86,7 @@ export function getDraftSyncSearch(
   return serialized ? `?${serialized}` : '';
 }
 
-function readStoredConnection(): PersistedDraftSyncConnection | null {
+export function readStoredConnection(): PersistedDraftSyncConnection | null {
   if (typeof window === 'undefined' || IS_DEMO) return null;
 
   try {
@@ -126,7 +98,7 @@ function readStoredConnection(): PersistedDraftSyncConnection | null {
   }
 }
 
-function persistConnection(connection: PersistedDraftSyncConnection | null): void {
+export function persistConnection(connection: PersistedDraftSyncConnection | null): void {
   if (typeof window === 'undefined') return;
 
   try {
@@ -185,7 +157,7 @@ export function createDraftSyncConnectionStore({
       set({ connection });
     },
     restoreConnection: (connection) => {
-      if (!isPersistedDraftSyncConnection(connection)) return;
+      if (!isDraftSyncConnection(connection)) return;
       persist(connection);
       set({ connection });
     },
@@ -217,18 +189,13 @@ export function createDraftSyncConnectionStore({
   }));
 }
 
-export const useDraftSyncConnectionStore = createDraftSyncConnectionStore({
-  initialConnection: readStoredConnection(),
-  persist: persistConnection,
-});
-
-export function initializeDraftSyncConnection(search: string): void {
+export function initializeDraftSyncConnection(connectionStore: StoreApi<DraftSyncConnectionStore>, search: string): void {
   // The static demo has no sync server to connect to.
   if (IS_DEMO) return;
   const urlConnection = getDraftSyncConnectionFromSearch(search);
   if (!urlConnection) return;
 
-  const store = useDraftSyncConnectionStore.getState();
+  const store = connectionStore.getState();
   const storedConnection = store.connection;
   const sameDraft = storedConnection?.provider === urlConnection.provider &&
     storedConnection.draftId === urlConnection.draftId;

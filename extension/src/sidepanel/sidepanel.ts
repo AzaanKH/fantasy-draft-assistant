@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * Side panel bootstrap.
  *
@@ -6,15 +7,49 @@
  * logic, and theme preferences stay identical across both surfaces.
  */
 
-import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 import { localWebAppBase } from '../shared/local-urls';
-import {
-  DEFAULT_WEB_APP_URL,
-  STORAGE_KEYS,
-  isExtensionMessage,
-  isExtensionState,
-  type DraftRoomStatus,
-} from '../shared/types';
+import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
+
+interface DraftStatusProjection {
+  readonly isInDraftRoom: boolean;
+  readonly provider?: string;
+  readonly draftId?: string;
+  readonly myDraftSlot?: number;
+}
+
+interface SnapshotProjection {
+  readonly provider: string;
+  readonly draftId: string;
+}
+
+interface DraftStateProjection {
+  readonly status: DraftStatusProjection;
+  readonly snapshot?: SnapshotProjection | null;
+}
+
+function isDraftSlot(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1;
+}
+
+function isDraftStatusProjection(value: unknown): value is DraftStatusProjection {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) &&
+    'isInDraftRoom' in value && typeof value.isInDraftRoom === 'boolean' &&
+    (!('provider' in value) || value.provider === undefined || typeof value.provider === 'string') &&
+    (!('draftId' in value) || value.draftId === undefined || typeof value.draftId === 'string') &&
+    (!('myDraftSlot' in value) || value.myDraftSlot === undefined || isDraftSlot(value.myDraftSlot));
+}
+
+function isSnapshotProjection(value: unknown): value is SnapshotProjection {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) &&
+    'provider' in value && typeof value.provider === 'string' &&
+    'draftId' in value && typeof value.draftId === 'string';
+}
+
+function isDraftStateProjection(value: unknown): value is DraftStateProjection {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) &&
+    'status' in value && isDraftStatusProjection(value.status) &&
+    (!('snapshot' in value) || value.snapshot === undefined || value.snapshot === null || isSnapshotProjection(value.snapshot));
+}
 
 const frame = document.getElementById('sidepanel-frame') as HTMLIFrameElement;
 const loadingState = document.getElementById('loading-state') as HTMLDivElement;
@@ -24,15 +59,14 @@ const openWebAppButton = document.getElementById('open-webapp') as HTMLButtonEle
 const pairingState = document.getElementById('pairing-state') as HTMLDivElement;
 document.getElementById('open-pairing')?.addEventListener('click', () => { void chrome.runtime.openOptionsPage(); });
 
-let draftStatus: DraftRoomStatus = { isInDraftRoom: false };
-let syncSnapshot: DraftSyncSnapshot | null = null;
+let draftStatus: DraftStatusProjection = { isInDraftRoom: false };
+let syncSnapshot: SnapshotProjection | null = null;
 let webAppUrl = DEFAULT_WEB_APP_URL;
 let currentFrameUrl = '';
 let loadTimeout: number | null = null;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
+let sharingAttempt = 0;
+let sharingStatus: 'pending' | 'ready' | 'error' = 'pending';
+let stopSharingCheck: (() => void) | undefined;
 
 function getDraftContextUrl(pathname: '/sidepanel' | '/draft'): string {
   const url = new URL(webAppUrl);
@@ -79,6 +113,20 @@ function loadSidePanel(force = false): void {
   currentFrameUrl = nextUrl;
   showLoadingState();
   clearLoadTimeout();
+  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+    const attempt = ++sharingAttempt;
+    stopSharingCheck?.();
+    sharingStatus = 'pending';
+    frame.removeAttribute('src');
+    void import('./storage-sharing').then(({ startStorageSharing }) => {
+      if (attempt !== sharingAttempt) return;
+      stopSharingCheck = startStorageSharing({ frame, frameUrl: nextUrl,
+        ready: () => { sharingStatus = 'ready'; loadingState.hidden = true; errorState.hidden = true; },
+        failed: error => { sharingStatus = 'error'; console.warn('[Fantasy Draft] Storage sharing failed', error); showErrorState(); },
+      });
+    }).catch(() => { if (attempt === sharingAttempt) { sharingStatus = 'error'; showErrorState(); } });
+    return;
+  }
   loadTimeout = window.setTimeout(() => {
     showErrorState();
   }, 8_000);
@@ -104,21 +152,16 @@ async function readExtensionState(): Promise<void> {
   }
 
   const storedPosition: unknown = stored[STORAGE_KEYS.MY_PICK_POSITION];
-  if (
-    typeof storedPosition === 'number' &&
-    Number.isInteger(storedPosition) &&
-    storedPosition >= 1
-  ) {
-    draftStatus = { ...draftStatus, myDraftSlot: storedPosition };
-  }
+  if (isDraftSlot(storedPosition)) draftStatus = { ...draftStatus, myDraftSlot: storedPosition };
 
   const response: unknown = await chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' });
-  const data = isRecord(response) &&
-    response['success'] === true &&
-    isExtensionState(response['data'])
-    ? response['data']
-    : null;
-  if (!data) return;
+  if (typeof response !== 'object' || response === null ||
+      !('success' in response) || response.success !== true ||
+      !('data' in response) || !isDraftStateProjection(response.data)) {
+    console.warn('[Fantasy Draft] Rejected background draft state');
+    return;
+  }
+  const data = response.data;
 
   draftStatus = data.status;
   if ('snapshot' in data) {
@@ -126,21 +169,24 @@ async function readExtensionState(): Promise<void> {
   }
 }
 
-function handleMessage(message: unknown): void {
-  if (!isExtensionMessage(message) || message.type !== 'SYNC_STATE') return;
-
-  draftStatus = message.data.status;
-  if ('snapshot' in message.data) {
-    syncSnapshot = message.data.snapshot ?? null;
+function handleMessage(value: unknown): void {
+  if (typeof value !== 'object' || value === null || !('type' in value) || value.type !== 'SYNC_STATE') return;
+  if (!('data' in value) || !isDraftStateProjection(value.data)) {
+    console.warn('[Fantasy Draft] Rejected extension message');
+    return;
   }
+  draftStatus = value.data.status;
+  if ('snapshot' in value.data) syncSnapshot = value.data.snapshot ?? null;
   loadSidePanel();
 }
 
 async function openFullDraftRoom(): Promise<void> {
+  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') { loadSidePanel(true); return; }
   await chrome.tabs.create({ url: getDraftContextUrl('/draft') });
 }
 
 frame.addEventListener('load', () => {
+  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' && sharingStatus !== 'ready') return;
   clearLoadTimeout();
   loadingState.hidden = true;
   errorState.hidden = true;
@@ -154,6 +200,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
 retryButton.addEventListener('click', () => { loadSidePanel(true); });
 openWebAppButton.addEventListener('click', () => { void openFullDraftRoom(); });
 chrome.runtime.onMessage.addListener(handleMessage);
+if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+  window.addEventListener('pagehide', () => { ++sharingAttempt; stopSharingCheck?.(); }, { once: true });
+}
 
 void readExtensionState()
   .catch(() => undefined)

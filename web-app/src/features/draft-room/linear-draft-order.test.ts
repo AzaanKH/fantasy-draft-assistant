@@ -2,13 +2,16 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Player, Recommendation } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import type { DraftType } from '@fantasy-draft/shared/sync';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidePanelPage } from '@/features/sidepanel/SidePanelPage';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
-import { createDraftStore, DraftStoreProvider, type DraftStoreApi } from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
+import { getDraftView } from '@/workspace/useDraftView';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
@@ -27,8 +30,9 @@ const recommendation: Recommendation = {
   reason: 'Strong receiver', score: 1,
 };
 
+const catalog = [player];
 vi.mock('@/hooks/usePlayerData', () => ({
-  usePlayerDataQuery: () => ({ players: [player], isLoading: false, isError: false }),
+  usePlayerDataQuery: () => ({ players: catalog, isLoading: false, isError: false }),
 }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => ({
@@ -74,7 +78,7 @@ beforeEach(() => {
     totalTeams: 4, totalRounds: 3, myPickPosition: 2, draftType: 'linear',
   });
   store.getState().setSessionMode('live');
-  store.setState({ currentPick: 5 });
+  store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: 5 }, historyLength: 0 } });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -89,7 +93,7 @@ afterEach(() => {
 
 function render(element: ReactElement): void {
   act(() => {
-    root.render(createElement(DraftStoreProvider, {
+    root.render(createElement(WorkspaceTestProvider, {
       store,
       children: createElement(ThemeProvider, {
         initialTheme: 'light', persist: false,
@@ -132,7 +136,7 @@ describe('ProvisionalPickDialog linear order', () => {
         teamName: 'Team 1', source: 'provisional',
       }),
     ]);
-    expect(store.getState().teamRosters[0]?.WR).toContain(player.id);
+    expect(getDraftView(store).teamRosters[0]?.WR).toContain(player.id);
     expect(document.querySelector('[role="alert"]')).toBeNull();
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
@@ -161,7 +165,7 @@ describe('rendered linear turn timing', () => {
     { currentPick: 5, expected: '1 picks away' },
     { currentPick: 6, expected: 'Your turn' },
   ])('shows decision-bar timing at linear pick $currentPick', ({ currentPick, expected }) => {
-    store.setState({ currentPick });
+    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
     render(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
     expect(container.textContent).toContain(expected);
   });
@@ -171,7 +175,7 @@ describe('rendered linear turn timing', () => {
     { currentPick: 6, expected: 'Your pick now' },
     { currentPick: 13, expected: 'Draft complete' },
   ])('shows side-panel timing at linear pick $currentPick', ({ currentPick, expected }) => {
-    store.setState({ currentPick });
+    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
     render(createElement(SidePanelPage));
     expect(container.textContent).toContain(expected);
   });
@@ -206,12 +210,12 @@ describe('completed mock draft actions', () => {
   it.each(['snake', 'linear'] as const)('does not offer a phantom %s turn after the final round', draftType => {
     store.getState().setConfig({ draftType, myPickPosition: draftType === 'linear' ? 1 : 4 });
     store.getState().setSessionMode('mock');
-    store.setState({ currentPick: 13 });
+    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: 13 }, historyLength: 0 } });
     render(createElement(DraftActionProbe));
     const button = container.querySelector('button');
     expect(button?.disabled).toBe(true);
     act(() => { button?.click(); });
     expect(store.getState().draftHistory).toEqual([]);
-    expect(store.getState().myRoster.WR).toEqual([]);
+    expect(getDraftView(store).myRoster.WR).toEqual([]);
   });
 });

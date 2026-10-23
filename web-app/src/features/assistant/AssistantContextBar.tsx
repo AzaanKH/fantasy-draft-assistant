@@ -1,8 +1,8 @@
-import { createSlotSequence, type DecisionLens } from '@fantasy-draft/shared';
+import { createSlotSequence, type DecisionLens } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
-
-import type { AssistantDraftMode, PickWindow, SyncTone } from './assistant-context';
+import { getSyncStatus, type AssistantDraftMode, type PickWindow } from './assistant-context';
+import { useNow } from '@/workspace/useNow';
 
 const MODE_LABELS: Readonly<Record<AssistantDraftMode, string>> = {
   companion: 'Companion',
@@ -27,7 +27,7 @@ export function AssistantContextBar({
   readonly totalTeams: number;
   readonly draftType: DraftType;
   readonly mode: AssistantDraftMode;
-  readonly sync: { readonly tone: SyncTone; readonly label: string };
+  readonly sync: AssistantSyncStatusInput;
   readonly lens: DecisionLens;
   readonly onLensChange: (lens: DecisionLens) => void;
 }): React.ReactElement {
@@ -49,10 +49,7 @@ export function AssistantContextBar({
         ) : <span className="rec-muted">{pickWindow.onClock ? 'Your final pick' : 'No picks left'}</span>}
       </div>
       <div className="rec-context-status">
-        <span className="rec-sync" data-sync={sync.tone} role="status">
-          <span className="rec-sync-dot" aria-hidden="true" />
-          {sync.label}
-        </span>
+        <AssistantSyncStatus sync={sync} />
         <span className="rec-muted rec-mode-label">{MODE_LABELS[mode]}</span>
         <div className="rec-lens" role="group" aria-label="Decision lens">
           <button type="button" aria-pressed={lens === 'best-pick'} onClick={() => { onLensChange('best-pick'); }}>Best Pick</button>
@@ -60,5 +57,24 @@ export function AssistantContextBar({
         </div>
       </div>
     </div>
+  );
+}
+
+type AssistantSyncStatusInput = Omit<Parameters<typeof getSyncStatus>[0], 'lastSyncAgeMs'> & {
+  readonly lastSuccessfulSyncAt: number | null;
+};
+
+function AssistantSyncStatus({ sync }: { readonly sync: AssistantSyncStatusInput }): React.ReactElement {
+  const now = useNow();
+  const { lastSuccessfulSyncAt, ...input } = sync;
+  const status = getSyncStatus({
+    ...input,
+    lastSyncAgeMs: lastSuccessfulSyncAt === null ? null : Math.max(0, now - lastSuccessfulSyncAt),
+  });
+  return (
+    <span className="rec-sync" data-sync={status.tone} role="status">
+      <span className="rec-sync-dot" aria-hidden="true" />
+      {status.label}
+    </span>
   );
 }

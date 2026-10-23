@@ -1,7 +1,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isNFLTeam, type NFLTeam, type Position } from '@fantasy-draft/shared';
+import { isNFLTeam, isPosition, type Position } from '@fantasy-draft/shared/league';
+import { decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
+import { decodeSurvivalHistory, type SurvivalHistoryPick } from './script-file-schemas.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
@@ -10,35 +12,7 @@ const SLEEPER_ADP_FILE = join(DATA_DIR, 'sleeper-adp.json');
 const OUTPUT_FILE = join(DATA_DIR, 'league-history', 'survival-model.json');
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const satisfies readonly Position[];
 
-interface LeagueHistoryPick {
-  readonly pickNo: number;
-  readonly draftSlot: number;
-  readonly pickedByDisplayName: string;
-  readonly position: Position;
-}
-
-interface LeagueHistorySeason {
-  readonly season: number;
-  readonly leagueName: string;
-  readonly picks: readonly LeagueHistoryPick[];
-}
-
-interface LeagueDraftHistory {
-  readonly leagueName: string;
-  readonly seasons: readonly LeagueHistorySeason[];
-}
-
-interface SleeperAdpPlayer {
-  readonly playerId: string;
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-  readonly sleeperAdp: number;
-}
-
-interface SleeperAdpFile {
-  readonly players: readonly SleeperAdpPlayer[];
-}
+type LeagueHistoryPick = SurvivalHistoryPick;
 
 interface PositionSummary {
   readonly position: Position;
@@ -84,66 +58,6 @@ const ADP_BUCKETS = [
   { label: '101-plus', minPick: 101, maxPick: Number.POSITIVE_INFINITY },
 ] as const;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isPosition(value: unknown): value is Position {
-  return POSITIONS.includes(value as Position);
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isLeagueHistoryPick(value: unknown): value is LeagueHistoryPick {
-  return (
-    isRecord(value) &&
-    isFiniteNumber(value['pickNo']) &&
-    isFiniteNumber(value['draftSlot']) &&
-    typeof value['pickedByDisplayName'] === 'string' &&
-    isPosition(value['position'])
-  );
-}
-
-function isLeagueHistorySeason(value: unknown): value is LeagueHistorySeason {
-  return (
-    isRecord(value) &&
-    isFiniteNumber(value['season']) &&
-    typeof value['leagueName'] === 'string' &&
-    Array.isArray(value['picks']) &&
-    value['picks'].every(isLeagueHistoryPick)
-  );
-}
-
-function isLeagueDraftHistory(value: unknown): value is LeagueDraftHistory {
-  return (
-    isRecord(value) &&
-    typeof value['leagueName'] === 'string' &&
-    Array.isArray(value['seasons']) &&
-    value['seasons'].every(isLeagueHistorySeason)
-  );
-}
-
-function isSleeperAdpPlayer(value: unknown): value is SleeperAdpPlayer {
-  return (
-    isRecord(value) &&
-    typeof value['playerId'] === 'string' &&
-    typeof value['name'] === 'string' &&
-    isPosition(value['position']) &&
-    isNFLTeam(value['team']) &&
-    isFiniteNumber(value['sleeperAdp'])
-  );
-}
-
-function isSleeperAdpFile(value: unknown): value is SleeperAdpFile {
-  return (
-    isRecord(value) &&
-    Array.isArray(value['players']) &&
-    value['players'].every(isSleeperAdpPlayer)
-  );
-}
-
 function median(values: readonly number[]): number {
   if (values.length === 0) {
     return 0;
@@ -187,7 +101,8 @@ function round(value: number, digits: number = 2): number {
 }
 
 async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, 'utf8')) as unknown;
+  const value: unknown = JSON.parse(await readFile(path, 'utf8'));
+  return value;
 }
 
 async function main(): Promise<void> {
@@ -196,15 +111,8 @@ async function main(): Promise<void> {
     readJson(SLEEPER_ADP_FILE),
   ]);
 
-  if (!isLeagueDraftHistory(historyJson)) {
-    throw new Error(`Invalid league draft history file: ${LEAGUE_HISTORY_FILE}`);
-  }
-  if (!isSleeperAdpFile(sleeperAdpJson)) {
-    throw new Error(`Invalid Sleeper ADP file: ${SLEEPER_ADP_FILE}`);
-  }
-
-  const history = historyJson;
-  const sleeperAdp = sleeperAdpJson;
+  const history = decodeSurvivalHistory(historyJson);
+  const sleeperAdp = decodeSleeperDataFile(sleeperAdpJson, { onWarning: console.warn });
   const leaguePicks = history.seasons.flatMap((season) =>
     season.picks.filter((pick) => isPosition(pick.position))
   );

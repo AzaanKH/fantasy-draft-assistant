@@ -4,12 +4,15 @@
  * Contract status remains descriptive until it clears a separate historical
  * recommendation backtest; the live recommendation policy keeps it disabled.
  */
+import { http, HttpError } from '@fantasy-draft/shared/http';
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect } from 'effect';
-import type { NFLTeam, Position } from '@fantasy-draft/shared';
+import { decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
 import {
+  decodeContractRelease,
+  decodeContractRows,
   isContractSourceColumn,
   resolveSeasonHistoryColumn,
 } from './contract-source-schema.js';
@@ -25,39 +28,27 @@ const PLAYER_IDS_URL =
 const OUTPUT_FILE = join(DATA_DIR, 'contracts.json');
 const SLEEPER_FILE = join(DATA_DIR, 'sleeper-adp.json');
 
-interface ContractRow {
-  readonly sleeper_player_id: string | bigint;
-  readonly gsis_id: string;
-  readonly contract_end_year: number | bigint;
-}
-
-interface SleeperPlayer {
-  readonly playerId: string;
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-}
-
-interface SleeperFile {
-  readonly players: readonly SleeperPlayer[];
-}
-
-async function getSourceUpdatedAt(): Promise<string | null> {
-  const response = await fetch(CONTRACTS_RELEASE_API_URL, {
-    headers: { accept: 'application/vnd.github+json', 'user-agent': 'fantasy-draft-contract-refresh' },
-  });
-  if (!response.ok) return null;
-  const release = await response.json() as {
-    readonly updated_at?: string;
-    readonly assets?: readonly { readonly name?: string; readonly updated_at?: string }[];
-  };
-  return release.assets?.find((asset) => asset.name === 'historical_contracts.parquet')?.updated_at ??
-    release.updated_at ?? null;
+export async function getSourceUpdatedAt(): Promise<string | null> {
+  try {
+    const release = await http.json(CONTRACTS_RELEASE_API_URL, decodeContractRelease,
+      { timeoutMs: 20_000, retries: 0, retryAfter: true }, { init: {
+        headers: { accept: 'application/vnd.github+json', 'user-agent': 'fantasy-draft-contract-refresh' },
+      } });
+    return release.assets?.find((asset) => asset.name === 'historical_contracts.parquet')?.updated_at ??
+      release.updated_at ?? null;
+  } catch (error) {
+    if (error instanceof HttpError) {
+      if (error.kind === 'status') return null;
+      if (error.kind !== 'invalid-json') throw error;
+    }
+    console.warn(`Contract source provenance is unavailable: ${String(error)}`);
+    return null;
+  }
 }
 
 const program = Effect.gen(function* () {
   const contractYear = new Date().getFullYear();
-  const sleeper = JSON.parse(yield* io(() => readFile(SLEEPER_FILE, 'utf8'))) as SleeperFile;
+  const sleeper = yield* io(async () => decodeSleeperDataFile(JSON.parse(await readFile(SLEEPER_FILE, 'utf8')), { onWarning: console.warn }));
   const sleeperById = new Map(sleeper.players.map((player) => [player.playerId, player]));
   yield* withMemoryDb((connection) => io(async () => {
     const schemaReader = await connection.runAndReadAll(`
@@ -103,7 +94,7 @@ const program = Effect.gen(function* () {
       join players using (gsis_id)
       where contracts.contract_end_year = ${String(contractYear)}
     `);
-    const rows = reader.getRowObjects() as unknown as ContractRow[];
+    const rows = decodeContractRows(reader.getRowObjects());
     const players = rows.flatMap((row) => {
       const sleeperPlayer = sleeperById.get(String(row.sleeper_player_id));
       if (!sleeperPlayer) return [];

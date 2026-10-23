@@ -1,3 +1,4 @@
+import { fixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { describe, expect, it, vi } from 'vitest';
 import { Effect } from 'effect';
 import type { SleeperDraftMetadata } from '@fantasy-draft/shared/sync';
@@ -9,6 +10,21 @@ import {
 import { SLEEPER_API_BASE, SLEEPER_SETTINGS_CACHE_MS, SleeperSyncAdapter } from './sleeper-adapter.js';
 
 describe('SleeperSyncAdapter', () => {
+  it('logs rejected optional league settings while preserving the atomic draft payload', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, fixtureFetchJson(async (url: string) => {
+      if (url.endsWith('/picks')) return picksFixture;
+      if (url.includes('/draft/')) return draftFixture;
+      return { league_id: leagueFixture.league_id };
+    }));
+    try {
+      const snapshot = await Effect.runPromise(adapter.poll());
+      expect(snapshot.draft.leagueSettings).toBeUndefined();
+      expect(snapshot.picks).toHaveLength(picksFixture.length);
+      expect(warning).toHaveBeenCalledWith('[sleeper-adapter] Rejected invalid league settings');
+    } finally { warning.mockRestore(); }
+  });
+
   it('loads provider-confirmed settings for a Sleeper league mock', async () => {
     const leagueMock: SleeperDraftMetadata = {
       ...draftFixture,
@@ -21,19 +37,19 @@ describe('SleeperSyncAdapter', () => {
     const requestedUrls: string[] = [];
     const adapter = new SleeperSyncAdapter(
       leagueMock.draft_id,
-      async <T>(url: string): Promise<T> => {
+      fixtureFetchJson(async (url: string): Promise<unknown> => {
         requestedUrls.push(url);
         if (url === `${SLEEPER_API_BASE}/draft/${leagueMock.draft_id}`) {
-          return leagueMock as T;
+          return leagueMock;
         }
         if (url === `${SLEEPER_API_BASE}/draft/${leagueMock.draft_id}/picks`) {
-          return picksFixture as T;
+          return picksFixture;
         }
         if (url === `${SLEEPER_API_BASE}/league/${leagueFixture.league_id}`) {
-          return leagueFixture as T;
+          return leagueFixture;
         }
         throw new Error(`Unexpected URL: ${url}`);
-      }
+      })
     );
 
     const snapshot = await Effect.runPromise(adapter.poll());
@@ -55,18 +71,18 @@ describe('SleeperSyncAdapter', () => {
   it('keeps draft metadata and picks when league settings fail', async () => {
     const adapter = new SleeperSyncAdapter(
       draftFixture.draft_id,
-      async <T>(url: string): Promise<T> => {
+      fixtureFetchJson(async (url: string): Promise<unknown> => {
         if (url === `${SLEEPER_API_BASE}/draft/${draftFixture.draft_id}`) {
-          return draftFixture as T;
+          return draftFixture;
         }
         if (url === `${SLEEPER_API_BASE}/draft/${draftFixture.draft_id}/picks`) {
-          return picksFixture as T;
+          return picksFixture;
         }
         if (url === `${SLEEPER_API_BASE}/league/${leagueFixture.league_id}`) {
           throw new Error('League settings unavailable');
         }
         throw new Error(`Unexpected URL: ${url}`);
-      }
+      })
     );
 
     const snapshot = await Effect.runPromise(adapter.poll());
@@ -82,13 +98,13 @@ describe('Sleeper settings cache', () => {
     let leagueId = leagueFixture.league_id;
     let rejectSettings = false;
     let settingsRequests = 0;
-    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, async <T>(url: string): Promise<T> => {
-      if (url.endsWith('/picks')) return picksFixture as T;
-      if (url.includes('/draft/')) return { ...draftFixture, league_id: leagueId } as T;
+    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, fixtureFetchJson(async (url: string): Promise<unknown> => {
+      if (url.endsWith('/picks')) return picksFixture;
+      if (url.includes('/draft/')) return { ...draftFixture, league_id: leagueId };
       settingsRequests += 1;
       if (rejectSettings) throw new Error('Settings unavailable');
-      return { ...leagueFixture, league_id: leagueId } as T;
-    });
+      return { ...leagueFixture, league_id: leagueId };
+    }));
     return { adapter, count: () => settingsRequests,
       changeLeague: () => { leagueId = 'another-league'; },
       fail: () => { rejectSettings = true; } };

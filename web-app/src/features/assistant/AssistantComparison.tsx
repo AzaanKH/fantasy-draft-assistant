@@ -6,7 +6,8 @@ import {
   getRecommendationExplanation,
   getComparisonHighlights,
 } from '@fantasy-draft/shared/draft';
-import { type Player, type Recommendation } from '@fantasy-draft/shared';
+import { type Player } from '@fantasy-draft/shared/league';
+import { type Recommendation } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CalculationDetails } from './AssistantAnswers';
 import { ComparisonPlayerPicker } from './ComparisonPlayerPicker';

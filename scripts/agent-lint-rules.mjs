@@ -1,16 +1,21 @@
 import path from 'node:path';
-import closedExports from './shared-closed-exports.json' with { type: 'json' };
 import { gateWorkspaces } from '../gate-workspaces.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directories = new Set(gateWorkspaces.map(({ directory }) => directory));
-const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared instead of casting JSON.parse() or response.json().';
+const draftRosterExports = Object.fromEntries(['DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'Roster', 'RosterRequirements'].map(name => [name, '@fantasy-draft/shared/league']));
+const closedModules = { '@fantasy-draft/shared/draft': draftRosterExports };
+const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog, @fantasy-draft/shared/league or @fantasy-draft/shared/sync instead of casting JSON.parse() or response.json().';
 export const baselineRuleIds = [
   'agent/no-json-cast',
-  'agent/no-bare-fetch',
   'agent/no-cross-package-import',
   '@typescript-eslint/explicit-module-boundary-types',
 ];
+
+function staticModuleName(node) {
+  return node?.type === 'TemplateLiteral' && node.expressions.length === 0
+    ? node.quasis[0].value.cooked : node?.value;
+}
 
 export default {
   rules: {
@@ -18,23 +23,33 @@ export default {
       meta: {
         type: 'problem', schema: [],
         messages: {
-          closed: '{{name}} is closed on the shared root. Import it from {{subpath}}.',
-          namespace: 'Root namespace imports can access closed exports. Use the exact shared subpath: {{subpaths}}.',
+          draftUrl: 'The temporary draft URL subpath is closed. Import draft URL contracts from @fantasy-draft/shared/sync.',
+          closed: '{{name}} is closed on {{source}}. Import it from {{subpath}}.',
+          root: 'The shared root is closed. Choose @fantasy-draft/shared/league for players, positions, scoring and rosters; /draft for draft order and recommendations; /catalog for data and readiness; /sync for providers and draft URLs; /units for limits; /node for local process configuration; /http for HTTP requests.',
         },
       },
       create(context) {
         function check(node) {
-          if (node.source?.value !== '@fantasy-draft/shared') return;
+          const source = staticModuleName(node.source);
+          if (source === '@fantasy-draft/shared') {
+            context.report({ node, messageId: 'root' });
+            return;
+          }
+          if (source === '@fantasy-draft/shared/draft-url') {
+            context.report({ node, messageId: 'draftUrl' });
+            return;
+          }
+          if (!Object.hasOwn(closedModules, source)) return;
+          const closed = closedModules[source];
           if (node.type === 'ImportExpression' || node.type === 'ExportAllDeclaration' ||
               node.specifiers.some((specifier) => specifier.type !== 'ImportSpecifier' && specifier.type !== 'ExportSpecifier')) {
-            context.report({ node, messageId: 'namespace', data: { subpaths: [...new Set(Object.values(closedExports))].join(', ') } });
             return;
           }
           for (const specifier of node.specifiers) {
             const imported = specifier.type === 'ImportSpecifier' ? specifier.imported : specifier.local;
             const name = imported.name ?? imported.value;
-            if (Object.hasOwn(closedExports, name)) {
-              context.report({ node: specifier, messageId: 'closed', data: { name, subpath: closedExports[name] } });
+            if (Object.hasOwn(closed, name)) {
+              context.report({ node: specifier, messageId: 'closed', data: { name, source, subpath: closed[name] } });
             }
           }
         }
@@ -43,11 +58,99 @@ export default {
           ExportNamedDeclaration: check,
           ExportAllDeclaration: check,
           ImportExpression: check,
-          TSImportType(node) {
-            if (node.source.value === '@fantasy-draft/shared') {
-              context.report({ node, messageId: 'namespace', data: { subpaths: [...new Set(Object.values(closedExports))].join(', ') } });
+          CallExpression(node) {
+            if (node.callee.type === 'Identifier' && node.callee.name === 'require' && staticModuleName(node.arguments[0]) === '@fantasy-draft/shared') {
+              context.report({ node, messageId: 'root' });
             }
           },
+          TSExternalModuleReference(node) {
+            if (node.expression.value === '@fantasy-draft/shared') context.report({ node, messageId: 'root' });
+          },
+          TSImportType(node) {
+            if (node.source.value === '@fantasy-draft/shared') {
+              context.report({ node, messageId: 'root' });
+              return;
+            }
+            if (node.source.value === '@fantasy-draft/shared/draft-url') {
+              context.report({ node, messageId: 'draftUrl' });
+              return;
+            }
+            if (!Object.hasOwn(closedModules, node.source.value)) return;
+            const closed = closedModules[node.source.value];
+            if (node.source.value === '@fantasy-draft/shared/draft') {
+              if (node.qualifier?.type === 'Identifier' && Object.hasOwn(closed, node.qualifier.name)) {
+                const name = node.qualifier.name;
+                context.report({ node, messageId: 'closed', data: { name, source: node.source.value, subpath: closed[name] } });
+              }
+            }
+          },
+        };
+      },
+    },
+    'no-bare-child-process': {
+      meta: { type: 'problem', schema: [], messages: {
+        runner: 'For process lifecycle, use Processes from @fantasy-draft/shared/node.',
+      } },
+      create(context) {
+        function check(node, source) {
+          if (['child_process', 'node:child_process'].includes(staticModuleName(source))) context.report({ node, messageId: 'runner' });
+        }
+        function definition(node) {
+          if (node?.type !== 'Identifier') return undefined;
+          let scope = context.sourceCode.getScope(node);
+          while (scope) {
+            const variable = scope.set.get(node.name);
+            if (variable) return variable.defs[0];
+            scope = scope.upper;
+          }
+        }
+        function isCreateRequire(node) {
+          if (node?.type !== 'Identifier') return false;
+          const bound = definition(node);
+          return bound?.type === 'ImportBinding' && bound.node.type === 'ImportSpecifier' &&
+            bound.node.imported.name === 'createRequire' && ['module', 'node:module'].includes(bound.parent.source.value);
+        }
+        function isLoader(node, seen = new Set()) {
+          if (!node || seen.has(node)) return false;
+          seen.add(node);
+          if (node.type === 'Identifier') {
+            if (node.name === 'require') return true;
+            const bound = definition(node);
+            return bound?.type === 'Variable' && isLoader(bound.node.init, seen);
+          }
+          if (node.type === 'CallExpression') return isCreateRequire(node.callee);
+          if (node.type === 'MemberExpression' && node.object.name === 'process') {
+            return (node.computed ? staticModuleName(node.property) : node.property.name) === 'getBuiltinModule';
+          }
+          return false;
+        }
+        return {
+          ImportDeclaration: node => check(node, node.source),
+          ExportNamedDeclaration: node => check(node, node.source),
+          ExportAllDeclaration: node => check(node, node.source),
+          ImportExpression: node => check(node, node.source),
+          CallExpression: node => { if (isLoader(node.callee)) check(node, node.arguments[0]); },
+          TSExternalModuleReference: node => check(node, node.expression),
+          TSImportType: node => check(node, node.source),
+        };
+      },
+    },
+    'no-node-in-browser': {
+      meta: { type: 'problem', schema: [], messages: {
+        browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
+      } },
+      create(context) {
+        function check(node, source) {
+          if (staticModuleName(source) === '@fantasy-draft/shared/node') context.report({ node, messageId: 'browser' });
+        }
+        return {
+          ImportDeclaration: node => check(node, node.source),
+          ExportNamedDeclaration: node => check(node, node.source),
+          ExportAllDeclaration: node => check(node, node.source),
+          ImportExpression: node => check(node, node.source),
+          CallExpression: node => { if (node.callee.name === 'require') check(node, node.arguments[0]); },
+          TSExternalModuleReference: node => check(node, node.expression),
+          TSImportType: node => check(node, node.source),
         };
       },
     },
@@ -72,12 +175,48 @@ export default {
     'no-bare-fetch': {
       meta: {
         type: 'problem', schema: [],
-        messages: { runner: 'Use the shared HTTP runner (unit 8) or add to the baseline only with a reason. Bare fetch has no shared timeout, body cancel, or retry policy.' },
+        messages: { runner: 'For HTTP requests, use @fantasy-draft/shared/http. Native fetch references are restricted to shared/src/http for shared timeout, body cancel, and retry policy.' },
       },
       create(context) {
+        if (path.relative(root, context.filename).replaceAll('\\', '/').startsWith('shared/src/http/')) return {};
+        const sourceCode = context.sourceCode;
+        function isGlobal(node, names) {
+          if (node?.type !== 'Identifier' || !names.includes(node.name)) return false;
+          let scope = sourceCode.getScope(node);
+          while (scope) {
+            const variable = scope.set.get(node.name);
+            if (variable) return variable.defs.length === 0;
+            scope = scope.upper;
+          }
+          return true;
+        }
+        function isGlobalObject(node) {
+          return isGlobal(node, ['globalThis', 'window', 'self', 'global']) ||
+            node?.type === 'MemberExpression' && isGlobalObject(node.object) &&
+            ['globalThis', 'window', 'self', 'global'].includes(propertyName(node));
+        }
+        function propertyName(node) {
+          return !node.computed && node.key?.type === 'Identifier' ? node.key.name
+            : !node.computed && node.property?.type === 'Identifier' ? node.property.name
+              : staticModuleName(node.key ?? node.property);
+        }
         return {
-          "CallExpression[callee.type='Identifier'][callee.name='fetch']"(node) {
-            context.report({ node, messageId: 'runner' });
+          Identifier(node) {
+            if (node.parent.type === 'TSTypeQuery' || !isGlobal(node, ['fetch'])) return;
+            const reference = sourceCode.getScope(node).references.find(reference => reference.identifier === node);
+            if (reference?.isValueReference) context.report({ node, messageId: 'runner' });
+          },
+          MemberExpression(node) {
+            if (isGlobalObject(node.object) && propertyName(node) === 'fetch') {
+              context.report({ node, messageId: 'runner' });
+            }
+          },
+          Property(node) {
+            if (node.parent.type !== 'ObjectPattern' || propertyName(node) !== 'fetch') return;
+            const owner = node.parent.parent;
+            const source = owner.type === 'VariableDeclarator' ? owner.init
+              : owner.type === 'AssignmentExpression' ? owner.right : undefined;
+            if (isGlobalObject(source)) context.report({ node, messageId: 'runner' });
           },
         };
       },

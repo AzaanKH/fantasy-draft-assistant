@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { sortRecommendationsForPool } from '@fantasy-draft/shared/draft';
 
 function recommendation(

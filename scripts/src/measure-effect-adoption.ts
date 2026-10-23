@@ -1,8 +1,7 @@
-import { execFile } from 'node:child_process';
+import { Processes, ProcessError, runNodeMain } from '@fantasy-draft/shared/node';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 import { Effect } from 'effect';
 import {
   ADOPTION_PATTERNS, PLUMBING_PATTERNS, combineMetrics, measureSource,
@@ -13,7 +12,8 @@ import { REPO_ROOT } from './model/duckdb.js';
 const WORKSPACES = ['cli', 'server', 'scripts', 'extension', 'shared', 'web-app'] as const;
 // These files spell out the patterns they count.
 const EXCLUDED_FILES = new Set(['effect-adoption-metrics.ts', 'measure-effect-adoption.ts']);
-const run = promisify(execFile);
+const run = (command: string, args: readonly string[], options: { cwd: string; signal?: AbortSignal }) =>
+  Processes.run(command, args, { ...options, timeoutMs: 60_000 });
 
 const listSources = (directory: string): Effect.Effect<string[]> => Effect.promise(async () => {
   // A workspace without a src directory has nothing to count; any other read failure must not look like zero.
@@ -36,14 +36,16 @@ const measureWorkspaces = Effect.fn('measureWorkspaces')(function* (root: string
 });
 
 /** Measure another revision in a temporary worktree so local edits never mix into the baseline. */
-const measureRevision = (ref: string) => Effect.acquireUseRelease(
+const measureRevision = (ref: string, signal: AbortSignal) => Effect.acquireUseRelease(
   Effect.promise(async () => {
     const directory = await mkdtemp(join(tmpdir(), 'effect-baseline-'));
     try {
-      await run('git', ['worktree', 'add', '--detach', directory, ref], { cwd: REPO_ROOT });
+      await run('git', ['worktree', 'add', '--detach', directory, ref], { cwd: REPO_ROOT, signal });
     } catch (error) {
-      // No worktree was registered, so the empty directory is safe to delete.
-      await rm(directory, { recursive: true, force: true });
+      await run('git', ['worktree', 'remove', '--force', directory], { cwd: REPO_ROOT }).catch(async (cleanupError: unknown) => {
+        if (!(cleanupError instanceof ProcessError) || !/is not a working tree/.test(cleanupError.stderr)) throw cleanupError;
+        await rm(directory, { recursive: true, force: true });
+      });
       throw error;
     }
     return directory;
@@ -52,7 +54,7 @@ const measureRevision = (ref: string) => Effect.acquireUseRelease(
   // Let git delete the directory so its worktree metadata goes with it.
   directory => Effect.promise(() => run('git', ['worktree', 'remove', '--force', directory], { cwd: REPO_ROOT })
     .then(() => undefined, (error: unknown) => {
-      const stderr = (error as { stderr?: string }).stderr ?? '';
+      const stderr = error instanceof ProcessError ? error.stderr : '';
       if (!/is not a working tree/.test(stderr)) throw error;
     })),
 );
@@ -83,7 +85,7 @@ function renderTable(title: string, current: Record<string, SourceMetrics>, base
     ...rows.map(([label, read]) => `| ${label} | ${WORKSPACES.map(workspace => cell(workspace, read)).join(' | ')} |`)].join('\n');
 }
 
-const program = Effect.gen(function* () {
+const program = (signal: AbortSignal) => Effect.gen(function* () {
   const args = process.argv.slice(2);
   const baselineIndex = args.indexOf('--baseline');
   const baselineRef = baselineIndex === -1 ? undefined : args[baselineIndex + 1];
@@ -92,7 +94,7 @@ const program = Effect.gen(function* () {
   }
   const [current, baseline] = yield* Effect.all([
     measureWorkspaces(REPO_ROOT),
-    baselineRef ? measureRevision(baselineRef) : Effect.succeed(undefined),
+    baselineRef ? measureRevision(baselineRef, signal) : Effect.succeed(undefined),
   ], { concurrency: 'unbounded' });
   if (args.includes('--json')) {
     process.stdout.write(`${JSON.stringify({ baselineRef: baselineRef ?? null, baseline: baseline ?? null, current }, null, 2)}\n`);
@@ -101,7 +103,6 @@ const program = Effect.gen(function* () {
   process.stdout.write(`${renderTable(baselineRef ? `Effect adoption (${baselineRef} → working tree)` : 'Effect adoption', current, baseline)}\n`);
 });
 
-void Effect.runPromise(program).catch((error: unknown) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
+await runNodeMain(async signal => {
+  await Effect.runPromise(program(signal), { signal });
 });

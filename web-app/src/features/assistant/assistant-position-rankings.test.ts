@@ -1,6 +1,6 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { describe, expect, it } from 'vitest';
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import {
   createDraftDecisionView,
   getPreferredRecommendation,

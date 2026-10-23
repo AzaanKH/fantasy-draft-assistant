@@ -1,13 +1,12 @@
+import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { DRAFT_DISPLAY, IS_DEMO } from '@/lib/demo-mode';
-import { createSlotSequence } from '@fantasy-draft/shared';
+import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { CircleAlert, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { getRecommendationPolicyLabel } from '@fantasy-draft/shared/draft';
-import { useDraftStore } from '@/stores/draftStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { KeeperStatus } from '@/features/draft-room/KeeperStatus';
 
@@ -17,11 +16,11 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings }: {
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const transferringFocus = React.useRef(false);
-  const config = useDraftStore((state) => state.config);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
-  const quickMock = useDraftStore((state) => state.leagueSettings.keepersEnabled === false && state.leagueSettings.source === 'default');
-  const settingsSource = useDraftStore((state) => state.leagueSettings.source);
+  const config = useDraftState((state) => state.config);
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const connection = useConnectionState((state) => state.connection);
+  const quickMock = useDraftState((state) => state.leagueSettings.keepersEnabled === false && state.leagueSettings.source === 'default');
+  const settingsSource = useDraftState((state) => state.leagueSettings.source);
   const decision = useDraftDecision();
   const primarySettings = decision.readiness?.coreDraftData.find((item) => item.key === 'primary-league-settings');
   const settingsReady = primarySettings?.status === 'ready';
