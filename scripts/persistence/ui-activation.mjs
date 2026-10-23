@@ -7,6 +7,7 @@ import { decodeFantasyProsSnapshot, decodePlayerIdentityFile } from '@fantasy-dr
 import { inspectProductionBuild, createStaticHandler, verifyProductionHttp } from './ui-production.mjs';
 import { createDiagnostics, createNavigationGuard } from './ui-diagnostics.mjs';
 import { runnerMode } from './ui-runner-mode.mjs';
+import { resetExtensionWorker, workerResetPasses } from './ui-worker.mjs';
 import { Processes } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
 import {
@@ -128,7 +129,7 @@ async function browserDataFallbackFiles() {
 }
 async function sourceSnapshot() {
   const files = ['scripts/persistence/ui-activation.mjs', 'scripts/persistence/ui-adapter.mjs', 'pnpm-lock.yaml',
-    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
+    'scripts/persistence/ui-diagnostics.mjs', 'scripts/persistence/ui-production.mjs', 'scripts/persistence/ui-seed.mjs', 'scripts/persistence/ui-runner-mode.mjs', 'scripts/persistence/ui-worker.mjs', 'scripts/persistence/fixtures/worker-stop-without-close.json', 'scripts/persistence/fixtures/worker-protocol.mjs', 'scripts/ui-production.test.mjs', 'scripts/ui-audit.test.mjs', 'scripts/ui-runner.test.mjs', 'scripts/persistence/fixtures/mock-player-controls.html',
     'package.json', 'pnpm-workspace.yaml', 'source-condition.js', '.npmrc'];
   async function walk(dir) {
     let entries;
@@ -366,9 +367,13 @@ async function seedV1(page, ids) {
   const prefix = `v1-seed-${++seedSequence}`;
   const input = path.join(outDir, `${prefix}-input.json`);
   const output = path.join(outDir, `${prefix}-entries.json`);
-  await writeFile(input, JSON.stringify({ ids, teams: TEAMS, rounds: ROUNDS, output }), { flag: 'wx' });
-  await Processes.run(process.execPath, ['--conditions=@fantasy-draft/source', requireScripts.resolve('tsx/cli'), path.join(here, 'ui-seed.mjs'), input],
+  const processProofOutput = path.join(outDir, `${prefix}-process.json`);
+  await writeFile(input, JSON.stringify({ ids, teams: TEAMS, rounds: ROUNDS, output, processProofOutput }), { flag: 'wx' });
+  await Processes.run(process.execPath, [requireScripts.resolve('tsx/cli'), '--conditions=@fantasy-draft/source', path.join(here, 'ui-seed.mjs'), input],
     { cwd: root, timeoutMs: 30000 });
+  const child = JSON.parse(await readFile(processProofOutput, 'utf8'));
+  check(child.execArgv.includes('--conditions=@fantasy-draft/source'), 'Seed child lost its source condition');
+  results.progress.push({ stage: 'v1-seed-source-condition', ...child });
   const entries = JSON.parse(await readFile(output, 'utf8'));
   await page.goto(`${origin}/__ui-fixture/blank`);
   return page.evaluate(entries => { for (const [key, value] of entries) localStorage.setItem(key, value); return entries.length; }, entries);
@@ -562,56 +567,9 @@ async function openTab(ctxInfo, id, name = 'tab0') {
   return { name, page, ctx: page, kind: 'tab' };
 }
 async function installDraftContextAndRestartWorker(ctxInfo, id) {
-  await ctxInfo.worker.evaluate(async draftId => {
-    await chrome.storage.local.set({ draftStatus: { isInDraftRoom: true, provider: 'sleeper', draftId, myDraftSlot: 1 } });
-  }, id);
-  const previous = ctxInfo.worker;
-  const scriptURL = previous.url();
-  check(new URL(scriptURL).hostname === ctxInfo.extensionId, 'Refusing to stop a foreign extension worker');
-  const wakePage = await ctxInfo.ctx.newPage();
-  let cdp;
-  try {
-    await wakePage.goto(`chrome-extension://${ctxInfo.extensionId}/options.html`);
-    cdp = await ctxInfo.ctx.newCDPSession(wakePage);
-    const versions = new Map();
-    cdp.on('ServiceWorker.workerVersionUpdated', event => {
-      for (const version of event.versions) versions.set(version.versionId, version);
-      void diagnostics.write('browser.ndjson', { type: 'ServiceWorker.workerVersionUpdated', ...event });
-    });
-    await bounded(() => cdp.send('ServiceWorker.enable'), 10000, 'enable worker version discovery');
-    let owned;
-    await waitFor(() => {
-      const running = [...versions.values()].filter(version => version.scriptURL === scriptURL && version.runningStatus === 'running');
-      check(running.length <= 1, 'Ambiguous running versions for the owned extension worker');
-      owned = running[0];
-      return !!owned;
-    }, 10000, 'Owned extension worker version was not reported by CDP');
-    const restarted = ctxInfo.ctx.waitForEvent('serviceworker', { predicate: worker => worker !== previous && worker.url() === scriptURL, timeout: 30000 });
-    restarted.catch(() => undefined);
-    const closed = previous.waitForEvent('close', { timeout: 10000 });
-    closed.catch(() => undefined);
-    await diagnostics.write('browser.ndjson', { type: 'runner-worker-stop', id, scriptURL, versionId: owned.versionId });
-    await bounded(() => cdp.send('ServiceWorker.stopWorker', { versionId: owned.versionId }), 10000, 'stop owned worker version');
-    await closed;
-    let response = await bounded(() => wakePage.evaluate(() => chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' })), 10000, 'explicit extension worker wake');
-    const firstWakeResponse = response;
-    ctxInfo.worker = await restarted;
-    await waitFor(async () => {
-      if (response?.success && response.data?.status?.draftId === id) return true;
-      response = await wakePage.evaluate(() => chrome.runtime.sendMessage({ type: 'GET_DRAFT_STATUS' }));
-      return response?.success && response.data?.status?.draftId === id;
-    }, 10000, 'Replacement worker did not hydrate the seeded draft context');
-    const stored = await bounded(() => ctxInfo.worker.evaluate(() => chrome.storage.local.get('draftStatus')), 5000, 'extension context read');
-    check(stored.draftStatus?.draftId === id && stored.draftStatus?.isInDraftRoom === true, 'Extension worker did not retain seeded draft context');
-    const proof = { stage: 'extension-worker-explicitly-woken', id, scriptURL, stoppedVersionId: owned.versionId,
-      oldClosed: true, newWorker: ctxInfo.worker !== previous, firstWakeResponse, wakeResponse: response, stored, at: new Date().toISOString() };
-    results.progress.push(proof);
-    await diagnostics.write('browser.ndjson', proof);
-    await save();
-  } finally {
-    try { if (cdp) await cdp.detach(); }
-    finally { await wakePage.close(); }
-  }
+  const proof = await resetExtensionWorker(ctxInfo, id, { log: event => diagnostics.write('browser.ndjson', event) });
+  results.progress.push(proof);
+  await save();
 }
 
 async function openPanel(ctxInfo, id) {
@@ -785,7 +743,7 @@ async function focusedExtensionSetup() {
   proof.draftStatus = await ctxInfo.worker.evaluate(() => chrome.storage.local.get('draftStatus'));
   proof.workerReset = results.progress.findLast(row => row.stage === 'extension-worker-explicitly-woken' && row.id === id);
   proof.ready = proof.activation.completed && proof.hostPermission && proof.draftStatus.draftStatus?.draftId === id &&
-    proof.workerReset?.oldClosed && proof.workerReset?.newWorker && !!proof.nonceBefore && !!proof.nonceAfter && proof.nonceBefore !== proof.nonceAfter &&
+    workerResetPasses(proof.workerReset) && !!proof.nonceBefore && !!proof.nonceAfter && proof.nonceBefore !== proof.nonceAfter &&
     proof.before.present && proof.after.present && JSON.stringify(proof.before.picks) === JSON.stringify(proof.after.picks) &&
     JSON.stringify(proof.before.queue) === JSON.stringify(proof.after.queue);
   proof.finished = new Date().toISOString();

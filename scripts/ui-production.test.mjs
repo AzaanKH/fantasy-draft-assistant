@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { Processes } from '@fantasy-draft/shared/node';
 import { http } from '@fantasy-draft/shared/http';
 import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 import { assertProductionEnvironment, inspectProductionBuild, createStaticHandler, verifyProductionHttp } from './persistence/ui-production.mjs';
 
 const env = { MODE: 'production', DEV: false, PROD: true, VITE_STORAGE_ACTIVATION: 'idb' };
@@ -34,15 +35,37 @@ test('production static HTTP serves exact built bytes and rejects every dev runt
 test('Node creates decodable v1 setup bytes through the real store without serving source to the browser', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'ui-seed-'));
   const input = path.join(directory, 'input.json'); const output = path.join(directory, 'output.json');
-  await writeFile(input, JSON.stringify({ ids: ['1700000000009'], teams: 20, rounds: 20, output }));
+  const processProofOutput = path.join(directory, 'process.json');
+  await writeFile(input, JSON.stringify({ ids: ['1700000000009'], teams: 20, rounds: 20, output, processProofOutput }));
   const require = createRequire(import.meta.url);
-  await Processes.run(process.execPath, ['--conditions=@fantasy-draft/source', require.resolve('tsx/cli'), new URL('./persistence/ui-seed.mjs', import.meta.url).pathname, input], { timeoutMs: 15000 });
+  await Processes.run(process.execPath, [require.resolve('tsx/cli'), '--conditions=@fantasy-draft/source', new URL('./persistence/ui-seed.mjs', import.meta.url).pathname, input], { timeoutMs: 15000 });
+  const child = JSON.parse(await readFile(processProofOutput, 'utf8'));
+  expect(child.execArgv).toContain('--conditions=@fantasy-draft/source');
   const rows = JSON.parse(await readFile(output, 'utf8'));
   const session = JSON.parse(rows.find(([key]) => key === 'fantasy-draft-session-v1:sleeper:1700000000009')[1]);
   expect(session.config).toMatchObject({ totalTeams: 20, totalRounds: 20, draftType: 'linear', myPickPosition: 1 });
   expect(session.identity).toEqual({ provider: 'sleeper', draftId: '1700000000009' });
   expect(session.draftHistory).toEqual([]);
   expect(rows.some(([key]) => key === 'fantasy-draft-storage-migrated')).toBe(false);
+});
+
+test('the real runner seeds v1 bytes with an effective source condition in its child process', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'ui-runner-seed-'));
+  const runner = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
+  const code = runner.slice(runner.indexOf('async function seedV1('), runner.indexOf('async function activateThroughPrompt('));
+  const values = new Map(); const navigations = []; const results = { progress: [] };
+  const page = { goto: async url => navigations.push(url), evaluate: async (fn, entries) => runInNewContext(`(${fn.toString()})(entries)`, {
+    entries, localStorage: { setItem: (key, value) => values.set(key, value) },
+  }) };
+  const seed = runInNewContext(`(${code})`, { seedSequence: 0, process, path, outDir: directory, writeFile, readFile, Processes,
+    requireScripts: createRequire(import.meta.url), here: new URL('./persistence/', import.meta.url).pathname,
+    root: new URL('..', import.meta.url).pathname, TEAMS: 20, ROUNDS: 20, results, origin: 'http://localhost:3000',
+    check: (condition, message) => { if (!condition) throw new Error(message); },
+  });
+  expect(await seed(page, ['1700000000009'])).toBeGreaterThan(0);
+  expect(navigations).toEqual(['http://localhost:3000/__ui-fixture/blank']);
+  expect(results.progress[0].execArgv).toContain('--conditions=@fantasy-draft/source');
+  expect(JSON.parse(values.get('fantasy-draft-session-v1:sleeper:1700000000009')).config).toMatchObject({ totalTeams: 20, totalRounds: 20, draftType: 'linear' });
 });
 
 

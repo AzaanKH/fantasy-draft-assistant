@@ -5,6 +5,8 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createDiagnostics, createNavigationGuard } from './persistence/ui-diagnostics.mjs';
 import { runnerMode } from './persistence/ui-runner-mode.mjs';
+import { resetExtensionWorker, workerResetPasses } from './persistence/ui-worker.mjs';
+import { workerProtocol } from './persistence/fixtures/worker-protocol.mjs';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
 import { auditSession, sessionPasses } from './persistence/ui-adapter.mjs';
@@ -72,76 +74,80 @@ test('the post-navigation DOM observation hydrates all committed facts, includin
   expect(row.checks.unacknowledgedCommitted).toHaveLength(1);
 });
 
+const missingCloseTrace = JSON.parse(await readFile(new URL('./persistence/fixtures/worker-stop-without-close.json', import.meta.url), 'utf8'));
 test.each([
-  { delayedVersion: false, delayedHydration: false }, { delayedVersion: true, delayedHydration: false },
-  { delayedVersion: false, delayedHydration: true }, { delayedVersion: true, delayedHydration: true },
-])('stops only the owned worker and explicitly wakes its replacement from a registered page, delayedVersion=$delayedVersion delayedHydration=$delayedHydration', async ({ delayedVersion, delayedHydration }) => {
-  const events = [];
-  const stored = {};
-  const scriptURL = 'chrome-extension://fixture/background.js';
-  let emitWorker;
-  let emitClosed;
-  let closed = false;
-  let pageLoaded = false;
-  let memory = { draftId: 'old-worker-memory' };
-  const replacement = { url: () => scriptURL, evaluate: async (fn, arg) => runInNewContext(`(${fn.toString()})(arg)`, { arg, chrome }) };
-  const chrome = { storage: { local: { set: async values => Object.assign(stored, values), get: async () => stored } }, runtime: {
-    reload: () => { throw new Error('Whole-extension unload is forbidden'); },
-    sendMessage: async message => {
-      expect(pageLoaded).toBe(true); expect(closed).toBe(true); expect(message.type).toBe('GET_DRAFT_STATUS');
-      const firstWake = !events.includes('explicit-wake');
-      events.push('explicit-wake');
-      if (!delayedHydration || !firstWake) memory = stored.draftStatus;
-      if (firstWake) emitWorker(replacement);
-      return { success: true, data: { status: memory } };
-    },
-  } };
-  const previous = { url: () => scriptURL, evaluate: replacement.evaluate,
-    waitForEvent: name => { expect(name).toBe('close'); events.push('listen-close'); return new Promise(resolve => { emitClosed = resolve; }); },
-  };
-  const versions = [
-    { versionId: 'foreign', scriptURL: 'https://foreign.invalid/sw.js', runningStatus: 'running' },
-    { versionId: 'old-inactive', scriptURL, runningStatus: 'stopped' },
-    { versionId: 'owned', scriptURL, runningStatus: 'running' },
-  ];
-  let publishVersions;
-  let deferredVersion;
-  const cdp = {
-    on: (name, listener) => { expect(name).toBe('ServiceWorker.workerVersionUpdated'); publishVersions = listener; },
-    send: async (method, args) => {
-      events.push(method);
-      if (method === 'ServiceWorker.enable') {
-        expect(pageLoaded).toBe(true);
-        publishVersions({ versions: delayedVersion ? versions.slice(0, 2) : versions });
-        if (delayedVersion) deferredVersion = () => publishVersions({ versions: [versions[2]] });
-      } else if (method === 'ServiceWorker.stopWorker') {
-        expect(args).toEqual({ versionId: 'owned' }); expect(memory.draftId).toBe('old-worker-memory');
-        closed = true; events.push('old-closed'); emitClosed();
-      } else throw new Error(`Unexpected protocol operation ${method}`);
-    },
-    detach: async () => events.push('detach'),
-  };
-  const page = { goto: async url => { expect(closed).toBe(false); expect(url).toBe('chrome-extension://fixture/options.html'); pageLoaded = true; events.push('page-loaded'); },
-    evaluate: replacement.evaluate, close: async () => events.push('close-wake-page'),
-  };
-  const ctxInfo = { worker: previous, extensionId: 'fixture', ctx: {
-    waitForEvent: (name, options) => {
-      expect(name).toBe('serviceworker'); expect(options.predicate(replacement)).toBe(true);
-      expect(options.predicate(previous)).toBe(false); expect(options.predicate({ url: () => 'https://foreign.invalid/sw.js' })).toBe(false);
-      return new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('Dormant worker was never explicitly woken')), 100); emitWorker = worker => { clearTimeout(timer); resolve(worker); }; });
-    },
-    newPage: async () => page, newCDPSession: async target => { expect(target).toBe(page); return cdp; },
-  } };
-  const install = runInNewContext(`(${functionSource('installDraftContextAndRestartWorker', 'openPanel')})`, {
-    bounded: async operation => operation(), waitFor: async predicate => { for (let attempt = 0; attempt < 3; attempt++) { if (await predicate()) return; deferredVersion?.(); } throw new Error('Readiness never arrived'); },
-    URL, results: { progress: [] }, diagnostics: { write: async () => {} }, save: async () => {}, check: (condition, message) => { if (!condition) throw new Error(message); },
-  });
-  await install(ctxInfo, '1700000000009');
-  expect(ctxInfo.worker).toBe(replacement);
-  expect(events.indexOf('ServiceWorker.stopWorker')).toBeGreaterThan(events.indexOf('page-loaded'));
-  expect(events.indexOf('explicit-wake')).toBeGreaterThan(events.indexOf('old-closed'));
-  expect(events).toContain('detach'); expect(events).toContain('close-wake-page');
-  expect(memory.draftId).toBe('1700000000009'); expect(stored.draftStatus.draftId).toBe('1700000000009');
+  { newTarget: false, delayedHydration: false }, { newTarget: true, delayedHydration: false },
+  { newTarget: false, delayedHydration: true }, { newTarget: true, delayedHydration: true },
+  { newTarget: false, delayedHydration: false, delayedVersion: true },
+])('observed stopped then explicit wake resets the worker realm without Worker.close or a replacement event, newTarget=$newTarget delayedHydration=$delayedHydration delayedVersion=$delayedVersion', async options => {
+  const fixture = workerProtocol(missingCloseTrace, options);
+  const proof = await resetExtensionWorker(fixture.ctxInfo, '1700000000009', fixture.options);
+  expect(workerResetPasses(proof)).toBe(true);
+  expect(proof.oldClosedDiagnostic).toBe(false);
+  expect(proof.targetReused).toBe(!options.newTarget);
+  expect(proof.before.contextUniqueId).not.toBe(proof.after.contextUniqueId);
+  expect(proof.before.sentinelPresent).toBe(true); expect(proof.after.sentinelPresent).toBe(false);
+  expect(fixture.ctxInfo.worker).not.toBe(fixture.previous);
+  expect(fixture.ctxInfo.worker.contextUniqueId).toBe(proof.after.contextUniqueId);
+  expect(fixture.events.indexOf('explicit-wake')).toBeGreaterThan(fixture.events.indexOf('cdp-stopped'));
+  expect(fixture.events).not.toContain('stale-wrapper-evaluate');
+  expect(await fixture.ctxInfo.worker.evaluate(async () => (await chrome.storage.local.get('draftStatus')).draftStatus.draftId)).toBe('1700000000009');
+  expect(fixture.events).toContain('page-cdp-detached'); expect(fixture.events).toContain('wake-page-closed');
+  await fixture.ctxInfo.worker.dispose();
+  await expect(fixture.ctxInfo.worker.evaluate(() => true)).rejects.toThrow('Disposed worker runtime');
+  expect(fixture.sessions.size).toBe(0);
+});
+
+test.each([
+  ['foreignWorker', 'foreign extension worker'], ['foreignOnly', 'was not reported'], ['ambiguous', 'Ambiguous active versions'],
+  ['noVersion', 'was not reported'], ['foreignTarget', 'does not match'],
+])('refuses %s before stopping any worker', async (option, message) => {
+  const fixture = workerProtocol(missingCloseTrace, { [option]: true });
+  await expect(resetExtensionWorker(fixture.ctxInfo, '1700000000009', fixture.options)).rejects.toThrow(message);
+  expect(fixture.events).not.toContain('targeted-stop'); expect(fixture.events).not.toContain('explicit-wake');
+  expect(fixture.ctxInfo.worker).toBe(fixture.previous); expect(fixture.sessions.size).toBe(0);
+});
+
+test.each([
+  ['noStopped', 'did not report stopped'], ['foreignStopped', 'did not report stopped'],
+  ['noRunning', 'did not report the owned worker running'], ['changedRegistration', 'exact owned version and registration'],
+  ['unchangedRealm', 'realm was not reset'], ['unchangedContext', 'realm was not reset'],
+  ['missingSeed', 'hydrated seed proof is incomplete'], ['noContext', 'execution context was not reported'],
+  ['rpcTimeout', 'Runtime.enable on owned worker timed out'], ['wakeTimeout', 'GET_DRAFT_STATUS wake timed out'],
+])('fails %s and never publishes or evaluates a stale worker handle', async (option, message) => {
+  const fixture = workerProtocol(missingCloseTrace, { [option]: true });
+  await expect(resetExtensionWorker(fixture.ctxInfo, '1700000000009', fixture.options)).rejects.toThrow(message);
+  expect(fixture.ctxInfo.worker).toBeNull(); expect(fixture.events).not.toContain('stale-wrapper-evaluate');
+  if (['noStopped', 'foreignStopped'].includes(option)) expect(fixture.events).not.toContain('explicit-wake');
+  expect(fixture.events).toContain('wake-page-closed'); expect(fixture.sessions.size).toBe(0);
+});
+
+test('a retained target cannot pass raw reset evidence with no stop, no realm reset, wrong registration or an unhydrated seed', async () => {
+  const fixture = workerProtocol(missingCloseTrace);
+  const proof = await resetExtensionWorker(fixture.ctxInfo, '1700000000009', fixture.options);
+  for (const mutate of [
+    row => row.stopped.runningStatus = 'stopping', row => row.stopped.targetId = row.owned.targetId,
+    row => row.running.sequence = row.wakeSequence, row => row.running.registrationId = 'foreign',
+    row => row.after.sentinelPresent = true, row => row.after.contextUniqueId = row.before.contextUniqueId,
+    row => row.after.targetId = 'foreign', row => row.after.stored.draftStatus.draftId = 'wrong',
+  ]) { const row = structuredClone(proof); mutate(row); expect(workerResetPasses(row)).toBe(false); }
+  expect(workerResetPasses(undefined)).toBe(false);
+  await fixture.ctxInfo.worker.dispose();
+});
+
+test('a verified CDP handle refuses evaluation after its execution context disappears', async () => {
+  const fixture = workerProtocol(missingCloseTrace);
+  await resetExtensionWorker(fixture.ctxInfo, '1700000000009', fixture.options);
+  const sessionId = [...fixture.sessions.keys()][0];
+  fixture.root.emit('Target.receivedMessageFromTarget', { sessionId, message: JSON.stringify({ method: 'Runtime.executionContextsCleared', params: {} }) });
+  await expect(fixture.ctxInfo.worker.evaluate(() => true)).rejects.toThrow('Stale owned worker execution context');
+  await fixture.ctxInfo.worker.dispose();
+});
+
+test.each([false, true])('target identity cannot substitute for an erased volatile sentinel, newTarget=%s', async newTarget => {
+  const fixture = workerProtocol(missingCloseTrace, { newTarget, unchangedRealm: true });
+  await expect(resetExtensionWorker(fixture.ctxInfo, '1700000000009', fixture.options)).rejects.toThrow('realm was not reset');
+  expect(fixture.ctxInfo.worker).toBeNull();
 });
 
 test('CDP resource type does not overwrite the diagnostic event name', async () => {
@@ -289,9 +295,12 @@ test.each([false, true])('setup-only retains an ordinary app tab, audits iframe 
   const setup = { url: () => canonical, close: async () => { closed = true; } };
   const ctxInfo = { runtime: { manifest: { manifest_version: 3 } }, ctx: { newPage: async () => setup },
     worker: { evaluate: async (_fn, arg) => arg ? true : stored } };
-  const results = { progress: [{ stage: 'extension-worker-explicitly-woken', id: stored.draftStatus.draftId, oldClosed: true, newWorker: true }] };
+  const fixture = workerProtocol(missingCloseTrace);
+  const reset = await resetExtensionWorker(fixture.ctxInfo, stored.draftStatus.draftId, fixture.options);
+  await fixture.ctxInfo.worker.dispose();
+  const results = { progress: [reset] };
   const run = runInNewContext(`(${functionSource('focusedExtensionSetup', 'positiveScenario')})`, {
-    URL, origin: 'http://localhost:3000', currentLabel: '', outDir: '/unused', path, results,
+    workerResetPasses, URL, origin: 'http://localhost:3000', currentLabel: '', outDir: '/unused', path, results,
     launch: async () => ctxInfo, seedV1: async () => {}, activateThroughPrompt: async () => ({ completed: true }),
     openPanel: async () => { expect(closed).toBe(false); return panel; },
     readCommitted: async target => { expect(target).toBe(ctx); return committed; },
