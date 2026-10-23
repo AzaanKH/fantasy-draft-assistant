@@ -504,10 +504,20 @@ async function failureEvidence(actor, row) {
     ['html', async () => writeFile(path.join(outDir, `${prefix}.html`), await actor.ctx.content())],
     ['png', () => actor.page.screenshot({ path: path.join(outDir, `${prefix}.png`), timeout: 5000 })],
     ['audit.json', async () => {
-      const audit = { row, sourceHashes: await sourceSnapshot(), pageErrors: results.pageErrors, errors: [] };
-      for (const [key, read] of [['v1', () => localStorageV1(actor.page)],
-        ['committed', () => { const id = actor.session ?? pageSessions.get(actor.page); return id ? readCommitted(actor.page, id) : null; }]]) {
-        try { audit[key] = await read(); } catch (error) { audit.errors.push(`${key}: ${error.message}`); }
+      const canonical = target => target && new URL(target.url()).origin === origin;
+      // v1 belongs to the ordinary app origin, not an opaque blank document or
+      // the extension wrapper. IDB readback uses the actual writer iframe.
+      const v1Target = canonical(actor.page) ? actor.page : actor.page.context().pages().find(canonical);
+      const idbTarget = canonical(actor.ctx) ? actor.ctx : v1Target;
+      const id = actor.session ?? pageSessions.get(actor.page);
+      const storageContexts = {
+        v1: v1Target ? { url: v1Target.url() } : { unavailable: 'No existing canonical app document for the v1 audit' },
+        committed: id && idbTarget ? { url: idbTarget.url(), session: id } : { unavailable: 'No draft session or canonical writer document for IDB readback' },
+      };
+      const audit = { row, sourceHashes: await sourceSnapshot(), pageErrors: results.pageErrors, storageContexts, errors: [] };
+      for (const [key, read] of [['v1', v1Target && (() => localStorageV1(v1Target))],
+        ['committed', id && idbTarget && (() => readCommitted(idbTarget, id))]]) {
+        if (read) try { audit[key] = await read(); } catch (error) { audit.errors.push(`${key}: ${error.message}`); }
       }
       await writeFile(path.join(outDir, `${prefix}-audit.json`), JSON.stringify(audit, null, 2));
     }],

@@ -389,3 +389,30 @@ test('root Tier 2 smoke is exactly 150 commands per actor with no full-matrix or
     expect(() => runnerMode(['--root-tier2-smoke', flag])).toThrow('another runner scope');
   }
 });
+
+test.each(['opaque', 'installed-iframe'])('failure evidence reads only canonical storage targets, actor=%s', async kind => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'ui-failure-audit-'));
+  const app = { url: () => 'http://localhost:3000/draft?draftId=1' };
+  const frame = { url: () => 'http://localhost:3000/sidepanel?__storageNonce=actual', content: async () => '<main>panel</main>' };
+  const page = { url: () => kind === 'opaque' ? 'about:blank' : 'chrome-extension://installed/sidepanel.html',
+    content: async () => '<main>blank</main>', screenshot: async () => {}, context: () => ({ pages: () => kind === 'opaque' ? [page] : [page, app] }) };
+  const actor = { page, ctx: kind === 'opaque' ? page : frame, session: kind === 'opaque' ? undefined : '1' };
+  const capture = runInNewContext(`(${functionSource('failureEvidence', 'dismissFailedDialog')})`, {
+    results: { failureEvidence: [], pageErrors: [] }, path, URL, outDir: directory, writeFile: (await import('node:fs/promises')).writeFile,
+    bounded: async operation => operation(), sourceSnapshot: async () => ({}), pageSessions: new WeakMap(), origin: 'http://localhost:3000',
+    localStorageV1: async target => { if (target !== app) throw new Error('SecurityError: opaque or extension wrapper storage'); return [['fantasy-draft-session:1', 'retained']]; },
+    readCommitted: async (target, id) => { expect(target).toBe(frame); expect(id).toBe('1'); return { picks: ['actual iframe IDB'] }; },
+  });
+  await capture(actor, { actionId: 'failed' });
+  const audit = JSON.parse(await readFile(path.join(directory, 'failure-0001-audit.json'), 'utf8'));
+  expect(audit.errors).toEqual([]);
+  if (kind === 'opaque') {
+    expect(audit.v1).toBeUndefined();
+    expect(audit.storageContexts.v1.unavailable).toMatch(/canonical app/);
+  } else {
+    expect(audit.v1).toEqual([['fantasy-draft-session:1', 'retained']]);
+    expect(audit.committed).toEqual({ picks: ['actual iframe IDB'] });
+    expect(audit.storageContexts.v1.url).toBe(app.url());
+    expect(audit.storageContexts.committed.url).toBe(frame.url());
+  }
+});
