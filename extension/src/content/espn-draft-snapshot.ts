@@ -1,3 +1,4 @@
+import { objectValue, readProperty } from './unknown-properties';
 import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import type {
   Position,
@@ -9,10 +10,6 @@ import type {
   DraftType,
   EspnDraftSnapshot,
 } from '@fantasy-draft/shared/sync';
-
-interface UnknownRecord {
-  readonly [key: string]: unknown;
-}
 
 type EspnDraftFrameCommand =
   | 'INIT'
@@ -94,21 +91,6 @@ const NFL_TEAM_ALIASES: Readonly<Record<string, string>> = {
   WSH: 'WAS',
 };
 
-function asRecord(value: unknown): UnknownRecord | null {
-  return typeof value === 'object' && value !== null
-    ? (value as UnknownRecord)
-    : null;
-}
-
-function read(record: UnknownRecord | null, key: string): unknown {
-  if (!record) return undefined;
-  try {
-    return record[key];
-  } catch {
-    return undefined;
-  }
-}
-
 function firstDefined(...values: readonly unknown[]): unknown {
   return values.find((value) => value !== undefined && value !== null);
 }
@@ -142,20 +124,20 @@ function toSafeString(value: unknown, maximumLength = 120): string | null {
   return trimmed ? trimmed.slice(0, maximumLength) : null;
 }
 
-function toObjectArray(value: unknown): UnknownRecord[] {
+function toObjectArray(value: unknown): object[] {
   if (Array.isArray(value)) {
-    return value.map(asRecord).filter((entry): entry is UnknownRecord => entry !== null);
+    return value.map(objectValue).filter((entry): entry is object => entry !== null);
   }
   if (value instanceof Map) {
     return [...value.values()]
-      .map(asRecord)
-      .filter((entry): entry is UnknownRecord => entry !== null);
+      .map(objectValue)
+      .filter((entry): entry is object => entry !== null);
   }
-  const record = asRecord(value);
+  const record = objectValue(value);
   if (!record) return [];
   return Object.values(record)
-    .map(asRecord)
-    .filter((entry): entry is UnknownRecord => entry !== null);
+    .map(objectValue)
+    .filter((entry): entry is object => entry !== null);
 }
 
 function normalizePositionName(value: string): Position | null {
@@ -188,52 +170,52 @@ function normalizePosition(value: unknown, idMap = POSITION_BY_ESPN_ID): Positio
   const numeric = toFiniteNumber(value);
   if (numeric !== null) return idMap[numeric] ?? null;
 
-  const record = asRecord(value);
+  const record = objectValue(value);
   if (!record) return null;
   return normalizePosition(
     firstDefined(
-      read(record, 'abbreviation'),
-      read(record, 'abbrev'),
-      read(record, 'name'),
-      read(record, 'id')
+      readProperty(record, 'abbreviation'),
+      readProperty(record, 'abbrev'),
+      readProperty(record, 'name'),
+      readProperty(record, 'id')
     ),
     idMap
   );
 }
 
-function getPlayerPosition(player: UnknownRecord | null, pick: UnknownRecord): Position | null {
+function getPlayerPosition(player: object | null, pick: object): Position | null {
   const defaultPosition = firstDefined(
-    read(player, 'defaultPosition'),
-    read(player, 'defaultPositionId'),
-    read(player, 'position'),
-    read(player, 'positionId')
+    readProperty(player, 'defaultPosition'),
+    readProperty(player, 'defaultPositionId'),
+    readProperty(player, 'position'),
+    readProperty(player, 'positionId')
   );
   const normalized = normalizePosition(defaultPosition);
   if (normalized) return normalized;
 
   const rosterSlot = firstDefined(
-    read(pick, 'lineupSlotId'),
-    read(asRecord(read(pick, 'rosterSlot')), 'id')
+    readProperty(pick, 'lineupSlotId'),
+    readProperty(objectValue(readProperty(pick, 'rosterSlot')), 'id')
   );
   return normalizePosition(rosterSlot, POSITION_BY_LINEUP_SLOT_ID);
 }
 
 function getPlayerName(
-  player: UnknownRecord | null,
-  pick: UnknownRecord,
+  player: object | null,
+  pick: object,
   playerId: string,
   position: Position | null
 ): string {
-  const firstName = toSafeString(read(player, 'firstName'));
-  const lastName = toSafeString(read(player, 'lastName'));
+  const firstName = toSafeString(readProperty(player, 'firstName'));
+  const lastName = toSafeString(readProperty(player, 'lastName'));
   const combinedName = [firstName, lastName].filter(Boolean).join(' ');
   let name =
     toSafeString(
       firstDefined(
-        read(pick, 'playerName'),
-        read(player, 'fullName'),
-        read(player, 'displayName'),
-        read(player, 'name')
+        readProperty(pick, 'playerName'),
+        readProperty(player, 'fullName'),
+        readProperty(player, 'displayName'),
+        readProperty(player, 'name')
       )
     ) ?? (combinedName || playerId);
 
@@ -253,33 +235,33 @@ function normalizeTeamAbbreviation(value: unknown): string | null {
   const numeric = toFiniteNumber(value);
   if (numeric !== null) return NFL_TEAM_BY_ESPN_ID[numeric] ?? null;
 
-  const record = asRecord(value);
+  const record = objectValue(value);
   if (!record) return null;
   return normalizeTeamAbbreviation(
     firstDefined(
-      read(record, 'abbreviation'),
-      read(record, 'abbrev'),
-      read(record, 'teamAbbrev'),
-      read(record, 'id')
+      readProperty(record, 'abbreviation'),
+      readProperty(record, 'abbrev'),
+      readProperty(record, 'teamAbbrev'),
+      readProperty(record, 'id')
     )
   );
 }
 
-function getPlayerTeam(player: UnknownRecord | null): string | null {
+function getPlayerTeam(player: object | null): string | null {
   return normalizeTeamAbbreviation(
     firstDefined(
-      read(player, 'proTeam'),
-      read(player, 'proTeamAbbrev'),
-      read(player, 'proTeamId'),
-      read(player, 'team'),
-      read(player, 'teamAbbrev')
+      readProperty(player, 'proTeam'),
+      readProperty(player, 'proTeamAbbrev'),
+      readProperty(player, 'proTeamId'),
+      readProperty(player, 'team'),
+      readProperty(player, 'teamAbbrev')
     )
   );
 }
 
 function getDraftType(value: unknown): DraftType {
-  const record = asRecord(value);
-  const raw = firstDefined(read(record, 'name'), read(record, 'id'), value);
+  const record = objectValue(value);
+  const raw = firstDefined(readProperty(record, 'name'), readProperty(record, 'id'), value);
   const normalized =
     typeof raw === 'string' || typeof raw === 'number'
       ? String(raw).toLowerCase()
@@ -291,37 +273,37 @@ function getDraftType(value: unknown): DraftType {
   return 'snake';
 }
 
-function getTeamId(team: UnknownRecord | null): number | null {
+function getTeamId(team: object | null): number | null {
   return toPositiveInteger(
-    firstDefined(read(team, 'id'), read(team, 'teamId'), read(team, 'rosterId'))
+    firstDefined(readProperty(team, 'id'), readProperty(team, 'teamId'), readProperty(team, 'rosterId'))
   );
 }
 
-function getExplicitTeamSlot(team: UnknownRecord | null): number | null {
+function getExplicitTeamSlot(team: object | null): number | null {
   return toPositiveInteger(
     firstDefined(
-      read(team, 'draftSlot'),
-      read(team, 'draftPosition'),
-      read(team, 'draftOrder'),
-      read(team, 'pickOrder'),
-      read(team, 'slot')
+      readProperty(team, 'draftSlot'),
+      readProperty(team, 'draftPosition'),
+      readProperty(team, 'draftOrder'),
+      readProperty(team, 'pickOrder'),
+      readProperty(team, 'slot')
     )
   );
 }
 
-function getExplicitTeamPosition(team: UnknownRecord | null): number | null {
+function getExplicitTeamPosition(team: object | null): number | null {
   return toNonNegativeInteger(
     firstDefined(
-      read(team, 'draftSlot'),
-      read(team, 'draftPosition'),
-      read(team, 'draftOrder'),
-      read(team, 'pickOrder'),
-      read(team, 'slot')
+      readProperty(team, 'draftSlot'),
+      readProperty(team, 'draftPosition'),
+      readProperty(team, 'draftOrder'),
+      readProperty(team, 'pickOrder'),
+      readProperty(team, 'slot')
     )
   );
 }
 
-function buildTeamSlots(teams: readonly UnknownRecord[], teamCount: number): Map<number, number> {
+function buildTeamSlots(teams: readonly object[], teamCount: number): Map<number, number> {
   const slots = new Map<number, number>();
   const explicitPositions = teams
     .map(getExplicitTeamPosition)
@@ -353,27 +335,27 @@ function getStandardDraftPick(
 }
 
 function getDraftStatus(
-  draft: UnknownRecord,
+  draft: object,
   selectedPickCount: number,
   totalPickCount: number
 ): DraftStatus {
   if (
-    read(draft, 'drafted') === true ||
+    readProperty(draft, 'drafted') === true ||
     (totalPickCount > 0 && selectedPickCount >= totalPickCount)
   ) {
     return 'complete';
   }
 
-  const rawState = read(draft, 'state');
+  const rawState = readProperty(draft, 'state');
   const state =
     typeof rawState === 'string' || typeof rawState === 'number'
       ? String(rawState).toLowerCase()
       : '';
-  if (state.includes('pause') || read(draft, 'paused') === true) return 'paused';
+  if (state.includes('pause') || readProperty(draft, 'paused') === true) return 'paused';
   if (
     state === '8' ||
     state.includes('drafting') ||
-    read(draft, 'inProgress') === true ||
+    readProperty(draft, 'inProgress') === true ||
     selectedPickCount > 0
   ) {
     return 'drafting';
@@ -381,16 +363,16 @@ function getDraftStatus(
   return 'pre_draft';
 }
 
-function getPickTimerSeconds(draft: UnknownRecord): number {
-  const config = asRecord(read(draft, 'config'));
-  const leagueSettings = asRecord(read(draft, 'leagueSettings'));
-  const draftSettings = asRecord(read(leagueSettings, 'draftSettings'));
+function getPickTimerSeconds(draft: object): number {
+  const config = objectValue(readProperty(draft, 'config'));
+  const leagueSettings = objectValue(readProperty(draft, 'leagueSettings'));
+  const draftSettings = objectValue(readProperty(leagueSettings, 'draftSettings'));
   const raw = toFiniteNumber(
     firstDefined(
-      read(config, 'pickTimer'),
-      read(config, 'timePerSelection'),
-      read(draftSettings, 'pickTimer'),
-      read(draftSettings, 'timePerSelection')
+      readProperty(config, 'pickTimer'),
+      readProperty(config, 'timePerSelection'),
+      readProperty(draftSettings, 'pickTimer'),
+      readProperty(draftSettings, 'timePerSelection')
     )
   );
   if (raw === null || raw < 0) return 0;
@@ -410,7 +392,7 @@ export function buildEspnDraftSnapshot(
   pageUrl: string,
   observedAt: number = Date.now()
 ): EspnDraftSnapshot | null {
-  const draft = asRecord(value);
+  const draft = objectValue(value);
   if (!draft) return null;
 
   let url: URL;
@@ -426,41 +408,41 @@ export function buildEspnDraftSnapshot(
   const draftId = url.searchParams.get('leagueId');
   if (!draftId || !/^\d{1,20}$/.test(draftId)) return null;
 
-  const teams = toObjectArray(read(draft, 'teams'));
-  const templatePicks = toObjectArray(read(draft, 'picks'));
+  const teams = toObjectArray(readProperty(draft, 'teams'));
+  const templatePicks = toObjectArray(readProperty(draft, 'picks'));
   const teamCount =
     (teams.length > 0 ? teams.length : null) ??
-    toPositiveInteger(read(asRecord(read(draft, 'leagueSettings')), 'size')) ??
-    toPositiveInteger(read(draft, 'teamCount')) ??
+    toPositiveInteger(readProperty(objectValue(readProperty(draft, 'leagueSettings')), 'size')) ??
+    toPositiveInteger(readProperty(draft, 'teamCount')) ??
     0;
   if (teamCount < 1) return null;
 
-  const draftType = getDraftType(read(draft, 'draftType'));
+  const draftType = getDraftType(readProperty(draft, 'draftType'));
   const teamSlots = buildTeamSlots(teams, teamCount);
   const normalizedPicks: DraftPickEvent[] = [];
 
   templatePicks.forEach((pick, index) => {
-    const player = asRecord(read(pick, 'player'));
+    const player = objectValue(readProperty(pick, 'player'));
     const numericPlayerId = toPositiveInteger(
-      firstDefined(read(pick, 'playerId'), read(player, 'id'), read(player, 'playerId'))
+      firstDefined(readProperty(pick, 'playerId'), readProperty(player, 'id'), readProperty(player, 'playerId'))
     );
     if (numericPlayerId === null) return;
 
     const pickNumber =
       toPositiveInteger(
         firstDefined(
-          read(pick, 'overallPickNumber'),
-          read(pick, 'pickNumber'),
-          read(pick, 'id')
+          readProperty(pick, 'overallPickNumber'),
+          readProperty(pick, 'pickNumber'),
+          readProperty(pick, 'id')
         )
       ) ?? index + 1;
     const winningTeam =
-      asRecord(read(pick, 'winningTeam')) ?? asRecord(read(pick, 'originalTeam'));
+      objectValue(readProperty(pick, 'winningTeam')) ?? objectValue(readProperty(pick, 'originalTeam'));
     const teamId =
-      toPositiveInteger(read(pick, 'teamId')) ?? getTeamId(winningTeam);
+      toPositiveInteger(readProperty(pick, 'teamId')) ?? getTeamId(winningTeam);
     const mappedSlot = teamId === null ? null : teamSlots.get(teamId) ?? null;
     const directSlot = toPositiveInteger(
-      firstDefined(read(pick, 'draftSlot'), getExplicitTeamSlot(winningTeam))
+      firstDefined(readProperty(pick, 'draftSlot'), getExplicitTeamSlot(winningTeam))
     );
     const teamIdSlot = teamId !== null && teamId <= teamCount ? teamId : null;
     const standardPick = getStandardDraftPick(pickNumber, teamCount, draftType);
@@ -473,9 +455,9 @@ export function buildEspnDraftSnapshot(
     const playerId = String(numericPlayerId);
     const explicitRound = toPositiveInteger(
       firstDefined(
-        read(pick, 'roundId'),
-        read(asRecord(read(pick, 'round')), 'id'),
-        read(pick, 'round')
+        readProperty(pick, 'roundId'),
+        readProperty(objectValue(readProperty(pick, 'round')), 'id'),
+        readProperty(pick, 'round')
       )
     );
 
@@ -490,7 +472,7 @@ export function buildEspnDraftSnapshot(
       playerName: getPlayerName(player, pick, playerId, position),
       position,
       nflTeam: getPlayerTeam(player),
-      isKeeper: Boolean(read(pick, 'keeper') ?? read(pick, 'isKeeper')),
+      isKeeper: Boolean(readProperty(pick, 'keeper') ?? readProperty(pick, 'isKeeper')),
       source: 'espn-extension',
       confidence: 'confirmed',
       observedAt,
@@ -517,8 +499,8 @@ export function buildEspnDraftSnapshot(
     draftOrder: Object.keys(draftOrder).length > 0 ? draftOrder : null,
   };
 
-  const currentTeamId = toPositiveInteger(read(draft, 'teamId'));
-  const explicitCurrentSlot = getExplicitTeamSlot(asRecord(read(draft, 'localTeam')));
+  const currentTeamId = toPositiveInteger(readProperty(draft, 'teamId'));
+  const explicitCurrentSlot = getExplicitTeamSlot(objectValue(readProperty(draft, 'localTeam')));
   const currentTeamSlot =
     (currentTeamId === null ? null : teamSlots.get(currentTeamId) ?? null) ??
     explicitCurrentSlot ??

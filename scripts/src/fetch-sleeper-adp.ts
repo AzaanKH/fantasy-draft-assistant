@@ -11,13 +11,13 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { fetchJson, io, isEntryPoint, runMain } from './effect-runtime.js';
 import {
   type NFLTeam,
   type Position,
-  POSITIONS,
-  NFL_TEAMS,
+  isPosition,
+  isNFLTeam,
 } from '@fantasy-draft/shared/league';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,21 +29,17 @@ const SLEEPER_PLAYERS_URL = 'https://api.sleeper.app/v1/players/nfl';
 /**
  * Raw player data from Sleeper API
  */
-interface SleeperPlayer {
-  player_id: string;
-  first_name: string;
-  last_name: string;
-  full_name: string;
-  position: string;
-  team: string | null;
-  age: number | null;
-  years_exp: number | null;
-  search_rank: number | null;
-  status: string;
-  injury_status: string | null;
-  depth_chart_order: number | null;
-  fantasy_positions: string[] | null;
-}
+const sleeperPlayerSchema = Schema.StructWithRest(Schema.Struct({
+  player_id: Schema.optional(Schema.String), first_name: Schema.optional(Schema.NullOr(Schema.String)),
+  last_name: Schema.optional(Schema.NullOr(Schema.String)), full_name: Schema.optional(Schema.NullOr(Schema.String)),
+  position: Schema.optional(Schema.NullOr(Schema.String)), team: Schema.optional(Schema.NullOr(Schema.String)),
+  age: Schema.optional(Schema.NullOr(Schema.Finite)), years_exp: Schema.optional(Schema.NullOr(Schema.Finite)),
+  search_rank: Schema.optional(Schema.NullOr(Schema.Finite)), status: Schema.optional(Schema.NullOr(Schema.String)),
+  injury_status: Schema.optional(Schema.NullOr(Schema.String)), depth_chart_order: Schema.optional(Schema.NullOr(Schema.Finite)),
+  fantasy_positions: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+}), [Schema.Record(Schema.String, Schema.Unknown)]);
+const decodeSleeperPlayers = Schema.decodeUnknownSync(Schema.Record(Schema.String, sleeperPlayerSchema));
+type SleeperPlayers = ReturnType<typeof decodeSleeperPlayers>;
 
 /**
  * Processed Sleeper ADP data
@@ -65,7 +61,7 @@ interface SleeperADPPlayer {
  * Validates that a string is a valid Position
  */
 function isValidPosition(value: string): value is Position {
-  return POSITIONS.includes(value as Position);
+  return isPosition(value);
 }
 
 function normalizeSleeperPosition(value: string): Position | null {
@@ -87,27 +83,27 @@ function isExcludedSleeperStatus(status: string): boolean {
  * Validates that a string is a valid NFLTeam
  */
 function isValidTeam(value: string | null): value is NFLTeam {
-  return value !== null && NFL_TEAMS.includes(value as NFLTeam);
+  return isNFLTeam(value);
 }
 
 /**
  * Fetch all players from Sleeper API
  */
 // The full player catalog is several megabytes, so allow a slow but bounded download.
-const fetchSleeperPlayers = Effect.sync(() => { console.log(`Fetching from ${SLEEPER_PLAYERS_URL}...`); }).pipe(
-  Effect.andThen(fetchJson<Record<string, SleeperPlayer>>(SLEEPER_PLAYERS_URL, { label: 'Sleeper API', timeoutMs: 60_000 })),
+export const fetchSleeperPlayers = Effect.sync(() => { console.log(`Fetching from ${SLEEPER_PLAYERS_URL}...`); }).pipe(
+  Effect.andThen(fetchJson(SLEEPER_PLAYERS_URL, decodeSleeperPlayers, { label: 'Sleeper API', timeoutMs: 60_000 }, cause => cause instanceof Error ? cause : new Error(String(cause)))),
   Effect.tap((data) => Effect.sync(() => { console.log(`Received ${Object.keys(data).length} total player records`); })),
 );
 
 /**
  * Filter and process players for fantasy relevance
  */
-function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPPlayer[] {
+function processSleeperData(rawData: SleeperPlayers): SleeperADPPlayer[] {
   const players: SleeperADPPlayer[] = [];
   const errors: string[] = [];
 
   for (const [playerId, player] of Object.entries(rawData)) {
-    const position = normalizeSleeperPosition(player.position);
+    const position = normalizeSleeperPosition(player.position ?? '');
     if (!position) continue;
 
     const isTeamDefense = position === 'DEF' && isValidTeam(playerId);
@@ -129,7 +125,7 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
       continue;
     }
 
-    if (isExcludedSleeperStatus(player.status)) continue;
+    if (isExcludedSleeperStatus(player.status ?? '')) continue;
 
     players.push({
       playerId,
@@ -137,11 +133,11 @@ function processSleeperData(rawData: Record<string, SleeperPlayer>): SleeperADPP
       position,
       team: canonicalTeam,
       sleeperAdp: player.search_rank ?? 999,
-      age: player.age,
-      yearsExp: player.years_exp,
-      status: player.status,
-      injuryStatus: player.injury_status,
-      depthChartOrder: player.depth_chart_order,
+      age: player.age ?? null,
+      yearsExp: player.years_exp ?? null,
+      status: player.status ?? '',
+      injuryStatus: player.injury_status ?? null,
+      depthChartOrder: player.depth_chart_order ?? null,
     });
   }
 

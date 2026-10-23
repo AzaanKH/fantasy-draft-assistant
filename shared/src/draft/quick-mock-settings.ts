@@ -1,3 +1,5 @@
+import { isPlainObject } from '../objects.js';
+import { isBoundedInteger } from '../limits.js';
 import { createDefaultLeagueSettings, createLeagueSettings, type LeagueSettings } from '../league-settings.js';
 
 export interface QuickMockPreferences {
@@ -7,18 +9,22 @@ export interface QuickMockPreferences {
   readonly passingTouchdown: 4 | 6;
 }
 
+export function isQuickMockPreferences(value: unknown): value is QuickMockPreferences {
+  return isPlainObject(value) && isBoundedInteger(value.totalTeams, 2, 20) && isBoundedInteger(value.totalRounds, 10, 30) &&
+    (value.reception === 0 || value.reception === 0.5 || value.reception === 1) &&
+    (value.passingTouchdown === 4 || value.passingTouchdown === 6);
+}
+
+export function isLeagueSetupPreferences(value: unknown): value is {
+  readonly profile: 'quick-mock' | 'primary-league';
+  readonly quickMock: QuickMockPreferences;
+} {
+  return isPlainObject(value) && (value.profile === 'quick-mock' || value.profile === 'primary-league') && isQuickMockPreferences(value.quickMock);
+}
+
 export const DEFAULT_QUICK_MOCK: QuickMockPreferences = {
   totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4,
 };
-
-export function isQuickMockPreferences(value: unknown): value is QuickMockPreferences {
-  if (!value || typeof value !== 'object') return false;
-  const p = value as Record<string, unknown>;
-  return Number.isInteger(p.totalTeams) && Number(p.totalTeams) >= 2 && Number(p.totalTeams) <= 20 &&
-    Number.isInteger(p.totalRounds) && Number(p.totalRounds) >= 10 && Number(p.totalRounds) <= 30 &&
-    [0, 0.5, 1].includes(Number(p.reception)) && typeof p.reception === 'number' &&
-    (p.passingTouchdown === 4 || p.passingTouchdown === 6);
-}
 
 export function createQuickMockSettings(preferences: QuickMockPreferences = DEFAULT_QUICK_MOCK, now = Date.now()): LeagueSettings {
   const base = createDefaultLeagueSettings(now);

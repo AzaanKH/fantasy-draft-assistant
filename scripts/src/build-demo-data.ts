@@ -9,7 +9,7 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { decodeModelReport, decodeDemoPredictions } from './script-file-schemas.js';
+import { decodeModelReport, decodeDemoPredictions, decodeDemoByeWeekRows, decodeDemoComponentRows } from './script-file-schemas.js';
 import { decodeSleeperDataFile, decodeTeamEnvDataFile, decodeRecommendationPolicyFile, decodeLeagueSurvivalModel, decodePrimaryLeagueSettingsFile } from '@fantasy-draft/shared/catalog';
 import type { NFLTeam } from '@fantasy-draft/shared/league';
 import { Effect } from 'effect';
@@ -31,11 +31,6 @@ const FANTASYPROS_FREE_MODEL_DIR = join(DATA_DIR, 'model', 'fantasypros-free');
 const FANTASYPROS_FREE_MODEL_DB = join(FANTASYPROS_FREE_MODEL_DIR, 'fantasy-draft.duckdb');
 const NFLVERSE_SCHEDULES_URL =
   'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.parquet';
-
-interface ByeWeekRow {
-  readonly team: string;
-  readonly bye_week: number | bigint;
-}
 
 const readJson = <A>(path: string, decode: (value: unknown) => A): Effect.Effect<A, Error> =>
   io(async () => decode(JSON.parse(await readFile(path, 'utf8'))));
@@ -71,26 +66,13 @@ const readByeWeeks = (season: number): Effect.Effect<Partial<Record<NFLTeam, num
       )
       group by teams.team
     `);
-    const rows = reader.getRowObjects() as unknown as ByeWeekRow[];
+    const rows = decodeDemoByeWeekRows(reader.getRowObjects());
     // nflverse uses LA for the Rams; the app uses LAR.
     return Object.fromEntries(rows.map((row) => [
       row.team === 'LA' ? 'LAR' : row.team,
       Number(row.bye_week),
-    ])) as Partial<Record<NFLTeam, number>>;
+    ]));
   }));
-
-interface ComponentRow {
-  readonly sleeper_player_id: string;
-  readonly projected_rush_attempts: number;
-  readonly projected_receptions: number;
-  readonly history_seasons: number | bigint;
-  readonly passing_yards: number | null;
-  readonly passing_tds: number | null;
-  readonly rushing_yards: number | null;
-  readonly rushing_tds: number | null;
-  readonly receiving_yards: number | null;
-  readonly receiving_tds: number | null;
-}
 
 interface ProjectionComponents {
   readonly volumes: ReadonlyMap<string, DemoVolume>;
@@ -128,7 +110,7 @@ const readProjectionComponents = (season: number): Effect.Effect<ProjectionCompo
       where features.sleeper_player_id is not null
     `);
     await connection.run('detach free');
-    const rows = reader.getRowObjects() as unknown as ComponentRow[];
+    const rows = decodeDemoComponentRows(reader.getRowObjects());
     return {
       volumes: new Map(rows.map((row) => [row.sleeper_player_id, {
         projectedRushAttempts: row.projected_rush_attempts,

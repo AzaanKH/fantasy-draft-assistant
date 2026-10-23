@@ -1,3 +1,4 @@
+import { isPlainObject as isRecord } from './objects.js';
 import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
@@ -44,10 +45,6 @@ export interface LeagueSettings {
   /** Stable hash of scoring, roster, and team-count inputs. */
   readonly fingerprint: string;
   readonly updatedAt: number;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isFiniteNumber(value: unknown): value is number {

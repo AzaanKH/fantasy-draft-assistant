@@ -1,4 +1,4 @@
-import { decodeBacktestLeagueHistory } from './script-file-schemas.js';
+import { decodeBacktestLeagueHistory, decodeBacktestTrainingRows, type BacktestTrainingRow } from './script-file-schemas.js';
 import { readContractSignalEvidence, writeRecommendationEvaluation } from './recommendation-evaluation.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -77,48 +77,7 @@ const REPLACEMENT_POSITION_RANKS: Record<OffensivePosition, number> = {
   TE: 14,
 };
 
-interface TrainingRow {
-  readonly season: number;
-  readonly sleeper_player_id: string | null;
-  readonly gsis_id: string | null;
-  readonly player_name: string;
-  readonly position: Position;
-  readonly games: number;
-  readonly actual_points: number;
-  readonly rush_attempts: number;
-  readonly receptions: number;
-  readonly predraft_ecr: number | null;
-  readonly trailing_points_per_game_3yr: number | null;
-  readonly trailing_expected_points_per_game_3yr: number | null;
-  readonly trailing_pass_attempts_per_game_3yr: number | null;
-  readonly trailing_rush_attempts_per_game_3yr: number | null;
-  readonly trailing_targets_per_game_3yr: number | null;
-  readonly trailing_player_volume_3yr: number | null;
-  readonly trailing_target_share_3yr: number | null;
-  readonly trailing_air_yards_share_3yr: number | null;
-  readonly trailing_offense_snap_share_3yr: number | null;
-  readonly trailing_offense_snaps_per_game_3yr: number | null;
-  readonly trailing_pressure_rate_3yr: number | null;
-  readonly trailing_pressure_time_to_throw_3yr: number | null;
-  readonly trailing_number_pass_rushers_3yr: number | null;
-  readonly trailing_dropback_participation_per_game_3yr: number | null;
-  readonly trailing_charted_route_targets_per_game_3yr: number | null;
-  readonly trailing_targets_per_dropback_participation_3yr: number | null;
-  readonly trailing_deep_route_target_share_3yr: number | null;
-  readonly trailing_screen_route_target_share_3yr: number | null;
-  readonly trailing_goal_line_carries_per_game_3yr: number | null;
-  readonly trailing_goal_line_targets_per_game_3yr: number | null;
-  readonly trailing_completion_percentage_above_expectation_3yr: number | null;
-  readonly trailing_avg_time_to_throw_3yr: number | null;
-  readonly trailing_avg_intended_air_yards_3yr: number | null;
-  readonly trailing_avg_separation_3yr: number | null;
-  readonly trailing_avg_yac_above_expectation_3yr: number | null;
-  readonly trailing_expected_rush_points_per_game_3yr: number | null;
-  readonly trailing_expected_tds_per_game_3yr: number | null;
-  readonly trailing_rush_yards_over_expected_per_attempt_3yr: number | null;
-  readonly trailing_rush_pct_over_expected_3yr: number | null;
-  readonly history_seasons: number;
-}
+type TrainingRow = BacktestTrainingRow;
 
 interface PlayerSeason extends TrainingRow {
   readonly sleeper_player_id: string;
@@ -384,8 +343,7 @@ function choosePickEv(
 function getResidualFeatures(
   row: TrainingRow & { position: OffensivePosition }
 ): Readonly<Record<string, number | null>> {
-  const record = row as unknown as Readonly<Record<string, number | null>>;
-  const featureNames: readonly string[] = row.position === 'QB'
+  const featureNames = row.position === 'QB'
     ? POSITION_FEATURES.QB
     : row.position === 'RB'
       ? POSITION_FEATURES.RB
@@ -393,7 +351,7 @@ function getResidualFeatures(
         ? POSITION_FEATURES.WR
         : POSITION_FEATURES.TE;
   return Object.fromEntries(
-    featureNames.map((featureName) => [featureName, record[featureName] ?? null])
+    featureNames.map((featureName) => [featureName, row[featureName] ?? null])
   );
 }
 
@@ -758,7 +716,7 @@ async function main(): Promise<void> {
         from model.prediction_training_dataset
       ) where row_number = 1
     `);
-    const rawRows = (reader.getRowObjects() as unknown as TrainingRow[]).map((row) => ({
+    const rawRows = decodeBacktestTrainingRows(reader.getRowObjects()).map((row) => ({
       ...row,
       games: asNumber(row.games),
       actual_points: asNumber(row.actual_points),

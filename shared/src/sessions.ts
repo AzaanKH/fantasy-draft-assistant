@@ -1,42 +1,40 @@
-import { isBoundedInteger, MAX_DRAFT_PICKS, MAX_DRAFT_ROUNDS, MAX_DRAFT_TEAMS } from './limits.js';
-import { isDraftProvider, type DraftProvider, type DraftStatus, type DraftType, type DraftSyncState } from './sync.js';
+import { isDraftProvider, type DraftProvider } from './sync.js';
+import { isPlainObject } from './objects.js';
 
-/** Retained local sessions, without requesting new provider data. */
-export interface DraftSessionSummary {
-  readonly session: string;
+export const DRAFT_SESSION_LINEAGE_LIMIT = 100;
+
+export interface DraftSessionIdentity {
   readonly provider: DraftProvider;
   readonly draftId: string;
-  readonly draftStatus: DraftStatus | null;
-  readonly draftType: DraftType | null;
-  readonly totalTeams: number | null;
-  readonly totalRounds: number | null;
-  readonly currentPick: number | null;
-  readonly picksRecorded: number;
-  readonly sync: {
-    readonly state: DraftSyncState;
-    readonly lastSuccessfulSyncAt: number | null;
-    readonly lastError: string | null;
-  };
-  readonly lastActivityAt: number;
-  readonly subscribers: number;
 }
 
-export function isDraftSessionSummary(value: unknown): value is DraftSessionSummary {
-  if (typeof value !== 'object' || value === null) return false;
-  const row = value as Record<string, unknown>;
-  const sync = row.sync as Record<string, unknown> | null;
-  return isDraftProvider(row.provider) && typeof row.draftId === 'string' && row.draftId.length <= 128 &&
-    row.session === `${row.provider}:${row.draftId}` &&
-    (row.draftStatus === null || ['pre_draft', 'drafting', 'paused', 'complete'].includes(row.draftStatus as string)) &&
-    (row.draftType === null || ['snake', 'linear', 'auction'].includes(row.draftType as string)) &&
-    (row.totalTeams === null || isBoundedInteger(row.totalTeams, 2, MAX_DRAFT_TEAMS)) &&
-    (row.totalRounds === null || isBoundedInteger(row.totalRounds, 1, MAX_DRAFT_ROUNDS)) &&
-    (row.currentPick === null || isBoundedInteger(row.currentPick, 1, MAX_DRAFT_PICKS + 1)) &&
-    isBoundedInteger(row.picksRecorded, 0, MAX_DRAFT_PICKS) &&
-    typeof sync === 'object' && sync !== null &&
-    ['idle', 'syncing', 'synced', 'error'].includes(String(sync.state)) &&
-    (sync.lastSuccessfulSyncAt === null || typeof sync.lastSuccessfulSyncAt === 'number' && Number.isFinite(sync.lastSuccessfulSyncAt)) &&
-    (sync.lastError === null || typeof sync.lastError === 'string') &&
-    typeof row.lastActivityAt === 'number' && Number.isFinite(row.lastActivityAt) &&
-    isBoundedInteger(row.subscribers, 0, 32);
+interface DraftSyncConnection extends DraftSessionIdentity {
+  readonly draftPosition: number | null;
+  readonly usePrimaryLeagueSettings?: boolean;
+  readonly settingsProfile?: 'quick-mock';
 }
+
+export function isValidDraftSyncId(provider: DraftProvider, value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  switch (provider) {
+    case 'sleeper': return /^[A-Za-z0-9_-]{1,128}$/.test(value);
+    case 'espn':
+    case 'yahoo': return /^\d{1,20}$/.test(value);
+  }
+}
+
+export function isDraftSessionIdentity(value: unknown): value is DraftSessionIdentity {
+  return isPlainObject(value) && isDraftProvider(value.provider) && isValidDraftSyncId(value.provider, value.draftId);
+}
+
+export function isDraftSyncConnection(value: unknown): value is DraftSyncConnection {
+  return isDraftSessionIdentity(value) && isPlainObject(value) &&
+    (value.draftPosition === null || typeof value.draftPosition === 'number' && Number.isInteger(value.draftPosition) && value.draftPosition >= 1 && value.draftPosition <= 20) &&
+    (value.usePrimaryLeagueSettings === undefined || typeof value.usePrimaryLeagueSettings === 'boolean') &&
+    (value.settingsProfile === undefined || value.settingsProfile === 'quick-mock') &&
+    (value.settingsProfile === undefined || value.provider === 'sleeper' && value.usePrimaryLeagueSettings !== true) &&
+    (value.provider === 'sleeper' || value.usePrimaryLeagueSettings !== true);
+}
+
+/** Retained local sessions, without requesting new provider data. */
+export type { DraftSessionSummary } from './catalog/sync-decoders.js';

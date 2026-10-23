@@ -1,4 +1,5 @@
-import { isBoundedInteger, MAX_DRAFT_PICKS } from '@fantasy-draft/shared/units';
+import { assertDraftStorageWritable, DraftStorageMigratedError } from './draftStorageMigration';
+import { decodeDraftSessionChange } from '@fantasy-draft/shared/catalog';
 import type { RecordedDraftPick } from './draft/types';
 import type {
   DraftSessionIdentity,
@@ -71,23 +72,14 @@ function getUnconfirmedSaveKey(identity: DraftSessionIdentity, tabId: string): s
   return `${getUnconfirmedSaveKeyPrefix(identity)}${tabId}`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isText(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 512;
-}
-
 /** Deep equality for JSON data; key order and undefined properties are ignored. */
 function isSameSessionValue(left: unknown, right: unknown): boolean {
   if (left === right) return true;
   if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null ||
       Array.isArray(left) !== Array.isArray(right)) return false;
   const leftEntries = Object.entries(left).filter(([, value]) => value !== undefined);
-  const rightValues = right as Record<string, unknown>;
   return leftEntries.length === Object.values(right).filter((value) => value !== undefined).length &&
-    leftEntries.every(([key, value]) => Object.hasOwn(right, key) && isSameSessionValue(value, rightValues[key]));
+    leftEntries.every(([key, value]) => Object.hasOwn(right, key) && isSameSessionValue(value, Reflect.get(right, key)));
 }
 
 /** Describes how `next` differs from the session it was built on. */
@@ -179,7 +171,7 @@ export function applyDraftSessionChange(
   const queue = session.shortlistedPlayerIds.filter((playerId) => !removed.has(playerId));
   for (const playerId of change.queueAdded) if (!queue.includes(playerId)) queue.push(playerId);
 
-  const merged: Record<string, unknown> = {
+  const merged: PersistedDraftSession = {
     ...session,
     draftHistory: [...history.values()].sort((left, right) => left.pickNumber - right.pickNumber),
     shortlistedPlayerIds: queue,
@@ -188,46 +180,24 @@ export function applyDraftSessionChange(
     const fieldChange = change.fields[field];
     if (!fieldChange) continue;
     if (isSameSessionValue(session[field], fieldChange.before)) {
-      merged[field] = fieldChange.after;
+      Object.assign(merged, { [field]: fieldChange.after });
     } else if (field === 'currentPick') {
-      merged[field] = Math.max(session.currentPick, fieldChange.after as number);
+      Object.assign(merged, { currentPick: Math.max(session.currentPick, change.fields.currentPick?.after ?? session.currentPick) });
     }
   }
-  return merged as unknown as PersistedDraftSession;
-}
-
-function isPickChange(value: unknown): value is DraftPickChange {
-  return isRecord(value) && isBoundedInteger(value.pickNumber, 1, MAX_DRAFT_PICKS) &&
-    (value.before === null || isRecord(value.before)) && (value.after === null || isRecord(value.after));
-}
-
-function isPlayerIdList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.length <= MAX_DRAFT_PICKS && value.every(isText);
+  if (merged.currentPick !== session.currentPick || !isSameSessionValue(merged.draftHistory, session.draftHistory)) {
+    // Journals omit progress for older readers; history or cursor changes import the legacy merged cursor.
+    return { ...merged, draftProgress: {
+      anchor: { kind: 'carry', pickNumber: merged.currentPick }, historyLength: merged.draftHistory.length,
+    } };
+  }
+  return merged;
 }
 
 function parseDraftSessionChange(serialized: string | null): DraftSessionChange | null {
   if (!serialized || serialized.length > 2_000_000) return null;
   try {
-    const value: unknown = JSON.parse(serialized);
-    // Only the shape is checked here; merged values are validated with the merged session.
-    if (!isRecord(value) || value.version !== 1 || !isText(value.writeId) ||
-        (value.baseWriteId !== null && !isText(value.baseWriteId)) ||
-        !isBoundedInteger(value.revision, 0, Number.MAX_SAFE_INTEGER) ||
-        !Array.isArray(value.picks) || value.picks.length > MAX_DRAFT_PICKS || !value.picks.every(isPickChange) ||
-        !isPlayerIdList(value.queueAdded) || !isPlayerIdList(value.queueRemoved) ||
-        !isRecord(value.fields) ||
-        !Object.entries(value.fields).every(([field, fieldChange]) =>
-          (MERGED_FIELDS as readonly string[]).includes(field) && isRecord(fieldChange) &&
-          'before' in fieldChange && 'after' in fieldChange)) return null;
-    return {
-      writeId: value.writeId,
-      baseWriteId: value.baseWriteId,
-      revision: value.revision,
-      picks: value.picks,
-      queueAdded: value.queueAdded,
-      queueRemoved: value.queueRemoved,
-      fields: value.fields as FieldChanges,
-    };
+    return decodeDraftSessionChange(JSON.parse(serialized));
   } catch {
     return null;
   }
@@ -240,8 +210,10 @@ export function writeDraftSessionChange(
   tabId: string,
   change: DraftSessionChange
 ): void {
+  const serialized = JSON.stringify({ version: 1, ...change });
+  assertDraftStorageWritable(storage);
   try {
-    storage.setItem(getUnconfirmedSaveKey(identity, tabId), JSON.stringify({ version: 1, ...change }));
+    storage.setItem(getUnconfirmedSaveKey(identity, tabId), serialized);
   } catch {
     // Without this record the save still lands; only overwrite recovery after reload is lost.
   }
@@ -259,11 +231,20 @@ export function readDraftSessionChanges(
       const key = storage.key(index);
       if (key?.startsWith(prefix)) keys.push(key);
     }
-    return keys.flatMap((key) => {
+    let rejectedCount = 0;
+    const changes = keys.flatMap((key) => {
       const serialized = storage.getItem(key);
       const change = parseDraftSessionChange(serialized);
+      if (serialized && !change) rejectedCount += 1;
       return serialized && change ? [{ key, serialized, change }] : [];
     });
+    if (rejectedCount > 0) {
+      console.warn(
+        '[Fantasy Draft] Rejected unconfirmed save journals; each save stays atomic to preserve dependent pick moves.',
+        { rejectedCount }
+      );
+    }
+    return changes;
   } catch {
     return [];
   }
@@ -271,9 +252,14 @@ export function readDraftSessionChanges(
 
 /** Removes a recorded save unless its tab replaced it since it was read. */
 export function removeDraftSessionChange(storage: DraftSessionStorage, stored: StoredDraftSessionChange): void {
+  assertDraftStorageWritable(storage);
   try {
-    if (storage.getItem(stored.key) === stored.serialized) storage.removeItem(stored.key);
-  } catch {
+    if (storage.getItem(stored.key) === stored.serialized) {
+      assertDraftStorageWritable(storage);
+      storage.removeItem(stored.key);
+    }
+  } catch (error) {
+    if (error instanceof DraftStorageMigratedError) throw error;
     // A leftover entry is removed by a later check.
   }
 }

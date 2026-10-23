@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
+import { Effect } from 'effect';
+import { readArchive, type SessionArchive } from './archive';
 import { runDraft } from './run';
 import { fixturePick, fixtureSettings, fixtureSnapshot, FIXTURE_NOW, writeFixtureData } from './fixtures';
 
@@ -566,6 +568,30 @@ describe('draft CLI against a local fixture server', () => {
     expect(offline.result.error.code).toBe('SYNC_UNHEALTHY');
     const historicalReadiness = await command(['readiness', '--replay', path, '--json']);
     expect(historicalReadiness.result.data).toMatchObject({ scope: 'recorded-draft', readyForAdvice: false, source: 'replay' });
+  });
+
+  it.each([
+    ['summary counts', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      summary: { ...value.readiness.summary, actionableWarnings: 'invalid' } } })],
+    ['optional degradation rows', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      optionalSignalDegradations: [{ key: 'fake' }] } })],
+    ['warning rows', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      actionableWarnings: [{ message: 'missing its warning identity' }] } })],
+    ['engineering commands', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      engineeringChecks: { ...value.readiness.engineeringChecks, commands: ['invalid'] } } })],
+    ['readiness classification', (value: SessionArchive) => ({ ...value, readiness: { ...value.readiness,
+      coreDraftData: value.readiness.coreDraftData.map((item, index) => index === 0
+        ? { ...item, classification: 'invalid' } : item) } })],
+  ])('rejects incomplete archive %s atomically', async (_label, corrupt) => {
+    const path = join(root, '.local/session.json');
+    await command(['export', '--session', 'fixture', '--out', path, '--json']);
+    const archive = await Effect.runPromise(readArchive(path));
+    const requests = requestCount;
+    await writeFile(path, JSON.stringify(corrupt(archive)));
+    const result = await command(['replay', path, '--json']);
+    expect(result.code).toBe(2);
+    expect(result.result.error.code).toBe('INVALID_ARCHIVE');
+    expect(requestCount).toBe(requests);
   });
 
   it('rejects corrupted, unsupported, or inconsistent session archives', async () => {

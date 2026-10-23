@@ -4,6 +4,7 @@
  * Contract status remains descriptive until it clears a separate historical
  * recommendation backtest; the live recommendation policy keeps it disabled.
  */
+import { http, HttpError } from '@fantasy-draft/shared/http';
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -28,15 +29,18 @@ const OUTPUT_FILE = join(DATA_DIR, 'contracts.json');
 const SLEEPER_FILE = join(DATA_DIR, 'sleeper-adp.json');
 
 export async function getSourceUpdatedAt(): Promise<string | null> {
-  const response = await fetch(CONTRACTS_RELEASE_API_URL, {
-    headers: { accept: 'application/vnd.github+json', 'user-agent': 'fantasy-draft-contract-refresh' },
-  });
-  if (!response.ok) return null;
   try {
-    const release = decodeContractRelease(await response.json());
+    const release = await http.json(CONTRACTS_RELEASE_API_URL, decodeContractRelease,
+      { timeoutMs: 20_000, retries: 0, retryAfter: true }, { init: {
+        headers: { accept: 'application/vnd.github+json', 'user-agent': 'fantasy-draft-contract-refresh' },
+      } });
     return release.assets?.find((asset) => asset.name === 'historical_contracts.parquet')?.updated_at ??
       release.updated_at ?? null;
   } catch (error) {
+    if (error instanceof HttpError) {
+      if (error.kind === 'status') return null;
+      if (error.kind !== 'invalid-json') throw error;
+    }
     console.warn(`Contract source provenance is unavailable: ${String(error)}`);
     return null;
   }

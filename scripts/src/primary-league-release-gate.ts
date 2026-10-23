@@ -1,5 +1,5 @@
 import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
-import { spawn } from 'node:child_process';
+import { Processes, ProcessError, runNodeMain } from '@fantasy-draft/shared/node';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -176,33 +176,36 @@ function commandLabel(spec: CommandSpec): string {
   return [spec.executable, ...spec.args].join(' ');
 }
 
-async function runCommand(spec: CommandSpec): Promise<CommandOutcome> {
+export async function runReleaseCommand(spec: CommandSpec, signal: AbortSignal, timeoutMs: number = 30 * 60_000): Promise<CommandOutcome> {
   const startedAt = Date.now();
-  const exitCode = await new Promise<number | null>((resolveExit) => {
-    const child = spawn(spec.executable, [...spec.args], {
-      cwd: REPO_ROOT,
-      env: process.env,
-      stdio: 'inherit',
-    });
-    child.once('error', () => { resolveExit(null); });
-    child.once('exit', (code) => { resolveExit(code); });
-  });
+  let exitCode: number | null;
+  let passed = false;
+  try {
+    exitCode = (await Processes.run(spec.executable, spec.args, {
+      cwd: REPO_ROOT, env: process.env, output: 'inherit', stdin: 'inherit', timeoutMs, signal,
+    })).exitCode;
+    passed = true;
+  } catch (error) {
+    if (signal.aborted) throw error;
+    if (!(error instanceof ProcessError)) throw error;
+    exitCode = error.exitCode;
+  }
   return {
     command: commandLabel(spec),
-    status: exitCode === 0 ? 'passed' : 'failed',
+    status: passed ? 'passed' : 'failed',
     exitCode,
     durationMs: Date.now() - startedAt,
   };
 }
 
 async function runCheck(
-  definition: ReleaseCheckDefinition
+  definition: ReleaseCheckDefinition, signal: AbortSignal
 ): Promise<ReleaseCheckOutcome> {
   console.log(`\n${definition.label}`);
   const commands: CommandOutcome[] = [];
   for (const command of definition.commands) {
     console.log(`$ ${commandLabel(command)}`);
-    commands.push(await runCommand(command));
+    commands.push(await runReleaseCommand(command, signal));
   }
   return {
     key: definition.key,
@@ -319,10 +322,10 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
   };
 }
 
-async function main(): Promise<void> {
+async function main(signal: AbortSignal): Promise<void> {
   const outcomes: ReleaseCheckOutcome[] = [];
   for (const definition of RELEASE_CHECKS) {
-    outcomes.push(await runCheck(definition));
+    outcomes.push(await runCheck(definition, signal));
   }
   const [readiness, rehearsal, operational] = await Promise.all([
     readJson(READINESS_REPORT_PATH, decodeReadinessEvidence),
@@ -349,5 +352,5 @@ async function main(): Promise<void> {
 const isDirectRun = process.argv[1] !== undefined &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isDirectRun) {
-  await main();
+  await runNodeMain(main);
 }
