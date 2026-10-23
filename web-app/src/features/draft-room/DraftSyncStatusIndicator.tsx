@@ -1,3 +1,4 @@
+import { useNow } from '@/workspace/useNow';
 import * as React from 'react';
 import {
   CheckCircle2,
@@ -71,9 +72,10 @@ export function DraftSyncStatusIndicator({
   readonly compact?: boolean;
   readonly className?: string;
 }): React.ReactElement {
+  const now = useNow();
   const presentation = STATUS_PRESENTATION[sync.synchronizationState];
   const Icon = presentation.icon;
-  const age = formatDraftSyncAge(sync.lastSyncAgeMs);
+  const age = formatDraftSyncAge(sync.lastSuccessfulSyncAt === null ? null : Math.max(0, now - sync.lastSuccessfulSyncAt));
   const ageLabel = sync.lastSuccessfulSyncAt === null
     ? compact ? 'No sync yet' : 'Waiting for first sync'
     : compact ? age : `Last sync ${age}`;

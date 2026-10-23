@@ -1,7 +1,8 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDraftStore, DraftStoreProvider } from '@/stores/draftStore';
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { useQueueActions } from './useQueueActions';
 const mocks = vi.hoisted(() => ({ toast: vi.fn() }));
 vi.mock('sonner', () => ({ toast: mocks.toast }));
@@ -9,7 +10,7 @@ function setup() {
   const store = createDraftStore();
   let actions!: ReturnType<typeof useQueueActions>;
   function Capture() { actions = useQueueActions([{ id: 'a', name: 'Player A' }, { id: 'b', name: 'Player B' }]); return null; }
-  renderToString(createElement(DraftStoreProvider, { store, children: createElement(Capture) }));
+  renderToString(createElement(WorkspaceTestProvider, { store, children: createElement(Capture) }));
   return { store, actions };
 }
 function undoLatest() {
