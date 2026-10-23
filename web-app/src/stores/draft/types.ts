@@ -234,4 +234,4 @@ export interface DraftActions {
 export type DraftStore = DraftState & DraftActions;
 
 
-export type SetDraftState = (transition: (state: Draft<DraftStore>) => void) => boolean;
+export type SetDraftState = (transition: (state: Draft<DraftState>) => void) => boolean;

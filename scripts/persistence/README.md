@@ -75,3 +75,21 @@ Run the standalone audit tests without starting a browser:
 ```sh
 node --test scripts/persistence/check-audit.mjs
 ```
+
+## Inactive IndexedDB store
+
+Production continues to use v1. The IndexedDB owner is available only when the demo development runner sets `PERSISTENCE_STORE=idb`. It mounts the existing workspace owner with an asynchronous `sendDurable` path. Synchronous UI writes stay read-only in this test mode. Each command reads the latest session and commits it in one strict-durability transaction. The receipt includes the committed facts and is returned after transaction completion.
+
+Build the test extension with the same explicit harness flag, then run the full durability gate:
+
+```sh
+VITE_PERSISTENCE_HARNESS=idb pnpm build:extension
+PERSISTENCE_STORE=idb PERSISTENCE_HEADED=true PERSISTENCE_CONFLICT_SAMPLES=100 pnpm test:persistence --gate-idb
+node scripts/persistence/check-results.mjs artifacts/persistence/results.json --gate-idb
+```
+
+The positive cases retain 9,000 effects each. Each includes 20 pick conflicts and 100 queue moves. The two negative cases attempt 300 commands in the explicitly blocked workspace, require 300 rejections and zero acknowledgements, and compare unchanged v1 bytes. A timeout without a setup error fails. The extension also starts with no app tab and completes its writer-free helper handshake. The tabs case suppresses notification hints, closes the writer after commit, and checks trusted focus recovery in both directions. Native visibility events are retained separately. Use a headed private browser for native lifecycle checks.
+
+`PERSISTENCE_PICK_SAMPLES` and `PERSISTENCE_CONFLICT_SAMPLES` reduce conflict counts for smoke runs. Smoke runs cannot pass `--gate-idb`. No new persistence flag is a production user setting. Restore the ordinary extension build after testing.
+
+`node scripts/persistence/old-modules.mjs` extracts the pinned real main and stack modules inside `.local/`, runs their writers, and checks complete and retained-journal imports. It installs only locked dependencies and does not refresh providers. `activation-off.mjs` compares already-built base and head production apps in private browser contexts, drives a real queue action, compares v1 bytes and demo data requests, and asserts zero IndexedDB opens.

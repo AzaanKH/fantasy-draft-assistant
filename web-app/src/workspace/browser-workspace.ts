@@ -5,8 +5,12 @@ import { createWorkspace, type Workspace } from './workspace';
 
 let browserWorkspace: Workspace | undefined;
 
-export function createBrowserWorkspace(search: string): Workspace {
+export function createBrowserWorkspace(search: string, harnessFactory?: () => Workspace): Workspace {
   if (browserWorkspace) throw new Error('The browser composition root already has a workspace');
+  if (harnessFactory) {
+    browserWorkspace = harnessFactory();
+    return browserWorkspace;
+  }
   const connectionStore = createDraftSyncConnectionStore({ initialConnection: readStoredConnection(), persist: persistConnection });
   initializeDraftSyncConnection(connectionStore, search);
   const workspace = createWorkspace({
