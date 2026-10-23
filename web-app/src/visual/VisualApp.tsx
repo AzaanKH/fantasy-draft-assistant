@@ -1,3 +1,5 @@
+import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
+import { createWorkspace } from '@/workspace/workspace';
 import { DraftDataRefreshRequestContext } from '@/hooks/useDraftDataRefresh';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
@@ -35,12 +37,7 @@ import {
   type PlayerDataQueryResult,
 } from '@/hooks/usePlayerData';
 import { createDataFreshnessItem } from '@/lib/data-freshness';
-import {
-  createDraftStore,
-  DraftStoreProvider,
-  type DraftStoreApi,
-  type RecordedDraftPick,
-} from '@/stores/draftStore';
+import { createDraftStore, type DraftStoreApi, type RecordedDraftPick } from '@/stores/draftStore';
 import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 
 export const VISUAL_NOW = Date.UTC(2026, 7, 27, 17, 0, 0);
@@ -258,7 +255,8 @@ function createFixtureHistory(): RecordedDraftPick[] {
   return Array.from({ length: 46 }, (_, index) => {
     const pickNumber = index + 1;
     const teamIndex = createSlotSequence({ type: 'snake', teams: 10, rounds: Math.ceil(pickNumber / 10) }).at(pickNumber).teamIndex;
-    const position = (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
+    const managerPositions: Readonly<Record<number, Player['position']>> = { 5: 'RB', 16: 'RB', 25: 'QB', 36: 'WR', 45: 'TE' };
+    const position = managerPositions[pickNumber] ?? (['RB', 'WR', 'QB', 'TE'] as const)[index % 4] ?? 'WR';
     return {
       pickNumber,
       playerId: `visual-drafted-${String(pickNumber)}`,
@@ -277,19 +275,10 @@ export function createVisualDraftStore(): DraftStoreApi {
   const draftHistory = createFixtureHistory();
   store.setState({
     sessionMode: 'mock',
-    currentPick: 47,
-    draftedPlayerIds: new Set(draftHistory.map((pick) => pick.playerId)),
+    draftProgress: { anchor: { kind: 'carry', pickNumber: 47 }, historyLength: draftHistory.length },
     draftHistory,
     shortlistedPlayerIds: ['visual-player-2', 'visual-player-6'],
     keepersInitialized: true,
-    myRoster: {
-      QB: ['visual-drafted-25'],
-      RB: ['visual-drafted-5', 'visual-drafted-16'],
-      WR: ['visual-drafted-36'],
-      TE: ['visual-drafted-45'],
-      K: [],
-      DEF: [],
-    },
   });
   return store;
 }
@@ -459,6 +448,7 @@ export function VisualApp(): React.ReactElement {
     initialConnection: null,
     persist: () => undefined,
   }));
+  const [workspace] = React.useState(() => createWorkspace({ draftStore, connectionStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),
     []
@@ -484,11 +474,11 @@ export function VisualApp(): React.ReactElement {
     <ThemeProvider initialTheme="light" persist={false}>
       <QueryClientProvider client={queryClient}>
         <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
-          <DraftStoreProvider store={draftStore}>
+          <WorkspaceProvider workspace={workspace}>
             <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
               <NotificationProvider>
                 <TooltipProvider><MotionProvider>
-                  <LiveDraftSyncProvider connectionStore={connectionStore}>
+                  <LiveDraftSyncProvider>
                     <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
                       <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
                         <VisualRouteContent route={route} />
@@ -499,7 +489,7 @@ export function VisualApp(): React.ReactElement {
                 </MotionProvider></TooltipProvider>
               </NotificationProvider>
             </PlayerDataFixtureProvider>
-          </DraftStoreProvider>
+          </WorkspaceProvider>
         </DraftDataRefreshRequestContext.Provider>
       </QueryClientProvider>
     </ThemeProvider>

@@ -1,38 +1,8 @@
-import { type Position } from '@fantasy-draft/shared/league';
-import { createSlotSequence } from '@fantasy-draft/shared/draft';
+import { deriveDraftState } from './source';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared/league';
-import { type DraftType } from '@fantasy-draft/shared/sync';
+import type { DraftType } from '@fantasy-draft/shared/sync';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
-import type {
-  MutableRoster,
-  PreloadedKeeper,
-  DraftState,
-  RecordedDraftPick,
-  FilterState,
-  DraftConfig,
-  MockDraftSettings,
-} from './types';
-
-export function createEmptyMutableRoster(): MutableRoster {
-  return {
-    QB: [],
-    RB: [],
-    WR: [],
-    TE: [],
-    K: [],
-    DEF: [],
-  };
-}
-
-export function addPlayerToRoster(
-  roster: MutableRoster,
-  position: Position,
-  playerId: string
-): void {
-  if (!roster[position].includes(playerId)) {
-    roster[position].push(playerId);
-  }
-}
+import type { PreloadedKeeper, DraftState, RecordedDraftPick, FilterState, DraftConfig, MockDraftSettings } from './types';
 
 export function getKeeperPickNumbers(
   keepers: readonly PreloadedKeeper[],
@@ -42,86 +12,6 @@ export function getKeeperPickNumbers(
   return new Set(keepers.map((keeper) =>
     getKeeperPickNumber(keeper, totalTeams, draftType)
   ));
-}
-
-export function advancePastKeeperSlots(
-  pickNumber: number,
-  keepers: readonly PreloadedKeeper[],
-  totalTeams: number,
-  totalPicks: number,
-  draftType: DraftType
-): number {
-  let nextPick = pickNumber;
-  const keeperPicks = getKeeperPickNumbers(keepers, totalTeams, draftType);
-  while (
-    nextPick <= totalPicks &&
-    keeperPicks.has(nextPick)
-  ) {
-    nextPick += 1;
-  }
-  return nextPick;
-}
-
-export function createEmptyTeamRosters(totalTeams: number): MutableRoster[] {
-  return Array.from(
-    { length: Math.max(0, totalTeams) },
-    createEmptyMutableRoster
-  );
-}
-
-function copyRoster(roster: MutableRoster | undefined): MutableRoster {
-  if (!roster) return createEmptyMutableRoster();
-  return {
-    QB: [...roster.QB],
-    RB: [...roster.RB],
-    WR: [...roster.WR],
-    TE: [...roster.TE],
-    K: [...roster.K],
-    DEF: [...roster.DEF],
-  };
-}
-
-export function rebuildCanonicalRosters(state: Pick<
-  DraftState,
-  'config' | 'draftHistory' | 'preloadedKeepers' | 'myRoster' | 'teamRosters'
->): void {
-  const teamRosters = createEmptyTeamRosters(state.config.totalTeams);
-  const effectiveKeepers = getEffectiveKeeperAssignments(
-    state.preloadedKeepers,
-    state.draftHistory,
-    state.config.totalTeams,
-    state.config.draftType
-  );
-
-  for (const keeper of effectiveKeepers) {
-    const roster = teamRosters[keeper.teamIndex];
-    if (roster) addPlayerToRoster(roster, keeper.position, keeper.playerId);
-  }
-  for (const pick of state.draftHistory) {
-    const roster = teamRosters[pick.teamIndex];
-    if (roster) addPlayerToRoster(roster, pick.position, pick.playerId);
-  }
-
-  state.teamRosters = teamRosters;
-  state.myRoster = copyRoster(teamRosters[state.config.myPickPosition - 1]);
-}
-
-function getNextCanonicalOpenPick(
-  history: readonly RecordedDraftPick[],
-  keepers: readonly PreloadedKeeper[],
-  totalTeams: number,
-  totalPicks: number,
-  draftType: DraftType
-): number {
-  const occupied = new Set(history.map((pick) => pick.pickNumber));
-  for (const keeperPick of getKeeperPickNumbers(keepers, totalTeams, draftType)) {
-    occupied.add(keeperPick);
-  }
-
-  for (let pickNumber = 1; pickNumber <= totalPicks; pickNumber += 1) {
-    if (!occupied.has(pickNumber)) return pickNumber;
-  }
-  return totalPicks + 1;
 }
 
 export function restoreShortlistedPlayer(
@@ -142,52 +32,20 @@ export function restoreShortlistedPlayer(
   );
 }
 
-export function rebuildAfterProvisionalChange(state: Pick<
-  DraftState,
-  | 'config'
-  | 'currentPick'
-  | 'draftedPlayerIds'
-  | 'draftHistory'
-  | 'shortlistedPlayerIds'
-  | 'preloadedKeepers'
-  | 'myRoster'
-  | 'teamRosters'
-  | 'mockSurvivalProbabilities'
+export function acceptProvisionalProgress(state: Pick<
+  DraftState, 'config' | 'draftProgress' | 'draftHistory' | 'preloadedKeepers' | 'shortlistedPlayerIds' | 'sessionMode' | 'mockSurvivalProbabilities'
 >): void {
   state.draftHistory.sort((left, right) => left.pickNumber - right.pickNumber);
+  state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
   const effectiveKeepers = getEffectiveKeeperAssignments(
-    state.preloadedKeepers,
-    state.draftHistory,
-    state.config.totalTeams,
-    state.config.draftType
+    state.preloadedKeepers, state.draftHistory, state.config.totalTeams, state.config.draftType
   );
-  state.draftedPlayerIds = new Set([
-    ...state.draftHistory.map((pick) => pick.playerId),
-    ...effectiveKeepers.map((keeper) => keeper.playerId),
-  ]);
-  state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-    (playerId) => !state.draftedPlayerIds.has(playerId)
-  );
-  rebuildCanonicalRosters(state);
-  state.currentPick = getNextCanonicalOpenPick(
-    state.draftHistory,
-    effectiveKeepers,
-    state.config.totalTeams,
-    state.config.totalTeams * state.config.totalRounds,
-    state.config.draftType
-  );
+  state.draftProgress = {
+    anchor: { kind: 'first-open', keeperSlots: [...getKeeperPickNumbers(effectiveKeepers, state.config.totalTeams, state.config.draftType)],
+      totalPicks: state.config.totalTeams * state.config.totalRounds },
+    historyLength: state.draftHistory.length,
+  };
   state.mockSurvivalProbabilities = {};
-}
-
-export function calculateIsMyTurn(
-  currentPick: number,
-  myPickPosition: number,
-  totalTeams: number,
-  totalRounds: number,
-  draftType: DraftType
-): boolean {
-  return createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds })
-    .nextForTeam(myPickPosition - 1, currentPick)?.pick === currentPick;
 }
 
 /**
@@ -215,4 +73,3 @@ export const defaultMockSettings: MockDraftSettings = {
   survivalIterations: 250,
   cpuPickPace: 'watch',
 };
-

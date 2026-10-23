@@ -1,3 +1,5 @@
+import { useWorkspace, useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
 import {
   POSITIONS,
   type Player,
@@ -22,7 +24,6 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { useDraftSessionMode, useDraftStore, useIsMyTurn } from '@/stores/draftStore';
 import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
 import { AssistantContextBar } from './AssistantContextBar';
@@ -38,7 +39,6 @@ import {
   getAlertSignals,
   getAssistantDraftMode,
   getPickWindow,
-  getSyncStatus,
   getUpcomingTeamPicks,
 } from './assistant-context';
 import { useCollapsedPlayerCount } from './useAssistantLayout';
@@ -79,18 +79,18 @@ export function AssistantPage({
   const liveSync = useLiveDraftSync();
   const { players } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
-  const { canDraft, isMyTurn: canPickNow, draftPlayer } = useDraftPlayerAction();
-  const isMyTurn = useIsMyTurn();
+  const { canDraft, canDraftPlayer, isMyTurn: canPickNow, draftPlayer } = useDraftPlayerAction();
+  const isMyTurn = useDraftView((view) => view.isMyTurn);
   const sessionMode = useDraftSessionMode();
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
-  const draftHistory = useDraftStore((state) => state.draftHistory);
-  const teamRosters = useDraftStore((state) => state.teamRosters);
-  const draftedPlayerIds = useDraftStore((state) => state.draftedPlayerIds);
-  const myRoster = useDraftStore((state) => state.myRoster);
-  const decisionLens = useDraftStore((state) => state.decisionLens);
-  const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
-  const moveShortlistedPlayer = useDraftStore((state) => state.moveShortlistedPlayer);
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const draftHistory = useDraftState((state) => state.draftHistory);
+  const teamRosters = useDraftView((view) => view.teamRosters);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const myRoster = useDraftView((view) => view.myRoster);
+  const decisionLens = useDraftState((state) => state.decisionLens);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
+  const workspace = useWorkspace();
   const { togglePlayerQueued, removePlayerFromQueue } = useQueueActions(players);
 
   const playerById = React.useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
@@ -151,18 +151,18 @@ export function AssistantPage({
     draftHistory,
   });
   const mode = getAssistantDraftMode(sessionMode, liveSync.synchronizationState);
-  const sync = getSyncStatus({
+  const sync = {
     mode,
     provider: liveSync.connection?.provider ?? null,
     synchronizationState: liveSync.synchronizationState,
     lastConfirmedPickNumber: liveSync.lastConfirmedPickNumber,
-    lastSyncAgeMs: liveSync.viewState.lastSyncAgeMs,
+    lastSuccessfulSyncAt: liveSync.viewState.lastSuccessfulSyncAt,
     draftType: config.draftType,
     totalTeams: config.totalTeams,
-  });
+  };
 
   const rosteredPlayers = React.useMemo(
-    () => (Object.values(myRoster) as string[][]).flat().map((id) => playerById.get(id)).filter((player): player is Player => player !== undefined),
+    () => POSITIONS.map(position => myRoster[position]).flat().map((id) => playerById.get(id)).filter((player): player is Player => player !== undefined),
     [myRoster, playerById]
   );
   const rosterNames = React.useMemo(() => {
@@ -256,7 +256,9 @@ export function AssistantPage({
     : null;
   const disabledReason = mode === 'mock' && !canDraft
     ? canPickNow ? 'A keeper occupies this pick.' : 'Waiting for your turn.'
-    : null;
+    : mode === 'mock' && leaderPlayer && !canDraftPlayer(leaderPlayer)
+      ? `${leaderPlayer.position} limit reached.`
+      : null;
   const cards = showAllPlayers ? poolRecommendations : poolRecommendations.slice(0, collapsedPlayerCount * 2);
   const hiddenPlayerCount = poolRecommendations.length - cards.length;
   const selectedTabIndex = ANALYSIS_TABS.findIndex((tab) => tab.id === analysisTab);
@@ -352,7 +354,7 @@ export function AssistantPage({
               action={{
                 mode,
                 provider: liveSync.connection?.provider ?? null,
-                canDraft,
+                canDraft: leaderPlayer !== undefined && canDraftPlayer(leaderPlayer),
                 disabledReason,
                 onDraft: () => { if (leaderPlayer) draftPlayer(leaderPlayer); },
                 onRecordPick: () => { setIsRecordPickOpen(true); },
@@ -539,7 +541,7 @@ export function AssistantPage({
             nextPickLabel={nextPickLabel}
             mode={mode}
             provider={liveSync.connection?.provider ?? null}
-            onMove={moveShortlistedPlayer}
+            onMove={(...args) => { workspace.send('moveShortlistedPlayer', ...args); }}
             onRemove={removePlayerFromQueue}
             onSelect={handleSelectPlayer}
           />
