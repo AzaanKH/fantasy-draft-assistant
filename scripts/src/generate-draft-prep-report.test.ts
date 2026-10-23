@@ -17,9 +17,15 @@ describe('readOptionalJson', () => {
 
   it('returns parsed JSON when the file is valid', async () => {
     const path = join(dir, 'current-keepers.json');
-    await writeFile(path, JSON.stringify({ season: 2026, keepers: [] }));
+    await writeFile(path, JSON.stringify({ updatedAt: null, season: 2026, keepers: [] }));
 
-    await expect(readOptionalJson(path)).resolves.toEqual({ season: 2026, keepers: [] });
+    await expect(readOptionalJson(path)).resolves.toEqual({ updatedAt: null, season: 2026, keepers: [] });
+  });
+
+  it('returns null for a parseable keeper file with invalid rows', async () => {
+    const path = join(dir, 'current-keepers.json');
+    await writeFile(path, JSON.stringify({ updatedAt: null, season: 2026, keepers: [{ playerName: 42 }] }));
+    await expect(readOptionalJson(path)).resolves.toBeNull();
   });
 
   it('returns null when the file is missing', async () => {

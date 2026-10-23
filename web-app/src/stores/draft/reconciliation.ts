@@ -1,20 +1,10 @@
-import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@/lib/keeper-supply';
+import { deriveDraftState } from './source';
+import { deriveDraftCursor, getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import {
   getKeeperPickNumbers,
-  advancePastKeeperSlots,
   restoreShortlistedPlayer,
-  rebuildCanonicalRosters,
 } from './state';
-import type {
-  RecordedDraftPick,
-  ReconciledDraftPick,
-  UnresolvedProviderPick,
-  DraftReconciliationResult,
-  ProvisionalPickConfirmation,
-  DraftPickCorrection,
-  DraftPickRemoval,
-} from './types';
-import type { DraftActions, SetDraftState } from './types';
+import { type RecordedDraftPick, type ReconciledDraftPick, type UnresolvedProviderPick, type DraftReconciliationResult, type ProvisionalPickConfirmation, type DraftPickCorrection, type DraftPickRemoval, type DraftActions, type SetDraftState } from './types';
 
 function hasSameCanonicalPick(
   left: RecordedDraftPick,
@@ -111,7 +101,7 @@ export function createReconciliationActions(
         unresolvedIdentities: [],
       };
       let result = unchanged;
-      set((state) => {
+      const applied = set((state) => {
         // A save conflict retries this on a newer session; report only the final attempt.
         result = unchanged;
         if (confirmedAt !== undefined && (!Number.isFinite(confirmedAt) || confirmedAt < 0 ||
@@ -222,13 +212,11 @@ export function createReconciliationActions(
         });
         const draftHistory = remotePicks;
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        const canonicalNextPick = advancePastKeeperSlots(
-          Math.min(totalPicks + 1, Math.max(1, Math.round(nextPickNumber))),
-          effectiveKeepers,
-          state.config.totalTeams,
-          totalPicks,
-          state.config.draftType
-        );
+        const draftProgress = {
+          anchor: { kind: 'provider', nextPickNumber, keeperSlots: [...keeperPickNumbers], totalPicks },
+          historyLength: draftHistory.length,
+        } satisfies import('@fantasy-draft/shared/draft').DraftProgress;
+        const canonicalNextPick = deriveDraftCursor(draftHistory, draftProgress);
         const historyChanged = !hasSameCanonicalHistory(
           state.draftHistory,
           draftHistory
@@ -240,7 +228,7 @@ export function createReconciliationActions(
         if (
           !historyChanged &&
           !unresolvedIdentitiesChanged &&
-          state.currentPick === canonicalNextPick
+          deriveDraftState(state).currentPick === canonicalNextPick
         ) {
           return;
         }
@@ -256,15 +244,8 @@ export function createReconciliationActions(
         }
         state.draftHistory = draftHistory;
         state.unresolvedProviderPicks = canonicalUnresolvedPicks;
-        state.draftedPlayerIds = new Set([
-          ...draftHistory.map((pick) => pick.playerId),
-          ...effectiveKeepers.map((keeper) => keeper.playerId),
-        ]);
-        rebuildCanonicalRosters(state);
-        state.shortlistedPlayerIds = state.shortlistedPlayerIds.filter(
-          (playerId) => !state.draftedPlayerIds.has(playerId)
-        );
-        state.currentPick = canonicalNextPick;
+        state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
+        state.draftProgress = draftProgress;
         state.mockSurvivalProbabilities = {};
         result = {
           changed: true,
@@ -276,7 +257,7 @@ export function createReconciliationActions(
             : [],
         };
       });
-      return result;
+      return applied ? result : { ...unchanged, refused: true };
     },
 
   };

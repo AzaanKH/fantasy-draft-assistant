@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isMarketAdpFormat, isMarketAdpSnapshot, type MarketAdpSnapshot } from './index.js';
+import { isMarketAdpFormat, isMarketAdpSnapshot, type MarketAdpSnapshot } from './market-adp.js';
 
 const snapshot: MarketAdpSnapshot = {
   source: 'fantasy-football-calculator',

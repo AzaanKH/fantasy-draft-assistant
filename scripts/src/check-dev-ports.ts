@@ -1,4 +1,4 @@
-import { localDevPorts } from '@fantasy-draft/shared';
+import { localDevPorts } from '@fantasy-draft/shared/node';
 import { createServer } from 'node:net';
 
 const { webPort, apiPort } = localDevPorts(process.env);

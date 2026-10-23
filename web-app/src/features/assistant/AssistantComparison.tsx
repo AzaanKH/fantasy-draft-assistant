@@ -1,16 +1,15 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { DecisionSwap } from '@/components/motion';
 import {
   getPreferredRecommendation,
   type DraftDecisionView,
-} from '@/features/recommendations/draft-decision';
-import {
   getRecommendationExplanation,
-} from '@/features/recommendations/recommendation-explanation';
-import { type Player, type Recommendation } from '@fantasy-draft/shared';
+  getComparisonHighlights,
+} from '@fantasy-draft/shared/draft';
+import { type Player } from '@fantasy-draft/shared/league';
+import { type Recommendation } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
-
 import { CalculationDetails } from './AssistantAnswers';
-import { getComparisonHighlights } from './assistant-analysis';
 import { ComparisonPlayerPicker } from './ComparisonPlayerPicker';
 import { PlayerComparisonMetrics } from './PlayerComparisonMetrics';
 
@@ -36,8 +35,8 @@ export function CompareAnswer({
   const preferred = getPreferredRecommendation(decision, [first, second]) ?? first;
   const other = preferred.playerId === first.playerId ? second : first;
   const preferredExplanation = decision.explanationByPlayerId.get(preferred.playerId)
-    ?? getRecommendationExplanation(preferred);
-  const highlights = getComparisonHighlights(first, second, decision);
+    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY);
+  const highlights = getComparisonHighlights(first, second, decision, DRAFT_DISPLAY);
 
   return (
     <div className="rec-compare-answer">

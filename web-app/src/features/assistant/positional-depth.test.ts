@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Player, PositionNeed } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
+import type { PositionNeed } from '@fantasy-draft/shared/draft';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
-import { applyPositionTiers } from '@/lib/calculations/tiers';
+import { applyPositionTiers } from '@fantasy-draft/shared/draft';
 import { getPositionalDepth, getAvailableDepthPlayers, getDepthPlayers, getDepthTiers, getDepthRosterOpenings, getDepthTierDrop } from './positional-depth';
 
 describe('available positional depth', () => {

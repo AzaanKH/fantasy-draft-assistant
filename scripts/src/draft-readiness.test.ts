@@ -10,7 +10,7 @@ import {
   type DraftReadinessItem,
   type DraftReadinessKey,
   type DraftReadinessSourceObservation,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/catalog';
 
 const NOW = Date.parse('2026-08-20T12:00:00.000Z');
 const FRESH = '2026-08-20T11:00:00.000Z';

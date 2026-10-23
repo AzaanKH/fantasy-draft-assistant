@@ -1,8 +1,10 @@
 import type {
   SleeperDraftMetadata,
   SleeperDraftPick,
+} from '@fantasy-draft/shared/sync';
+import type {
   SleeperLeague,
-} from '@fantasy-draft/shared';
+} from '@fantasy-draft/shared/league';
 
 export const draftFixture: SleeperDraftMetadata = {
   draft_id: 'fixture-draft',

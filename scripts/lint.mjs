@@ -15,7 +15,7 @@ export async function lint(directories = gateWorkspaces.map(({ directory }) => d
     }
   }
   const eslint = new ESLint({ cwd: root, overrideConfig: { linterOptions: { reportUnusedDisableDirectives: 'error' } } });
-  const results = await eslint.lintFiles(directories.map((directory) => `${directory}/src/**/*.{ts,tsx}`));
+  const results = await eslint.lintFiles(directories.map((directory) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`));
   const baseline = JSON.parse(await readFile(path.join(root, 'eslint-baseline.json'), 'utf8'));
   const unknown = Object.keys(baseline).filter((file) => !gateWorkspaces.some(({ directory }) => file.startsWith(`${directory}/src/`)));
   const failures = unknown.map((file) => `${file}: baseline is stale. Remove entries outside the linted workspace source files.`);

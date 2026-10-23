@@ -1,5 +1,19 @@
-import { createSlotSequence } from '@fantasy-draft/shared';
-import { RANKING_LABELS } from '@/lib/demo-mode';
+import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftView } from '@/workspace/useDraftView';
+import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
+import {
+  POSITIONS,
+  type Player,
+  type Position,
+} from '@fantasy-draft/shared/league';
+import {
+  createSlotSequence,
+  type PositionNeed,
+  type Recommendation,
+} from '@fantasy-draft/shared/draft';
+import {
+  type DraftProvider,
+} from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import {
   Bot,
@@ -14,14 +28,6 @@ import {
   Shirt,
   Target,
 } from 'lucide-react';
-import {
-  POSITIONS,
-  type DraftProvider,
-  type Player,
-  type Position,
-  type PositionNeed,
-  type Recommendation,
-} from '@fantasy-draft/shared';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import { DecisionSwap, MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
@@ -36,8 +42,9 @@ import {
   getPreferredRecommendation,
   getRecommendationPolicyLabel,
   type DraftDecisionView,
-} from '@/features/recommendations/draft-decision';
-import { getRecommendationExplanation } from '@/features/recommendations/recommendation-explanation';
+  getRecommendationExplanation,
+  formatSignedNumber,
+} from '@fantasy-draft/shared/draft';
 import { ThemeMenu } from '@/features/theme/ThemeMenu';
 import {
   useDraftSync,
@@ -45,8 +52,7 @@ import {
 } from '@/hooks/useDraftSync';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
-import { cn, formatSignedNumber } from '@/lib/utils';
-import { useDraftStore } from '@/stores/draftStore';
+import { cn } from '@/lib/utils';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
 import { reconcileComparisonSelection } from './comparison-selection';
 
@@ -149,19 +155,19 @@ function getPositionTextColor(position: Position): string {
 }
 
 function useSidePanelSync(connection: SidePanelConnection) {
-  const setConfig = useDraftStore((state) => state.setConfig);
-  const setSessionMode = useDraftStore((state) => state.setSessionMode);
+  const workspace = useWorkspace();
+
   const sync = useDraftSync(connection.provider, connection.draftId, true);
 
   React.useEffect(() => {
     if (connection.draftPosition !== null) {
-      setConfig({ myPickPosition: connection.draftPosition });
+      workspace.send('setConfig', { myPickPosition: connection.draftPosition });
     }
-  }, [connection.draftPosition, setConfig]);
+  }, [connection.draftPosition, workspace]);
 
   React.useEffect(() => {
-    if (sync.draft) setSessionMode('live');
-  }, [setSessionMode, sync.draft]);
+    if (sync.draft) workspace.send('setSessionMode', 'live');
+  }, [workspace, sync.draft]);
 
   return sync;
 }
@@ -206,8 +212,8 @@ function SidePanelStatus({
   readonly connection: SidePanelConnection;
   readonly sync: DraftSyncViewState;
 }): React.ReactElement {
-  const config = useDraftStore((state) => state.config);
-  const currentPick = useDraftStore((state) => state.currentPick);
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
   const picksUntilTurn = getPicksUntilMyTurn(
     currentPick,
     config.myPickPosition,
@@ -283,7 +289,7 @@ function RecommendationHero({
   const survival = getSurvival(recommendation);
   const rank = decision.rankByPlayerId.get(recommendation.playerId);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation);
+    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
   const explanation = getCompactDecisionExplanation(
     recommendation,
     detailedExplanation
@@ -311,7 +317,7 @@ function RecommendationHero({
               {player?.team ? <span>· {player.team}</span> : null}
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              #{String(rank ?? 1)} {recommendation.position} option · {getRecommendationPolicyLabel(decision.selection)}
+              #{String(rank ?? 1)} {recommendation.position} option · {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)}
             </div>
           </div>
         </div>
@@ -482,7 +488,7 @@ function HeadToHead({
   const secondPlayer = playerById.get(second.playerId);
   const preferred = getPreferredRecommendation(decision, [first, second]) ?? first;
   const preferredExplanation = decision.explanationByPlayerId.get(preferred.playerId)
-    ?? getRecommendationExplanation(preferred);
+    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY);
 
   return (
     <>
@@ -528,7 +534,7 @@ function HeadToHead({
             {preferredExplanation}
           </p>
           <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {getRecommendationPolicyLabel(decision.selection)} policy · rank #{String(decision.rankByPlayerId.get(preferred.playerId) ?? '—')}
+            {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)} policy · rank #{String(decision.rankByPlayerId.get(preferred.playerId) ?? '—')}
           </p>
         </section>
       </DecisionSwap>
@@ -560,7 +566,7 @@ function AssistantPanel({
     ?? diagnostics?.expectedNextPickAlternative;
   const need = needs.find((item) => item.position === recommendation.position);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation);
+    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
   const explanation = getCompactDecisionExplanation(
     recommendation,
     detailedExplanation
@@ -672,8 +678,8 @@ function RosterPanel({
   readonly playerById: ReadonlyMap<string, Player>;
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
-  const roster = useDraftStore((state) => state.myRoster);
-  const config = useDraftStore((state) => state.config);
+  const roster = useDraftView((view) => view.myRoster);
+  const config = useDraftState((state) => state.config);
 
   return (
     <>
@@ -770,9 +776,9 @@ function SidePanelContent({
   const decision = useDraftDecision();
   const { players, isLoading, isError } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
-  const leagueSettings = useDraftStore((state) => state.leagueSettings);
-  const totalTeams = useDraftStore((state) => state.config.totalTeams);
-  const draftType = useDraftStore((state) => state.config.draftType);
+  const leagueSettings = useDraftState((state) => state.leagueSettings);
+  const totalTeams = useDraftState((state) => state.config.totalTeams);
+  const draftType = useDraftState((state) => state.config.draftType);
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]

@@ -1,4 +1,4 @@
-import type { Player, Position } from '@fantasy-draft/shared';
+import type { Player, Position } from '@fantasy-draft/shared/league';
 
 export type TierPlayer = Pick<Player, 'id' | 'name' | 'position' | 'team' | 'tier' | 'ecrRank'>;
 

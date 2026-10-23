@@ -1,9 +1,10 @@
+import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { describe, expect, it } from 'vitest';
-import type { Recommendation } from '@fantasy-draft/shared';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import {
   createDraftDecisionView,
   getPreferredRecommendation,
-} from '@/features/recommendations/draft-decision';
+} from '@fantasy-draft/shared/draft';
 import { getPositionRecommendations } from './assistant-position-rankings';
 
 function createRecommendation(
@@ -37,7 +38,8 @@ describe('getPositionRecommendations', () => {
       {
         preferredPlayerId: leaguePreferred.playerId,
         policy: 'primary-league-policy',
-      }
+      }, undefined,
+      DRAFT_DISPLAY
     );
 
     const recommendations = getPositionRecommendations(decision);
@@ -61,7 +63,8 @@ describe('getPositionRecommendations', () => {
       {
         preferredPlayerId: ecrChampion.playerId,
         policy: 'ecr-anchor',
-      }
+      }, undefined,
+      DRAFT_DISPLAY
     );
 
     expect(getPreferredRecommendation(decision, [higherRawScore, ecrChampion])).toBe(ecrChampion);

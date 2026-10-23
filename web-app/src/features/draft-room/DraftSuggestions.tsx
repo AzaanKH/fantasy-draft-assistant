@@ -1,5 +1,7 @@
+import { useDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
-import type { Player, Recommendation } from '@fantasy-draft/shared';
+import type { Player } from '@fantasy-draft/shared/league';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { ArrowRight, ListPlus } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { SuggestionSkeleton } from '@/components/skeletons';
@@ -10,7 +12,6 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import { useDraftStore } from '@/stores/draftStore';
 
 function SuggestionCard({
   recommendation,
@@ -18,6 +19,7 @@ function SuggestionCard({
   rank,
   player,
   canDraft,
+  positionAllowed,
   isQueued,
   onDraft,
   onQueue,
@@ -28,6 +30,7 @@ function SuggestionCard({
   readonly rank: number;
   readonly player?: Player;
   readonly canDraft: boolean;
+  readonly positionAllowed: boolean;
   readonly isQueued: boolean;
   readonly onDraft: (player: Player) => void;
   readonly onQueue: (playerId: string) => void;
@@ -73,6 +76,8 @@ function SuggestionCard({
           <Button
             size="sm"
             className="flex-1"
+            disabled={!positionAllowed}
+            title={positionAllowed ? undefined : `${recommendation.position} limit reached`}
             onClick={() => {
               onDraft(player);
             }}
@@ -115,9 +120,9 @@ export function DraftSuggestions({
 }): React.ReactElement {
   const { overall, isLoading } = useDraftDecision();
   const { players } = usePlayerDataQuery();
-  const queuedPlayerIds = useDraftStore((state) => state.shortlistedPlayerIds);
+  const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(players);
-  const { canDraft, draftPlayer } = useDraftPlayerAction();
+  const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]
@@ -138,6 +143,7 @@ export function DraftSuggestions({
           rank={overall.rankByPlayerId.get(recommendation.playerId) ?? 0}
           player={playerById.get(recommendation.playerId)}
           canDraft={canDraft}
+          positionAllowed={canDraftPlayer(recommendation)}
           isQueued={queuedSet.has(recommendation.playerId)}
           onDraft={draftPlayer}
           onQueue={togglePlayerQueued}

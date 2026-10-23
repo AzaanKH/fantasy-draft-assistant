@@ -1,21 +1,16 @@
-import { spawn } from 'node:child_process';
+import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
+import { Processes, ProcessError, runNodeMain } from '@fantasy-draft/shared/node';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Schema } from 'effect';
+import { decodeReadinessEvidence, decodeRehearsalEvidence, decodeOperationalEvidence } from './script-file-schemas.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const RELEASE_REPORT_PATH = join(
-  REPO_ROOT,
-  'data',
-  'primary-league-release-gate-report.json'
-);
-const READINESS_REPORT_PATH = join(REPO_ROOT, 'data', 'draft-readiness-report.json');
-const REHEARSAL_REPORT_PATH = join(
-  REPO_ROOT,
-  'data',
-  'primary-league-deterministic-rehearsal-report.json'
-);
-const OPERATION_PATH = join(REPO_ROOT, 'data', 'primary-league-rehearsal.json');
+const RELEASE_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.releaseReport));
+const READINESS_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.readinessReport));
+const REHEARSAL_REPORT_PATH = join(REPO_ROOT, catalogPath(CATALOG.deterministicRehearsal));
+const OPERATION_PATH = join(REPO_ROOT, catalogPath(CATALOG.rehearsal));
 
 type ReleaseCheckKey =
   | 'build'
@@ -49,12 +44,6 @@ export interface ReleaseCheckOutcome {
   readonly label: string;
   readonly status: 'passed' | 'failed';
   readonly commands: readonly CommandOutcome[];
-}
-
-interface ReadinessEvidence {
-  readonly productBlockingFailures: readonly unknown[];
-  readonly actionableWarnings?: readonly unknown[];
-  readonly optionalSignalDegradations?: readonly unknown[];
 }
 
 interface RehearsalEvidence {
@@ -187,33 +176,36 @@ function commandLabel(spec: CommandSpec): string {
   return [spec.executable, ...spec.args].join(' ');
 }
 
-async function runCommand(spec: CommandSpec): Promise<CommandOutcome> {
+export async function runReleaseCommand(spec: CommandSpec, signal: AbortSignal, timeoutMs: number = 30 * 60_000): Promise<CommandOutcome> {
   const startedAt = Date.now();
-  const exitCode = await new Promise<number | null>((resolveExit) => {
-    const child = spawn(spec.executable, [...spec.args], {
-      cwd: REPO_ROOT,
-      env: process.env,
-      stdio: 'inherit',
-    });
-    child.once('error', () => { resolveExit(null); });
-    child.once('exit', (code) => { resolveExit(code); });
-  });
+  let exitCode: number | null;
+  let passed = false;
+  try {
+    exitCode = (await Processes.run(spec.executable, spec.args, {
+      cwd: REPO_ROOT, env: process.env, output: 'inherit', stdin: 'inherit', timeoutMs, signal,
+    })).exitCode;
+    passed = true;
+  } catch (error) {
+    if (signal.aborted) throw error;
+    if (!(error instanceof ProcessError)) throw error;
+    exitCode = error.exitCode;
+  }
   return {
     command: commandLabel(spec),
-    status: exitCode === 0 ? 'passed' : 'failed',
+    status: passed ? 'passed' : 'failed',
     exitCode,
     durationMs: Date.now() - startedAt,
   };
 }
 
 async function runCheck(
-  definition: ReleaseCheckDefinition
+  definition: ReleaseCheckDefinition, signal: AbortSignal
 ): Promise<ReleaseCheckOutcome> {
   console.log(`\n${definition.label}`);
   const commands: CommandOutcome[] = [];
   for (const command of definition.commands) {
     console.log(`$ ${commandLabel(command)}`);
-    commands.push(await runCommand(command));
+    commands.push(await runReleaseCommand(command, signal));
   }
   return {
     key: definition.key,
@@ -225,9 +217,9 @@ async function runCheck(
   };
 }
 
-async function readJson<T>(path: string): Promise<T | null> {
+async function readJson<A>(path: string, decode: (value: unknown) => A): Promise<A | null> {
   try {
-    return JSON.parse(await readFile(path, 'utf8')) as T;
+    return decode(JSON.parse(await readFile(path, 'utf8')));
   } catch {
     return null;
   }
@@ -245,12 +237,11 @@ function unavailableOutcome(
   };
 }
 
-function isReadinessEvidence(value: unknown): value is ReadinessEvidence {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  if (!('productBlockingFailures' in value) || !Array.isArray(value.productBlockingFailures)) return false;
-  return (!('actionableWarnings' in value) || Array.isArray(value.actionableWarnings)) &&
-    (!('optionalSignalDegradations' in value) || Array.isArray(value.optionalSignalDegradations));
-}
+const isReadinessEvidence = Schema.is(Schema.Struct({
+  productBlockingFailures: Schema.Array(Schema.Unknown),
+  actionableWarnings: Schema.optional(Schema.Array(Schema.Unknown)),
+  optionalSignalDegradations: Schema.optional(Schema.Array(Schema.Unknown)),
+}));
 
 export function buildPrimaryLeagueReleaseGateReport(input: {
   readonly now: number;
@@ -331,15 +322,15 @@ export function buildPrimaryLeagueReleaseGateReport(input: {
   };
 }
 
-async function main(): Promise<void> {
+async function main(signal: AbortSignal): Promise<void> {
   const outcomes: ReleaseCheckOutcome[] = [];
   for (const definition of RELEASE_CHECKS) {
-    outcomes.push(await runCheck(definition));
+    outcomes.push(await runCheck(definition, signal));
   }
   const [readiness, rehearsal, operational] = await Promise.all([
-    readJson<ReadinessEvidence>(READINESS_REPORT_PATH),
-    readJson<RehearsalEvidence>(REHEARSAL_REPORT_PATH),
-    readJson<OperationalEvidence>(OPERATION_PATH),
+    readJson(READINESS_REPORT_PATH, decodeReadinessEvidence),
+    readJson(REHEARSAL_REPORT_PATH, decodeRehearsalEvidence),
+    readJson(OPERATION_PATH, decodeOperationalEvidence),
   ]);
   const report = buildPrimaryLeagueReleaseGateReport({
     now: Date.now(),
@@ -361,5 +352,5 @@ async function main(): Promise<void> {
 const isDirectRun = process.argv[1] !== undefined &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isDirectRun) {
-  await main();
+  await runNodeMain(main);
 }

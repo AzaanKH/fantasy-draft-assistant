@@ -1,5 +1,6 @@
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
-import { createQuickMockSettings } from '@/lib/quick-mock-settings';
+import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
+import { createQuickMockSettings, evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,10 +20,7 @@ import { DraftDecisionProvider } from '@/features/recommendations/DraftDecisionC
 import { useKeeperPreload } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
-import { evaluateWorkspaceDraftReadiness } from '@/lib/draft-readiness';
 import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
-import { useDraftStore } from '@/stores/draftStore';
-import { useDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
 import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
 
@@ -77,20 +75,20 @@ export function App(): React.ReactElement {
   const keeperStatus = useKeeperPreload(players, isLoading);
   const localProfile = useLeagueSetupStore((state) => state.profile);
   const quickMockPreferences = useLeagueSetupStore((state) => state.quickMock);
-  const connection = useDraftSyncConnectionStore((state) => state.connection);
-  const sessionMode = useDraftStore((state) => state.sessionMode);
-  const applyLeagueSettings = useDraftStore((state) => state.applyLeagueSettings);
-  const setConfig = useDraftStore((state) => state.setConfig);
-  const hasPicks = useDraftStore((state) => state.draftHistory.some((pick) => pick.source !== 'keeper'));
+  const connection = useConnectionState((state) => state.connection);
+  const sessionMode = useDraftState((state) => state.sessionMode);
+  const workspace = useWorkspace();
+
+  const hasPicks = useDraftState((state) => state.draftHistory.some((pick) => pick.source !== 'keeper'));
   const useQuickMockSettings = connection ? connection.settingsProfile === 'quick-mock' : localProfile === 'quick-mock';
   React.useEffect(() => {
     if (connection || sessionMode !== 'setup' || hasPicks) return;
-    applyLeagueSettings(localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings());
-    setConfig(localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 });
-  }, [connection, sessionMode, hasPicks, localProfile, quickMockPreferences, applyLeagueSettings, setConfig]);
-  const leagueSettings = useDraftStore((state) => state.leagueSettings);
+    workspace.send('applyLeagueSettings', localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings());
+    workspace.send('setConfig', localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 });
+  }, [connection, sessionMode, hasPicks, localProfile, quickMockPreferences, workspace]);
+  const leagueSettings = useDraftState((state) => state.leagueSettings);
   const usePrimaryLeagueSettings = connection ? connection.provider === 'sleeper' && connection.usePrimaryLeagueSettings === true : localProfile === 'primary-league';
-  const totalRounds = useDraftStore((state) => state.config.totalRounds);
+  const totalRounds = useDraftState((state) => state.config.totalRounds);
   const [readinessNow, setReadinessNow] = React.useState(() => Date.now());
   const readiness = React.useMemo(() => evaluateWorkspaceDraftReadiness({
     sources: dataInfo.readinessSources,

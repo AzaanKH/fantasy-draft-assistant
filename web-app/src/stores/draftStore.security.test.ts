@@ -1,5 +1,6 @@
+import { getDraftView } from '@/workspace/useDraftView';
 import { describe, expect, it } from 'vitest';
-import { createDefaultLeagueSettings } from '@fantasy-draft/shared';
+import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { createDraftStore } from './draftStore';
 
 describe('draft store resource bounds', () => {
@@ -13,7 +14,7 @@ describe('draft store resource bounds', () => {
     store.getState().setConfig({ totalRounds: 2 ** 32 });
     expect(store.getState().config).toBe(original);
     store.getState().setConfig({ totalTeams: 12, totalRounds: 20 });
-    expect(store.getState().teamRosters).toHaveLength(12);
+    expect(getDraftView(store).teamRosters).toHaveLength(12);
   });
 
   it.each([NaN, Infinity, -Infinity])('rejects non-finite pick position %s before changing config', (myPickPosition) => {

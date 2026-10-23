@@ -8,7 +8,7 @@
 import { createBackgroundController } from './background-controller';
 import { ChromeDraftStorage } from './draft-storage';
 import { createSyncSnapshotClient } from './sync-snapshot-client';
-import { isAuthorizedExtensionMessage } from './message-security';
+import { receiveExtensionMessage } from './message-security';
 
 const storageReady = chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
 
@@ -40,13 +40,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     });
 });
 
-chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-  if (!isAuthorizedExtensionMessage(message, sender, chrome.runtime.id)) {
-    sendResponse({ success: false, error: 'Invalid message sender or payload' });
-    return false;
-  }
-  return controller.handleMessage(message, sendResponse);
-});
+chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
+  receiveExtensionMessage(message, sender, chrome.runtime.id, (decoded, respond) => controller.handleMessage(decoded, respond), sendResponse)
+);
 
 void controller.initialize().catch((error: unknown) => {
   console.warn('[Fantasy Draft BG] Failed to load persisted state:', error);

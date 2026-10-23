@@ -16,7 +16,7 @@ export default defineConfig({
         ...sourceCondition,
         resolve: {
           ...sourceCondition.resolve,
-          alias: directory === 'web-app' || directory === 'cli'
+          alias: directory === 'web-app'
             ? { '@': `${root}web-app/src` } : {},
         },
         test: {
