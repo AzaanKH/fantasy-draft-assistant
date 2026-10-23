@@ -1,3 +1,6 @@
+import { useDraftState } from '@/workspace/WorkspaceProvider';
+import { POSITIONS } from '@fantasy-draft/shared/league';
+import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -9,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
-import { useDraftStore } from '@/stores/draftStore';
 import { DraftPlayerPool } from './DraftPlayerPool';
 
 const DraftSuggestions = React.lazy(() =>
@@ -58,10 +60,10 @@ export function DraftDock({
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
 }): React.ReactElement {
   const isSplit = useMediaQuery(SPLIT_LAYOUT_QUERY);
-  const queuedCount = useDraftStore((state) => state.shortlistedPlayerIds.length);
-  const totalRounds = useDraftStore((state) => state.config.totalRounds);
-  const rosterCount = useDraftStore((state) =>
-    (Object.values(state.myRoster) as string[][]).reduce(
+  const queuedCount = useDraftView((view) => view.shortlistedPlayerIds.length);
+  const totalRounds = useDraftState((state) => state.config.totalRounds);
+  const rosterCount = useDraftView((view) =>
+    POSITIONS.map(position => view.myRoster[position]).reduce(
       (total, playerIds) => total + playerIds.length,
       0
     )

@@ -373,13 +373,13 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
         '_sync',
         `${String(observedAt)}-${String(++this.draftResultsRequestSequence)}`
       );
-      const draftResults = yield* requestJson(this.fetchJson, draftResultsUrl.toString(), {
+      const draftResults = yield* requestJson(this.fetchJson, draftResultsUrl.toString(), parseYahooDraftResults, {
         headers: {
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
         },
       });
-      const picks = yield* parsePayload(() => parseYahooDraftResults(draftResults)
+      const picks = yield* parsePayload(() => draftResults
         .map((result) =>
           normalizeYahooDraftResult(
             initialization.draft,
@@ -401,18 +401,19 @@ export class YahooSyncAdapter implements DraftSyncAdapter {
   private getInitialization(): Effect.Effect<YahooInitialization, ProviderError> {
     return Effect.gen({ self: this }, function* () {
       if (this.initialization) return this.initialization;
-      const settingsPayload = yield* requestJson(
+      const draft = yield* requestJson(
         this.fetchJson,
-        `${YAHOO_PUBLIC_API_BASE}/settings/nfl/${this.draftId}?format=rawjson`
+        `${YAHOO_PUBLIC_API_BASE}/settings/nfl/${this.draftId}?format=rawjson`,
+        value => parseYahooSettings(this.draftId, value)
       );
-      const draft = yield* parsePayload(() => parseYahooSettings(this.draftId, settingsPayload));
-      const playersPayload = yield* requestJson(
+      const playersByKey = yield* requestJson(
         this.fetchJson,
-        `${YAHOO_PUBLIC_API_BASE}/players/nfl/${this.draftId}?images=0&projected=0&average=0&format=rawjson`
+        `${YAHOO_PUBLIC_API_BASE}/players/nfl/${this.draftId}?images=0&projected=0&average=0&format=rawjson`,
+        parseYahooPlayers
       );
       this.initialization = {
         draft,
-        playersByKey: yield* parsePayload(() => parseYahooPlayers(playersPayload)),
+        playersByKey,
       };
       return this.initialization;
     });

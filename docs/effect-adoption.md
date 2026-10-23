@@ -10,7 +10,7 @@ This repository uses [Effect 4](https://effect.website/docs/v4/onboarding) for c
 | `server/` | Session polling, provider adapters, ADP provider, shadow log, request handling, Core Draft Data refresh | `local-auth.ts`, which runs synchronously at startup and is shared with Vite |
 | `scripts/` | FantasyPros, Sleeper, and league-history requests; DuckDB connections; Playwright browsers; script entry points that use them | Data-crunching bodies such as model training and backtests |
 | `extension/` | Background sync client, controller and message/storage decoders | Content scripts, ESPN page bridge, side panel and options |
-| `shared/`, `web-app/` | Catalog schemas and explicit HTTP/storage decoder boundaries | Draft calculations, domain predicates, React and simple preferences |
+| `shared/`, `web-app/` | Catalog schemas and explicit HTTP/storage decoder boundaries | Draft calculations, domain predicates, React, simple preferences, and the Node process runner |
 
 Extension UI entries use plain predicates for the fields they consume. The background fully decodes external snapshots and messages. The extension build follows every UI entry dependency and rejects any Effect module with the fix: "decode in the background; UI entries use plain predicates". Shared leaf modules keep plain types and predicates; Effect Schema stays in catalog and explicit I/O decoder owners.
 
@@ -41,7 +41,7 @@ These counts cover the four converted workspaces, from `main` to the end of the 
 | Declarative timeouts | 0 → 3 | 0 → 5 | 0 → 1 | 0 → 1 |
 | Tagged error classes | 0 → 2 | 0 → 3 | 0 → 2 | 0 → 1 |
 
-Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. The CLI and scripts each read HTTP bodies with an explicit reader that cancels on abort, which accounts for some of the remaining `try` blocks and signal handling. The remaining extension timers belong to the content scripts, which were left alone on purpose.
+Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. These historical counts precede unit 8. HTTP bodies now run through the Effect-free `@fantasy-draft/shared/http` runner. The CLI and script adapters preserve their Effect error channels and pass interruption signals to that runner. The remaining extension timers belong to the content scripts, which were left alone on purpose.
 
 ## Runtime cost
 

@@ -1,15 +1,16 @@
+import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { describe, expect, it } from 'vitest';
 import { Effect } from 'effect';
 import {
   FantasyFootballCalculatorAdpProvider,
   FFC_API_BASE,
 } from './fantasy-football-calculator.js';
-import type { FetchJson } from './sync-adapter.js';
+
 
 describe('FantasyFootballCalculatorAdpProvider', () => {
   it('normalizes and caches PPR ADP responses', async () => {
     let fetchCalls = 0;
-    const fetchJson: FetchJson = async (url: string): Promise<unknown> => {
+    const fetchJson: FixtureFetchJson = async (url: string): Promise<unknown> => {
       fetchCalls += 1;
       expect(url).toBe(`${FFC_API_BASE}/ppr?teams=10&year=2026`);
       return {
@@ -22,7 +23,7 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
         ],
       };
     };
-    const provider = new FantasyFootballCalculatorAdpProvider(fetchJson);
+    const provider = new FantasyFootballCalculatorAdpProvider(fixtureFetchJson(fetchJson));
 
     const first = await Effect.runPromise(provider.getSnapshot('ppr', 10, 2026));
     const cached = await Effect.runPromise(provider.getSnapshot('ppr', 10, 2026));
@@ -44,7 +45,7 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
   });
 
   it('falls back to a name-position ID when the provider ID is malformed', async () => {
-    const fetchJson: FetchJson = async (): Promise<unknown> => ({
+    const fetchJson: FixtureFetchJson = async (): Promise<unknown> => ({
       status: 'Success',
       meta: { total_drafts: 10 },
       players: [
@@ -55,7 +56,7 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
         { player_id: 'abc-9', name: 'String Id', position: 'RB', team: 'DET', adp: 60 },
       ],
     });
-    const provider = new FantasyFootballCalculatorAdpProvider(fetchJson);
+    const provider = new FantasyFootballCalculatorAdpProvider(fixtureFetchJson(fetchJson));
 
     const snapshot = await Effect.runPromise(provider.getSnapshot('ppr', 12, 2026));
 
@@ -72,11 +73,11 @@ describe('FantasyFootballCalculatorAdpProvider', () => {
 
 describe('optional market row warnings', () => {
   it('reports rejected provider rows alongside retained market players', async () => {
-    const fetchJson: FetchJson = async (): Promise<unknown> => ({ status: 'Success', players: [
+    const fetchJson: FixtureFetchJson = async (): Promise<unknown> => ({ status: 'Success', players: [
       { player_id: 1, name: 'Valid', position: 'RB', team: 'DET', adp: 10 },
       { player_id: 2, name: 'Invalid', position: 'INVALID', adp: 20 }, null,
     ] });
-    const snapshot = await Effect.runPromise(new FantasyFootballCalculatorAdpProvider(fetchJson).getSnapshot('ppr', 10, 2026));
+    const snapshot = await Effect.runPromise(new FantasyFootballCalculatorAdpProvider(fixtureFetchJson(fetchJson)).getSnapshot('ppr', 10, 2026));
     expect(snapshot.players).toHaveLength(1);
     expect(snapshot).toHaveProperty('warnings', ['Dropped 2 invalid Fantasy Football Calculator rows.']);
   });

@@ -21,8 +21,10 @@ function createModel() {
   };
 }
 
-function respond(body: unknown, status = 200): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status })));
+function respond(body: unknown, status = 200) {
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -30,9 +32,10 @@ afterEach(() => { vi.unstubAllGlobals(); });
 describe('fetchLeagueSurvivalModel', () => {
   it('returns a runtime-validated model', async () => {
     const model = createModel();
-    respond(model);
+    const fetchMock = respond(model);
     await expect(fetchLeagueSurvivalModel()).resolves.toEqual({ ...model, warnings: [] });
-    expect(fetch).toHaveBeenCalledWith('/data/league-history/survival-model.json');
+    expect(fetchMock).toHaveBeenCalledWith('/data/league-history/survival-model.json', expect.anything());
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('treats a missing optional model as null', async () => {

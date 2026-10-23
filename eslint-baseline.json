@@ -1,10 +1,4 @@
 {
-  "cli/src/client.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
   "cli/src/context.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
@@ -15,36 +9,6 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 1
-    }
-  },
-  "extension/src/options/options.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
-  "scripts/src/browser-gate.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
-  "scripts/src/effect-runtime.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
-  "scripts/src/refresh-contracts.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
-  "server/src/sync-server.ts": {
-    "reason": "Existing payloads migrate to shared decoders in the catalog units. Existing calls migrate to the shared HTTP runner in unit 8.",
-    "counts": {
-      "agent/no-bare-fetch": 1
     }
   },
   "web-app/src/components/ui/badge.tsx": {
@@ -77,29 +41,10 @@
       "@typescript-eslint/explicit-module-boundary-types": 1
     }
   },
-  "web-app/src/hooks/useDraftDataRefresh.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8.",
-    "counts": {
-      "agent/no-bare-fetch": 2
-    }
-  },
   "web-app/src/hooks/useDraftSyncReconciliation.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 1
-    }
-  },
-  "web-app/src/hooks/useDraftSyncTransport.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "agent/no-bare-fetch": 2,
-      "@typescript-eslint/explicit-module-boundary-types": 1
-    }
-  },
-  "web-app/src/hooks/useKeeperPreload.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8.",
-    "counts": {
-      "agent/no-bare-fetch": 1
     }
   },
   "web-app/src/hooks/useLeagueTimingEvidence.ts": {
@@ -112,30 +57,6 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
       "@typescript-eslint/explicit-module-boundary-types": 2
-    }
-  },
-  "web-app/src/lib/league-survival-model.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
-  "web-app/src/lib/player-data/queries.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8.",
-    "counts": {
-      "agent/no-bare-fetch": 4
-    }
-  },
-  "web-app/src/lib/providers/fantasypros.ts": {
-    "reason": "Existing calls migrate to the shared HTTP runner in unit 8. Existing payloads migrate to shared decoders in the catalog units.",
-    "counts": {
-      "agent/no-bare-fetch": 1
-    }
-  },
-  "web-app/src/stores/draftStore.ts": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
     }
   }
 }

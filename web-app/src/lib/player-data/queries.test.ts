@@ -68,12 +68,32 @@ describe('player data loading', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
     await expect(fetchPlayerIdentityData()).rejects.toThrow('Failed to load player identity data: 503');
   });
+
+  it('bounds a stalled optional prediction body without retrying or treating it as missing', async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    const fetchMock = vi.fn(async () => new Response(new ReadableStream({ cancel })));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const request = fetchPredictionData();
+      const rejection = expect(request).rejects.toMatchObject({ kind: 'timeout' });
+      await vi.advanceTimersByTimeAsync(20_000);
+      await rejection;
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not hide prediction failures other than 404', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+    await expect(fetchPredictionData()).rejects.toThrow('Failed to load prediction data: 503');
+  });
 });
 
 function mockJsonResponse(data: unknown): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-    ok: true, status: 200, json: async () => data,
-  }));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => Response.json(data)));
 }
 
 const prediction = {

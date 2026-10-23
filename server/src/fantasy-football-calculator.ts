@@ -11,7 +11,7 @@ import {
   type MarketAdpSnapshot,
 } from '@fantasy-draft/shared/catalog';
 import { Effect, Schema } from 'effect';
-import { parsePayload, ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
+import { ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
 
 export const FFC_API_BASE = 'https://fantasyfootballcalculator.com/api/v1/adp';
 const DEFAULT_MARKET_ADP_CACHE_MS = 60 * 60 * 1000;
@@ -115,20 +115,22 @@ export class FantasyFootballCalculatorAdpProvider {
       if (cached && cached.expiresAt > now) return cached.snapshot;
 
       const url = `${FFC_API_BASE}/${format}?teams=${String(normalizedTeams)}&year=${String(normalizedSeason)}`;
-      const raw = yield* requestJson(this.fetchJson, url);
-      const payload = yield* Effect.try({ try: () => decodeProviderEnvelope(raw), catch: () => new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' }) });
-      const warnings: string[] = [];
-
-      const snapshot: MarketAdpSnapshot = {
-        source: 'fantasy-football-calculator',
-        format,
-        teams: normalizedTeams,
-        season: normalizedSeason,
-        refreshedAt: new Date(now).toISOString(),
-        draftCount: getDraftCount(payload),
-        players: yield* parsePayload(() => normalizePlayers(payload.players, warnings)),
-      };
-      const decoded = { ...snapshot, ...(warnings.length ? { warnings } : {}) };
+      const decoded = yield* requestJson(this.fetchJson, url, value => {
+        let payload: ReturnType<typeof decodeProviderEnvelope>;
+        try { payload = decodeProviderEnvelope(value); }
+        catch { throw new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' }); }
+        const warnings: string[] = [];
+        const snapshot: MarketAdpSnapshot = {
+          source: 'fantasy-football-calculator',
+          format,
+          teams: normalizedTeams,
+          season: normalizedSeason,
+          refreshedAt: new Date(now).toISOString(),
+          draftCount: getDraftCount(payload),
+          players: normalizePlayers(payload.players, warnings),
+        };
+        return { ...snapshot, ...(warnings.length ? { warnings } : {}) };
+      });
       this.cache.set(cacheKey, {
         expiresAt: now + this.cacheDurationMs,
         snapshot: decoded,

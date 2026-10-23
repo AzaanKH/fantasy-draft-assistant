@@ -30,6 +30,11 @@ const effectOwners = [
   'scripts/src/model/{duckdb,init-duckdb,profile-model-sources}.ts',
 ];
 
+const processExceptions = [
+  '**/*.test.{ts,tsx,mjs}',
+  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports}.mjs',
+];
+
 const environments = {
   node: globals.node,
   browser: globals.browser,
@@ -62,6 +67,16 @@ export default tseslint.config(
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['**/*.test.{ts,tsx,mjs}'],
+    rules: { 'agent/no-bare-fetch': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['shared/src/node/**', ...processExceptions],
+    rules: { 'agent/no-bare-child-process': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
     ignores: effectOwners,
     rules: {
       'no-restricted-imports': ['error', { patterns: [{ group: ['effect', 'effect/*'], message: effectBoundaryMessage }] }],
@@ -72,6 +87,10 @@ export default tseslint.config(
         { selector: "CallExpression[callee.name='require'][arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=/^effect($|\\x2f)/]", message: effectBoundaryMessage },
       ],
     },
+  },
+  {
+    files: ['{web-app,extension}/src/**/*.{ts,tsx,js,mjs,cjs}'],
+    rules: { 'agent/no-node-in-browser': 'error' },
   },
   {
     files: ['web-app/src/**/*.{ts,tsx}'],
@@ -96,7 +115,6 @@ export default tseslint.config(
     plugins: { agent: agentRules },
     rules: {
       'agent/no-json-cast': 'error',
-      'agent/no-bare-fetch': 'error',
       'agent/no-cross-package-import': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
     },

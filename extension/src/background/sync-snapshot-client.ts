@@ -1,3 +1,4 @@
+import { http, HttpError } from '@fantasy-draft/shared/http';
 import { Data, Effect } from 'effect';
 import { decodeDraftSyncSnapshot } from '@fantasy-draft/shared/catalog';
 import {
@@ -43,27 +44,28 @@ export function buildSyncSnapshotUrl(
 export function createSyncSnapshotClient(
   getServerUrl: () => Promise<string>,
   getToken: () => Promise<string>,
-  fetchImplementation: typeof fetch = fetch,
+  fetchImplementation?: typeof fetch,
   requestTimeoutMs: number = DEFAULT_SYNC_REQUEST_TIMEOUT_MS
 ): SyncSnapshotClient {
   const requestSnapshot = (url: string, init: RequestInit) => Effect.tryPromise({
     try: async (signal) => {
-      const response = await fetchImplementation(url, { ...init, signal });
-      if (!response.ok) {
-        // Cancel the unread body; the timeout cannot abort it once this rejects.
-        void response.body?.cancel().catch(() => undefined);
-        throw new Error(`Snapshot request failed: ${String(response.status)}`);
-      }
-      const parsed: unknown = await response.json();
-      try { return decodeDraftSyncSnapshot(parsed); } catch (cause) {
-        throw new Error('Sync server returned an invalid draft snapshot', { cause });
+      try {
+        return await http.json(url, parsed => {
+          try { return decodeDraftSyncSnapshot(parsed); }
+          catch (cause) { throw new Error('Sync server returned an invalid draft snapshot', { cause }); }
+        }, { timeoutMs: requestTimeoutMs, retries: 0, retryAfter: true }, {
+          fetch: fetchImplementation, init: { ...init, signal },
+        });
+      } catch (cause) {
+        if (cause instanceof HttpError) {
+          if (cause.kind === 'status') throw new Error(`Snapshot request failed: ${String(cause.status)}`);
+          if (cause.kind === 'timeout') throw new Error('Snapshot request timed out');
+        }
+        throw cause;
       }
     },
     catch: syncError,
-  }).pipe(Effect.timeoutOrElse({
-    duration: requestTimeoutMs,
-    orElse: () => Effect.fail(new SyncRequestError({ message: 'Snapshot request timed out' })),
-  }));
+  });
 
   return {
     fetch: (status) => Effect.gen(function* () {

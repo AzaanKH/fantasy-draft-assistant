@@ -20,6 +20,16 @@ import {
 export const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
 export const SLEEPER_SETTINGS_CACHE_MS = 60_000;
 
+function decodeDraftPayload<A>(decode: (value: unknown) => A): (value: unknown) => A {
+  return value => {
+    try { return decode(value); }
+    catch {
+      console.warn('[sleeper-adapter] Rejected invalid draft payload');
+      throw new ProviderError({ message: 'Sleeper returned an invalid draft payload' });
+    }
+  };
+}
+
 export class SleeperSyncAdapter implements DraftSyncAdapter {
   public readonly provider = 'sleeper' as const;
   private settingsCache: {
@@ -41,18 +51,11 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
 
   public poll(): Effect.Effect<DraftAdapterSnapshot, ProviderError> {
     return Effect.gen({ self: this }, function* () {
-      const [draftResponse, picksResponse] = yield* Effect.all([
-        requestJson(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}`),
-        requestJson(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}/picks`),
+      const [draft, picks] = yield* Effect.all([
+        requestJson(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}`, decodeDraftPayload(decodeSleeperDraftMetadata)),
+        requestJson(this.fetchJson, `${SLEEPER_API_BASE}/draft/${this.draftId}/picks`, decodeDraftPayload(decodeSleeperDraftPickList)),
       ], { concurrency: 'unbounded' });
 
-      const { draft, picks } = yield* Effect.try({
-        try: () => ({ draft: decodeSleeperDraftMetadata(draftResponse), picks: decodeSleeperDraftPickList(picksResponse) }),
-        catch: () => {
-          console.warn('[sleeper-adapter] Rejected invalid draft payload');
-          return new ProviderError({ message: 'Sleeper returned an invalid draft payload' });
-        },
-      });
       if (draft.draft_id !== this.draftId || picks.some(pick => pick.draft_id !== this.draftId)) {
         console.warn('[sleeper-adapter] Rejected draft payload for another session');
         return yield* new ProviderError({ message: 'Sleeper returned an invalid draft payload' });
@@ -81,12 +84,13 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
       // Never fall back to expired settings when a verification request fails.
       this.settingsCache = undefined;
       const generation = this.settingsGeneration;
-      const leagueResponse = yield* requestJson(this.fetchJson, `${SLEEPER_API_BASE}/league/${leagueId}`);
-      if (!isSleeperLeague(leagueResponse) || leagueResponse.league_id !== leagueId) {
-        console.warn('[sleeper-adapter] Rejected invalid league settings');
-        return yield* new ProviderError({ message: 'Sleeper returned invalid league settings' });
-      }
-      const settings = normalizeSleeperLeagueSettings(leagueResponse);
+      const settings = yield* requestJson(this.fetchJson, `${SLEEPER_API_BASE}/league/${leagueId}`, value => {
+        if (!isSleeperLeague(value) || value.league_id !== leagueId) {
+          console.warn('[sleeper-adapter] Rejected invalid league settings');
+          throw new ProviderError({ message: 'Sleeper returned invalid league settings' });
+        }
+        return normalizeSleeperLeagueSettings(value);
+      });
       // An interrupted poll never reaches this point, so only completed lookups are cached.
       if (generation === this.settingsGeneration) {
         this.settingsCache = { leagueId, settings, expiresAt: Date.now() + SLEEPER_SETTINGS_CACHE_MS };

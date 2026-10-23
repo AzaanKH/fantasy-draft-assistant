@@ -1,5 +1,6 @@
+import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer as createHttpServer } from 'node:http';
 import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -11,7 +12,7 @@ import {
   leagueFixture,
   picksFixture,
 } from './__fixtures__/sleeper-fixtures.js';
-import { createSyncServer as createServer, SLEEPER_API_BASE, syncServerInternals, type FetchJson } from './sync-server.js';
+import { createSyncServer as createServer, SLEEPER_API_BASE, syncServerInternals } from './sync-server.js';
 import type {
   DraftSyncUpdate,
   EspnDraftSnapshot,
@@ -27,11 +28,13 @@ import {
 } from './yahoo-adapter.js';
 
 const TOKEN = 'test-only-capability-0000000000000000000000000';
-function createSyncServer(options: Parameters<typeof createServer>[0] = {}) {
-  return createServer({ ...options, requestToken: TOKEN });
+function createSyncServer(options: Omit<NonNullable<Parameters<typeof createServer>[0]>, 'fetchJson'> & { fetchJson?: FixtureFetchJson } = {}) {
+  return createServer({ ...options, requestToken: TOKEN,
+    fetchJson: options.fetchJson ? fixtureFetchJson(options.fetchJson) : undefined,
+  });
 }
 
-function createMockFetchJson(): FetchJson {
+function createMockFetchJson(): FixtureFetchJson {
   return async (url: string): Promise<unknown> => {
     if (url === `${SLEEPER_API_BASE}/draft/fixture-draft`) {
       return draftFixture;
@@ -49,7 +52,7 @@ function createMockFetchJson(): FetchJson {
   };
 }
 
-function createYahooMockFetchJson(): FetchJson {
+function createYahooMockFetchJson(): FixtureFetchJson {
   return async (url: string): Promise<unknown> => {
     if (
       url ===
@@ -868,6 +871,54 @@ describe('createSyncServer', () => {
 });
 
 describe('provider HTTP requests', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('passes the decoder into the default transport and preserves its failure', async () => {
+    const failure = new Error('Invalid provider draft ID');
+    const decode = (value: unknown): string => {
+      if (typeof value !== 'object' || value === null || !('draft_id' in value) || typeof value.draft_id !== 'string') {
+        throw failure;
+      }
+      return value.draft_id;
+    };
+    const fetchMock = vi.fn(async () => Response.json(draftFixture));
+    vi.stubGlobal('fetch', fetchMock);
+    const signal = new AbortController().signal;
+    await expect(syncServerInternals.defaultFetchJson('https://api.sleeper.app/v1/draft/fixture', signal, decode))
+      .resolves.toBe(draftFixture.draft_id);
+    fetchMock.mockImplementationOnce(async () => Response.json({}));
+    await expect(syncServerInternals.defaultFetchJson('https://api.sleeper.app/v1/draft/fixture', signal, decode))
+      .rejects.toBe(failure);
+  });
+
+  it.each([
+    ['https://api.sleeper.app/v1/draft/fixture', 'Sleeper'],
+    ['https://pub-api.fantasysports.yahoo.com/league/fixture', 'Yahoo'],
+    ['https://fantasyfootballcalculator.com/api/v1/adp/ppr', 'Fantasy Football Calculator'],
+  ])('preserves the provider status message for %s without retrying', async (url, provider) => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 503 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(syncServerInternals.defaultFetchJson(url, new AbortController().signal, decodeDraftSyncSnapshot))
+      .rejects.toThrow(`${provider} request failed: 503`);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels a stalled body with the configured provider timeout message', async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({ cancel }))));
+    try {
+      const request = syncServerInternals.defaultFetchJson('https://api.sleeper.app/v1/draft/fixture',
+        new AbortController().signal, decodeDraftSyncSnapshot, {}, 50);
+      const rejection = expect(request).rejects.toThrow('Sleeper request timed out');
+      await vi.advanceTimersByTimeAsync(50);
+      await rejection;
+      expect(cancel).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('closes the connection of an error response whose body stalls', async () => {
     let connectionClosed!: () => void;
     const closed = new Promise<void>((resolve) => { connectionClosed = resolve; });
@@ -880,7 +931,7 @@ describe('provider HTTP requests', () => {
     await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
     const { port } = upstream.address() as AddressInfo;
     try {
-      await expect(syncServerInternals.defaultFetchJson(`http://127.0.0.1:${String(port)}/`, new AbortController().signal))
+      await expect(syncServerInternals.defaultFetchJson(`http://127.0.0.1:${String(port)}/`, new AbortController().signal, decodeDraftSyncSnapshot))
         .rejects.toThrow('request failed: 503');
       await closed;
     } finally {

@@ -1,3 +1,4 @@
+export { localDevPorts } from '../local-dev.js';
 export { DRAFT_SESSION_LINEAGE_LIMIT, isValidDraftSyncId, isDraftSessionIdentity, isDraftSyncConnection } from '../sessions.js';
 export type { DraftSessionIdentity } from '../sessions.js';
 export type { DraftSessionSummary } from '../sessions.js';
@@ -23,3 +24,5 @@ export type {
 } from '../sync.js';
 export { parseDraftRoomUrl } from '../draft-url.js';
 export type { DraftRoomStatus } from '../draft-url.js';
+
+export { DRAFT_STORAGE_MIGRATION_KEY, isDraftStorageMigration, type DraftStorageMigration } from './storage-migration.js';

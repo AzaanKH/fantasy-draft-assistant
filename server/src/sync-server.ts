@@ -1,3 +1,4 @@
+import { http, HttpError as RequestHttpError } from '@fantasy-draft/shared/http';
 import { decodeProviderDraftSnapshot } from '@fantasy-draft/shared/catalog';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -460,27 +461,31 @@ function readJsonBody(request: IncomingMessage): Effect.Effect<unknown, HttpErro
   });
 }
 
-async function defaultFetchJson(
+async function defaultFetchJson<A>(
   url: string,
   signal: AbortSignal,
-  init: RequestInit = {}
-): Promise<unknown> {
-  const response = await fetch(url, { ...init, signal });
-
-  if (!response.ok) {
-    // Nothing reads an error body. Cancel it, or a stalled one holds the connection
-    // open after this rejects, when the request timeout can no longer abort it.
-    void response.body?.cancel().catch(() => undefined);
-    const hostname = new URL(url).hostname;
-    const provider = hostname.includes('yahoo')
-      ? 'Yahoo'
-      : hostname.includes('fantasyfootballcalculator')
-        ? 'Fantasy Football Calculator'
-        : 'Sleeper';
-    throw new Error(`${provider} request failed: ${response.status}`);
+  decode: (value: unknown) => A,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS
+): Promise<A> {
+  try {
+    return await http.json(url, decode, { timeoutMs, retries: 0, retryAfter: true }, {
+      init: { ...init, signal },
+    });
+  } catch (error) {
+    if (error instanceof RequestHttpError && (error.kind === 'status' || error.kind === 'timeout')) {
+      const hostname = new URL(url).hostname;
+      const provider = hostname.includes('yahoo')
+        ? 'Yahoo'
+        : hostname.includes('fantasyfootballcalculator')
+          ? 'Fantasy Football Calculator'
+          : 'Sleeper';
+      throw new Error(error.kind === 'timeout'
+        ? `${provider} request timed out`
+        : `${provider} request failed: ${error.status}`);
+    }
+    throw error;
   }
-
-  return response.json();
 }
 
 /** Exposed for tests of provider request cleanup. */
@@ -497,7 +502,8 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const sessions = new Map<string, DraftSession>();
   const pollIntervalMs = Math.max(1000, options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const fetchJson = options.fetchJson ?? defaultFetchJson;
+  const fetchJson: FetchJson = options.fetchJson ?? ((url, signal, decode, init) =>
+    defaultFetchJson(url, signal, decode, init, requestTimeoutMs));
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
     : ['http://localhost:3000'];

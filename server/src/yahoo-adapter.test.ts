@@ -1,3 +1,4 @@
+import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { describe, expect, it, vi } from 'vitest';
 import { Effect, Result } from 'effect';
 import {
@@ -12,13 +13,13 @@ import {
   YAHOO_PUBLIC_API_BASE,
   YAHOO_PUBLIC_READ_API_BASE,
 } from './yahoo-adapter.js';
-import type { FetchJson } from './sync-adapter.js';
+
 
 function createYahooFetch(
   log: string[],
   optionsLog: Array<RequestInit | undefined> = [],
   playersPayload: unknown = yahooPlayersFixture
-): FetchJson {
+): FixtureFetchJson {
   return async (
     url: string,
     _signal: AbortSignal,
@@ -54,7 +55,7 @@ describe('YahooSyncAdapter', () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const players = { service: { player_list: [...yahooPlayersFixture.service.player_list, invalid] } };
     try {
-      await expect(Effect.runPromise(new YahooSyncAdapter('7428778', createYahooFetch([], [], players)).poll())).rejects.toMatchObject({ _tag: 'ProviderError' });
+      await expect(Effect.runPromise(new YahooSyncAdapter('7428778', fixtureFetchJson(createYahooFetch([], [], players))).poll())).rejects.toMatchObject({ _tag: 'ProviderError' });
       expect(warning).toHaveBeenCalled();
     } finally { warning.mockRestore(); }
   });
@@ -65,7 +66,7 @@ describe('YahooSyncAdapter', () => {
 
   it('uses the winning team key for auction picks even when nomination order differs', async () => {
     const fetchFixture = createYahooFetch([]);
-    const fetchAuction: FetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
+    const fetchAuction: FixtureFetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
       if (url.includes('/settings/')) return {
         service: { ...yahooSettingsFixture.service, settings: {
           ...yahooSettingsFixture.service.settings, is_auction_draft: 1,
@@ -76,7 +77,7 @@ describe('YahooSyncAdapter', () => {
       };
       return fetchFixture(url, signal, init);
     };
-    const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fetchAuction).poll());
+    const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fixtureFetchJson(fetchAuction)).poll());
     expect(snapshot.draft.type).toBe('auction');
     expect(snapshot.picks[0]).toMatchObject({ pickNumber: 3, draftSlot: 1, teamIndex: 0 });
   });
@@ -87,13 +88,13 @@ describe('YahooSyncAdapter', () => {
     { round: '1', pick: '11' },
   ])('reports invalid ordered result $round/$pick as a provider failure', async (invalid) => {
     const fixture = createYahooFetch([]);
-    const fetchInvalid: FetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
+    const fetchInvalid: FixtureFetchJson = async (url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> => {
       if (url.includes('/draftresults')) return {
         draft_result: { ...invalid, team_key: '999.l.7428778.t.1', player_key: '999.p.103' },
       };
       return fixture(url, signal, init);
     };
-    const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fetchInvalid).poll()));
+    const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fixtureFetchJson(fetchInvalid)).poll()));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) expect(result.failure._tag).toBe('ProviderError');
   });
@@ -122,7 +123,7 @@ describe('YahooSyncAdapter', () => {
     const requests: string[] = [];
     const adapter = new YahooSyncAdapter(
       '7428778',
-      createYahooFetch(requests)
+      fixtureFetchJson(createYahooFetch(requests))
     );
 
     const snapshot = await Effect.runPromise(adapter.poll());
@@ -157,7 +158,7 @@ describe('YahooSyncAdapter', () => {
     const requests: string[] = [];
     const adapter = new YahooSyncAdapter(
       'https://football.fantasysports.yahoo.com/draftclient/f1/7428778/3',
-      createYahooFetch(requests)
+      fixtureFetchJson(createYahooFetch(requests))
     );
 
     await Effect.runPromise(adapter.poll());
@@ -173,7 +174,7 @@ describe('YahooSyncAdapter', () => {
     const requestOptions: Array<RequestInit | undefined> = [];
     const adapter = new YahooSyncAdapter(
       '7428778',
-      createYahooFetch(requests, requestOptions)
+      fixtureFetchJson(createYahooFetch(requests, requestOptions))
     );
 
     await Effect.runPromise(adapter.poll());
@@ -213,7 +214,7 @@ describe('YahooSyncAdapter', () => {
     };
     const adapter = new YahooSyncAdapter(
       '7428778',
-      createYahooFetch(requests, [], playersWithUnknownPosition)
+      fixtureFetchJson(createYahooFetch(requests, [], playersWithUnknownPosition))
     );
 
     const snapshot = await Effect.runPromise(adapter.poll());

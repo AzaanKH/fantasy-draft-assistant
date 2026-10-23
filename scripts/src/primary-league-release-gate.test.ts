@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   RELEASE_CHECKS,
-  buildPrimaryLeagueReleaseGateReport,
+  buildPrimaryLeagueReleaseGateReport, runReleaseCommand,
   type ReleaseCheckOutcome,
 } from './primary-league-release-gate.js';
 
@@ -116,4 +116,11 @@ describe('Primary League release gate report', () => {
     expect(report.releaseBlockingFailures).toEqual([]);
   });
 
+});
+
+it('records a timed-out command as failed even when its leader exited successfully', async () => {
+  const outcome = await runReleaseCommand({ executable: process.execPath, args: ['-e',
+    "const child = require('node:child_process').spawn(process.execPath, ['-e', \"process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000);\"], { stdio: ['ignore', 'pipe', 'inherit'] }); child.stdout.once('data', () => process.exit(0));",
+  ] }, new AbortController().signal, 500);
+  expect(outcome).toMatchObject({ status: 'failed', exitCode: 0 });
 });

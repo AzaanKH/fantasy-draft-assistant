@@ -64,17 +64,67 @@ def group_alive(pid: int) -> bool:
         return False
 
 
+def process_snapshot() -> dict:
+    output = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,lstart="],
+                            check=True, capture_output=True, text=True, timeout=2).stdout
+    rows = {}
+    for line in output.splitlines():
+        fields = line.split(maxsplit=4)
+        if len(fields) == 5:
+            pid, parent, group, status, born = fields
+            rows[int(pid)] = (int(parent), int(group), status, born)
+    return rows
+
+
 def stop_process(state: dict) -> None:
     pid = state.get("pid")
     if not isinstance(pid, int) or not group_alive(pid):
         return
-    os.killpg(pid, signal.SIGTERM)
-    for _ in range(50):
-        if not group_alive(pid):
+    rows = process_snapshot()
+    if pid not in rows:
+        return
+    owned = {pid: rows[pid][3]}
+    owned_groups = {pid}
+    sent = set()
+
+    def signal_owned(sig):
+        nonlocal rows
+        rows = process_snapshot()
+        for child, born in list(owned.items()):
+            if child not in rows or rows[child][3] != born:
+                del owned[child]
+        while True:
+            added = {child: row[3] for child, row in rows.items()
+                     if row[0] in owned and child not in owned}
+            if not added:
+                break
+            owned.update(added)
+        owned_groups.update(child for child in owned if rows[child][1] == child)
+        live = [child for child in owned if not rows[child][2].startswith("Z")]
+        for child in live:
+            group = rows[child][1]
+            target = ("group", group) if group in owned_groups else ("pid", child)
+            if (sig, target) in sent:
+                continue
+            try:
+                if target[0] == "group":
+                    os.killpg(target[1], sig)
+                else:
+                    os.kill(target[1], sig)
+            except ProcessLookupError:
+                pass
+            sent.add((sig, target))
+        return bool(live)
+
+    for sig, seconds in ((signal.SIGTERM, 5), (signal.SIGKILL, 5)):
+        deadline = time.monotonic() + seconds
+        while signal_owned(sig):
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.1)
+        else:
             return
-        time.sleep(0.1)
-    if group_alive(pid):
-        os.killpg(pid, signal.SIGKILL)
+    raise RuntimeError(f"Owned process tree for {pid} did not stop")
 
 
 def remove_copy(state: dict) -> None:
