@@ -32,7 +32,7 @@ const effectOwners = [
 
 const processExceptions = [
   '**/*.test.{ts,tsx,mjs}',
-  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports}.mjs',
+  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports,tracked-files,check-pr-size}.mjs',
 ];
 
 const environments = {
@@ -63,7 +63,7 @@ export default tseslint.config(
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
     languageOptions: { parser: tseslint.parser },
     plugins: { agent: agentRules },
-    rules: { 'agent/no-closed-root-import': 'error' },
+    rules: { 'agent/no-closed-root-import': 'error', 'agent/reasoned-disable': 'error' },
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
