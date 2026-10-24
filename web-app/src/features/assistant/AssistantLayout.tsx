@@ -175,15 +175,15 @@ function PreferredPickPlaceholder({ lens }: { readonly lens: DecisionLens }): Re
         </div>
         <span className="rec-card-label">{lens === 'best-pick' ? 'Best Pick' : 'Best Player'}</span>
       </div>
-      <div className="rec-metrics">
+      <dl className="rec-metrics">
         {Array.from({ length: 4 }, (_, index) => (
           <div key={index} className="rec-metric">
-            <div className="rec-metric-value"><SkeletonText className="w-16" /></div>
-            <div className="rec-muted"><SkeletonText className="w-28" /></div>
-            {index === 0 ? <div className="rec-metric-note"><SkeletonText className="w-36" /></div> : null}
+            <dt><SkeletonText className="w-28" /></dt>
+            <dd className="rec-metric-value"><SkeletonText className="w-16" /></dd>
+            {index === 0 ? <dd className="rec-metric-note"><SkeletonText className="w-36" /></dd> : null}
           </div>
         ))}
-      </div>
+      </dl>
       <div className="rec-actions">
         <SkeletonBlock className="rec-action w-32" />
         <SkeletonBlock className="rec-action w-36" />

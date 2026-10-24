@@ -13,11 +13,13 @@ import { DraftDecisionBar } from './DraftDecisionBar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 
-vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => VISUAL_PLAYER_DATA }));
+vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ ...VISUAL_PLAYER_DATA, isLoading: decision.playersLoading }) }));
 
 const decision = vi.hoisted(() => ({
   output: { bestPick: null as Recommendation | null },
   isLoading: true,
+  recommendationsBlocked: false,
+  playersLoading: false,
 }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => decision,
@@ -32,6 +34,17 @@ describe('DraftDecisionBar loading', () => {
     const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() })));
     expect(markup).toContain('Why this pick');
     expect(markup).toContain('Add Best Pick to the local queue');
+  });
+
+  it('reports loading, not a paused setup, while player data loads', () => {
+    decision.output.bestPick = null;
+    decision.isLoading = false;
+    decision.recommendationsBlocked = true;
+    decision.playersLoading = true;
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain('Finding your best pick');
+    expect(markup).not.toContain('Paused until setup');
+    Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false });
   });
 
   it('shows loading feedback in the same bar before the first pick', () => {

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
+import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 
@@ -14,7 +15,10 @@ export function DraftDecisionBar({
 }: {
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
 }): React.ReactElement {
-  const { output, isLoading, recommendationsBlocked } = useDraftDecision();
+  const { output, isLoading: decisionLoading, recommendationsBlocked } = useDraftDecision();
+  const { isLoading: playersLoading } = usePlayerDataQuery();
+  // Readiness reads as blocked until player data arrives, so loading wins over the paused message.
+  const isLoading = decisionLoading || playersLoading;
   const bestPick = output.bestPick;
   const isQueued = useDraftView((view) =>
     bestPick ? view.shortlistedPlayerIds.includes(bestPick.playerId) : false

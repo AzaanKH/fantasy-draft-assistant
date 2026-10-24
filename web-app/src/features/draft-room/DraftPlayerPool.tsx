@@ -218,7 +218,7 @@ export function DraftPlayerPool(): React.ReactElement {
         </label>
       </div>
 
-      {recommendationsBlocked ? (
+      {recommendationsBlocked && !isLoading ? (
         <p className="draft-pool-paused" role="status">{describePausedAdvice(readiness, recommendationsBlockedByProviderIdentity)}</p>
       ) : null}
       <div className="draft-pool-scroll" ref={playerListRef} tabIndex={0} role="region" aria-label="Available players, scroll for more">
