@@ -1,3 +1,4 @@
+/* Generated from docs/design-system/tokens.json by `pnpm tokens:write`. Edit tokens.json, then regenerate docs/design-system/tokens.css. */
 /* Tailwind v4 theme. Values match the tokens saved in Paper. */
 @theme {
   --color-background: #05091E;

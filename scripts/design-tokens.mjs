@@ -11,24 +11,25 @@ function formatValue(token) {
   return token.type === 'fontFamily' ? `"${token.value}", sans-serif` : String(token.value);
 }
 
-/** Paper's Tailwind theme: every token in order; each font size also takes its matching leading as a line height. */
+/** Paper's Tailwind theme: every token in order, with each font size's matching leading as a line height after the last size. */
 function renderPaperTheme(tokens) {
+  const sizes = tokens.filter(({ type }) => type === 'fontSize');
   const lines = tokens.flatMap((token) => {
     const line = `  ${token.name}: ${formatValue(token)};`;
-    if (token.name !== '--text-4xl') return [line];
-    const lineHeights = tokens.filter(({ type }) => type === 'fontSize').map(({ name }) => {
+    if (token !== sizes.at(-1)) return [line];
+    const lineHeights = sizes.map(({ name }) => {
       const leading = tokens.find((candidate) => candidate.name === name.replace('--text-', '--leading-'));
       if (!leading) throw new Error(`${tokenSource}: ${name} has no matching --leading token.`);
       return `  ${name}--line-height: ${formatValue(leading)};`;
     });
     return [line, ...lineHeights];
   });
-  return `/* Tailwind v4 theme. Values match the tokens saved in Paper. */\n@theme {\n${lines.join('\n')}\n}\n`;
+  return `${header(paperTheme)}/* Tailwind v4 theme. Values match the tokens saved in Paper. */\n@theme {\n${lines.join('\n')}\n}\n`;
 }
 
 function renderWebThemes(json) {
   const paper = new Map(json.tokens.map((token) => [token.name, formatValue(token)]));
-  const resolve = (value, name) => value.replace(/\{(--[a-z0-9-]+)\}/g, (_, reference) => {
+  const resolve = (value, name) => String(value).replace(/\{([^}]*)\}/g, (_, reference) => {
     if (!paper.has(reference)) throw new Error(`${tokenSource}: ${name} refers to unknown Paper token ${reference}.`);
     return paper.get(reference);
   });
