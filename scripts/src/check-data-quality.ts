@@ -217,8 +217,8 @@ async function main(): Promise<void> {
   ).length;
   const top250MatchRate = top250Matched / Math.max(1, top250.length);
   const matchedDefenses = Number(nested(identity, 'coverage', 'matchedDefenses') ?? 0);
-  add(checks, 'identity.top250.match-rate', top250MatchRate >= 0.98 ? 'pass' : 'fail',
-    'Top-250 FantasyPros rankings map to a Sleeper identity.', Number(top250MatchRate.toFixed(4)), '>= 0.98');
+  add(checks, 'identity.top250.match-rate', top250MatchRate >= READINESS_MINIMUMS.identityRankingMatchRate ? 'pass' : 'fail',
+    'Top-250 FantasyPros rankings map to a Sleeper identity.', Number(top250MatchRate.toFixed(4)), `>= ${String(READINESS_MINIMUMS.identityRankingMatchRate)}`);
   add(checks, 'identity.defenses', matchedDefenses === READINESS_MINIMUMS.defenses ? 'pass' : 'fail',
     'All team defenses have canonical identities.', matchedDefenses, String(READINESS_MINIMUMS.defenses));
 
