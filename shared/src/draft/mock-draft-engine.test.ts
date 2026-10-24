@@ -200,6 +200,39 @@ describe('mock draft engine', () => {
     expect(first['player-10']).toBeGreaterThan(0);
   });
 
+  it('keeps RBs out of a receiving-only FLEX slot', () => {
+    // Team 0 has QB, RB, RB, WR, WR, TE; the last pick must fill the WR/TE FLEX.
+    const filled: readonly Position[] = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE'];
+    const history = [1, 4, 5, 8, 9, 12].map((pickNumber, index) => ({
+      pickNumber,
+      playerId: `team-0-${String(index)}`,
+      position: filled[index] ?? 'WR',
+      teamIndex: 0,
+    }));
+    const selection = selectCpuPlayer({
+      players: [player('surplus-rb', 'RB', 1), player('receiving-wr', 'WR', 60)],
+      draftedPlayerIds: new Set(history.map((pick) => pick.playerId)),
+      history,
+      keepers: [],
+      currentPick: 13,
+      config: {
+        ...config,
+        totalTeams: 2,
+        totalRounds: 7,
+        randomness: 0,
+        rosterRequirements: {
+          ...DEFAULT_ROSTER_REQUIREMENTS,
+          FLEX: { starters: 1, eligiblePositions: ['WR', 'TE'] },
+          K: { starters: 0, max: 1 },
+          DEF: { starters: 0, max: 1 },
+          BENCH: { spots: 0 },
+        },
+      },
+    });
+
+    expect(selection?.player.id).toBe('receiving-wr');
+  });
+
   describe('superflex leagues', () => {
     const superflex: MockDraftEngineConfig = {
       ...config,
