@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: 9.15.0
@@ -34,6 +35,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Licensed and league data stay local, so CI builds and tests against demo-data/.
+      - name: Check PR size against its event base and head
+        if: github.event_name == 'pull_request'
+        run: pnpm check:pr-size
       - run: pnpm data:demo:install
       - run: pnpm data:demo:check
       - run: pnpm audit:security

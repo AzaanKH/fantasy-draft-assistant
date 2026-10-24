@@ -24,9 +24,40 @@ function staticModuleName(node) {
 
 export default {
   rules: {
+    'reasoned-disable': {
+      meta: {
+        docs: {
+          description: 'Requires a written -- reason on agent rule suppressions, including array severities, and blanket ESLint disable comments, even when diagnostics are suppressed.',
+          hint: 'Add -- followed by the concrete reason for this exception, or remove the suppression.',
+        },
+        type: 'problem', schema: [],
+        messages: { reason: 'Explain this agent rule suppression with -- followed by a written reason.' },
+      },
+      create(context) {
+        return {
+          Program() {
+            for (const comment of context.sourceCode.getAllComments()) {
+              const directive = /^\s*eslint-disable(?:-next-line|-line)?(?:\s|$)([\s\S]*)/.exec(comment.value);
+              const inline = /^\s*eslint\s+([\s\S]*)/.exec(comment.value);
+              if (!directive && !inline) continue;
+              const body = directive?.[1] ?? inline[1];
+              const separator = body.indexOf('--');
+              const rules = separator < 0 ? body : body.slice(0, separator);
+              const reason = separator < 0 ? '' : body.slice(separator + 2).trim();
+              const disablesAgent = directive
+                ? !rules.trim() || /(?:^|[\s,])agent\//.test(rules)
+                : /agent\/[\w-]+['"]?\s*:\s*(?:\[\s*)?(?:['"]?off['"]?|0)(?=\s|,|\]|$)/.test(rules);
+              if (disablesAgent && !reason) {
+                context.report({ loc: comment.loc, messageId: 'reason' });
+              }
+            }
+          },
+        };
+      },
+    },
     'no-closed-root-import': {
       meta: {
-        docs: { description: 'Rejects the shared root and temporary draft-url subpath, plus named roster contracts imported from /draft instead of /league.' },
+        docs: { hint: 'Choose the public shared subpath that owns the contract.', description: 'Rejects the shared root and temporary draft-url subpath, plus named roster contracts imported from /draft instead of /league.' },
         type: 'problem', schema: [],
         messages: {
           draftUrl: 'The temporary draft URL subpath is closed. Import draft URL contracts from @fantasy-draft/shared/sync.',
@@ -95,7 +126,7 @@ export default {
     },
     'no-bare-child-process': {
       meta: {
-        docs: { description: 'Rejects child_process imports and supported require, createRequire, and process.getBuiltinModule loads. Process lifecycle belongs in shared/node.' },
+        docs: { hint: 'Use Processes from @fantasy-draft/shared/node for process lifecycle.', description: 'Rejects child_process imports and supported require, createRequire, and process.getBuiltinModule loads. Process lifecycle belongs in shared/node.' },
         type: 'problem', schema: [], messages: {
         runner: 'For process lifecycle, use Processes from @fantasy-draft/shared/node.',
       } },
@@ -145,7 +176,7 @@ export default {
     },
     'no-node-in-browser': {
       meta: {
-        docs: { description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source.' },
+        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source.' },
         type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
       } },
@@ -166,7 +197,7 @@ export default {
     },
     'no-json-cast': {
       meta: {
-        docs: { description: 'Rejects as casts of JSON.parse() and .json() call results, including awaited results. Decode unknown JSON at the boundary.' },
+        docs: { hint: 'Decode unknown JSON at the I/O boundary with a shared decoder.', description: 'Rejects as casts of JSON.parse() and .json() call results, including awaited results. Decode unknown JSON at the boundary.' },
         type: 'problem', schema: [], messages: { decode: decoderMessage } },
       create(context) {
         return {
@@ -186,7 +217,7 @@ export default {
     },
     'no-bare-fetch': {
       meta: {
-        docs: { description: 'Outside shared/src/http/**, rejects native fetch references, global fetch properties, destructuring, aliases, and writes. Local bindings and type-only typeof fetch remain valid.' },
+        docs: { hint: 'Use @fantasy-draft/shared/http with an explicit decoder and timeout/retry policy.', description: 'Outside shared/src/http/**, rejects native fetch references, global fetch properties, destructuring, aliases, and writes. Local bindings and type-only typeof fetch remain valid.' },
         type: 'problem', schema: [],
         messages: { runner: 'For HTTP requests, use @fantasy-draft/shared/http. Native fetch references are restricted to shared/src/http for shared timeout, body cancel, and retry policy.' },
       },
@@ -236,7 +267,7 @@ export default {
     },
     'no-position-array': {
       meta: {
-        docs: { description: 'Rejects arrays containing at least two distinct position literals without repeats, and quoted comma-separated position lists in strings or templates. Use league position groups.' },
+        docs: { hint: 'Use the named position groups from @fantasy-draft/shared/league.', description: 'Rejects arrays containing at least two distinct position literals without repeats, and quoted comma-separated position lists in strings or templates. Use league position groups.' },
         type: 'problem', schema: [],
         messages: { league: 'Name the position group from @fantasy-draft/shared/league instead of listing positions: POSITIONS, OFFENSIVE_POSITIONS, KICKER_DEFENSE_POSITIONS or FLEX_GROUPS, and isFlexEligible for the league-configured FLEX. Add a new group in shared/src/league/positions.ts; build SQL lists with sqlPositionList.' },
       },
@@ -262,7 +293,7 @@ export default {
     },
     'no-inline-season': {
       meta: {
-        docs: { description: 'Rejects calls to getFullYear() and getUTCFullYear(). Use calendarSeason from shared/league.' },
+        docs: { hint: 'Use calendarSeason from @fantasy-draft/shared/league.', description: 'Rejects calls to getFullYear() and getUTCFullYear(). Use calendarSeason from shared/league.' },
         type: 'problem', schema: [],
         messages: { season: 'Do not derive the season from a Date year. Use calendarSeason from @fantasy-draft/shared/league, which owns the season rule.' },
       },
@@ -279,7 +310,7 @@ export default {
     },
     'no-unit-cast': {
       meta: {
-        docs: { description: 'Rejects as and angle-bracket casts whose type contains Probability, Percent, Rank, or Vor. Use the unit constructors.' },
+        docs: { hint: 'Construct the unit with its validated constructor from shared/units.', description: 'Rejects as and angle-bracket casts whose type contains Probability, Percent, Rank, or Vor. Use the unit constructors.' },
         type: 'problem', schema: [],
         messages: { constructor: 'Do not cast to {{name}}. Create units with asProbability, asPercent, asRank or asVor from @fantasy-draft/shared/units where external data becomes domain data.' },
       },
@@ -305,7 +336,7 @@ export default {
     },
     'no-domain-clock': {
       meta: {
-        docs: { description: 'Rejects Date.now() and zero-argument new Date(), including host-global Date forms. Pass now or a Clock to domain code.' },
+        docs: { hint: 'Pass now or a Clock into domain code.', description: 'Rejects Date.now() and zero-argument new Date(), including host-global Date forms. Pass now or a Clock to domain code.' },
         type: 'problem', schema: [],
         messages: { clock: 'Domain code does not read the system time. Take a `now` value or a Clock, defaulting to systemClock from @fantasy-draft/shared/units.' },
       },
@@ -333,7 +364,7 @@ export default {
     },
     'no-cross-package-import': {
       meta: {
-        docs: { description: 'Rejects relative imports and re-exports into another registered workspace, and the CLI web-app @/ alias. Use public package exports.' },
+        docs: { hint: 'Import the owning workspace through its public package exports.', description: 'Rejects relative imports and re-exports into another registered workspace, and the CLI web-app @/ alias. Use public package exports.' },
         type: 'problem', schema: [],
         messages: { boundary: 'Import the workspace package by name through its public exports. Move shared code into @fantasy-draft/shared; cli must not use the web-app @/ alias.' },
       },

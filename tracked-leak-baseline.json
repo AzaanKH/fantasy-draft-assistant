@@ -1,0 +1,514 @@
+[
+  {
+    "file": "cli/src/arguments.test.ts",
+    "detector": "email",
+    "line": 126,
+    "column": 31,
+    "fingerprint": "e1ce361f31dd6ad6c660b5bac0d4bb8c8000100bf29d8686c0f729948e13e728",
+    "reason": "Malformed connection URL fixture checks rejection of credentials in CLI arguments; this is not a contact address."
+  },
+  {
+    "file": "cli/src/fixtures.ts",
+    "detector": "league-name",
+    "line": 52,
+    "column": 58,
+    "fingerprint": "c376131e1e563538af3e39173ea9a90c212faaed0ae7234d6e5f89aee99ef211",
+    "reason": "Explicit offline demo league label, not imported league data."
+  },
+  {
+    "file": "demo-data/league-history/survival-model.json",
+    "detector": "league-name",
+    "line": 4,
+    "column": 4,
+    "fingerprint": "3da1d2923b0dc27ac47186aa0c23f4d15c754722de73d6ca2216bcf8b3025a14",
+    "reason": "Publishable demo model label owned by the demo-data builder."
+  },
+  {
+    "file": "demo-data/primary-league-settings.json",
+    "detector": "league-name",
+    "line": 3,
+    "column": 4,
+    "fingerprint": "3da1d2923b0dc27ac47186aa0c23f4d15c754722de73d6ca2216bcf8b3025a14",
+    "reason": "Publishable demo league label owned by the demo-data builder."
+  },
+  {
+    "file": "docs/design-system/README.md",
+    "detector": "private-id",
+    "line": 3,
+    "column": 103,
+    "fingerprint": "8b17bb5943142d6e91f3d5c658533600635e6fe4a780cc8c2b53e4ac6275abdb",
+    "reason": "Public design reference document identifier, not a provider league/user/draft ID."
+  },
+  {
+    "file": "docs/design-system/tokens.json",
+    "detector": "private-id",
+    "line": 4,
+    "column": 49,
+    "fingerprint": "c185075411216eb8a4500778bc123857befa04c17a1205de6bae4a5f118029f8",
+    "reason": "Public design reference document identifier shared with the design guide."
+  },
+  {
+    "file": "extension/src/background/chrome-api.test.ts",
+    "detector": "named-private-id",
+    "line": 167,
+    "column": 9,
+    "fingerprint": "a4fc63b3a1a7770e102f185445b032c2bb872f8c3c820b8901522247d667c33b",
+    "reason": "Fixed Yahoo-shaped draft ID tests local side-panel snapshot dispatch without provider requests."
+  },
+  {
+    "file": "extension/src/background/chrome-api.test.ts",
+    "detector": "named-private-id",
+    "line": 175,
+    "column": 7,
+    "fingerprint": "06259f0fd2b2cfd621970dfcb47415a6795c7e4178428379d9f974a0cb879b2d",
+    "reason": "Fixed Yahoo-shaped draft ID tests local side-panel snapshot dispatch without provider requests."
+  },
+  {
+    "file": "extension/src/background/chrome-api.test.ts",
+    "detector": "named-private-id",
+    "line": 178,
+    "column": 52,
+    "fingerprint": "fdbbb047b19e9a232e4367c7782aa77dafb785e06b8648ce61ffb849106e4c84",
+    "reason": "Fixed Yahoo-shaped draft ID tests local side-panel snapshot dispatch without provider requests."
+  },
+  {
+    "file": "extension/src/background/chrome-api.test.ts",
+    "detector": "named-private-id",
+    "line": 184,
+    "column": 40,
+    "fingerprint": "5ff9b37c2f5fbc201737e3fcbab8f40c22b48270d149abac210121562ff23bfc",
+    "reason": "Fixed Yahoo-shaped draft ID tests local side-panel snapshot dispatch without provider requests."
+  },
+  {
+    "file": "extension/src/background/sync-snapshot-client.test.ts",
+    "detector": "credential-assignment",
+    "line": 172,
+    "column": 64,
+    "fingerprint": "1685ed6a8c13d9b694a17634c0c6b30c09398e8b2551c11ae3db316d6c63eab7",
+    "reason": "Fixed synthetic authentication header value tests rejection of a mismatched local snapshot token."
+  },
+  {
+    "file": "extension/src/content/draft-room-lifecycle.test.ts",
+    "detector": "named-private-id",
+    "line": 95,
+    "column": 9,
+    "fingerprint": "a4fc63b3a1a7770e102f185445b032c2bb872f8c3c820b8901522247d667c33b",
+    "reason": "Fixed Yahoo-shaped draft ID tests content-room lifecycle messages without provider requests."
+  },
+  {
+    "file": "extension/src/options/options.test.ts",
+    "detector": "credential-assignment",
+    "line": 5,
+    "column": 7,
+    "fingerprint": "e1b25d4628b3ca7df9d69551cfa57c15cba8ac9602917c804b5cb29306a513a7",
+    "reason": "Fixed synthetic pairing token belongs to the options-page storage and message fixture; no live credentials are used."
+  },
+  {
+    "file": "extension/src/shared/types.ts",
+    "detector": "credential-assignment",
+    "line": 28,
+    "column": 3,
+    "fingerprint": "1e3b1ca9b5788025b02464b4d73db9b7c84534b6235166c5475ecec1c6c37899",
+    "reason": "Public Chrome storage key name in STORAGE_KEYS, not the value of a pairing token. Preserve persisted keys unchanged."
+  },
+  {
+    "file": "scripts/persistence/run.mjs",
+    "detector": "credential-assignment",
+    "line": 102,
+    "column": 62,
+    "fingerprint": "0298c5a9ef403e470f3821f95c1c15843d236df5b68a6c7dbfd7493d9bb90e3d",
+    "reason": "Fixed synthetic browser-probe pairing token seeds isolated local extension storage without a live provider."
+  },
+  {
+    "file": "scripts/persistence/ui-activation.mjs",
+    "detector": "credential-assignment",
+    "line": 317,
+    "column": 58,
+    "fingerprint": "c0ff062f77d85ca936e9426a1d937851b6a61bdbf211f17ce5d5309cceff094d",
+    "reason": "Fixed synthetic browser-probe pairing token seeds isolated local extension storage for activation tests."
+  },
+  {
+    "file": "scripts/src/demo-data-core.test.ts",
+    "detector": "league-name",
+    "line": 176,
+    "column": 7,
+    "fingerprint": "9dcb45a356772c603c2953b7c2059e028cb282a704227bc54c71dbdc25c6b42a",
+    "reason": "Deliberate source identifier or league label tests removal and replacement in publishable demo output."
+  },
+  {
+    "file": "scripts/src/demo-data-core.test.ts",
+    "detector": "league-name",
+    "line": 183,
+    "column": 7,
+    "fingerprint": "3a4d71ff60d064f98e09c8db0f86b569b224b8a28d7a1fff3803b86ff45b6b95",
+    "reason": "Deliberate source identifier or league label tests removal and replacement in publishable demo output."
+  },
+  {
+    "file": "scripts/src/demo-data-core.test.ts",
+    "detector": "private-id",
+    "line": 217,
+    "column": 18,
+    "fingerprint": "a5e624241187b032d2c71d2c8779f4a5ec84089380d30c1039f0262701fcc157",
+    "reason": "Deliberate source identifier or league label tests removal and replacement in publishable demo output."
+  },
+  {
+    "file": "scripts/src/demo-data-core.test.ts",
+    "detector": "league-name",
+    "line": 218,
+    "column": 7,
+    "fingerprint": "1bed68558dc55e4b6e163e038bc5208ff32bdf843f620cefcd87522c960affc1",
+    "reason": "Deliberate source identifier or league label tests removal and replacement in publishable demo output."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.test.ts",
+    "detector": "private-id",
+    "line": 8,
+    "column": 18,
+    "fingerprint": "2f68952965ff038de91b61c75ab26d2f53907c42efb47a35229c4b0c997ea69d",
+    "reason": "Historical import regression mirrors existing configured draft IDs; preserve behavior in this gate-only wave."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.test.ts",
+    "detector": "private-id",
+    "line": 18,
+    "column": 10,
+    "fingerprint": "80b28ec44b8cf6a2e01d072936b3251942c3b6ed4a7e36d5382888f4d948dadf",
+    "reason": "Historical import regression mirrors existing configured draft IDs; preserve behavior in this gate-only wave."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.test.ts",
+    "detector": "private-id",
+    "line": 21,
+    "column": 53,
+    "fingerprint": "bb79c08b03392a63bff9075e9abce7df2e82d6a0a96c62e13c8c83a404c0357d",
+    "reason": "Historical import regression mirrors existing configured draft IDs; preserve behavior in this gate-only wave."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 154,
+    "column": 15,
+    "fingerprint": "10d30c5e47d7dacf1a9259d138b24c9c0be3917f0af1e38b5d577fbdb44d4c4c",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 155,
+    "column": 16,
+    "fingerprint": "6593f7a27fddd8d8e148f9b80f54e0537c4bc07f563c23d98eb5887169552379",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 161,
+    "column": 15,
+    "fingerprint": "c397c370fe2fd04d77d8b7bc53b1d1ae93167ea567fd147909e30c74d43f4b00",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 162,
+    "column": 16,
+    "fingerprint": "7f00f811d07aea54e0c8331db2e6d8a8d3ef252020c227022c62f75f38b4b4e0",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 168,
+    "column": 15,
+    "fingerprint": "8262c6c8c26735d16c1e5e4de820b82032f761ff4c9159fc18206f9e358c311e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 169,
+    "column": 16,
+    "fingerprint": "37f013ad70a3aa0dd56a091ae668e3df2f5a67037ad8013d2b6ac798b9724340",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 175,
+    "column": 15,
+    "fingerprint": "70f17bfcfbc1ab96e70d8c042d39a9d0ef73c9a657552e7757a2d7ac9214ce5e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 176,
+    "column": 16,
+    "fingerprint": "3e3b835e0522e85dda463c845ee6cd5583b2b094b09b4d387525939eaaee7771",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 185,
+    "column": 15,
+    "fingerprint": "8262c6c8c26735d16c1e5e4de820b82032f761ff4c9159fc18206f9e358c311e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 193,
+    "column": 15,
+    "fingerprint": "8262c6c8c26735d16c1e5e4de820b82032f761ff4c9159fc18206f9e358c311e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 201,
+    "column": 15,
+    "fingerprint": "8262c6c8c26735d16c1e5e4de820b82032f761ff4c9159fc18206f9e358c311e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 209,
+    "column": 15,
+    "fingerprint": "8262c6c8c26735d16c1e5e4de820b82032f761ff4c9159fc18206f9e358c311e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/import-league-draft-history.ts",
+    "detector": "private-id",
+    "line": 217,
+    "column": 15,
+    "fingerprint": "8262c6c8c26735d16c1e5e4de820b82032f761ff4c9159fc18206f9e358c311e",
+    "reason": "Existing historical league import configuration and trade overrides require these IDs; this gate-only wave preserves behavior. New occurrences remain forbidden."
+  },
+  {
+    "file": "scripts/src/script-file-schemas.test.ts",
+    "detector": "league-name",
+    "line": 39,
+    "column": 40,
+    "fingerprint": "baf1ebcec305e04bf24696c3f9c2f24ad15d1452af97dcd7db580ec1bdaf7015",
+    "reason": "Offline league-history fixture label exercises the file decoder."
+  },
+  {
+    "file": "scripts/ui-production.test.mjs",
+    "detector": "named-private-id",
+    "line": 49,
+    "column": 59,
+    "fingerprint": "bc76e2f5104215865059fe1733f029498cce81138353aff61f35c130c6d2545f",
+    "reason": "Deterministic storage-identity fixture used by the local persistence production probe."
+  },
+  {
+    "file": "scripts/ui-reachability.test.mjs",
+    "detector": "league-name",
+    "line": 46,
+    "column": 40,
+    "fingerprint": "626bb0f3795e3902d5032ef87187c168928f72fdd8fda51afb6eabfec6c5ffff",
+    "reason": "Offline league-survival fixture label exercises readiness prerequisites."
+  },
+  {
+    "file": "scripts/ui-runner.test.mjs",
+    "detector": "named-private-id",
+    "line": 292,
+    "column": 35,
+    "fingerprint": "ba2a560449dd26a6a0a870ecb66c24a256d65ac6f3fff2ab6ec9729c8c5d4bd3",
+    "reason": "Deterministic storage-identity fixture tests canonical app-tab reuse."
+  },
+  {
+    "file": "server/src/proxy-security.test.ts",
+    "detector": "credential-assignment",
+    "line": 9,
+    "column": 7,
+    "fingerprint": "c548989d240973df7d55c8e3ad83e5dc9b39cf7de707c15abe2727deeeca0af1",
+    "reason": "Fixed synthetic server token authenticates requests to the isolated local proxy-security test server."
+  },
+  {
+    "file": "server/src/proxy-security.test.ts",
+    "detector": "private-id",
+    "line": 9,
+    "column": 43,
+    "fingerprint": "847eb39bbe82fdf0b5b79cad8174e27599bdfae0d41d861f0a2d80cf2b041be5",
+    "reason": "Provider-shaped ID in a local proxy allowlist/security regression, without live requests."
+  },
+  {
+    "file": "server/src/security.test.ts",
+    "detector": "credential-assignment",
+    "line": 5,
+    "column": 7,
+    "fingerprint": "e1b25d4628b3ca7df9d69551cfa57c15cba8ac9602917c804b5cb29306a513a7",
+    "reason": "Fixed synthetic server token authenticates requests to the isolated local security test server."
+  },
+  {
+    "file": "server/src/sync-server.test.ts",
+    "detector": "credential-assignment",
+    "line": 30,
+    "column": 7,
+    "fingerprint": "e1b25d4628b3ca7df9d69551cfa57c15cba8ac9602917c804b5cb29306a513a7",
+    "reason": "Fixed synthetic server token authenticates requests to the isolated local sync test server."
+  },
+  {
+    "file": "server/src/vite-security.test.ts",
+    "detector": "credential-assignment",
+    "line": 46,
+    "column": 88,
+    "fingerprint": "f3ae97eb8a165944c37ca19ae46d5a817e312010ace94372f128aaa723b681ee",
+    "reason": "Deliberate synthetic token header and expected echo value test the local Vite proxy security boundary."
+  },
+  {
+    "file": "server/src/vite-security.test.ts",
+    "detector": "credential-assignment",
+    "line": 48,
+    "column": 95,
+    "fingerprint": "d3bf3f52e13f768421359adb46e01595a72d798cfeeb5d76a2384e8ef6b1d37f",
+    "reason": "Deliberate synthetic token header and expected echo value test the local Vite proxy security boundary."
+  },
+  {
+    "file": "shared/src/catalog/boundary-readiness.test.ts",
+    "detector": "league-name",
+    "line": 21,
+    "column": 59,
+    "fingerprint": "9c408dab4db0ce41ea30a4fc1ec6b037864e1d4bda5107f38768cba38175a5ee",
+    "reason": "Offline league-survival fixture label tests catalog readiness."
+  },
+  {
+    "file": "shared/src/catalog/optional-boundaries.test.ts",
+    "detector": "league-name",
+    "line": 9,
+    "column": 66,
+    "fingerprint": "faba7409f96346d523972edc572990b9787911db3cb74afe9a965698829b2f1b",
+    "reason": "Offline league-survival fixture label tests optional catalog failures."
+  },
+  {
+    "file": "shared/src/draft-url.test.ts",
+    "detector": "named-private-id",
+    "line": 8,
+    "column": 51,
+    "fingerprint": "810ab0029b1d040a430072059f6d2a44cb5972382465cfd16f5a6d687c04dd94",
+    "reason": "Fixed provider-shaped draft IDs pin URL parsing for provider routes without live requests."
+  },
+  {
+    "file": "shared/src/draft-url.test.ts",
+    "detector": "named-private-id",
+    "line": 16,
+    "column": 49,
+    "fingerprint": "2fba9e5f22e437b1c27af19f226243be07f9b39aecb30e975fe492272d0c77df",
+    "reason": "Fixed provider-shaped draft IDs pin URL parsing for provider routes without live requests."
+  },
+  {
+    "file": "shared/src/draft-url.test.ts",
+    "detector": "named-private-id",
+    "line": 20,
+    "column": 49,
+    "fingerprint": "2fba9e5f22e437b1c27af19f226243be07f9b39aecb30e975fe492272d0c77df",
+    "reason": "Fixed provider-shaped draft IDs pin URL parsing for provider routes without live requests."
+  },
+  {
+    "file": "shared/src/draft-url.test.ts",
+    "detector": "named-private-id",
+    "line": 24,
+    "column": 49,
+    "fingerprint": "2fba9e5f22e437b1c27af19f226243be07f9b39aecb30e975fe492272d0c77df",
+    "reason": "Fixed provider-shaped draft IDs pin URL parsing for provider routes without live requests."
+  },
+  {
+    "file": "shared/src/draft-url.test.ts",
+    "detector": "named-private-id",
+    "line": 28,
+    "column": 48,
+    "fingerprint": "b937a86a43af2cada84f8473c712a75192dec385761c08455b0333bb9866114f",
+    "reason": "Fixed provider-shaped draft IDs pin URL parsing for provider routes without live requests."
+  },
+  {
+    "file": "shared/src/draft-url.test.ts",
+    "detector": "named-private-id",
+    "line": 32,
+    "column": 48,
+    "fingerprint": "b937a86a43af2cada84f8473c712a75192dec385761c08455b0333bb9866114f",
+    "reason": "Fixed provider-shaped draft IDs pin URL parsing for provider routes without live requests."
+  },
+  {
+    "file": "shared/src/draft/calculations/survival.test.ts",
+    "detector": "league-name",
+    "line": 58,
+    "column": 3,
+    "fingerprint": "3cc791711821161cf51726bcf74258c792f3b61ad2c4c122fa819d50b8d0bac9",
+    "reason": "Offline survival-model fixture label tests recommendation calculations."
+  },
+  {
+    "file": "shared/src/http/runner.test.ts",
+    "detector": "email",
+    "line": 78,
+    "column": 50,
+    "fingerprint": "407417f7658c8554d764a480253dd2ff4d13d826bf8dea4decc75ce2d0ebea93",
+    "reason": "Intentional URL userinfo checks that HTTP failures redact credentials; this is not a contact address."
+  },
+  {
+    "file": "shared/src/node/processes.test.ts",
+    "detector": "credential-assignment",
+    "line": 42,
+    "column": 126,
+    "fingerprint": "26abe052a3b9c41c63818309e04485e06c90fd92af77d262b954246cb2eeb7de",
+    "reason": "Deliberate synthetic private environment value tests redaction from child-process failures; it is not a real credential."
+  },
+  {
+    "file": "web-app/src/features/draft-room/primary-league-rehearsal.ts",
+    "detector": "named-private-id",
+    "line": 340,
+    "column": 5,
+    "fingerprint": "1bfe984b0a6f07647ea537f4c3b476cbb01d7c04503fefb490b996a4cd10ced2",
+    "reason": "Named deterministic rehearsal identity is synthetic and used only by the existing offline rehearsal."
+  },
+  {
+    "file": "web-app/src/hooks/useRecommendations.test.ts",
+    "detector": "league-name",
+    "line": 45,
+    "column": 62,
+    "fingerprint": "166b86fc176676b719c2b374acb031b3f9186929a796060916ec217ca3e66402",
+    "reason": "Offline survival-model fixture label tests the recommendation hook."
+  },
+  {
+    "file": "web-app/src/lib/league-survival-model.test.ts",
+    "detector": "league-name",
+    "line": 9,
+    "column": 5,
+    "fingerprint": "2753474601931cd0729c1b798f2c3e4b95f2f96cfc56d6e031e9e576657077f8",
+    "reason": "Offline survival-model fixture label tests model handling."
+  },
+  {
+    "file": "web-app/src/workspace/connection-hints.test.ts",
+    "detector": "private-id",
+    "line": 19,
+    "column": 34,
+    "fingerprint": "fa444244a04bb8b966f03580501ffcbcda2f5917868764965c5002aa81a04da7",
+    "reason": "Existing connection-migration fixtures pin historic stored URL/ID behavior; no new live connection or private data retention is introduced."
+  },
+  {
+    "file": "web-app/src/workspace/connection-hints.test.ts",
+    "detector": "private-id",
+    "line": 22,
+    "column": 17,
+    "fingerprint": "fdfabe9dfe972e6fa6b490676584ab69508593a4f24e87eec719061b3ba24dad",
+    "reason": "Existing connection-migration fixtures pin historic stored URL/ID behavior; no new live connection or private data retention is introduced."
+  },
+  {
+    "file": "web-app/src/workspace/connection-hints.test.ts",
+    "detector": "private-id",
+    "line": 185,
+    "column": 60,
+    "fingerprint": "3a17d82cba21e8e4bc92214fb593f18b151f7d72fe697f37a4f36ed8eb832180",
+    "reason": "Existing connection-migration fixtures pin historic stored URL/ID behavior; no new live connection or private data retention is introduced."
+  },
+  {
+    "file": "web-app/src/workspace/connection-hints.test.ts",
+    "detector": "private-id",
+    "line": 192,
+    "column": 66,
+    "fingerprint": "0801cfaa868c04955c42f8f6e1fc85c36f76deab8ab75565f44583fd33036f34",
+    "reason": "Existing connection-migration fixtures pin historic stored URL/ID behavior; no new live connection or private data retention is introduced."
+  }
+]
