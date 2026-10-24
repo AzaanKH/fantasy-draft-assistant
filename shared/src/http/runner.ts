@@ -59,7 +59,7 @@ function scope(url: string | URL, caller: AbortSignal | null | undefined, timeou
   };
   reset(timeoutMs);
   return {
-    signal: controller.signal, reset,
+    signal: controller.signal, reset, pause: clear,
     close: () => { clear(); caller?.removeEventListener('abort', abort); },
   };
 }
@@ -203,8 +203,9 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
           if (data.length) {
             if (deadline.signal.aborted) throw deadline.signal.reason;
             const event = decode(parseJson(data.join('\n'), url));
-            deadline.reset(policy.idleMs);
+            deadline.pause();
             yield event;
+            deadline.reset(policy.idleMs);
           }
           data = []; frameBytes = 0;
         } else if (line.startsWith('data:')) {
