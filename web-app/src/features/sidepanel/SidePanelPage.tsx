@@ -55,6 +55,7 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { cn } from '@/lib/utils';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
+import { SidePanelSlotControl } from './SidePanelSlotControl';
 import { reconcileComparisonSelection } from './comparison-selection';
 
 type SidePanelView = 'draft' | 'compare' | 'assistant' | 'roster';
@@ -732,6 +733,7 @@ export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: 
   return (
     <RouteErrorBoundary>
         {STORAGE_ACTIVATION_ENABLED && onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
+      <SidePanelSlotControl />
       <SidePanelContent connection={connection} sync={sync} />
     </RouteErrorBoundary>
   );
