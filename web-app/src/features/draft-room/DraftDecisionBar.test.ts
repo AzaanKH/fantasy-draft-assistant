@@ -102,7 +102,7 @@ function decisionFactors(): RecommendationDecisionFactors {
       materiallyChangedOrdering: false,
     },
     conservativeBoundary: {
-      ecrRankLimit: 9,
+      ecrRankLimit: asRank(9),
       samePositionTier: false,
       withinBoundary: true,
       feasibilityException: false,

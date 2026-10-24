@@ -273,12 +273,21 @@ export default {
         messages: { constructor: 'Do not cast to {{name}}. Create units with asProbability, asPercent, asRank or asVor from @fantasy-draft/shared/units where external data becomes domain data.' },
       },
       create(context) {
-        function check(node) {
-          const type = node.typeAnnotation;
+        // Finds a unit anywhere in the cast type, such as Rank | undefined or Record<string, Probability>.
+        function unitIn(type) {
+          if (!type || typeof type !== 'object') return undefined;
           if (type.type === 'TSTypeReference' && type.typeName.type === 'Identifier' &&
-              ['Probability', 'Percent', 'Rank', 'Vor'].includes(type.typeName.name)) {
-            context.report({ node, messageId: 'constructor', data: { name: type.typeName.name } });
+              ['Probability', 'Percent', 'Rank', 'Vor'].includes(type.typeName.name)) return type.typeName.name;
+          for (const [key, value] of Object.entries(type)) {
+            if (key === 'parent' || key === 'loc' || key === 'range') continue;
+            const found = Array.isArray(value) ? value.map(unitIn).find(Boolean) : unitIn(value);
+            if (found) return found;
           }
+          return undefined;
+        }
+        function check(node) {
+          const name = unitIn(node.typeAnnotation);
+          if (name) context.report({ node, messageId: 'constructor', data: { name } });
         }
         return { TSAsExpression: check, TSTypeAssertion: check };
       },

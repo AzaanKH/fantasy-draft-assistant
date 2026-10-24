@@ -185,7 +185,7 @@ export interface RecommendationDecisionFactors {
     readonly nextPickNumber?: number;
     readonly nextPickLabel?: string;
     readonly picksUntilNextPick?: number;
-    readonly returnProbability?: number;
+    readonly returnProbability?: Probability;
     readonly candidateValue: number;
     readonly expectedAlternative?: ExpectedNextPickAlternative;
     readonly costOfWaiting: number;
@@ -193,7 +193,7 @@ export interface RecommendationDecisionFactors {
     readonly materiallyChangedOrdering: boolean;
   };
   readonly conservativeBoundary: {
-    readonly ecrRankLimit: number;
+    readonly ecrRankLimit: Rank;
     readonly samePositionTier: boolean;
     readonly withinBoundary: boolean;
     readonly feasibilityException: boolean;

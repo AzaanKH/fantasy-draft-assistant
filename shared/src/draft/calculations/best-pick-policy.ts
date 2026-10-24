@@ -1,5 +1,5 @@
 import { DEFAULT_ROSTER_REQUIREMENTS, type RecommendationDecisionFactors, type RosterRequirements } from '../../draft.js';
-import { asProbability, asVor } from '../../units/brands.js';
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { POSITIONS, type Player, type Position } from '../../player.js';
 import { optimizeLineupUtility, type LineupPlayer } from '../../lineup-utility.js';
 import {
@@ -467,11 +467,11 @@ function getDraftTimingFactor(
   const expectedAlternative = alternatives.get(player.position)?.find(
     (alternative) => alternative.playerId !== player.id
   );
-  const returnProbability = clamp(
+  const returnProbability = asProbability(clamp(
     player.nextPickSurvivalProbability,
     0,
     1
-  );
+  ));
   const costOfWaiting = round(
     (1 - returnProbability) * Math.max(
       0,
@@ -583,7 +583,7 @@ export function evaluateBestPickPolicy(
     };
   }
 
-  const ecrRankLimit = ecrChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD;
+  const ecrRankLimit = asRank(ecrChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD);
   const tierAvailability = calculateTierAvailability(candidatePlayers);
   const draftTimingAlternatives = context.draftTimingAlternatives ??
     prepareDraftTimingAlternatives(candidatePlayers);

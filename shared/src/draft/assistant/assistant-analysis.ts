@@ -1,5 +1,5 @@
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
-import { asPercent, type Percent } from '../../units/brands.js';
+import { toWholePercent, type Percent } from '../../units/brands.js';
 import { type DraftDecisionView } from '../recommendations/draft-decision.js';
 import { formatSignedNumber } from '../format.js';
 import { type ExpectedNextPickAlternative, type PositionNeed, type Recommendation } from '../../draft.js';
@@ -13,7 +13,7 @@ function pluralize(value: number, singular: string, plural: string): string {
 }
 export function survivalPercent(recommendation: Recommendation): Percent | null {
   const probability = recommendation.diagnostics?.nextPickSurvivalProbability;
-  return typeof probability === 'number' ? asPercent(Math.round(probability * 100)) : null;
+  return typeof probability === 'number' ? toWholePercent(probability) : null;
 }
 
 export function sortRecommendationsForPool(
@@ -32,7 +32,7 @@ export function sortRecommendationsForPool(
     .map(({ recommendation }) => recommendation);
 }
 
-export function getAvailabilitySignal(survival: number | null): {
+export function getAvailabilitySignal(survival: Percent | null): {
   readonly status: string;
   readonly tone: SignalTone;
 } {
@@ -49,7 +49,7 @@ export interface AssistantAnswerRow {
 }
 
 interface TimingFacts {
-  readonly returnPercent: number | null;
+  readonly returnPercent: Percent | null;
   readonly nextPickReference: string;
   readonly costOfWaiting: number | undefined;
   readonly fallback: ExpectedNextPickAlternative | undefined;
@@ -62,7 +62,7 @@ function getTimingFacts(recommendation: Recommendation): TimingFacts {
     ?? diagnostics?.nextPickSurvivalProbability;
   const nextPickLabel = factors?.draftTiming.nextPickLabel ?? diagnostics?.nextPickLabel;
   return {
-    returnPercent: returnProbability === undefined ? null : Math.round(returnProbability * 100),
+    returnPercent: returnProbability === undefined ? null : toWholePercent(returnProbability),
     nextPickReference: nextPickLabel ? `pick ${nextPickLabel}` : 'your next pick',
     costOfWaiting: factors?.draftTiming.costOfWaiting ?? diagnostics?.nextPickCostOfWaiting,
     fallback: factors?.draftTiming.expectedAlternative ?? diagnostics?.expectedNextPickAlternative,

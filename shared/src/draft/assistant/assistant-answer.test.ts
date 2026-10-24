@@ -110,7 +110,7 @@ describe('Assistant decision answer', () => {
           materiallyChangedOrdering: true,
         },
         conservativeBoundary: {
-          ecrRankLimit: 9,
+          ecrRankLimit: asRank(9),
           samePositionTier: false,
           withinBoundary: true,
           feasibilityException: false,

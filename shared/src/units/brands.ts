@@ -32,3 +32,8 @@ export function asRank(value: number): Rank {
 export function asVor(value: number): Vor {
   return value as Vor;
 }
+
+/** The probability as a whole-number percent, as the interface shows it. */
+export function toWholePercent(value: Probability): Percent {
+  return asPercent(Math.round(value * 100));
+}

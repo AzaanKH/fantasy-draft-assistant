@@ -6,5 +6,5 @@ export {
   isBoundedInteger,
   isDraftSize,
 } from '../limits.js';
-export { asPercent, asProbability, asRank, asVor } from './brands.js';
+export { asPercent, asProbability, asRank, asVor, toWholePercent } from './brands.js';
 export type { Percent, Probability, Rank, Vor } from './brands.js';

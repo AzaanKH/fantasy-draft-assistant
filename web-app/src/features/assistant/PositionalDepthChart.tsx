@@ -1,3 +1,4 @@
+import { toWholePercent } from '@fantasy-draft/shared/units';
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
@@ -45,7 +46,7 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
       const probability = sessionMode === 'mock' && timingEvidence.model
         ? mockProbabilities[player.id] ?? estimate.nextPickSurvivalProbability
         : estimate.nextPickSurvivalProbability;
-      return [player.id, Number.isFinite(probability) && probability >= 0 && probability <= 1 ? Math.round(probability * 100) : null];
+      return [player.id, Number.isFinite(probability) && probability >= 0 && probability <= 1 ? toWholePercent(probability) : null];
     }));
   }, [timingPool, config.myPickPosition, config.totalRounds, config.totalTeams, config.draftType, currentPick, limit, mockProbabilities, timingEvidence.model, players, sessionMode]);
   const drop = getDepthTierDrop(allPlayers, position, tier);

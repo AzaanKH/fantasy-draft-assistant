@@ -71,7 +71,7 @@ describe('getRecommendationExplanation', () => {
           materiallyChangedOrdering: false,
         },
         conservativeBoundary: {
-          ecrRankLimit: 108,
+          ecrRankLimit: asRank(108),
           samePositionTier: false,
           withinBoundary: true,
           feasibilityException: false,
@@ -153,7 +153,7 @@ describe('getRecommendationExplanation', () => {
           materiallyChangedOrdering: false,
         },
         conservativeBoundary: {
-          ecrRankLimit: 9,
+          ecrRankLimit: asRank(9),
           samePositionTier: false,
           withinBoundary: false,
           feasibilityException: true,
@@ -241,7 +241,7 @@ describe('getRecommendationExplanation', () => {
           materiallyChangedOrdering: false,
         },
         conservativeBoundary: {
-          ecrRankLimit: 9,
+          ecrRankLimit: asRank(9),
           samePositionTier: false,
           withinBoundary: true,
           feasibilityException: false,
@@ -342,7 +342,7 @@ describe('getRecommendationExplanation', () => {
           materiallyChangedOrdering: true,
         },
         conservativeBoundary: {
-          ecrRankLimit: 9,
+          ecrRankLimit: asRank(9),
           samePositionTier: false,
           withinBoundary: true,
           feasibilityException: false,

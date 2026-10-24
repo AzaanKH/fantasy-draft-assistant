@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { getDraftView } from '@/workspace/useDraftView';
 import { deriveDraftState } from './draft/source';
@@ -260,7 +261,7 @@ describe('draftStore shortlist', () => {
       teamName: 'My Team',
     })).toBe(true);
     draftStore.getState().setMockSurvivalProbabilities({
-      'next-player': 0.75,
+      'next-player': asProbability(0.75),
     });
 
     const restoredProviderTruth = [

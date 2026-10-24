@@ -81,7 +81,7 @@ beforeEach(() => {
 
 describe('recommendation timing by league profile', () => {
   it('keeps generic 12-team mocks on market timing even with cached history and mock overrides', () => {
-    store.setState({ sessionMode: 'mock', mockSurvivalProbabilities: { qb: 0.01 } });
+    store.setState({ sessionMode: 'mock', mockSurvivalProbabilities: { qb: asProbability(0.01) } });
     queryLoading = true;
     render();
     expect(queryOptions.enabled).toBe(false);

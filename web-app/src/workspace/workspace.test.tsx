@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -73,7 +74,7 @@ describe('workspace command ownership', () => {
     send('setMockSettings', { seed: 123, cpuPickPace: 'instant' });
     send('setMockSettingsOpen', true);
     send('setMockAutoAdvancePaused', true);
-    send('setMockSurvivalProbabilities', { a: 0.25 });
+    send('setMockSurvivalProbabilities', { a: asProbability(0.25) });
     send('preloadKeepers', [{ playerId: 'keeper', playerName: 'Keeper', position: 'RB', teamIndex: 0, round: 1, isMyKeeper: false }]);
     send('consumeKeeperAtCurrentPick');
     expect(draft.getState().draftHistory[0]?.source).toBe('keeper');
@@ -87,7 +88,7 @@ describe('workspace command ownership', () => {
     send('removePlayerFromShortlist', 'a');
     send('setDecisionLens', 'best-player');
     send('setPositionFilter', 'WR'); send('setSearchQuery', 'receiver');
-    send('setMockSurvivalProbabilities', { a: 0.25 });
+    send('setMockSurvivalProbabilities', { a: asProbability(0.25) });
     expect(draft.getState()).toMatchObject({ decisionLens: 'best-player', filter: { position: 'WR', searchQuery: 'receiver' }, mockSurvivalProbabilities: { a: 0.25 } });
     send('branchFromPick', 4);
     expect(getDraftView(draft).currentPick).toBe(4);

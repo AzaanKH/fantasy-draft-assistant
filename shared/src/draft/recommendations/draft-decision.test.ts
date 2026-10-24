@@ -89,7 +89,7 @@ function policyFactors(
       materiallyChangedOrdering: preferred && factor === 'draft-timing',
     },
     conservativeBoundary: {
-      ecrRankLimit: 9,
+      ecrRankLimit: asRank(9),
       samePositionTier: false,
       withinBoundary: true,
       feasibilityException: false,
