@@ -1,7 +1,9 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import {
+  isFlexEligible,
   type Player,
   type Position,
+  type RosterRequirements,
 } from '@fantasy-draft/shared/league';
 import {
   formatDraftReadinessAge,
@@ -13,16 +15,19 @@ import {
 
 export type PositionFilter = Position | 'ALL' | 'FLEX';
 
-const FLEX_POSITIONS: readonly Position[] = ['RB', 'WR', 'TE'];
-
 interface PlayerPoolRow {
   readonly player: Player;
   /** Present only for players on the current recommendation list. */
   readonly recommendation: Recommendation | undefined;
 }
 
-function matchesFilters(player: Player, positionFilter: PositionFilter, searchQuery: string): boolean {
-  if (positionFilter === 'FLEX' && !FLEX_POSITIONS.includes(player.position)) return false;
+function matchesFilters(
+  player: Player,
+  positionFilter: PositionFilter,
+  searchQuery: string,
+  requirements: RosterRequirements
+): boolean {
+  if (positionFilter === 'FLEX' && !isFlexEligible(requirements, player.position)) return false;
   if (positionFilter !== 'ALL' && positionFilter !== 'FLEX' && player.position !== positionFilter) return false;
   if (!searchQuery) return true;
   return player.name.toLowerCase().includes(searchQuery) || player.team.toLowerCase().includes(searchQuery);
@@ -37,12 +42,13 @@ export function getPlayerPoolRows(
   undraftedPlayers: readonly Player[],
   recommendations: readonly Recommendation[],
   positionFilter: PositionFilter,
-  searchQuery: string
+  searchQuery: string,
+  requirements: RosterRequirements
 ): PlayerPoolRow[] {
   const recommendationById = new Map(recommendations.map((recommendation) => [recommendation.playerId, recommendation]));
   const recommendationOrder = new Map(recommendations.map((recommendation, index) => [recommendation.playerId, index]));
   return undraftedPlayers
-    .filter((player) => matchesFilters(player, positionFilter, searchQuery))
+    .filter((player) => matchesFilters(player, positionFilter, searchQuery, requirements))
     .sort((a, b) =>
       (recommendationOrder.get(a.id) ?? Number.POSITIVE_INFINITY) - (recommendationOrder.get(b.id) ?? Number.POSITIVE_INFINITY) ||
       a.ecrRank - b.ecrRank ||

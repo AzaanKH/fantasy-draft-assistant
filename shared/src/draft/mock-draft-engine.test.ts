@@ -199,4 +199,56 @@ describe('mock draft engine', () => {
     expect(first['player-1']).toBeLessThan(1);
     expect(first['player-10']).toBeGreaterThan(0);
   });
+
+  describe('superflex leagues', () => {
+    const superflex: MockDraftEngineConfig = {
+      ...config,
+      totalTeams: 2,
+      totalRounds: 7,
+      randomness: 0,
+      rosterRequirements: {
+        ...DEFAULT_ROSTER_REQUIREMENTS,
+        QB: { starters: 1, max: 3 },
+        FLEX: { starters: 1, eligiblePositions: ['QB', 'RB', 'WR', 'TE'] },
+        K: { starters: 0, max: 1 },
+        DEF: { starters: 0, max: 1 },
+        BENCH: { spots: 0 },
+      },
+    };
+    // Team 0 picks 1, 4, 5, 8, 9 and 12 in a two-team snake; pick 13 is its last.
+    const filled: readonly Position[] = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE'];
+    const history = [1, 4, 5, 8, 9, 12].map((pickNumber, index) => ({
+      pickNumber,
+      playerId: `team-0-${String(index)}`,
+      position: filled[index] ?? 'WR',
+      teamIndex: 0,
+    }));
+
+    it('lets a second QB fill the open superflex slot with the last pick', () => {
+      const selection = selectCpuPlayer({
+        players: [player('second-qb', 'QB', 20)],
+        draftedPlayerIds: new Set(history.map((pick) => pick.playerId)),
+        history,
+        keepers: [],
+        currentPick: 13,
+        config: superflex,
+      });
+
+      expect(selection?.player.id).toBe('second-qb');
+    });
+
+    it('treats a second QB as a superflex need, not a redundant starter', () => {
+      const selection = selectCpuPlayer({
+        players: [player('second-qb', 'QB', 20), player('extra-k', 'K', 21)],
+        draftedPlayerIds: new Set<string>(),
+        history: history.slice(0, 5),
+        keepers: [],
+        currentPick: 12,
+        config: { ...superflex, totalRounds: 8 },
+      });
+      const qb = selection?.shortlist.find((candidate) => candidate.player.id === 'second-qb');
+
+      expect(qb?.components.rosterNeed).toBe(5);
+    });
+  });
 });

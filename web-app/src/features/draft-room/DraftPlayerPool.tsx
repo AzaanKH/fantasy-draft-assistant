@@ -5,6 +5,8 @@ import * as React from 'react';
 import {
   type Player,
   type Position,
+  KICKER_DEFENSE_POSITIONS,
+  OFFENSIVE_POSITIONS,
   POSITIONS,
 } from '@fantasy-draft/shared/league';
 import {
@@ -27,7 +29,7 @@ import { formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { describePausedAdvice, getPlayerPoolRows, type PositionFilter } from './player-pool-rows';
 import { getRosterSlots } from './roster-slots';
 
-const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF'];
+const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...OFFENSIVE_POSITIONS, 'FLEX', ...KICKER_DEFENSE_POSITIONS];
 
 interface FilterCount {
   readonly filled: number;
@@ -135,8 +137,8 @@ export function DraftPlayerPool(): React.ReactElement {
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 
   const rows = React.useMemo(
-    () => getPlayerPoolRows(undraftedPlayers, overall.recommendations, positionFilter, deferredSearchQuery),
-    [deferredSearchQuery, overall.recommendations, positionFilter, undraftedPlayers]
+    () => getPlayerPoolRows(undraftedPlayers, overall.recommendations, positionFilter, deferredSearchQuery, config.rosterRequirements),
+    [config.rosterRequirements, deferredSearchQuery, overall.recommendations, positionFilter, undraftedPlayers]
   );
   const filterCounts = React.useMemo(
     () => getFilterCounts(myRoster, config.rosterRequirements, config.totalRounds),
