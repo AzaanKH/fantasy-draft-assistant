@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import {
@@ -541,7 +543,7 @@ export function AssistantPage({
             nextPickLabel={nextPickLabel}
             mode={mode}
             provider={liveSync.connection?.provider ?? null}
-            onMove={(...args) => { workspace.send('moveShortlistedPlayer', ...args); }}
+            onMove={(...args) => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'moveShortlistedPlayer', ...args); } else { workspace.send('moveShortlistedPlayer', ...args); } }}
             onRemove={removePlayerFromQueue}
             onSelect={handleSelectPlayer}
           />

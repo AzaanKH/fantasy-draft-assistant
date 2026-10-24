@@ -7,6 +7,8 @@ import type { WorkspaceCommand, WorkspaceSend, VoidWorkspaceCommand } from './co
 
 export type WorkspaceReader<T> = Pick<StoreApi<T>, 'getState' | 'getInitialState' | 'subscribe'>;
 export interface Workspace {
+  readonly status?: WorkspaceReader<import('./ui-dispatch').CommandStatus>;
+  readonly dismissError?: () => void;
   readonly draft: WorkspaceReader<DraftState>;
   readonly connection: WorkspaceReader<Pick<DraftSyncConnectionStore, 'connection'>>;
   readonly send: WorkspaceSend;

@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import * as React from 'react';
 import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
@@ -170,39 +172,39 @@ export function LiveDraftSyncProvider({ children }: {
   React.useEffect(() => {
     if (connection?.draftPosition === null || connection === null) return;
 
-    workspace.send('setConfig', { myPickPosition: connection.draftPosition });
-    workspace.send('setSessionMode', 'live');
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition }); } else { workspace.send('setConfig', { myPickPosition: connection.draftPosition }); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'live'); } else { workspace.send('setSessionMode', 'live'); }
   }, [connection, workspace]);
 
   React.useEffect(() => {
-    if (sync.draft) workspace.send('setConfig', { draftType: sync.draft.type });
+    if (sync.draft) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { draftType: sync.draft.type }); } else { workspace.send('setConfig', { draftType: sync.draft.type }); }
   }, [sync.draft, workspace]);
 
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
     setReconciliationTargetAt(null);
-    workspace.send('connection.startConnection', next.provider, next.draftId);
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.startConnection', next.provider, next.draftId); } else { workspace.send('connection.startConnection', next.provider, next.draftId); }
   }, [workspace]);
 
   const confirmDraftPosition = React.useCallback((draftPosition: number) => {
     setReconciliationTargetAt(null);
-    workspace.send('connection.confirmDraftPosition', draftPosition);
-    workspace.send('setConfig', { myPickPosition: draftPosition });
-    workspace.send('setSessionMode', 'live');
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.confirmDraftPosition', draftPosition); } else { workspace.send('connection.confirmDraftPosition', draftPosition); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { myPickPosition: draftPosition }); } else { workspace.send('setConfig', { myPickPosition: draftPosition }); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'live'); } else { workspace.send('setSessionMode', 'live'); }
   }, [workspace]);
 
   const enterManualContinuity = React.useCallback(() => {
     if (!canEnterManualContinuity) return;
     const baselineAt = sync.lastSuccessfulSyncAt ?? lastConfirmedSyncAt;
-    if (baselineAt !== null) workspace.send('enterManualContinuity', baselineAt);
+    if (baselineAt !== null) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'enterManualContinuity', baselineAt); } else { workspace.send('enterManualContinuity', baselineAt); }
   }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt, lastConfirmedSyncAt, workspace]);
 
   const disconnect = React.useCallback(() => {
     setReconciliationTargetAt(null);
-    workspace.send('connection.disconnect');
-    workspace.send('setConfig', { draftType: 'snake' });
-    workspace.send('applyLeagueSettings', createDefaultLeagueSettings());
-    workspace.send('resetDraft');
-    workspace.send('setSessionMode', 'setup');
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.disconnect'); } else { workspace.send('connection.disconnect'); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { draftType: 'snake' }); } else { workspace.send('setConfig', { draftType: 'snake' }); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'applyLeagueSettings', createDefaultLeagueSettings()); } else { workspace.send('applyLeagueSettings', createDefaultLeagueSettings()); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'resetDraft'); } else { workspace.send('resetDraft'); }
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'setup'); } else { workspace.send('setSessionMode', 'setup'); }
   }, [workspace]);
 
   const viewState = React.useMemo<DraftSyncViewState>(() => ({

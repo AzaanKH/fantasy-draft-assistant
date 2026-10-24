@@ -7,6 +7,7 @@
  * logic, and theme preferences stay identical across both surfaces.
  */
 
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { localWebAppBase } from '../shared/local-urls';
 import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
 
@@ -113,7 +114,7 @@ function loadSidePanel(force = false): void {
   currentFrameUrl = nextUrl;
   showLoadingState();
   clearLoadTimeout();
-  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+  if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb'))) {
     const attempt = ++sharingAttempt;
     stopSharingCheck?.();
     sharingStatus = 'pending';
@@ -181,12 +182,12 @@ function handleMessage(value: unknown): void {
 }
 
 async function openFullDraftRoom(): Promise<void> {
-  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') { loadSidePanel(true); return; }
+  if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb'))) { loadSidePanel(true); return; }
   await chrome.tabs.create({ url: getDraftContextUrl('/draft') });
 }
 
 frame.addEventListener('load', () => {
-  if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' && sharingStatus !== 'ready') return;
+  if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb')) && sharingStatus !== 'ready') return;
   clearLoadTimeout();
   loadingState.hidden = true;
   errorState.hidden = true;
@@ -200,7 +201,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 retryButton.addEventListener('click', () => { loadSidePanel(true); });
 openWebAppButton.addEventListener('click', () => { void openFullDraftRoom(); });
 chrome.runtime.onMessage.addListener(handleMessage);
-if (import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb'))) {
   window.addEventListener('pagehide', () => { ++sharingAttempt; stopSharingCheck?.(); }, { once: true });
 }
 

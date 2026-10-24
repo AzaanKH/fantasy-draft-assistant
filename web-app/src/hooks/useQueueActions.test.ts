@@ -5,6 +5,7 @@ import { createDraftStore } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { useQueueActions } from './useQueueActions';
 const mocks = vi.hoisted(() => ({ toast: vi.fn() }));
+vi.mock('@/workspace/ui-dispatch', () => ({ dispatchWorkspace: () => { throw new Error('OFF UI entered an activation wrapper'); } }));
 vi.mock('sonner', () => ({ toast: mocks.toast }));
 function setup() {
   const store = createDraftStore();

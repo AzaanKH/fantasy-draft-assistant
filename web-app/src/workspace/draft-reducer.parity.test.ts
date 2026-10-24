@@ -13,7 +13,9 @@ function dataState(state: DraftState) {
   return Object.fromEntries(Object.entries(state).filter(([, value]) => typeof value !== 'function'));
 }
 
-function applyToOracle(actions: DraftActions, command: DraftCommand, queue: readonly string[]): unknown {
+type OracleCommand = Exclude<DraftCommand, ['advanceSyncFreshness', number]>;
+
+function applyToOracle(actions: DraftActions, command: OracleCommand, queue: readonly string[]): unknown {
   switch (command[0]) {
     case 'setLiveDraftSession': { actions.setLiveDraftSession(command[1]); return; }
     case 'setSessionMode': { actions.setSessionMode(command[1]); return; }
@@ -44,6 +46,10 @@ function applyToOracle(actions: DraftActions, command: DraftCommand, queue: read
     case 'togglePlayerShortlisted': { actions.togglePlayerShortlisted(command[1]); return; }
     case 'removePlayerFromShortlist': { actions.removePlayerFromShortlist(command[1]); return; }
     case 'moveShortlistedPlayer': { actions.moveShortlistedPlayer(command[1], command[2]); return; }
+    case 'setPlayerShortlisted':
+      if (command[2]) { if (!queue.includes(command[1])) actions.togglePlayerShortlisted(command[1]); }
+      else actions.removePlayerFromShortlist(command[1]);
+      return;
     case 'addShortlistedPlayer':
       if (!queue.includes(command[1])) actions.togglePlayerShortlisted(command[1]);
       return;
@@ -68,7 +74,7 @@ function createReplay(seed: DraftState = initialDraftState(identity)) {
   return {
     state: () => state,
     cursor: () => deriveDraftCursor(state.draftHistory, state.draftProgress),
-    send(command: DraftCommand) {
+    send(command: OracleCommand) {
       const previous = structuredClone(state);
       const reduced = reduceDraftCommand(state, structuredClone(command));
       const actual = oracle.getState();
@@ -102,8 +108,10 @@ describe('pure draft reducer parity with the production null-storage store', () 
     const replay = createReplay();
     const settings = { ...createDefaultLeagueSettings(), totalTeams: 4, leagueId: 'parity', fingerprint: 'parity' };
     const requirements = { ...settings.rosterRequirements, BENCH: { spots: 3 } };
-    const commands: DraftCommand[] = [
+    const commands: OracleCommand[] = [
       ['setLiveDraftSession', identity],
+      ['setPlayerShortlisted', 'absolute', true], ['setPlayerShortlisted', 'absolute', true],
+      ['setPlayerShortlisted', 'absolute', false], ['setPlayerShortlisted', 'absolute', false],
       ['setConfig', { totalTeams: 6, totalRounds: 4, myPickPosition: 6, draftType: 'linear' }],
       ['applyLeagueSettings', settings], ['applyLeagueSettings', settings],
       ['setRosterRequirements', requirements],
@@ -255,7 +263,7 @@ describe('pure draft reducer parity with the production null-storage store', () 
     try {
       const pure = await import('./draft-reducer');
       let state = pure.initialDraftState(identity);
-      const commands: DraftCommand[] = [
+      const commands: OracleCommand[] = [
         ['setConfig', { totalTeams: 4 }], ['addShortlistedPlayer', 'p1'],
         ['recordProvisionalPick', pick(1)], ['enterManualContinuity', now],
         ['reconcileSyncedPicks', [{ ...pick(1), isMyPick: false }], 2, [], now + 1],
@@ -268,4 +276,14 @@ describe('pure draft reducer parity with the production null-storage store', () 
       vi.resetModules();
     }
   });
+});
+
+
+it('advances freshness monotonically without changing draft facts or the manual boundary', () => {
+  const previous = { ...initialDraftState(identity), lastConfirmedSyncAt: 200, manualContinuityBaselineAt: 100 };
+  expect(reduceDraftCommand(previous, ['advanceSyncFreshness', 150]).state).toBe(previous);
+  const advanced = reduceDraftCommand(previous, ['advanceSyncFreshness', 300]);
+  expect(advanced.state).toEqual({ ...previous, lastConfirmedSyncAt: 300 });
+  expect(previous.lastConfirmedSyncAt).toBe(200);
+  expect(() => reduceDraftCommand(previous, ['advanceSyncFreshness', Number.NaN])).toThrow('Invalid sync freshness');
 });

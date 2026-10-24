@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
@@ -80,6 +82,7 @@ function ProvisionalPickForm({
   const config = useDraftState((state) => state.config);
   const currentPick = useDraftView((view) => view.currentPick);
   const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
+  const [pending, setPending] = React.useState(false);
   const canRecord = useDraftView((view) => view.canRecord);
   const draftHistory = useDraftState((state) => state.draftHistory);
   const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
@@ -130,6 +133,15 @@ function ProvisionalPickForm({
   });
   const [error, setError] = React.useState<string | null>(null);
 
+  // A native select falls back to another enabled option when its selected
+  // option disappears. Render the invalid state in the same commit, before
+  // passive effects persist the cleared choice.
+  const selectedPickAvailable = editablePickNumbers.includes(Number(selectedPickNumber));
+  const displayedPickNumber = selectedPickAvailable ? selectedPickNumber : '';
+  const displayedError = !pending && selectedPickNumber && !selectedPickAvailable
+    ? `Pick ${selectedPickNumber} was just recorded elsewhere. Choose a pick.`
+    : error;
+
   React.useEffect(() => {
     if (!selectablePlayers.some((player) => player.id === selectedPlayerId)) {
       setSelectedPlayerId(selectablePlayers[0]?.id ?? '');
@@ -137,14 +149,13 @@ function ProvisionalPickForm({
   }, [selectablePlayers, selectedPlayerId]);
 
   React.useEffect(() => {
-    if (editablePickNumbers.includes(Number(selectedPickNumber))) return;
-    const nextPick = editablePickNumbers.includes(currentPick)
-      ? currentPick
-      : editablePickNumbers[0];
-    setSelectedPickNumber(nextPick === undefined ? '' : String(nextPick));
-  }, [currentPick, editablePickNumbers, selectedPickNumber]);
+    if (pending || !selectedPickNumber || editablePickNumbers.includes(Number(selectedPickNumber))) return;
+    setError(`Pick ${selectedPickNumber} was just recorded elsewhere. Choose a pick.`);
+    setSelectedPickNumber('');
+  }, [editablePickNumbers, pending, selectedPickNumber]);
 
-  const handleSave = (): void => {
+  const handleSave = async (): Promise<void> => {
+    if (pending) return;
     const player = selectablePlayers.find(
       (candidate) => candidate.id === selectedPlayerId
     );
@@ -167,9 +178,17 @@ function ProvisionalPickForm({
         draftHistory
       ),
     };
-    const saved = editingPick
-      ? workspace.send('correctProvisionalPick', editingPick.pickNumber, replacement)
-      : workspace.send('recordProvisionalPick', replacement);
+    setPending(true);
+    let saved: boolean;
+    try {
+      const outcome = editingPick
+        ? (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'correctProvisionalPick', editingPick.pickNumber, replacement) : workspace.send('correctProvisionalPick', editingPick.pickNumber, replacement))
+        : (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'recordProvisionalPick', replacement) : workspace.send('recordProvisionalPick', replacement));
+      saved = outcome instanceof Promise ? await outcome : outcome;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+      return;
+    } finally { setPending(false); }
     if (!saved) {
       setError(editingPick
         ? 'Choose a different player or an open draft position.'
@@ -177,6 +196,7 @@ function ProvisionalPickForm({
       return;
     }
 
+    setSelectedPickNumber('');
     onClose();
   };
 
@@ -215,15 +235,15 @@ function ProvisionalPickForm({
           <Select
             className="w-full"
             aria-label="Team and draft position"
-            value={selectedPickNumber}
-            onValueChange={setSelectedPickNumber}
-            options={editablePickNumbers.map((pickNumber) => {
+            value={displayedPickNumber}
+            onValueChange={(value) => { setSelectedPickNumber(value); setError(null); }}
+            options={[{ value: '', label: 'Choose a pick', disabled: true }, ...editablePickNumbers.map((pickNumber) => {
               const teamIndex = order.at(pickNumber).teamIndex;
               return {
                 value: String(pickNumber),
                 label: `Pick ${order.label(pickNumber)} · #${String(pickNumber)} · ${getTeamName(teamIndex, config.myPickPosition - 1, draftHistory)}`,
               };
-            })}
+            })]}
           />
         </label>
 
@@ -232,9 +252,9 @@ function ProvisionalPickForm({
             ? 'The corrected entry stays provisional and remains visible for later Reconciliation.'
             : 'The board will label this as a Provisional Pick. Provider Truth stays intact for later Reconciliation.'}
         </div>
-        {error ? (
+        {displayedError ? (
           <p className="text-xs font-semibold text-destructive" role="alert">
-            {error}
+            {displayedError}
           </p>
         ) : null}
       </div>
@@ -244,10 +264,10 @@ function ProvisionalPickForm({
           Cancel
         </Button>
         <Button
-          onClick={handleSave}
-          disabled={!canRecord ||
+          onClick={() => { void handleSave(); }}
+          disabled={pending || !canRecord ||
             !selectedPlayerId ||
-            !selectedPickNumber ||
+            !displayedPickNumber ||
             Boolean(
               editingPick &&
               editingPick.playerId === selectedPlayerId &&
@@ -255,7 +275,7 @@ function ProvisionalPickForm({
             )
           }
         >
-          {editingPick
+          {pending ? 'Saving...' : editingPick
             ? 'Save Correction'
             : 'Record Provisional Pick'}
         </Button>

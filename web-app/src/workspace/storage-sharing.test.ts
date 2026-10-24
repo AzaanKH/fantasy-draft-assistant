@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDraftDatabase } from './indexed-db';
-import { assertCanonicalOrigin, serveStorageProbe, verifyStorageSharing } from './storage-sharing';
+import { assertCanonicalOrigin, serveStorageProbe, verifyStorageSharing, installStorageSharingResponder } from './storage-sharing';
 import { startStorageSharing } from '../../../extension/src/sidepanel/storage-sharing';
 
 const canonicalOrigin = 'http://localhost:3000';
 const location = { origin: canonicalOrigin, pathname: '/draft', search: '' };
 const nonce = '0123456789abcdef0123456789abcdef';
 const disposers: (() => void)[] = [];
+beforeEach(() => { vi.stubEnv('VITE_PERSISTENCE_HARNESS', 'idb'); });
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   vi.restoreAllMocks();
@@ -258,4 +259,52 @@ describe('side panel bootstrap activation gate', () => {
     expect(create).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
   });
+});
+
+
+it('disables the helper writer in production even when activation is enabled', async () => {
+  vi.stubEnv('DEV', false);
+  const factory = new IDBFactory(); const open = vi.spyOn(factory, 'open');
+  await expect(serveStorageProbe(nonce, { factory, canonicalOrigin, location })).rejects.toThrow('development harness');
+  expect(open).not.toHaveBeenCalled();
+});
+
+it('loads the production panel directly without creating a test helper tab', async () => {
+  vi.stubEnv('DEV', false);
+  const { frame, create, ready, failed } = panelSetup();
+  await vi.waitFor(() => { expect(frame.src).toContain('__storageNonce='); });
+  expect(create).not.toHaveBeenCalled();
+  sharingMessage(frame);
+  expect(ready).toHaveBeenCalledOnce();
+  expect(failed).not.toHaveBeenCalled();
+});
+
+it('verifies production sharing against an ordinary app tab and removes the nonce', async () => {
+  vi.stubEnv('DEV', false);
+  const factory = new IDBFactory();
+  const channels = new Set<TestChannel>();
+  class TestChannel {
+    private listeners = new Set<(event: MessageEvent<unknown>) => void>();
+    constructor(readonly name: string) { channels.add(this); }
+    addEventListener(_type: string, receive: (event: MessageEvent<unknown>) => void) { this.listeners.add(receive); }
+    removeEventListener(_type: string, receive: (event: MessageEvent<unknown>) => void) { this.listeners.delete(receive); }
+    postMessage(data: unknown) { for (const channel of channels) if (channel !== this && channel.name === this.name) queueMicrotask(() => { for (const receive of channel.listeners) receive(new MessageEvent('message', { data })); }); }
+    close() { channels.delete(this); }
+  }
+  vi.stubGlobal('BroadcastChannel', TestChannel);
+  disposers.push(installStorageSharingResponder({ factory, canonicalOrigin, location }));
+  const secondResponder = installStorageSharingResponder({ factory, canonicalOrigin, location });
+  disposers.push(secondResponder);
+  const verified = await verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, pathname: '/sidepanel' }, nonce, timeoutMs: 500 });
+  expect(verified.kind).toBe('probed');
+  expect(await readProbe(factory)).toBeNull();
+});
+
+it('explains the production no-app-tab requirement without opening IndexedDB', async () => {
+  vi.stubEnv('DEV', false);
+  vi.stubGlobal('BroadcastChannel', class { addEventListener() {} postMessage() {} close() {} });
+  const factory = new IDBFactory(); const open = vi.spyOn(factory, 'open');
+  await expect(verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, pathname: '/sidepanel' }, nonce, timeoutMs: 10 }))
+    .rejects.toThrow('Keep the draft web app open in a normal tab');
+  expect(open).not.toHaveBeenCalled();
 });

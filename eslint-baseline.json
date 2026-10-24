@@ -41,12 +41,6 @@
       "@typescript-eslint/explicit-module-boundary-types": 1
     }
   },
-  "web-app/src/hooks/useDraftSyncReconciliation.ts": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
-    }
-  },
   "web-app/src/hooks/useLeagueTimingEvidence.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {

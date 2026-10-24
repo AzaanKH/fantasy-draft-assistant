@@ -13,7 +13,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.getElementById('sidepanel-frame')?.dispatchEvent(new Event('load'));
-  vi.unstubAllGlobals();
+  vi.unstubAllGlobals(); vi.unstubAllEnvs();
   document.body.innerHTML = '';
 });
 
@@ -125,4 +125,15 @@ describe('side panel background projections', () => {
     }
     expect(warn).toHaveBeenCalledTimes(3);
   });
+});
+
+it('ignores the development harness switch in a production side panel', async () => {
+  vi.stubEnv('DEV', false);
+  vi.stubEnv('VITE_PERSISTENCE_HARNESS', 'idb');
+  vi.stubGlobal('chrome', {
+    storage: { local: { get: vi.fn().mockResolvedValue({}) }, onChanged: { addListener: vi.fn() } },
+    runtime: { sendMessage: vi.fn().mockResolvedValue({ success: true, data: { status: { isInDraftRoom: false } } }), onMessage: { addListener: vi.fn() } },
+  });
+  await import('./sidepanel');
+  await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?provider=espn`); });
 });

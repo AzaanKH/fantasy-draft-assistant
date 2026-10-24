@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
@@ -143,15 +145,15 @@ export function useKeeperPreload(
 
   useEffect(() => {
     if (keepersEnabled === false) {
-      workspace.send('preloadKeepers', []);
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'preloadKeepers', []); } else { workspace.send('preloadKeepers', []); }
       return;
     }
     if (!query.data || playersLoading) return;
     if (!supplyIsComplete) {
-      workspace.send('preloadKeepers', [], false);
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'preloadKeepers', [], false); } else { workspace.send('preloadKeepers', [], false); }
       return;
     }
-    workspace.send('preloadKeepers', resolution.resolved);
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'preloadKeepers', resolution.resolved); } else { workspace.send('preloadKeepers', resolution.resolved); }
   }, [
     keepersEnabled,
     playersLoading,
