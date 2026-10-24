@@ -199,6 +199,7 @@ function leagueScoringBonusRules(rules: ScoringRules): LeagueScoringBonusRules {
   };
 }
 
+// Pure so content scripts that never score can drop this module.
 const CURRENT_LEAGUE_SCORING_ADJUSTMENTS: LeagueScoringBonusRules =
   /* @__PURE__ */ leagueScoringBonusRules(DEFAULT_SCORING_RULES);
 
@@ -250,7 +251,10 @@ interface LeagueScoringBonusColumns {
   readonly receptions: string;
 }
 
-/** DuckDB expression equal to calculateLeagueScoringAdjustment for the given columns. */
+/**
+ * DuckDB expression equal to calculateLeagueScoringAdjustment for the given columns. It is not
+ * parenthesized, so callers only add it to another term.
+ */
 export function leagueScoringAdjustmentSql(
   columns: LeagueScoringBonusColumns,
   rules: LeagueScoringBonusRules = CURRENT_LEAGUE_SCORING_ADJUSTMENTS

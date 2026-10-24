@@ -7,6 +7,8 @@ const draftRosterExports = Object.fromEntries(['DEFAULT_ROSTER_REQUIREMENTS', 'c
 const closedModules = { '@fantasy-draft/shared/draft': draftRosterExports };
 const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog, @fantasy-draft/shared/league or @fantasy-draft/shared/sync instead of casting JSON.parse() or response.json().';
 const leaguePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
+// A quoted, comma-separated position list inside a string or SQL template, such as `in ('QB', 'RB')`.
+const quotedPositionList = /'(?:QB|RB|WR|TE|K|DEF)'(?:\s*,\s*'(?:QB|RB|WR|TE|K|DEF)')+/g;
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-cross-package-import',
@@ -227,7 +229,7 @@ export default {
     'no-position-array': {
       meta: {
         type: 'problem', schema: [],
-        messages: { league: 'Name the position group from @fantasy-draft/shared/league instead of listing positions: POSITIONS, OFFENSIVE_POSITIONS, KICKER_DEFENSE_POSITIONS or FLEX_GROUPS, and isFlexEligible for the league-configured FLEX. Add a new group in shared/src/league/positions.ts.' },
+        messages: { league: 'Name the position group from @fantasy-draft/shared/league instead of listing positions: POSITIONS, OFFENSIVE_POSITIONS, KICKER_DEFENSE_POSITIONS or FLEX_GROUPS, and isFlexEligible for the league-configured FLEX. Add a new group in shared/src/league/positions.ts; build SQL lists with sqlPositionList.' },
       },
       create(context) {
         return {
@@ -236,6 +238,14 @@ export default {
             // A sequence that repeats a position is fixture data, not a position group.
             if (positions.length >= 2 && new Set(positions).size === positions.length) {
               context.report({ node, messageId: 'league' });
+            }
+          },
+          'Literal, TemplateElement'(node) {
+            const text = node.type === 'Literal' ? node.value : node.value.cooked;
+            if (typeof text !== 'string') return;
+            for (const [list] of text.matchAll(quotedPositionList)) {
+              const positions = list.match(/[A-Z]+/g);
+              if (new Set(positions).size === positions.length) context.report({ node, messageId: 'league' });
             }
           },
         };

@@ -182,6 +182,8 @@ describe('league constant rules', () => {
     "const FLEX_POSITIONS: readonly Position[] = ['RB', 'WR', 'TE'];",
     "const filters = ['ALL', 'QB', 'RB', 'FLEX'];",
     "const late = new Set(['K', `DEF`]);",
+    "const sql = `select * from stats where position in ('QB', 'RB', 'WR', 'TE')`;",
+    "const sql = \"where pos in ('K', 'DEF')\";",
   ])('rejects position groups outside shared/src/league: %s', (source) => {
     expect(leagueMessages(source)).toEqual([expect.objectContaining({
       ruleId: 'agent/no-position-array', message: expect.stringContaining('OFFENSIVE_POSITIONS'),
@@ -191,6 +193,8 @@ describe('league constant rules', () => {
     "const filters = ['ALL', ...OFFENSIVE_POSITIONS, 'FLEX'];",
     "const cycle = ['RB', 'WR', 'WR', 'RB'];",
     "if (position === 'TE') bonus();",
+    "const sql = `where position in ${sqlPositionList(OFFENSIVE_POSITIONS)} and position = 'TE'`;",
+    "const label = 'QB, RB, WR, TE';",
   ])('allows named groups, repeated fixture sequences and single positions: %s', (source) => {
     expect(leagueMessages(source)).toEqual([]);
   });

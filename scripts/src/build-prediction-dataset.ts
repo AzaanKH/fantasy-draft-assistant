@@ -27,7 +27,7 @@ import {
   runStatements,
   sqlString,
 } from './model/duckdb.js';
-import { OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
+import { KICKER_DEFENSE_POSITIONS, OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
 import { buildHistoricalSnapshots } from './model/historical-snapshots.js';
 import {
   POSITION_FEATURES,
@@ -1398,7 +1398,7 @@ const program = Effect.gen(function* () {
           0::double as usage_efficiency_adjustment,
           'special-teams-baseline-v1'::varchar as model_family
         from model.shared_prediction_features shared
-        where position in ('K', 'DEF')`,
+        where position in ${sqlPositionList(KICKER_DEFENSE_POSITIONS)}`,
       `create or replace table model.position_model_components as
         select * from model.qb_prediction_features
         union all by name select * from model.rb_prediction_features

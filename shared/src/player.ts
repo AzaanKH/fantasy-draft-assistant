@@ -156,9 +156,6 @@ export interface Player {
 }
 
 /**
- * Type guard to check if a value is a valid Position
- */
-/**
  * Type guard to check if a value is a valid NFLTeam
  */
 export function isNFLTeam(value: unknown): value is NFLTeam {
