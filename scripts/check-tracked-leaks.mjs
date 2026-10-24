@@ -13,6 +13,7 @@ const detectors = [
   ['jwt', /\beyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{16,}\b/g],
   ['private-id', /(?<![\w.])\d{16,20}(?![\w.])/g],
   ['named-private-id', /\b(?:league|draft|user)[_-]?id["']?\s*[:=]\s*["'](?:\d{6,15}|[A-Za-z0-9_-]{24,})["']/gi],
+  ['provider-url-id', /\bhttps?:\/\/(?:fantasy\.espn\.com\/football\/draft\/?\?(?:[^\s"'`<>#]*&)?leagueId=\d{1,15}(?=[&#\s"'`<>)]|$)|(?:football\.fantasysports\.yahoo\.com|sports-fantasy\.media\.yahoo\.com)\/(?:draftclient\/f1|draft\/f1|f1)\/\d{1,15}(?=[/?#\s"'`<>)]|$))/gi],
   ['league-name', /\b(?:leagueName|LEAGUE_NAME)["']?\s*[:=]\s*(["'])[^"'\n]{4,}\1/g],
   ['email', /(?<![\w.+-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi],
   ['phone', /(?<![\w\d])(?:\+1[ .-]?)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[ .-][2-9]\d{2}[ .-]\d{4}(?!\d)/g],

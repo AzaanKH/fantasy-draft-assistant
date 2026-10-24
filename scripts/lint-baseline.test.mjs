@@ -26,9 +26,32 @@ describe('lint occurrence baseline', () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].line).toBe(1);
   });
+  it('distinguishes the exact same expression in old and fresh declarations', () => {
+    const fresh = 'const fresh = JSON.parse(input) as Old;';
+    for (const [source, line] of [[`${fresh}\n${old}`, 1], [`${old}\n${fresh}`, 2]]) {
+      expect(compareBaseline(occurrences(source), baseline, ['cli'])).toEqual([expect.stringContaining('1 new violation')]);
+      const messages = newDiagnostics(diagnostics(source), source, baseline[file]);
+      expect(messages).toHaveLength(1);
+      expect(messages[0].line).toBe(line);
+    }
+  });
+  it('keeps every ambiguous duplicate visible when an extra occurrence is present', () => {
+    const source = `${old}\n${old}`;
+    expect(compareBaseline(occurrences(source), baseline, ['cli'])).toEqual([expect.stringContaining('1 new violation')]);
+    expect(newDiagnostics(diagnostics(source), source, baseline[file]).map(message => message.line)).toEqual([1, 2]);
+    const doubled = { ...baseline[file], occurrences: occurrences(source)[file] };
+    expect(newDiagnostics(diagnostics(source), source, doubled)).toEqual([]);
+  });
+  it('distinguishes declarations in named scopes without hashing unrelated statements', () => {
+    const existing = `function accepted() { ${old} }`;
+    const saved = { ...baseline[file], occurrences: occurrences(existing)[file] };
+    const source = `function fresh() { ${old} }\n${existing}`;
+    expect(newDiagnostics(diagnostics(source), source, saved).map(message => message.line)).toEqual([1]);
+    const changed = `function accepted() { const unrelated = true;\n${old} }`;
+    expect(newDiagnostics(diagnostics(changed), changed, saved)).toEqual([]);
+  });
   it('treats duplicate fingerprints as a multiset and detects stale reductions', () => {
     const doubled = `${old}\n${old}`;
-    expect(newDiagnostics(diagnostics(doubled), doubled, baseline[file])).toHaveLength(1);
     const doubleBaseline = { [file]: { ...baseline[file], occurrences: occurrences(doubled)[file] } };
     expect(compareBaseline(occurrences(old), doubleBaseline, ['cli'])).toEqual([expect.stringContaining('baseline is stale')]);
     expect(compareBaseline({}, baseline, ['cli'])).toEqual([expect.stringContaining('baseline is stale')]);

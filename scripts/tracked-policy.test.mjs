@@ -60,6 +60,42 @@ describe('tracked-tree leak policy', () => {
     const source = 'https://api.fantasypros.com/v2/json/nfl/2026/consensus-rankings; https://api.sleeper.app/v1/league/${leagueId}';
     expect(leakFindings('provider.ts', source)).toEqual([]);
   });
+  it.each([
+    ['ESPN', id => `https://fantasy.espn.com/football/draft?leagueId=${id}&seasonId=2026`],
+    ['ESPN trailing slash and later query', id => `https://fantasy.espn.com/football/draft/?teamId=7&leagueId=${id}`],
+    ...['football.fantasysports.yahoo.com', 'sports-fantasy.media.yahoo.com'].flatMap(host =>
+      ['draftclient/f1', 'draft/f1', 'f1'].map(route => [`Yahoo ${host}/${route}`, id => `https://${host}/${route}/${id}/3`])),
+  ])('detects numeric %s draft URL IDs below sixteen digits', (_name, url) => {
+    for (const id of [['765', '4321'].join(''), '7', '7'.repeat(15)]) {
+      const value = url(id);
+      const findings = leakFindings('provider.ts', value);
+      expect(findings).toHaveLength(1);
+      expect(findings[0].detector).toBe('provider-url-id');
+      const output = compareLeakAllowances(findings, []).join('\n');
+      expect(output).toContain('[REDACTED]');
+      expect(output).not.toContain(id);
+      expect(JSON.stringify(findings)).not.toContain(value);
+    }
+  });
+  it('retains the long Sleeper URL detector', () => {
+    const findings = leakFindings('provider.ts', `https://sleeper.com/draft/nfl/${'7'.repeat(18)}`);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].detector).toBe('private-id');
+  });
+  it.each(['${leagueId}', '{leagueId}', '<leagueId>', 'LEAGUE_ID'])('accepts provider URL placeholders %s', placeholder => {
+    const urls = [
+      `https://fantasy.espn.com/football/draft?leagueId=${placeholder}`,
+      `https://football.fantasysports.yahoo.com/draftclient/f1/${placeholder}/3`,
+      `https://sports-fantasy.media.yahoo.com/f1/${placeholder}`,
+      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/2026/segments/0/leagues/${placeholder}`,
+    ];
+    expect(leakFindings('provider.ts', urls.join('\n'))).toEqual([]);
+  });
+  it('describes the proxy-security numeric allowance as the synthetic TOKEN suffix', async () => {
+    const baseline = JSON.parse(await readFile(new URL('../tracked-leak-baseline.json', import.meta.url), 'utf8'));
+    const allowance = baseline.find(entry => entry.file === 'server/src/proxy-security.test.ts' && entry.detector === 'private-id');
+    expect(allowance.reason).toBe('Numeric suffix of the fixed synthetic TOKEN used by the isolated local proxy-security test server.');
+  });
   it('allows exact reasoned occurrences and fails adjacent additions in the same file', () => {
     const existing = leakFindings('import.ts', `const id = '${privateId}';`);
     const allowances = existing.map(finding => ({ ...finding, reason: 'Historical import must retain its input identifiers in this gate-only wave.' }));

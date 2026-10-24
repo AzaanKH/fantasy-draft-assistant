@@ -3,8 +3,8 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "6c784dca525f29f5a013b7fd6e297f781042ef3c3b43528b259c8688e0f30469",
-        "bd3a49a959f92d59af2aaad95ca21a6064744d382cadadae1684905318854780"
+        "9cac0aee8f789bb295f73d9a65a1dd925f5db1b2b9694c8c91328f485e525c59",
+        "80135a9e049b1e6442b23e8e369a1ba00d5294ea17c4b321f84fd9a642293b26"
       ]
     }
   },
@@ -12,7 +12,7 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "00dddb7c16aa57965cc122814c9a0580bb2a6daf80c240fd4c852400c4ae1d5b"
+        "26b114bbeead413ff0193cfcf61e7abb8a55f847150ceb5f6d6e2377ce6f2b18"
       ]
     }
   },
@@ -20,9 +20,9 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "39f9d8ffb86004ed0cc4f8af276e0fb6a100323d0d9800e864cceb392db803ef",
-        "39f9d8ffb86004ed0cc4f8af276e0fb6a100323d0d9800e864cceb392db803ef",
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "c496136d3df0ed15f3dcc5049a49c0017e7500cf6643e355b13845fb4ba45c8e",
+        "c496136d3df0ed15f3dcc5049a49c0017e7500cf6643e355b13845fb4ba45c8e",
+        "a594d214dc03c8672b22ea6b8137ce494fc19bb446d5c9898e3b92ce66163e0a"
       ]
     }
   },
@@ -30,7 +30,7 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "95d90111642437c8398c355d6e606163d92df22b234e7fc396d9d16cf7a79261"
       ]
     }
   },
@@ -38,7 +38,7 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "6b049ac951302159a6ca99eda49f42f365b5f9825b0f3bc4cc1fa9e7d0336bc7"
       ]
     }
   },
@@ -46,7 +46,7 @@
     "reason": "FantasyPros historical rankings label defenses 'DST', so this SQL list uses the source vocabulary rather than league positions.",
     "occurrences": {
       "agent/no-position-array": [
-        "83bb2800ee65b4cabd857e8fa7565e1acea5b483e853a80723cdbd1693443208"
+        "e2d354cc4772a354e79e9c9900a504877c60f02dc506e1a45f0be11554565b6c"
       ]
     }
   },
@@ -54,7 +54,7 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "a9337c6bdf4f931117874efad9eafb92461ed8b01fb73501cea5a326a2f05660"
       ]
     }
   },
@@ -62,8 +62,8 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "81d9c9748b380c6e3677628ee8e71d9285f3d5268b904546cb06d9f67fe87285",
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "060b09f67a4b66b0bfac1865b4d3a6b40ef0c5a2ece53c5969767e09675ac022",
+        "c2664cb34e63b7360cccc192e33795ea58f1be3942457c2fc847d70b0d4cc911"
       ]
     }
   },
@@ -71,7 +71,7 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "dc756841495700d2db50f7d90346f5609ff75958b084384cc3a7abb4d961d279"
       ]
     }
   },
@@ -79,7 +79,7 @@
     "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
     "occurrences": {
       "agent/no-inline-season": [
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "a24cae967d28871a41f15864b8aad0095dbfc868bd1b12a0e9f97344e8221273"
       ]
     }
   },
@@ -87,7 +87,7 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "c35ecd182e0624740316b5e0ebc756c187032ba9cb556bec784c06f7edb9989f"
+        "c3d72650a1a13e2e2704fab0df5fa7792876091eadfa3fe20ad28a1c73ca64b4"
       ]
     }
   },
@@ -95,13 +95,13 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "0420241361633f1f3f03473ece1dba64173558a6483ddfde0c00d6f31bf4bea0",
-        "fb731b33ec0832812644e6941cf372da8a819919ab3fe518a379cdcd3cef7e3d",
-        "4cf1959b9308cddd49b3085c4103320bcbed1cc5027104c788de95d376f26729",
-        "56db8d3e644a96373dfec660e6c24af93577fd7be1caf227a7c43eace5d1308d",
-        "4a06fd761d8754d4e4390172c7e932e47ee0c3104bfb6877e8498b54d1953200",
-        "a0023463abfd1649320ca10a75731f6fcc32fda3d662a1dd2aa0a841a51e2f00",
-        "54dd243d95b3146ad1691d081fd193db7dde0886364373ba3e70d8c26fe45c8e"
+        "415a21ff2a5b4edf991aac07c962f7cf6e666b89a1c0753da297224cffcf55b1",
+        "fd00fcc47aaf0dae8e1fd22d572eb06ce91c1295a3e38726e3bb5bf329ae39cf",
+        "fb031593d06f86bdfac666e776b8a55f882df042ac26bfc6d88bbf1cce28a0cc",
+        "55cfbfd2fa62ed74c3d16cd3ad6ace36ab32d404fc6c92bbde0cc48be1109d4c",
+        "4dd35c8f36b6cf265378a1446a293ed2018fd1f3523f25e709ba07752b5b2932",
+        "3490ad3c818a39e126acf5f2183c8a48bb5f9e368a2ca6a7cc63c000b9629674",
+        "9414eb5dd98bf5c2042e9bf3542f0882c1b5de8f1b7772e61f82ea9cdede92fe"
       ]
     }
   },
@@ -109,7 +109,7 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "dd1c048f92bcd820353abc722464ca7238c5c8a4d0f291277062d654a050e714"
+        "af7d67450c98b71f54cb0100ee17bd31eab6271dfa85270ad22914434bd4d3a5"
       ]
     }
   },
@@ -117,10 +117,10 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "664adce0970cdd950d0fb55f410d5a1bbcb978809f249e820a9a72cbc7f6cd22",
-        "8509d1811f5d04be11a850cc199e842d516e961d2b43a360d5e70ea219ee6e31",
-        "d960d862cb67d8c76c27ebd9095eda34edee2f8cd4e4a64c446a2222a99b2d8c",
-        "12e36d6c052e349586e2242c6cd940cdb7abefeb2cf5312c995b78af17b4bd6f"
+        "585e5dfe2290c4feaf5925733d5ce3f16285cea1df17e7bae67c1188755be524",
+        "f5f5427bf7c841c96eac671b8f423ef891d9d411bd2a0436c99df44439ab2c59",
+        "599755dbae6914a6bece5f20679a2652091322f5e6e77175bfaccff4493a38c9",
+        "2301cd260593b6ae2921a06bd4a576ecdb6a628a5be63793beafd0a6bfb72140"
       ]
     }
   },
@@ -128,7 +128,7 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "4c896a5746f4b0db93d14342c303a212836f3029ec7ffc6e466f61412f46fe94"
+        "c7b68ee6d5bbf32c3359e04731536a89a2d72ffe04f120345ba28b3c5e648320"
       ]
     }
   },
@@ -136,7 +136,7 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {
       "@typescript-eslint/explicit-module-boundary-types": [
-        "b22360cf53b656ed4fed3594758d8b5777abce9ea60fd1b8b38d205b145e1f7e"
+        "6472bee79d25d1c0f6f07bc885cc612e7eed2dd59869bfb2dba19f3c00bccefa"
       ]
     }
   },
@@ -144,13 +144,13 @@
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes. Its local-time season reads move onto the injected season provider in unit 13 wave 3.",
     "occurrences": {
       "agent/no-inline-season": [
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84",
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84",
-        "371504017bbe26f298dbf23edb7c1ca5dba8c834cbb5d3cdad43de4da0793c84"
+        "9b04d75b2e0cdf93fd4391d08b5395f64c94aa41b822aae9d656101bae3a2bae",
+        "0ef4793ed307ee012ea12b475a6865beb78be4e4232674bc930dd4a3f3742fa4",
+        "0ef4793ed307ee012ea12b475a6865beb78be4e4232674bc930dd4a3f3742fa4"
       ],
       "@typescript-eslint/explicit-module-boundary-types": [
-        "86fa1a8eea39b1506a4170631275a7214c6b016657ccfcf3cd78d475ae354c21",
-        "644e62ef4ae18b1f2e4b0786f9f6727cd87e53cdb39b7a70068b9fb6c108444f"
+        "56ad57af644a54021fec842617d30123bb584094711429939ba2a438f4667014",
+        "d41c01b4453edb9bb9e9b32b991ab979fe7373d34c94b7e0cb54091848be91b4"
       ]
     }
   },
@@ -158,7 +158,7 @@
     "reason": "The visual fixture cycles positions in a fixed display order; it is sample data, not a position group.",
     "occurrences": {
       "agent/no-position-array": [
-        "7796f92de972682615a4bd325578e1ddfca35d8c436b91904edf80fdbe94f227"
+        "8ba86862d8bca191d15c95bf0e273826e9f910033d68507328e1b0280f9213f7"
       ]
     }
   }

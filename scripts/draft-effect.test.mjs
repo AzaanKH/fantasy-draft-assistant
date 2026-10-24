@@ -37,6 +37,27 @@ describe('built shared/draft Effect-free import closure', () => {
       const fixture = await emitted({ 'draft/index.js': source });
       expect(() => checkDraftEffectFree(fixture)).toThrow();
     });
+  it.each(['node:module', 'module'])('rejects dormant createRequire through %s', async specifier => {
+    const fixture = await emitted({ 'draft/index.js': `import { createRequire } from '${specifier}';
+      export const dormant = () => createRequire(import.meta.url)('effect');` });
+    expect(() => checkDraftEffectFree(fixture)).toThrow('module loader capability');
+  });
+  it.each([
+    "import * as loader from 'node:module'; export const dormant = () => loader.createRequire(import.meta.url)('effect');",
+    "export { createRequire as loader } from 'module';",
+    "export const dormant = async () => (await import('node:module')).createRequire(import.meta.url)('effect');",
+    "const { createRequire } = require('module'); export const dormant = () => createRequire(__filename)('effect');",
+    "export const dormant = () => process.getBuiltinModule('module').createRequire(import.meta.url)('effect');",
+    "export const dormant = () => process.getBuiltinModule('node:module').createRequire(import.meta.url)('effect');",
+    "const loader = process['getBuiltinModule']; export const dormant = () => loader('module').createRequire(import.meta.url)('effect');",
+    "const { getBuiltinModule: loader } = process; export const dormant = () => loader('module').createRequire(import.meta.url)('effect');",
+    "const { ['getBuiltinModule']: loader } = process; export const dormant = () => loader('module').createRequire(import.meta.url)('effect');",
+    "import { getBuiltinModule as loader } from 'node:process'; export const dormant = () => loader('module').createRequire(import.meta.url)('effect');",
+  ])('rejects module loader capability in a dormant transitive module %#', async source => {
+    const fixture = await emitted({ 'draft/index.js': "export * from '../loader.js';", 'loader.js': source });
+    expect(() => checkDraftEffectFree(fixture)).toThrow('module loader capability');
+    expect(() => checkDraftEffectFree(fixture)).toThrow('loader.js');
+  });
   it('requires the emitted draft root', async () => {
     expect(() => checkDraftEffectFree({ root: '/missing-emitted-package' })).toThrow('Missing or unreadable emitted draft module');
   });

@@ -37,7 +37,7 @@ export async function lint(directories = gateWorkspaces.map(({ directory }) => d
   const failures = unknown.map((file) => `${file}: baseline is stale. Remove entries outside the linted workspace source files.`);
   failures.push(...compareBaseline(baselineOccurrences(results, root, sources), baseline, directories));
   const visible = results.map((result) => {
-    const messages = newDiagnostics(result.messages, sources.get(result.filePath), baseline[path.relative(root, result.filePath).replaceAll('\\', '/')]);
+    const messages = newDiagnostics(result.messages, sources.get(result.filePath), baseline[path.relative(root, result.filePath).replaceAll('\\', '/')], result.filePath);
     return { ...result, messages, errorCount: messages.filter(message => message.severity === 2).length,
       warningCount: messages.filter(message => message.severity === 1).length };
   });

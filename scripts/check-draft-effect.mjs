@@ -27,6 +27,13 @@ export function checkDraftEffectFree({ root = path.resolve(import.meta.dirname, 
     if (source.parseDiagnostics.length) throw new Error(`Cannot parse emitted module ${path.relative(root, file)}. Rebuild shared.`);
     const dependencies = [];
     function visit(node) {
+      const property = ts.isPropertyAccessExpression(node) ? node.name :
+        ts.isElementAccessExpression(node) ? node.argumentExpression :
+        ts.isBindingElement(node) || ts.isImportSpecifier(node) ? node.propertyName ?? node.name : undefined;
+      const name = property && ts.isComputedPropertyName(property) ? property.expression : property;
+      if (name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) && name.text === 'getBuiltinModule') {
+        throw new Error(`Emitted module ${path.relative(root, file)} exposes module loader capability. ${fixHint}`);
+      }
       if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) dependencies.push(node.moduleSpecifier);
       if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
           ts.isIdentifier(node.expression) && node.expression.text === 'require')) {
@@ -41,6 +48,7 @@ export function checkDraftEffectFree({ root = path.resolve(import.meta.dirname, 
       const specifier = dependency.text;
       const display = [...chain.map(id => path.relative(root, id)), specifier].join(' -> ');
       if (isEffectModule(specifier)) throw new Error(`${display} imports Effect. ${fixHint}`);
+      if (specifier.replace(/^node:/, '') === 'module') throw new Error(`${display} exposes module loader capability. ${fixHint}`);
       if (builtins.has(specifier.replace(/^node:/, ''))) continue;
       if (!specifier.startsWith('.')) throw new Error(`${display} is an unresolved external dependency. ${fixHint}`);
       pending.push([...chain, path.resolve(path.dirname(file), specifier)]);

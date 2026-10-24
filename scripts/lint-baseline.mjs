@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import ts from 'typescript';
 import agentRules, { baselineRuleIds } from './agent-lint-rules.mjs';
 
 export function ruleHint(rule) {
@@ -8,22 +9,32 @@ export function ruleHint(rule) {
     : agentRules.rules[rule?.replace(/^agent\//, '')]?.meta.docs.hint ?? 'Fix the reported lint violation.';
 }
 
-export function diagnosticFingerprint(message, source) {
+export function diagnosticFingerprint(message, source, tree = ts.createSourceFile('source.tsx', source, ts.ScriptTarget.Latest, true)) {
   const lines = source.split('\n');
   const offset = (line, column) => lines.slice(0, line - 1).reduce((length, text) => length + text.length + 1, 0) + column - 1;
   const start = offset(message.line, message.column);
   const end = message.endLine ? offset(message.endLine, message.endColumn) : start + 1;
-  return createHash('sha256').update(JSON.stringify([message.ruleId, message.messageId ?? message.message, source.slice(start, end)])).digest('hex');
+  const declarations = [];
+  function visit(node) {
+    if (node.getStart(tree) > start || node.end < end) return;
+    if (node.name) declarations.push([ts.SyntaxKind[node.kind], node.name.getText(tree)]);
+    ts.forEachChild(node, visit);
+  }
+  visit(tree);
+  return createHash('sha256').update(JSON.stringify([message.ruleId, message.messageId ?? message.message, source.slice(start, end), declarations])).digest('hex');
 }
 
 export function baselineOccurrences(results, root, sources) {
   const actual = {};
   for (const result of results) {
+    const messages = result.messages.filter(message => baselineRuleIds.includes(message.ruleId));
+    if (!messages.length) continue;
     const file = path.relative(root, result.filePath).replaceAll('\\', '/');
-    for (const message of result.messages) {
-      if (!baselineRuleIds.includes(message.ruleId)) continue;
+    const source = sources.get(result.filePath);
+    const tree = ts.createSourceFile(result.filePath, source, ts.ScriptTarget.Latest, true);
+    for (const message of messages) {
       actual[file] ??= {};
-      (actual[file][message.ruleId] ??= []).push(diagnosticFingerprint(message, sources.get(result.filePath)));
+      (actual[file][message.ruleId] ??= []).push(diagnosticFingerprint(message, source, tree));
     }
   }
   return actual;
@@ -53,14 +64,16 @@ export function compareBaseline(actual, baseline, directories) {
   return failures;
 }
 
-export function newDiagnostics(messages, source, saved) {
-  const remaining = new Map(Object.entries(saved?.occurrences ?? {}).map(([rule, ids]) => [rule, [...ids]]));
-  return messages.filter(message => {
-    if (!baselineRuleIds.includes(message.ruleId)) return true;
-    const ids = remaining.get(message.ruleId) ?? [];
-    const index = ids.indexOf(diagnosticFingerprint(message, source));
-    if (index < 0) return true;
-    ids.splice(index, 1);
-    return false;
+export function newDiagnostics(messages, source, saved, fileName = 'source.tsx') {
+  if (!messages.some(message => baselineRuleIds.includes(message.ruleId))) return messages;
+  const tree = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
+  const fingerprints = messages.map(message => baselineRuleIds.includes(message.ruleId) ? diagnosticFingerprint(message, source, tree) : null);
+  const totals = new Map();
+  for (const id of fingerprints) totals.set(id, (totals.get(id) ?? 0) + 1);
+  return messages.filter((message, index) => {
+    const id = fingerprints[index];
+    if (id === null) return true;
+    const allowed = saved?.occurrences?.[message.ruleId]?.filter(fingerprint => fingerprint === id).length ?? 0;
+    return totals.get(id) > allowed;
   });
 }
