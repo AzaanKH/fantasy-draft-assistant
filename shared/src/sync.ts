@@ -1,4 +1,5 @@
 import { isBoundedInteger, isDraftSize } from './limits.js';
+import { systemClock } from './units/clock.js';
 import { type Position } from './player.js';
 import { type LeagueSettings } from './league-settings.js';
 
@@ -69,7 +70,7 @@ export function normalizeSleeperPick(pick: SleeperDraftPick): DraftPickEvent {
     isKeeper: Boolean(pick.is_keeper),
     source: 'sleeper-api',
     confidence: 'confirmed',
-    observedAt: Date.now(),
+    observedAt: systemClock.now(),
   };
 }
 
@@ -136,7 +137,7 @@ export class DraftSyncEngine {
     return this.snapshot;
   }
 
-  public beginSync(now: number = Date.now()): DraftSyncSnapshot {
+  public beginSync(now: number = systemClock.now()): DraftSyncSnapshot {
     this.snapshot = {
       ...this.snapshot,
       status: 'syncing',
@@ -146,7 +147,7 @@ export class DraftSyncEngine {
     return this.snapshot;
   }
 
-  public failSync(message: string, now: number = Date.now()): DraftSyncSnapshot {
+  public failSync(message: string, now: number = systemClock.now()): DraftSyncSnapshot {
     this.snapshot = {
       ...this.snapshot,
       status: 'error',
@@ -159,7 +160,7 @@ export class DraftSyncEngine {
   public reconcile(
     draft: DraftMetadata,
     normalizedPicks: readonly DraftPickEvent[],
-    now: number = Date.now()
+    now: number = systemClock.now()
   ): {
     readonly snapshot: DraftSyncSnapshot;
     readonly newPicks: readonly DraftPickEvent[];

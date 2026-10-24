@@ -1,3 +1,4 @@
+import { systemClock } from './units/clock.js';
 export const CORE_DRAFT_DATA_KEYS = [
   'trusted-rankings',
   'canonical-player-identities',
@@ -287,7 +288,7 @@ function createItem(
 
 export function evaluateDraftReadiness(
   input: EvaluateDraftReadinessInput,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): DraftReadinessReport {
   if (!Number.isFinite(now)) {
     throw new Error('Draft Readiness requires a finite evaluation timestamp.');
