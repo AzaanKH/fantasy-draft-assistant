@@ -1,4 +1,4 @@
-import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
+import { CATALOG, READINESS_MINIMUMS, catalogPath } from '@fantasy-draft/shared/catalog';
 import { Schema } from 'effect';
 import { decodeFantasyProsSnapshot, decodeSportsbookSnapshot, decodeSleeperDataFile, decodePlayerIdentityFile, decodeTeamEnvDataFile, decodePredictionsDataFile, decodeRecommendationPolicyFile, decodeLeagueSurvivalModel, decodeContractDataFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
 import { decodeModelReport, decodeHistoricalSnapshotReport } from './script-file-schemas.js';
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
   add(checks, 'fantasypros.season', fpSeason === CURRENT_SEASON ? 'pass' : 'fail',
     'FantasyPros snapshot season matches the draft season.', String(fpSeason), String(CURRENT_SEASON));
   for (const [id, values, minimum] of [
-    ['rankings', rankings, 350],
+    ['rankings', rankings, READINESS_MINIMUMS.rankings],
     ['adp', adp, 300],
     ['projections', projections, 400],
   ] as const) {
@@ -219,8 +219,8 @@ async function main(): Promise<void> {
   const matchedDefenses = Number(nested(identity, 'coverage', 'matchedDefenses') ?? 0);
   add(checks, 'identity.top250.match-rate', top250MatchRate >= 0.98 ? 'pass' : 'fail',
     'Top-250 FantasyPros rankings map to a Sleeper identity.', Number(top250MatchRate.toFixed(4)), '>= 0.98');
-  add(checks, 'identity.defenses', matchedDefenses === 32 ? 'pass' : 'fail',
-    'All team defenses have canonical identities.', matchedDefenses, '32');
+  add(checks, 'identity.defenses', matchedDefenses === READINESS_MINIMUMS.defenses ? 'pass' : 'fail',
+    'All team defenses have canonical identities.', matchedDefenses, String(READINESS_MINIMUMS.defenses));
 
   const teamEnvironment = loaded.get('team-environment.json');
   const teams = nested(teamEnvironment, 'teams');
@@ -253,8 +253,8 @@ async function main(): Promise<void> {
   const invalidPredictions = predictionPlayers.filter((entry) =>
     !isRecord(entry) || !finiteNumber(entry['projectedPoints'])
   ).length;
-  add(checks, 'predictions.count', predictionPlayers.length >= 800 ? 'pass' : 'fail',
-    'Prediction output meets the minimum usable count.', predictionPlayers.length, '>= 800');
+  add(checks, 'predictions.count', predictionPlayers.length >= READINESS_MINIMUMS.predictions ? 'pass' : 'fail',
+    'Prediction output meets the minimum usable count.', predictionPlayers.length, `>= ${String(READINESS_MINIMUMS.predictions)}`);
   add(checks, 'predictions.finite', predictionRowsValid && invalidPredictions === 0 ? 'pass' : 'fail',
     'All projected point values are finite.',
     predictionRowsValid ? invalidPredictions : predictionRowWarnings.map(check => check.message).join(' '), '0 invalid');
@@ -372,10 +372,10 @@ async function main(): Promise<void> {
 
   const contracts = loaded.get('contracts.json');
   const contractPlayers = asArray(nested(contracts, 'players'));
-  add(checks, 'contracts.current-context', contractPlayers.length >= 50 ? 'pass' : 'fail',
+  add(checks, 'contracts.current-context', contractPlayers.length >= READINESS_MINIMUMS.contracts ? 'pass' : 'fail',
     contractPlayers.length > 0
       ? 'Contract-year context is populated from nflverse.'
-      : 'Contract-year context is empty.', contractPlayers.length, '>= 50');
+      : 'Contract-year context is empty.', contractPlayers.length, `>= ${String(READINESS_MINIMUMS.contracts)}`);
   const contractSourceAgeDays =
     (Date.now() - timestamp(nested(contracts, 'sourceUpdatedAt'))) / (24 * 60 * 60 * 1000);
   add(checks, 'contracts.source-freshness',
