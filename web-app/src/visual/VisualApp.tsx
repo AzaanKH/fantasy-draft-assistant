@@ -443,7 +443,7 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
       return route.state === 'draft'
         ? <DraftWorkspaceFixture />
         : route.state === 'assistant'
-          ? <><Header route="assistant" /><AssistantSkeleton lens="wait" onReturnToDraft={() => undefined} /></>
+          ? <><Header route="assistant" /><AssistantSkeleton analysisTab="wait" onReturnToDraft={() => undefined} /></>
           : <SidePanelSkeleton />;
     case 'not-found':
       return <main className="p-4">Visual fixture not found.</main>;
@@ -511,7 +511,8 @@ export function VisualApp(): React.ReactElement {
               <NotificationProvider>
                 <TooltipProvider><MotionProvider>
                   <LiveDraftSyncProvider>
-                    <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                    {/* Readiness has no sources until player data loads, so loading screens are also blocked. */}
+                    <DraftDecisionProvider readiness={route.screen === 'loading' ? VISUAL_BLOCKED_REPORT : VISUAL_READY_REPORT}>
                       <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
                         <VisualRouteContent route={route} />
                       </div>

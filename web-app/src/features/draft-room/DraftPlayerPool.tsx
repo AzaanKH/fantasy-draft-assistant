@@ -124,7 +124,17 @@ function DraftPlayerRow({
 /** Fills the pool's scroll area while player data loads; the area's height is fixed, so the count only needs to cover it. */
 const PLACEHOLDER_ROW_COUNT = 10;
 
-/** A loading row in the real row grid. Its text lines copy the name and meta line boxes, not their classes, which browser drivers read names from. */
+/** Name and meta lines while loading. They copy the line boxes of .draft-pool-name and .draft-pool-meta, not the classes, which browser drivers read names from. */
+export function PlayerLinesPlaceholder(): React.ReactElement {
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="text-sm leading-5"><SkeletonText className="w-32" /></div>
+      <div className="text-xs leading-4"><SkeletonText className="w-24" /></div>
+    </div>
+  );
+}
+
+/** A loading row in the pool's own row grid. */
 function DraftPlayerRowPlaceholder({ showDraftAction }: { readonly showDraftAction: boolean }): React.ReactElement {
   return (
     <div role="row" aria-hidden="true" className="draft-pool-row draft-pool-columns">
@@ -132,10 +142,7 @@ function DraftPlayerRowPlaceholder({ showDraftAction }: { readonly showDraftActi
       <div className="draft-pool-rank"><SkeletonText className="w-5" /></div>
       <div className="draft-pool-player">
         <SkeletonBlock className="size-9 shrink-0 rounded-full" />
-        <div className="min-w-0">
-          <div className="text-sm leading-5"><SkeletonText className="w-32" /></div>
-          <div className="text-xs leading-4"><SkeletonText className="w-24" /></div>
-        </div>
+        <PlayerLinesPlaceholder />
       </div>
       <div className="draft-pool-number"><SkeletonText className="w-6" /></div>
       <div className="draft-pool-number"><SkeletonText className="w-8" /></div>

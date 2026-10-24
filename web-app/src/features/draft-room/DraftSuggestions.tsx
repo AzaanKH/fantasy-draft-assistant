@@ -148,8 +148,8 @@ export function DraftSuggestions({
 }: {
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
 }): React.ReactElement {
-  const { overall, isLoading } = useDraftDecision();
-  const { players } = usePlayerDataQuery();
+  const { overall, isLoading: decisionLoading } = useDraftDecision();
+  const { players, isLoading: playersLoading } = usePlayerDataQuery();
   const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { togglePlayerQueued } = useQueueActions(players);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
@@ -159,7 +159,8 @@ export function DraftSuggestions({
   );
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 
-  if (isLoading) {
+  // Readiness reads as blocked until player data arrives, which turns the decision's own loading flag off.
+  if (decisionLoading || playersLoading) {
     return (
       <div className={SUGGESTION_GRID}>
         <LoadingStatus label="Loading suggestions" />

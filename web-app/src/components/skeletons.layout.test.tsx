@@ -76,6 +76,12 @@ describe('loading states share the loaded layout', () => {
     expect(loading.querySelectorAll('[data-player-row]')).toHaveLength(0);
     for (const row of placeholderRows) expect(row.children).toHaveLength(loadedColumns ?? -1);
     expect(loading.querySelector('.draft-pool-footer')?.textContent).toContain('Loading players');
+    // Readiness is blocked until data arrives; the workspace reports loading, not paused advice.
+    expect(loading.querySelector('.draft-best-pick-inline')?.textContent).toContain('Finding your best pick');
+    expect(loading.querySelector('.draft-pool-paused')).toBeNull();
+    const suggestions = [...loading.querySelectorAll<HTMLElement>('[role=tab]')].find((tab) => tab.textContent?.startsWith('Suggestions'));
+    act(() => { suggestions?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })); });
+    expect(loading.querySelector('[role=tabpanel][data-state=active]')?.textContent).toContain('Loading suggestions');
   });
 
   it('builds the Assistant loading state from the page layout', () => {
@@ -83,6 +89,9 @@ describe('loading states share the loaded layout', () => {
     const loading = renderVisual('/__visual/loading?state=assistant');
     expect(loading.querySelector('.rec-workspace')?.getAttribute('aria-busy')).toBe('true');
     expect(outline(loading, ASSISTANT_LAYOUT)).toEqual(loaded);
+    for (const tab of loading.querySelectorAll('[role=tab][aria-selected=true]')) {
+      expect(loading.querySelector(`#${tab.getAttribute('aria-controls') ?? ''}`)).not.toBeNull();
+    }
     expect([...loading.querySelectorAll('.rec-tabs [role=tab]')].map((tab) => tab.textContent)).toEqual([
       'Suggestions', 'Position tiers', 'Why this player?', 'Compare options', 'Can I wait?', 'What does my roster need?',
     ]);

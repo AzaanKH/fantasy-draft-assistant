@@ -4,7 +4,7 @@ import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Recommendation,
   RecommendationDecisionFactors,
@@ -29,6 +29,8 @@ vi.mock('@/hooks/useQueueActions', () => ({
 }));
 
 describe('DraftDecisionBar loading', () => {
+  afterEach(() => { Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false }); });
+
   it('keeps the settled pick visible while loading', () => {
     decision.output.bestPick = recommendation();
     const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() })));
@@ -44,7 +46,6 @@ describe('DraftDecisionBar loading', () => {
     const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
     expect(markup).toContain('Finding your best pick');
     expect(markup).not.toContain('Paused until setup');
-    Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false });
   });
 
   it('shows loading feedback in the same bar before the first pick', () => {

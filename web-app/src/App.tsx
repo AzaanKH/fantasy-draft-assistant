@@ -203,7 +203,7 @@ export function App(): React.ReactElement {
               <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
                 {/* DraftRoom ships in this chunk and is its own loading state, so only the lazy Assistant needs a fallback. */}
                 <React.Suspense fallback={route === 'assistant'
-                  ? <AssistantSkeleton lens={assistantNavigationTarget.lens} onReturnToDraft={() => { navigate('draft'); }} />
+                  ? <AssistantSkeleton analysisTab={assistantNavigationTarget.lens} onReturnToDraft={() => { navigate('draft'); }} />
                   : null}>
                   {route === 'assistant' ? (
                     <AssistantPage

@@ -29,7 +29,8 @@ export function AssistantViewTabs({
   onChange,
 }: {
   readonly view: AssistantView;
-  readonly onChange: (view: AssistantView) => void;
+  /** Omitted while the page loads, which disables the tabs. */
+  readonly onChange?: (view: AssistantView) => void;
 }): React.ReactElement {
   return (
     <div
@@ -41,6 +42,7 @@ export function AssistantViewTabs({
         event.preventDefault();
         const next = view === 'suggestions' ? 'tiers' : 'suggestions';
         const target = event.key === 'Home' ? 'suggestions' : event.key === 'End' ? 'tiers' : next;
+        if (!onChange) return;
         onChange(target);
         document.getElementById(`rec-view-${target}`)?.focus();
       }}
@@ -54,7 +56,8 @@ export function AssistantViewTabs({
           aria-selected={view === item}
           aria-controls={`rec-view-panel-${item}`}
           tabIndex={view === item ? 0 : -1}
-          onClick={() => { onChange(item); }}
+          disabled={!onChange}
+          onClick={() => { onChange?.(item); }}
         >
           {item === 'suggestions' ? 'Suggestions' : 'Position tiers'}
         </button>
@@ -68,7 +71,8 @@ export function AnalysisTabs({
   onChange,
 }: {
   readonly tab: AssistantLens;
-  readonly onChange: (tab: AssistantLens) => void;
+  /** Omitted while the page loads, which disables the tabs. */
+  readonly onChange?: (tab: AssistantLens) => void;
 }): React.ReactElement {
   const selectedIndex = ANALYSIS_TABS.findIndex((item) => item.id === tab);
   return (
@@ -85,7 +89,7 @@ export function AnalysisTabs({
             ? ANALYSIS_TABS.length - 1
             : (selectedIndex + (event.key === 'ArrowRight' ? 1 : -1) + ANALYSIS_TABS.length) % ANALYSIS_TABS.length;
         const target = ANALYSIS_TABS[next];
-        if (!target) return;
+        if (!target || !onChange) return;
         onChange(target.id);
         document.getElementById(`rec-tab-${target.id}`)?.focus();
       }}
@@ -99,7 +103,8 @@ export function AnalysisTabs({
           aria-selected={tab === item.id}
           aria-controls="rec-analysis-panel"
           tabIndex={tab === item.id ? 0 : -1}
-          onClick={() => { onChange(item.id); }}
+          disabled={!onChange}
+          onClick={() => { onChange?.(item.id); }}
         >
           {item.label}
         </button>
@@ -177,7 +182,7 @@ function PreferredPickPlaceholder({ lens }: { readonly lens: DecisionLens }): Re
       </div>
       <dl className="rec-metrics">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="rec-metric">
+          <div key={index} className={index === 0 ? 'rec-metric rec-metric-lead' : 'rec-metric'}>
             <dt><SkeletonText className="w-28" /></dt>
             <dd className="rec-metric-value"><SkeletonText className="w-16" /></dd>
             {index === 0 ? <dd className="rec-metric-note"><SkeletonText className="w-36" /></dd> : null}
@@ -195,10 +200,10 @@ function PreferredPickPlaceholder({ lens }: { readonly lens: DecisionLens }): Re
 
 /** Loading state for the lazy Assistant page: the real layout, tabs and headings, with placeholders for player data. */
 export function AssistantSkeleton({
-  lens: analysisTab,
+  analysisTab,
   onReturnToDraft,
 }: {
-  readonly lens: AssistantLens;
+  readonly analysisTab: AssistantLens;
   readonly onReturnToDraft: () => void;
 }): React.ReactElement {
   const lens = useDraftState((state) => state.decisionLens);
@@ -216,15 +221,15 @@ export function AssistantSkeleton({
           <LensToggle lens={lens} />
         </div>
       </div>
-      <AssistantViewTabs view="suggestions" onChange={() => undefined} />
+      <AssistantViewTabs view="suggestions" />
       <SuggestionsLayout
         main={(
           <>
             <LeadHeading lens={lens} onReturnToDraft={onReturnToDraft} />
             <PreferredPickPlaceholder lens={lens} />
             <section className="rec-analysis" aria-label="Viewed player analysis">
-              <AnalysisTabs tab={analysisTab} onChange={() => undefined} />
-              <div className="rec-answer">
+              <AnalysisTabs tab={analysisTab} />
+              <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${analysisTab}`} className="rec-answer">
                 <p className="rec-answer-subject"><SkeletonText className="w-40" /></p>
                 <div className="rec-answer-rows">
                   {Array.from({ length: 3 }, (_, index) => (

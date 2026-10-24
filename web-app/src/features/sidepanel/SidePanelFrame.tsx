@@ -68,7 +68,8 @@ export function PositionFilters({
   onChange,
 }: {
   readonly value: PositionFilter;
-  readonly onChange: (position: PositionFilter) => void;
+  /** Omitted while the panel loads, which disables the filters. */
+  readonly onChange?: (position: PositionFilter) => void;
 }): React.ReactElement {
   return (
     <div
@@ -81,7 +82,8 @@ export function PositionFilters({
           key={position}
           type="button"
           aria-pressed={position === value}
-          onClick={() => { onChange(position); }}
+          disabled={!onChange}
+          onClick={() => { onChange?.(position); }}
           className={cn(
             'h-11 border-r border-border/70 text-[11px] font-bold transition-colors last:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             position === value
@@ -101,7 +103,8 @@ export function SidePanelNavigation({
   onChange,
 }: {
   readonly view: SidePanelView;
-  readonly onChange: (view: SidePanelView) => void;
+  /** Omitted while the panel loads, which disables navigation. */
+  readonly onChange?: (view: SidePanelView) => void;
 }): React.ReactElement {
   const items: readonly { readonly id: SidePanelView; readonly label: string; readonly icon: typeof ShieldCheck }[] = [
     { id: 'draft', label: 'Draft', icon: ShieldCheck },
@@ -120,7 +123,8 @@ export function SidePanelNavigation({
             key={item.id}
             type="button"
             aria-current={active ? 'page' : undefined}
-            onClick={() => { onChange(item.id); }}
+            disabled={!onChange}
+            onClick={() => { onChange?.(item.id); }}
             className={cn(
               'flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
               active ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground hover:text-foreground'
@@ -137,11 +141,10 @@ export function SidePanelNavigation({
 
 /** Loading state for the side panel's Draft view: the real frame, header, filters and navigation, with placeholders for data. */
 export function SidePanelSkeleton(): React.ReactElement {
-  const ignore = (): void => undefined;
   return (
     <SidePanelFrame
       header={<SidePanelHeader title="Fantasy Draft" />}
-      navigation={<SidePanelNavigation view="draft" onChange={ignore} />}
+      navigation={<SidePanelNavigation view="draft" />}
     >
       <LoadingStatus label="Loading draft recommendations" />
       <div className={STATUS_CARD} aria-hidden="true">
@@ -152,7 +155,7 @@ export function SidePanelSkeleton(): React.ReactElement {
         <div className="flex h-14 items-center justify-center border-x border-border/70 px-2"><SkeletonText className="w-8" /></div>
         <div className="flex h-14 items-center justify-end px-3"><SkeletonText className="w-20" /></div>
       </div>
-      <PositionFilters value="ALL" onChange={ignore} />
+      <PositionFilters value="ALL" />
       <section className={HERO_CARD} aria-hidden="true">
         <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Your best pick</div>
         <div className="mt-3 flex items-center gap-3">

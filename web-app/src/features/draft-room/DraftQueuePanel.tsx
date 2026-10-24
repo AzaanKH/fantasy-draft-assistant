@@ -4,23 +4,20 @@ import * as React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionLabel } from '@/components/PositionLabel';
-import { SkeletonBlock, SkeletonText } from '@/components/skeletons';
+import { SkeletonBlock } from '@/components/skeletons';
+import { PlayerLinesPlaceholder } from './DraftPlayerPool';
 import { MotionReorderItem, MotionReorderList } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 
-/** A loading queue row. Its text lines copy the name and meta line boxes, not their classes, which browser drivers read names from. */
 function QueueRowPlaceholder({ index }: { readonly index: number }): React.ReactElement {
   return (
     <div aria-hidden="true" className="draft-queue-row">
       <span className="draft-queue-index">{String(index + 1)}</span>
       <SkeletonBlock className="size-9 shrink-0 rounded-full" />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm leading-5"><SkeletonText className="w-32" /></div>
-        <div className="text-xs leading-4"><SkeletonText className="w-24" /></div>
-      </div>
+      <PlayerLinesPlaceholder />
       <SkeletonBlock className="h-8 w-16 rounded-sm" />
       <SkeletonBlock className="size-8 rounded-sm" />
     </div>
