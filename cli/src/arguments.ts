@@ -4,10 +4,8 @@ import { type DecisionLens } from '@fantasy-draft/shared/draft';
 import { type DraftProvider } from '@fantasy-draft/shared/sync';
 import { CliError } from './errors';
 import { parseDraftRoomUrl } from '@fantasy-draft/shared/sync';
+import { COMMANDS, isCommand, type Command, type CommandDescriptor } from './commands';
 
-const COMMANDS = ['readiness', 'status', 'players', 'recommend', 'compare', 'wait', 'watch',
-  'sessions', 'connect', 'roster', 'export', 'replay'] as const;
-type Command = typeof COMMANDS[number];
 export interface SessionId { readonly provider: DraftProvider; readonly draftId: string; readonly id: string }
 export interface Arguments {
   readonly command: Command;
@@ -36,20 +34,7 @@ interface ArgumentDefaults {
 export const HELP = `Usage: draft COMMAND [options]
 
 Commands:
-  readiness                 Check core data, freshness, settings, and keepers
-  status --session SESSION  Inspect picks, your next turn, and sync health
-  players --session SESSION Search the player pool with stable IDs
-  recommend --session SESSION
-  compare PLAYER_A PLAYER_B --session SESSION
-  wait PLAYER_ID --session SESSION
-  watch --session SESSION --format ndjson
-  sessions                  List sessions retained by the local server
-  connect SESSION_OR_URL    Connect and save your session and draft slot
-  roster --session SESSION  Inspect players, keepers, and remaining needs
-  export --session SESSION --out FILE
-                            Save a self-contained session archive
-  replay FILE [--pick NUMBER] [--format ndjson]
-                            Inspect or stream recorded picks offline
+${Object.values(COMMANDS).map(command => command.help).join('\n')}
 
 Options:
   --json                    Write a versioned JSON result, including errors
@@ -118,23 +103,18 @@ export function parseArguments(argv: readonly string[], env: NodeJS.ProcessEnv, 
   const parsed = parseOptions(argv);
   if (parsed.values.help || argv.length === 0) return null;
   const [command, ...positionals] = parsed.positionals;
-  if (!COMMANDS.includes(command as Command)) return usage(`Unknown command ${command ?? ''}. Run draft --help.`);
-  const typedCommand = command as Command;
+  if (!isCommand(command)) return usage(`Unknown command ${command ?? ''}. Run draft --help.`);
+  const typedCommand = command;
+  const descriptor: CommandDescriptor = COMMANDS[typedCommand];
   const values = parsed.values;
-  const allowed: Record<Command, readonly string[]> = {
-    readiness: [], status: [], players: ['position', 'available', 'search', 'limit'],
-    recommend: ['lens', 'limit'], compare: ['lens'], wait: [], watch: ['format'],
-    sessions: [], connect: [], roster: [], export: ['out', 'force'], replay: ['pick', 'format'],
-  };
-  const supportsReplay = ['readiness', 'status', 'players', 'recommend', 'compare', 'wait', 'roster'].includes(typedCommand);
   for (const key of Object.keys(values)) {
-    if (!['json', 'help', 'session', 'slot', 'server-url'].includes(key) && !allowed[typedCommand].includes(key) &&
-        !(supportsReplay && ['replay', 'pick'].includes(key))) {
+    if (!['json', 'help', 'session', 'slot', 'server-url'].includes(key) && !descriptor.options.includes(key) &&
+        !(descriptor.replay && ['replay', 'pick'].includes(key))) {
       return usage(`--${key} is not supported by ${typedCommand}.`);
     }
   }
-  const expectedIds = typedCommand === 'compare' ? 2 : ['wait', 'replay'].includes(typedCommand) ? 1 : 0;
-  if (typedCommand === 'connect' ? positionals.length > 1 : positionals.length !== expectedIds) {
+  const expectedIds = descriptor.positionals;
+  if (expectedIds === 'optional' ? positionals.length > 1 : positionals.length !== expectedIds) {
     return usage(`${typedCommand} expects ${typedCommand === 'connect' ? 'one session or URL' : String(expectedIds) + ' arguments'}.`);
   }
   const playerIds = ['compare', 'wait'].includes(typedCommand) ? positionals : [];
