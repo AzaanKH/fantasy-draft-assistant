@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../units/brands.js';
 import { createSlotSequence } from '../draft-order.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
@@ -17,8 +18,8 @@ function player(
     position,
     team: 'BUF',
     byeWeek: 7,
-    ecrRank: marketRank,
-    positionalRank: marketRank,
+    ecrRank: asRank(marketRank),
+    positionalRank: asRank(marketRank),
     sleeperAdp: marketRank,
     consensusAdp: marketRank,
     valueScore: 0,
@@ -29,11 +30,11 @@ function player(
     offensiveEnvironmentScore: 7,
     projectedPoints: 250 - marketRank,
     customProjectedPoints: 250 - marketRank,
-    valueOverReplacement,
+    valueOverReplacement: asVor(valueOverReplacement),
     tier: Math.ceil(marketRank / 12),
     tierDropoffScore: marketRank % 12 === 0 ? 0.8 : 0.1,
     tierDropoffPoints: marketRank % 12 === 0 ? 10 : 1,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 8,
     floorScore: 5,
     upsideScore: 7,

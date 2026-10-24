@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
@@ -119,7 +120,7 @@ describe('pure draft reducer parity with the production null-storage store', () 
       ['setConfig', { totalTeams: Number.NaN }],
       ['setMockSettings', { randomness: 2, seed: -1, survivalIterations: 1, cpuPickPace: 'instant' }],
       ['setMockAutoAdvancePaused', true], ['setMockSettingsOpen', true],
-      ['setMockSurvivalProbabilities', { waiting: 0.4 }],
+      ['setMockSurvivalProbabilities', { waiting: asProbability(0.4) }],
       ['setDecisionLens', 'best-player'], ['setPositionFilter', 'RB'], ['setSearchQuery', 'waiting'],
       ['addShortlistedPlayer', 'a'], ['addShortlistedPlayer', 'a'],
       ['togglePlayerShortlisted', 'b'], ['addShortlistedPlayer', 'c'],
@@ -196,7 +197,7 @@ describe('pure draft reducer parity with the production null-storage store', () 
     replay.send(['undoLastPick']);
     expect(replay.state().shortlistedPlayerIds).toEqual(['manual']);
     expect(replay.state().mockAutoAdvance.paused).toBe(true);
-    replay.send(['setMockSurvivalProbabilities', { manual: 0.7 }]);
+    replay.send(['setMockSurvivalProbabilities', { manual: asProbability(0.7) }]);
     replay.send(['resetDraft']);
     expect(replay.cursor()).toBe(1);
     expect(replay.state()).toMatchObject({ draftHistory: [], shortlistedPlayerIds: [], mockSurvivalProbabilities: {}, mockAutoAdvance: { paused: false } });

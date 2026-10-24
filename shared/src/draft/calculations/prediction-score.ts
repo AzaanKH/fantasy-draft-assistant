@@ -1,4 +1,5 @@
 import type { FantasyProsProjection } from '../../fantasypros.js';
+import { asVor } from '../../units/brands.js';
 import type { NewsStatus, PlayerPrediction, Player, Position, PredictionSource } from '../../player.js';
 import { type RosterRequirements, DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
 import { POSITIONS } from '../../league/positions.js';
@@ -224,7 +225,7 @@ export function applyDynamicValueOverReplacement(
       ? player
       : {
           ...player,
-          valueOverReplacement: round(Math.max(0, player.projectedPoints - replacement)),
+          valueOverReplacement: asVor(round(Math.max(0, player.projectedPoints - replacement))),
         };
   });
 }

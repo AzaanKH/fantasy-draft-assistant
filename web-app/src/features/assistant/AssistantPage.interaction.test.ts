@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 // @vitest-environment jsdom
 import { act, createElement, type ReactNode } from 'react';
@@ -28,7 +29,7 @@ const RECOMMENDATION_LIMIT = 60;
 function player(index: number): Player {
   const base = VISUAL_PLAYERS[0];
   if (!base) throw new Error('Missing player fixture');
-  return { ...base, id: `wr-${String(index)}`, name: `Receiver ${String(index)}`, position: 'WR', tier: 1 + Math.floor(index / 10), ecrRank: index, byeWeek: 5 };
+  return { ...base, id: `wr-${String(index)}`, name: `Receiver ${String(index)}`, position: 'WR', tier: 1 + Math.floor(index / 10), ecrRank: asRank(index), byeWeek: 5 };
 }
 
 function recommendation(source: Player, rank: number): Recommendation {
@@ -39,14 +40,14 @@ function recommendation(source: Player, rank: number): Recommendation {
     reason: 'Next-pick timing',
     score: 100 - rank,
     diagnostics: {
-      expertRank: source.ecrRank,
+      expertRank: asRank(source.ecrRank),
       marketRank: source.ecrRank,
       marketDelta: 0,
       projectedPoints: 250 - rank,
-      valueOverReplacement: 60 - rank,
+      valueOverReplacement: asVor(60 - rank),
       tier: source.tier,
       tierRemaining: 3,
-      nextPickSurvivalProbability: 0.4,
+      nextPickSurvivalProbability: asProbability(0.4),
       nextPickNumber: 24,
       nextPickLabel: '2.12',
     },

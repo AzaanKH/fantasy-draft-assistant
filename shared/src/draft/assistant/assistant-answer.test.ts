@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, expect, it } from 'vitest';
 import type { PositionNeed, Recommendation } from '../../draft.js';
 import type { DraftDecisionView } from '../recommendations/draft-decision.js';
@@ -23,14 +24,14 @@ function recommendation(
     reason: 'Next-pick timing',
     score: 10,
     diagnostics: {
-      expertRank,
+      expertRank: asRank(expertRank),
       marketRank: 5,
       marketDelta: 1,
       projectedPoints: 230,
-      valueOverReplacement,
+      valueOverReplacement: asVor(valueOverReplacement),
       tier: 1,
       tierRemaining: 2,
-      nextPickSurvivalProbability: returnProbability,
+      nextPickSurvivalProbability: asProbability(returnProbability),
       nextPickNumber: 13,
       nextPickLabel: '2.03',
     },
@@ -43,14 +44,14 @@ describe('Assistant decision answer', () => {
     const selected: Recommendation = {
       ...base,
       decisionFactors: {
-        playerQuality: { ecrRank: 4, score: -4 },
+        playerQuality: { ecrRank: asRank(4), score: -4 },
         leagueValue: {
           score: 1,
           minScore: 0,
           maxScore: 6,
           projectedPoints: 230,
           replacementPoints: 206,
-          valueOverReplacement: 24,
+          valueOverReplacement: asVor(24),
           materiallyChangedOrdering: false,
         },
         rosterFit: {
@@ -93,15 +94,15 @@ describe('Assistant decision answer', () => {
           maxScore: 4,
           nextPickNumber: 13,
           nextPickLabel: '2.03',
-          returnProbability: 0.05,
+          returnProbability: asProbability(0.05),
           candidateValue: 24,
           expectedAlternative: {
             playerId: 'fallback-rb',
             playerName: 'Fallback RB',
             position: 'RB',
-            ecrRank: 18,
-            valueOverReplacement: 8,
-            returnProbability: 0.8,
+            ecrRank: asRank(18),
+            valueOverReplacement: asVor(8),
+            returnProbability: asProbability(0.8),
             expectedValue: 6.4,
           },
           costOfWaiting: 17.6,
@@ -109,7 +110,7 @@ describe('Assistant decision answer', () => {
           materiallyChangedOrdering: true,
         },
         conservativeBoundary: {
-          ecrRankLimit: 9,
+          ecrRankLimit: asRank(9),
           samePositionTier: false,
           withinBoundary: true,
           feasibilityException: false,

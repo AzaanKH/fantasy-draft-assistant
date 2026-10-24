@@ -1,3 +1,4 @@
+import { asRank } from '@fantasy-draft/shared/units';
 // @vitest-environment jsdom
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -14,7 +15,7 @@ import { MockDraftAutoAdvance } from './mock-auto-advance';
 function player(index: number): Player {
   const base = VISUAL_PLAYERS[0];
   if (!base) throw new Error('Missing player fixture');
-  return { ...base, id: `wr-${String(index)}`, name: `Receiver ${String(index)}`, position: 'WR', ecrRank: index };
+  return { ...base, id: `wr-${String(index)}`, name: `Receiver ${String(index)}`, position: 'WR', ecrRank: asRank(index) };
 }
 
 const players = Array.from({ length: 40 }, (_, index) => player(index + 1));

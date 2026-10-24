@@ -1,4 +1,5 @@
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
+import { toWholePercent } from '../../units/brands.js';
 import type { DecisionDivergenceFactor, DecisionLens, DecisionOutput, Recommendation } from '../../draft.js';
 import type { RecommendationSelection } from '../calculations/recommendations.js';
 import { getRecommendationExplanation } from './recommendation-explanation.js';
@@ -191,12 +192,12 @@ function getDivergenceTradeoff(
     (timing.nextPickNumber === undefined
       ? 'the next selection'
       : `#${String(timing.nextPickNumber)}`);
-  const returnProbability = timing.returnProbability === undefined
+  const returnPercent = timing.returnProbability === undefined
     ? null
-    : Math.round(timing.returnProbability * 100);
-  return returnProbability === null
+    : toWholePercent(timing.returnProbability);
+  return returnPercent === null
     ? `waiting until pick ${nextPick} costs ${formatNumber(timing.costOfWaiting)} expected points on ${bestPick.playerName}`
-    : `${bestPick.playerName} has only ${String(returnProbability)}% Return Probability at pick ${nextPick}, and waiting costs ${formatNumber(timing.costOfWaiting)} expected points`;
+    : `${bestPick.playerName} has only ${String(returnPercent)}% Return Probability at pick ${nextPick}, and waiting costs ${formatNumber(timing.costOfWaiting)} expected points`;
 }
 
 function getDecisionDivergence(

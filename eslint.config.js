@@ -129,4 +129,10 @@ export default tseslint.config(
       'agent/no-inline-season': 'error',
     },
   },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),
+    ignores: ['shared/src/units/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-unit-cast': 'error' },
+  },
 );
