@@ -745,8 +745,9 @@ async function fixtureRules(ctx) {
   if (await ctx.getByRole('heading', { name: 'Quick mock settings', exact: true }).count()) {
     await ctx.getByRole('button', { name: 'Close draft details', exact: true }).click();
   } else {
-    await ctx.getByRole('button', { name: 'League setup', exact: true }).click();
-    const dialog = ctx.getByRole('dialog');
+    // The readiness banner can show its own League setup button, so act inside the opened details and setup dialogs.
+    await ctx.getByRole('dialog', { name: 'Draft session details' }).getByRole('button', { name: 'League setup', exact: true }).click();
+    const dialog = ctx.getByRole('dialog', { name: 'League setup', exact: true });
     await dialog.getByRole('button', { name: 'Quick mock', exact: true }).click();
     await dialog.getByRole('button', { name: 'Use quick mock settings', exact: true }).click();
     await dialog.waitFor({ state: 'hidden' });

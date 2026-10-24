@@ -91,3 +91,14 @@ test('the lifecycle scenario blurs the receiver before the write and judges focu
   expect(body).toContain('proven: focusAfterAck(events, receipt)');
   expect(body).toContain('at: performance.timeOrigin + e.timeStamp');
 });
+
+test('fixture setup clicks League setup inside the details popover, never the readiness banner copy', async () => {
+  const read = file => readFile(new URL(file, import.meta.url), 'utf8');
+  const [runner, status, setup] = await Promise.all([read('./persistence/ui-activation.mjs'), read('../web-app/src/components/DraftSessionStatus.tsx'), read('../web-app/src/features/league-setup/LeagueSetupDialog.tsx')]);
+  const body = runner.slice(runner.indexOf('async function fixtureRules('), runner.indexOf('async function inspectPoolControl('));
+  expect(body).not.toMatch(/ctx\.getByRole\('button', \{ name: 'League setup'/);
+  expect(body).toContain("ctx.getByRole('dialog', { name: 'Draft session details' }).getByRole('button', { name: 'League setup', exact: true })");
+  expect(body).toContain("ctx.getByRole('dialog', { name: 'League setup', exact: true })");
+  expect(status).toContain('<PopoverContent aria-label="Draft session details"');
+  expect(setup).toContain('<DialogTitle>League setup</DialogTitle>');
+});
