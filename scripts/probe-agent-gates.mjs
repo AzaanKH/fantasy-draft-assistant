@@ -31,6 +31,8 @@ export const fallback = snakeNullish ?? 'snake';
 export const fallbackOr = snakeNullish || 'snake';
 export function defaultDraft(draftType = 'snake'): string { return draftType; }
 export const imports = [localDevPorts, SAFE_RECOMMENDATION_POLICY];
+export const flexPositions = ['RB', 'WR', 'TE'];
+export const season = new Date().getFullYear();
 `;
 let created = false;
 try {
@@ -40,7 +42,7 @@ try {
   const results = await eslint.lintFiles([file]);
   process.stdout.write((await eslint.loadFormatter('stylish')).format(results));
   const messages = results.flatMap((result) => result.messages);
-  for (const rule of ['agent/no-json-cast', 'agent/no-bare-fetch', 'agent/no-cross-package-import', '@typescript-eslint/explicit-module-boundary-types']) {
+  for (const rule of ['agent/no-json-cast', 'agent/no-bare-fetch', 'agent/no-cross-package-import', '@typescript-eslint/explicit-module-boundary-types', 'agent/no-position-array', 'agent/no-inline-season']) {
     if (!messages.some((message) => message.ruleId === rule)) throw new Error(`${rule} did not fire`);
   }
   if (messages.filter(message => message.ruleId === 'agent/no-bare-fetch').length !== 7) {

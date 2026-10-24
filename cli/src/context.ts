@@ -1,5 +1,6 @@
 import {
   POSITIONS,
+  calendarSeason,
   type Player,
 } from '@fantasy-draft/shared/league';
 import {
@@ -68,7 +69,7 @@ export function createSessionContext(snapshot: DraftSyncSnapshot, data: DraftDat
   const imports = resolveDraftPickImports(snapshot.picks, data?.players ?? [], slot ?? 0, [], totalTeams, draftType);
   const keeperSupplyReady = data !== null && settings.keepersEnabled !== false && isKeeperSupplyComplete({
     keepersEnabled: settings.keepersEnabled, season: data.keeperStatus.season,
-    expectedSeason: new Date(now).getUTCFullYear(), isConfirmed: data.keeperStatus.isConfirmed,
+    expectedSeason: calendarSeason(now), isConfirmed: data.keeperStatus.isConfirmed,
     configuredCount: data.keeperStatus.configuredCount, expectedCount: totalTeams,
     resolvedCount: data.keeperStatus.resolvedCount, canonicalCount: data.keeperStatus.canonicalCount,
     unresolvedNames: data.keeperStatus.unresolvedNames, duplicateNames: data.keeperStatus.duplicateNames,

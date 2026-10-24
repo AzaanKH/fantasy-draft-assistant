@@ -5,7 +5,8 @@
  * based on how many elite-tier players remain available.
  */
 
-import type { Player, Position } from '../../player.js';
+import type { Player } from '../../player.js';
+import { POSITIONS, type Position } from '../../league/positions.js';
 
 /**
  * Elite player thresholds by position
@@ -68,9 +69,7 @@ export function calculateAllScarcityScores(
   availablePlayers: readonly Player[]
 ): Map<Position, number> {
   const scores = new Map<Position, number>();
-  const positions: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-
-  for (const position of positions) {
+  for (const position of POSITIONS) {
     scores.set(position, calculatePositionalScarcity(position, availablePlayers));
   }
 

@@ -119,4 +119,14 @@ export default tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'error',
     },
   },
+  {
+    // shared/src/league owns positions and the season rule; shared/src/http parses HTTP dates, not seasons.
+    files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),
+    ignores: ['**/*.test.{ts,tsx}', 'shared/src/league/**', 'shared/src/http/**'],
+    plugins: { agent: agentRules },
+    rules: {
+      'agent/no-position-array': 'error',
+      'agent/no-inline-season': 'error',
+    },
+  },
 );

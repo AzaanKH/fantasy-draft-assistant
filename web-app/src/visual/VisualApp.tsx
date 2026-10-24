@@ -5,6 +5,7 @@ import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  FLEX_GROUPS,
   type NFLTeam,
   type Player,
   type Position,
@@ -269,10 +270,27 @@ function createFixtureHistory(): RecordedDraftPick[] {
   });
 }
 
-export function createVisualDraftStore(): DraftStoreApi {
+/** `superflex` lets QBs fill the fixture league's FLEX slots, for render checks of superflex leagues. */
+type VisualLeague = 'standard' | 'superflex';
+
+export function getVisualLeague(search: string): VisualLeague {
+  return new URLSearchParams(search).get('league') === 'superflex' ? 'superflex' : 'standard';
+}
+
+export function createVisualDraftStore(league: VisualLeague = 'standard'): DraftStoreApi {
   const store = createDraftStore();
   const draftHistory = createFixtureHistory();
+  const { config } = store.getState();
   store.setState({
+    ...(league === 'superflex' ? {
+      config: {
+        ...config,
+        rosterRequirements: {
+          ...config.rosterRequirements,
+          FLEX: { ...config.rosterRequirements.FLEX, eligiblePositions: [...FLEX_GROUPS.superflex] },
+        },
+      },
+    } : {}),
     sessionMode: 'mock',
     draftProgress: { anchor: { kind: 'carry', pickNumber: 47 }, historyLength: draftHistory.length },
     draftHistory,
@@ -441,7 +459,7 @@ function VisualReadySignal(): null {
 }
 
 export function VisualApp(): React.ReactElement {
-  const [draftStore] = React.useState(createVisualDraftStore);
+  const [draftStore] = React.useState(() => createVisualDraftStore(getVisualLeague(window.location.search)));
   const [workspace] = React.useState(() => createWorkspace({ draftStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),

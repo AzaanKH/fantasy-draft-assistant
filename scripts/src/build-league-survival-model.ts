@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isNFLTeam, isPosition, type Position } from '@fantasy-draft/shared/league';
+import { POSITIONS, isNFLTeam, isPosition, type Position } from '@fantasy-draft/shared/league';
 import { decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
 import { decodeSurvivalHistory, type SurvivalHistoryPick } from './script-file-schemas.js';
 
@@ -10,7 +10,6 @@ const DATA_DIR = join(__dirname, '../../data');
 const LEAGUE_HISTORY_FILE = join(DATA_DIR, 'league-history', 'leagueDraftHistory.json');
 const SLEEPER_ADP_FILE = join(DATA_DIR, 'sleeper-adp.json');
 const OUTPUT_FILE = join(DATA_DIR, 'league-history', 'survival-model.json');
-const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const satisfies readonly Position[];
 
 type LeagueHistoryPick = SurvivalHistoryPick;
 

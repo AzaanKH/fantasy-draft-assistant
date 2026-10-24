@@ -1,6 +1,6 @@
 import type { Position } from '@fantasy-draft/shared/league';
 import type { RosterRequirements } from '@fantasy-draft/shared/league';
-import { POSITIONS } from '@fantasy-draft/shared/league';
+import { KICKER_DEFENSE_POSITIONS, OFFENSIVE_POSITIONS, POSITIONS } from '@fantasy-draft/shared/league';
 
 type RosterSlotLabel = Position | 'FLEX' | 'BN';
 
@@ -50,9 +50,9 @@ export function getRosterSlots(
     positions.flatMap((position) => startersByPosition.get(position) ?? []);
 
   return [
-    ...starters(['QB', 'RB', 'WR', 'TE']),
+    ...starters(OFFENSIVE_POSITIONS),
     ...flexSlots,
-    ...starters(['K', 'DEF']),
+    ...starters(KICKER_DEFENSE_POSITIONS),
     ...benchSlots,
   ];
 }

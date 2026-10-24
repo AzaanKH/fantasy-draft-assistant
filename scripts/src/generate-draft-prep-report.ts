@@ -2,14 +2,14 @@ import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { Position } from '@fantasy-draft/shared/league';
+import { OFFENSIVE_POSITIONS, type Position } from '@fantasy-draft/shared/league';
 import { decodeFantasyProsSnapshot, decodeLeagueSurvivalModel, decodeTeamEnvDataFile, decodePredictionsDataFile, decodeKeeperFile } from '@fantasy-draft/shared/catalog';
 import { decodeLeagueHistory } from './script-file-schemas.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const JSON_OUTPUT = join(REPO_ROOT, catalogPath(CATALOG.prepReport));
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'draft-prep-report.md');
-const POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const satisfies readonly Position[];
+const POSITIONS = OFFENSIVE_POSITIONS;
 
 type Pick = ReturnType<typeof decodeLeagueHistory>['seasons'][number]['picks'][number];
 

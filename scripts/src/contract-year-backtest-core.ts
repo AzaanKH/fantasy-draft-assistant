@@ -1,5 +1,5 @@
-const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
-export type OffensivePosition = (typeof OFFENSIVE_POSITIONS)[number];
+import { OFFENSIVE_POSITIONS, type OffensivePosition } from '@fantasy-draft/shared/league';
+
 export type ExpectedRole = 'high' | 'medium' | 'low' | 'rookie-unknown';
 
 export interface PlayerSeasonRow {

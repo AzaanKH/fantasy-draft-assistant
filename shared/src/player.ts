@@ -1,3 +1,5 @@
+import { isPosition, type Position } from './league/positions.js';
+
 /**
  * NFL team abbreviations
  */
@@ -10,12 +12,7 @@ export const NFL_TEAMS = [
 
 export type NFLTeam = (typeof NFL_TEAMS)[number];
 
-/**
- * Fantasy football positions
- */
-export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
-
-export type Position = (typeof POSITIONS)[number];
+export { POSITIONS, isPosition, type Position } from './league/positions.js';
 
 export const NEWS_STATUSES = [
   'healthy',
@@ -156,13 +153,6 @@ export interface Player {
   readonly highlightLevel: HighlightLevel;
   /** Custom projected points based on league scoring */
   readonly customProjectedPoints?: number;
-}
-
-/**
- * Type guard to check if a value is a valid Position
- */
-export function isPosition(value: unknown): value is Position {
-  return typeof value === 'string' && POSITIONS.some(item => item === value);
 }
 
 /**

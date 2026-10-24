@@ -17,6 +17,7 @@ import {
   resolveSeasonHistoryColumn,
 } from './contract-source-schema.js';
 import { DATA_DIR, withMemoryDb } from './model/duckdb.js';
+import { OFFENSIVE_POSITIONS, sqlPositionList } from '@fantasy-draft/shared/league';
 import { io, isEntryPoint, runMain } from './effect-runtime.js';
 
 const CONTRACTS_URL =
@@ -71,7 +72,7 @@ const program = Effect.gen(function* () {
             as contract_end_year
         from read_parquet('${CONTRACTS_URL}')
         where is_active
-          and position in ('QB', 'RB', 'WR', 'TE')
+          and position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
           and gsis_id is not null
       ),
       players as (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { OffensivePosition } from './model/position-residual-model.js';
+import type { OffensivePosition } from '@fantasy-draft/shared/league';
 import { backtestInternals } from './backtest-recommendations.js';
 
 function player(id: string, position: OffensivePosition, points: number = 100) {

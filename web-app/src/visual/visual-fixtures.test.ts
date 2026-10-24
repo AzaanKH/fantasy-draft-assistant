@@ -5,6 +5,7 @@ import { createDraftStore } from '@/stores/draftStore';
 const draftStore = createDraftStore();
 import {
   createVisualDraftStore,
+  getVisualLeague,
   getVisualRoute,
   VISUAL_NOW,
   VISUAL_PLAYERS,
@@ -60,6 +61,15 @@ describe('visual fixtures', () => {
     expect(fixture.draftHistory).toHaveLength(46);
     expect(fixture.draftHistory.every((pick) => pick.timestamp === VISUAL_NOW)).toBe(true);
     expect(getDraftView(draftStore).currentPick).toBe(defaultPick);
+  });
+
+  it('seeds a superflex league only when the URL asks for one', () => {
+    expect(getVisualLeague('?state=mid-draft&league=superflex')).toBe('superflex');
+    expect(getVisualLeague('?league=other')).toBe('standard');
+    const standard = createVisualDraftStore().getState().config.rosterRequirements;
+    const superflex = createVisualDraftStore('superflex').getState().config.rosterRequirements;
+    expect(standard.FLEX.eligiblePositions).toEqual(['RB', 'WR', 'TE']);
+    expect(superflex.FLEX).toEqual({ starters: standard.FLEX.starters, eligiblePositions: ['QB', 'RB', 'WR', 'TE'] });
   });
 
   it('centers a reduced board window without changing the draft configuration', () => {

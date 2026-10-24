@@ -4,7 +4,7 @@ import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Player, Position } from '@fantasy-draft/shared/league';
+import { calendarSeason, type Player, type Position } from '@fantasy-draft/shared/league';
 import { normalizePlayerName, canonicalizeKeeperSupply, isKeeperSupplyComplete, type KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 import { IS_DEMO } from '@/lib/demo-mode';
 import { type PreloadedKeeper } from '@/stores/draftStore';
@@ -127,7 +127,7 @@ export function useKeeperPreload(
   const isConfirmed = keepersEnabled === false || (
     query.data?.updatedAt !== null && query.data?.updatedAt !== undefined
   );
-  const expectedSeason = new Date().getUTCFullYear();
+  const expectedSeason = calendarSeason(Date.now());
   const expectedCount = keepersEnabled === false ? 0 : totalTeams;
   const supplyIsComplete = isKeeperSupplyComplete({
     keepersEnabled,

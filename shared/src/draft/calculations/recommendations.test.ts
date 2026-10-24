@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { getRecommendationBoard, getRecommendations } from './recommendations.js';
 import { DEFAULT_ROSTER_REQUIREMENTS, type PositionNeed } from '../../draft.js';
-import { DEFAULT_SCORING_RULES } from '../../scoring.js';
+import { DEFAULT_SCORING_RULES, calculateLeagueProjection } from '../../league/scoring.js';
 import { POSITIONS, type Player } from '../../player.js';
 import { type FantasyProsProjection } from '../../fantasypros.js';
-import { calculateLeagueProjection } from './league-scoring.js';
 
 // Helper to create a mock player
 function createPlayer(

@@ -5,7 +5,7 @@
  * based on roster requirements and positional scarcity.
  */
 
-import type { Position } from '../../player.js';
+import { POSITIONS, type Position } from '../../league/positions.js';
 import type { Roster, RosterRequirements, PositionNeed, NeedPriority } from '../../draft.js';
 import {
   getDraftProgress,
@@ -62,13 +62,12 @@ export function calculateTeamNeeds(
   context?: DraftStageContext
 ): PositionNeed[] {
   const needs: PositionNeed[] = [];
-  const positions: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
   const isOpeningBoard = context?.currentPick === 1;
   const draftProgress = getDraftProgress(context);
   const isMidDraft = draftProgress >= MID_DRAFT_PROGRESS;
   const flexEligiblePositions = new Set(requirements.FLEX.eligiblePositions);
   const flexSlotsNeeded = Math.max(0, requirements.FLEX.starters);
-  const fixedStarterSlotsRemaining = positions.reduce(
+  const fixedStarterSlotsRemaining = POSITIONS.reduce(
     (total, position) =>
       total + Math.max(0, requirements[position].starters - roster[position].length),
     0
@@ -90,7 +89,7 @@ export function calculateTeamNeeds(
     : Number.POSITIVE_INFINITY;
   const isStarterSlotCrunch = totalStarterSlotsRemaining >= estimatedRosterPicksRemaining;
 
-  for (const position of positions) {
+  for (const position of POSITIONS) {
     const filled = roster[position].length;
     const needed = requirements[position].starters;
     const max = requirements[position].max;
