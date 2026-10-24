@@ -148,6 +148,7 @@ and the document fonts before capturing.
 | `docs/images/assistant.png` | `/__visual/assistant?state=wait` |
 
 The draft fixture route also works at desktop widths despite its name.
+`/__visual/loading?state=draft`, `?state=assistant` and `?state=sidepanel` render the loading states with the same fixtures. Loading states render the real layout with placeholders for data that is still loading, so compare each one with its loaded route.
 Production builds return "Not found" for `/__visual/` routes.
 
 ## Local API security

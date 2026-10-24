@@ -4,7 +4,7 @@ import type { Player } from '@fantasy-draft/shared/league';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { ArrowRight, ListPlus } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { SuggestionSkeleton } from '@/components/skeletons';
+import { LoadingStatus, SkeletonBlock, SkeletonText } from '@/components/skeletons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
@@ -12,6 +12,36 @@ import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
+
+/** Card geometry shared by loaded and loading suggestions. */
+const CARD = 'flex min-w-0 flex-col rounded-xl border border-border/70 bg-card p-3 shadow-xs';
+const HEADSHOT = 'size-14 rounded-lg border border-border/70';
+const NAME = 'mt-1 truncate text-sm font-bold';
+const EXPLANATION = 'mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground';
+const FACTS = 'mt-3 flex flex-wrap gap-1.5 text-[10px]';
+const FACT = 'rounded-md bg-muted/55 px-2 py-1 font-mono';
+const ACTIONS = 'mt-auto flex gap-2 pt-3';
+const SUGGESTION_GRID = 'grid gap-3 lg:grid-cols-3';
+
+function SuggestionCardPlaceholder(): React.ReactElement {
+  return (
+    <div aria-hidden="true" className={CARD}>
+      <div className="flex items-start gap-3">
+        <SkeletonBlock className={HEADSHOT} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2"><SkeletonBlock className="h-5 w-20" /></div>
+          <h3 className={NAME}><SkeletonText className="w-32" /></h3>
+          <p className={EXPLANATION}><SkeletonText className="w-full" /><br /><SkeletonText className="w-4/5" /></p>
+        </div>
+      </div>
+      <div className={FACTS}>
+        <span className={FACT}><SkeletonText className="w-16" /></span>
+        <span className={FACT}><SkeletonText className="w-16" /></span>
+      </div>
+      <div className={ACTIONS}><SkeletonBlock className="h-8 flex-1" /></div>
+    </div>
+  );
+}
 
 function SuggestionCard({
   recommendation,
@@ -40,13 +70,13 @@ function SuggestionCard({
   const survival = diagnostics?.nextPickSurvivalProbability;
 
   return (
-    <article className="flex min-w-0 flex-col rounded-xl border border-border/70 bg-card p-3 shadow-xs">
+    <article className={CARD}>
       <div className="flex items-start gap-3">
         <PlayerHeadshot
           playerId={recommendation.playerId}
           name={recommendation.playerName}
           position={recommendation.position}
-          className="size-14 rounded-lg border border-border/70"
+          className={HEADSHOT}
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -55,23 +85,23 @@ function SuggestionCard({
               {recommendation.position}
             </Badge>
           </div>
-          <h3 className="mt-1 truncate text-sm font-bold">{recommendation.playerName}</h3>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          <h3 className={NAME}>{recommendation.playerName}</h3>
+          <p className={EXPLANATION}>
             {explanation}
           </p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
-        <span className="rounded-md bg-muted/55 px-2 py-1 font-mono">
+      <div className={FACTS}>
+        <span className={FACT}>
           T{String(diagnostics?.tier ?? '—')} · {String(diagnostics?.tierRemaining ?? '—')} left
         </span>
-        <span className="rounded-md bg-muted/55 px-2 py-1 font-mono">
+        <span className={FACT}>
           {typeof survival === 'number' ? `${String(Math.round(survival * 100))}% survives` : 'Survival —'}
         </span>
       </div>
 
-      <div className="mt-auto flex gap-2 pt-3">
+      <div className={ACTIONS}>
         {canDraft && player ? (
           <Button
             size="sm"
@@ -130,11 +160,16 @@ export function DraftSuggestions({
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 
   if (isLoading) {
-    return <SuggestionSkeleton />;
+    return (
+      <div className={SUGGESTION_GRID}>
+        <LoadingStatus label="Loading suggestions" />
+        {Array.from({ length: 3 }, (_, index) => <SuggestionCardPlaceholder key={index} />)}
+      </div>
+    );
   }
 
   return (
-    <div className="grid gap-3 lg:grid-cols-3">
+    <div className={SUGGESTION_GRID}>
       {overall.recommendations.slice(0, 3).map((recommendation) => (
         <SuggestionCard
           key={recommendation.playerId}

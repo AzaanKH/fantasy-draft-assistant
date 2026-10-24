@@ -16,6 +16,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, ListPlus, Search } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionLabel } from '@/components/PositionLabel';
+import { SkeletonBlock, SkeletonText } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MetricHelp } from '@/features/help/MetricHelp';
@@ -120,8 +121,31 @@ function DraftPlayerRow({
   );
 }
 
+/** Fills the pool's scroll area while player data loads; the area's height is fixed, so the count only needs to cover it. */
+const PLACEHOLDER_ROW_COUNT = 10;
+
+/** A loading row in the real row grid. Its text lines copy the name and meta line boxes, not their classes, which browser drivers read names from. */
+function DraftPlayerRowPlaceholder({ showDraftAction }: { readonly showDraftAction: boolean }): React.ReactElement {
+  return (
+    <div role="row" aria-hidden="true" className="draft-pool-row draft-pool-columns">
+      {showDraftAction ? <div className="draft-pool-action"><SkeletonBlock className="h-8 w-16 rounded-sm" /></div> : null}
+      <div className="draft-pool-rank"><SkeletonText className="w-5" /></div>
+      <div className="draft-pool-player">
+        <SkeletonBlock className="size-9 shrink-0 rounded-full" />
+        <div className="min-w-0">
+          <div className="text-sm leading-5"><SkeletonText className="w-32" /></div>
+          <div className="text-xs leading-4"><SkeletonText className="w-24" /></div>
+        </div>
+      </div>
+      <div className="draft-pool-number"><SkeletonText className="w-6" /></div>
+      <div className="draft-pool-number"><SkeletonText className="w-8" /></div>
+      <div className="draft-pool-action"><SkeletonBlock className="size-8 rounded-sm" /></div>
+    </div>
+  );
+}
+
 export function DraftPlayerPool(): React.ReactElement {
-  const { players: basePlayers } = usePlayerDataQuery();
+  const { players: basePlayers, isLoading } = usePlayerDataQuery();
   const { output, overall, readiness, recommendationsBlocked, recommendationsBlockedByProviderIdentity } = useDraftDecision();
   const undraftedPlayers = useUndraftedPlayers();
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
@@ -210,7 +234,13 @@ export function DraftPlayerPool(): React.ReactElement {
               <div role="columnheader">Queue</div>
             </div>
           </div>
-          {rows.length > 0 ? (
+          {isLoading ? (
+            <div role="rowgroup">
+              {Array.from({ length: PLACEHOLDER_ROW_COUNT }, (_, index) => (
+                <DraftPlayerRowPlaceholder key={index} showDraftAction={sessionMode === 'mock'} />
+              ))}
+            </div>
+          ) : rows.length > 0 ? (
             <div
               role="rowgroup"
               className="relative w-full"
@@ -255,9 +285,11 @@ export function DraftPlayerPool(): React.ReactElement {
       </div>
       <div className="draft-pool-footer">
         <span>
-          {sessionMode === 'mock' && !canDraft
-            ? 'Draft actions are unavailable until your pick.'
-            : `${String(rows.length)} players shown`}
+          {isLoading
+            ? 'Loading players…'
+            : sessionMode === 'mock' && !canDraft
+              ? 'Draft actions are unavailable until your pick.'
+              : `${String(rows.length)} players shown`}
         </span>
         <span>Ordered by {orderLabel}</span>
       </div>

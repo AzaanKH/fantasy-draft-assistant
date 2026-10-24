@@ -27,17 +27,18 @@ vi.mock('@/hooks/useQueueActions', () => ({
 }));
 
 describe('DraftDecisionBar loading', () => {
-  it.each([true, false])('keeps the settled pick visible while loading, compact=%s', (compact) => {
+  it('keeps the settled pick visible while loading', () => {
     decision.output.bestPick = recommendation();
-    const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { compact, onOpenAssistant: vi.fn() })));
-    expect(markup).toContain(compact ? 'Why this pick' : 'Assistant');
+    const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() })));
+    expect(markup).toContain('Why this pick');
     expect(markup).toContain('Add Best Pick to the local queue');
   });
 
-  it('shows compact loading feedback and retains the full loading skeleton', () => {
+  it('shows loading feedback in the same bar before the first pick', () => {
     decision.output.bestPick = null;
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { compact: true, onOpenAssistant: vi.fn() }))).toContain('Finding your best pick');
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }))).toContain('Loading the current Best Pick');
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain('class="draft-best-pick-inline"');
+    expect(markup).toContain('Finding your best pick');
   });
 });
 

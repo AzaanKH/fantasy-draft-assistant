@@ -1,6 +1,8 @@
 import * as React from 'react';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
+import { LoadingStatus } from '@/components/skeletons';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { DraftBoard } from './DraftBoard';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { DraftDock } from './DraftDock';
@@ -58,6 +60,7 @@ export function DraftWorkspace({
   readonly toolbarActions?: React.ReactNode;
 }): React.ReactElement {
   const fillsViewport = useMediaQuery(FILL_LAYOUT_QUERY);
+  const { isLoading } = usePlayerDataQuery();
   const [boardHeight, setBoardHeight] = React.useState(readStoredBoardHeight);
   const [isDockExpanded, setIsDockExpanded] = React.useState(true);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -95,7 +98,8 @@ export function DraftWorkspace({
   const visibleBoardHeight = Math.round(Math.min(boardHeight, maxBoardHeight));
 
   return (
-    <main className="draft-workspace w-full px-3 py-4 sm:px-4" data-layout={fillsViewport ? 'fill' : 'scroll'}>
+    <main className="draft-workspace w-full px-3 py-4 sm:px-4" data-layout={fillsViewport ? 'fill' : 'scroll'} aria-busy={isLoading || undefined}>
+      {isLoading ? <LoadingStatus label="Loading player data" /> : null}
       {notices}
       <div ref={stackRef} className="draft-workspace-stack" data-resizing={isResizing || undefined}>
         <DraftBoard
@@ -104,7 +108,7 @@ export function DraftWorkspace({
           roundWindowSize={roundWindowSize}
           toolbarActions={toolbarActions}
         />
-        <DraftDecisionBar compact onOpenAssistant={onOpenAssistant} />
+        <DraftDecisionBar onOpenAssistant={onOpenAssistant} />
         {isDockExpanded ? (
           <div
             role="separator"
