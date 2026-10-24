@@ -1,16 +1,17 @@
 import { useSyncExternalStore } from 'react';
+import { systemClock } from '@fantasy-draft/shared/units';
 
 const listeners = new Set<() => void>();
-let now = Date.now();
+let now = systemClock.now();
 let timer: ReturnType<typeof setInterval> | undefined;
 export const readNow = (): number => now;
 
 export function subscribeNow(listener: () => void): () => void {
   listeners.add(listener);
   if (!timer) {
-    now = Date.now();
+    now = systemClock.now();
     timer = setInterval(() => {
-      now = Date.now();
+      now = systemClock.now();
       for (const notify of listeners) notify();
     }, 1_000);
   }

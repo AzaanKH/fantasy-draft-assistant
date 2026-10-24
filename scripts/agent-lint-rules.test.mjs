@@ -241,6 +241,29 @@ describe('unit constructors', () => {
   });
 });
 
+describe('domain clock', () => {
+  function clockMessages(source) {
+    return new Linter().verify(source, [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-domain-clock': 'error' },
+    }], { filename: 'shared/src/draft/probe.ts' });
+  }
+  it.each(['export function f(now = Date.now()) { return now; }', "const t = Date['now']();", 'const d = new Date();',
+    'const t = globalThis.Date.now();', 'const d = new globalThis.Date();'])('rejects system time reads: %s', (source) => {
+    expect(clockMessages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-domain-clock', message: expect.stringContaining('systemClock') })]);
+  });
+  it('allows explicit times and the clock, and scopes the rule to shared domain code', async () => {
+    expect(clockMessages('const d = new Date(now); const t = systemClock.now(); const p = Date.parse(text);')).toEqual([]);
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    for (const [filePath, expected] of [
+      ['shared/src/sync.ts', [2]], ['shared/src/draft/probe.ts', [2]], ['shared/src/units/clock.ts', undefined],
+      ['shared/src/http/runner.ts', undefined], ['shared/src/node/processes.ts', undefined], ['shared/src/sync.test.ts', undefined],
+    ]) {
+      expect((await eslint.calculateConfigForFile(filePath)).rules['agent/no-domain-clock'], filePath).toEqual(expected);
+    }
+  });
+});
+
 describe('closed shared root exports', () => {
   it.each([
     "import { Player as Local } from '@fantasy-draft/shared';",

@@ -1,4 +1,5 @@
 import { isPlainObject as isRecord } from './objects.js';
+import { systemClock } from './units/clock.js';
 import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
@@ -204,7 +205,7 @@ function createFingerprintInput(
 }
 
 export function createDefaultLeagueSettings(
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): LeagueSettings {
   return createLeagueSettings({
     source: 'default',
@@ -219,7 +220,7 @@ export function createDefaultLeagueSettings(
 /** Creates a validated, cloned provider profile with a stable settings hash. */
 export function createLeagueSettings(
   input: LeagueSettingsInput,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): LeagueSettings {
   const scoringRules = cloneScoringRules(input.scoringRules);
   const rosterRequirements = cloneRosterRequirements(input.rosterRequirements);
@@ -440,7 +441,7 @@ function normalizeRosterRequirements(league: SleeperLeague): {
 
 export function normalizeSleeperLeagueSettings(
   league: SleeperLeague,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): LeagueSettings {
   const scoringRules = normalizeScoringRules(league.scoring_settings);
   const { requirements: rosterRequirements, unsupportedSlots } =
