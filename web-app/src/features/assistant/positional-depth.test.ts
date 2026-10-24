@@ -1,3 +1,4 @@
+import { asRank, asVor } from '@fantasy-draft/shared/units';
 import { describe, expect, it } from 'vitest';
 import type { Player } from '@fantasy-draft/shared/league';
 import type { PositionNeed } from '@fantasy-draft/shared/draft';
@@ -49,7 +50,7 @@ describe('available positional depth', () => {
 function player(id: string, overrides: Partial<Player> = {}): Player {
   const base = VISUAL_PLAYERS[0];
   if (!base) throw new Error('Missing player fixture');
-  return { ...base, id, position: 'WR', tier: 1, ecrRank: 1, projectedPoints: 300, predictionSource: 'fantasypros', ...overrides };
+  return { ...base, id, position: 'WR', tier: 1, ecrRank: asRank(1), projectedPoints: 300, predictionSource: 'fantasypros', ...overrides };
 }
 
 describe('positional depth drilldowns', () => {
@@ -67,8 +68,8 @@ describe('positional depth drilldowns', () => {
   });
 
   it('shows exactly the available players counted in each tier, ordered by rank', () => {
-    const input = [player('kept'), player('picked'), player('second', { ecrRank: 8 }),
-      player('first', { ecrRank: 2 }), player('first', { ecrRank: 2 }), player('later', { tier: 5 })];
+    const input = [player('kept'), player('picked'), player('second', { ecrRank: asRank(8) }),
+      player('first', { ecrRank: asRank(2) }), player('first', { ecrRank: asRank(2) }), player('later', { tier: 5 })];
     const excluded = new Set(['kept', 'picked']);
     const available = getAvailableDepthPlayers(input, excluded);
     expect(getDepthPlayers(available, 'WR', 1).map((p) => p.id)).toEqual(['first', 'second']);
@@ -111,12 +112,12 @@ describe('positional depth drilldowns', () => {
 
   it('keeps the below-replacement QB group intact instead of treating a large count as high quality', () => {
     const players = applyPositionTiers([
-      player('elite', { position: 'QB', projectedPoints: 400, valueOverReplacement: 100 }),
+      player('elite', { position: 'QB', projectedPoints: 400, valueOverReplacement: asVor(100) }),
       ...Array.from({ length: 9 }, (_, i) => player(`starter-${i}`, {
-        position: 'QB', projectedPoints: 350 - i, valueOverReplacement: 50 - i,
+        position: 'QB', projectedPoints: 350 - i, valueOverReplacement: asVor(50 - i),
       })),
       ...Array.from({ length: 52 }, (_, i) => player(`reserve-${i}`, {
-        position: 'QB', projectedPoints: 300 - i, valueOverReplacement: -i,
+        position: 'QB', projectedPoints: 300 - i, valueOverReplacement: asVor(-i),
       })),
     ]);
     const reserves = getDepthPlayers(players, 'QB', 3);

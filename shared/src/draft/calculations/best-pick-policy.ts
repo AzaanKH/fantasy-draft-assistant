@@ -1,4 +1,5 @@
 import { DEFAULT_ROSTER_REQUIREMENTS, type RecommendationDecisionFactors, type RosterRequirements } from '../../draft.js';
+import { asProbability, asVor } from '../../units/brands.js';
 import { POSITIONS, type Player, type Position } from '../../player.js';
 import { optimizeLineupUtility, type LineupPlayer } from '../../lineup-utility.js';
 import {
@@ -413,15 +414,15 @@ export function prepareDraftTimingAlternatives(
 ): DraftTimingAlternatives {
   const byPosition = new Map<Position, DraftTimingAlternative[]>();
   for (const candidate of candidates) {
-    const returnProbability = clamp(
+    const returnProbability = asProbability(clamp(
       candidate.nextPickSurvivalProbability,
       0,
       1
-    );
-    const valueOverReplacement = round(
+    ));
+    const valueOverReplacement = asVor(round(
       Math.max(0, candidate.valueOverReplacement),
       1
-    );
+    ));
     const alternatives = byPosition.get(candidate.position) ?? [];
     alternatives.push({
       playerId: candidate.id,
@@ -615,7 +616,7 @@ export function evaluateBestPickPolicy(
       tierAvailability.get(getTierKey(player.position, player.tier))
     );
     const draftTiming = getDraftTimingFactor(player, draftTimingAlternatives);
-    const playerQualityScore = -player.ecrRank;
+    const playerQualityScore = -Number(player.ecrRank);
     const legalCompletionPossible = canCompleteLegalRoster(
       player,
       counts,

@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { describe, expect, it } from 'vitest';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { sortRecommendationsForPool } from '@fantasy-draft/shared/draft';
@@ -14,12 +15,12 @@ function recommendation(
     reason: 'Test recommendation',
     score,
     diagnostics: {
-      expertRank: 1,
+      expertRank: asRank(1),
       marketRank: 1,
       projectedPoints: 250,
-      valueOverReplacement: 100,
+      valueOverReplacement: asVor(100),
       marketDelta: 0,
-      nextPickSurvivalProbability: 0.5,
+      nextPickSurvivalProbability: asProbability(0.5),
       tier,
       tierRemaining: 2,
       isLastInTier: false,

@@ -1,4 +1,5 @@
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
+import { asPercent, type Percent } from '../../units/brands.js';
 import { type DraftDecisionView } from '../recommendations/draft-decision.js';
 import { formatSignedNumber } from '../format.js';
 import { type ExpectedNextPickAlternative, type PositionNeed, type Recommendation } from '../../draft.js';
@@ -10,9 +11,9 @@ type SignalTone = 'positive' | 'caution' | 'urgent' | 'neutral';
 function pluralize(value: number, singular: string, plural: string): string {
   return `${String(value)} ${value === 1 ? singular : plural}`;
 }
-export function survivalPercent(recommendation: Recommendation): number | null {
+export function survivalPercent(recommendation: Recommendation): Percent | null {
   const probability = recommendation.diagnostics?.nextPickSurvivalProbability;
-  return typeof probability === 'number' ? Math.round(probability * 100) : null;
+  return typeof probability === 'number' ? asPercent(Math.round(probability * 100)) : null;
 }
 
 export function sortRecommendationsForPool(

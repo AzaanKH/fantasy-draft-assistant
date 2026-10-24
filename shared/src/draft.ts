@@ -1,5 +1,6 @@
 import type { Position, SurvivalModelSource, TierSource } from './player.js';
 import { FLEX_GROUPS } from './league/positions.js';
+import type { Probability, Rank, Vor } from './units/brands.js';
 
 /**
  * Roster structure tracking player IDs by position
@@ -116,16 +117,16 @@ export interface ExpectedNextPickAlternative {
   readonly playerId: string;
   readonly playerName: string;
   readonly position: Position;
-  readonly ecrRank: number;
-  readonly valueOverReplacement: number;
-  readonly returnProbability: number;
+  readonly ecrRank: Rank;
+  readonly valueOverReplacement: Vor;
+  readonly returnProbability: Probability;
   readonly expectedValue: number;
 }
 
 /** Transparent inputs used by the live, ECR-anchored Best Pick policy. */
 export interface RecommendationDecisionFactors {
   readonly playerQuality: {
-    readonly ecrRank: number;
+    readonly ecrRank: Rank;
     readonly score: number;
   };
   readonly leagueValue: {
@@ -134,7 +135,7 @@ export interface RecommendationDecisionFactors {
     readonly maxScore: number;
     readonly projectedPoints: number;
     readonly replacementPoints: number;
-    readonly valueOverReplacement: number;
+    readonly valueOverReplacement: Vor;
     readonly scoringAdjustment?: number;
     readonly materiallyChangedOrdering?: boolean;
   };
@@ -211,20 +212,20 @@ export interface Recommendation {
   /** Present on live Best Pick results; absent from the ECR-only Best Player view. */
   readonly decisionFactors?: RecommendationDecisionFactors;
   readonly diagnostics?: {
-    readonly expertRank: number;
+    readonly expertRank: Rank;
     readonly marketRank: number;
     readonly marketDelta: number;
     /** Picks paid ahead of the league-adjusted market price at the current pick. */
     readonly marketReachCost?: number;
     readonly projectedPoints: number;
-    readonly valueOverReplacement: number;
+    readonly valueOverReplacement: Vor;
     readonly tier: number;
     readonly fantasyProsTier?: number;
     readonly tierSource?: TierSource;
     readonly tierDropoffPoints?: number;
     readonly tierRemaining?: number;
     readonly isLastInTier?: boolean;
-    readonly nextPickSurvivalProbability?: number;
+    readonly nextPickSurvivalProbability?: Probability;
     readonly nextPickNumber?: number;
     readonly nextPickLabel?: string;
     readonly picksUntilNextPick?: number;

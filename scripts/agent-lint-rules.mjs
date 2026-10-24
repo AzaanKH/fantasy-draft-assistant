@@ -267,6 +267,22 @@ export default {
         };
       },
     },
+    'no-unit-cast': {
+      meta: {
+        type: 'problem', schema: [],
+        messages: { constructor: 'Do not cast to {{name}}. Create units with asProbability, asPercent, asRank or asVor from @fantasy-draft/shared/units where external data becomes domain data.' },
+      },
+      create(context) {
+        function check(node) {
+          const type = node.typeAnnotation;
+          if (type.type === 'TSTypeReference' && type.typeName.type === 'Identifier' &&
+              ['Probability', 'Percent', 'Rank', 'Vor'].includes(type.typeName.name)) {
+            context.report({ node, messageId: 'constructor', data: { name: type.typeName.name } });
+          }
+        }
+        return { TSAsExpression: check, TSTypeAssertion: check };
+      },
+    },
     'no-cross-package-import': {
       meta: {
         type: 'problem', schema: [],

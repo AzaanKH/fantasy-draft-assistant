@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { createWorkspace } from '@/workspace/workspace';
 import { DraftDataRefreshRequestContext } from '@/hooks/useDraftDataRefresh';
@@ -69,8 +70,8 @@ export const VISUAL_PLAYERS: readonly Player[] = PLAYER_FIXTURES.map(
     position: fixture.position,
     team: fixture.team,
     byeWeek: 6 + index % 8,
-    ecrRank: 47 + index,
-    positionalRank: 8 + index,
+    ecrRank: asRank(47 + index),
+    positionalRank: asRank(8 + index),
     sleeperAdp: 50 + index * 1.4,
     sleeperSearchRank: 50 + index,
     consensusAdp: 51 + index * 1.2,
@@ -82,13 +83,13 @@ export const VISUAL_PLAYERS: readonly Player[] = PLAYER_FIXTURES.map(
     contractEndYear: 2027,
     offensiveEnvironmentScore: 8.4 - index * 0.25,
     projectedPoints: 248 - index * 8.5,
-    valueOverReplacement: 64 - index * 4.5,
+    valueOverReplacement: asVor(64 - index * 4.5),
     tier: index < 4 ? 2 : index < 8 ? 3 : 4,
     fantasyProsTier: index < 4 ? 2 : index < 8 ? 3 : 4,
     tierSource: 'league-projection',
     tierDropoffScore: index === 3 || index === 7 ? 0.78 : 0.24,
     tierDropoffPoints: index === 3 || index === 7 ? 13.5 : 3.2,
-    nextPickSurvivalProbability: Math.max(0.14, 0.76 - index * 0.06),
+    nextPickSurvivalProbability: asProbability(Math.max(0.14, 0.76 - index * 0.06)),
     nextPickNumber: 56,
     nextPickLabel: '6.6',
     picksUntilNextPick: 10,

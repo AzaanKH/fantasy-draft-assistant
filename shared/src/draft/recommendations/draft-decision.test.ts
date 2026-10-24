@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, expect, it } from 'vitest';
 import type { DecisionDivergenceFactor, Recommendation, RecommendationDecisionFactors } from '../../draft.js';
 import { createDraftDecisionOutput } from './draft-decision.js';
@@ -14,11 +15,11 @@ function recommendation(
     reason: `ECR #${String(expertRank)}`,
     score: -expertRank,
     diagnostics: {
-      expertRank,
+      expertRank: asRank(expertRank),
       marketRank: expertRank,
       marketDelta: 0,
       projectedPoints: 200,
-      valueOverReplacement: 20,
+      valueOverReplacement: asVor(20),
       tier: 1,
     },
   };
@@ -29,14 +30,14 @@ function policyFactors(
   preferred: boolean
 ): RecommendationDecisionFactors {
   return {
-    playerQuality: { ecrRank: preferred ? 3 : 1, score: preferred ? -3 : -1 },
+    playerQuality: { ecrRank: asRank(preferred ? 3 : 1), score: preferred ? -3 : -1 },
     leagueValue: {
       score: preferred ? 2 : 0,
       minScore: 0,
       maxScore: 6,
       projectedPoints: preferred ? 245 : 202,
       replacementPoints: 200,
-      valueOverReplacement: preferred ? 45 : 2,
+      valueOverReplacement: asVor(preferred ? 45 : 2),
       materiallyChangedOrdering: preferred && factor === 'league-value',
     },
     rosterFit: {
@@ -82,7 +83,7 @@ function policyFactors(
       nextPickNumber: 13,
       nextPickLabel: '2.03',
       picksUntilNextPick: 5,
-      returnProbability: preferred ? 0.05 : 0.8,
+      returnProbability: asProbability(preferred ? 0.05 : 0.8),
       candidateValue: preferred ? 45 : 2,
       costOfWaiting: preferred ? 18 : 0,
       materiallyChangedOrdering: preferred && factor === 'draft-timing',

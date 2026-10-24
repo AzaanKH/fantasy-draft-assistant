@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 /**
@@ -131,7 +132,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
         ? player
         : {
             ...player,
-            nextPickSurvivalProbability: mockProbability,
+            nextPickSurvivalProbability: asProbability(mockProbability),
             survivalModelSource: 'league-history' as const,
           };
     });
