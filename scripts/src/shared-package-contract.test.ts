@@ -141,7 +141,7 @@ const hook = registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier, context);
 } });
 globalThis.localStorage = { getItem: () => JSON.stringify({ profile: 'primary-league', quickMock: { totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 } }) };
-const connections = await import('../web-app/src/stores/draftSyncStore.ts');
+const connections = await import('../web-app/src/workspace/connection-hints.ts');
 const preferences = await import('../web-app/src/stores/leagueSetupStore.ts');
 const connection = connections.parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: null }));
 const rejected = connections.parseStoredDraftSyncConnection(JSON.stringify({ provider: 'sleeper', draftId: 'Draft_1-abc', draftPosition: 0 }));

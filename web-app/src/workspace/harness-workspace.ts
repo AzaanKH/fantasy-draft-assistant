@@ -1,5 +1,4 @@
 import { createDraftStore } from '@/stores/draftStore';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import type { VerifiedStorageSharing } from './storage-sharing';
 import { createWorkspace } from './workspace';
 import { captureV1ImportSnapshot, importV1Snapshot } from './import-snapshot';
@@ -15,7 +14,6 @@ export function createHarnessWorkspace(verified: VerifiedStorageSharing): Worksp
   if (verified.origin !== window.location.origin) throw new Error('Storage verification belongs to another origin');
   if (!import.meta.env.DEV || import.meta.env.VITE_PERSISTENCE_HARNESS !== 'idb') throw new Error('IndexedDB workspace is available only to the development persistence harness');
   const draft = createDraftStore({ storage: null });
-  const connection = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
   const errors: StorageDiagnostic[] = [];
   let active: IndexedWorkspace | undefined;
   let stop: (() => void) | undefined;
@@ -41,9 +39,9 @@ export function createHarnessWorkspace(verified: VerifiedStorageSharing): Worksp
       throw error;
     }
   } };
-  const owner = createWorkspace({ draftStore: draft, connectionStore: connection, durable: command => {
+  const owner = createWorkspace({ draftStore: draft, durable: command => {
     if (!active) return Promise.reject(new Error('Bind the harness session before a durable command'));
-    if (command[0] === 'connection.startConnection' || command[0] === 'connection.confirmDraftPosition' || command[0] === 'connection.restoreConnection' || command[0] === 'connection.setPrimaryLeagueSettings' || command[0] === 'connection.setQuickMockSettings' || command[0] === 'connection.disconnect') return Promise.reject(new Error('Connection commands are unavailable'));
+    if (command[0] === 'connection.applyProviderSettings' || command[0] === 'connection.applyHint' || command[0] === 'connection.startConnection' || command[0] === 'connection.confirmDraftPosition' || command[0] === 'connection.restoreConnection' || command[0] === 'connection.setPrimaryLeagueSettings' || command[0] === 'connection.setQuickMockSettings' || command[0] === 'connection.disconnect') return Promise.reject(new Error('Connection commands are unavailable'));
     return active.commit(...command);
   } });
   return { ...owner, dispose() { stop?.(); active?.dispose(); binding = undefined; owner.dispose(); } };

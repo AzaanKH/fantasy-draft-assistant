@@ -94,29 +94,21 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       return;
     }
 
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', {
+    if (!draftId) return;
+    const hint = { provider, draftId, config: {
       totalTeams: snapshot.draft.settings.teams,
       totalRounds: snapshot.draft.settings.rounds,
       draftType: snapshot.draft.type,
-    }); } else { workspace.send('setConfig', {
-      totalTeams: snapshot.draft.settings.teams,
-      totalRounds: snapshot.draft.settings.rounds,
-      draftType: snapshot.draft.type,
-    }); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'applyLeagueSettings', resolveSyncedLeagueSettings(
+    }, leagueSettings: resolveSyncedLeagueSettings(
       provider,
       snapshot.draft.settings.teams,
       snapshot.draft.leagueSettings,
       usePrimaryLeagueSettings,
       useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
-    )); } else { workspace.send('applyLeagueSettings', resolveSyncedLeagueSettings(
-      provider,
-      snapshot.draft.settings.teams,
-      snapshot.draft.leagueSettings,
-      usePrimaryLeagueSettings,
-      useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
-    )); }
-  }, [workspace, snapshot?.draft, provider, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
+    ) };
+    if (STORAGE_ACTIVATION_ENABLED) dispatchWorkspace(workspace, 'connection.applyProviderSettings', hint);
+    else workspace.send('connection.applyProviderSettings', hint);
+  }, [workspace, snapshot?.draft, provider, draftId, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
 
   const pickHistory = snapshot?.picks;
   const draftSettings = snapshot?.draft?.settings;

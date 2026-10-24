@@ -3,7 +3,6 @@ import { act, createElement, type EffectCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createDraftStore } from '@/stores/draftStore';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createWorkspace } from '@/workspace/workspace';
 import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
@@ -20,7 +19,7 @@ afterEach(() => { vi.unstubAllGlobals(); effects.length = 0; });
 it('retries the same OFF reconciliation after a synchronous dispatch failure', () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const draftStore = createDraftStore({ storage: null });
-  const workspace = createWorkspace({ draftStore, connectionStore: createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined }) });
+  const workspace = createWorkspace({ draftStore });
   const send = vi.spyOn(workspace, 'send').mockImplementationOnce(() => { throw new Error('Synchronous save failure'); });
   const snapshot: DraftSyncSnapshot = { provider: 'sleeper', draftId: '123', status: 'synced', draft: null, picks: [], lastSuccessfulSyncAt: 100, lastPolledAt: 100, lastError: null };
   function Consumer() { useDraftSyncReconciliation('sleeper', '123', snapshot, true); return null; }

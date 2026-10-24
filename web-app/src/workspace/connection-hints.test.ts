@@ -1,14 +1,13 @@
+import { createConnectionTestDriver, initializeConnectionTestDriver } from '@/workspace/connection-test-driver';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  createDraftSyncConnectionStore,
   getDraftSyncConnectionFromSearch,
   getDraftSyncSearch,
-  initializeDraftSyncConnection,
   parseStoredDraftSyncConnection,
   persistConnection,
-} from './draftSyncStore';
+} from '@/workspace/connection-hints';
 
-const connectionStore = createDraftSyncConnectionStore({ initialConnection: null, persist: persistConnection });
+const connectionStore = createConnectionTestDriver({ initialConnection: null, persist: persistConnection });
 
 describe('draft sync connection persistence', () => {
   afterEach(() => {
@@ -88,7 +87,7 @@ describe('draft sync connection persistence', () => {
       draftPosition: 5,
     });
 
-    initializeDraftSyncConnection(connectionStore, '?provider=sleeper&draftId=draft-1');
+    initializeConnectionTestDriver(connectionStore, '?provider=sleeper&draftId=draft-1');
 
     expect(connectionStore.getState().connection).toEqual({
       provider: 'sleeper',
@@ -110,7 +109,7 @@ describe('Sleeper mock practice setting', () => {
     if (!connection) throw new Error('Expected a persisted practice connection');
     expect(parseStoredDraftSyncConnection(JSON.stringify(connection))).toEqual(connection);
     expect(getDraftSyncConnectionFromSearch(getDraftSyncSearch('', connection))).toEqual(connection);
-    initializeDraftSyncConnection(connectionStore, '?provider=sleeper&draftId=practice-1&position=5');
+    initializeConnectionTestDriver(connectionStore, '?provider=sleeper&draftId=practice-1&position=5');
     expect(connectionStore.getState().connection?.usePrimaryLeagueSettings).toBe(true);
     store.startConnection('sleeper', 'actual-league');
     expect(connectionStore.getState().connection?.usePrimaryLeagueSettings).toBeUndefined();
@@ -152,7 +151,7 @@ describe('Quick mock connection profile', () => {
     const connection = connectionStore.getState().connection;
     expect(parseStoredDraftSyncConnection(JSON.stringify(connection))).toEqual(connection);
     expect(getDraftSyncConnectionFromSearch(getDraftSyncSearch('', connection))).toEqual(connection);
-    initializeDraftSyncConnection(connectionStore, '?provider=sleeper&draftId=quick-1');
+    initializeConnectionTestDriver(connectionStore, '?provider=sleeper&draftId=quick-1');
     expect(connectionStore.getState().connection?.settingsProfile).toBe('quick-mock');
     store.startConnection('sleeper', 'another-draft');
     expect(connectionStore.getState().connection?.settingsProfile).toBeUndefined();
@@ -167,7 +166,7 @@ describe('Quick mock connection profile', () => {
     store.setPrimaryLeagueSettings(true);
     expect(connectionStore.getState().connection?.settingsProfile).toBeUndefined();
     store.setQuickMockSettings(true);
-    initializeDraftSyncConnection(connectionStore, '?provider=sleeper&draftId=quick-1&settings=provider');
+    initializeConnectionTestDriver(connectionStore, '?provider=sleeper&draftId=quick-1&settings=provider');
     expect(connectionStore.getState().connection).toEqual({ provider: 'sleeper', draftId: 'quick-1', draftPosition: null });
   });
 
@@ -184,7 +183,7 @@ describe('isolated connection store', () => {
 
   it('starts empty and stays separate from the persisted live connection', () => {
     connectionStore.getState().startConnection('sleeper', '1393492523179057152');
-    const isolated = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
+    const isolated = createConnectionTestDriver({ initialConnection: null, persist: () => undefined });
 
     expect(isolated.getState().connection).toBeNull();
 

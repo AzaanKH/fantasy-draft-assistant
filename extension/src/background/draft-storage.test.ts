@@ -32,8 +32,10 @@ describe('pairing token storage', () => {
     const storage = new ChromeDraftStorage(area);
     await expect(storage.getSyncToken()).rejects.toThrow('Pair the extension');
     contents['syncToken'] = 'x'.repeat(43);
+    contents[STORAGE_KEYS.MY_PICK_POSITION] = 7;
     await storage.setInstallationDefaults();
     await expect(storage.getSyncToken()).resolves.toBe('x'.repeat(43));
+    expect(contents[STORAGE_KEYS.MY_PICK_POSITION]).toBe(7);
   });
 });
 
@@ -50,4 +52,11 @@ describe('storage read shape boundaries', () => {
       expect(warning).toHaveBeenCalledWith(expect.stringContaining('Rejected stored syncServerUrl'), expect.anything());
     } finally { warning.mockRestore(); }
   });
+});
+
+it('does not install a second slot default into chrome storage', async () => {
+  const contents: Record<string, unknown> = {};
+  const area = { get: vi.fn(async () => contents), set: vi.fn(async (values: Record<string, unknown>) => { Object.assign(contents, values); }) } as unknown as ConstructorParameters<typeof ChromeDraftStorage>[0];
+  await new ChromeDraftStorage(area).setInstallationDefaults();
+  expect(contents).not.toHaveProperty(STORAGE_KEYS.MY_PICK_POSITION);
 });

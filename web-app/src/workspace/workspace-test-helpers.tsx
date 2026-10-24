@@ -1,6 +1,5 @@
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import type { DraftStoreApi } from '@/stores/draftStore';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createWorkspace, type Workspace } from './workspace';
 import { WorkspaceProvider } from './WorkspaceProvider';
 
@@ -10,10 +9,7 @@ export function workspaceForTestStore(store: DraftStoreApi): Workspace {
   let workspace = workspaces.get(store);
   if (!workspace) {
     const session = store.getState().liveSession;
-    workspace = createWorkspace({ draftStore: store, connectionStore: createDraftSyncConnectionStore({
-      initialConnection: session ? { ...session, draftPosition: null } : null,
-      persist: () => undefined,
-    }) });
+    workspace = createWorkspace({ draftStore: store, initialConnection: session ? { ...session, draftPosition: null } : null });
     workspaces.set(store, workspace);
   }
   return workspace;

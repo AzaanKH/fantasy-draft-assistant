@@ -147,6 +147,7 @@ export interface DraftState {
   // Explicitly separates a disconnected preview from mock and live drafting.
   sessionMode: DraftSessionMode;
   liveSession: DraftSessionIdentity | null;
+  connectionPreferences?: { slotConfirmed: boolean; usePrimaryLeagueSettings?: boolean; settingsProfile?: 'quick-mock' };
   /** Retained through restart until a newer successful provider history is applied. */
   manualContinuityBaselineAt: number | null;
   lastConfirmedSyncAt: number | null;

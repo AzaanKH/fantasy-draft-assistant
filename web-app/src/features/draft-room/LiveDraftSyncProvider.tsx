@@ -17,7 +17,7 @@ import {
   type DraftSyncViewState,
 } from '@/hooks/useDraftSync';
 
-import { getDraftSyncSearch, type PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
+import { getDraftSyncSearch, type PersistedDraftSyncConnection } from '@/workspace/connection-hints';
 
 interface StartDraftConnectionInput {
   readonly provider: DraftProvider;
@@ -169,17 +169,6 @@ export function LiveDraftSyncProvider({ children }: {
     setReconciliationTargetAt(null);
   }, [reconciliationTargetAt, sync.lastReconciledSnapshotAt]);
 
-  React.useEffect(() => {
-    if (connection?.draftPosition === null || connection === null) return;
-
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition }); } else { workspace.send('setConfig', { myPickPosition: connection.draftPosition }); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'live'); } else { workspace.send('setSessionMode', 'live'); }
-  }, [connection, workspace]);
-
-  React.useEffect(() => {
-    if (sync.draft) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { draftType: sync.draft.type }); } else { workspace.send('setConfig', { draftType: sync.draft.type }); }
-  }, [sync.draft, workspace]);
-
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
     setReconciliationTargetAt(null);
     if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.startConnection', next.provider, next.draftId); } else { workspace.send('connection.startConnection', next.provider, next.draftId); }
@@ -188,8 +177,6 @@ export function LiveDraftSyncProvider({ children }: {
   const confirmDraftPosition = React.useCallback((draftPosition: number) => {
     setReconciliationTargetAt(null);
     if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.confirmDraftPosition', draftPosition); } else { workspace.send('connection.confirmDraftPosition', draftPosition); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { myPickPosition: draftPosition }); } else { workspace.send('setConfig', { myPickPosition: draftPosition }); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'live'); } else { workspace.send('setSessionMode', 'live'); }
   }, [workspace]);
 
   const enterManualContinuity = React.useCallback(() => {

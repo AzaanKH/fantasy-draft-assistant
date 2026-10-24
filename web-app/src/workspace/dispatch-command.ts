@@ -26,6 +26,7 @@ export function dispatchDraftCommand(actions: DraftActions, command: DraftComman
       case 'setMockSurvivalProbabilities': { const [, ...args] = command; actions.setMockSurvivalProbabilities(...args); break; }
       case 'togglePlayerShortlisted': { const [, ...args] = command; actions.togglePlayerShortlisted(...args); break; }
       case 'removePlayerFromShortlist': { const [, ...args] = command; actions.removePlayerFromShortlist(...args); break; }
+      case 'confirmDraftSlot': actions.setConfig({ myPickPosition: command[1] }); actions.setSessionMode('live'); break;
       case 'advanceSyncFreshness': throw new Error('Sync freshness requires a durable session');
       case 'setPlayerShortlisted': {
         if (command[2]) { if (!queue().includes(command[1])) actions.togglePlayerShortlisted(command[1]); }

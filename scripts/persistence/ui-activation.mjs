@@ -1,3 +1,4 @@
+import { checkSlotOwnership } from './ui-slot-owner.mjs';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, appendFile, rename, open, mkdir, cp, mkdtemp, readdir } from 'node:fs/promises';
@@ -89,7 +90,7 @@ async function git() {
   return { head: head.stdout.trim(), branch: branch.stdout.trim(), status: status.stdout.trim() };
 }
 const gitStart = await git(); gitStart.clean = !gitStart.status;
-if (gitStart.branch !== 'feat/agent-u11c2-activation') throw new Error('Wrong branch for U11C2 browser proof');
+if (!process.env.UI_EXPECTED_BRANCH?.trim() || gitStart.branch !== process.env.UI_EXPECTED_BRANCH) throw new Error('Set UI_EXPECTED_BRANCH to the current branch for browser proof');
 if (flag('gate') && (!process.env.UI_EXPECTED_HEAD || process.env.UI_EXPECTED_HEAD !== gitStart.head || !gitStart.clean || smoke)) {
   throw new Error('Final matrix requires UI_EXPECTED_HEAD equal to the clean committed HEAD and the complete default matrix');
 }
@@ -365,7 +366,7 @@ async function readCommitted(page, id) {
     try {
       const session = await new Promise((resolve, reject) => { const g = db.transaction(['sessions'], 'readonly').objectStore('sessions').get(key); g.onsuccess = () => resolve(g.result ?? null); g.onerror = () => reject(g.error); });
       if (!session) return { present: false, picks: [], queue: [] };
-      return { present: true, revision: session.revision, picks: (session.draftHistory ?? []).map(p => ({ pickNumber: p.pickNumber, playerId: p.playerId, source: p.source })), queue: session.shortlistedPlayerIds ?? [], sessionMode: session.sessionMode, manualContinuityBaselineAt: session.manualContinuityBaselineAt, lastConfirmedSyncAt: session.lastConfirmedSyncAt };
+      return { present: true, revision: session.revision, picks: (session.draftHistory ?? []).map(p => ({ pickNumber: p.pickNumber, playerId: p.playerId, source: p.source })), queue: session.shortlistedPlayerIds ?? [], sessionMode: session.sessionMode, manualContinuityBaselineAt: session.manualContinuityBaselineAt, lastConfirmedSyncAt: session.lastConfirmedSyncAt, myPickPosition: session.config.myPickPosition };
     } finally { db.close(); }
   }, [DATABASE, `sleeper:${id}`]), 10000, 'Read-only committed session audit');
 }
@@ -854,13 +855,20 @@ async function reachabilityScenario(scenario, scenarioIndex) {
     }
     assertNoPreflightWorkload(results); scenario.reachability.push(row); await save();
   }
+  if (process.env.UI_SLOT_OWNER === 'u12' && !panel) {
+    const actor = await openTab(ctxInfo, sessions.reconcile);
+    await actor.ctx.getByRole('button', { name: 'Manage Sleeper draft connection', exact: true }).click();
+    scenario.slotControl = await inspectControl(actor.ctx.getByRole('combobox', { name: 'Your draft slot', exact: true }), 'Your draft slot');
+    await closeActors([actor]);
+  }
   scenario.v1FinalSnapshot = await localStorageV1(appTab);
   await appTab.close();
 }
 
 async function rootSmokeScenario(scenario, scenarioIndex) {
   const panel = scenario.label === 'extension-granted';
-  const count = panel ? 42 : 43;
+  const slotOwner = process.env.UI_SLOT_OWNER === 'u12' && !panel;
+  const count = (panel ? 42 : 43) + (slotOwner ? 2 : 0);
   const ids = draftIds(scenarioIndex, count); let cursor = 0; const next = () => ids[cursor++];
   const ctxInfo = await launch(scenario.label); context = ctxInfo.ctx;
   scenario.runtime = ctxInfo.runtime; scenario.profile = ctxInfo.profile; scenario.launchOptions = ctxInfo.launchOptions; scenario.steps = [];
@@ -871,6 +879,11 @@ async function rootSmokeScenario(scenario, scenarioIndex) {
   const catalog = await loadCatalog(ctxInfo, 300); scenario.catalog = catalog;
   const nameToId = new Map(catalog.map(value => [value.name, value.id]));
   if (!panel) await setup.close();
+  if (slotOwner) {
+    scenario.slotOwnership = { commands: [], checks: [] };
+    await checkSlotOwnership({ ctxInfo, ids: [next(), next()], openTab, readCommitted, drained, proof: scenario.slotOwnership, record: save });
+    await save();
+  }
   const operations = {
     pickConflict: sample => pickConflict(ctxInfo, next(), catalog, sample, panel),
     moveConflict: sample => moveConflict(ctxInfo, next(), catalog, nameToId, sample, panel),

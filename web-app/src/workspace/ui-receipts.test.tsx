@@ -3,7 +3,6 @@ import { act, createElement, Fragment } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createDraftStore } from '@/stores/draftStore';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { ProvisionalPickDialog } from '@/features/draft-room/ProvisionalPickDialog';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { createWorkspace } from './workspace';
@@ -25,13 +24,12 @@ afterEach(() => { vi.unstubAllGlobals(); });
 
 it.each(['commit', 'abort'] as const)('keeps the real pick dialog pending until durable %s', async outcome => {
   const draft = createDraftStore();
-  const connection = createDraftSyncConnectionStore({ initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 }, persist: () => undefined });
   draft.getState().setSessionMode('live');
   let complete: ((value: { result: boolean }) => void) | undefined;
   let abort: ((error: Error) => void) | undefined;
   const receipt = new Promise<{ result: boolean }>((resolve, reject) => { complete = resolve; abort = reject; });
   const durable = vi.fn(() => receipt);
-  const owner = observeDurableWorkspace(createWorkspace({ draftStore: draft, connectionStore: connection, durable }));
+  const owner = observeDurableWorkspace(createWorkspace({ draftStore: draft, initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 }, durable }));
   draft.getState().setSessionMode('live');
   const close = vi.fn();
   const container = document.createElement('div'); document.body.append(container);
@@ -62,10 +60,9 @@ it.each(['commit', 'abort'] as const)('keeps the real pick dialog pending until 
 
 it('keeps later pending work visible until the prior save error is acknowledged', async () => {
   const draft = createDraftStore();
-  const connection = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
   let release: (() => void) | undefined;
   let calls = 0;
-  const owner = observeDurableWorkspace(createWorkspace({ draftStore: draft, connectionStore: connection, durable: async () => {
+  const owner = observeDurableWorkspace(createWorkspace({ draftStore: draft, durable: async () => {
     if (calls++ === 0) throw new Error('First write aborted');
     await new Promise<void>(resolve => { release = resolve; }); return { result: undefined };
   } }));

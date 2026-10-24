@@ -38,7 +38,6 @@ import {
 } from '@/hooks/usePlayerData';
 import { createDataFreshnessItem } from '@/lib/data-freshness';
 import { createDraftStore, type DraftStoreApi, type RecordedDraftPick } from '@/stores/draftStore';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 
 export const VISUAL_NOW = Date.UTC(2026, 7, 27, 17, 0, 0);
 export const VISUAL_TIMESTAMP = new Date(VISUAL_NOW).toISOString();
@@ -443,12 +442,7 @@ function VisualReadySignal(): null {
 
 export function VisualApp(): React.ReactElement {
   const [draftStore] = React.useState(createVisualDraftStore);
-  // A persisted live draft must not reach useDraftSync or switch the mock fixture store to live.
-  const [connectionStore] = React.useState(() => createDraftSyncConnectionStore({
-    initialConnection: null,
-    persist: () => undefined,
-  }));
-  const [workspace] = React.useState(() => createWorkspace({ draftStore, connectionStore }));
+  const [workspace] = React.useState(() => createWorkspace({ draftStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),
     []

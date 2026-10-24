@@ -2,7 +2,8 @@ import { dispatchDraftCommand } from './dispatch-command';
 import type { StoreApi } from 'zustand';
 import type { DraftStoreApi } from '@/stores/draftStore';
 import type { DraftState, DraftReconciliationResult } from '@/stores/draft/types';
-import type { DraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import { connectionReader, connectionHint, connectionPreferences, getConnection, type ConnectionQuery } from './connection';
+import { isDraftPosition, type PersistedDraftSyncConnection } from './connection-hints';
 import type { WorkspaceCommand, WorkspaceSend, VoidWorkspaceCommand } from './commands';
 
 export type WorkspaceReader<T> = Pick<StoreApi<T>, 'getState' | 'getInitialState' | 'subscribe'>;
@@ -10,21 +11,40 @@ export interface Workspace {
   readonly status?: WorkspaceReader<import('./ui-dispatch').CommandStatus>;
   readonly dismissError?: () => void;
   readonly draft: WorkspaceReader<DraftState>;
-  readonly connection: WorkspaceReader<Pick<DraftSyncConnectionStore, 'connection'>>;
+  readonly connection: WorkspaceReader<ConnectionQuery>;
   readonly send: WorkspaceSend;
   readonly sendDurable?: (command: WorkspaceCommand | import('./draft-reducer').DraftCommand) => Promise<unknown>;
   readonly dispose: () => void;
 }
 
-export function createWorkspace({ draftStore, connectionStore, durable }: {
+export function createWorkspace({ draftStore, initialConnection = null, persist = () => {}, durable }: {
   readonly draftStore: DraftStoreApi;
   readonly durable?: (command: WorkspaceCommand | import('./draft-reducer').DraftCommand) => Promise<unknown>;
-  readonly connectionStore: StoreApi<DraftSyncConnectionStore>;
+  readonly initialConnection?: PersistedDraftSyncConnection | null;
+  readonly persist?: (connection: PersistedDraftSyncConnection | null) => void;
 }): Workspace {
-  draftStore.getState().setLiveDraftSession(connectionStore.getState().connection);
-  const unsubscribe = connectionStore.subscribe(({ connection }) => {
-    draftStore.getState().setLiveDraftSession(connection);
+  let suspendedLive: DraftState | null = null;
+  const connection = connectionReader(draftStore, state => state.sessionMode === 'mock' && suspendedLive ? suspendedLive : state);
+  function applyHint(hint: PersistedDraftSyncConnection | null): void {
+    if (!hint) suspendedLive = null;
+    const current = getConnection(draftStore.getState());
+    const same = current?.provider === hint?.provider && current?.draftId === hint?.draftId;
+    draftStore.getState().setLiveDraftSession(hint);
+    if (!hint) { draftStore.setState({ connectionPreferences: undefined }); return; }
+    const state = draftStore.getState();
+    const confirmed = state.sessionMode === 'live' || (same && state.connectionPreferences?.slotConfirmed === true);
+    if (!confirmed && hint.draftPosition !== null) state.setConfig({ myPickPosition: hint.draftPosition });
+    draftStore.setState({ connectionPreferences: connectionPreferences(hint, confirmed || hint.draftPosition !== null) });
+  }
+  if (initialConnection) applyHint(initialConnection);
+  let projected = JSON.stringify(connection.getState().connection);
+  const unsubscribe = draftStore.subscribe(() => {
+    const next = connection.getState().connection; const serialized = JSON.stringify(next);
+    if (serialized === projected) return;
+    projected = serialized;
+    if (next) persist(next);
   });
+  if (initialConnection) persist(connection.getState().connection);
 
   function send(...command: VoidWorkspaceCommand): void;
   function send(...command: WorkspaceCommand<'recordProvisionalPick' | 'correctProvisionalPick' | 'removeProvisionalPick'>): boolean;
@@ -36,16 +56,49 @@ export function createWorkspace({ draftStore, connectionStore, durable }: {
       return undefined;
     }
     const state = draftStore.getState();
-    const connection = connectionStore.getState();
+    if (command[0] === 'setSessionMode') {
+      if (command[1] === 'mock' && state.liveSession) suspendedLive = state;
+      else if (command[1] === 'live' && !state.liveSession && suspendedLive) state.setLiveDraftSession(suspendedLive.liveSession);
+    }
+
     switch (command[0]) {
-      case 'connection.startConnection': { const [, ...args] = command; connection.startConnection(...args); return; }
-      case 'connection.confirmDraftPosition': { const [, ...args] = command; connection.confirmDraftPosition(...args); return; }
-      case 'connection.restoreConnection': { const [, ...args] = command; connection.restoreConnection(...args); return; }
-      case 'connection.setPrimaryLeagueSettings': { const [, ...args] = command; connection.setPrimaryLeagueSettings(...args); return; }
-      case 'connection.setQuickMockSettings': { const [, ...args] = command; connection.setQuickMockSettings(...args); return; }
-      case 'connection.disconnect': { const [, ...args] = command; connection.disconnect(...args); return; }
+      case 'connection.applyProviderSettings': {
+        const hint = command[1];
+        if (state.liveSession?.provider !== hint.provider || state.liveSession.draftId !== hint.draftId) return;
+        state.setConfig(hint.config); state.applyLeagueSettings(hint.leagueSettings); return;
+      }
+      case 'connection.startConnection':
+      case 'connection.applyHint':
+      case 'connection.restoreConnection':
+      case 'connection.disconnect': {
+        const hint = connectionHint(command, getConnection(state));
+        if (hint !== undefined) {
+          applyHint(hint);
+          if (command[0] === 'connection.disconnect') persist(null);
+        }
+        return;
+      }
+      case 'connection.confirmDraftPosition': {
+        if (!state.liveSession || !isDraftPosition(command[1])) return;
+        state.setConfig({ myPickPosition: command[1] });
+        draftStore.setState({ connectionPreferences: { ...state.connectionPreferences, slotConfirmed: true } });
+        state.setSessionMode('live'); return;
+      }
+      case 'connection.setPrimaryLeagueSettings':
+      case 'connection.setQuickMockSettings': {
+        if (state.liveSession?.provider !== 'sleeper') return;
+        const preferences = { slotConfirmed: state.sessionMode === 'live', ...state.connectionPreferences };
+        if (command[0] === 'connection.setPrimaryLeagueSettings') {
+          if (command[1]) { preferences.usePrimaryLeagueSettings = true; delete preferences.settingsProfile; }
+          else delete preferences.usePrimaryLeagueSettings;
+        } else {
+          if (command[1]) { preferences.settingsProfile = 'quick-mock'; delete preferences.usePrimaryLeagueSettings; }
+          else delete preferences.settingsProfile;
+        }
+        draftStore.setState({ connectionPreferences: preferences }); return;
+      }
     }
     return dispatchDraftCommand(state, command);
   }
-  return { draft: draftStore, connection: connectionStore, send, ...(durable ? { sendDurable: durable } : {}), dispose: () => { unsubscribe(); draftStore.dispose(); } };
+  return { draft: draftStore, connection, send, ...(durable ? { sendDurable: durable } : {}), dispose: () => { unsubscribe(); draftStore.dispose(); } };
 }

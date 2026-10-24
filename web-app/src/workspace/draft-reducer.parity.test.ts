@@ -20,6 +20,7 @@ function applyToOracle(actions: DraftActions, command: OracleCommand, queue: rea
     case 'setLiveDraftSession': { actions.setLiveDraftSession(command[1]); return; }
     case 'setSessionMode': { actions.setSessionMode(command[1]); return; }
     case 'enterManualContinuity': { actions.enterManualContinuity(command[1]); return; }
+    case 'confirmDraftSlot': actions.setConfig({ myPickPosition: command[1] }); actions.setSessionMode('live'); return;
     case 'setConfig': { actions.setConfig(command[1]); return; }
     case 'applyLeagueSettings': { actions.applyLeagueSettings(command[1]); return; }
     case 'setRosterRequirements': { actions.setRosterRequirements(command[1]); return; }

@@ -26,6 +26,7 @@ export function applySavedDraftSession(
   identity: DraftSessionIdentity | null,
   saved: PersistedDraftSession | null
 ): void {
+  if (state.liveSession?.provider !== identity?.provider || state.liveSession?.draftId !== identity?.draftId) state.connectionPreferences = undefined;
   state.liveSession = identity ? { provider: identity.provider, draftId: identity.draftId } : null;
   state.sessionMode = saved ? 'live' : 'setup';
   state.config = castDraft(saved?.config ?? { ...defaultConfig });

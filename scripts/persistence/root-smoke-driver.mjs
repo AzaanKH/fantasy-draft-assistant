@@ -1,3 +1,4 @@
+import { scoreSlotOwnership } from './ui-slot-owner.mjs';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -18,7 +19,8 @@ export function driverMode(args) {
 export function validateReachabilityAuthorization({ env, head, branch, status, outputExists }) {
   assert.match(env.UI_EXPECTED_HEAD ?? '', /^[a-f0-9]{40}$/);
   assert.equal(head, env.UI_EXPECTED_HEAD);
-  assert.equal(branch, 'feat/agent-u11c2-activation'); assert.equal(status, '', 'Commit and freeze all sources');
+  assert.ok(env.UI_EXPECTED_BRANCH?.trim(), 'Set UI_EXPECTED_BRANCH explicitly');
+  assert.equal(branch, env.UI_EXPECTED_BRANCH, 'Wrong expected branch'); assert.equal(status, '', 'Commit and freeze all sources');
   assert(path.isAbsolute(env.UI_OUTPUT ?? ''), 'Use a fresh absolute preflight output');
   assert.equal(outputExists, false, 'Preflight output exists; inspect it without launching');
 }
@@ -37,7 +39,8 @@ export function validateSmokeAuthorization({ args, env, head, branch, status, ci
   assert.match(env.UI_EXPECTED_HEAD ?? '', /^[a-f0-9]{40}$/);
   assert.notEqual(head, '1bdd194152b5486380b78ff5b4f11a893730e271', 'The failed full-matrix head cannot run this new product-fix smoke');
   assert.equal(head, env.UI_EXPECTED_HEAD); assert.equal(upstream, head, 'Push the reviewed head before smoke');
-  assert.equal(branch, 'feat/agent-u11c2-activation'); assert.equal(status, '', 'Commit and freeze all sources');
+  assert.ok(env.UI_EXPECTED_BRANCH?.trim(), 'Set UI_EXPECTED_BRANCH explicitly');
+  assert.equal(branch, env.UI_EXPECTED_BRANCH, 'Wrong expected branch'); assert.equal(status, '', 'Commit and freeze all sources');
   assert(path.isAbsolute(env.UI_OUTPUT ?? ''), 'Use a fresh absolute smoke output directory');
   assert(path.isAbsolute(env.UI_CI_EVIDENCE ?? ''), 'Provide exact-head CI JSON evidence');
   assert.equal(outputExists, false, 'Output already exists; inspect it and never retry');
@@ -53,7 +56,8 @@ export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = pr
   const state = async () => ({ head: await git(['rev-parse', 'HEAD']), branch: await git(['branch', '--show-current']), status: await git(['status', '--porcelain', '--untracked-files=normal']) });
   const before = await state();
   const ci = mode.preflight ? undefined : JSON.parse(readFileSync(inputEnv.UI_CI_EVIDENCE, 'utf8'));
-  const authorization = { args, env: inputEnv, ...before, ci, upstream: await git(['rev-parse', 'origin/feat/agent-u11c2-activation']), outputExists: existsSync(inputEnv.UI_OUTPUT) };
+  assert.ok(inputEnv.UI_EXPECTED_BRANCH?.trim(), 'Set UI_EXPECTED_BRANCH explicitly');
+  const authorization = { args, env: inputEnv, ...before, ci, upstream: await git(['rev-parse', `origin/${inputEnv.UI_EXPECTED_BRANCH}`]), outputExists: existsSync(inputEnv.UI_OUTPUT) };
   if (mode.preflight) validateReachabilityAuthorization(authorization);
   else {
     validateSmokeAuthorization(authorization);
@@ -68,7 +72,7 @@ export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = pr
   const tracked = (await Processes.run('git', ['ls-files', '-z'], { cwd: root, timeoutMs: 30000, maxOutputBytes: 4000000 })).stdout.split('\0').filter(Boolean);
   const sourceHashes = Object.fromEntries(tracked.map(file => [file, sha(readFileSync(path.join(root, file)))]));
   mkdirSync(out); const write = (name, value) => writeFileSync(path.join(out, name), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
-  write('driver-preflight.json', { ...before, driverPid: process.pid, ci, scope: mode.scope, plan: mode.plan, sourceHashes, fullMatrixClaim: false, preflight: mode.preflight });
+  write('driver-preflight.json', { ...before, driverPid: process.pid, ci, unit: inputEnv.UI_SLOT_OWNER, scope: mode.scope, plan: mode.plan, sourceHashes, fullMatrixClaim: false, preflight: mode.preflight });
   const env = { ...inputEnv, VITE_STORAGE_ACTIVATION: 'idb' };
   const unset = ['VITE_PERSISTENCE_HARNESS', 'VITE_DEMO_MODE', 'UI_SCENARIOS', 'UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_PICK_CONFLICTS', 'UI_MOVE_CONFLICTS', 'UI_BURSTS', 'UI_CONTROL', 'UI_LIFECYCLE', 'UI_BURST_PICKS'];
   for (const name of unset) delete env[name];
@@ -94,7 +98,9 @@ export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = pr
     await run(mode.preflight ? 'reachability' : 'smoke', 'node', ['scripts/persistence/ui-activation.mjs', mode.runnerFlag, '--browser-authorized'], mode.preflight ? 900000 : 7200000);
     const result = JSON.parse(readFileSync(path.join(out, 'results.json'), 'utf8'));
     const assessment = mode.preflight ? (reachability = evaluateReachability(result)) : (smoke = evaluateRootSmoke(result));
-    assert(assessment.passes, JSON.stringify(assessment.failures)); assert.deepEqual(await state(), before);
+    if (mode.preflight && inputEnv.UI_SLOT_OWNER === 'u12') assert(result.scenarios[0]?.slotControl?.visible && result.scenarios[0]?.slotControl?.enabled, 'Unit 12 slot control unreachable');
+    assert(assessment.passes, JSON.stringify(assessment.failures));
+    if (!mode.preflight && inputEnv.UI_SLOT_OWNER === 'u12') assert(scoreSlotOwnership(result.scenarios[0]?.slotOwnership), 'Unit 12 slot checks missing or failed'); assert.deepEqual(await state(), before);
   } catch (error) { failure = { message: error.message, stack: error.stack }; }
   finally {
     process.off('SIGTERM', onSignal); process.off('SIGINT', onSignal);
@@ -104,6 +110,7 @@ export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = pr
     if (mode.preflight) reachability ??= result ? evaluateReachability(result) : undefined;
     else smoke ??= result ? evaluateRootSmoke(result) : undefined;
     write('driver-final-receipt.json', { at: new Date().toISOString(), head: before.head, after, changed, scope: mode.scope, smoke, reachability, consumed,
+      slotOwnership: result?.scenarios?.[0]?.slotOwnership, slotOwnershipPasses: inputEnv.UI_SLOT_OWNER === 'u12' && !mode.preflight ? scoreSlotOwnership(result?.scenarios?.[0]?.slotOwnership) : undefined,
       failure, sourceStable: !changed.length, fullMatrixClaim: false, rollbackInvocations: 0, fullMatrixInvocations: 0, retries: 0 });
     if (failure || changed.length || !(mode.preflight ? reachability : smoke)?.passes || JSON.stringify(after) !== JSON.stringify(before)) process.exitCode = 1;
   }
