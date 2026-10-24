@@ -234,7 +234,7 @@ test('the actual command recorder refuses preflight before any receipt or DOM op
   expect(result).toEqual({ commandStarts: [], commandLog: [] });
 });
 
-test.each([0, 1])('the actual reachability orchestration inspects every control using declared imported sessions without a workload API, scenario=%s', async index => {
+test.each([[0, false], [1, false], [0, true]])('the actual reachability orchestration inspects every control without a workload API, scenario=%s unit12=%s', async (index, unit12) => {
   const original = await rootSmokeEvidence(), result = { progress: [], commandStarts: [], commandLog: [] };
   const source = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
   const code = source.slice(source.indexOf('async function reachabilityScenario('), source.indexOf('async function rootSmokeScenario('));
@@ -243,7 +243,7 @@ test.each([0, 1])('the actual reachability orchestration inspects every control 
   const appTab = { url: () => 'http://localhost:3000/draft', goto: async () => {}, close: async () => {} };
   let queues;
   const run = runInNewContext(`(${code})`, {
-    process: { env: {} }, PREFLIGHT_PLAN, FIXTURE_LEAGUE: { profile: 'quick-mock' }, fixtureCatalog: actualCatalog, results: result, assertNoPreflightWorkload, planSession,
+    process: { env: unit12 ? { UI_SLOT_OWNER: 'u12' } : {} }, PREFLIGHT_PLAN, FIXTURE_LEAGUE: { profile: 'quick-mock' }, fixtureCatalog: actualCatalog, results: result, assertNoPreflightWorkload, planSession,
     launch: async () => ({ ctx: { newPage: async () => appTab }, runtime: {} }),
     seedV1: async (_page, ids, options) => { queues = options.queues; seeded.push(...ids); },
     activateThroughPrompt: async () => ({ completed: true, v1Snapshot: [] }), loadCatalog: async () => actualCatalog, fixtureRules: async () => {}, appReady: async () => {}, draftUrl: id => `http://localhost:3000/draft?draftId=${id}`,
@@ -252,13 +252,15 @@ test.each([0, 1])('the actual reachability orchestration inspects every control 
     readCommitted: async (_ctx, id) => ({ queue: queues[id] }),
     inspectPickControls: async (_actors, commands) => ({ commands, barrier: commands.map(cmd => ({ slot: String(cmd.slot), player: cmd.playerId, visible: true, disabled: false, clicks: [] })), controls: [control('Record Provisional Pick'), control('Record Provisional Pick')] }),
     inspectPoolControl: async (actor, player, queued) => { pool.push({ session: actor.session, id: player.id, queued }); return control(`${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} local shortlist`); },
-    openTab: async (_ctx, id) => ({ session: id }), closeActors: async () => {}, fixture: { healthy: () => {} }, waitForProviderRecovery: async () => ({ noOpenDialogs: true, manualControlsAbsent: true, committed: { manualContinuityBaselineAt: null, lastConfirmedSyncAt: 1 } }),
+    openTab: async (_ctx, id) => ({ session: id, ctx: { getByRole: () => ({ session: id, click: async () => {} }) } }),
+    inspectControl: async (locator, name) => { if (unit12 && locator.session !== seeded[2]) throw Error('Slot control requires the recovered provider session, not the outage session'); return control(name); }, closeActors: async () => {}, fixture: { healthy: () => {} }, waitForProviderRecovery: async () => ({ noOpenDialogs: true, manualControlsAbsent: true, committed: { manualContinuityBaselineAt: null, lastConfirmedSyncAt: 1 } }),
     installedPanelSetup: async () => ({ ...original.scenarios[1].panelSetup, openControl: control('Open local workspace') }),
     localStorageV1: async () => [], check: (value, message) => { if (!value) throw Error(message); }, save: async () => {},
   });
   const scenario = { label: index ? 'extension-granted' : 'tabs' };
   await run(scenario, index);
   expect(scenario.reachability.map(row => row.kind)).toEqual(PREFLIGHT_PLAN[scenario.label]);
+  if (unit12) expect(scenario.slotControl).toEqual(control('Your draft slot'));
   expect(new Set(seeded).size).toBe(seeded.length);
   expect(seeded.filter(id => id !== '1699999999999').every(id => id.startsWith('180000000'))).toBe(true);
   expect(result.commandStarts).toEqual([]); expect(result.commandLog).toEqual([]);

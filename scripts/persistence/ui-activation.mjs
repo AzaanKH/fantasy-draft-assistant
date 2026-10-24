@@ -856,7 +856,7 @@ async function reachabilityScenario(scenario, scenarioIndex) {
     assertNoPreflightWorkload(results); scenario.reachability.push(row); await save();
   }
   if (process.env.UI_SLOT_OWNER === 'u12' && !panel) {
-    const actor = await openTab(ctxInfo, sessions.conflict);
+    const actor = await openTab(ctxInfo, sessions.reconcile);
     await actor.ctx.getByRole('button', { name: 'Manage Sleeper draft connection', exact: true }).click();
     scenario.slotControl = await inspectControl(actor.ctx.getByRole('combobox', { name: 'Your draft slot', exact: true }), 'Your draft slot');
     await closeActors([actor]);
