@@ -292,6 +292,33 @@ export default {
         return { TSAsExpression: check, TSTypeAssertion: check };
       },
     },
+    'no-domain-clock': {
+      meta: {
+        type: 'problem', schema: [],
+        messages: { clock: 'Domain code does not read the system time. Take a `now` value or a Clock, defaulting to systemClock from @fantasy-draft/shared/units.' },
+      },
+      create(context) {
+        // Date, or Date read from a host global such as globalThis.Date.
+        function isDate(node) {
+          if (node.type === 'Identifier') return node.name === 'Date';
+          return node.type === 'MemberExpression' && node.object.type === 'Identifier' &&
+            ['globalThis', 'window', 'self', 'global'].includes(node.object.name) &&
+            (node.computed ? staticModuleName(node.property) : node.property.name) === 'Date';
+        }
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (callee.type === 'MemberExpression' && isDate(callee.object) &&
+                (callee.computed ? staticModuleName(callee.property) : callee.property.name) === 'now') {
+              context.report({ node, messageId: 'clock' });
+            }
+          },
+          NewExpression(node) {
+            if (isDate(node.callee) && node.arguments.length === 0) context.report({ node, messageId: 'clock' });
+          },
+        };
+      },
+    },
     'no-cross-package-import': {
       meta: {
         type: 'problem', schema: [],

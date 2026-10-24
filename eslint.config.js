@@ -135,4 +135,11 @@ export default tseslint.config(
     plugins: { agent: agentRules },
     rules: { 'agent/no-unit-cast': 'error' },
   },
+  {
+    // The clock owns the system time; the HTTP and process runners time I/O, not domain state.
+    files: ['shared/src/**/*.ts'],
+    ignores: ['**/*.test.ts', 'shared/src/units/clock.ts', 'shared/src/http/**', 'shared/src/node/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-domain-clock': 'error' },
+  },
 );
