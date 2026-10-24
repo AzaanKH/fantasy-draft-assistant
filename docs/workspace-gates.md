@@ -45,7 +45,7 @@ The lint wrapper allows exact occurrence fingerprints only for `agent/no-json-ca
 
 The following scopes come from `eslint.config.js`. Global ESLint ignores also apply.
 
-- `agent/no-accent-stripe` applies to `{web-app,extension}/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`; `{web-app,extension}/src/**/*.css`.
+- `agent/no-accent-stripe` applies to `web-app/src/**/*.{ts,tsx}`, `extension/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`; `web-app/src/**/*.css`, `extension/src/**/*.css`.
 - `agent/no-bare-child-process` applies to `shared/**/*.{ts,tsx,js,mjs,cjs}`, `web-app/**/*.{ts,tsx,js,mjs,cjs}`, `server/**/*.{ts,tsx,js,mjs,cjs}`, `extension/**/*.{ts,tsx,js,mjs,cjs}`, `scripts/**/*.{ts,tsx,js,mjs,cjs}`, `cli/**/*.{ts,tsx,js,mjs,cjs}`, excluding `shared/src/node/**`, `**/*.test.{ts,tsx,mjs}`, `scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports,tracked-files,check-pr-size}.mjs`.
 - `agent/no-bare-fetch` applies to `shared/**/*.{ts,tsx,js,mjs,cjs}`, `web-app/**/*.{ts,tsx,js,mjs,cjs}`, `server/**/*.{ts,tsx,js,mjs,cjs}`, `extension/**/*.{ts,tsx,js,mjs,cjs}`, `scripts/**/*.{ts,tsx,js,mjs,cjs}`, `cli/**/*.{ts,tsx,js,mjs,cjs}`, excluding `**/*.test.{ts,tsx,mjs}`.
 - `agent/no-closed-root-import` applies to `shared/**/*.{ts,tsx,js,mjs,cjs}`, `web-app/**/*.{ts,tsx,js,mjs,cjs}`, `server/**/*.{ts,tsx,js,mjs,cjs}`, `extension/**/*.{ts,tsx,js,mjs,cjs}`, `scripts/**/*.{ts,tsx,js,mjs,cjs}`, `cli/**/*.{ts,tsx,js,mjs,cjs}`.
@@ -54,7 +54,7 @@ The following scopes come from `eslint.config.js`. Global ESLint ignores also ap
 - `agent/no-inline-season` applies to `shared/src/**/*.{ts,tsx}`, `web-app/src/**/*.{ts,tsx}`, `server/src/**/*.{ts,tsx}`, `extension/src/**/*.{ts,tsx}`, `scripts/src/**/*.{ts,tsx}`, `cli/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`, `shared/src/league/**`, `shared/src/http/**`.
 - `agent/no-json-cast` applies to `shared/src/**/*.{ts,tsx}`, `web-app/src/**/*.{ts,tsx}`, `server/src/**/*.{ts,tsx}`, `extension/src/**/*.{ts,tsx}`, `scripts/src/**/*.{ts,tsx}`, `cli/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`.
 - `agent/no-node-in-browser` applies to `{web-app,extension}/src/**/*.{ts,tsx,js,mjs,cjs}`.
-- `agent/no-pill-shape` applies to `{web-app,extension}/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`; `{web-app,extension}/src/**/*.css`.
+- `agent/no-pill-shape` applies to `web-app/src/**/*.{ts,tsx}`, `extension/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`; `web-app/src/**/*.css`, `extension/src/**/*.css`.
 - `agent/no-position-array` applies to `shared/src/**/*.{ts,tsx}`, `web-app/src/**/*.{ts,tsx}`, `server/src/**/*.{ts,tsx}`, `extension/src/**/*.{ts,tsx}`, `scripts/src/**/*.{ts,tsx}`, `cli/src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`, `shared/src/league/**`, `shared/src/http/**`.
 - `agent/no-unit-cast` applies to `shared/src/**/*.{ts,tsx}`, `web-app/src/**/*.{ts,tsx}`, `server/src/**/*.{ts,tsx}`, `extension/src/**/*.{ts,tsx}`, `scripts/src/**/*.{ts,tsx}`, `cli/src/**/*.{ts,tsx}`, excluding `shared/src/units/**`.
 - `agent/reasoned-disable` applies to `shared/**/*.{ts,tsx,js,mjs,cjs}`, `web-app/**/*.{ts,tsx,js,mjs,cjs}`, `server/**/*.{ts,tsx,js,mjs,cjs}`, `extension/**/*.{ts,tsx,js,mjs,cjs}`, `scripts/**/*.{ts,tsx,js,mjs,cjs}`, `cli/**/*.{ts,tsx,js,mjs,cjs}`.

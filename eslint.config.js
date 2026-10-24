@@ -36,6 +36,9 @@ const processExceptions = [
   'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports,tracked-files,check-pr-size}.mjs',
 ];
 
+/** Workspaces that render UI: the decoration rules cover their class strings and stylesheets. */
+const uiDirectories = gateWorkspaces.filter(({ globals }) => globals !== 'node').map(({ directory }) => directory);
+
 const environments = {
   node: globals.node,
   browser: globals.browser,
@@ -145,13 +148,13 @@ export default tseslint.config(
   },
   {
     // Banned decorations (pills, accent stripes) in UI class strings and stylesheets; see docs/design-system/README.md.
-    files: ['{web-app,extension}/src/**/*.{ts,tsx}'],
+    files: uiDirectories.map((directory) => `${directory}/src/**/*.{ts,tsx}`),
     ignores: ['**/*.test.{ts,tsx}'],
     plugins: { agent: agentRules },
     rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
   },
   {
-    files: ['{web-app,extension}/src/**/*.css'],
+    files: uiDirectories.map((directory) => `${directory}/src/**/*.css`),
     languageOptions: { parser: cssParser },
     plugins: { agent: agentRules },
     rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
