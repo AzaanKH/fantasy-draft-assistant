@@ -17,6 +17,7 @@ export {
   sqlPositionList,
 } from './positions.js';
 export type { OffensivePosition, Position } from './positions.js';
+export { calendarSeason } from './season.js';
 export {
   createDefaultLeagueSettings,
   createLeagueSettings,

@@ -11,6 +11,48 @@
       "@typescript-eslint/explicit-module-boundary-types": 1
     }
   },
+  "scripts/src/build-prediction-dataset.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 3
+    }
+  },
+  "scripts/src/check-data-quality.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 1
+    }
+  },
+  "scripts/src/generate-team-env.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 1
+    }
+  },
+  "scripts/src/refresh-contracts.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 1
+    }
+  },
+  "scripts/src/refresh-fantasypros-snapshot.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 2
+    }
+  },
+  "scripts/src/scrape-ecr.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 1
+    }
+  },
+  "server/src/sync-server.ts": {
+    "reason": "Local-time or NFL-season year reads stay as they are; unit 13 wave 3 moves them onto the injected season provider.",
+    "counts": {
+      "agent/no-inline-season": 1
+    }
+  },
   "web-app/src/components/ui/badge.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "counts": {
@@ -48,9 +90,16 @@
     }
   },
   "web-app/src/hooks/usePlayerData.ts": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
+    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes. Its local-time season reads move onto the injected season provider in unit 13 wave 3.",
     "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 2
+      "@typescript-eslint/explicit-module-boundary-types": 2,
+      "agent/no-inline-season": 3
+    }
+  },
+  "web-app/src/visual/VisualApp.tsx": {
+    "reason": "The visual fixture cycles positions in a fixed display order; it is sample data, not a position group.",
+    "counts": {
+      "agent/no-position-array": 1
     }
   }
 }
