@@ -14,8 +14,8 @@ import {
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { createDraftStore } from '@/stores/draftStore';
 const draftStore = createDraftStore();
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
-const connectionStore = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
+import { createConnectionTestDriver } from '@/workspace/connection-test-driver';
+const connectionStore = createConnectionTestDriver({ initialConnection: null, persist: () => undefined });
 import { blocksProviderIdentityRecommendations } from '@/features/recommendations/DraftDecisionContext';
 import { ProviderIdentityBlockedNotice } from './ProviderIdentityBlockedNotice';
 import { ReconciliationSummary } from './ReconciliationSummary';

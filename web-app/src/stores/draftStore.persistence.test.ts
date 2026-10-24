@@ -8,7 +8,7 @@ import {
   parseStoredDraftSession,
   type DraftSessionIdentity,
 } from './draftSessionStorage';
-import { DRAFT_SYNC_STORAGE_KEY } from './draftSyncStore';
+import { DRAFT_SYNC_STORAGE_KEY } from '@/workspace/connection-hints';
 
 const identity: DraftSessionIdentity = { provider: 'sleeper', draftId: '123' };
 

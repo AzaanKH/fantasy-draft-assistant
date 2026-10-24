@@ -2,7 +2,6 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createDraftStore } from '@/stores/draftStore';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import type { ProvisionalPickInput } from '@/stores/draft/types';
 import { getDraftView, useDraftViewReader } from './useDraftView';
@@ -13,8 +12,7 @@ vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: 
 
 function room() {
   const draftStore = createDraftStore();
-  const connectionStore = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
-  return { draftStore, connectionStore, workspace: createWorkspace({ draftStore, connectionStore }) };
+  return { draftStore, workspace: createWorkspace({ draftStore }) };
 }
 
 const pick: ProvisionalPickInput = { pickNumber: 1, playerId: 'a', playerName: 'Player A', position: 'WR', teamIndex: 0, teamName: 'Team 1' };
@@ -102,8 +100,7 @@ describe('workspace command ownership', () => {
     let change: ((key: string | null, value: string | null) => void) | undefined;
     const stop = vi.fn();
     const draftStore = createDraftStore({ externalChanges: callback => { change = callback; return stop; } });
-    const connectionStore = createDraftSyncConnectionStore({ initialConnection: { provider: 'sleeper', draftId: 'first', draftPosition: 2 }, persist: () => undefined });
-    const workspace = createWorkspace({ draftStore, connectionStore });
+    const workspace = createWorkspace({ draftStore, initialConnection: { provider: 'sleeper', draftId: 'first', draftPosition: 2 } });
     expect(workspace.draft.getState().liveSession?.draftId).toBe('first');
     workspace.send('connection.confirmDraftPosition', 3);
     workspace.send('connection.setPrimaryLeagueSettings', true);
@@ -115,7 +112,6 @@ describe('workspace command ownership', () => {
     expect(change).toBeTypeOf('function');
     workspace.dispose();
     expect(stop).toHaveBeenCalledOnce();
-    connectionStore.getState().disconnect();
     expect(workspace.draft.getState().liveSession?.provider).toBe('espn');
   });
 

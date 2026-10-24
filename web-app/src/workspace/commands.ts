@@ -1,7 +1,7 @@
 import type { DraftActions } from '@/stores/draft/types';
-import type { DraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import type { ConnectionActions } from './connection';
+export type { ConnectionActions } from './connection';
 
-export type ConnectionActions = Omit<DraftSyncConnectionStore, 'connection'>;
 export type WorkspaceActions = DraftActions & {
   [K in keyof ConnectionActions as `connection.${K}`]: ConnectionActions[K];
 };

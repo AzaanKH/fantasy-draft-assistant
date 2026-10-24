@@ -1,6 +1,6 @@
 import { IDBFactory, IDBRequest, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DRAFT_SYNC_STORAGE_KEY } from '@/stores/draftSyncStore';
+import { DRAFT_SYNC_STORAGE_KEY } from '@/workspace/connection-hints';
 import { decodeIndexedSession } from './idb-session';
 import { openDraftDatabase, type DraftDatabase } from './indexed-db';
 import { createDurableWorkspace } from './durable-workspace';
@@ -84,7 +84,7 @@ describe('production durable workspace', () => {
     gate.release();
     const receipt = await pending;
     expect(receipt.session?.identity).toEqual(other);
-    expect(owner.connection.getState().connection).toMatchObject({ ...other, draftPosition: 3 });
+    expect(owner.connection.getState().connection).toMatchObject({ ...other, draftPosition: 5 });
     expect(await database.read(identity)).toBeNull();
   });
 
@@ -318,4 +318,56 @@ describe('production durable workspace', () => {
     await live(reloaded.workspace);
     expect(reloaded.workspace.draft.getState().draftHistory).toEqual([]);
   });
+});
+
+it('owns the durable slot across reconnect, stale URL reload, repeated hints and another tab', async () => {
+  const { workspace, database, factory } = await setup();
+  await workspace.sendDurable(['connection.confirmDraftPosition', 3]);
+  await workspace.sendDurable(['setConfig', { myPickPosition: 8 }]);
+  await workspace.sendDurable(['connection.startConnection', identity.provider, identity.draftId]);
+  await workspace.sendDurable(['connection.applyHint', connection]);
+  expect(workspace.connection.getState().connection?.draftPosition).toBe(8);
+  const secondDatabase = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => {} });
+  const second = createDurableWorkspace({ database: secondDatabase, search: '?provider=sleeper&draftId=123&position=1', initialConnection: connection });
+  owners.push(second);
+  await second.sendDurable(['setSearchQuery', 'initialized']);
+  expect(second.connection.getState().connection?.draftPosition).toBe(8);
+  await workspace.sendDurable(['connection.confirmDraftPosition', 6]);
+  window.dispatchEvent(new Event('focus'));
+  await second.sendDurable(['setSearchQuery', 'refreshed']);
+  expect(second.connection.getState().connection?.draftPosition).toBe(6);
+  expect((await database.read(identity))?.config.myPickPosition).toBe(6);
+});
+
+it('does not publish a slot confirmation when its IndexedDB transaction aborts', async () => {
+  const { workspace, database } = await setup();
+  await live(workspace);
+  const before = workspace.connection.getState().connection;
+  const hook = interceptPut((_store, request) => { request.addEventListener('success', () => { request.transaction?.abort(); }); });
+  try { await expect(workspace.sendDurable(['connection.confirmDraftPosition', 6])).rejects.toThrow(); }
+  finally { hook.mockRestore(); }
+  expect(workspace.connection.getState().connection).toEqual(before);
+  expect((await database.read(identity))?.config.myPickPosition).toBe(before?.draftPosition);
+});
+
+it('keeps settings preferences through later durable commands and broadcasts', async () => {
+  const { workspace } = await setup();
+  await live(workspace);
+  await workspace.sendDurable(['connection.setQuickMockSettings', true]);
+  await workspace.sendDurable(['setConfig', { totalRounds: 20 }]);
+  expect(workspace.connection.getState().connection?.settingsProfile).toBe('quick-mock');
+});
+
+it('uses the imported destination slot when a cross-draft URL carries a stale slot', async () => {
+  const { workspace, database } = await setup();
+  await workspace.sendDurable(['connection.confirmDraftPosition', 8]);
+  const seed = await database.read(identity);
+  expect(seed).not.toBeNull();
+  if (!seed) throw new Error('Missing source seed');
+  await database.update(other, () => ({ session: { ...seed, identity: other, config: { ...seed.config, myPickPosition: 1 } }, result: null }));
+  const owner = createDurableWorkspace({ database, initialConnection: { ...identity, draftPosition: 8 }, search: '?provider=sleeper&draftId=456&position=19' });
+  owners.push(owner);
+  await owner.sendDurable(['setSearchQuery', 'ready']);
+  expect(owner.connection.getState().connection).toMatchObject({ ...other, draftPosition: 1 });
+  expect(owner.draft.getState().sessionMode).toBe('live');
 });

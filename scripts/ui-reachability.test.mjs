@@ -138,10 +138,10 @@ test.each(['error', 'rejected', 'skipped'])('recovery preserves a real %s outcom
 });
 
 test('preflight permits an unpushed exact commit and rejects dirty, wrong-head or reused output before build authorization', () => {
-  const head = '2'.repeat(40), valid = { env: { UI_EXPECTED_HEAD: head, UI_OUTPUT: '/tmp/new-preflight' }, head, upstream: head, branch: 'feat/agent-u11c2-activation', status: '', outputExists: false };
+  const head = '2'.repeat(40), valid = { env: { UI_EXPECTED_BRANCH: 'feat/agent-u11c2-activation', UI_EXPECTED_HEAD: head, UI_OUTPUT: '/tmp/new-preflight' }, head, upstream: head, branch: 'feat/agent-u11c2-activation', status: '', outputExists: false };
   expect(() => validateReachabilityAuthorization(valid)).not.toThrow();
   expect(() => validateReachabilityAuthorization({ ...valid, upstream: '3'.repeat(40) })).not.toThrow();
-  for (const change of [row => row.status = ' M scripts/runner.mjs', row => row.head = '3'.repeat(40), row => row.outputExists = true, row => row.env.UI_OUTPUT = 'relative']) {
+  for (const change of [row => delete row.env.UI_EXPECTED_BRANCH, row => row.env.UI_EXPECTED_BRANCH = 'wrong', row => row.status = ' M scripts/runner.mjs', row => row.head = '3'.repeat(40), row => row.outputExists = true, row => row.env.UI_OUTPUT = 'relative']) {
     const invalid = structuredClone(valid); change(invalid); expect(() => validateReachabilityAuthorization(invalid)).toThrow();
   }
   expect(() => driverMode(['--reachability-only', '--browser-authorized', '--gate'])).toThrow();
@@ -195,7 +195,7 @@ test('reachability raw controls pass independently, but any workload, missing se
 test.each([false, true])('the actual driver preflight writes only a preflight claim and never consumes smoke, accidental workload=%s', async accidentalWorkload => {
   const result = await preflightEvidence(), head = result.metadata.expectedHead;
   if (accidentalWorkload) result.commandLog.push({ outcome: 'ack' });
-  const inputEnv = { UI_EXPECTED_HEAD: head, UI_OUTPUT: '/tmp/offline-only-preflight' };
+  const inputEnv = { UI_EXPECTED_BRANCH: 'feat/agent-u11c2-activation', UI_EXPECTED_HEAD: head, UI_OUTPUT: '/tmp/offline-only-preflight' };
   const files = new Map([['/repo/source.mjs', 'unchanged']]), commands = [];
   const fakeProcess = { on: () => {}, off: () => {}, exitCode: 0 };
   const source = await readFile(new URL('./persistence/root-smoke-driver.mjs', import.meta.url), 'utf8');
@@ -243,7 +243,7 @@ test.each([0, 1])('the actual reachability orchestration inspects every control 
   const appTab = { url: () => 'http://localhost:3000/draft', goto: async () => {}, close: async () => {} };
   let queues;
   const run = runInNewContext(`(${code})`, {
-    PREFLIGHT_PLAN, FIXTURE_LEAGUE: { profile: 'quick-mock' }, fixtureCatalog: actualCatalog, results: result, assertNoPreflightWorkload, planSession,
+    process: { env: {} }, PREFLIGHT_PLAN, FIXTURE_LEAGUE: { profile: 'quick-mock' }, fixtureCatalog: actualCatalog, results: result, assertNoPreflightWorkload, planSession,
     launch: async () => ({ ctx: { newPage: async () => appTab }, runtime: {} }),
     seedV1: async (_page, ids, options) => { queues = options.queues; seeded.push(...ids); },
     activateThroughPrompt: async () => ({ completed: true, v1Snapshot: [] }), loadCatalog: async () => actualCatalog, fixtureRules: async () => {}, appReady: async () => {}, draftUrl: id => `http://localhost:3000/draft?draftId=${id}`,

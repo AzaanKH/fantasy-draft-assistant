@@ -6,11 +6,12 @@ import { validateSmokeAuthorization } from './persistence/root-smoke-driver.mjs'
 
 test('the smoke driver rejects unpushed, dirty, reused or non-green head evidence before launch', () => {
   const head = '2'.repeat(40);
-  const input = { args: ['--browser-authorized'], env: { UI_EXPECTED_HEAD: head, UI_OUTPUT: '/tmp/fresh-smoke', UI_CI_EVIDENCE: '/tmp/ci.json' },
+  const input = { args: ['--browser-authorized'], env: { UI_EXPECTED_BRANCH: 'feat/agent-u11c2-activation', UI_EXPECTED_HEAD: head, UI_OUTPUT: '/tmp/fresh-smoke', UI_CI_EVIDENCE: '/tmp/ci.json' },
     head, branch: 'feat/agent-u11c2-activation', status: '', upstream: head, outputExists: false,
     ci: { headRefOid: head, statusCheckRollup: ['verify (22.18.0)', 'verify (24)'].map(name => ({ __typename: 'CheckRun', name, status: 'COMPLETED', conclusion: 'SUCCESS' })) } };
   expect(() => validateSmokeAuthorization(input)).not.toThrow();
   for (const mutate of [
+    row => delete row.env.UI_EXPECTED_BRANCH, row => row.env.UI_EXPECTED_BRANCH = 'wrong-branch',
     row => row.args.push('--gate'), row => row.upstream = '3'.repeat(40), row => row.status = ' M source.ts',
     row => row.outputExists = true, row => row.head = '3'.repeat(40), row => row.ci.headRefOid = '3'.repeat(40),
     row => row.ci.statusCheckRollup[0].status = 'IN_PROGRESS', row => row.ci.statusCheckRollup[0].conclusion = 'FAILURE',

@@ -732,7 +732,11 @@ export function DraftConnect({
           {draft?.settings.teams} teams
         </SyncDetail>
         <SyncDetail label="Rounds">{draft?.settings.rounds}</SyncDetail>
-        <SyncDetail label="Your slot">{myPickPosition}</SyncDetail>
+        <SyncDetail label="Your slot">
+          <Select aria-label="Your draft slot" value={String(myPickPosition)}
+            onValueChange={value => { confirmDraftPosition(Number(value)); }}
+            options={draftSlots.map(position => ({ value: String(position), label: `Slot ${String(position)}` }))} />
+        </SyncDetail>
         <SyncDetail label="Picks synced">{totalPicks}</SyncDetail>
       </div>
 

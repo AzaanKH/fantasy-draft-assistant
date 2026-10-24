@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQuery } from '@tanstack/react-query';
 import { LivePlayerDataProvider, usePlayerDataQuery, type PlayerDataQueryResult } from './usePlayerData';
-import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
+import type { PersistedDraftSyncConnection } from '@/workspace/connection-hints';
 import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
