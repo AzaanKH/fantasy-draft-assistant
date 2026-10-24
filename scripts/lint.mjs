@@ -16,7 +16,7 @@ export async function lint(directories = gateWorkspaces.map(({ directory }) => d
     }
   }
   const eslint = new ESLint({ cwd: root, overrideConfig: { linterOptions: { reportUnusedDisableDirectives: 'error' } } });
-  const results = await eslint.lintFiles(directories.map((directory) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`));
+  const results = await eslint.lintFiles(directories.map((directory) => `${directory}/**/*.{ts,tsx,js,mjs,cjs,css}`));
   const sources = new Map(await Promise.all(results.map(async result => [result.filePath, await readFile(result.filePath, 'utf8')])));
   const suppressionLinter = new Linter();
   for (const result of results) {

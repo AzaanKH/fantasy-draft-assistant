@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { gateWorkspaces } from '../gate-workspaces.js';
+import { decorationRules } from './decoration-lint-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directories = new Set(gateWorkspaces.map(({ directory }) => directory));
@@ -15,6 +16,8 @@ export const baselineRuleIds = [
   '@typescript-eslint/explicit-module-boundary-types',
   'agent/no-position-array',
   'agent/no-inline-season',
+  'agent/no-pill-shape',
+  'agent/no-accent-stripe',
 ];
 
 function staticModuleName(node) {
@@ -24,6 +27,7 @@ function staticModuleName(node) {
 
 export default {
   rules: {
+    ...decorationRules,
     'reasoned-disable': {
       meta: {
         docs: {

@@ -31,6 +31,15 @@ Paper reported: "Weekly MCP limit reached. It resets tomorrow." The quota stoppe
 
 The local preview is static. Player data reflects the reference mock draft; it is not a live data feed. Its controls illustrate states and do not draft, resume, queue or change league settings.
 
+## Banned decorations
+
+Pill shapes and accent stripes read as generated filler, and they were removed after repeated corrections. Show selection and state with a tint plus a text label.
+
+- **No pills.** Do not put `rounded-full`, `rounded-[999px]` or `var(--radius-pill)` on badges, chips, filters or buttons. Use `--radius-xs` to `--radius-lg`. Circles are fine when the sides are equal, as with avatars, status dots and radio marks (`size-*` or `aspect-square`).
+- **No accent stripes.** Do not use a coloured or 2px-plus side border (`border-l-4`, `border-l-primary`, `border-left: 3px solid …`). Also avoid a thin bar pinned to one side, and a one-sided inset shadow 2px or wider. Neutral 1px dividers and tab underlines are fine.
+
+`agent/no-pill-shape` and `agent/no-accent-stripe` enforce both rules in web-app and extension TSX class strings and CSS. `eslint-baseline.json` lists each accepted exception with its reason.
+
 ## Import continuation
 
 Use the existing Paper file after MCP writes are available again. Read the Paper guide and validate DM Sans and Barlow Condensed before styling. Use the manifest's existing desktop binding, so its already-created header is preserved.

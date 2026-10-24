@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import { gateWorkspaces } from './gate-workspaces.js';
 import agentRules from './scripts/agent-lint-rules.mjs';
+import { cssParser } from './scripts/decoration-lint-rules.mjs';
 
 const draftOrderRules = [
   {
@@ -141,5 +142,18 @@ export default tseslint.config(
     ignores: ['**/*.test.ts', 'shared/src/units/clock.ts', 'shared/src/http/**', 'shared/src/node/**'],
     plugins: { agent: agentRules },
     rules: { 'agent/no-domain-clock': 'error' },
+  },
+  {
+    // Banned decorations (pills, accent stripes) in UI class strings and stylesheets; see docs/design-system/README.md.
+    files: ['{web-app,extension}/src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
+  },
+  {
+    files: ['{web-app,extension}/src/**/*.css'],
+    languageOptions: { parser: cssParser },
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
   },
 );

@@ -238,7 +238,7 @@ button,input,select {
   .draft-best-pick-actions { justify-content: flex-end; }
 }
 
-/* Draft workspace, following docs/design-system: pill actions, position color, roster sidebar.
+/* Draft workspace, following docs/design-system: squared actions, position color, roster sidebar.
    Hover tints sit behind (hover: hover) so taps on touch screens don't leave controls highlighted. */
 .position-text { font-weight: 600; }
 .position-text[data-position=QB] { color: var(--position-qb-ink, var(--color-position-qb)); }
