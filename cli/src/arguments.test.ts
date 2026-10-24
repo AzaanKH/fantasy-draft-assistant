@@ -1,7 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { invocationMode, parseArguments } from './arguments';
+import { HELP, invocationMode, parseArguments } from './arguments';
+import { COMMANDS } from './commands';
 
 describe('draft command arguments', () => {
+  it('keeps every documented command example executable by the parser', () => {
+    const replacements: Record<string, string> = {
+      SESSION: 'sleeper:123', SESSION_OR_URL: 'sleeper:123', PLAYER_A: 'p1',
+      PLAYER_B: 'p2', PLAYER_ID: 'p1', FILE: 'session.json',
+    };
+    for (const [name, descriptor] of Object.entries(COMMANDS)) {
+      for (const example of descriptor.examples) {
+        const argv = example.command.split(' ').slice(1).map(value => replacements[value] ?? value);
+        expect(parseArguments(argv, { DRAFT_SLOT: '5' })?.command, example.command).toBe(name);
+      }
+    }
+  });
+
+  it('preserves the help command block', () => {
+    expect(HELP.split('Commands:\n')[1]?.split('\n\nOptions:')[0]).toBe(`  readiness                 Check core data, freshness, settings, and keepers
+  status --session SESSION  Inspect picks, your next turn, and sync health
+  players --session SESSION Search the player pool with stable IDs
+  recommend --session SESSION
+  compare PLAYER_A PLAYER_B --session SESSION
+  wait PLAYER_ID --session SESSION
+  watch --session SESSION --format ndjson
+  sessions                  List sessions retained by the local server
+  connect SESSION_OR_URL    Connect and save your session and draft slot
+  roster --session SESSION  Inspect players, keepers, and remaining needs
+  export --session SESSION --out FILE
+                            Save a self-contained session archive
+  replay FILE [--pick NUMBER] [--format ndjson]
+                            Inspect or stream recorded picks offline`);
+  });
+
+  it.each(['unknown', 'toString', '__proto__'])('rejects unknown command %s', name => {
+    expect(() => parseArguments([name], {})).toThrow(`Unknown command ${name}. Run draft --help.`);
+  });
+
   it('accepts provider sessions, defaults, and options before the command', () => {
     expect(parseArguments(['--json', 'status', '--session', 'espn:123', '--slot', '4'], {})).toMatchObject({
       command: 'status', session: { id: 'espn:123', provider: 'espn', draftId: '123' }, slot: 4, json: true,
