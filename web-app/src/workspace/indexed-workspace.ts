@@ -14,7 +14,7 @@ export interface IndexedWorkspace {
 }
 
 /** The decoder rebuilds persisted objects in its own key order, so a change is judged by content, not insertion order. */
-const canonicalJson = (value: unknown): string => JSON.stringify(value, (_key, field: unknown) =>
+export const canonicalJson = (value: unknown): string => JSON.stringify(value, (_key, field: unknown) =>
   field !== null && typeof field === 'object' && !Array.isArray(field)
     ? Object.fromEntries(Object.entries(field).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)) : field);
 

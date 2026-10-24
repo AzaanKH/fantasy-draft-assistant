@@ -371,3 +371,86 @@ it('uses the imported destination slot when a cross-draft URL carries a stale sl
   expect(owner.connection.getState().connection).toMatchObject({ ...other, draftPosition: 1 });
   expect(owner.draft.getState().sessionMode).toBe('live');
 });
+
+
+it('notifies suspended-live connection subscribers on peer focus refresh without getter assistance', async () => {
+  vi.stubGlobal('BroadcastChannel', class {
+    postMessage() {}
+    addEventListener() {}
+    removeEventListener() {}
+    close() {}
+  });
+  const reader = await setup();
+  await reader.workspace.sendDurable(['connection.confirmDraftPosition', 3]);
+  const peer = await setup(reader.factory);
+  await live(peer.workspace);
+  await reader.workspace.sendDurable(['connection.setQuickMockSettings', true]);
+  await reader.workspace.sendDurable(['setSessionMode', 'mock']);
+  await reader.workspace.sendDurable(['setConfig', { myPickPosition: 2 }]);
+  await reader.workspace.sendDurable(['markPlayerDrafted', 'mock-player', 'Mock Player', 'WR', 0, 'Team 1']);
+  const mock = reader.workspace.draft.getState();
+  const listener = vi.fn();
+  const unsubscribe = reader.workspace.connection.subscribe(listener);
+  try {
+    await peer.workspace.sendDurable(['connection.confirmDraftPosition', 8]);
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => { expect(listener).toHaveBeenCalledWith(
+      { connection: { ...identity, draftPosition: 8, settingsProfile: 'quick-mock' } },
+      { connection: { ...identity, draftPosition: 3, settingsProfile: 'quick-mock' } },
+    ); });
+    expect(reader.workspace.connection.getState().connection).toEqual({ ...identity, draftPosition: 8, settingsProfile: 'quick-mock' });
+    expect(reader.workspace.draft.getState()).toBe(mock);
+    expect(mock.config.myPickPosition).toBe(2);
+    expect(mock.draftHistory.map(row => row.playerId)).toEqual(['mock-player']);
+    window.dispatchEvent(new Event('focus'));
+    await reader.workspace.sendDurable(['setSearchQuery', 'refresh complete']);
+    expect(listener).toHaveBeenCalledOnce();
+    unsubscribe();
+    await peer.workspace.sendDurable(['connection.confirmDraftPosition', 7]);
+    window.dispatchEvent(new Event('focus'));
+    await reader.workspace.sendDurable(['setSearchQuery', 'unsubscribed refresh complete']);
+    expect(reader.workspace.connection.getState().connection?.draftPosition).toBe(7);
+    expect(listener).toHaveBeenCalledOnce();
+    const removed = vi.fn();
+    reader.workspace.connection.subscribe(removed);
+    const read = vi.spyOn(reader.database, 'read');
+    reader.workspace.dispose();
+    await peer.workspace.sendDurable(['connection.confirmDraftPosition', 6]);
+    window.dispatchEvent(new Event('focus'));
+    await peer.workspace.sendDurable(['setSearchQuery', 'peer refresh complete']);
+    expect(read).not.toHaveBeenCalled();
+    expect(removed).not.toHaveBeenCalled();
+  } finally { unsubscribe(); }
+});
+
+
+it('preserves live preferences on return from mock and publishes disconnect without changing mock history', async () => {
+  const { workspace } = await setup();
+  await workspace.sendDurable(['connection.confirmDraftPosition', 3]);
+  await workspace.sendDurable(['recordProvisionalPick', pick(1, 'live-player')]);
+  await workspace.sendDurable(['connection.setPrimaryLeagueSettings', true]);
+  await workspace.sendDurable(['setSessionMode', 'mock']);
+  await workspace.sendDurable(['setConfig', { myPickPosition: 2 }]);
+  await workspace.sendDurable(['markPlayerDrafted', 'mock-player', 'Mock Player', 'WR', 0, 'Team 1']);
+  const mockHistory = workspace.draft.getState().draftHistory;
+  const listener = vi.fn();
+  const unsubscribe = workspace.connection.subscribe(listener);
+  try {
+    expect(workspace.connection.getState().connection).toEqual({ ...identity, draftPosition: 3, usePrimaryLeagueSettings: true });
+    await live(workspace);
+    expect(workspace.connection.getState().connection).toEqual({ ...identity, draftPosition: 3, usePrimaryLeagueSettings: true });
+    expect(workspace.draft.getState().draftHistory.map(row => row.playerId)).toEqual(['live-player']);
+    expect(listener).not.toHaveBeenCalled();
+    await workspace.sendDurable(['setSessionMode', 'mock']);
+    expect(workspace.draft.getState().config.myPickPosition).toBe(2);
+    expect(workspace.draft.getState().draftHistory).toEqual(mockHistory);
+    expect(listener).not.toHaveBeenCalled();
+    await workspace.sendDurable(['connection.disconnect']);
+    expect(listener).toHaveBeenCalledExactlyOnceWith(
+      { connection: null }, { connection: { ...identity, draftPosition: 3, usePrimaryLeagueSettings: true } },
+    );
+    expect(workspace.connection.getState().connection).toBeNull();
+    expect(workspace.draft.getState().config.myPickPosition).toBe(2);
+    expect(workspace.draft.getState().draftHistory).toEqual(mockHistory);
+  } finally { unsubscribe(); }
+});
