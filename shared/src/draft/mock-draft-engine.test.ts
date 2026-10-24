@@ -1,7 +1,7 @@
 import { createSlotSequence } from '../draft-order.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
-import { DEFAULT_SCORING_RULES } from '../scoring.js';
+import { DEFAULT_SCORING_RULES } from '../league/scoring.js';
 import { type Player, type Position } from '../player.js';
 import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment } from './mock-draft-engine.js';
 

@@ -12,12 +12,11 @@ import type { MarketAdpPlayer } from '../../market-adp.js';
 import type { TeamEnvironment } from '../../team-environment.js';
 import type { ECRPlayer } from '../../scrapers.js';
 import { type RosterRequirements, DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
-import { type ScoringRules, DEFAULT_SCORING_RULES } from '../../scoring.js';
+import { type ScoringRules, DEFAULT_SCORING_RULES, calculateLeagueProjection } from '../../league/scoring.js';
 import { applyDynamicValueOverReplacement, estimatePlayerPrediction } from './prediction-score.js';
 import { applyPositionTiers } from './tiers.js';
 import { calculateValueScore } from './value.js';
 import { determineHighlightLevel } from './highlight.js';
-import { calculateLeagueProjection } from './league-scoring.js';
 
 export type { SleeperADPPlayer, PlayerIdentityData } from '../../catalog/decoders.js';
 import type { SleeperADPPlayer, PlayerIdentityData } from '../../catalog/decoders.js';

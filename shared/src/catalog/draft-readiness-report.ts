@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { CATALOG, catalogPath } from './manifest.js';
+import { POSITIONS } from '../league/positions.js';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile, decodeOrNull } from './decoders.js';
 import { evaluateDraftReadiness, formatDraftReadinessTimestamp, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
 
@@ -19,7 +20,7 @@ const hasContractContext = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Stru
 const hasKeeperSupply = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Struct({
   season: Schema.Finite,
   keepers: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Struct({
-    playerName: Schema.String, position: /* @__PURE__ */ Schema.Literals(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']),
+    playerName: Schema.String, position: /* @__PURE__ */ Schema.Literals(POSITIONS),
     team: /* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value) && value >= 1 && value <= 10)),
     round: /* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value) && value >= 1)),
   })),

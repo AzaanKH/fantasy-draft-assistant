@@ -8,6 +8,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MIN_TRAINING_ROWS } from './model/position-residual-model.js';
+import { OFFENSIVE_POSITIONS } from '@fantasy-draft/shared/league';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DATA_DIR = join(REPO_ROOT, 'data');
@@ -273,13 +274,13 @@ async function main(): Promise<void> {
     predictionRowsValid ? invalidCommonOutputs : predictionRowWarnings.map(check => check.message).join(' '), '0 invalid');
   const offensiveModelFamilies = new Set(
     predictionPlayers
-      .filter((entry) => isRecord(entry) && ['QB', 'RB', 'WR', 'TE'].includes(String(entry['position'])))
+      .filter((entry) => isRecord(entry) && OFFENSIVE_POSITIONS.some((position) => position === String(entry['position'])))
       .map((entry) => isRecord(entry) ? entry['modelFamily'] : undefined)
       .filter((family): family is string => typeof family === 'string')
   );
   const fittedPositionFamilies = [...offensiveModelFamilies].filter((family) => family.includes('ridge'));
   const positionModelReport = nested(loaded.get('model-report.json'), 'positionResidualModels');
-  const positionModelTrainingRows = ['QB', 'RB', 'WR', 'TE'].map((position) =>
+  const positionModelTrainingRows = OFFENSIVE_POSITIONS.map((position) =>
     nested(positionModelReport, position, 'trainingRows')
   );
   const minimumPositionModelTrainingRows = positionModelTrainingRows.every(finiteNumber)

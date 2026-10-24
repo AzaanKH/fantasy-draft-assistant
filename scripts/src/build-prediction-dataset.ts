@@ -27,14 +27,12 @@ import {
   runStatements,
   sqlString,
 } from './model/duckdb.js';
-import { CURRENT_LEAGUE_SCORING_ADJUSTMENTS } from './model/league-scoring.js';
+import { OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
 import { buildHistoricalSnapshots } from './model/historical-snapshots.js';
 import {
-  OFFENSIVE_POSITIONS,
   POSITION_FEATURES,
   fitAllPositionResidualModelsForSeason,
   type FittedPositionResidualModel,
-  type OffensivePosition,
   type PositionResidualRow,
 } from './model/position-residual-model.js';
 import { io, runMain } from './effect-runtime.js';
@@ -141,8 +139,16 @@ const REPLACEMENT_RANK_SQL = `
     else 12
   end
 `;
-const RUSH_ATTEMPT_BONUS = CURRENT_LEAGUE_SCORING_ADJUSTMENTS.rushAttemptBonus;
-const TE_RECEPTION_BONUS = CURRENT_LEAGUE_SCORING_ADJUSTMENTS.teReceptionBonus;
+const CURRENT_LEAGUE_ACTUAL_BONUS = leagueScoringAdjustmentSql({
+  position: 'ps.position',
+  rushAttempts: 'coalesce(ps.rush_attempts, 0)',
+  receptions: 'coalesce(ps.receptions, 0)',
+});
+const PROJECTED_LEAGUE_BONUS = leagueScoringAdjustmentSql({
+  position: 'position',
+  rushAttempts: 'projected_rush_attempts',
+  receptions: 'projected_receptions',
+});
 
 function sqlList(values: readonly string[]): string {
   return `[${values.map(sqlString).join(', ')}]`;
@@ -395,7 +401,7 @@ const program = Effect.gen(function* () {
           air_yards_share::double as air_yards_share,
           wopr::double as wopr
         from source.nflverse_player_stats
-        where position in ('QB', 'RB', 'WR', 'TE', 'K')`,
+        where position in ${sqlPositionList([...OFFENSIVE_POSITIONS, 'K'])}`,
       `create or replace table model.nflverse_team_seasons as
         select
           season::integer as season,
@@ -420,7 +426,7 @@ const program = Effect.gen(function* () {
         join source.nflverse_player_ids ids
           on snaps.pfr_player_id = ids.pfr_id
         where snaps.game_type = 'REG'
-          and snaps.position in ('QB', 'RB', 'WR', 'TE')
+          and snaps.position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
         group by snaps.season, ids.gsis_id`,
       `create or replace table model.nflverse_pressure_seasons as
         select
@@ -573,7 +579,7 @@ const program = Effect.gen(function* () {
           sum(total_yards_gained_exp)::double as expected_total_yards,
           sum(total_touchdown_exp)::double as expected_total_tds
         from source.ffopportunity_weekly
-        where position in ('QB', 'RB', 'WR', 'TE')
+        where position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
         group by season, player_id`,
       `create or replace table model.dynastyprocess_player_ids as
         select *
@@ -597,7 +603,7 @@ const program = Effect.gen(function* () {
               order by db_season desc
             ) as row_number
           from source.dynastyprocess_player_ids
-          where position in ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
+          where position in ${sqlPositionList(POSITIONS)}
         )
         where row_number = 1`,
       `create or replace table model.dynastyprocess_predraft_rankings as
@@ -652,7 +658,7 @@ const program = Effect.gen(function* () {
           left join model.dynastyprocess_player_ids ids
             on r.id::varchar = ids.fantasypros_id
           where r.page_type in ('redraft-overall', 'best-overall')
-            and r.pos in ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
+            and r.pos in ${sqlPositionList(POSITIONS)}
             and cast(r.scrape_date as date)
               between make_date(extract(year from cast(r.scrape_date as date))::integer, 5, 1)
               and make_date(extract(year from cast(r.scrape_date as date))::integer, 9, 10)
@@ -679,11 +685,7 @@ const program = Effect.gen(function* () {
           ps.games,
           ps.fantasy_points_ppr as actual_points,
           ps.fantasy_points_ppr
-            + coalesce(ps.rush_attempts, 0) * ${RUSH_ATTEMPT_BONUS}
-            + case
-                when ps.position = 'TE' then coalesce(ps.receptions, 0) * ${TE_RECEPTION_BONUS}
-                else 0
-              end
+            + ${CURRENT_LEAGUE_ACTUAL_BONUS}
             as current_league_actual_points,
           ps.fantasy_points_ppr / nullif(ps.games, 0) as actual_points_per_game,
           ps.fantasy_points_standard as actual_standard_points,
@@ -1235,7 +1237,7 @@ const program = Effect.gen(function* () {
               ) desc nulls last
             ) as trailing_relevance_rank
           from model.prediction_training_dataset
-          where position in ('QB', 'RB', 'WR', 'TE')
+          where position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
         )
         where sleeper_player_id is not null
           ${TRAINING_RELEVANCE_FILTER}
@@ -1433,17 +1435,9 @@ const program = Effect.gen(function* () {
         common_outputs as (
           select
             risk_components.*,
-            projected_rush_attempts * ${RUSH_ATTEMPT_BONUS}
-              + case
-                  when position = 'TE' then projected_receptions * ${TE_RECEPTION_BONUS}
-                  else 0
-                end as custom_scoring_adjustment,
+            ${PROJECTED_LEAGUE_BONUS} as custom_scoring_adjustment,
             base_ppr_projected_points
-              + projected_rush_attempts * ${RUSH_ATTEMPT_BONUS}
-              + case
-                  when position = 'TE' then projected_receptions * ${TE_RECEPTION_BONUS}
-                  else 0
-                end as league_projected_points,
+              + ${PROJECTED_LEAGUE_BONUS} as league_projected_points,
             least(10, greatest(1,
               2.5
               + case

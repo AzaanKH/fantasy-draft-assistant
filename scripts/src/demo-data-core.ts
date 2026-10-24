@@ -1,6 +1,7 @@
-import type {
-  NFLTeam,
-  Position,
+import {
+  KICKER_DEFENSE_POSITIONS,
+  type NFLTeam,
+  type Position,
 } from '@fantasy-draft/shared/league';
 import type {
   ECRPlayer,
@@ -74,7 +75,7 @@ interface DemoRankedPlayer {
  * before this pick. Every one stays in the pool, even past the ranking count.
  */
 export const LATE_ROUND_START = 150;
-const LATE_ROUND_POSITIONS: ReadonlySet<Position> = new Set<Position>(['K', 'DEF']);
+const LATE_ROUND_POSITIONS: ReadonlySet<Position> = new Set<Position>(KICKER_DEFENSE_POSITIONS);
 const UNRANKED_SLEEPER_ADP = 999;
 
 /**

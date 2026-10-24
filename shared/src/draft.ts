@@ -1,4 +1,5 @@
 import type { Position, SurvivalModelSource, TierSource } from './player.js';
+import { FLEX_GROUPS } from './league/positions.js';
 
 /**
  * Roster structure tracking player IDs by position
@@ -65,7 +66,7 @@ export const DEFAULT_ROSTER_REQUIREMENTS: RosterRequirements = {
   RB: { starters: 2, max: 8 },
   WR: { starters: 2, max: 8 },
   TE: { starters: 1, max: 3 },
-  FLEX: { starters: 2, eligiblePositions: ['RB', 'WR', 'TE'] },
+  FLEX: { starters: 2, eligiblePositions: [...FLEX_GROUPS.standard] },
   K: { starters: 1, max: 1 },
   DEF: { starters: 0, max: 0 },
   BENCH: { spots: 5 },

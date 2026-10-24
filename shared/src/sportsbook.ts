@@ -1,5 +1,5 @@
 import type { Position } from './player.js';
-import type { ScoringRules } from './scoring.js';
+import type { ScoringRules } from './league/scoring.js';
 
 type Sportsbook = SportsbookOverUnderLine['sportsbook'];
 

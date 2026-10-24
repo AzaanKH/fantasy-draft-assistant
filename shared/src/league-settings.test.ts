@@ -82,6 +82,20 @@ describe('normalizeSleeperLeagueSettings', () => {
 });
 
 
+describe('Sleeper FLEX slot eligibility', () => {
+  const base = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'BN'];
+  it.each([
+    [['FLEX', 'WRRB_FLEX'], 2, ['RB', 'WR', 'TE'], []],
+    [['REC_FLEX'], 1, ['WR', 'TE'], []],
+    [['SUPER_FLEX', 'SUPERFLEX'], 2, ['QB', 'RB', 'WR', 'TE'], []],
+    [['FLEX', 'SUPER_FLEX'], 2, ['RB', 'WR', 'TE', 'QB'], ['mixed-flex-eligibility']],
+  ] as const)('maps %j to its eligible positions', (slots, starters, eligiblePositions, unsupported) => {
+    const settings = normalizeSleeperLeagueSettings(createLeague({ roster_positions: [...base, ...slots] }), 1000);
+    expect(settings.rosterRequirements.FLEX).toEqual({ starters, eligiblePositions });
+    expect(settings.unsupportedRosterSlots).toEqual(unsupported);
+  });
+});
+
 describe('isRosterRequirements', () => {
   const atCapacity: RosterRequirements = {
     QB: { starters: 1, max: 40 },
