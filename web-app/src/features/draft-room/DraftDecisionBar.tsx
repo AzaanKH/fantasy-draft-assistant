@@ -9,14 +9,13 @@ import { useDraftDecision } from '@/features/recommendations/DraftDecisionContex
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
-import { hasReadinessBlockers } from './DraftReadinessBlockedNotice';
 
 export function DraftDecisionBar({
   onOpenAssistant,
 }: {
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
 }): React.ReactElement {
-  const { output, isLoading: decisionLoading, readiness, recommendationsBlocked } = useDraftDecision();
+  const { output, isLoading: decisionLoading, recommendationsBlocked } = useDraftDecision();
   const { isLoading: playersLoading } = usePlayerDataQuery();
   // Readiness reads as blocked until player data arrives, so loading wins over the paused message.
   const isLoading = decisionLoading || playersLoading;
@@ -34,12 +33,13 @@ export function DraftDecisionBar({
     return (
       <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite" aria-busy={isLoading}>
         <div className="draft-best-pick-content">
-          <span className="text-xs font-semibold text-primary">Best Pick</span>
-          <p className="text-sm text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-primary">Best Pick</span>
+          {/* One line in every state, so a status change never resizes the bar; the setup checklist sits directly below. */}
+          <p className="min-w-0 truncate text-sm text-muted-foreground">
             {isLoading
               ? 'Finding your best pick…'
               : recommendationsBlocked
-                ? hasReadinessBlockers(readiness) ? 'Paused until setup is finished. See the setup checklist below.' : 'Paused until setup is finished.'
+                ? 'Paused until setup is finished.'
                 : 'No pick available'}
           </p>
         </div>

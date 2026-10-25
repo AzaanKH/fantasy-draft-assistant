@@ -49,13 +49,15 @@ describe('DraftDecisionBar loading', () => {
     expect(markup).not.toContain('Paused until setup');
   });
 
-  it('points to the setup checklist only when readiness lists blockers', () => {
+  it.each([
+    ['loading', { isLoading: true }, 'Finding your best pick…'],
+    ['blocked', { isLoading: false, recommendationsBlocked: true }, 'Paused until setup is finished.'],
+    ['empty', { isLoading: false }, 'No pick available'],
+  ] as const)('keeps the %s status to one truncated line, so the bar height never changes', (_, state, message) => {
     decision.output.bestPick = null;
-    decision.isLoading = false;
-    decision.recommendationsBlocked = true;
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }))).not.toContain('checklist');
-    Object.assign(decision, { readiness: { productBlockingFailures: [{ key: 'trusted-rankings' }] } });
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }))).toContain('See the setup checklist below');
+    Object.assign(decision, state);
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain(`<p class="min-w-0 truncate text-sm text-muted-foreground">${message}</p>`);
   });
 
   it('shows loading feedback in the same bar before the first pick', () => {
