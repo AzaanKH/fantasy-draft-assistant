@@ -9,6 +9,7 @@ import { Processes } from '@fantasy-draft/shared/node';
 import { buildCatalogFixture } from './ui-adapter.mjs';
 import { buildReadinessFixture } from './ui-readiness.mjs';
 import { inspectProductionBuild, createStaticHandler, verifyProductionHttp, verifyFixtureHttp, sha256 } from './ui-production.mjs';
+import { nativeVisibilityExitCode } from './native-visibility-result.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const out = process.env.NATIVE_VISIBILITY_OUTPUT;
@@ -212,12 +213,13 @@ async function run() {
   }
   result.pathVerdicts = Object.fromEntries(paths.map(p => { const rows = result.trials.filter(t => t.path === p); return [p, rows.length === 5 && rows.every(t => t.passes) ? 'PROVEN' : rows.some(t => t.uiHasWrite === false) ? 'PRODUCT DEFECT' : 'NOT PROVEN']; }));
   if (Object.values(result.pathVerdicts).includes('PRODUCT DEFECT')) result.verdict = 'PRODUCT DEFECT';
-  else if (Object.values(result.pathVerdicts).includes('PROVEN')) result.verdict = 'PROVEN';
+  else if (paths.length === 2 && Object.values(result.pathVerdicts).every(verdict => verdict === 'PROVEN')) result.verdict = 'PROVEN';
 }
 try { await Effect.runPromise(Effect.tryPromise(run)); }
 catch (error) { result.error = { message: String(error.cause?.message ?? error), stack: error.cause?.stack ?? error.stack }; console.error(result.error); process.exitCode = 1; }
 try { if (context) { await context.close(); result.cleanup.push('Remaining browser closed'); } if (server) await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }); result.cleanup.push('Owned production server closed; no pkill or killall used'); }
 catch (error) { result.cleanup.push({ error: error.message }); }
+result.exitCode = nativeVisibilityExitCode(result);
 result.finished = new Date().toISOString(); await persist();
 const lines = [`# Native visibility release gate`, '', `Verdict: **${result.verdict}**`, '', `Commit: \`${result.head}\`. Harness: \`${path.relative(root, fileURLToPath(import.meta.url))}\`.`, '', result.productionBuild ? 'Production static build with VITE_STORAGE_ACTIVATION=idb; runtime demo and persistence harness flags absent. Local readiness HTTP fixtures use installed demo identities. No live provider refresh was run.' : 'Stopped at the initial native headed Chromium probe, before the production build or any write trial. No production activation or hidden-write recovery claim is made.', '', 'Trial method: two tabs in one native window for tab-switch, or two real Chromium windows for minimize/restore, focus emulation explicitly disabled in both, BroadcastChannel.postMessage suppressed in both. Every trial uses a fresh profile and draft. Writes use the real shortlist UI and require the Remove button, drained Saving notice, and durable IDB readback. This method is unverified if the native probe failed.', ''];
 for (const t of result.trials) { lines.push(`## ${t.path} trial ${t.trial}: ${t.sender} to ${t.receiver}`, '', `Variant: ${t.variant}. Passed: ${Boolean(t.passes)}.`, '', `Hidden after ack: ${t.hiddenAfterAck?.visibility ?? 'unavailable'}. Hidden UI had write: ${t.hiddenUiHasWrite ?? 'unavailable'}. Ack: ${t.ackAt ?? 'unavailable'}.`, '', `Trusted visible events after ack: ${JSON.stringify(t.visibleEventsAfterAck ?? [])}.`, '', `Focus events after ack: ${JSON.stringify(t.focusEventsAfterAck ?? [])}. UI observed at: ${t.after?.uiObservedAt ?? 'unavailable'}. No reload: ${t.noReload ?? 'unavailable'}.`, '', `Screenshot: ${t.screenshot ?? 'unavailable'}. Full IDB rows and millisecond event/read timestamps: results.json.`, '', ...(t.error ? [`Error: ${t.error.message}`, ''] : [])); }
@@ -226,3 +228,4 @@ if (result.error) lines.push(`Failure: ${result.error.message}`, '', 'Alternativ
 lines.push('## Cleanup', '', ...result.cleanup.map(x => `- ${typeof x === 'string' ? x : JSON.stringify(x)}`), '', 'No product code changed. No commit or push. Fresh evidence profiles remain under the evidence directory for audit. See results.json for owned process IDs and build/HTTP hashes.', '');
 await writeFile(path.join(out, 'NATIVE-VISIBILITY.md'), lines.join('\n'));
 console.log(`Verdict: ${result.verdict}; evidence: ${out}`);
+process.exitCode = result.exitCode;

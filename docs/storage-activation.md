@@ -2,6 +2,8 @@
 
 Production activation is on by default for the web app and extension. The main-compatible tombstone release is on main. The shared build-time switch defaults to `idb`; a localStorage setting or URL parameter cannot change it.
 
+The hosted static demo is an explicit v1 exception. `pnpm build:web:demo` and `pnpm dev:web:demo` set `VITE_STORAGE_ACTIVATION=v1`. HTTPS demo origins cannot share the canonical localhost app's storage and do not activate it.
+
 To build the v1 rollback release for both consumers, run:
 
 ```sh
@@ -83,6 +85,8 @@ NATIVE_VISIBILITY_OUTPUT=/absolute/path/to/fresh-evidence pnpm --filter scripts 
 ```
 
 The check disables focus emulation on Playwright's owning main-frame CDP session. Disabling it on an additional session leaves Playwright's override active and prevents native hiding. The private session access is version-specific. Recheck it before upgrading Playwright. The check preserves browser profiles and closes only its own browser contexts and static server.
+
+The check exits with failure if either five-trial path is incomplete or fails, a page error occurs, or cleanup fails. A partial native proof cannot return success.
 
 ## Check the release default and rollback readers
 
