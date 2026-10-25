@@ -38,7 +38,7 @@ export function DraftDecisionBar({
             {isLoading
               ? 'Finding your best pick…'
               : recommendationsBlocked
-                ? 'Paused until setup is finished. See the checklist above.'
+                ? 'Paused until setup is finished. See the setup checklist below.'
                 : 'No pick available'}
           </p>
         </div>

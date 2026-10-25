@@ -124,14 +124,6 @@
       ]
     }
   },
-  "web-app/src/draft-design.css": {
-    "reason": "The board resizer grip is a 44x6 drag handle, not information or a control label. Squaring it (border-radius 3px renders almost the same) is an operator decision outside unit 15.",
-    "occurrences": {
-      "agent/no-pill-shape": [
-        "3cf938344ffc9609835c3e0e8e64b6201b9f1c7686d2938ca17d0553dfc2d495"
-      ]
-    }
-  },
   "web-app/src/features/draft-room/DraftConnectionControl.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {

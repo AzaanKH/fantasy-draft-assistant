@@ -52,9 +52,12 @@ export function DraftWorkspace({
   notices,
   onOpenAssistant,
   roundWindowSize,
+  setupChecklist,
   toolbarActions,
 }: {
   readonly notices?: React.ReactNode;
+  /** Readiness blockers. They open the player workspace, so arriving with the data never moves the board. */
+  readonly setupChecklist?: React.ReactNode;
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
   readonly roundWindowSize?: number;
   readonly toolbarActions?: React.ReactNode;
@@ -161,6 +164,7 @@ export function DraftWorkspace({
           </div>
         ) : null}
         <DraftDock
+          checklist={setupChecklist}
           expanded={isDockExpanded}
           onExpandedChange={setIsDockExpanded}
           onOpenAssistant={onOpenAssistant}

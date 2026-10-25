@@ -38,7 +38,7 @@ Pill shapes and accent stripes read as generated filler, and they were removed a
 - **No pills.** Do not put `rounded-full`, `rounded-[999px]` or `var(--radius-pill)` on badges, chips, filters or buttons. Use `--radius-xs` to `--radius-lg`. Circles are fine when the sides are equal, as with avatars, status dots and radio marks (`size-*` or `aspect-square`).
 - **No accent stripes.** Do not use a coloured or 2px-plus side border (`border-l-4`, `border-l-primary`, `border-left: 3px solid …`). Also avoid a thin bar pinned to one side, and a one-sided inset shadow 2px or wider. Neutral 1px dividers and tab underlines are fine.
 
-`agent/no-pill-shape` and `agent/no-accent-stripe` enforce both rules in web-app and extension TSX class strings and CSS. `eslint-baseline.json` lists each accepted exception with its reason.
+`agent/no-pill-shape` and `agent/no-accent-stripe` enforce both rules in web-app and extension TSX class strings and CSS. Neither rule has a baseline exception, and a test keeps it that way.
 
 ## Import continuation
 
