@@ -1,7 +1,8 @@
+import { fixedClock } from '../units/clock.js';
 import { Schema } from 'effect';
 import { CATALOG, catalogPath } from './manifest.js';
 import { POSITIONS } from '../league/positions.js';
-import { calendarSeason } from '../league/season.js';
+import { currentSeason } from '../league/season.js';
 import { READINESS_MINIMUMS, formatIdentityCoverage } from './readiness-minimums.js';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile, decodeOrNull } from './decoders.js';
 import { evaluateDraftReadiness, formatDraftReadinessTimestamp, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
@@ -169,7 +170,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
     onWarning: message => decodeWarnings.push({ key: 'prediction-decode', label: 'Experimental predictions',
       sourceLabel: 'Prediction data', message, correctiveAction: 'Regenerate the experimental prediction data.' }),
   }));
-  const season = calendarSeason(now);
+  const season = currentSeason(fixedClock(now));
   const rankingsTimestamp = timestamp(nested(rankings.value, 'metadata', 'refreshedAt'));
   const identityTimestamp = timestamp(nested(identities.value, 'generatedAt'));
   const sleeperTimestamp = timestamp(nested(sleeper.value, 'fetchedAt'));

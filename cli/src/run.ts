@@ -1,8 +1,9 @@
+import { fixedClock } from '@fantasy-draft/shared/units';
 import { resolve } from 'node:path';
 import { Cause, Effect, Exit, Result, Stream } from 'effect';
 import { type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { type Recommendation } from '@fantasy-draft/shared/draft';
-import { calendarSeason, createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
+import { currentSeason, createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { toWholePercent } from '@fantasy-draft/shared/units';
 import { buildDraftReadinessReport } from './readiness';
 import {
@@ -136,7 +137,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   let data: DraftData | null = archive ? archivedData(archive) : null;
   let localReadiness = archive?.readiness ?? (['status', 'connect'].includes(args.command) ? null : yield* buildReadiness(now, root));
   const needsMarket = !archive && ['players', 'recommend', 'compare', 'wait', 'roster', 'export'].includes(args.command);
-  const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, calendarSeason(now)) : { players: [] };
+  const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, currentSeason(fixedClock(now))) : { players: [] };
   if (market.warning) warnings.push(market.warning);
   if (!archive) {
     const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null, { onWarning: message => warnings.push(message) }));

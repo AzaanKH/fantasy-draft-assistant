@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { currentSeason } from '@fantasy-draft/shared/league';
 import { act, createElement, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -174,7 +175,7 @@ it('keeps stale queue clicks absolute and preserves the latest exact order after
 });
 
 it('settles bootstrap keeper preload when adopted sessions give player data new references', async () => {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updatedAt: '2026-01-01T00:00:00.000Z', season: new Date().getUTCFullYear(), keepers: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updatedAt: '2026-01-01T00:00:00.000Z', season: currentSeason(), keepers: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
   const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
   const raw = createDurableWorkspace({ database, search: '', initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 } });
   await raw.sendDurable(['setSessionMode', 'live']);

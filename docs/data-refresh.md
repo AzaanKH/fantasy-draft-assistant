@@ -9,6 +9,11 @@ and servers. Its `predev` check writes `data/data-quality-report.json` without
 refreshing source snapshots. Local code verification with `pnpm test` or
 `pnpm verify` does not run either startup command or refresh live data.
 
+Current-season defaults use the NFL season in UTC. January and February belong
+to the previous calendar year's season; the season changes on March 1 at 00:00
+UTC. Explicit source seasons
+remain authoritative, and the static demo retains its bundled season.
+
 ## Core data and optional signals
 
 Live Recommendations require trusted rankings, canonical player identities,

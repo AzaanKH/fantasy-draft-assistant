@@ -8,13 +8,13 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MIN_TRAINING_ROWS } from './model/position-residual-model.js';
-import { OFFENSIVE_POSITIONS } from '@fantasy-draft/shared/league';
+import { currentSeason, OFFENSIVE_POSITIONS } from '@fantasy-draft/shared/league';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DATA_DIR = join(REPO_ROOT, 'data');
 const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.qualityReport));
 const strict = process.argv.includes('--strict');
-const CURRENT_SEASON = new Date().getFullYear();
+const CURRENT_SEASON = currentSeason();
 
 type CheckStatus = 'pass' | 'warn' | 'fail';
 

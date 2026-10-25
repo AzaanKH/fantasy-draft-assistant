@@ -130,8 +130,13 @@ export default tseslint.config(
     plugins: { agent: agentRules },
     rules: {
       'agent/no-position-array': 'error',
-      'agent/no-inline-season': 'error',
     },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['**/*.test.{ts,tsx,js,mjs,cjs}', 'shared/src/league/season.ts', 'shared/src/http/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-inline-season': 'error' },
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),

@@ -1,3 +1,4 @@
+import { currentSeason } from '@fantasy-draft/shared/league';
 import { useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
@@ -94,7 +95,7 @@ function useLivePlayerDataQuery() {
     leagueSettings.scoringRules.receiving.reception
   );
   const marketAdpSeason =
-    fantasyProsQuery.data?.metadata.season ?? new Date().getFullYear();
+    fantasyProsQuery.data?.metadata.season ?? currentSeason();
   const marketAdpTeams = Math.max(8, Math.min(14, totalTeams));
   const marketAdpQuery = useQuery({
     queryKey: [
@@ -116,9 +117,9 @@ function useLivePlayerDataQuery() {
   const effectiveRecommendationPolicy =
     recommendationPolicyQuery.data ?? SAFE_RECOMMENDATION_POLICY;
   // The demo is a fixed snapshot, so it stays valid after its season ends.
-  const currentSeason = IS_DEMO
-    ? fantasyProsQuery.data?.metadata.season ?? new Date().getFullYear()
-    : new Date().getFullYear();
+  const season = IS_DEMO
+    ? fantasyProsQuery.data?.metadata.season ?? currentSeason()
+    : currentSeason();
   const rankingsTimestamp = fantasyProsQuery.data?.metadata.refreshedAt;
   const identityTimestamp = identityQuery.data?.generatedAt;
   const sleeperTimestamp = sleeperQuery.data?.fetchedAt;
@@ -128,7 +129,7 @@ function useLivePlayerDataQuery() {
       availability: fantasyProsQuery.isError
         ? 'missing'
         : fantasyProsQuery.data &&
-            fantasyProsQuery.data.metadata.season === currentSeason &&
+            fantasyProsQuery.data.metadata.season === season &&
             fantasyProsQuery.data.rankings.length >= READINESS_MINIMUMS.rankings &&
             TRUSTED_RANKING_SOURCE_TYPES.includes(fantasyProsQuery.data.metadata.sourceType)
           ? 'available'
@@ -144,7 +145,7 @@ function useLivePlayerDataQuery() {
       availability: identityQuery.isError
         ? 'missing'
         : identityQuery.data &&
-            identityQuery.data.season === currentSeason &&
+            identityQuery.data.season === season &&
             identityQuery.data.players.length >= READINESS_MINIMUMS.identities &&
             identityQuery.data.coverage.fantasyProsRankingMatchRate >= READINESS_MINIMUMS.identityRankingMatchRate &&
             identityQuery.data.coverage.matchedDefenses === READINESS_MINIMUMS.defenses
@@ -191,7 +192,7 @@ function useLivePlayerDataQuery() {
     'sportsbook-context': {
       availability: sportsbookQuery.isError
         ? 'missing'
-        : sportsbookQuery.data && sportsbookQuery.data.metadata.season === currentSeason &&
+        : sportsbookQuery.data && sportsbookQuery.data.metadata.season === season &&
             sportsbookQuery.data.overUnder.length > 0 &&
             sportsbookQuery.data.milestones.length > 0
           ? 'available'
@@ -210,7 +211,7 @@ function useLivePlayerDataQuery() {
     'sportsbook-context',
     DraftReadinessSourceObservation
   >>>), [
-    currentSeason,
+    season,
     fantasyProsQuery.data, fantasyProsQuery.error, fantasyProsQuery.isError,
     identityQuery.data, identityQuery.error, identityQuery.isError,
     predictionQuery.data, predictionQuery.error, predictionQuery.isError,

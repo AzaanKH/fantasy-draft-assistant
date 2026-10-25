@@ -16,6 +16,7 @@ let server: Server;
 let baseUrl: string;
 let snapshot: DraftSyncSnapshot;
 let requestCount = 0;
+let marketSeason: string | null = null;
 let streamCount = 0;
 let streamHandler: ((response: ServerResponse) => void) | null = null;
 let sessionsResponseBody: string | null = null;
@@ -26,6 +27,11 @@ beforeAll(async () => {
   await writeFixtureData(root);
   server = createServer((request, response) => {
     requestCount += 1;
+    if (request.url?.startsWith('/api/market-adp?')) {
+      marketSeason = new URL(request.url, 'http://fixture').searchParams.get('season');
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ players: [] })); return;
+    }
     if (request.headers['x-sync-token'] !== token) { response.writeHead(403).end(); return; }
     if (['/api/sync/sleeper/drafts/fixture/refresh', '/api/sync/espn/drafts/42/refresh'].includes(request.url ?? '') && request.method === 'POST') {
       response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(snapshot)); return;
@@ -615,4 +621,23 @@ describe('draft CLI against a local fixture server', () => {
     }
     expect(requestCount).toBe(requests);
   });
+});
+
+it.each([
+  ['2027-02-28T23:59:59.999Z', 2026],
+  ['2027-03-01T00:00:00.000Z', 2027],
+])('uses the NFL season for CLI market data and keeper reservations at %s', async (timestamp, season) => {
+  const now = Date.parse(timestamp);
+  const path = join(root, 'data/league-history/current-keepers.json');
+  const original = await readFile(path, 'utf8');
+  const file = JSON.parse(original);
+  file.season = season;
+  try {
+    await writeFile(path, JSON.stringify(file));
+    marketSeason = null;
+    const players = await command(['players', '--session', 'fixture', '--available', '--json'], { now });
+    expect(players.code).toBe(0);
+    expect.soft(marketSeason).toBe(String(season));
+    expect(players.result.data.players.some((player: { id: string }) => player.id === 'p2')).toBe(false);
+  } finally { await writeFile(path, original); }
 });

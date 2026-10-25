@@ -15,7 +15,6 @@ export const baselineRuleIds = [
   'agent/no-cross-package-import',
   '@typescript-eslint/explicit-module-boundary-types',
   'agent/no-position-array',
-  'agent/no-inline-season',
   'agent/no-pill-shape',
   'agent/no-accent-stripe',
 ];
@@ -297,9 +296,9 @@ export default {
     },
     'no-inline-season': {
       meta: {
-        docs: { hint: 'Use calendarSeason from @fantasy-draft/shared/league.', description: 'Rejects calls to getFullYear() and getUTCFullYear(). Use calendarSeason from shared/league.' },
+        docs: { hint: 'Use currentSeason(clock) from @fantasy-draft/shared/league.', description: 'Rejects calls to getFullYear() and getUTCFullYear(). Use currentSeason(clock) from shared/league.' },
         type: 'problem', schema: [],
-        messages: { season: 'Do not derive the season from a Date year. Use calendarSeason from @fantasy-draft/shared/league, which owns the season rule.' },
+        messages: { season: 'Do not derive the season from a Date year. Use currentSeason(clock) from @fantasy-draft/shared/league, which owns the season rule.' },
       },
       create(context) {
         return {

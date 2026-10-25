@@ -93,3 +93,12 @@ describe('optional predictions readiness', () => {
     expect(warnings[0]).toContain('Dropped 1 invalid prediction');
   });
 });
+
+it.each([
+  ['2027-02-28T23:59:59.999Z', 2026],
+  ['2027-03-01T00:00:00.000Z', 2027],
+])('reports the NFL season at %s', async (timestamp, season) => {
+  const files = new Map([...readyFiles()].map(([path, value]) => [path, JSON.parse(JSON.stringify(value).replaceAll('2026-08-25T15:57:03.000Z', timestamp).replaceAll('"season":2026', `"season":${season}`))]));
+  const report = await buildDraftReadinessReport(Date.parse(timestamp), async path => ({ path, error: null, value: files.get(path) ?? null }));
+  expect(report.status).toBe('ready');
+});

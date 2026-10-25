@@ -240,7 +240,6 @@ describe('Sleeper mock readiness with Primary League practice settings', () => {
   });
 });
 
-
 describe('Quick mock readiness', () => {
   const input = {
     sources, warnings: [], leagueSettings: createQuickMockSettings(undefined, NOW),
@@ -309,4 +308,15 @@ describe('Static demo readiness', () => {
     expect(rankings?.message).not.toContain('FantasyPros');
     expect(rankings?.correctiveAction).not.toContain('refresh:fantasypros');
   });
+});
+
+it.each([
+  ['2027-02-28T23:59:59.999Z', 2026],
+  ['2027-03-01T00:00:00.000Z', 2027],
+])('checks workspace keeper supply against the NFL season at %s', (timestamp, season) => {
+  const report = evaluateWorkspaceDraftReadiness({ sources, warnings: [],
+    leagueSettings: primaryLeagueSettings, totalRounds: 14,
+    keeperStatus: { ...readyKeepers, season },
+  }, Date.parse(timestamp));
+  expect(report.coreDraftData.find(item => item.key === 'confirmed-keeper-supply')?.status).toBe('ready');
 });
