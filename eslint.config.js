@@ -19,6 +19,7 @@ const draftOrderRules = [
 
 const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates. List new I/O owners in effectOwners in eslint.config.js.';
 const effectOwners = [
+  'scripts/persistence/native-visibility.mjs',
   'shared/src/catalog/**',
   'scripts/src/{contract-source-schema,script-file-schemas}.ts',
   '**/*.test.{ts,tsx,mjs}',

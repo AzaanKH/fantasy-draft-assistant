@@ -2,7 +2,7 @@ import { test, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { rootSmokeEvidence } from './persistence/fixtures/root-smoke-evidence.mjs';
 import { evaluateRootSmoke } from './persistence/ui-root-smoke.mjs';
-import { runnerExitCode } from './persistence/ui-runner-mode.mjs';
+import { runnerExitCode, runnerMode } from './persistence/ui-runner-mode.mjs';
 
 const withoutEndSnapshot = (result) => {
   const early = structuredClone(result);
@@ -40,4 +40,12 @@ test('the runner sets its exit status only after cleanup, apart from the fatal c
     "process.exitCode = runnerExitCode(results, { tier2, gate: flag('gate'), rootTier2Smoke, rootTier2Preflight });",
   ]);
   expect(source.indexOf('process.exitCode = runnerExitCode(')).toBeGreaterThan(source.indexOf('results.metadata.sourceHashesEnd = await sourceSnapshot();'));
+});
+
+test('the final matrix uses reachable readiness fixtures without reducing its workload or selecting a smoke scope', () => {
+  const mode = runnerMode(['--gate', '--browser-authorized']);
+  expect(mode.useReadinessFixture).toBe(true);
+  expect(mode.workload).toEqual({});
+  expect(mode.rootTier2Smoke).toBe(false);
+  expect(mode.rootTier2Preflight).toBe(false);
 });

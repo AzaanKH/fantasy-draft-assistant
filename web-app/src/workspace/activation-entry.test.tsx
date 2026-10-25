@@ -66,3 +66,38 @@ it('surfaces a failed stale preflight in the setup UI and releases pending state
     expect(container.textContent).not.toContain('Activating...');
   } finally { act(() => { root.unmount(); }); }
 });
+
+it('keeps seeded v1 drafts read only until confirmation, then imports before marking activation', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('crypto', webcrypto);
+  history.replaceState(null, '', '/draft?provider=sleeper&draftId=first-run&position=1');
+  const identity = { provider: 'sleeper', draftId: 'first-run' } as const;
+  const source = sessionFromState({ ...initialDraftState(identity), shortlistedPlayerIds: ['kept-player'] }, identity, 0);
+  const key = 'fantasy-draft-session-v1:sleeper:first-run';
+  const serialized = JSON.stringify(source);
+  localStorage.setItem(key, serialized);
+  const verified = await verifyStorageSharing({ canonicalOrigin: location.origin, location });
+  const container = document.createElement('div'); document.body.append(container);
+  const root = createRoot(container);
+  let mounted: Workspace | undefined;
+  const ready = vi.fn((workspace: Workspace) => { mounted = workspace; });
+  try {
+    act(() => { showStorageActivation({ root, verified, ready }); });
+    await until(() => Boolean(container.querySelector('input')));
+    expect(container.textContent).toContain('sleeper first-run: 0 picks, 1 queued');
+    const button = [...container.querySelectorAll('button')].find(row => row.textContent === 'Activate IndexedDB');
+    expect(button?.disabled).toBe(true);
+    act(() => { button?.click(); });
+    expect(ready).not.toHaveBeenCalled();
+    expect(localStorage.getItem(key)).toBe(serialized);
+    expect(localStorage.getItem('fantasy-draft-storage-migrated')).toBeNull();
+    act(() => { container.querySelector('input')?.click(); });
+    act(() => { button?.click(); });
+    await until(() => ready.mock.calls.length === 1);
+    await until(() => mounted?.draft.getState().shortlistedPlayerIds.includes('kept-player') ?? false);
+    expect(mounted?.draft.getState().shortlistedPlayerIds).toEqual(['kept-player']);
+    expect(localStorage.getItem(key)).toBe(serialized);
+    expect(localStorage.getItem('fantasy-draft-storage-migrated')).not.toBeNull();
+  } finally { mounted?.dispose(); act(() => { root.unmount(); }); container.remove(); history.replaceState(null, '', '/'); }
+});

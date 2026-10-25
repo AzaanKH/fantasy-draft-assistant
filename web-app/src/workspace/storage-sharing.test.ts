@@ -5,6 +5,8 @@ import { openDraftDatabase } from './indexed-db';
 import { assertCanonicalOrigin, serveStorageProbe, verifyStorageSharing, installStorageSharingResponder } from './storage-sharing';
 import { startStorageSharing } from '../../../extension/src/sidepanel/storage-sharing';
 
+vi.mock('@fantasy-draft/shared/sync', async original => ({ ...await original<object>(), STORAGE_ACTIVATION_ENABLED: false }));
+
 const canonicalOrigin = 'http://localhost:3000';
 const location = { origin: canonicalOrigin, pathname: '/draft', search: '' };
 const nonce = '0123456789abcdef0123456789abcdef';
@@ -73,6 +75,7 @@ describe('workspace origin and IndexedDB sharing', () => {
   });
 
   it.each(['http://127.0.0.1:3000', 'http://localhost:3002', 'https://localhost:3000'])('blocks %s before opening a database', async origin => {
+    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
     const factory = new IDBFactory();
     const open = vi.spyOn(factory, 'open');
     await expect(verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, origin }, nonce })).rejects.toThrow('Other origins');
