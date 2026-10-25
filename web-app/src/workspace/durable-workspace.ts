@@ -31,7 +31,7 @@ export function createDurableWorkspace({ database, search, initialConnection = r
   initialConnection?: PersistedDraftSyncConnection | null;
   resumeConfirmedConnection?: boolean;
   onError?: (error: unknown) => void;
-}): Omit<Workspace, 'sendDurable'> & { sendDurable: (command: WorkspaceCommand | DraftCommand) => Promise<DurableReceipt> } {
+}): Omit<Workspace, 'sendDurable'> & { readonly ready: Promise<void>; sendDurable: (command: WorkspaceCommand | DraftCommand) => Promise<DurableReceipt> } {
   const draft = createDraftStore({ storage: null });
   const connection = createStore<ConnectionQuery>(() => ({ connection: getConnection(draft.getState()) }));
   const initial = resolveInitialConnection(search, initialConnection);
@@ -217,6 +217,7 @@ export function createDurableWorkspace({ database, search, initialConnection = r
   channel?.addEventListener('message', reread);
 
   return {
+    ready: initialized,
     draft: { getState: draft.getState, getInitialState: draft.getInitialState, subscribe: draft.subscribe },
     connection: { getState: connection.getState, getInitialState: connection.getInitialState, subscribe: connection.subscribe },
     send: () => { throw new Error('Use sendDurable for an activated workspace'); },

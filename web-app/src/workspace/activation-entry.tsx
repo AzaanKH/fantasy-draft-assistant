@@ -9,6 +9,17 @@ import { observeDurableWorkspace } from './ui-dispatch';
 type Controller = ReturnType<typeof createActivationStorage>;
 type Review = Extract<ActivationReview, { status: 'review' }>;
 
+async function readyWorkspace(database: Awaited<ReturnType<Controller['activate']>>): Promise<Workspace> {
+  const workspace = createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true });
+  try {
+    await workspace.ready;
+    return observeDurableWorkspace(workspace);
+  } catch (error) {
+    workspace.dispose();
+    throw error;
+  }
+}
+
 function ReadOnlyDrafts({ review }: { readonly review: Review }): ReactElement {
   return <section aria-label="Saved drafts, read only" className="space-y-3">
     <h2 className="text-lg font-semibold">Saved drafts, read only</h2>
@@ -28,8 +39,8 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
   const [pending, setPending] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const bind = (database: Awaited<ReturnType<Controller['activate']>>): void => {
-    const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
+  const bind = async (database: Awaited<ReturnType<Controller['activate']>>): Promise<void> => {
+    const workspace = await readyWorkspace(database);
     ready(workspace);
     if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
   };
@@ -43,7 +54,7 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
   const activate = async (): Promise<void> => {
     if (!closed || pending || cancelled) return;
     setPending(true); setError(null);
-    try { bind(await controller.activate(decisions, { otherTabsClosed: true })); }
+    try { await bind(await controller.activate(decisions, { otherTabsClosed: true })); }
     catch (failure) {
       if (failure instanceof ActivationStaleError) {
         setDecisions([]); setClosed(false);
@@ -98,7 +109,7 @@ export function showStorageActivation({ root, verified, ready }: { readonly root
     }
     const database = await controller.resume();
     if (database) {
-      const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
+      const workspace = await readyWorkspace(database);
       ready(workspace);
       if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
       return;
