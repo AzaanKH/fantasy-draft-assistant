@@ -45,9 +45,7 @@ function measureResizeBounds(
     return { current, max: SCROLLING_MAX_BOARD_HEIGHT };
   }
   const dockHeight = getVisibleHeight(stack, '.draft-dock') ?? MIN_DOCK_HEIGHT;
-  // A setup checklist at the top of the dock comes on top of the dock's minimum.
-  const checklistHeight = getVisibleHeight(stack, '.draft-dock-checklist') ?? 0;
-  return { current, max: Math.max(MIN_BOARD_HEIGHT, current + dockHeight - MIN_DOCK_HEIGHT - checklistHeight) };
+  return { current, max: Math.max(MIN_BOARD_HEIGHT, current + dockHeight - MIN_DOCK_HEIGHT) };
 }
 
 export function DraftWorkspace({

@@ -28,7 +28,7 @@ export function DraftRoom({
   return (
     <DraftWorkspace
       onOpenAssistant={onOpenAssistant}
-      setupChecklist={!isLoading && recommendationsBlocked && hasReadinessBlockers(readiness) ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
+      setupChecklist={!isLoading && recommendationsBlocked && readiness && hasReadinessBlockers(readiness) ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
       notices={isLoading ? null : (
         <>
           {sessionMode === 'live' && sync.reconciliationSummary ? (

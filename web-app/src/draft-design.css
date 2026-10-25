@@ -393,9 +393,10 @@ button,input,select {
 [data-layout=fill] .draft-dock-checklist { flex: none; }
 [data-layout=fill] .draft-dock.is-split:has(> .draft-dock-checklist) { grid-template-rows: auto minmax(0, 1fr); }
 [data-layout=fill] .draft-dock.is-split.is-collapsed:has(> .draft-dock-checklist) { grid-template-rows: auto auto; }
-/* The pool keeps the dock's usual minimum below the checklist; the workspace scrolls rather than shrinking the board. */
-[data-layout=fill] .draft-dock:not(.is-collapsed):has(> .draft-dock-checklist) { min-height: calc(260px + var(--draft-dock-checklist-height, 0px)); }
-[data-layout=fill] .draft-workspace-stack:has(> .draft-dock > .draft-dock-checklist) > .draft-board:not(.is-filling) { flex-shrink: 0; }
+/* The dock keeps its size and scrolls under the checklist. Its columns keep room for the heading, toolbar, paused note and a few rows. */
+[data-layout=fill] .draft-dock:not(.is-collapsed):has(> .draft-dock-checklist) { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+[data-layout=fill] .draft-dock:not(.is-split):not(.is-collapsed):has(> .draft-dock-checklist) > [data-slot=tabs] { flex: 1 0 auto; min-height: 352px; }
+[data-layout=fill] .draft-dock.is-split:not(.is-collapsed):has(> .draft-dock-checklist) { grid-template-rows: auto minmax(352px, 1fr); }
 .draft-setup-checklist { border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border)); border-radius: var(--radius-lg); background: var(--color-surface); padding: 12px 14px; }
 .draft-setup-heading { display: flex; align-items: flex-start; gap: 10px; color: var(--color-danger); }
 .draft-setup-heading svg { margin-top: 2px; }
