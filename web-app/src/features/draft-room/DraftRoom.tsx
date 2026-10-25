@@ -5,7 +5,7 @@ import { MockDraftControls } from '@/features/draft-board/MockDraftControls';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { DraftReadinessBlockedNotice } from './DraftReadinessBlockedNotice';
+import { DraftReadinessBlockedNotice, hasReadinessBlockers } from './DraftReadinessBlockedNotice';
 import { DraftWorkspace } from './DraftWorkspace';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 import { ManualContinuityControl } from './ManualContinuityControl';
@@ -28,7 +28,7 @@ export function DraftRoom({
   return (
     <DraftWorkspace
       onOpenAssistant={onOpenAssistant}
-      setupChecklist={!isLoading && recommendationsBlocked && readiness ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
+      setupChecklist={!isLoading && recommendationsBlocked && hasReadinessBlockers(readiness) ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
       notices={isLoading ? null : (
         <>
           {sessionMode === 'live' && sync.reconciliationSummary ? (

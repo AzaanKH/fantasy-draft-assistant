@@ -116,6 +116,11 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
     const footer = pool.locator('.draft-pool-footer');
     await footer.getByText(/players shown/).waitFor({ timeout: 20_000 });
     const paused = await pool.locator('.draft-pool-paused').count() > 0;
+    // A setup checklist at the top of the dock must leave the pool its rows; the workspace scrolls instead.
+    if (await page.locator('.draft-dock-checklist').count() > 0) {
+      const poolHeight = await pool.locator('.draft-pool-scroll').evaluate((element) => element.getBoundingClientRect().height);
+      assert(poolHeight >= 120, `The setup checklist leaves the player pool ${String(Math.round(poolHeight))}px tall; it needs at least 120px`);
+    }
     const total = footerCount(await footer.innerText());
     assert(total > 60, `Player pool shows ${String(total)} players; it should list the whole undrafted pool`);
 

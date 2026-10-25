@@ -59,6 +59,22 @@ export function DraftDock({
   );
   const { output, overall, recommendationsBlocked } = useDraftDecision();
   const expand = (): void => { onExpandedChange(true); };
+  // The checklist's height adds to the dock's minimum, so the pool keeps its rows and the workspace scrolls instead.
+  const checklistRef = React.useRef<HTMLDivElement>(null);
+  const [checklistHeight, setChecklistHeight] = React.useState(0);
+  const hasChecklist = Boolean(checklist);
+  React.useLayoutEffect(() => {
+    const element = checklistRef.current;
+    if (!hasChecklist || !element) {
+      setChecklistHeight(0);
+      return undefined;
+    }
+    const update = (): void => { setChecklistHeight(Math.ceil(element.getBoundingClientRect().height)); };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => { observer.disconnect(); };
+  }, [hasChecklist]);
 
   const collapseButton = (
     <Button variant="ghost" size="sm" className="shrink-0 rounded-sm" aria-expanded={isExpanded}
@@ -88,10 +104,14 @@ export function DraftDock({
   );
 
   return (
-    <section className={cn('draft-dock', isSplit && 'is-split', !isExpanded && 'is-collapsed')} aria-label="Draft tools">
+    <section
+      className={cn('draft-dock', isSplit && 'is-split', !isExpanded && 'is-collapsed')}
+      aria-label="Draft tools"
+      style={checklistHeight > 0 ? { '--draft-dock-checklist-height': `${String(checklistHeight)}px` } as React.CSSProperties : undefined}
+    >
       <h2 className="sr-only">Draft workspace</h2>
       <p className="sr-only">Player pool ordered by {recommendationsBlocked ? RANKING_LABELS.long : output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player'}</p>
-      {checklist ? <div className="draft-dock-checklist">{checklist}</div> : null}
+      {checklist ? <div ref={checklistRef} className="draft-dock-checklist">{checklist}</div> : null}
       {isSplit ? (
         <>
           <div className="draft-dock-pool">
