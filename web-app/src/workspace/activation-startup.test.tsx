@@ -189,6 +189,7 @@ it('closes a failed initial binding without publishing App or its effects', asyn
   const { view, published } = await start(value);
   await until(() => Boolean(view.container.querySelector('[data-storage-blocked="activation"]')));
   expect(view.container.textContent).toContain('Initial draft read failed');
+  expect(view.container.textContent).toContain('Reload the page');
   expect(published).toEqual([]);
   expect(view.container.querySelector('[data-app-mounted]')).toBeNull();
   expect(close).toHaveBeenCalled();

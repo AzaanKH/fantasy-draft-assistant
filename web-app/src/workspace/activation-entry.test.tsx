@@ -101,3 +101,44 @@ it('keeps seeded v1 drafts read only until confirmation, then imports before mar
     expect(localStorage.getItem('fantasy-draft-storage-migrated')).not.toBeNull();
   } finally { mounted?.dispose(); act(() => { root.unmount(); }); container.remove(); history.replaceState(null, '', '/'); }
 });
+
+it('requires reload after activation commits but the first workspace binding fails', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('crypto', webcrypto);
+  history.replaceState(null, '', '/draft?provider=sleeper&draftId=first-bind&position=1');
+  const identity = { provider: 'sleeper', draftId: 'first-bind' } as const;
+  localStorage.setItem('fantasy-draft-session-v1:sleeper:first-bind', JSON.stringify(sessionFromState(initialDraftState(identity), identity, 0)));
+  const controller = activationStorage.createActivationStorage({ storage: localStorage, factory: indexedDB, report: vi.fn() });
+  const activate = controller.activate.bind(controller);
+  const attempts = vi.spyOn(controller, 'activate').mockImplementation(async (...args) => {
+    const database = await activate(...args);
+    vi.spyOn(database, 'read').mockRejectedValue(new Error('Initial draft read failed'));
+    return database;
+  });
+  const close = vi.spyOn(controller, 'close');
+  vi.spyOn(activationStorage, 'createActivationStorage').mockReturnValue(controller);
+  const verified = await verifyStorageSharing({ canonicalOrigin: location.origin, location });
+  const container = document.createElement('div'); document.body.append(container);
+  const root = createRoot(container);
+  const ready = vi.fn();
+  try {
+    act(() => { showStorageActivation({ root, verified, ready }); });
+    await until(() => Boolean(container.querySelector('input')));
+    act(() => { container.querySelector('input')?.click(); });
+    act(() => { [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB')?.click(); });
+    await until(() => container.textContent?.includes('Initial draft read failed') ?? false);
+    expect(localStorage.getItem('fantasy-draft-storage-migrated')).not.toBeNull();
+    expect(ready).not.toHaveBeenCalled();
+    const retry = [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB');
+    expect(retry?.disabled ?? true).toBe(true);
+    expect(container.textContent).toContain('Draft storage was activated');
+    expect(container.textContent).toContain('Reload the page');
+    expect(container.textContent).not.toContain('private browsing');
+    expect(container.textContent).not.toContain('Your drafts stay in the current storage');
+    expect(close).toHaveBeenCalled();
+    act(() => { [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB' && !button.disabled)?.click(); });
+    expect(attempts).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain('Reload the page');
+  } finally { controller.close(); act(() => { root.unmount(); }); container.remove(); history.replaceState(null, '', '/'); }
+});
