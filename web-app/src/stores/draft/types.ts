@@ -1,3 +1,4 @@
+import type { Probability } from '@fantasy-draft/shared/units';
 import type {
   Position,
 } from '@fantasy-draft/shared/league';
@@ -165,7 +166,7 @@ export interface DraftState {
   shortlistedPlayerIds: string[];
   preloadedKeepers: PreloadedKeeper[];
   keepersInitialized: boolean;
-  mockSurvivalProbabilities: Record<string, number>;
+  mockSurvivalProbabilities: Record<string, Probability>;
   /** Provider picks excluded from canonical state until their player identity resolves. */
   unresolvedProviderPicks: UnresolvedProviderPick[];
 
@@ -221,7 +222,7 @@ export interface DraftActions {
   undoLastPick: () => void;
   branchFromPick: (pickNumber: number) => void;
   resetDraft: () => void;
-  setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, number>>) => void;
+  setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, Probability>>) => void;
   togglePlayerShortlisted: (playerId: string) => void;
   removePlayerFromShortlist: (playerId: string) => void;
   /** Moves a queued player by one or more places; out-of-range moves are ignored. */

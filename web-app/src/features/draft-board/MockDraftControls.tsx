@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
@@ -104,7 +105,7 @@ export function MockDraftControls({
         const probabilities = Object.fromEntries(
           Object.entries(survivalCounts).map(([playerId, count]) => [
             playerId,
-            count / totalIterations,
+            asProbability(count / totalIterations),
           ])
         );
         if (!cancelled) {

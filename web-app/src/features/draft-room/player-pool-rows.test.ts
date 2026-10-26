@@ -1,3 +1,4 @@
+import { asRank } from '@fantasy-draft/shared/units';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS, type Player, type RosterRequirements } from '@fantasy-draft/shared/league';
 import type { DraftReadinessItem, DraftReadinessReport } from '@fantasy-draft/shared/catalog';
@@ -9,7 +10,7 @@ import { describePausedAdvice, getPlayerPoolRows } from './player-pool-rows';
 function player(index: number, position: Player['position'] = 'WR'): Player {
   const base = VISUAL_PLAYERS[0];
   if (!base) throw new Error('Missing player fixture');
-  return { ...base, id: `p-${String(index)}`, name: `Player ${String(index)}`, team: 'DET', position, ecrRank: index };
+  return { ...base, id: `p-${String(index)}`, name: `Player ${String(index)}`, team: 'DET', position, ecrRank: asRank(index) };
 }
 
 function recommendation(source: Player): Recommendation {

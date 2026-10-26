@@ -221,6 +221,26 @@ describe('league constant rules', () => {
   });
 });
 
+describe('unit constructors', () => {
+  function unitMessages(source) {
+    return new Linter().verify(source, [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-unit-cast': 'error' },
+    }], { filename: 'web-app/src/probe.ts' });
+  }
+  it.each(['const p = 0.4 as Probability;', 'const r = <Rank>value;', 'const v = row.vor as Vor;',
+    'const r = value as Rank | undefined;', 'const map = raw as Readonly<Record<string, Probability>>;', 'const list = values as Percent[];'])('rejects unit casts: %s', (source) => {
+    expect(unitMessages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-unit-cast', message: expect.stringContaining('asProbability') })]);
+  });
+  it('allows constructors and unrelated casts, and exempts shared/src/units', async () => {
+    expect(unitMessages('const p = asProbability(0.4); const n = value as number;')).toEqual([]);
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    expect((await eslint.calculateConfigForFile('shared/src/units/brands.ts')).rules['agent/no-unit-cast']).toBeUndefined();
+    expect((await eslint.calculateConfigForFile('shared/src/draft/probe.ts')).rules['agent/no-unit-cast']).toEqual([2]);
+    expect((await eslint.calculateConfigForFile('web-app/src/probe.test.ts')).rules['agent/no-unit-cast']).toEqual([2]);
+  });
+});
+
 describe('closed shared root exports', () => {
   it.each([
     "import { Player as Local } from '@fantasy-draft/shared';",

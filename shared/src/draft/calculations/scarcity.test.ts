@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, it, expect } from 'vitest';
 import {
   calculatePositionalScarcity,
@@ -14,8 +15,8 @@ function createPlayer(id: string, position: Player['position'], ecrRank: number)
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank,
-    positionalRank: ecrRank,
+    ecrRank: asRank(ecrRank),
+    positionalRank: asRank(ecrRank),
     sleeperAdp: ecrRank,
     valueScore: 0,
     marketRank: ecrRank,
@@ -24,10 +25,10 @@ function createPlayer(id: string, position: Player['position'], ecrRank: number)
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints: 200 - ecrRank,
-    valueOverReplacement: Math.max(0, 20 - ecrRank / 5),
+    valueOverReplacement: asVor(Math.max(0, 20 - ecrRank / 5)),
     tier: 1,
     tierDropoffScore: 0.8,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 7,
     floorScore: 6,
     upsideScore: 6,
@@ -126,7 +127,7 @@ describe('calculatePositionalScarcity', () => {
     it('uses positional rank instead of overall ECR rank', () => {
       const qbs = createPlayersAtPosition('QB', 12, 100).map((player, index) => ({
         ...player,
-        positionalRank: index + 1,
+        positionalRank: asRank(index + 1),
       }));
 
       const result = calculatePositionalScarcity('QB', qbs);

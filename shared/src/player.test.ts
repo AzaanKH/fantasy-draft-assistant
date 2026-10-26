@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from './units/brands.js';
 import { describe, expect, it } from 'vitest';
 import {
   isNFLTeam,
@@ -22,8 +23,8 @@ const player: Player = {
   position: 'WR',
   team: 'DET',
   byeWeek: 8,
-  ecrRank: 12,
-  positionalRank: 5,
+  ecrRank: asRank(12),
+  positionalRank: asRank(5),
   sleeperAdp: 13.5,
   valueScore: 1.5,
   marketRank: 14,
@@ -32,10 +33,10 @@ const player: Player = {
   isContractYear: false,
   offensiveEnvironmentScore: 8,
   projectedPoints: 260.4,
-  valueOverReplacement: 88.1,
+  valueOverReplacement: asVor(88.1),
   tier: 2,
   tierDropoffScore: 0.4,
-  nextPickSurvivalProbability: 0.2,
+  nextPickSurvivalProbability: asProbability(0.2),
   ceilingScore: 80,
   floorScore: 60,
   upsideScore: 70,
@@ -139,7 +140,7 @@ describe('elementary enum predicates', () => {
   });
 
   it('preserves player numeric acceptance and optional fields not checked by the existing guard', () => {
-    expect(isPlayer({ ...player, ecrRank: Number.NaN, consensusAdp: Number.POSITIVE_INFINITY })).toBe(true);
+    expect(isPlayer({ ...player, ecrRank: asRank(Number.NaN), consensusAdp: Number.POSITIVE_INFINITY })).toBe(true);
     expect(isPlayer({ ...player, contractEndYear: 'unchecked', customProjectedPoints: 'unchecked' })).toBe(true);
   });
 });

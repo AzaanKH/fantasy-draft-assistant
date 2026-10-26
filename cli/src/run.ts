@@ -3,6 +3,7 @@ import { Cause, Effect, Exit, Result, Stream } from 'effect';
 import { type DraftReadinessReport } from '@fantasy-draft/shared/catalog';
 import { type Recommendation } from '@fantasy-draft/shared/draft';
 import { calendarSeason, createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
+import { toWholePercent } from '@fantasy-draft/shared/units';
 import { buildDraftReadinessReport } from './readiness';
 import {
   createDraftDecisionOutput,
@@ -259,7 +260,7 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   return { data: { ...common, player: playerSummary(first),
     returnProbability, nextPickNumber,
     waitingAssessment: nextPickNumber === null ? 'No later selection remains.' :
-      getAvailabilitySignal(returnProbability === null ? null : Math.round(returnProbability * 100)).status,
+      getAvailabilitySignal(returnProbability === null ? null : toWholePercent(returnProbability)).status,
     expectedNextPickAlternative: timing?.expectedAlternative ?? first.diagnostics?.expectedNextPickAlternative ?? null,
     costOfWaiting: timing?.costOfWaiting ?? first.diagnostics?.nextPickCostOfWaiting ?? null,
     // Same answer as the Assistant's Can I wait? tab.

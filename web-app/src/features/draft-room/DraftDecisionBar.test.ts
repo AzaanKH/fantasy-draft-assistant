@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { createDraftStore } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
@@ -42,14 +43,14 @@ describe('DraftDecisionBar loading', () => {
 
 function decisionFactors(): RecommendationDecisionFactors {
   return {
-    playerQuality: { ecrRank: 8, score: -8 },
+    playerQuality: { ecrRank: asRank(8), score: -8 },
     leagueValue: {
       score: 2,
       minScore: 0,
       maxScore: 6,
       projectedPoints: 240,
       replacementPoints: 200,
-      valueOverReplacement: 40,
+      valueOverReplacement: asVor(40),
       materiallyChangedOrdering: false,
     },
     rosterFit: {
@@ -95,13 +96,13 @@ function decisionFactors(): RecommendationDecisionFactors {
       nextPickNumber: 25,
       nextPickLabel: '3.05',
       picksUntilNextPick: 10,
-      returnProbability: 0.18,
+      returnProbability: asProbability(0.18),
       candidateValue: 40,
       costOfWaiting: 16.5,
       materiallyChangedOrdering: false,
     },
     conservativeBoundary: {
-      ecrRankLimit: 9,
+      ecrRankLimit: asRank(9),
       samePositionTier: false,
       withinBoundary: true,
       feasibilityException: false,
@@ -150,7 +151,7 @@ describe('getDraftDecisionBarReason', () => {
     const factors = decisionFactors();
     const pick = recommendation({
       ...factors,
-      leagueValue: { ...factors.leagueValue, valueOverReplacement: value },
+      leagueValue: { ...factors.leagueValue, valueOverReplacement: asVor(value) },
     });
     const signedValue = value > 0 ? `+${String(value)}` : String(value);
 

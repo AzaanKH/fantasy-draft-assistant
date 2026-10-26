@@ -2,6 +2,7 @@ import { createSlotSequence, type SlotRef } from '../draft-order.js';
 import { type DraftType } from '../sync.js';
 import { type Player } from '../player.js';
 import { OFFENSIVE_POSITIONS, isFlexEligible, type Position } from '../league/positions.js';
+import { asProbability, type Probability } from '../units/brands.js';
 import { type RosterRequirements } from '../draft.js';
 
 type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
@@ -490,7 +491,7 @@ export function estimateMockSurvivalProbabilities(input: {
   readonly historyModel?: MockLeagueHistoryModel | null;
   readonly iterations?: number;
   readonly iterationOffset?: number;
-}): Readonly<Record<string, number>> {
+}): Readonly<Record<string, Probability>> {
   const order = createSlotSequence({ type: input.config.draftType, teams: input.config.totalTeams, rounds: input.config.totalRounds });
   const nextUserPick = order.nextForTeam(input.config.myPickPosition - 1, input.currentPick + 1)?.pick ?? null;
   const availablePlayers = input.players.filter((player) =>
@@ -558,7 +559,7 @@ export function estimateMockSurvivalProbabilities(input: {
   return Object.fromEntries(
     [...survived.entries()].map(([playerId, count]) => [
       playerId,
-      round(count / iterations, 3),
+      asProbability(round(count / iterations, 3)),
     ])
   );
 }

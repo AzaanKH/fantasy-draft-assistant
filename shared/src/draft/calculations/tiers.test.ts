@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, expect, it } from 'vitest';
 import type { Player } from '../../player.js';
 import {
@@ -17,8 +18,8 @@ function createPlayer(
     position: 'WR',
     team: 'DET',
     byeWeek: 5,
-    ecrRank: Number(id.replace(/\D/g, '')) || 1,
-    positionalRank: Number(id.replace(/\D/g, '')) || 1,
+    ecrRank: asRank(Number(id.replace(/\D/g, '')) || 1),
+    positionalRank: asRank(Number(id.replace(/\D/g, '')) || 1),
     sleeperAdp: 1,
     valueScore: 0,
     marketRank: 1,
@@ -27,10 +28,10 @@ function createPlayer(
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints,
-    valueOverReplacement: Math.max(0, projectedPoints - 250),
+    valueOverReplacement: asVor(Math.max(0, projectedPoints - 250)),
     tier: 1,
     tierDropoffScore: 0,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 6,
     floorScore: 5,
     upsideScore: 6,
@@ -80,7 +81,7 @@ describe('applyPositionTiers', () => {
 
   it.each([false, true])('maps noncontiguous positive-VOR boundaries to sorted indexes, tail %s', (tail) => {
     const input = [
-      createPlayer('wr1', 305, { valueOverReplacement: 0 }),
+      createPlayer('wr1', 305, { valueOverReplacement: asVor(0) }),
       createPlayer('wr2', 300),
       createPlayer('wr3', 298),
       createPlayer('wr4', 296),

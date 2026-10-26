@@ -5,6 +5,7 @@
  * and calculates value scores and highlight levels.
  */
 
+import { asProbability, asRank, asVor, type Probability } from '../../units/brands.js';
 import type { Player, NFLTeam, PlayerPrediction, Position } from '../../player.js';
 import type { FantasyProsProjection, FantasyProsAdpPlayer, FantasyProsNewsItem } from '../../fantasypros.js';
 import { type FantasyProsMarketStats, type SportsbookSnapshot, calculateSportsbookProjectionAdjustment } from '../../sportsbook.js';
@@ -110,8 +111,8 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function getNextPickSurvivalProbability(valueScore: number): number {
-  return Number(clamp(0.5 + valueScore / 50, 0.05, 0.95).toFixed(2));
+function getNextPickSurvivalProbability(valueScore: number): Probability {
+  return asProbability(Number(clamp(0.5 + valueScore / 50, 0.05, 0.95).toFixed(2)));
 }
 
 function getNewsStatus(status: string | undefined): Player['newsStatus'] {
@@ -343,8 +344,8 @@ export function mergePlayerData(
       position: ecr.position,
       team: canonicalTeam,
       byeWeek: ecr.byeWeek,
-      ecrRank: ecr.rank,
-      positionalRank: ecr.positionalRank,
+      ecrRank: asRank(ecr.rank),
+      positionalRank: asRank(ecr.positionalRank),
       sleeperAdp: sleeperSearchRank,
       sleeperSearchRank,
       consensusAdp,
@@ -367,12 +368,12 @@ export function mergePlayerData(
         ? {
             preMarketProjectedPoints: prediction.projectedPoints,
             marketAdjustment: marketProjection.marketAdjustment,
-            marketConfidence: marketProjection.confidence,
+            marketConfidence: asProbability(marketProjection.confidence),
             sportsbookMarketCount: marketProjection.markets.length,
           }
         : {}),
       customProjectedPoints: resolvedModelPrediction?.customProjectedPoints,
-      valueOverReplacement: prediction.valueOverReplacement,
+      valueOverReplacement: asVor(prediction.valueOverReplacement),
       tier: 1,
       fantasyProsTier: ecr.fantasyProsTier,
       tierDropoffScore: 0,

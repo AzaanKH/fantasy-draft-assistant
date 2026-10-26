@@ -1,3 +1,4 @@
+import { toWholePercent, type Percent } from '@fantasy-draft/shared/units';
 import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
@@ -76,9 +77,9 @@ function getProviderLabel(provider: DraftProvider): string {
   return 'ESPN';
 }
 
-function getSurvival(recommendation: Recommendation | undefined): number | null {
+function getSurvival(recommendation: Recommendation | undefined): Percent | null {
   const probability = recommendation?.diagnostics?.nextPickSurvivalProbability;
-  return probability === undefined ? null : Math.round(probability * 100);
+  return probability === undefined ? null : toWholePercent(probability);
 }
 
 function getCompactDecisionExplanation(
