@@ -1,6 +1,6 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import { PositionTag } from '@/components/PositionTag';
-import type { Player, Position } from '@fantasy-draft/shared/league';
+import { OFFENSIVE_POSITIONS, POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
 import type { PositionNeed, Recommendation } from '@fantasy-draft/shared/draft';
 import { Check, Plus, Search } from 'lucide-react';
 import * as React from 'react';
@@ -9,8 +9,8 @@ import { buildPositionTiers, isTierDepleted, type TierGroup, type TierPlayer } f
 
 type TierFilter = 'ALL' | Position;
 
-const FILTERS: readonly TierFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-const DEFAULT_POSITIONS: readonly Position[] = ['QB', 'RB', 'WR', 'TE'];
+const FILTERS: readonly TierFilter[] = ['ALL', ...POSITIONS];
+const DEFAULT_POSITIONS: readonly Position[] = OFFENSIVE_POSITIONS;
 const POSITION_NAMES: Readonly<Record<Position, string>> = {
   QB: 'Quarterbacks', RB: 'Running backs', WR: 'Wide receivers', TE: 'Tight ends', K: 'Kickers', DEF: 'Defenses',
 };

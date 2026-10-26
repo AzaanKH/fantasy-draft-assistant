@@ -1,4 +1,5 @@
 import {
+  FLEX_GROUPS,
   createLeagueSettings,
   type LeagueSettings,
   type RosterRequirements,
@@ -64,7 +65,7 @@ const ESPN_ROSTER_REQUIREMENTS = {
   RB: { starters: 2, max: 8 },
   WR: { starters: 2, max: 8 },
   TE: { starters: 1, max: 3 },
-  FLEX: { starters: 1, eligiblePositions: ['RB', 'WR', 'TE'] },
+  FLEX: { starters: 1, eligiblePositions: [...FLEX_GROUPS.standard] },
   K: { starters: 1, max: 3 },
   DEF: { starters: 1, max: 3 },
   BENCH: { spots: 8 },

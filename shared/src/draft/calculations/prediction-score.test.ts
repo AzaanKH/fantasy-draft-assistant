@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS, type RosterRequirements } from '../../draft.js';
 import { type Player } from '../../player.js';
@@ -10,8 +11,8 @@ function createRunningBack(rank: number): Player {
     position: 'RB',
     team: 'DET',
     byeWeek: 5,
-    ecrRank: rank,
-    positionalRank: rank,
+    ecrRank: asRank(rank),
+    positionalRank: asRank(rank),
     sleeperAdp: rank,
     valueScore: 0,
     marketRank: rank,
@@ -20,10 +21,10 @@ function createRunningBack(rank: number): Player {
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints: 101 - rank,
-    valueOverReplacement: 0,
+    valueOverReplacement: asVor(0),
     tier: 1,
     tierDropoffScore: 0,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 5,
     floorScore: 5,
     upsideScore: 5,

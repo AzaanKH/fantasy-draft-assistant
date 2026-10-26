@@ -1,3 +1,5 @@
+import { asRank } from '@fantasy-draft/shared/units';
+import { asVor } from '@fantasy-draft/shared/units';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { describe, expect, it } from 'vitest';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
@@ -19,11 +21,11 @@ function createRecommendation(
     reason: expertRank === 2 ? 'League value +5.0' : 'ECR champion',
     score,
     diagnostics: {
-      expertRank,
+      expertRank: asRank(expertRank),
       marketRank: expertRank,
       marketDelta: 0,
       projectedPoints: 250,
-      valueOverReplacement: 75,
+      valueOverReplacement: asVor(75),
       tier: 1,
     },
   };

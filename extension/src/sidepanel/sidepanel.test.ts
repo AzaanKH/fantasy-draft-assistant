@@ -3,6 +3,7 @@ import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
   document.body.innerHTML = `
     <iframe id="sidepanel-frame"></iframe>
     <div id="loading-state"></div><div id="error-state"></div>
@@ -13,7 +14,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.getElementById('sidepanel-frame')?.dispatchEvent(new Event('load'));
-  vi.unstubAllGlobals();
+  vi.unstubAllGlobals(); vi.unstubAllEnvs();
   document.body.innerHTML = '';
 });
 
@@ -49,6 +50,15 @@ describe('side panel stored URL', () => {
       );
     });
     expect(sendMessage).toHaveBeenCalledWith({ type: 'GET_DRAFT_STATUS' });
+  });
+
+  it('leaves a fresh detected draft slot unconfirmed when no hint exists', async () => {
+    vi.stubGlobal('chrome', {
+      storage: { local: { get: vi.fn().mockResolvedValue({}) }, onChanged: { addListener: vi.fn() } },
+      runtime: { sendMessage: vi.fn().mockResolvedValue({ success: true, data: { picks: [], status: { isInDraftRoom: true, provider: 'sleeper', draftId: 'fresh-draft' } } }), onMessage: { addListener: vi.fn() } },
+    });
+    await import('./sidepanel');
+    await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?provider=sleeper&draftId=fresh-draft`); });
   });
 
   it('retains the stored draft position when the URL and status response are invalid', async () => {
@@ -125,4 +135,15 @@ describe('side panel background projections', () => {
     }
     expect(warn).toHaveBeenCalledTimes(3);
   });
+});
+
+it('ignores the development harness switch in a production side panel', async () => {
+  vi.stubEnv('DEV', false);
+  vi.stubEnv('VITE_PERSISTENCE_HARNESS', 'idb');
+  vi.stubGlobal('chrome', {
+    storage: { local: { get: vi.fn().mockResolvedValue({}) }, onChanged: { addListener: vi.fn() } },
+    runtime: { sendMessage: vi.fn().mockResolvedValue({ success: true, data: { status: { isInDraftRoom: false } } }), onMessage: { addListener: vi.fn() } },
+  });
+  await import('./sidepanel');
+  await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?provider=espn`); });
 });

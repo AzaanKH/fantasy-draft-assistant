@@ -1,11 +1,12 @@
 import { isPlainObject as isRecord } from './objects.js';
+import { systemClock } from './units/clock.js';
 import { isBoundedInteger, MAX_DRAFT_TEAMS, MAX_ROSTER_SPOTS } from './limits.js';
 import {
   DEFAULT_ROSTER_REQUIREMENTS,
   type RosterRequirements,
 } from './draft.js';
-import { isPosition, POSITIONS, type Position } from './player.js';
-import { DEFAULT_SCORING_RULES, type ScoringRules } from './scoring.js';
+import { FLEX_GROUPS, isPosition, POSITIONS, type Position } from './league/positions.js';
+import { DEFAULT_SCORING_RULES, type ScoringRules } from './league/scoring.js';
 
 type LeagueSettingsSource = 'default' | 'sleeper' | 'espn';
 
@@ -204,7 +205,7 @@ function createFingerprintInput(
 }
 
 export function createDefaultLeagueSettings(
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): LeagueSettings {
   return createLeagueSettings({
     source: 'default',
@@ -219,7 +220,7 @@ export function createDefaultLeagueSettings(
 /** Creates a validated, cloned provider profile with a stable settings hash. */
 export function createLeagueSettings(
   input: LeagueSettingsInput,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): LeagueSettings {
   const scoringRules = cloneScoringRules(input.scoringRules);
   const rosterRequirements = cloneRosterRequirements(input.rosterRequirements);
@@ -383,6 +384,11 @@ function normalizeRosterRequirements(league: SleeperLeague): {
   const unsupportedSlots = new Set<string>();
   let flexStarters = 0;
   let benchSpots = 0;
+  const addFlexSlot = (group: readonly Position[]): void => {
+    flexStarters += 1;
+    flexEligibilityGroups.add(group.join(','));
+    for (const position of group) flexEligible.add(position);
+  };
 
   for (const rawSlot of league.roster_positions) {
     const slot = rawSlot.toUpperCase();
@@ -391,23 +397,11 @@ function normalizeRosterRequirements(league: SleeperLeague): {
     } else if (isPosition(slot)) {
       fixedStarters[slot] += 1;
     } else if (slot === 'FLEX' || slot === 'WRRB_FLEX' || slot === 'RB_WR_TE') {
-      flexStarters += 1;
-      flexEligibilityGroups.add('RB,WR,TE');
-      flexEligible.add('RB');
-      flexEligible.add('WR');
-      flexEligible.add('TE');
+      addFlexSlot(FLEX_GROUPS.standard);
     } else if (slot === 'REC_FLEX' || slot === 'WR_TE') {
-      flexStarters += 1;
-      flexEligibilityGroups.add('WR,TE');
-      flexEligible.add('WR');
-      flexEligible.add('TE');
+      addFlexSlot(FLEX_GROUPS.receiving);
     } else if (slot === 'SUPER_FLEX' || slot === 'SUPERFLEX') {
-      flexStarters += 1;
-      flexEligibilityGroups.add('QB,RB,WR,TE');
-      flexEligible.add('QB');
-      flexEligible.add('RB');
-      flexEligible.add('WR');
-      flexEligible.add('TE');
+      addFlexSlot(FLEX_GROUPS.superflex);
     } else if (slot === 'BN') {
       benchSpots += 1;
     } else if (slot !== 'IR' && slot !== 'TAXI') {
@@ -447,7 +441,7 @@ function normalizeRosterRequirements(league: SleeperLeague): {
 
 export function normalizeSleeperLeagueSettings(
   league: SleeperLeague,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): LeagueSettings {
   const scoringRules = normalizeScoringRules(league.scoring_settings);
   const { requirements: rosterRequirements, unsupportedSlots } =

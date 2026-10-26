@@ -1,4 +1,6 @@
-import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { toWholePercent, type Percent } from '@fantasy-draft/shared/units';
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
 import {
@@ -16,22 +18,18 @@ import {
 } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import {
-  Bot,
   Check,
   ChevronLeft,
   ExternalLink,
   GitCompareArrows,
   Lightbulb,
   Radio,
-  Scale,
-  ShieldCheck,
   Shirt,
   Target,
 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import { DecisionSwap, MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
-import { RouteSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { getPositionRecommendations } from '@/features/assistant/assistant-position-rankings';
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
@@ -45,7 +43,6 @@ import {
   getRecommendationExplanation,
   formatSignedNumber,
 } from '@fantasy-draft/shared/draft';
-import { ThemeMenu } from '@/features/theme/ThemeMenu';
 import {
   useDraftSync,
   type DraftSyncViewState,
@@ -54,35 +51,28 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { cn } from '@/lib/utils';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
+import { SidePanelSlotControl } from './SidePanelSlotControl';
+import {
+  HERO_CARD,
+  PANEL_CARD,
+  PANEL_LABEL,
+  PositionFilters,
+  SidePanelFrame,
+  SidePanelHeader,
+  SidePanelNavigation,
+  SidePanelSkeleton,
+  STATUS_CARD,
+  type PositionFilter,
+  type SidePanelView,
+} from './SidePanelFrame';
 import { reconcileComparisonSelection } from './comparison-selection';
 
-type SidePanelView = 'draft' | 'compare' | 'assistant' | 'roster';
-type PositionFilter = 'ALL' | Position;
 type AssistantLens = 'why' | 'compare' | 'wait' | 'roster';
-
-const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...POSITIONS];
 
 interface SidePanelConnection {
   readonly provider: DraftProvider;
   readonly draftId: string | null;
   readonly draftPosition: number | null;
-}
-
-function readConnection(): SidePanelConnection {
-  const params = new URLSearchParams(window.location.search);
-  const providerValue = params.get('provider');
-  const provider: DraftProvider = providerValue === 'yahoo' || providerValue === 'sleeper'
-    ? providerValue
-    : 'espn';
-  const draftId = provider === 'yahoo'
-    ? params.get('leagueId') ?? params.get('draftId')
-    : params.get('draftId') ?? params.get('leagueId');
-  const positionValue = Number.parseInt(params.get('position') ?? '', 10);
-  const draftPosition = Number.isInteger(positionValue) && positionValue >= 1 && positionValue <= 20
-    ? positionValue
-    : null;
-
-  return { provider, draftId, draftPosition };
 }
 
 function getProviderLabel(provider: DraftProvider): string {
@@ -91,9 +81,9 @@ function getProviderLabel(provider: DraftProvider): string {
   return 'ESPN';
 }
 
-function getSurvival(recommendation: Recommendation | undefined): number | null {
+function getSurvival(recommendation: Recommendation | undefined): Percent | null {
   const probability = recommendation?.diagnostics?.nextPickSurvivalProbability;
-  return probability === undefined ? null : Math.round(probability * 100);
+  return probability === undefined ? null : toWholePercent(probability);
 }
 
 function getCompactDecisionExplanation(
@@ -155,54 +145,9 @@ function getPositionTextColor(position: Position): string {
 }
 
 function useSidePanelSync(connection: SidePanelConnection) {
-  const workspace = useWorkspace();
-
   const sync = useDraftSync(connection.provider, connection.draftId, true);
 
-  React.useEffect(() => {
-    if (connection.draftPosition !== null) {
-      workspace.send('setConfig', { myPickPosition: connection.draftPosition });
-    }
-  }, [connection.draftPosition, workspace]);
-
-  React.useEffect(() => {
-    if (sync.draft) workspace.send('setSessionMode', 'live');
-  }, [workspace, sync.draft]);
-
   return sync;
-}
-
-function PositionFilters({
-  value,
-  onChange,
-}: {
-  readonly value: PositionFilter;
-  readonly onChange: (position: PositionFilter) => void;
-}): React.ReactElement {
-  return (
-    <div
-      className="grid grid-cols-7 overflow-hidden rounded-xl border border-border/80 bg-card shadow-xs"
-      role="group"
-      aria-label="Filter recommendations by position"
-    >
-      {POSITION_FILTERS.map((position) => (
-        <button
-          key={position}
-          type="button"
-          aria-pressed={position === value}
-          onClick={() => { onChange(position); }}
-          className={cn(
-            'h-11 border-r border-border/70 text-[11px] font-bold transition-colors last:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            position === value
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-          )}
-        >
-          {position}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 function SidePanelStatus({
@@ -223,7 +168,7 @@ function SidePanelStatus({
   );
 
   return (
-    <div className="grid grid-cols-[1.55fr_.75fr_1fr] items-center overflow-hidden rounded-xl border border-border/80 bg-card text-[11px] shadow-xs">
+    <div className={STATUS_CARD}>
       <div className="flex h-14 min-w-0 flex-col justify-center gap-0.5 px-3">
         <span className="truncate font-semibold">{getProviderLabel(connection.provider)} draft</span>
         <DraftSyncStatusIndicator sync={sync} compact className="text-[10px]" />
@@ -296,7 +241,7 @@ function RecommendationHero({
   );
 
   return (
-    <section className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+    <section className={HERO_CARD}>
       <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
         Your best pick
       </div>
@@ -371,8 +316,8 @@ function ComparisonList({
   const recommendations = decision.recommendations;
   const nextPickLabel = recommendations[0]?.diagnostics?.nextPickLabel;
   return (
-    <section className="rounded-xl border border-border/80 bg-card p-3 shadow-sm">
-      <div className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+    <section className={PANEL_CARD}>
+      <div className={PANEL_LABEL}>
         Compare available
       </div>
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_48px_40px_62px] px-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -441,8 +386,8 @@ function RosterPressure({ needs }: { readonly needs: readonly PositionNeed[] }):
     .slice(0, 3);
 
   return (
-    <section className="rounded-xl border border-border/80 bg-card p-3 shadow-sm">
-      <div className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+    <section className={PANEL_CARD}>
+      <div className={PANEL_LABEL}>
         Roster pressure
       </div>
       <div className="mt-3 grid grid-cols-3 divide-x divide-border">
@@ -582,7 +527,7 @@ function AssistantPanel({
   return (
     <>
       <DecisionSwap motionKey={recommendation.playerId}>
-        <section className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+        <section className={HERO_CARD}>
           <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
             Assistant answer
           </div>
@@ -615,7 +560,7 @@ function AssistantPanel({
           </button>
         ))}
       </div>
-      <section className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+      <section className={HERO_CARD}>
         <DecisionSwap motionKey={`${lens}:${recommendation.playerId}:${comparison?.playerId ?? 'none'}`}>
           {lens === 'why' ? (
             <div>
@@ -683,7 +628,7 @@ function RosterPanel({
 
   return (
     <>
-      <section className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+      <section className={HERO_CARD}>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-bold">My roster</h2>
@@ -713,51 +658,15 @@ function RosterPanel({
   );
 }
 
-function BottomNavigation({
-  view,
-  onChange,
-}: {
-  readonly view: SidePanelView;
-  readonly onChange: (view: SidePanelView) => void;
-}): React.ReactElement {
-  const items: readonly { readonly id: SidePanelView; readonly label: string; readonly icon: typeof ShieldCheck }[] = [
-    { id: 'draft', label: 'Draft', icon: ShieldCheck },
-    { id: 'compare', label: 'Compare', icon: Scale },
-    { id: 'assistant', label: 'Assistant', icon: Bot },
-    { id: 'roster', label: 'Roster', icon: Shirt },
-  ];
-
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-[72px] max-w-[520px] grid-cols-4 border-t border-border/80 bg-background/95 px-2 backdrop-blur" aria-label="Side panel navigation">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = item.id === view;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            aria-current={active ? 'page' : undefined}
-            onClick={() => { onChange(item.id); }}
-            className={cn(
-              'flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-              active ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Icon className="size-5" />
-            <span>{item.label}</span>
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
 /** Keeps the draft connection alive while the panel content shows an error fallback. */
-export function SidePanelPage(): React.ReactElement {
-  const [connection] = React.useState(readConnection);
+export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: () => void } = {}): React.ReactElement {
+  const selected = useConnectionState(state => state.connection);
+  const connection: SidePanelConnection = selected ?? { provider: 'espn', draftId: null, draftPosition: null };
   const sync = useSidePanelSync(connection);
   return (
     <RouteErrorBoundary>
+        {STORAGE_ACTIVATION_ENABLED && onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
+      <SidePanelSlotControl />
       <SidePanelContent connection={connection} sync={sync} />
     </RouteErrorBoundary>
   );
@@ -833,7 +742,7 @@ function SidePanelContent({
   }, []);
 
   if (isLoading || decision.isLoading) {
-    return <RouteSkeleton route="sidepanel" />;
+    return <SidePanelSkeleton />;
   }
 
   if (isError) {
@@ -841,12 +750,10 @@ function SidePanelContent({
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-[520px] bg-background pb-24 text-foreground">
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {view === 'draft' ? (
-            <ShieldCheck className="size-7 shrink-0 text-emerald-600 dark:text-emerald-300" />
-          ) : (
+    <SidePanelFrame
+      header={(
+        <SidePanelHeader
+          leading={view === 'draft' ? undefined : (
             <button
               type="button"
               aria-label="Return to Draft"
@@ -856,111 +763,103 @@ function SidePanelContent({
               <ChevronLeft className="size-5" />
             </button>
           )}
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-bold">
-              {view === 'draft' ? 'Fantasy Draft' : view === 'compare' ? 'Compare players' : view === 'assistant' ? 'Assistant' : 'My roster'}
-            </h1>
-            {view === 'draft' && leagueSettings.source === 'espn' ? (
-              <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                {String(leagueSettings.totalTeams)}-team PPR · {leagueSettings.keepersEnabled ? 'keepers' : 'no keepers'}
-              </div>
-            ) : view !== 'draft' ? (
-              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300">
-                <Radio className="size-2.5" /> Live decision state
-              </div>
-            ) : null}
-          </div>
-        </div>
-        <ThemeMenu compact />
-      </header>
+          title={view === 'draft' ? 'Fantasy Draft' : view === 'compare' ? 'Compare players' : view === 'assistant' ? 'Assistant' : 'My roster'}
+          subtitle={view === 'draft' && leagueSettings.source === 'espn' ? (
+            <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+              {String(leagueSettings.totalTeams)}-team PPR · {leagueSettings.keepersEnabled ? 'keepers' : 'no keepers'}
+            </div>
+          ) : view !== 'draft' ? (
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300">
+              <Radio className="size-2.5" /> Live decision state
+            </div>
+          ) : null}
+        />
+      )}
+      navigation={<SidePanelNavigation view={view} onChange={setView} />}
+    >
+      <SidePanelStatus connection={connection} sync={sync} />
+      {(view === 'draft' || view === 'compare') && !showRecommendationBlock ? (
+        <PositionFilters
+          value={positionFilter}
+          onChange={(position) => {
+            setPositionFilter(position);
+            setView(view === 'compare' ? 'compare' : 'draft');
+          }}
+        />
+      ) : null}
 
-      <main className="space-y-3 p-3">
-        <SidePanelStatus connection={connection} sync={sync} />
-        {(view === 'draft' || view === 'compare') && !showRecommendationBlock ? (
-          <PositionFilters
-            value={positionFilter}
-            onChange={(position) => {
-              setPositionFilter(position);
-              setView(view === 'compare' ? 'compare' : 'draft');
-            }}
+      <DecisionSwap
+        motionKey={showProviderIdentityBlock
+          ? 'provider-identity-blocked'
+          : showReadinessBlock
+            ? 'readiness-blocked'
+            : view}
+        axis="x"
+        distance={12}
+        className="space-y-3"
+      >
+        {showProviderIdentityBlock ? (
+          <ProviderIdentityBlockedNotice
+            unresolvedPicks={decision.unresolvedProviderPicks}
+            totalTeams={totalTeams}
+            draftType={draftType}
           />
-        ) : null}
-
-        <DecisionSwap
-          motionKey={showProviderIdentityBlock
-            ? 'provider-identity-blocked'
-            : showReadinessBlock
-              ? 'readiness-blocked'
-              : view}
-          axis="x"
-          distance={12}
-          className="space-y-3"
-        >
-          {showProviderIdentityBlock ? (
-            <ProviderIdentityBlockedNotice
-              unresolvedPicks={decision.unresolvedProviderPicks}
-              totalTeams={totalTeams}
-              draftType={draftType}
+        ) : showReadinessBlock && decision.readiness ? (
+          <DraftReadinessBlockedNotice readiness={decision.readiness} />
+        ) : view === 'draft' ? (
+          <>
+            <RecommendationHero
+              decision={activeDecision}
+              player={topRecommendation ? playerById.get(topRecommendation.playerId) : undefined}
+              onCompare={() => { setView('compare'); }}
+              onAskWhy={() => { setView('assistant'); }}
             />
-          ) : showReadinessBlock && decision.readiness ? (
-            <DraftReadinessBlockedNotice readiness={decision.readiness} />
-          ) : view === 'draft' ? (
-            <>
-              <RecommendationHero
-                decision={activeDecision}
-                player={topRecommendation ? playerById.get(topRecommendation.playerId) : undefined}
-                onCompare={() => { setView('compare'); }}
-                onAskWhy={() => { setView('assistant'); }}
-              />
+            <ComparisonList
+              decision={activeDecision}
+              playerById={playerById}
+              selectedIds={new Set(selectedPlayerIds)}
+              onToggle={toggleSelectedPlayer}
+              onCompare={() => { setView('compare'); }}
+            />
+            <RosterPressure needs={needs} />
+            <Button variant="outline" className="w-full" onClick={openFullDraftRoom}>
+              Open full draft room <ExternalLink className="size-4" />
+            </Button>
+          </>
+        ) : view === 'compare' ? (
+          <>
+            <HeadToHead
+              recommendations={selectedRecommendations}
+              decision={activeDecision}
+              playerById={playerById}
+              onAskWhy={() => { setView('assistant'); }}
+            />
+            <div className={PANEL_CARD}>
+              <div className={PANEL_LABEL}>
+                Top {positionFilter === 'ALL' ? 'available' : positionFilter} options
+              </div>
               <ComparisonList
                 decision={activeDecision}
                 playerById={playerById}
                 selectedIds={new Set(selectedPlayerIds)}
                 onToggle={toggleSelectedPlayer}
-                onCompare={() => { setView('compare'); }}
+                onCompare={() => undefined}
               />
-              <RosterPressure needs={needs} />
-              <Button variant="outline" className="w-full" onClick={openFullDraftRoom}>
-                Open full draft room <ExternalLink className="size-4" />
-              </Button>
-            </>
-          ) : view === 'compare' ? (
-            <>
-              <HeadToHead
-                recommendations={selectedRecommendations}
-                decision={activeDecision}
-                playerById={playerById}
-                onAskWhy={() => { setView('assistant'); }}
-              />
-              <div className="rounded-xl border border-border/80 bg-card p-3 shadow-sm">
-                <div className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                  Top {positionFilter === 'ALL' ? 'available' : positionFilter} options
-                </div>
-                <ComparisonList
-                  decision={activeDecision}
-                  playerById={playerById}
-                  selectedIds={new Set(selectedPlayerIds)}
-                  onToggle={toggleSelectedPlayer}
-                  onCompare={() => undefined}
-                />
-              </div>
-              <Button variant="outline" className="w-full" onClick={() => { setView('draft'); }}>
-                <ChevronLeft className="size-4" /> Return to Draft
-              </Button>
-            </>
-          ) : view === 'assistant' ? (
-            <AssistantPanel
-              decision={activeDecision}
-              comparison={comparisonRecommendation}
-              needs={needs}
-            />
-          ) : (
-            <RosterPanel playerById={playerById} needs={needs} />
-          )}
-        </DecisionSwap>
-      </main>
-
-      <BottomNavigation view={view} onChange={setView} />
-    </div>
+            </div>
+            <Button variant="outline" className="w-full" onClick={() => { setView('draft'); }}>
+              <ChevronLeft className="size-4" /> Return to Draft
+            </Button>
+          </>
+        ) : view === 'assistant' ? (
+          <AssistantPanel
+            decision={activeDecision}
+            comparison={comparisonRecommendation}
+            needs={needs}
+          />
+        ) : (
+          <RosterPanel playerById={playerById} needs={needs} />
+        )}
+      </DecisionSwap>
+    </SidePanelFrame>
   );
 }

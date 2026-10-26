@@ -1,15 +1,22 @@
 import path from 'node:path';
 import { gateWorkspaces } from '../gate-workspaces.js';
+import { decorationRules } from './decoration-lint-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directories = new Set(gateWorkspaces.map(({ directory }) => directory));
 const draftRosterExports = Object.fromEntries(['DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'Roster', 'RosterRequirements'].map(name => [name, '@fantasy-draft/shared/league']));
 const closedModules = { '@fantasy-draft/shared/draft': draftRosterExports };
 const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog, @fantasy-draft/shared/league or @fantasy-draft/shared/sync instead of casting JSON.parse() or response.json().';
+const leaguePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
+// A quoted, comma-separated position list inside a string or SQL template, such as `in ('QB', 'RB')`.
+const quotedPositionList = /'(?:QB|RB|WR|TE|K|DEF)'(?:\s*,\s*'(?:QB|RB|WR|TE|K|DEF)')+/g;
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-cross-package-import',
   '@typescript-eslint/explicit-module-boundary-types',
+  'agent/no-position-array',
+  'agent/no-pill-shape',
+  'agent/no-accent-stripe',
 ];
 
 function staticModuleName(node) {
@@ -19,8 +26,41 @@ function staticModuleName(node) {
 
 export default {
   rules: {
+    ...decorationRules,
+    'reasoned-disable': {
+      meta: {
+        docs: {
+          description: 'Requires a written -- reason on agent rule suppressions, including array severities, and blanket ESLint disable comments, even when diagnostics are suppressed.',
+          hint: 'Add -- followed by the concrete reason for this exception, or remove the suppression.',
+        },
+        type: 'problem', schema: [],
+        messages: { reason: 'Explain this agent rule suppression with -- followed by a written reason.' },
+      },
+      create(context) {
+        return {
+          Program() {
+            for (const comment of context.sourceCode.getAllComments()) {
+              const directive = /^\s*eslint-disable(?:-next-line|-line)?(?:\s|$)([\s\S]*)/.exec(comment.value);
+              const inline = /^\s*eslint\s+([\s\S]*)/.exec(comment.value);
+              if (!directive && !inline) continue;
+              const body = directive?.[1] ?? inline[1];
+              const separator = body.indexOf('--');
+              const rules = separator < 0 ? body : body.slice(0, separator);
+              const reason = separator < 0 ? '' : body.slice(separator + 2).trim();
+              const disablesAgent = directive
+                ? !rules.trim() || /(?:^|[\s,])agent\//.test(rules)
+                : /agent\/[\w-]+['"]?\s*:\s*(?:\[\s*)?(?:['"]?off['"]?|0)(?=\s|,|\]|$)/.test(rules);
+              if (disablesAgent && !reason) {
+                context.report({ loc: comment.loc, messageId: 'reason' });
+              }
+            }
+          },
+        };
+      },
+    },
     'no-closed-root-import': {
       meta: {
+        docs: { hint: 'Choose the public shared subpath that owns the contract.', description: 'Rejects the shared root and temporary draft-url subpath, plus named roster contracts imported from /draft instead of /league.' },
         type: 'problem', schema: [],
         messages: {
           draftUrl: 'The temporary draft URL subpath is closed. Import draft URL contracts from @fantasy-draft/shared/sync.',
@@ -88,7 +128,9 @@ export default {
       },
     },
     'no-bare-child-process': {
-      meta: { type: 'problem', schema: [], messages: {
+      meta: {
+        docs: { hint: 'Use Processes from @fantasy-draft/shared/node for process lifecycle.', description: 'Rejects child_process imports and supported require, createRequire, and process.getBuiltinModule loads. Process lifecycle belongs in shared/node.' },
+        type: 'problem', schema: [], messages: {
         runner: 'For process lifecycle, use Processes from @fantasy-draft/shared/node.',
       } },
       create(context) {
@@ -136,7 +178,9 @@ export default {
       },
     },
     'no-node-in-browser': {
-      meta: { type: 'problem', schema: [], messages: {
+      meta: {
+        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source.' },
+        type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
       } },
       create(context) {
@@ -155,7 +199,9 @@ export default {
       },
     },
     'no-json-cast': {
-      meta: { type: 'problem', schema: [], messages: { decode: decoderMessage } },
+      meta: {
+        docs: { hint: 'Decode unknown JSON at the I/O boundary with a shared decoder.', description: 'Rejects as casts of JSON.parse() and .json() call results, including awaited results. Decode unknown JSON at the boundary.' },
+        type: 'problem', schema: [], messages: { decode: decoderMessage } },
       create(context) {
         return {
           TSAsExpression(node) {
@@ -174,6 +220,7 @@ export default {
     },
     'no-bare-fetch': {
       meta: {
+        docs: { hint: 'Use @fantasy-draft/shared/http with an explicit decoder and timeout/retry policy.', description: 'Outside shared/src/http/**, rejects native fetch references, global fetch properties, destructuring, aliases, and writes. Local bindings and type-only typeof fetch remain valid.' },
         type: 'problem', schema: [],
         messages: { runner: 'For HTTP requests, use @fantasy-draft/shared/http. Native fetch references are restricted to shared/src/http for shared timeout, body cancel, and retry policy.' },
       },
@@ -221,8 +268,106 @@ export default {
         };
       },
     },
+    'no-position-array': {
+      meta: {
+        docs: { hint: 'Use the named position groups from @fantasy-draft/shared/league.', description: 'Rejects arrays containing at least two distinct position literals without repeats, and quoted comma-separated position lists in strings or templates. Use league position groups.' },
+        type: 'problem', schema: [],
+        messages: { league: 'Name the position group from @fantasy-draft/shared/league instead of listing positions: POSITIONS, OFFENSIVE_POSITIONS, KICKER_DEFENSE_POSITIONS or FLEX_GROUPS, and isFlexEligible for the league-configured FLEX. Add a new group in shared/src/league/positions.ts; build SQL lists with sqlPositionList.' },
+      },
+      create(context) {
+        return {
+          ArrayExpression(node) {
+            const positions = node.elements.map(staticModuleName).filter((value) => leaguePositions.has(value));
+            // A sequence that repeats a position is fixture data, not a position group.
+            if (positions.length >= 2 && new Set(positions).size === positions.length) {
+              context.report({ node, messageId: 'league' });
+            }
+          },
+          'Literal, TemplateElement'(node) {
+            const text = node.type === 'Literal' ? node.value : node.value.cooked;
+            if (typeof text !== 'string') return;
+            for (const [list] of text.matchAll(quotedPositionList)) {
+              const positions = list.match(/[A-Z]+/g);
+              if (new Set(positions).size === positions.length) context.report({ node, messageId: 'league' });
+            }
+          },
+        };
+      },
+    },
+    'no-inline-season': {
+      meta: {
+        docs: { hint: 'Use currentSeason(clock) from @fantasy-draft/shared/league.', description: 'Rejects calls to getFullYear() and getUTCFullYear(). Use currentSeason(clock) from shared/league.' },
+        type: 'problem', schema: [],
+        messages: { season: 'Do not derive the season from a Date year. Use currentSeason(clock) from @fantasy-draft/shared/league, which owns the season rule.' },
+      },
+      create(context) {
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (callee.type !== 'MemberExpression') return;
+            const name = callee.computed ? staticModuleName(callee.property) : callee.property.name;
+            if (name === 'getFullYear' || name === 'getUTCFullYear') context.report({ node, messageId: 'season' });
+          },
+        };
+      },
+    },
+    'no-unit-cast': {
+      meta: {
+        docs: { hint: 'Construct the unit with its validated constructor from shared/units.', description: 'Rejects as and angle-bracket casts whose type contains Probability, Percent, Rank, or Vor. Use the unit constructors.' },
+        type: 'problem', schema: [],
+        messages: { constructor: 'Do not cast to {{name}}. Create units with asProbability, asPercent, asRank or asVor from @fantasy-draft/shared/units where external data becomes domain data.' },
+      },
+      create(context) {
+        // Finds a unit anywhere in the cast type, such as Rank | undefined or Record<string, Probability>.
+        function unitIn(type) {
+          if (!type || typeof type !== 'object') return undefined;
+          if (type.type === 'TSTypeReference' && type.typeName.type === 'Identifier' &&
+              ['Probability', 'Percent', 'Rank', 'Vor'].includes(type.typeName.name)) return type.typeName.name;
+          for (const [key, value] of Object.entries(type)) {
+            if (key === 'parent' || key === 'loc' || key === 'range') continue;
+            const found = Array.isArray(value) ? value.map(unitIn).find(Boolean) : unitIn(value);
+            if (found) return found;
+          }
+          return undefined;
+        }
+        function check(node) {
+          const name = unitIn(node.typeAnnotation);
+          if (name) context.report({ node, messageId: 'constructor', data: { name } });
+        }
+        return { TSAsExpression: check, TSTypeAssertion: check };
+      },
+    },
+    'no-domain-clock': {
+      meta: {
+        docs: { hint: 'Pass now or a Clock into domain code.', description: 'Rejects Date.now() and zero-argument new Date(), including host-global Date forms. Pass now or a Clock to domain code.' },
+        type: 'problem', schema: [],
+        messages: { clock: 'Domain code does not read the system time. Take a `now` value or a Clock, defaulting to systemClock from @fantasy-draft/shared/units.' },
+      },
+      create(context) {
+        // Date, or Date read from a host global such as globalThis.Date.
+        function isDate(node) {
+          if (node.type === 'Identifier') return node.name === 'Date';
+          return node.type === 'MemberExpression' && node.object.type === 'Identifier' &&
+            ['globalThis', 'window', 'self', 'global'].includes(node.object.name) &&
+            (node.computed ? staticModuleName(node.property) : node.property.name) === 'Date';
+        }
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (callee.type === 'MemberExpression' && isDate(callee.object) &&
+                (callee.computed ? staticModuleName(callee.property) : callee.property.name) === 'now') {
+              context.report({ node, messageId: 'clock' });
+            }
+          },
+          NewExpression(node) {
+            if (isDate(node.callee) && node.arguments.length === 0) context.report({ node, messageId: 'clock' });
+          },
+        };
+      },
+    },
     'no-cross-package-import': {
       meta: {
+        docs: { hint: 'Import the owning workspace through its public package exports.', description: 'Rejects relative imports and re-exports into another registered workspace, and the CLI web-app @/ alias. Use public package exports.' },
         type: 'problem', schema: [],
         messages: { boundary: 'Import the workspace package by name through its public exports. Move shared code into @fantasy-draft/shared; cli must not use the web-app @/ alias.' },
       },

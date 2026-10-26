@@ -5,6 +5,7 @@
  * team needs, and positional scarcity.
  */
 
+import { asVor, type Vor } from '../../units/brands.js';
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
 import { POSITIONS, type Position, type Player } from '../../player.js';
 import type { NeedPriority, PositionNeed, Recommendation, RosterRequirements } from '../../draft.js';
@@ -105,9 +106,9 @@ function round(value: number, digits: number = 1): number {
   return Number(value.toFixed(digits));
 }
 
-function getGuardedValueOverReplacement(player: Player): number {
+function getGuardedValueOverReplacement(player: Player): Vor {
   return player.position === 'K' || player.position === 'DEF'
-    ? Math.min(player.valueOverReplacement, SPECIAL_TEAMS_MAX_VOR)
+    ? asVor(Math.min(player.valueOverReplacement, SPECIAL_TEAMS_MAX_VOR))
     : player.valueOverReplacement;
 }
 
@@ -337,7 +338,7 @@ function buildBestAvailableRecommendation(
       : `Trusted ECR Anchor #${String(player.ecrRank)} among available players`,
     // This score is intentionally ECR-only. Diagnostics remain available for
     // comparison, but roster, timing, market, and model signals cannot reorder it.
-    score: -player.ecrRank,
+    score: -Number(player.ecrRank),
     diagnostics,
   };
 }

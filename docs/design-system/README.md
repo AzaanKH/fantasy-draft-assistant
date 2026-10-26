@@ -21,9 +21,24 @@ Paper reported: "Weekly MCP limit reached. It resets tomorrow." The quota stoppe
 - `preview.html` renders the completed 1600px desktop and 390px compact compositions.
 - `pending-paper-import.json` contains the remaining incremental Paper operations, including a new compact artboard.
 - `tokens.json` contains the exact token names, types, values and descriptions saved in Paper.
-- `tokens.css` contains equivalent Tailwind v4 theme variables.
+- `tokens.css` contains equivalent Tailwind v4 theme variables. It is generated from `tokens.json`.
+
+## Token source
+
+`tokens.json` is the only place a token value is written. Its `tokens` list holds the Paper tokens. Its `web` section holds the web app's light theme, dark theme and night palette. A value in braces, such as `{--color-primary}`, reuses the Paper token of that name, so a Paper value appears once.
+
+`pnpm tokens:write` regenerates `tokens.css` and `web-app/src/design-tokens.css`, which `web-app/src/index.css` imports. Do not edit either generated file. `pnpm tokens:check` fails when a generated file differs from `tokens.json`. `pnpm verify` runs it.
 
 The local preview is static. Player data reflects the reference mock draft; it is not a live data feed. Its controls illustrate states and do not draft, resume, queue or change league settings.
+
+## Banned decorations
+
+Pill shapes and accent stripes read as generated filler, and they were removed after repeated corrections. Show selection and state with a tint plus a text label.
+
+- **No pills.** Do not put `rounded-full`, `rounded-[999px]` or `var(--radius-pill)` on badges, chips, filters or buttons. Use `--radius-xs` to `--radius-lg`. Circles are fine when the sides are equal, as with avatars, status dots and radio marks (`size-*` or `aspect-square`).
+- **No accent stripes.** Do not use a coloured or 2px-plus side border (`border-l-4`, `border-l-primary`, `border-left: 3px solid …`). Also avoid a thin bar pinned to one side, and a one-sided inset shadow 2px or wider. Neutral 1px dividers and tab underlines are fine.
+
+`agent/no-pill-shape` and `agent/no-accent-stripe` enforce both rules in web-app and extension TSX class strings and CSS. Neither rule has a baseline exception, and a test keeps it that way.
 
 ## Import continuation
 

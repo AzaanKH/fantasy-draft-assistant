@@ -1,9 +1,11 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { IDBFactory, IDBRequest, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { describe, expect, it, vi } from 'vitest';
 import { openDraftDatabase } from './indexed-db';
 import { createIndexedWorkspace } from './indexed-workspace';
 import type { PersistedDraftSession } from '@/stores/draftSessionStorage';
 import { initialDraftState, sessionFromState } from './draft-reducer';
+import { decodeIndexedSession } from './idb-session';
 
 const identity = { provider: 'sleeper', draftId: '123' } as const;
 const pick = (slot: number, player: string) => ({ pickNumber: slot, playerId: player, playerName: player, position: 'WR' as const, teamIndex: slot - 1, teamName: `Team ${slot}` });
@@ -28,6 +30,33 @@ function interceptPut(after: (store: IDBObjectStore, request: IDBRequest<unknown
 }
 
 describe('transactional workspace', () => {
+  it('acknowledges a repeated keeper preload without a new revision when only key order differs from the decoded session', async () => {
+    const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: vi.fn() });
+    const channel = { postMessage: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), close: vi.fn() };
+    const workspace = createIndexedWorkspace({ database, identity, report: vi.fn(), channel });
+    const first = await workspace.commit('preloadKeepers', [], false);
+    const state = workspace.draft.getState(); channel.postMessage.mockClear();
+    const notify = vi.fn(); const stop = workspace.draft.subscribe(notify);
+    const repeated = await workspace.commit('preloadKeepers', [], false);
+    expect(repeated.session.revision).toBe(first.session.revision);
+    expect((await database.read(identity))?.revision).toBe(first.session.revision);
+    expect(workspace.draft.getState().leagueSettings).toBe(state.leagueSettings);
+    expect(channel.postMessage).not.toHaveBeenCalled();
+    expect(notify.mock.calls.every(([next]) => (next as typeof state).leagueSettings === state.leagueSettings)).toBe(true);
+    stop(); workspace.dispose();
+  });
+
+  it('does not publish unchanged revisions during focus or notification re-reads', async () => {
+    const { workspace } = await setup();
+    await workspace.send('addShortlistedPlayer', 'saved');
+    const state = workspace.draft.getState();
+    const notify = vi.fn(); const stop = workspace.draft.subscribe(notify);
+    await workspace.refresh(); await workspace.refresh();
+    expect(workspace.draft.getState()).toBe(state);
+    expect(notify).not.toHaveBeenCalled();
+    stop(); workspace.dispose();
+  });
+
   it('retains two acknowledged saves despite another writer starting from stale state, D3', async () => {
     const { factory, workspace: first } = await setup();
     const { workspace: second } = await setup(factory);
@@ -52,7 +81,7 @@ describe('transactional workspace', () => {
     await reader.send('setMockSettings', { randomness: 0.75 });
     await reader.send('setMockAutoAdvancePaused', true);
     await reader.send('setMockSettingsOpen', true);
-    await reader.send('setMockSurvivalProbabilities', { qb: 0.5 });
+    await reader.send('setMockSurvivalProbabilities', { qb: asProbability(0.5) });
     expect(await database.read(identity)).toEqual(before);
     expect(channel.postMessage).not.toHaveBeenCalled();
     const { workspace: writer } = await setup(factory);

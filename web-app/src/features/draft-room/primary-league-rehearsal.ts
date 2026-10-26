@@ -1,5 +1,5 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { createWorkspace, type Workspace } from '@/workspace/workspace';
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
 import { getDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
@@ -28,10 +28,11 @@ import { hasRemainingDraftDecision } from '@/hooks/useRecommendations';
 import { createDraftStore, type DraftTeamRoster, type PreloadedKeeper, type SyncedImportedPick } from '@/stores/draftStore';
 import { ReconciliationSummary } from './ReconciliationSummary';
 
-const TOTAL_TEAMS = 10;
-const TOTAL_ROUNDS = 14;
+const REHEARSAL_FIXTURE = { config: { totalTeams: 10, totalRounds: 14, draftType: 'snake' as const,
+  myPickPosition: 5, rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS } };
+const TOTAL_TEAMS = REHEARSAL_FIXTURE.config.totalTeams;
+const TOTAL_ROUNDS = REHEARSAL_FIXTURE.config.totalRounds;
 const TOTAL_PICKS = TOTAL_TEAMS * TOTAL_ROUNDS;
-const MY_PICK_POSITION = 5;
 const TEAM_TARGET: Readonly<Record<Position, number>> = {
   QB: 2,
   RB: 4,
@@ -129,8 +130,8 @@ function createPlayer(
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank,
-    positionalRank,
+    ecrRank: asRank(ecrRank),
+    positionalRank: asRank(positionalRank),
     sleeperAdp: ecrRank + 2,
     consensusAdp: ecrRank + 1,
     valueScore: 1,
@@ -140,12 +141,12 @@ function createPlayer(
     isContractYear: false,
     offensiveEnvironmentScore: 6,
     projectedPoints,
-    valueOverReplacement,
+    valueOverReplacement: asVor(valueOverReplacement),
     tier: Math.ceil(positionalRank / 6),
     tierSource: 'league-projection',
     tierDropoffScore: positionalRank % 6 === 0 ? 0.8 : 0.2,
     tierDropoffPoints: positionalRank % 6 === 0 ? 8 : 2,
-    nextPickSurvivalProbability: Math.max(0.05, 0.82 - ecrRank / 220),
+    nextPickSurvivalProbability: asProbability(Math.max(0.05, 0.82 - ecrRank / 220)),
     ceilingScore: 8,
     floorScore: 6,
     upsideScore: 7,
@@ -214,17 +215,17 @@ function buildSchedule(): {
   return { picks, provisionalPlayers };
 }
 
-function toProviderPick(pick: ScheduledPick): SyncedImportedPick {
+function toProviderPick(pick: ScheduledPick, myPickPosition: number): SyncedImportedPick {
   return {
     pickNumber: pick.pickNumber,
     playerId: pick.player.id,
     playerName: pick.player.name,
     position: pick.player.position,
     teamIndex: pick.teamIndex,
-    teamName: pick.teamIndex === MY_PICK_POSITION - 1
+    teamName: pick.teamIndex === myPickPosition - 1
       ? 'My Team'
       : `Team ${String(pick.teamIndex + 1)}`,
-    isMyPick: pick.teamIndex === MY_PICK_POSITION - 1,
+    isMyPick: pick.teamIndex === myPickPosition - 1,
   };
 }
 
@@ -308,7 +309,6 @@ export function runPrimaryLeagueRehearsal(
 ): PrimaryLeagueRehearsalResult {
   const workspace = createWorkspace({
     draftStore: createDraftStore(),
-    connectionStore: createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined }),
   });
   try {
     return rehearsePrimaryLeague(workspace, now);
@@ -344,12 +344,7 @@ function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeague
     keepersEnabled: true,
   }, now);
   workspace.send('preloadKeepers', []);
-  workspace.send('setConfig', { draftType: 'snake',
-    totalTeams: TOTAL_TEAMS,
-    totalRounds: TOTAL_ROUNDS,
-    myPickPosition: MY_PICK_POSITION,
-    rosterRequirements: DEFAULT_ROSTER_REQUIREMENTS,
-  });
+  workspace.send('setConfig', REHEARSAL_FIXTURE.config);
   workspace.send('applyLeagueSettings', leagueSettings);
   workspace.send('setSessionMode', 'live');
   workspace.send('preloadKeepers', KEEPERS);
@@ -464,7 +459,7 @@ function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeague
   observeDecision('Initial keeper state');
 
   for (const scheduled of providerSchedule.filter((pick) => pick.pickNumber <= 64)) {
-    providerPicks.push(toProviderPick(scheduled));
+    providerPicks.push(toProviderPick(scheduled, workspace.draft.getState().config.myPickPosition));
     workspace.send('reconcileSyncedPicks', providerPicks,
       nextOpenPick(scheduled.pickNumber, keeperPickNumbers)
     );
@@ -493,7 +488,7 @@ function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeague
     playerName: player.name,
     position: player.position,
     teamIndex: scheduled.teamIndex,
-    teamName: scheduled.teamIndex === MY_PICK_POSITION - 1
+    teamName: scheduled.teamIndex === workspace.draft.getState().config.myPickPosition - 1
       ? 'My Team'
       : `Team ${String(scheduled.teamIndex + 1)}`,
   });
@@ -540,7 +535,7 @@ function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeague
   failUnless(visibleOutcomes.length === 3, 'Reconciliation outcomes were not all visible.');
 
   for (const scheduled of providerSchedule.filter((pick) => pick.pickNumber >= 68)) {
-    providerPicks.push(toProviderPick(scheduled));
+    providerPicks.push(toProviderPick(scheduled, workspace.draft.getState().config.myPickPosition));
     workspace.send('reconcileSyncedPicks', providerPicks,
       nextOpenPick(scheduled.pickNumber, keeperPickNumbers)
     );

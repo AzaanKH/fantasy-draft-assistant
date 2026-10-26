@@ -14,7 +14,7 @@ async function run(args, cwd, label) {
     throw error;
   }
 }
-const sources = [['main', '8f1d26a621f4893f0c948f282e464573dd57b679', '.local/compat-main'], ['stack', '41debb3ccf175f6b5bbeef1806a1486043602635', '.local/verify-base']];
+const sources = [['main', '8f1d26a621f4893f0c948f282e464573dd57b679', '.local/compat-main'], ['stack', '41debb3ccf175f6b5bbeef1806a1486043602635', '.local/compat-stack']];
 for (const [name, revision, directory] of sources) {
   const checkout = path.join(root, directory);
   mkdirSync(checkout, { recursive: true });

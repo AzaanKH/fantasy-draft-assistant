@@ -15,7 +15,7 @@ export function startStorageSharing({ frame, frameUrl, ready, failed }: {
   const canonicalOrigin = LOCAL_PORTS.webOrigin;
   const nonce = crypto.randomUUID();
   const helper = new URL(canonicalOrigin);
-  helper.searchParams.set('__storageProbe', nonce);
+  if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') helper.searchParams.set('__storageProbe', nonce);
   const panel = new URL(frameUrl);
   const closeHelper = (): void => {
     if (helperId !== undefined) {
@@ -52,10 +52,12 @@ export function startStorageSharing({ frame, frameUrl, ready, failed }: {
       if (stopped) return;
       if (!allowed) throw new Error('Allow host permission for the web app before opening workspace storage.');
       window.addEventListener('message', receive);
-      const created = await chrome.tabs.create({ url: helper.toString(), active: false });
-      helperId = created.id;
-      if (stopped) { closeHelper(); return; }
-      if (helperId === undefined) throw new Error('Unable to open the storage helper. Open the web app to retry.');
+      if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
+        const created = await chrome.tabs.create({ url: helper.toString(), active: false });
+        helperId = created.id;
+        if (stopped) { closeHelper(); return; }
+        if (helperId === undefined) throw new Error('Unable to open the storage helper. Open the web app to retry.');
+      }
       panel.searchParams.set('__storageNonce', nonce);
       panel.searchParams.set('__storageParentOrigin', window.location.origin);
       frame.src = panel.toString();

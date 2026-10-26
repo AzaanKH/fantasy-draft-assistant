@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, expect, it } from 'vitest';
 import type { Recommendation } from '../../draft.js';
 import { comparisonBar, comparisonScale, getComparisonMetrics } from './comparison-metrics.js';
@@ -6,9 +7,9 @@ function recommendation(id: string, value: number, probability: number): Recomme
   return {
     playerId: id, playerName: id, position: 'RB', score: 0, reason: '',
     diagnostics: {
-      expertRank: 10, marketRank: 12, marketDelta: 2,
-      projectedPoints: 220, valueOverReplacement: value, tier: 2, tierRemaining: 3,
-      nextPickSurvivalProbability: probability,
+      expertRank: asRank(10), marketRank: 12, marketDelta: 2,
+      projectedPoints: 220, valueOverReplacement: asVor(value), tier: 2, tierRemaining: 3,
+      nextPickSurvivalProbability: asProbability(probability),
     },
   };
 }

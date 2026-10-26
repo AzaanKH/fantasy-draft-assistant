@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { isQuickMockPreferences } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
@@ -40,8 +42,8 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
     if (!canApply) return;
     save(profile, profile === 'quick-mock' ? preferences : savedQuickMock);
     if (connection) {
-      if (profile === 'quick-mock') workspace.send('connection.setQuickMockSettings', true);
-      else workspace.send('connection.setPrimaryLeagueSettings', true);
+      if (profile === 'quick-mock') if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setQuickMockSettings', true); } else { workspace.send('connection.setQuickMockSettings', true); }
+      else if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', true); } else { workspace.send('connection.setPrimaryLeagueSettings', true); }
     }
     toast.success(profile === 'quick-mock' ? 'Quick mock settings saved' : 'Primary League practice settings selected', { id: 'league-settings' });
     onOpenChange(false);
@@ -82,8 +84,8 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
           <p className="text-sm leading-relaxed text-muted-foreground">For practice, use these rules with the Primary League keeper list. For your real draft, connect Sleeper to verify its scoring and roster settings.</p>
           <Button variant="outline" className="w-full" disabled={localDraftInProgress} onClick={() => {
             save('primary-league', savedQuickMock);
-            workspace.send('connection.setPrimaryLeagueSettings', false);
-            workspace.send('connection.setQuickMockSettings', false);
+            if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', false); } else { workspace.send('connection.setPrimaryLeagueSettings', false); }
+            if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setQuickMockSettings', false); } else { workspace.send('connection.setQuickMockSettings', false); }
             transferringFocus.current = true;
             onOpenChange(false);
             onConnectPrimary();

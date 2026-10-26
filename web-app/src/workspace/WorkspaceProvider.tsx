@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactElement, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import type { DraftState, DraftSessionMode } from '@/stores/draft/types';
-import type { DraftSyncConnectionStore } from '@/stores/draftSyncStore';
+import type { ConnectionQuery } from './connection';
 import type { Workspace } from './workspace';
 
 const WorkspaceContext = createContext<Workspace | null>(null);
@@ -23,7 +23,7 @@ export function useDraftState<T>(selector: (state: DraftState) => T): T {
   return useStore(useWorkspace().draft, selector);
 }
 
-export function useConnectionState<T>(selector: (state: Pick<DraftSyncConnectionStore, 'connection'>) => T): T {
+export function useConnectionState<T>(selector: (state: ConnectionQuery) => T): T {
   return useStore(useWorkspace().connection, selector);
 }
 

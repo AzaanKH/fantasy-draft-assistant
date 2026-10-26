@@ -1,4 +1,4 @@
-import { type Player, type Position } from '@fantasy-draft/shared/league';
+import { OFFENSIVE_POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
 import { createSlotSequence, type DraftPick } from '@fantasy-draft/shared/draft';
 import { type DraftProvider, type DraftType } from '@fantasy-draft/shared/sync';
 import { type RosterRequirements } from '@fantasy-draft/shared/league';
@@ -6,7 +6,7 @@ import { formatDraftSyncAge, type DraftSynchronizationState } from '@/lib/draft-
 import { getProviderName } from '@/lib/provider-name';
 
 /** Starter positions shown as team needs; K and DEF are late-round context, not planning signals. */
-const NEED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const satisfies readonly Position[];
+const NEED_POSITIONS = OFFENSIVE_POSITIONS;
 
 type TeamRoster = Readonly<Record<Position, readonly string[]>>;
 

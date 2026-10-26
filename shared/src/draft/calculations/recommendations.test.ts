@@ -1,10 +1,10 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, it, expect } from 'vitest';
 import { getRecommendationBoard, getRecommendations } from './recommendations.js';
 import { DEFAULT_ROSTER_REQUIREMENTS, type PositionNeed } from '../../draft.js';
-import { DEFAULT_SCORING_RULES } from '../../scoring.js';
+import { DEFAULT_SCORING_RULES, calculateLeagueProjection } from '../../league/scoring.js';
 import { POSITIONS, type Player } from '../../player.js';
 import { type FantasyProsProjection } from '../../fantasypros.js';
-import { calculateLeagueProjection } from './league-scoring.js';
 
 // Helper to create a mock player
 function createPlayer(
@@ -19,8 +19,8 @@ function createPlayer(
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank,
-    positionalRank: ecrRank,
+    ecrRank: asRank(ecrRank),
+    positionalRank: asRank(ecrRank),
     sleeperAdp: ecrRank,
     valueScore: 0,
     marketRank: ecrRank,
@@ -29,10 +29,10 @@ function createPlayer(
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints: 200 - ecrRank,
-    valueOverReplacement: Math.max(0, 20 - ecrRank / 5),
+    valueOverReplacement: asVor(Math.max(0, 20 - ecrRank / 5)),
     tier: 1,
     tierDropoffScore: 0.8,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 7,
     floorScore: 6,
     upsideScore: 6,
@@ -102,19 +102,19 @@ describe('getRecommendations', () => {
           ...createPlayer('ecr-wr', 'WR', 1, 'ECR WR'),
           projectedPoints: wrProjection.projectedPoints,
           leagueScoringAdjustment: wrProjection.adjustment,
-          valueOverReplacement: wrProjection.projectedPoints - 100,
+          valueOverReplacement: asVor(wrProjection.projectedPoints - 100),
         },
         {
           ...createPlayer('premium-te', 'TE', 2, 'Premium TE'),
           projectedPoints: teProjection.projectedPoints,
           leagueScoringAdjustment: teProjection.adjustment,
-          valueOverReplacement: teProjection.projectedPoints - 100,
+          valueOverReplacement: asVor(teProjection.projectedPoints - 100),
         },
         {
           ...createPlayer('volume-rb', 'RB', 3, 'Volume RB'),
           projectedPoints: rbProjection.projectedPoints,
           leagueScoringAdjustment: rbProjection.adjustment,
-          valueOverReplacement: rbProjection.projectedPoints - 100,
+          valueOverReplacement: asVor(rbProjection.projectedPoints - 100),
         },
       ];
 
@@ -136,7 +136,7 @@ describe('getRecommendations', () => {
         feasibilityException: false,
       });
       expect(result.draftNow[0]?.decisionFactors).toMatchObject({
-        playerQuality: { ecrRank: 2, score: -2 },
+        playerQuality: { ecrRank: asRank(2), score: -2 },
         leagueValue: {
           score: 5.83,
           minScore: 0,
@@ -165,11 +165,11 @@ describe('getRecommendations', () => {
     it('accounts for FLEX eligibility and bench depth', () => {
       const backupQuarterback = {
         ...createPlayer('backup-qb', 'QB', 1, 'Backup QB'),
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
       const flexReceiver = {
         ...createPlayer('flex-wr', 'WR', 3, 'Flex WR'),
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
       const result = getRecommendations(
         [backupQuarterback, flexReceiver],
@@ -210,12 +210,12 @@ describe('getRecommendations', () => {
       const bestPlayer = {
         ...createPlayer('late-wr', 'WR', 100, 'Another WR'),
         projectedPoints: 200,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
       const depthRunningBack = {
         ...createPlayer('depth-rb', 'RB', 102, 'Useful RB'),
         projectedPoints: 200,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
 
       const result = getRecommendations(
@@ -253,19 +253,19 @@ describe('getRecommendations', () => {
       const ecrAnchor = {
         ...createPlayer('ecr-anchor', 'WR', 1, 'ECR Anchor'),
         projectedPoints: 210,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
       const lastRunningBack = {
         ...createPlayer('last-rb', 'RB', 3, 'Last Tier RB'),
         projectedPoints: 220,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
         tier: 1,
         tierDropoffScore: 0.8,
       };
       const nextTierRunningBack = {
         ...createPlayer('next-tier-rb', 'RB', 20, 'Next Tier RB'),
         projectedPoints: 180,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
         tier: 2,
       };
       const result = getRecommendations(
@@ -315,26 +315,26 @@ describe('getRecommendations', () => {
       const players = [
         {
           ...createPlayer('ecr-anchor', 'WR', 1, 'ECR Anchor'),
-          valueOverReplacement: 0,
+          valueOverReplacement: asVor(0),
         },
         {
           ...createPlayer('tier-rb-one', 'RB', 3, 'Tier RB One'),
           projectedPoints: 220,
-          valueOverReplacement: 0,
+          valueOverReplacement: asVor(0),
           tier: 1,
           tierDropoffScore: 0.8,
         },
         {
           ...createPlayer('tier-rb-two', 'RB', 4, 'Tier RB Two'),
           projectedPoints: 219,
-          valueOverReplacement: 0,
+          valueOverReplacement: asVor(0),
           tier: 1,
           tierDropoffScore: 0.8,
         },
         {
           ...createPlayer('next-tier-rb', 'RB', 20, 'Next Tier RB'),
           projectedPoints: 180,
-          valueOverReplacement: 0,
+          valueOverReplacement: asVor(0),
           tier: 2,
         },
       ];
@@ -358,19 +358,19 @@ describe('getRecommendations', () => {
     it('ignores an ordinary gap even when the tier number changes', () => {
       const ecrAnchor = {
         ...createPlayer('ecr-anchor', 'WR', 1, 'ECR Anchor'),
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
       const currentTierRunningBack = {
         ...createPlayer('current-tier-rb', 'RB', 2, 'Current Tier RB'),
         projectedPoints: 220,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
         tier: 1,
         tierDropoffScore: 0.8,
       };
       const nextTierRunningBack = {
         ...createPlayer('next-tier-rb', 'RB', 20, 'Next Tier RB'),
         projectedPoints: 216,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
         tier: 2,
       };
       const result = getRecommendations(
@@ -407,26 +407,26 @@ describe('getRecommendations', () => {
       };
       const ecrAnchor = {
         ...createPlayer('ecr-anchor', 'WR', 1, 'ECR Anchor'),
-        valueOverReplacement: 0,
-        nextPickSurvivalProbability: 0.7,
+        valueOverReplacement: asVor(0),
+        nextPickSurvivalProbability: asProbability(0.7),
         ...nextPickContext,
       };
       const urgentRunningBack = {
         ...createPlayer('urgent-rb', 'RB', 3, 'Urgent RB'),
-        valueOverReplacement: 24,
-        nextPickSurvivalProbability: 0.05,
+        valueOverReplacement: asVor(24),
+        nextPickSurvivalProbability: asProbability(0.05),
         ...nextPickContext,
       };
       const fallbackOne = {
         ...createPlayer('fallback-one', 'RB', 20, 'Fallback One'),
-        valueOverReplacement: 8,
-        nextPickSurvivalProbability: 0.8,
+        valueOverReplacement: asVor(8),
+        nextPickSurvivalProbability: asProbability(0.8),
         ...nextPickContext,
       };
       const fallbackTwo = {
         ...createPlayer('fallback-two', 'RB', 21, 'Fallback Two'),
-        valueOverReplacement: 6,
-        nextPickSurvivalProbability: 0.9,
+        valueOverReplacement: asVor(6),
+        nextPickSurvivalProbability: asProbability(0.9),
         ...nextPickContext,
       };
       const players = [ecrAnchor, urgentRunningBack, fallbackOne, fallbackTwo];
@@ -450,7 +450,7 @@ describe('getRecommendations', () => {
       expect(urgent?.decisionFactors?.draftTiming).toMatchObject({
         nextPickNumber: 13,
         nextPickLabel: '2.03',
-        returnProbability: 0.05,
+        returnProbability: asProbability(0.05),
         candidateValue: 24,
         costOfWaiting: 16.7,
         score: 2.09,
@@ -475,17 +475,17 @@ describe('getRecommendations', () => {
 
     it('shares timing work across the board without changing position decisions', () => {
       const players = [
-        { ...createPlayer('rb-top', 'RB', 2), valueOverReplacement: 30,
-          nextPickNumber: 30, nextPickSurvivalProbability: 0.9 },
-        { ...createPlayer('rb-next', 'RB', 4), valueOverReplacement: 20,
-          nextPickNumber: 30, nextPickSurvivalProbability: 0.8 },
-        { ...createPlayer('rb-third', 'RB', 6), valueOverReplacement: 10,
-          nextPickNumber: 30, nextPickSurvivalProbability: 0.7 },
-        { ...createPlayer('wr-top', 'WR', 1), valueOverReplacement: 25,
-          nextPickNumber: 30, nextPickSurvivalProbability: 0.6 },
-        { ...createPlayer('wr-next', 'WR', 5), valueOverReplacement: 15,
-          nextPickNumber: 30, nextPickSurvivalProbability: 0.5 },
-        { ...createPlayer('te-maxed', 'TE', 3), valueOverReplacement: 50,
+        { ...createPlayer('rb-top', 'RB', 2), valueOverReplacement: asVor(30),
+          nextPickNumber: 30, nextPickSurvivalProbability: asProbability(0.9) },
+        { ...createPlayer('rb-next', 'RB', 4), valueOverReplacement: asVor(20),
+          nextPickNumber: 30, nextPickSurvivalProbability: asProbability(0.8) },
+        { ...createPlayer('rb-third', 'RB', 6), valueOverReplacement: asVor(10),
+          nextPickNumber: 30, nextPickSurvivalProbability: asProbability(0.7) },
+        { ...createPlayer('wr-top', 'WR', 1), valueOverReplacement: asVor(25),
+          nextPickNumber: 30, nextPickSurvivalProbability: asProbability(0.6) },
+        { ...createPlayer('wr-next', 'WR', 5), valueOverReplacement: asVor(15),
+          nextPickNumber: 30, nextPickSurvivalProbability: asProbability(0.5) },
+        { ...createPlayer('te-maxed', 'TE', 3), valueOverReplacement: asVor(50),
           nextPickNumber: 30 },
       ];
       const context = {
@@ -514,15 +514,15 @@ describe('getRecommendations', () => {
     it('does not project past the final manager selection', () => {
       const noHorizon = {
         ...createPlayer('no-horizon-rb', 'RB', 3, 'No Horizon RB'),
-        valueOverReplacement: 24,
-        nextPickSurvivalProbability: 0,
+        valueOverReplacement: asVor(24),
+        nextPickSurvivalProbability: asProbability(0),
         survivalModelSource: 'heuristic' as const,
       };
       const result = getRecommendations(
         [
           {
             ...createPlayer('ecr-anchor', 'WR', 1, 'ECR Anchor'),
-            valueOverReplacement: 0,
+            valueOverReplacement: asVor(0),
             survivalModelSource: 'heuristic' as const,
           },
           noHorizon,
@@ -550,19 +550,19 @@ describe('getRecommendations', () => {
     it('does not let bounded league and roster factors reach past the ECR window', () => {
       const ecrAnchor = {
         ...createPlayer('ecr-anchor', 'WR', 1, 'ECR Anchor'),
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
       };
       const outsideRunningBack = {
         ...createPlayer('outside-rb', 'RB', 10, 'Outside RB'),
         projectedPoints: 300,
-        valueOverReplacement: 500,
+        valueOverReplacement: asVor(500),
         tier: 1,
         tierDropoffScore: 1,
       };
       const nextTierRunningBack = {
         ...createPlayer('next-tier-rb', 'RB', 20, 'Next Tier RB'),
         projectedPoints: 200,
-        valueOverReplacement: 0,
+        valueOverReplacement: asVor(0),
         tier: 2,
       };
       const result = getRecommendations(
@@ -702,15 +702,15 @@ describe('getRecommendations', () => {
           valueScore: 14,
           marketRank: 49,
           marketAdp: 49,
-          valueOverReplacement: 25,
-          nextPickSurvivalProbability: 0.18,
+          valueOverReplacement: asVor(25),
+          nextPickSurvivalProbability: asProbability(0.18),
           predictionSource: 'model' as const,
         },
         {
           ...createPlayer('safe-wr', 'WR', 22),
           valueScore: 0,
-          valueOverReplacement: 10,
-          nextPickSurvivalProbability: 0.85,
+          valueOverReplacement: asVor(10),
+          nextPickSurvivalProbability: asProbability(0.85),
         },
       ];
       const needs = createNeeds([
@@ -736,7 +736,7 @@ describe('getRecommendations', () => {
         {
           ...createPlayer('bad-kicker', 'K', 403),
           projectedPoints: 126,
-          valueOverReplacement: 126,
+          valueOverReplacement: asVor(126),
           predictionSource: 'model' as const,
         },
         createPlayer('rb1', 'RB', 45),
@@ -763,7 +763,7 @@ describe('getRecommendations', () => {
           marketRank: 999,
           marketAdp: 999,
           projectedPoints: 153,
-          valueOverReplacement: 153,
+          valueOverReplacement: asVor(153),
         },
         {
           ...createPlayer('def1', 'DEF', 190),
@@ -771,7 +771,7 @@ describe('getRecommendations', () => {
           marketRank: 999,
           marketAdp: 999,
           projectedPoints: 140,
-          valueOverReplacement: 140,
+          valueOverReplacement: asVor(140),
         },
         createPlayer('rb1', 'RB', 8),
         createPlayer('wr1', 'WR', 12),
@@ -876,16 +876,16 @@ describe('getRecommendations', () => {
       const ecrLeader = {
         ...createPlayer('ecr-leader', 'TE', 4),
         projectedPoints: 1,
-        valueOverReplacement: -100,
-        nextPickSurvivalProbability: 1,
+        valueOverReplacement: asVor(-100),
+        nextPickSurvivalProbability: asProbability(1),
         predictionSource: 'model' as const,
         injuryRiskScore: 100,
       };
       const policyFavorite = {
         ...createPlayer('policy-favorite', 'WR', 5),
         projectedPoints: 999,
-        valueOverReplacement: 500,
-        nextPickSurvivalProbability: 0,
+        valueOverReplacement: asVor(500),
+        nextPickSurvivalProbability: asProbability(0),
         predictionSource: 'heuristic' as const,
         injuryRiskScore: 0,
       };
@@ -961,14 +961,14 @@ describe('getRecommendations', () => {
           marketRank: 60,
           marketAdp: 60,
           valueScore: 18,
-          valueOverReplacement: 8,
+          valueOverReplacement: asVor(8),
         },
         {
           ...createPlayer('deep-qb', 'QB', 190),
           marketRank: 339,
           marketAdp: 339,
           valueScore: 149,
-          valueOverReplacement: 0,
+          valueOverReplacement: asVor(0),
         },
       ];
       const needs = createNeeds([
@@ -994,7 +994,7 @@ describe('getRecommendations', () => {
           marketRank: 34,
           marketAdp: 34,
           valueScore: 4,
-          valueOverReplacement: 12,
+          valueOverReplacement: asVor(12),
         },
       ];
       const needs = createNeeds([{ position: 'WR', priority: 'low' }]);
@@ -1014,18 +1014,18 @@ describe('getRecommendations', () => {
           marketRank: 28,
           marketAdp: 28,
           valueScore: 16,
-          valueOverReplacement: 31.5,
+          valueOverReplacement: asVor(31.5),
           tier: 2,
-          nextPickSurvivalProbability: 0.24,
+          nextPickSurvivalProbability: asProbability(0.24),
         },
         {
           ...createPlayer('tier-mate', 'RB', 20, 'Tier Mate'),
           marketRank: 34,
           marketAdp: 34,
           valueScore: 14,
-          valueOverReplacement: 18,
+          valueOverReplacement: asVor(18),
           tier: 2,
-          nextPickSurvivalProbability: 0.4,
+          nextPickSurvivalProbability: asProbability(0.4),
         },
         createPlayer('best-wr', 'WR', 5, 'Best WR'),
       ];
@@ -1045,10 +1045,10 @@ describe('getRecommendations', () => {
         'tier-mate',
       ]);
       expect(rbIntentionalReaches[0]?.diagnostics).toMatchObject({
-        valueOverReplacement: 31.5,
+        valueOverReplacement: asVor(31.5),
         tier: 2,
         tierRemaining: 2,
-        nextPickSurvivalProbability: 0.24,
+        nextPickSurvivalProbability: asProbability(0.24),
         marketReachCost: 10,
       });
       expect(rbIntentionalReaches[0]?.reason).toContain(

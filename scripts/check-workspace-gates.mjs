@@ -9,6 +9,17 @@ import vitest from '../vitest.config.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 
+export function validWorkspaceLint(command, directory) {
+  if (typeof command !== 'string') return false;
+  const words = command.trim().split(/\s+/);
+  if (words[0] === 'pnpm') {
+    words.shift();
+    if (words[0] === 'exec') words.shift();
+  }
+  return words.length === 3 && words[0] === 'node' &&
+    words[1] === '../scripts/lint.mjs' && words[2] === directory;
+}
+
 export async function checkWorkspaceGates() {
   const workspace = parse(await readFile(path.join(root, 'pnpm-workspace.yaml'), 'utf8'));
   const manifests = await glob(workspace.packages.map((pattern) => `${pattern}/package.json`), {
@@ -23,6 +34,9 @@ export async function checkWorkspaceGates() {
       if (typeof pkg.scripts?.[gate] !== 'string' || !pkg.scripts[gate].trim()) {
         failures.push(`Workspace ${pkg.name} has no ${gate} gate. Add a ${gate} script${gate === 'test' ? ' and include it in vitest projects' : ''}.`);
       }
+    }
+    if (!validWorkspaceLint(pkg.scripts?.lint, directory)) {
+      failures.push(`Workspace ${pkg.name} lint must run scripts/lint.mjs for ${directory}. Use node ../scripts/lint.mjs ${directory}.`);
     }
     const files = await glob(`${directory}/src/**/*.{ts,tsx}`, { cwd: root });
     for (const file of [...files, `${directory}/src/__workspace_coverage_probe__.ts`]) {
@@ -58,6 +72,6 @@ export async function checkWorkspaceGates() {
   return failures.length ? 1 : 0;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.exitCode = await checkWorkspaceGates();
 }

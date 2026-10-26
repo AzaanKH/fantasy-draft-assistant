@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
@@ -13,11 +14,14 @@ function dataState(state: DraftState) {
   return Object.fromEntries(Object.entries(state).filter(([, value]) => typeof value !== 'function'));
 }
 
-function applyToOracle(actions: DraftActions, command: DraftCommand, queue: readonly string[]): unknown {
+type OracleCommand = Exclude<DraftCommand, ['advanceSyncFreshness', number]>;
+
+function applyToOracle(actions: DraftActions, command: OracleCommand, queue: readonly string[]): unknown {
   switch (command[0]) {
     case 'setLiveDraftSession': { actions.setLiveDraftSession(command[1]); return; }
     case 'setSessionMode': { actions.setSessionMode(command[1]); return; }
     case 'enterManualContinuity': { actions.enterManualContinuity(command[1]); return; }
+    case 'confirmDraftSlot': actions.setConfig({ myPickPosition: command[1] }); actions.setSessionMode('live'); return;
     case 'setConfig': { actions.setConfig(command[1]); return; }
     case 'applyLeagueSettings': { actions.applyLeagueSettings(command[1]); return; }
     case 'setRosterRequirements': { actions.setRosterRequirements(command[1]); return; }
@@ -44,6 +48,10 @@ function applyToOracle(actions: DraftActions, command: DraftCommand, queue: read
     case 'togglePlayerShortlisted': { actions.togglePlayerShortlisted(command[1]); return; }
     case 'removePlayerFromShortlist': { actions.removePlayerFromShortlist(command[1]); return; }
     case 'moveShortlistedPlayer': { actions.moveShortlistedPlayer(command[1], command[2]); return; }
+    case 'setPlayerShortlisted':
+      if (command[2]) { if (!queue.includes(command[1])) actions.togglePlayerShortlisted(command[1]); }
+      else actions.removePlayerFromShortlist(command[1]);
+      return;
     case 'addShortlistedPlayer':
       if (!queue.includes(command[1])) actions.togglePlayerShortlisted(command[1]);
       return;
@@ -68,7 +76,7 @@ function createReplay(seed: DraftState = initialDraftState(identity)) {
   return {
     state: () => state,
     cursor: () => deriveDraftCursor(state.draftHistory, state.draftProgress),
-    send(command: DraftCommand) {
+    send(command: OracleCommand) {
       const previous = structuredClone(state);
       const reduced = reduceDraftCommand(state, structuredClone(command));
       const actual = oracle.getState();
@@ -102,15 +110,17 @@ describe('pure draft reducer parity with the production null-storage store', () 
     const replay = createReplay();
     const settings = { ...createDefaultLeagueSettings(), totalTeams: 4, leagueId: 'parity', fingerprint: 'parity' };
     const requirements = { ...settings.rosterRequirements, BENCH: { spots: 3 } };
-    const commands: DraftCommand[] = [
+    const commands: OracleCommand[] = [
       ['setLiveDraftSession', identity],
+      ['setPlayerShortlisted', 'absolute', true], ['setPlayerShortlisted', 'absolute', true],
+      ['setPlayerShortlisted', 'absolute', false], ['setPlayerShortlisted', 'absolute', false],
       ['setConfig', { totalTeams: 6, totalRounds: 4, myPickPosition: 6, draftType: 'linear' }],
       ['applyLeagueSettings', settings], ['applyLeagueSettings', settings],
       ['setRosterRequirements', requirements],
       ['setConfig', { totalTeams: Number.NaN }],
       ['setMockSettings', { randomness: 2, seed: -1, survivalIterations: 1, cpuPickPace: 'instant' }],
       ['setMockAutoAdvancePaused', true], ['setMockSettingsOpen', true],
-      ['setMockSurvivalProbabilities', { waiting: 0.4 }],
+      ['setMockSurvivalProbabilities', { waiting: asProbability(0.4) }],
       ['setDecisionLens', 'best-player'], ['setPositionFilter', 'RB'], ['setSearchQuery', 'waiting'],
       ['addShortlistedPlayer', 'a'], ['addShortlistedPlayer', 'a'],
       ['togglePlayerShortlisted', 'b'], ['addShortlistedPlayer', 'c'],
@@ -187,7 +197,7 @@ describe('pure draft reducer parity with the production null-storage store', () 
     replay.send(['undoLastPick']);
     expect(replay.state().shortlistedPlayerIds).toEqual(['manual']);
     expect(replay.state().mockAutoAdvance.paused).toBe(true);
-    replay.send(['setMockSurvivalProbabilities', { manual: 0.7 }]);
+    replay.send(['setMockSurvivalProbabilities', { manual: asProbability(0.7) }]);
     replay.send(['resetDraft']);
     expect(replay.cursor()).toBe(1);
     expect(replay.state()).toMatchObject({ draftHistory: [], shortlistedPlayerIds: [], mockSurvivalProbabilities: {}, mockAutoAdvance: { paused: false } });
@@ -255,7 +265,7 @@ describe('pure draft reducer parity with the production null-storage store', () 
     try {
       const pure = await import('./draft-reducer');
       let state = pure.initialDraftState(identity);
-      const commands: DraftCommand[] = [
+      const commands: OracleCommand[] = [
         ['setConfig', { totalTeams: 4 }], ['addShortlistedPlayer', 'p1'],
         ['recordProvisionalPick', pick(1)], ['enterManualContinuity', now],
         ['reconcileSyncedPicks', [{ ...pick(1), isMyPick: false }], 2, [], now + 1],
@@ -268,4 +278,14 @@ describe('pure draft reducer parity with the production null-storage store', () 
       vi.resetModules();
     }
   });
+});
+
+
+it('advances freshness monotonically without changing draft facts or the manual boundary', () => {
+  const previous = { ...initialDraftState(identity), lastConfirmedSyncAt: 200, manualContinuityBaselineAt: 100 };
+  expect(reduceDraftCommand(previous, ['advanceSyncFreshness', 150]).state).toBe(previous);
+  const advanced = reduceDraftCommand(previous, ['advanceSyncFreshness', 300]);
+  expect(advanced.state).toEqual({ ...previous, lastConfirmedSyncAt: 300 });
+  expect(previous.lastConfirmedSyncAt).toBe(200);
+  expect(() => reduceDraftCommand(previous, ['advanceSyncFreshness', Number.NaN])).toThrow('Invalid sync freshness');
 });

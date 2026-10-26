@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import {
@@ -9,7 +11,6 @@ import {
   createSlotSequence,
   type Recommendation,
 } from '@fantasy-draft/shared/draft';
-import { RANKING_LABELS } from '@/lib/demo-mode';
 import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -27,6 +28,7 @@ import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
 import { AssistantContextBar } from './AssistantContextBar';
+import { AnalysisTabs, AssistantViewTabs, LeadHeading, SuggestionsLayout } from './AssistantLayout';
 import { AssistantQueue, AssistantRoster, UpcomingPicks } from './AssistantRail';
 import { RosterAnswer, WaitAnswer, WhyAnswer } from './AssistantAnswers';
 import { CompareAnswer } from './AssistantComparison';
@@ -42,17 +44,10 @@ import {
   getUpcomingTeamPicks,
 } from './assistant-context';
 import { useCollapsedPlayerCount } from './useAssistantLayout';
-import './assistant.css';
 
 export type PositionFilter = 'ALL' | Position;
 
 const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...POSITIONS];
-const ANALYSIS_TABS: readonly { readonly id: AssistantLens; readonly label: string }[] = [
-  { id: 'why', label: 'Why this player?' },
-  { id: 'compare', label: 'Compare options' },
-  { id: 'wait', label: 'Can I wait?' },
-  { id: 'roster', label: 'What does my roster need?' },
-];
 
 export function AssistantPage({
   initialLens = 'why',
@@ -261,7 +256,6 @@ export function AssistantPage({
       : null;
   const cards = showAllPlayers ? poolRecommendations : poolRecommendations.slice(0, collapsedPlayerCount * 2);
   const hiddenPlayerCount = poolRecommendations.length - cards.length;
-  const selectedTabIndex = ANALYSIS_TABS.findIndex((tab) => tab.id === analysisTab);
 
   return (
     <main className="assistant-workspace rec-workspace">
@@ -279,34 +273,7 @@ export function AssistantPage({
         }}
       />
 
-      <div
-        className="rec-tabs rec-view-tabs"
-        role="tablist"
-        aria-label="Assistant view"
-        onKeyDown={(event) => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault();
-          const next = view === 'suggestions' ? 'tiers' : 'suggestions';
-          const target = event.key === 'Home' ? 'suggestions' : event.key === 'End' ? 'tiers' : next;
-          setView(target);
-          document.getElementById(`rec-view-${target}`)?.focus();
-        }}
-      >
-        {(['suggestions', 'tiers'] as const).map((item) => (
-          <button
-            key={item}
-            id={`rec-view-${item}`}
-            type="button"
-            role="tab"
-            aria-selected={view === item}
-            aria-controls={`rec-view-panel-${item}`}
-            tabIndex={view === item ? 0 : -1}
-            onClick={() => { setView(item); }}
-          >
-            {item === 'suggestions' ? 'Suggestions' : 'Position tiers'}
-          </button>
-        ))}
-      </div>
+      <AssistantViewTabs view={view} onChange={setView} />
 
       {view === 'tiers' ? (
         <div id="rec-view-panel-tiers" role="tabpanel" aria-labelledby="rec-view-tiers">
@@ -329,18 +296,9 @@ export function AssistantPage({
           />
         </div>
       ) : (
-      <div id="rec-view-panel-suggestions" role="tabpanel" aria-labelledby="rec-view-suggestions" className="rec-main">
-      <div className="rec-layout">
-        <div className="rec-main">
-          <div className="rec-section-heading">
-            <h1>{decisionLens === 'best-pick' ? 'Your Best Pick' : 'Best Player available'}</h1>
-            <span className="rec-muted">
-              {decisionLens === 'best-pick' ? 'League value + roster fit + draft timing' : `Player quality (${RANKING_LABELS.short}), without roster or timing`}
-            </span>
-            <Button variant="ghost" size="sm" className="rec-return" onClick={onReturnToDraft}>
-              <ArrowLeft className="size-4" aria-hidden="true" /> Draft board
-            </Button>
-          </div>
+      <SuggestionsLayout
+        main={(<>
+          <LeadHeading lens={decisionLens} onReturnToDraft={onReturnToDraft} />
 
           {leader ? (
             <PreferredPickCard
@@ -368,39 +326,7 @@ export function AssistantPage({
           )}
 
           <section ref={analysisRef} className="rec-analysis" aria-label="Viewed player analysis" tabIndex={-1}>
-            <div
-              className="rec-tabs"
-              role="tablist"
-              aria-label="Analysis question"
-              onKeyDown={(event) => {
-                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                event.preventDefault();
-                const next = event.key === 'Home'
-                  ? 0
-                  : event.key === 'End'
-                    ? ANALYSIS_TABS.length - 1
-                    : (selectedTabIndex + (event.key === 'ArrowRight' ? 1 : -1) + ANALYSIS_TABS.length) % ANALYSIS_TABS.length;
-                const tab = ANALYSIS_TABS[next];
-                if (!tab) return;
-                setAnalysisTab(tab.id);
-                document.getElementById(`rec-tab-${tab.id}`)?.focus();
-              }}
-            >
-              {ANALYSIS_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  id={`rec-tab-${tab.id}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={analysisTab === tab.id}
-                  aria-controls="rec-analysis-panel"
-                  tabIndex={analysisTab === tab.id ? 0 : -1}
-                  onClick={() => { setAnalysisTab(tab.id); }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <AnalysisTabs tab={analysisTab} onChange={setAnalysisTab} />
             <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${analysisTab}`} className="rec-answer" aria-live="polite">
               {viewedName ? (
                 <p className="rec-answer-subject">
@@ -529,10 +455,8 @@ export function AssistantPage({
               ) : null}
             </section>
           ) : null}
-        </div>
-
-        {/* Focusable so keyboard users can scroll the pinned rail when it has no controls, e.g. an empty queue. */}
-        <aside className="rec-rail" aria-label="Queue, upcoming picks and roster" tabIndex={0}>
+        </>)}
+        rail={(<>
           <AssistantQueue
             queuedPlayerIds={queuedPlayerIds}
             playerById={playerById}
@@ -541,7 +465,7 @@ export function AssistantPage({
             nextPickLabel={nextPickLabel}
             mode={mode}
             provider={liveSync.connection?.provider ?? null}
-            onMove={(...args) => { workspace.send('moveShortlistedPlayer', ...args); }}
+            onMove={(...args) => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'moveShortlistedPlayer', ...args); } else { workspace.send('moveShortlistedPlayer', ...args); } }}
             onRemove={removePlayerFromQueue}
             onSelect={handleSelectPlayer}
           />
@@ -557,9 +481,8 @@ export function AssistantPage({
             rosterSize={rosteredPlayers.length}
             totalRounds={config.totalRounds}
           />
-        </aside>
-      </div>
-      </div>
+        </>)}
+      />
       )}
       {mode === 'manual-continuity' ? (
         <ProvisionalPickDialog open={isRecordPickOpen} onOpenChange={setIsRecordPickOpen} initialPlayerId={leader?.playerId} />

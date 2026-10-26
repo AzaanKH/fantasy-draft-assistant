@@ -1,3 +1,5 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -128,7 +130,7 @@ export function DraftDecisionProvider({
     topPick,
     isLoading,
     output,
-    setSelectedLens: (lens) => { workspace.send('setDecisionLens', lens); },
+    setSelectedLens: (lens) => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setDecisionLens', lens); } else { workspace.send('setDecisionLens', lens); } },
     overall: output.selectedView,
     byPosition,
     outputByPosition,

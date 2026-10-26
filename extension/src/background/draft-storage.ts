@@ -69,7 +69,6 @@ export class ChromeDraftStorage implements DraftStorage {
 
   public async setInstallationDefaults(): Promise<void> {
     await this.storage.set({
-      [STORAGE_KEYS.MY_PICK_POSITION]: 1,
       [STORAGE_KEYS.SYNC_SERVER_URL]: DEFAULT_SYNC_SERVER_URL,
     });
   }

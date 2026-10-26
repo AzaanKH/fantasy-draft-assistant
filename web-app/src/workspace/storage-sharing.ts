@@ -1,5 +1,6 @@
 import { openDraftDatabase, type DraftDatabase } from './indexed-db';
 
+const SHARING_CHANNEL = 'fantasy-draft-storage-sharing-v1';
 const RESULT_TYPE = 'FANTASY_DRAFT_STORAGE_SHARING';
 const verifiedSharing = Symbol('verified storage sharing');
 export type VerifiedStorageSharing = { readonly [verifiedSharing]: true; readonly origin: string; readonly kind: 'origin-only' | 'probed' };
@@ -115,6 +116,7 @@ export async function verifyStorageSharing(options: ProbeOptions & { readonly ca
       if (embedded || location.pathname === '/sidepanel') throw new StorageSharingError('Storage sharing has not been checked. Open the web app to retry.');
       return { [verifiedSharing]: true, origin: location.origin, kind: 'origin-only' };
     }
+    if (!(import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb')) await requestAppTab(nonce, options.timeoutMs ?? DEFAULT_TIMEOUT);
     await runProbe(nonce, options, 'frame');
     reply({ type: RESULT_TYPE, nonce, ok: true });
     return { [verifiedSharing]: true, origin: location.origin, kind: 'probed' };
@@ -125,8 +127,51 @@ export async function verifyStorageSharing(options: ProbeOptions & { readonly ca
 }
 
 export async function serveStorageProbe(nonce: string, options: ProbeOptions = {}): Promise<void> {
+  if (!(import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb')) throw new StorageSharingError('The storage helper is available only in the development harness.');
   const location = options.location ?? window.location;
   assertCanonicalOrigin(options.canonicalOrigin ?? location.origin, location);
   if (window.parent !== window) throw new StorageSharingError('The storage helper must open in a top-level tab.');
   await runProbe(nonce, options, 'top');
+}
+
+
+function requestAppTab(nonce: string, timeoutMs: number): Promise<void> {
+  validateNonce(nonce);
+  return new Promise((resolve, reject) => {
+    const channel = new BroadcastChannel(SHARING_CHANNEL);
+    const timer = setTimeout(() => {
+      channel.close();
+      reject(new StorageSharingError('Keep the draft web app open in a normal tab, then retry the side panel storage check.'));
+    }, timeoutMs);
+    channel.addEventListener('message', (event: MessageEvent<unknown>) => {
+      const value = event.data;
+      if (typeof value !== 'object' || value === null || !('type' in value) || value.type !== 'offer' ||
+          !('nonce' in value) || value.nonce !== nonce || !('responder' in value) || typeof value.responder !== 'string') return;
+      channel.postMessage({ type: 'begin', nonce, responder: value.responder });
+      clearTimeout(timer); channel.close(); resolve();
+    });
+    channel.postMessage({ type: 'request', nonce });
+  });
+}
+
+/** Ordinary top-level app tabs verify that the installed panel shares their storage partition. */
+export function installStorageSharingResponder(options: ProbeOptions & { readonly canonicalOrigin: string }): () => void {
+  const location = options.location ?? window.location;
+  assertCanonicalOrigin(options.canonicalOrigin, location);
+  if (window.parent !== window || location.pathname === '/sidepanel') return () => undefined;
+  const channel = new BroadcastChannel(SHARING_CHANNEL);
+  const responder = crypto.randomUUID();
+  const active = new Set<string>();
+  channel.addEventListener('message', (event: MessageEvent<unknown>) => {
+    const value = event.data;
+    if (typeof value !== 'object' || value === null || !('type' in value) || !('nonce' in value) ||
+        typeof value.nonce !== 'string' || !/^[a-zA-Z0-9_-]{16,128}$/.test(value.nonce)) return;
+    const nonce = value.nonce;
+    if (value.type === 'request') channel.postMessage({ type: 'offer', nonce, responder });
+    else if (value.type === 'begin' && 'responder' in value && value.responder === responder && !active.has(nonce)) {
+      active.add(nonce);
+      void runProbe(nonce, options, 'top').catch(() => undefined).finally(() => { active.delete(nonce); });
+    }
+  });
+  return () => { channel.close(); };
 }

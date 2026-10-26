@@ -1,3 +1,6 @@
+import type { Probability, Rank, Vor } from './units/brands.js';
+import { isPosition, type Position } from './league/positions.js';
+
 /**
  * NFL team abbreviations
  */
@@ -10,12 +13,7 @@ export const NFL_TEAMS = [
 
 export type NFLTeam = (typeof NFL_TEAMS)[number];
 
-/**
- * Fantasy football positions
- */
-export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
-
-export type Position = (typeof POSITIONS)[number];
+export { POSITIONS, isPosition, type Position } from './league/positions.js';
 
 export const NEWS_STATUSES = [
   'healthy',
@@ -63,9 +61,9 @@ export interface Player {
   readonly byeWeek: number;
 
   /** FantasyPros Expert Consensus Ranking */
-  readonly ecrRank: number;
+  readonly ecrRank: Rank;
   /** FantasyPros rank within the player's position */
-  readonly positionalRank: number;
+  readonly positionalRank: Rank;
   /** Sleeper search_rank platform-ordering proxy; not observed draft ADP */
   readonly sleeperAdp: number;
   /** Explicit alias for Sleeper's search-ordering signal. */
@@ -96,11 +94,11 @@ export interface Player {
   /** Fantasy-point delta contributed by sportsbook stat markets. */
   readonly marketAdjustment?: number;
   /** Average confidence across usable sportsbook stat markets (0-1). */
-  readonly marketConfidence?: number;
+  readonly marketConfidence?: Probability;
   /** Number of stat markets included in the sportsbook overlay. */
   readonly sportsbookMarketCount?: number;
   /** Derived value-over-replacement style score */
-  readonly valueOverReplacement: number;
+  readonly valueOverReplacement: Vor;
   /** League-adjusted, position-specific draft tier. */
   readonly tier: number;
   /** Published FantasyPros tier when supplied by the rankings snapshot. */
@@ -112,7 +110,7 @@ export interface Player {
   /** League-scored projected-point drop to the next player at this position. */
   readonly tierDropoffPoints?: number;
   /** Estimated chance that the player remains available at the manager's next selection. */
-  readonly nextPickSurvivalProbability: number;
+  readonly nextPickSurvivalProbability: Probability;
   /** Overall pick number for the manager's next selection. */
   readonly nextPickNumber?: number;
   /** Round.pick label for the manager's next selection. */
@@ -156,13 +154,6 @@ export interface Player {
   readonly highlightLevel: HighlightLevel;
   /** Custom projected points based on league scoring */
   readonly customProjectedPoints?: number;
-}
-
-/**
- * Type guard to check if a value is a valid Position
- */
-export function isPosition(value: unknown): value is Position {
-  return typeof value === 'string' && POSITIONS.some(item => item === value);
 }
 
 /**

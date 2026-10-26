@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,7 +8,7 @@ import { useRecommendations } from './useRecommendations';
 import { createDraftStore } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { createQuickMockSettings, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
-import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
+import type { PersistedDraftSyncConnection } from '@/workspace/connection-hints';
 import type { LocalLeagueProfile } from '@/stores/leagueSetupStore';
 
 const setup = vi.hoisted(() => ({
@@ -31,11 +32,11 @@ vi.mock('./useTeamNeeds', () => ({
 
 const player: Player = {
   id: 'qb', name: 'Quarterback', position: 'QB', team: 'BAL', byeWeek: 7,
-  ecrRank: 38, positionalRank: 6, sleeperAdp: 40, consensusAdp: 40,
+  ecrRank: asRank(38), positionalRank: asRank(6), sleeperAdp: 40, consensusAdp: 40,
   valueScore: 2, marketRank: 40, marketAdp: 40, marketAdpTrend: 0,
   isContractYear: false, offensiveEnvironmentScore: 7, projectedPoints: 250,
-  valueOverReplacement: 20, tier: 1, tierDropoffScore: 0.8,
-  nextPickSurvivalProbability: 0.5, ceilingScore: 9, floorScore: 7,
+  valueOverReplacement: asVor(20), tier: 1, tierDropoffScore: 0.8,
+  nextPickSurvivalProbability: asProbability(0.5), ceilingScore: 9, floorScore: 7,
   upsideScore: 8, uncertaintyScore: 4, injuryRiskScore: 1,
   predictionSource: 'heuristic', newsStatus: 'healthy', stackPartnerTeam: 'BAL',
   highlightLevel: 'neutral',
@@ -80,7 +81,7 @@ beforeEach(() => {
 
 describe('recommendation timing by league profile', () => {
   it('keeps generic 12-team mocks on market timing even with cached history and mock overrides', () => {
-    store.setState({ sessionMode: 'mock', mockSurvivalProbabilities: { qb: 0.01 } });
+    store.setState({ sessionMode: 'mock', mockSurvivalProbabilities: { qb: asProbability(0.01) } });
     queryLoading = true;
     render();
     expect(queryOptions.enabled).toBe(false);
@@ -144,7 +145,7 @@ describe('recommendation timing by league profile', () => {
 
 it('keeps drafted players in the historical survival cohort while filtering browse availability', () => {
   setup.profile = 'primary-league';
-  const earlier: Player = { ...player, id: 'earlier', name: 'Earlier Quarterback', ecrRank: 1, consensusAdp: 1, marketAdp: 1 };
+  const earlier: Player = { ...player, id: 'earlier', name: 'Earlier Quarterback', ecrRank: asRank(1), consensusAdp: 1, marketAdp: 1 };
   catalog = [earlier, player];
   cachedModel = { ...model, historicalPickNumbers: { QB: [1, 5, 10, 20, 30, 50, 80, 100] } };
   store.getState().setConfig({ totalTeams: 10, totalRounds: 14 });

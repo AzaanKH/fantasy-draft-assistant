@@ -1,6 +1,6 @@
 import { createDraftStore, subscribeToBrowserStorageEvents } from '@/stores/draftStore';
 import { getBrowserDraftSessionStorage } from '@/stores/draftSessionStorage';
-import { createDraftSyncConnectionStore, initializeDraftSyncConnection, persistConnection, readStoredConnection } from '@/stores/draftSyncStore';
+import { resolveInitialConnection, persistConnection, readStoredConnection } from './connection-hints';
 import { createWorkspace, type Workspace } from './workspace';
 
 let browserWorkspace: Workspace | undefined;
@@ -11,12 +11,12 @@ export function createBrowserWorkspace(search: string, harnessFactory?: () => Wo
     browserWorkspace = harnessFactory();
     return browserWorkspace;
   }
-  const connectionStore = createDraftSyncConnectionStore({ initialConnection: readStoredConnection(), persist: persistConnection });
-  initializeDraftSyncConnection(connectionStore, search);
+  const initialConnection = resolveInitialConnection(search, readStoredConnection());
   const workspace = createWorkspace({
     draftStore: createDraftStore({ storage: getBrowserDraftSessionStorage(), externalChanges: subscribeToBrowserStorageEvents }),
-    connectionStore,
+    initialConnection, persist: persistConnection,
   });
+  if (workspace.connection.getState().connection?.draftPosition != null) workspace.send('setSessionMode', 'live');
   const mountedWorkspace: Workspace = { ...workspace, dispose: () => {
     workspace.dispose();
     if (browserWorkspace === mountedWorkspace) browserWorkspace = undefined;

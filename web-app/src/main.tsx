@@ -1,4 +1,5 @@
 import { StrictMode, type ReactElement } from 'react';
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionProvider } from './components/motion';
@@ -9,6 +10,7 @@ import { applyTheme, readStoredTheme } from './features/theme/theme';
 import { LivePlayerDataProvider } from './hooks/usePlayerData';
 import { createBrowserWorkspace } from './workspace/browser-workspace';
 import { WorkspaceProvider } from './workspace/WorkspaceProvider';
+import { CommandNotice } from './workspace/CommandNotice';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -37,7 +39,7 @@ function renderNormalApp(app: ReactElement, harnessFactory?: () => import('./wor
           <WorkspaceProvider workspace={workspace}>
             <LivePlayerDataProvider>
               <NotificationProvider>
-                <TooltipProvider><MotionProvider>{app}</MotionProvider></TooltipProvider>
+                <TooltipProvider><MotionProvider>{STORAGE_ACTIVATION_ENABLED ? <CommandNotice /> : null}{app}</MotionProvider></TooltipProvider>
               </NotificationProvider>
             </LivePlayerDataProvider>
           </WorkspaceProvider>
@@ -65,6 +67,15 @@ if (import.meta.env.DEV && visualRouteRequested) {
 } else {
   void import('./App').then(async ({ App }) => {
     applyTheme(readStoredTheme());
+    if (STORAGE_ACTIVATION_ENABLED) {
+      const { verifyStorageSharing, installStorageSharingResponder } = await import('./workspace/storage-sharing');
+      const stopSharing = installStorageSharingResponder({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN) });
+      window.addEventListener('pagehide', stopSharing, { once: true });
+      const verified = await verifyStorageSharing({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN), location: window.location });
+      const { showStorageActivation } = await import('./workspace/activation-entry');
+      showStorageActivation({ root, verified, ready: workspace => { renderNormalApp(<App />, () => workspace); } });
+      return;
+    }
     let harnessFactory: (() => import('./workspace/workspace').Workspace) | undefined;
     if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') {
       const { verifyStorageSharing } = await import('./workspace/storage-sharing');
@@ -75,7 +86,7 @@ if (import.meta.env.DEV && visualRouteRequested) {
     renderNormalApp(<App />, harnessFactory);
   }).catch((error: unknown) => {
     root.render(
-      <main role="alert" data-storage-blocked={import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb' ? String(error) : undefined}>Unable to load the draft app. Please reload the page.</main>
+      <main role="alert" data-storage-blocked={STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') ? String(error) : undefined}>Unable to load the draft app. {STORAGE_ACTIVATION_ENABLED ? String(error) : 'Please reload the page.'}</main>
     );
   });
 }

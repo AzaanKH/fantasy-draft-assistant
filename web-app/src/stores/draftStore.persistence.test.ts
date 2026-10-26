@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { getDraftView } from '@/workspace/useDraftView';
 import { deriveDraftState } from './draft/source';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,7 +9,7 @@ import {
   parseStoredDraftSession,
   type DraftSessionIdentity,
 } from './draftSessionStorage';
-import { DRAFT_SYNC_STORAGE_KEY } from './draftSyncStore';
+import { DRAFT_SYNC_STORAGE_KEY } from '@/workspace/connection-hints';
 
 const identity: DraftSessionIdentity = { provider: 'sleeper', draftId: '123' };
 
@@ -250,7 +251,7 @@ describe('durable draft sessions', () => {
     const writes = storage.setItem.mock.calls.length;
     store.getState().setPositionFilter('QB');
     store.getState().setSearchQuery('search');
-    store.getState().setMockSurvivalProbabilities({ saved: 0.5 });
+    store.getState().setMockSurvivalProbabilities({ saved: asProbability(0.5) });
     expect(storage.setItem).toHaveBeenCalledTimes(writes);
     store.getState().setSessionMode('mock');
     store.getState().markPlayerDrafted('cpu', 'CPU', 'QB', 0, 'Team 1', 1, 'cpu');

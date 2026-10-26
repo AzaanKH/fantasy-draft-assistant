@@ -41,6 +41,7 @@ const VISUAL_CHECKS: readonly VisualCheck[] = [
     widths: [DESKTOP, ...NARROW_WIDTHS],
   })),
   { url: '/__visual/readiness?state=ready', widths: [DESKTOP, PHONE] },
+  ...(['draft', 'assistant', 'sidepanel'] as const).map((state) => ({ url: `/__visual/loading?state=${state}`, widths: [DESKTOP, PHONE] })),
 ];
 
 class GateFailure extends Error {}
@@ -98,6 +99,12 @@ async function checkVisualRoute(browser: Browser, check: VisualCheck, width: num
   }
 }
 
+async function activateStorage(page: Page): Promise<void> {
+  await page.getByRole('checkbox', { name: 'I have closed other draft tabs and side panels' }).check();
+  await page.getByRole('button', { name: 'Activate IndexedDB', exact: true }).click();
+  await page.locator('[data-storage-activation="review"]').waitFor({ state: 'detached' });
+}
+
 function footerCount(text: string): number {
   return Number(/(\d+) players shown/.exec(text)?.[1] ?? NaN);
 }
@@ -111,10 +118,20 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
   try {
     const errors = watchErrors(page);
     await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
     const pool = page.locator('.draft-pool');
     const footer = pool.locator('.draft-pool-footer');
     await footer.getByText(/players shown/).waitFor({ timeout: 20_000 });
     const paused = await pool.locator('.draft-pool-paused').count() > 0;
+    // A setup checklist at the top of the dock must leave the pool its heading and a row, inside the panel that clips it.
+    if (await page.locator('.draft-dock-checklist').count() > 0) {
+      const visible = await pool.locator('.draft-pool-scroll').evaluate((element) => {
+        const panel = element.closest('.draft-dock-panel')?.getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        return panel ? Math.min(box.bottom, panel.bottom) - Math.max(box.top, panel.top) : box.height;
+      });
+      assert(visible >= 105, `The setup checklist leaves ${String(Math.round(visible))}px of the player pool visible; it needs the heading and a row (105px)`);
+    }
     const total = footerCount(await footer.innerText());
     assert(total > 60, `Player pool shows ${String(total)} players; it should list the whole undrafted pool`);
 
@@ -129,6 +146,7 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
     const queue = pool.getByRole('button', { name: `Add ${target} to local shortlist` });
     await queue.click();
     const unqueue = pool.getByRole('button', { name: `Remove ${target} from local shortlist` });
+    await unqueue.waitFor();
     assert(await unqueue.getAttribute('aria-pressed') === 'true', `Queueing ${target} did not mark it queued`);
     await unqueue.click();
     await queue.waitFor();
@@ -144,7 +162,7 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
 
     await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
     await page.waitForURL(/\/assistant/);
-    await page.locator('.rec-workspace').waitFor({ timeout: 20_000 });
+    await page.locator('.rec-workspace:not([aria-busy])').waitFor({ timeout: 20_000 });
     await page.goBack();
     await page.waitForURL(/\/draft/);
     await page.locator('.draft-board').getByText(target).first().waitFor();
@@ -161,6 +179,7 @@ async function checkPhoneWorkspace(browser: Browser): Promise<void> {
   const page = await browser.newPage({ viewport: { width: PHONE, height: 844 } });
   try {
     await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
     await page.locator('.draft-pool-footer').getByText(/players shown/).waitFor({ timeout: 20_000 });
     if (await page.locator('.draft-setup-item').count() > 0) await assertReadableChecklist(page, 'Draft workspace @ 390px');
     await assertNoPageOverflow(page, 'Draft workspace @ 390px');
@@ -179,6 +198,7 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
     const assistantModule = '**/src/features/assistant/AssistantPage.tsx*';
     await page.route(assistantModule, (route) => route.abort());
     await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
     await page.getByRole('button', { name: 'Start mock', exact: true }).click();
     await page.getByRole('button', { name: 'Start mock draft' }).click();
     // Pause so CPU picks cannot move the current pick between the two reads.
@@ -196,7 +216,7 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
     // The browser keeps the failed module, so recovery is a reload that fetches it again.
     await page.unroute(assistantModule);
     await page.getByRole('button', { name: 'Reload app' }).click();
-    await page.locator('.rec-workspace').waitFor({ timeout: 20_000 });
+    await page.locator('.rec-workspace:not([aria-busy])').waitFor({ timeout: 20_000 });
   } finally {
     await page.close();
   }

@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { deriveDraftState } from '@/stores/draft/source';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
@@ -14,8 +15,8 @@ import {
 import { getDraftSynchronizationState } from '@/hooks/useDraftSync';
 import { createDraftStore } from '@/stores/draftStore';
 const draftStore = createDraftStore();
-import { createDraftSyncConnectionStore } from '@/stores/draftSyncStore';
-const connectionStore = createDraftSyncConnectionStore({ initialConnection: null, persist: () => undefined });
+import { createConnectionTestDriver } from '@/workspace/connection-test-driver';
+const connectionStore = createConnectionTestDriver({ initialConnection: null, persist: () => undefined });
 import { blocksProviderIdentityRecommendations } from '@/features/recommendations/DraftDecisionContext';
 import { ProviderIdentityBlockedNotice } from './ProviderIdentityBlockedNotice';
 import { ReconciliationSummary } from './ReconciliationSummary';
@@ -33,8 +34,8 @@ function player(
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank,
-    positionalRank: ecrRank,
+    ecrRank: asRank(ecrRank),
+    positionalRank: asRank(ecrRank),
     sleeperAdp: ecrRank,
     valueScore: 0,
     marketRank: ecrRank,
@@ -43,10 +44,10 @@ function player(
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints: 200 + valueOverReplacement,
-    valueOverReplacement,
+    valueOverReplacement: asVor(valueOverReplacement),
     tier: 1,
     tierDropoffScore: 0.5,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 7,
     floorScore: 6,
     upsideScore: 6,

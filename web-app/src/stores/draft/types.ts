@@ -1,3 +1,4 @@
+import type { Probability } from '@fantasy-draft/shared/units';
 import type {
   Position,
 } from '@fantasy-draft/shared/league';
@@ -147,6 +148,7 @@ export interface DraftState {
   // Explicitly separates a disconnected preview from mock and live drafting.
   sessionMode: DraftSessionMode;
   liveSession: DraftSessionIdentity | null;
+  connectionPreferences?: { slotConfirmed: boolean; usePrimaryLeagueSettings?: boolean; settingsProfile?: 'quick-mock' };
   /** Retained through restart until a newer successful provider history is applied. */
   manualContinuityBaselineAt: number | null;
   lastConfirmedSyncAt: number | null;
@@ -164,7 +166,7 @@ export interface DraftState {
   shortlistedPlayerIds: string[];
   preloadedKeepers: PreloadedKeeper[];
   keepersInitialized: boolean;
-  mockSurvivalProbabilities: Record<string, number>;
+  mockSurvivalProbabilities: Record<string, Probability>;
   /** Provider picks excluded from canonical state until their player identity resolves. */
   unresolvedProviderPicks: UnresolvedProviderPick[];
 
@@ -197,7 +199,8 @@ export interface DraftActions {
     teamIndex: number,
     teamName: string,
     pickNumber?: number,
-    source?: RecordedDraftPick['source']
+    source?: RecordedDraftPick['source'],
+    expected?: { readonly pickNumber: number; readonly actor: 'user' | 'cpu' }
   ) => void;
   recordProvisionalPick: (pick: ProvisionalPickInput) => boolean;
   correctProvisionalPick: (
@@ -215,11 +218,11 @@ export interface DraftActions {
     keepers: readonly PreloadedKeeper[],
     supplyComplete?: boolean
   ) => void;
-  consumeKeeperAtCurrentPick: () => void;
+  consumeKeeperAtCurrentPick: (expectedPickNumber?: number) => void;
   undoLastPick: () => void;
   branchFromPick: (pickNumber: number) => void;
   resetDraft: () => void;
-  setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, number>>) => void;
+  setMockSurvivalProbabilities: (probabilities: Readonly<Record<string, Probability>>) => void;
   togglePlayerShortlisted: (playerId: string) => void;
   removePlayerFromShortlist: (playerId: string) => void;
   /** Moves a queued player by one or more places; out-of-range moves are ignored. */

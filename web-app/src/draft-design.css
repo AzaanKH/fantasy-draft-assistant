@@ -238,7 +238,7 @@ button,input,select {
   .draft-best-pick-actions { justify-content: flex-end; }
 }
 
-/* Draft workspace, following docs/design-system: pill actions, position color, roster sidebar.
+/* Draft workspace, following docs/design-system: squared actions, position color, roster sidebar.
    Hover tints sit behind (hover: hover) so taps on touch screens don't leave controls highlighted. */
 .position-text { font-weight: 600; }
 .position-text[data-position=QB] { color: var(--position-qb-ink, var(--color-position-qb)); }
@@ -249,12 +249,12 @@ button,input,select {
 .position-text[data-position=DEF] { color: var(--position-def-ink, var(--color-position-def)); }
 /* Position hues are tuned for the night palette; darken them for text on light surfaces. */
 :root:not(.dark) {
-  --position-qb-ink: color-mix(in oklab, var(--color-position-qb) 55%, #051827);
-  --position-rb-ink: color-mix(in oklab, var(--color-position-rb) 45%, #051827);
-  --position-wr-ink: color-mix(in oklab, var(--color-position-wr) 45%, #051827);
-  --position-te-ink: color-mix(in oklab, var(--color-position-te) 50%, #051827);
-  --position-k-ink: color-mix(in oklab, var(--color-position-k) 55%, #051827);
-  --position-def-ink: color-mix(in oklab, var(--color-position-def) 45%, #051827);
+  --position-qb-ink: color-mix(in oklab, var(--color-position-qb) 55%, var(--color-position-ink));
+  --position-rb-ink: color-mix(in oklab, var(--color-position-rb) 45%, var(--color-position-ink));
+  --position-wr-ink: color-mix(in oklab, var(--color-position-wr) 45%, var(--color-position-ink));
+  --position-te-ink: color-mix(in oklab, var(--color-position-te) 50%, var(--color-position-ink));
+  --position-k-ink: color-mix(in oklab, var(--color-position-k) 55%, var(--color-position-ink));
+  --position-def-ink: color-mix(in oklab, var(--color-position-def) 45%, var(--color-position-ink));
 }
 .draft-workspace .draft-pill-action { min-width: 64px; border-radius: var(--radius-sm); font-weight: 700; }
 @media (hover: hover) and (pointer: fine) { .draft-workspace .draft-pill-action:hover:not(:disabled) { background: var(--color-primary-hover); } }
@@ -378,7 +378,7 @@ button,input,select {
 /* Straddles the gap above the player workspace, so hovering either edge offers the resize. */
 .draft-workspace-resizer { position: relative; z-index: 31; display: flex; align-items: center; justify-content: center; height: 16px; margin-block: -14px; cursor: row-resize; touch-action: none; outline: none; }
 .draft-workspace-resizer::before { content: ""; position: absolute; inset-inline: 0; top: 50%; height: 2px; border-radius: 2px; background: transparent; transform: translateY(-50%); transition: background-color 120ms ease-out; }
-.draft-workspace-resizer-grip { position: relative; width: 44px; height: 6px; border-radius: var(--radius-pill); background: var(--color-border); transition: background-color 120ms ease-out; }
+.draft-workspace-resizer-grip { position: relative; width: 44px; height: 6px; border-radius: 2px; background: var(--color-border); transition: background-color 120ms ease-out; }
 @media (hover: hover) and (pointer: fine) { .draft-workspace-resizer:hover::before, .draft-workspace-resizer:hover .draft-workspace-resizer-grip { background: var(--color-primary); } }
 .draft-workspace-resizer:focus-visible::before,
 [data-resizing] > .draft-workspace-resizer::before { background: var(--color-primary); }
@@ -387,6 +387,16 @@ button,input,select {
 .draft-workspace-resizer:focus-visible .draft-workspace-resizer-grip { outline: 2px solid var(--color-ring); outline-offset: 3px; }
 
 /* Setup checklist: every Core Draft Data blocker with the action that clears it. */
+/* In the draft workspace it opens the player workspace, so its height comes out of the dock, not the board above. */
+.draft-dock-checklist { grid-column: 1 / -1; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-danger) 5%, transparent); }
+.draft-dock-checklist .draft-setup-checklist { border: 0; border-radius: 0; background: transparent; }
+[data-layout=fill] .draft-dock-checklist { flex: none; }
+[data-layout=fill] .draft-dock.is-split:has(> .draft-dock-checklist) { grid-template-rows: auto minmax(0, 1fr); }
+[data-layout=fill] .draft-dock.is-split.is-collapsed:has(> .draft-dock-checklist) { grid-template-rows: auto auto; }
+/* The dock keeps its size and scrolls under the checklist. Its columns keep room for the heading, toolbar, paused note and a few rows. */
+[data-layout=fill] .draft-dock:not(.is-collapsed):has(> .draft-dock-checklist) { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+[data-layout=fill] .draft-dock:not(.is-split):not(.is-collapsed):has(> .draft-dock-checklist) > [data-slot=tabs] { flex: 1 0 auto; min-height: 352px; }
+[data-layout=fill] .draft-dock.is-split:not(.is-collapsed):has(> .draft-dock-checklist) { grid-template-rows: auto minmax(352px, 1fr); }
 .draft-setup-checklist { border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border)); border-radius: var(--radius-lg); background: var(--color-surface); padding: 12px 14px; }
 .draft-setup-heading { display: flex; align-items: flex-start; gap: 10px; color: var(--color-danger); }
 .draft-setup-heading svg { margin-top: 2px; }

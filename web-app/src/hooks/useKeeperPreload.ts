@@ -1,8 +1,10 @@
+import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
+import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { requestJson } from '@/lib/http';
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Player, Position } from '@fantasy-draft/shared/league';
+import { currentSeason, type Player, type Position } from '@fantasy-draft/shared/league';
 import { normalizePlayerName, canonicalizeKeeperSupply, isKeeperSupplyComplete, type KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 import { IS_DEMO } from '@/lib/demo-mode';
 import { type PreloadedKeeper } from '@/stores/draftStore';
@@ -125,7 +127,7 @@ export function useKeeperPreload(
   const isConfirmed = keepersEnabled === false || (
     query.data?.updatedAt !== null && query.data?.updatedAt !== undefined
   );
-  const expectedSeason = new Date().getUTCFullYear();
+  const expectedSeason = currentSeason();
   const expectedCount = keepersEnabled === false ? 0 : totalTeams;
   const supplyIsComplete = isKeeperSupplyComplete({
     keepersEnabled,
@@ -143,15 +145,15 @@ export function useKeeperPreload(
 
   useEffect(() => {
     if (keepersEnabled === false) {
-      workspace.send('preloadKeepers', []);
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'preloadKeepers', []); } else { workspace.send('preloadKeepers', []); }
       return;
     }
     if (!query.data || playersLoading) return;
     if (!supplyIsComplete) {
-      workspace.send('preloadKeepers', [], false);
+      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'preloadKeepers', [], false); } else { workspace.send('preloadKeepers', [], false); }
       return;
     }
-    workspace.send('preloadKeepers', resolution.resolved);
+    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'preloadKeepers', resolution.resolved); } else { workspace.send('preloadKeepers', resolution.resolved); }
   }, [
     keepersEnabled,
     playersLoading,
