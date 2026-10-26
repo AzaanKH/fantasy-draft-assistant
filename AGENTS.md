@@ -66,6 +66,7 @@ Descriptions come from each rule's `meta.docs`. Baseline eligibility comes from 
 
 | Rule | Enforced behavior | Fix hint | Baseline policy |
 | --- | --- | --- | --- |
+| `agent/no-accent-stripe` | Rejects coloured or thick side borders, one-sided shadows and thin side bars. | Show state with a tint plus a text label; keep side borders to neutral 1px dividers. | Occurrences in eslint-baseline.json |
 | `agent/no-bare-child-process` | Rejects child_process imports and supported require, createRequire, and process.getBuiltinModule loads. Process lifecycle belongs in shared/node. | Use Processes from @fantasy-draft/shared/node for process lifecycle. | No allowance |
 | `agent/no-bare-fetch` | Outside shared/src/http/**, rejects native fetch references, global fetch properties, destructuring, aliases, and writes. Local bindings and type-only typeof fetch remain valid. | Use @fantasy-draft/shared/http with an explicit decoder and timeout/retry policy. | No allowance |
 | `agent/no-closed-root-import` | Rejects the shared root and temporary draft-url subpath, plus named roster contracts imported from /draft instead of /league. | Choose the public shared subpath that owns the contract. | No allowance |
@@ -74,6 +75,7 @@ Descriptions come from each rule's `meta.docs`. Baseline eligibility comes from 
 | `agent/no-inline-season` | Rejects calls to getFullYear() and getUTCFullYear(). Use calendarSeason from shared/league. | Use calendarSeason from @fantasy-draft/shared/league. | Occurrences in eslint-baseline.json |
 | `agent/no-json-cast` | Rejects as casts of JSON.parse() and .json() call results, including awaited results. Decode unknown JSON at the boundary. | Decode unknown JSON at the I/O boundary with a shared decoder. | Occurrences in eslint-baseline.json |
 | `agent/no-node-in-browser` | Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source. | Use browser-safe shared subpaths and keep Node I/O in Node entry points. | No allowance |
+| `agent/no-pill-shape` | Rejects pill-shaped radii on UI elements that are not circles. | Use rounded-xs to rounded-lg; give a circle equal sides with size-* or aspect-square. | Occurrences in eslint-baseline.json |
 | `agent/no-position-array` | Rejects arrays containing at least two distinct position literals without repeats, and quoted comma-separated position lists in strings or templates. Use league position groups. | Use the named position groups from @fantasy-draft/shared/league. | Occurrences in eslint-baseline.json |
 | `agent/no-unit-cast` | Rejects as and angle-bracket casts whose type contains Probability, Percent, Rank, or Vor. Use the unit constructors. | Construct the unit with its validated constructor from shared/units. | No allowance |
 | `agent/reasoned-disable` | Requires a written -- reason on agent rule suppressions, including array severities, and blanket ESLint disable comments, even when diagnostics are suppressed. | Add -- followed by the concrete reason for this exception, or remove the suppression. | No allowance |

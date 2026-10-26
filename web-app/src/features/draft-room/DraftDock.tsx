@@ -37,10 +37,13 @@ function DockTab({
 }
 
 export function DraftDock({
+  checklist,
   expanded: isExpanded,
   onExpandedChange,
   onOpenAssistant,
 }: {
+  /** Shown above the dock's columns, inside its frame, and kept while the dock is collapsed. */
+  readonly checklist?: React.ReactNode;
   readonly expanded: boolean;
   readonly onExpandedChange: (expanded: boolean) => void;
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
@@ -88,6 +91,7 @@ export function DraftDock({
     <section className={cn('draft-dock', isSplit && 'is-split', !isExpanded && 'is-collapsed')} aria-label="Draft tools">
       <h2 className="sr-only">Draft workspace</h2>
       <p className="sr-only">Player pool ordered by {recommendationsBlocked ? RANKING_LABELS.long : output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player'}</p>
+      {checklist ? <div className="draft-dock-checklist">{checklist}</div> : null}
       {isSplit ? (
         <>
           <div className="draft-dock-pool">

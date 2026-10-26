@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import { gateWorkspaces } from './gate-workspaces.js';
 import agentRules from './scripts/agent-lint-rules.mjs';
+import { cssParser } from './scripts/decoration-lint-rules.mjs';
 
 const draftOrderRules = [
   {
@@ -34,6 +35,9 @@ const processExceptions = [
   '**/*.test.{ts,tsx,mjs}',
   'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports,tracked-files,check-pr-size}.mjs',
 ];
+
+/** Workspaces that render UI: the decoration rules cover their class strings and stylesheets. */
+const uiDirectories = gateWorkspaces.filter(({ globals }) => globals !== 'node').map(({ directory }) => directory);
 
 const environments = {
   node: globals.node,
@@ -141,5 +145,18 @@ export default tseslint.config(
     ignores: ['**/*.test.ts', 'shared/src/units/clock.ts', 'shared/src/http/**', 'shared/src/node/**'],
     plugins: { agent: agentRules },
     rules: { 'agent/no-domain-clock': 'error' },
+  },
+  {
+    // Banned decorations (pills, accent stripes) in UI class strings and stylesheets; see docs/design-system/README.md.
+    files: uiDirectories.map((directory) => `${directory}/src/**/*.{ts,tsx}`),
+    ignores: ['**/*.test.{ts,tsx}'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
+  },
+  {
+    files: uiDirectories.map((directory) => `${directory}/src/**/*.css`),
+    languageOptions: { parser: cssParser },
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
   },
 );
