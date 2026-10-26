@@ -55,7 +55,7 @@ describe('documentation metadata ownership', () => {
 
   it.each([{ setting: 'off' }, { setting: 0 }, { setting: ['off'] }, { setting: [0] }])('omits disabled config scopes for %j', ({ setting }) => {
     const section = documentationSections({
-      rules: { example: { meta: { docs: { description: 'Fixture rule.' } } } },
+      rules: { example: { meta: { docs: { description: 'Fixture rule.', hint: 'Fix the fixture at its owner.' } } } },
       config: [
         { files: ['disabled.ts'], rules: { 'agent/example': setting } },
         { files: ['enabled.ts'], rules: { 'agent/example': 'error' } },
@@ -67,13 +67,14 @@ describe('documentation metadata ownership', () => {
 
   it.each([{ setting: 'off' }, { setting: 0 }, { setting: ['off'] }, { setting: [0] }])('rejects rules without enabled config scopes for %j', ({ setting }) => {
     expect(() => documentationSections({
-      rules: { example: { meta: { docs: { description: 'Fixture rule.' } } } },
+      rules: { example: { meta: { docs: { description: 'Fixture rule.', hint: 'Fix the fixture at its owner.' } } } },
       config: [{ files: ['disabled.ts'], rules: { 'agent/example': setting } }],
     })).toThrow('agent/example has no enabled config block');
   });
 
   it('requires documentation on new rules, commands, and catalog entries', () => {
     expect(() => documentationSections({ rules: { missing: { meta: {} } } })).toThrow('agent/missing needs meta.docs.description');
+    expect(() => documentationSections({ rules: { missing: { meta: { docs: { description: 'Missing fix hint.' } } } } })).toThrow('needs meta.docs.hint');
     expect(() => documentationSections({ commands: { missing: { help: 'missing', examples: [] } } })).toThrow('Command missing needs help');
     expect(() => documentationSections({ catalog: [{ path: 'data/missing.json' }] })).toThrow('Catalog entry data/missing.json needs');
     const [entry] = catalogMetadata();
@@ -83,7 +84,7 @@ describe('documentation metadata ownership', () => {
   it('derives baseline allowances from the wrapper IDs', () => {
     const section = documentationSections({ baselineIds: [...baselineRuleIds, 'agent/no-domain-clock'] })
       .find(section => section.marker === 'agent-rules');
-    expect(section.content.split('\n').find(line => line.includes('`agent/no-domain-clock`'))).toMatch(/\| Counts in eslint-baseline\.json \|$/);
+    expect(section.content.split('\n').find(line => line.includes('`agent/no-domain-clock`'))).toMatch(/\| Occurrences in eslint-baseline\.json \|$/);
   });
 });
 

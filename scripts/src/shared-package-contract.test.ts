@@ -42,6 +42,11 @@ function consumerDiagnostics(source: string): { code: number; message: string }[
 }
 
 describe('@fantasy-draft/shared package contract', () => {
+  it('keeps the complete emitted draft import graph Effect-free, including dormant dynamic imports', () => {
+    const output = execFileSync(process.execPath, [join(SCRIPTS_DIR, 'check-draft-effect.mjs')], { encoding: 'utf8' });
+    expect(output).toContain('Built shared/draft Effect-free graph passed');
+  });
+
   const subpaths = ['draft', 'catalog', 'league', 'node', 'sync', 'units', 'http'];
 
   it('rejects the root, temporary draft URL path and undeclared deep paths in plain Node', () => {
@@ -78,7 +83,7 @@ console.log(JSON.stringify(errors));
 const { registerHooks } = await import('node:module');
 const plainImports = [];
 const hook = registerHooks({ resolve(specifier, context, nextResolve) {
-  if (specifier === 'effect' || specifier.startsWith('effect/')) plainImports.push(specifier);
+  if (specifier === 'effect' || specifier.startsWith('effect/') || specifier.startsWith('@effect/')) plainImports.push(specifier);
   return nextResolve(specifier, context);
 } });
 for (const subpath of ['league', 'draft', 'units', 'sync', 'http', 'node']) await import('@fantasy-draft/shared/' + subpath);
@@ -116,7 +121,7 @@ console.log(JSON.stringify({ exports, plainImports, route: sync.parseDraftRoomUr
 const { registerHooks } = await import('node:module');
 const effects = [];
 const hook = registerHooks({ resolve(specifier, context, nextResolve) {
-  if (specifier === 'effect' || specifier.startsWith('effect/')) effects.push(specifier);
+  if (specifier === 'effect' || specifier.startsWith('effect/') || specifier.startsWith('@effect/')) effects.push(specifier);
   return nextResolve(specifier, context);
 } });
 const accepted = [];
@@ -137,7 +142,7 @@ const { register } = await import('tsx/esm/api');
 const unregister = register({ tsconfig: '../web-app/tsconfig.json' });
 const effects = [];
 const hook = registerHooks({ resolve(specifier, context, nextResolve) {
-  if (specifier === 'effect' || specifier.startsWith('effect/')) effects.push(specifier);
+  if (specifier === 'effect' || specifier.startsWith('effect/') || specifier.startsWith('@effect/')) effects.push(specifier);
   return nextResolve(specifier, context);
 } });
 globalThis.localStorage = { getItem: () => JSON.stringify({ profile: 'primary-league', quickMock: { totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 } }) };

@@ -22,21 +22,36 @@ describe('HTTP runner deadlines and retries', () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it.each(['2', 'Tue, 20 Oct 2026 12:00:02 GMT'])('honors Retry-After %s and stops after max retries', async retryAfter => {
+  it.each([429, 503].flatMap(status => ['2', 'Tue, 20 Oct 2026 12:00:02 GMT'].map(retryAfter => ({ status, retryAfter }))))('honors $status Retry-After $retryAfter and stops after max retries', async ({ status, retryAfter }) => {
     vi.useFakeTimers();
     vi.setSystemTime('2026-10-20T12:00:00Z');
-    const fetcher = vi.fn(() => Promise.resolve(new Response('', { status: 429, headers: { 'Retry-After': retryAfter } })));
+    const fetcher = vi.fn(() => Promise.resolve(new Response('', { status, headers: { 'Retry-After': retryAfter } })));
     const result = http.json('https://test.invalid/rate', decode, policy, { fetch: fetcher, random: () => 0 }).catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(1999);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(fetcher).toHaveBeenCalledTimes(2);
     const nextDelayMs = retryAfter === '2' ? 2000 : 500;
-    await vi.advanceTimersByTimeAsync(nextDelayMs);
+    await vi.advanceTimersByTimeAsync(nextDelayMs - 1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
     expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(await result).toMatchObject({ kind: 'status', status: 429 });
+    expect(await result).toMatchObject({ kind: 'status', status });
     await vi.advanceTimersByTimeAsync(10_000);
     expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['2', 'Tue, 20 Oct 2026 12:00:02 GMT'])('retries 503 successfully after Retry-After %s', async retryAfter => {
+    vi.useFakeTimers();
+    vi.setSystemTime('2026-10-20T12:00:00Z');
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response('', { status: 503, headers: { 'Retry-After': retryAfter } }))
+      .mockImplementation(() => Promise.resolve(Response.json({ ok: true })));
+    const result = http.json('https://test.invalid/unavailable', decode, policy, { fetch: fetcher, random: () => 0 });
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(fetcher).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await result).toEqual({ ok: true });
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it('returns a typed invalid JSON failure', async () => {
@@ -101,6 +116,66 @@ describe('HTTP streaming ownership', () => {
     expect(await result).toMatchObject({ kind: 'timeout' });
   });
 
+  it.each([
+    ['buffered', 'error'], ['buffered', 'end'], ['delayed', 'error'], ['delayed', 'end'],
+    ['same chunk', 'error'], ['same chunk', 'end'],
+  ] as const)('pauses the idle deadline during consumer processing for %s frames with %s policy', async (delivery, idleTimeout) => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const frame = (ok: boolean) => new TextEncoder().encode(`data: {"ok":${String(ok)}}\n\n`);
+    const body = new ReadableStream<Uint8Array>({ start(c) {
+      controller = c;
+      c.enqueue(delivery === 'same chunk'
+        ? new TextEncoder().encode('data: {"ok":true}\n\ndata: {"ok":false}\n\n') : frame(true));
+      if (delivery === 'buffered') c.enqueue(frame(false));
+    }, cancel });
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 30, idleTimeout, maxEventBytes: 1000 }, {
+      fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    try {
+      expect(await iterator.next()).toEqual({ done: false, value: { ok: true } });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(cancel).not.toHaveBeenCalled();
+      let settled = false;
+      const next = iterator.next().then(value => { settled = true; return value; });
+      if (delivery === 'delayed') {
+        await vi.advanceTimersByTimeAsync(29);
+        expect(settled).toBe(false);
+        controller?.enqueue(frame(false));
+      }
+      expect(await next).toEqual({ done: false, value: { ok: false } });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(cancel).not.toHaveBeenCalled();
+      const expired = iterator.next().catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(29);
+      expect(cancel).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await expired).toMatchObject(idleTimeout === 'end' ? { done: true } : { kind: 'timeout' });
+      expect(cancel).toHaveBeenCalledOnce();
+    } finally { await iterator.return(undefined); }
+  });
+
+  it.each(['error', 'end'] as const)('keeps caller abort active during a yielded event with %s policy', async idleTimeout => {
+    vi.useFakeTimers();
+    const caller = new AbortController();
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ start(c) {
+      c.enqueue(new TextEncoder().encode('data: {"ok":true}\n\ndata: {"ok":false}\n\n'));
+    }, cancel });
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 30, idleTimeout, maxEventBytes: 1000 }, {
+      init: { signal: caller.signal }, fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    try {
+      expect(await iterator.next()).toMatchObject({ value: { ok: true } });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(cancel).not.toHaveBeenCalled();
+      caller.abort();
+      expect(cancel).toHaveBeenCalledOnce();
+      await expect(iterator.next()).rejects.toMatchObject({ kind: 'aborted' });
+    } finally { await iterator.return(undefined); }
+  });
+
   it('honors caller abort while a stream read is pending', async () => {
     const cancel = vi.fn();
     const controller = new AbortController();
@@ -137,11 +212,11 @@ describe('HTTP stream regression cases', () => {
     await expect(iterator.next()).rejects.toMatchObject({ kind: 'network', phase: 'body' });
   });
 
-  it('times out an incomplete event even if bytes keep arriving', async () => {
+  it.each([': trickle\n', 'data: {"ok":\n', ' '])('times out an incomplete event even if bytes keep arriving as %j', async chunk => {
     vi.useFakeTimers();
     let timer: ReturnType<typeof setInterval> | undefined;
     const cancel = vi.fn(() => { clearInterval(timer); });
-    const body = new ReadableStream<Uint8Array>({ start(c) { timer = setInterval(() => { c.enqueue(new TextEncoder().encode(': trickle\n')); }, 5); }, cancel });
+    const body = new ReadableStream<Uint8Array>({ start(c) { timer = setInterval(() => { c.enqueue(new TextEncoder().encode(chunk)); }, 5); }, cancel });
     const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 30, maxEventBytes: 1000 }, {
       fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
     });

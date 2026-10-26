@@ -401,7 +401,7 @@ describe('createSyncServer', () => {
     }
   });
 
-  it('accepts sanitized ESPN extension snapshots and reconciles undo state', async () => {
+  it('resends the full first snapshot on ESPN reconnect, including unchanged and disconnected undo state', async () => {
     const extensionOrigin = `chrome-extension://${'a'.repeat(32)}`;
     const server = createSyncServer({
       pollIntervalMs: 60_000,
@@ -450,17 +450,54 @@ describe('createSyncServer', () => {
         body: JSON.stringify({ draft, picks, observedAt }),
       });
 
+    const controllers: AbortController[] = [];
+    const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+    const timeout = setTimeout(() => { for (const controller of controllers) controller.abort(); }, 5_000);
+    const expectFirstSnapshot = async (expected: ReturnType<typeof decodeDraftSyncSnapshot>) => {
+      const controller = new AbortController();
+      controllers.push(controller);
+      let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/api/sync/espn/drafts/4242/events`, {
+          headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN }, signal: controller.signal,
+        });
+        expect(response.ok).toBe(true);
+        if (!response.body) throw new Error('Missing event stream');
+        reader = response.body.getReader();
+        readers.push(reader);
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (!buffer.includes('\n\n')) {
+          const chunk = await reader.read();
+          if (chunk.done) throw new Error('Event stream closed before its first frame');
+          buffer += decoder.decode(chunk.value, { stream: true });
+        }
+        const firstFrame = buffer.slice(0, buffer.indexOf('\n\n'));
+        expect(firstFrame).not.toContain('id:');
+        const data = firstFrame.split('\n').find(line => line.startsWith('data: '));
+        if (!data) throw new Error('First frame has no snapshot data');
+        expect(decodeDraftSyncUpdate(JSON.parse(data.slice(6)))).toEqual({ type: 'snapshot', snapshot: expected });
+      } finally {
+        await reader?.cancel().catch(() => undefined);
+        controller.abort();
+      }
+    };
+
     try {
       const published = await publish([pick]);
       expect(published.ok).toBe(true);
       expect(published.headers.get('access-control-allow-origin')).toBe(
         extensionOrigin
       );
-      expect(decodeDraftSyncSnapshot(await published.json())).toMatchObject({
+      const expected = decodeDraftSyncSnapshot(await published.json());
+      expect(expected).toMatchObject({
         provider: 'espn',
         status: 'synced',
         picks: [{ playerId: '4429795', pickNumber: 1 }],
       });
+
+      await expectFirstSnapshot(expected);
+      await expectFirstSnapshot(expected);
 
       const stale = await publish([], now - 1);
       expect(stale.status).toBe(409);
@@ -468,7 +505,9 @@ describe('createSyncServer', () => {
 
       const undone = await publish([], now + 1);
       expect(undone.ok).toBe(true);
-      expect(decodeDraftSyncSnapshot(await undone.json()).picks).toHaveLength(0);
+      const undoSnapshot = decodeDraftSyncSnapshot(await undone.json());
+      expect(undoSnapshot.picks).toHaveLength(0);
+      await expectFirstSnapshot(undoSnapshot);
 
       const read = await fetch(
         `http://127.0.0.1:${port}/api/sync/espn/drafts/4242`,
@@ -477,6 +516,9 @@ describe('createSyncServer', () => {
       expect(read.ok).toBe(true);
       expect(decodeDraftSyncSnapshot(await read.json()).picks).toHaveLength(0);
     } finally {
+      clearTimeout(timeout);
+      for (const controller of controllers) controller.abort();
+      await Promise.all(readers.map(reader => reader.cancel().catch(() => undefined)));
       await new Promise<void>((resolve, reject) => {
         server.shutdown((error?: Error) => {
           if (error) reject(error);
