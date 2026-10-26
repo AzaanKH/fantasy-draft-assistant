@@ -23,8 +23,11 @@ vi.mock('@/hooks/usePlayerData', () => {
   const data = { players: [], isLoading: false, dataInfo: { readinessSources: [], readinessWarnings: [] } };
   return { usePlayerDataQuery: () => data };
 });
-vi.mock('@/lib/http', () => ({ requestJson: () => new Promise(() => {}) }));
-vi.mock('@/features/draft-room/LiveDraftSyncProvider', () => ({ LiveDraftSyncProvider: ({ children }: { children: ReactNode }) => children }));
+const transport = vi.hoisted(() => ({
+  requestJson: vi.fn(() => new Promise<never>(() => {})),
+  eventSource: vi.fn(function () { return { close: vi.fn() }; }),
+}));
+vi.mock('@/lib/http', () => ({ requestJson: transport.requestJson }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({ DraftDecisionProvider: ({ children }: { children: ReactNode }) => children }));
 vi.mock('@/components/DraftHeader', () => ({ DraftHeader: () => null }));
 vi.mock('@/features/draft-room/DraftRoom', () => ({ DraftRoom: () => <div data-app-mounted /> }));
@@ -39,6 +42,8 @@ const databases: DraftDatabase[] = [];
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('EventSource', transport.eventSource);
+  transport.requestJson.mockClear(); transport.eventSource.mockClear();
   localStorage.clear();
   useLeagueSetupStore.getState().save('quick-mock', { ...DEFAULT_QUICK_MOCK, totalTeams: 12, totalRounds: 15 });
   history.replaceState(null, '', '/draft?provider=sleeper&draftId=startup&settings=quick-mock&position=1');
@@ -131,6 +136,8 @@ it('publishes the resumed draft and connection together before real App and keep
   await act(async () => { read.release(); }); await settle(view);
   expect(await value.read(identity)).toEqual(saved);
   expect(changes).toEqual([]);
+  expect(transport.requestJson).toHaveBeenCalled();
+  expect(transport.eventSource).toHaveBeenCalled();
   expect(published).toHaveLength(1);
   expect(published[0]).toMatchObject({ mode: 'live', connection: identity, teams: 20 });
 });
@@ -156,6 +163,7 @@ it('preserves shared configuration and keeper progress when two workspaces reloa
 it('still applies local defaults after first activation with no saved session or connection', async () => {
   history.replaceState(null, '', '/draft');
   const value = await database();
+  const changes = recordChanges(value);
   const { view, published } = await start(value, true);
   await until(() => Boolean(view.container.querySelector('input')));
   act(() => { view.container.querySelector('input')?.click(); });
@@ -165,11 +173,15 @@ it('still applies local defaults after first activation with no saved session or
   expect(view.workspace?.draft.getState().config).toMatchObject({ totalTeams: 12, totalRounds: 15 });
   expect(view.workspace?.draft.getState().leagueSettings.rosterRequirements.BENCH.spots).toBe(6);
   expect(await value.read(identity)).toBeNull();
+  expect(changes).toEqual([]);
 });
 
 it('accepts later provider settings without replaying local setup defaults', async () => {
   const value = await database(); await seed(value);
+  const changes = recordChanges(value);
   const { view } = await start(value); await settle(view);
+  expect(changes).toEqual([]);
+  expect(transport.requestJson).toHaveBeenCalled();
   await act(async () => {
     await view.workspace?.sendDurable?.(['connection.applyProviderSettings', { ...identity,
       config: { totalTeams: 16, totalRounds: 18, draftType: 'linear' },
@@ -184,6 +196,7 @@ it('accepts later provider settings without replaying local setup defaults', asy
 
 it('closes a failed initial binding without publishing App or its effects', async () => {
   const value = await database();
+  const changes = recordChanges(value);
   vi.spyOn(value, 'read').mockRejectedValue(new Error('Initial draft read failed'));
   const close = vi.spyOn(value, 'close');
   const { view, published } = await start(value);
@@ -193,4 +206,5 @@ it('closes a failed initial binding without publishing App or its effects', asyn
   expect(published).toEqual([]);
   expect(view.container.querySelector('[data-app-mounted]')).toBeNull();
   expect(close).toHaveBeenCalled();
+  expect(changes).toEqual([]);
 });
