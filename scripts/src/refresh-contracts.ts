@@ -17,6 +17,7 @@ import {
   resolveSeasonHistoryColumn,
 } from './contract-source-schema.js';
 import { DATA_DIR, withMemoryDb } from './model/duckdb.js';
+import { currentSeason, OFFENSIVE_POSITIONS, sqlPositionList } from '@fantasy-draft/shared/league';
 import { io, isEntryPoint, runMain } from './effect-runtime.js';
 
 const CONTRACTS_URL =
@@ -47,7 +48,7 @@ export async function getSourceUpdatedAt(): Promise<string | null> {
 }
 
 const program = Effect.gen(function* () {
-  const contractYear = new Date().getFullYear();
+  const contractYear = currentSeason();
   const sleeper = yield* io(async () => decodeSleeperDataFile(JSON.parse(await readFile(SLEEPER_FILE, 'utf8')), { onWarning: console.warn }));
   const sleeperById = new Map(sleeper.players.map((player) => [player.playerId, player]));
   yield* withMemoryDb((connection) => io(async () => {
@@ -71,7 +72,7 @@ const program = Effect.gen(function* () {
             as contract_end_year
         from read_parquet('${CONTRACTS_URL}')
         where is_active
-          and position in ('QB', 'RB', 'WR', 'TE')
+          and position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
           and gsis_id is not null
       ),
       players as (

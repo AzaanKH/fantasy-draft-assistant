@@ -5,6 +5,8 @@ import * as React from 'react';
 import {
   type Player,
   type Position,
+  KICKER_DEFENSE_POSITIONS,
+  OFFENSIVE_POSITIONS,
   POSITIONS,
 } from '@fantasy-draft/shared/league';
 import {
@@ -14,6 +16,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, ListPlus, Search } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionLabel } from '@/components/PositionLabel';
+import { SkeletonBlock, SkeletonText } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MetricHelp } from '@/features/help/MetricHelp';
@@ -27,7 +30,7 @@ import { formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { describePausedAdvice, getPlayerPoolRows, type PositionFilter } from './player-pool-rows';
 import { getRosterSlots } from './roster-slots';
 
-const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF'];
+const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...OFFENSIVE_POSITIONS, 'FLEX', ...KICKER_DEFENSE_POSITIONS];
 
 interface FilterCount {
   readonly filled: number;
@@ -118,8 +121,38 @@ function DraftPlayerRow({
   );
 }
 
+/** Fills the pool's scroll area while player data loads; the area's height is fixed, so the count only needs to cover it. */
+const PLACEHOLDER_ROW_COUNT = 10;
+
+/** Name and meta lines while loading. They copy the line boxes of .draft-pool-name and .draft-pool-meta, not the classes, which browser drivers read names from. */
+export function PlayerLinesPlaceholder(): React.ReactElement {
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="text-sm leading-5"><SkeletonText className="w-32" /></div>
+      <div className="text-xs leading-4"><SkeletonText className="w-24" /></div>
+    </div>
+  );
+}
+
+/** A loading row in the pool's own row grid. */
+function DraftPlayerRowPlaceholder({ showDraftAction }: { readonly showDraftAction: boolean }): React.ReactElement {
+  return (
+    <div role="row" aria-hidden="true" className="draft-pool-row draft-pool-columns">
+      {showDraftAction ? <div className="draft-pool-action"><SkeletonBlock className="h-8 w-16 rounded-sm" /></div> : null}
+      <div className="draft-pool-rank"><SkeletonText className="w-5" /></div>
+      <div className="draft-pool-player">
+        <SkeletonBlock className="size-9 shrink-0 rounded-full" />
+        <PlayerLinesPlaceholder />
+      </div>
+      <div className="draft-pool-number"><SkeletonText className="w-6" /></div>
+      <div className="draft-pool-number"><SkeletonText className="w-8" /></div>
+      <div className="draft-pool-action"><SkeletonBlock className="size-8 rounded-sm" /></div>
+    </div>
+  );
+}
+
 export function DraftPlayerPool(): React.ReactElement {
-  const { players: basePlayers } = usePlayerDataQuery();
+  const { players: basePlayers, isLoading } = usePlayerDataQuery();
   const { output, overall, readiness, recommendationsBlocked, recommendationsBlockedByProviderIdentity } = useDraftDecision();
   const undraftedPlayers = useUndraftedPlayers();
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
@@ -135,8 +168,8 @@ export function DraftPlayerPool(): React.ReactElement {
   const queuedSet = React.useMemo(() => new Set(queuedPlayerIds), [queuedPlayerIds]);
 
   const rows = React.useMemo(
-    () => getPlayerPoolRows(undraftedPlayers, overall.recommendations, positionFilter, deferredSearchQuery),
-    [deferredSearchQuery, overall.recommendations, positionFilter, undraftedPlayers]
+    () => getPlayerPoolRows(undraftedPlayers, overall.recommendations, positionFilter, deferredSearchQuery, config.rosterRequirements),
+    [config.rosterRequirements, deferredSearchQuery, overall.recommendations, positionFilter, undraftedPlayers]
   );
   const filterCounts = React.useMemo(
     () => getFilterCounts(myRoster, config.rosterRequirements, config.totalRounds),
@@ -192,7 +225,7 @@ export function DraftPlayerPool(): React.ReactElement {
         </label>
       </div>
 
-      {recommendationsBlocked ? (
+      {recommendationsBlocked && !isLoading ? (
         <p className="draft-pool-paused" role="status">{describePausedAdvice(readiness, recommendationsBlockedByProviderIdentity)}</p>
       ) : null}
       <div className="draft-pool-scroll" ref={playerListRef} tabIndex={0} role="region" aria-label="Available players, scroll for more">
@@ -208,7 +241,13 @@ export function DraftPlayerPool(): React.ReactElement {
               <div role="columnheader">Queue</div>
             </div>
           </div>
-          {rows.length > 0 ? (
+          {isLoading ? (
+            <div role="rowgroup">
+              {Array.from({ length: PLACEHOLDER_ROW_COUNT }, (_, index) => (
+                <DraftPlayerRowPlaceholder key={index} showDraftAction={sessionMode === 'mock'} />
+              ))}
+            </div>
+          ) : rows.length > 0 ? (
             <div
               role="rowgroup"
               className="relative w-full"
@@ -253,9 +292,11 @@ export function DraftPlayerPool(): React.ReactElement {
       </div>
       <div className="draft-pool-footer">
         <span>
-          {sessionMode === 'mock' && !canDraft
-            ? 'Draft actions are unavailable until your pick.'
-            : `${String(rows.length)} players shown`}
+          {isLoading
+            ? 'Loading players…'
+            : sessionMode === 'mock' && !canDraft
+              ? 'Draft actions are unavailable until your pick.'
+              : `${String(rows.length)} players shown`}
         </span>
         <span>Ordered by {orderLabel}</span>
       </div>

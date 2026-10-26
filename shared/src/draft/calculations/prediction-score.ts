@@ -1,6 +1,8 @@
 import type { FantasyProsProjection } from '../../fantasypros.js';
+import { asVor } from '../../units/brands.js';
 import type { NewsStatus, PlayerPrediction, Player, Position, PredictionSource } from '../../player.js';
 import { type RosterRequirements, DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
+import { POSITIONS } from '../../league/positions.js';
 
 const REPLACEMENT_POSITIONAL_RANKS: Record<Position, number> = {
   QB: 12,
@@ -176,7 +178,7 @@ export function applyDynamicValueOverReplacement(
   const starterDemand = new Map<Position, number>();
   const fixedStarterIds = new Set<string>();
 
-  for (const position of ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const) {
+  for (const position of POSITIONS) {
     const demand = normalizedTeams * requirements[position].starters;
     starterDemand.set(position, demand);
     const positionPlayers = players
@@ -204,7 +206,7 @@ export function applyDynamicValueOverReplacement(
   }
 
   const replacementPoints = new Map<Position, number>();
-  for (const position of ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const) {
+  for (const position of POSITIONS) {
     const positionPlayers = players
       .filter((player) => player.position === position)
       .sort((a, b) => b.projectedPoints - a.projectedPoints);
@@ -223,7 +225,7 @@ export function applyDynamicValueOverReplacement(
       ? player
       : {
           ...player,
-          valueOverReplacement: round(Math.max(0, player.projectedPoints - replacement)),
+          valueOverReplacement: asVor(round(Math.max(0, player.projectedPoints - replacement))),
         };
   });
 }

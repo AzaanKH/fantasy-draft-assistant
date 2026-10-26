@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
-import { DEFAULT_SCORING_RULES } from '../../scoring.js';
+import { DEFAULT_SCORING_RULES } from '../../league/scoring.js';
 import { evaluateDraftReadiness, type DraftReadinessSourceObservation } from '../../draft-readiness.js';
 import { type ECRPlayer } from '../../scrapers.js';
 import { type FantasyProsProjection } from '../../fantasypros.js';

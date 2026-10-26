@@ -1,3 +1,4 @@
+import { currentSeason } from '@fantasy-draft/shared/league';
 import { useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
@@ -10,7 +11,7 @@ import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
-import { createSafeRecommendationPolicy } from '@fantasy-draft/shared/catalog';
+import { READINESS_MINIMUMS, createSafeRecommendationPolicy, formatIdentityCoverage } from '@fantasy-draft/shared/catalog';
 import {
   fetchContractData,
   fetchFantasyProsSnapshot,
@@ -94,7 +95,7 @@ function useLivePlayerDataQuery() {
     leagueSettings.scoringRules.receiving.reception
   );
   const marketAdpSeason =
-    fantasyProsQuery.data?.metadata.season ?? new Date().getFullYear();
+    fantasyProsQuery.data?.metadata.season ?? currentSeason();
   const marketAdpTeams = Math.max(8, Math.min(14, totalTeams));
   const marketAdpQuery = useQuery({
     queryKey: [
@@ -116,9 +117,9 @@ function useLivePlayerDataQuery() {
   const effectiveRecommendationPolicy =
     recommendationPolicyQuery.data ?? SAFE_RECOMMENDATION_POLICY;
   // The demo is a fixed snapshot, so it stays valid after its season ends.
-  const currentSeason = IS_DEMO
-    ? fantasyProsQuery.data?.metadata.season ?? new Date().getFullYear()
-    : new Date().getFullYear();
+  const season = IS_DEMO
+    ? fantasyProsQuery.data?.metadata.season ?? currentSeason()
+    : currentSeason();
   const rankingsTimestamp = fantasyProsQuery.data?.metadata.refreshedAt;
   const identityTimestamp = identityQuery.data?.generatedAt;
   const sleeperTimestamp = sleeperQuery.data?.fetchedAt;
@@ -128,8 +129,8 @@ function useLivePlayerDataQuery() {
       availability: fantasyProsQuery.isError
         ? 'missing'
         : fantasyProsQuery.data &&
-            fantasyProsQuery.data.metadata.season === currentSeason &&
-            fantasyProsQuery.data.rankings.length >= 350 &&
+            fantasyProsQuery.data.metadata.season === season &&
+            fantasyProsQuery.data.rankings.length >= READINESS_MINIMUMS.rankings &&
             TRUSTED_RANKING_SOURCE_TYPES.includes(fantasyProsQuery.data.metadata.sourceType)
           ? 'available'
           : fantasyProsQuery.data
@@ -137,24 +138,24 @@ function useLivePlayerDataQuery() {
             : 'missing',
       timestamp: rankingsTimestamp,
       detail: fantasyProsQuery.error?.message ?? (IS_DEMO
-        ? 'Expected at least 350 demo rankings from the bundled demo dataset.'
-        : 'Expected at least 350 current-season rankings from the FantasyPros API or reviewed manual refresh.'),
+        ? `Expected at least ${String(READINESS_MINIMUMS.rankings)} demo rankings from the bundled demo dataset.`
+        : `Expected at least ${String(READINESS_MINIMUMS.rankings)} current-season rankings from the FantasyPros API or reviewed manual refresh.`),
     },
     'canonical-player-identities': {
       availability: identityQuery.isError
         ? 'missing'
         : identityQuery.data &&
-            identityQuery.data.season === currentSeason &&
-            identityQuery.data.players.length >= 800 &&
-            identityQuery.data.coverage.fantasyProsRankingMatchRate >= 0.98 &&
-            identityQuery.data.coverage.matchedDefenses === 32
+            identityQuery.data.season === season &&
+            identityQuery.data.players.length >= READINESS_MINIMUMS.identities &&
+            identityQuery.data.coverage.fantasyProsRankingMatchRate >= READINESS_MINIMUMS.identityRankingMatchRate &&
+            identityQuery.data.coverage.matchedDefenses === READINESS_MINIMUMS.defenses
           ? 'available'
           : identityQuery.data
             ? 'invalid'
             : 'missing',
       timestamp: identityTimestamp,
       detail: identityQuery.error?.message ??
-        'Expected at least 800 identities, 98% ranked-player coverage, and all 32 defenses.',
+        `Expected at least ${String(READINESS_MINIMUMS.identities)} identities, ${formatIdentityCoverage()} ranked-player coverage, and all ${String(READINESS_MINIMUMS.defenses)} defenses.`,
       dependencies: [
         { key: 'trusted-rankings', label: 'Trusted rankings', timestamp: rankingsTimestamp },
         { key: 'sleeper-player-directory', label: 'Sleeper player directory', timestamp: sleeperTimestamp },
@@ -163,14 +164,14 @@ function useLivePlayerDataQuery() {
     'experimental-predictions': {
       availability: predictionQuery.isError
         ? 'missing'
-        : predictionQuery.data && predictionQuery.data.players.length >= 800
+        : predictionQuery.data && predictionQuery.data.players.length >= READINESS_MINIMUMS.predictions
           ? 'available'
           : predictionQuery.data
             ? 'invalid'
             : 'missing',
       timestamp: predictionQuery.data?.generatedAt,
       detail: predictionQuery.error?.message ??
-        'Expected a model version and at least 800 experimental prediction rows.',
+        `Expected a model version and at least ${String(READINESS_MINIMUMS.predictions)} experimental prediction rows.`,
       dependencies: [
         { key: 'trusted-rankings', label: 'Trusted rankings', timestamp: rankingsTimestamp },
         { key: 'canonical-player-identities', label: 'Canonical player identities', timestamp: identityTimestamp },
@@ -180,18 +181,18 @@ function useLivePlayerDataQuery() {
     'contract-context': {
       availability: contractQuery.isError
         ? 'missing'
-        : contractQuery.data && contractQuery.data.players.length >= 50
+        : contractQuery.data && contractQuery.data.players.length >= READINESS_MINIMUMS.contracts
           ? 'available'
           : contractQuery.data
             ? 'invalid'
             : 'missing',
       timestamp: contractQuery.data?.generatedAt ?? contractQuery.data?.scrapedAt,
-      detail: contractQuery.error?.message ?? 'Expected at least 50 contract-context rows.',
+      detail: contractQuery.error?.message ?? `Expected at least ${String(READINESS_MINIMUMS.contracts)} contract-context rows.`,
     },
     'sportsbook-context': {
       availability: sportsbookQuery.isError
         ? 'missing'
-        : sportsbookQuery.data && sportsbookQuery.data.metadata.season === currentSeason &&
+        : sportsbookQuery.data && sportsbookQuery.data.metadata.season === season &&
             sportsbookQuery.data.overUnder.length > 0 &&
             sportsbookQuery.data.milestones.length > 0
           ? 'available'
@@ -210,7 +211,7 @@ function useLivePlayerDataQuery() {
     'sportsbook-context',
     DraftReadinessSourceObservation
   >>>), [
-    currentSeason,
+    season,
     fantasyProsQuery.data, fantasyProsQuery.error, fantasyProsQuery.isError,
     identityQuery.data, identityQuery.error, identityQuery.isError,
     predictionQuery.data, predictionQuery.error, predictionQuery.isError,

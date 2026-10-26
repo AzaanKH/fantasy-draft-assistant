@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import { gateWorkspaces } from './gate-workspaces.js';
 import agentRules from './scripts/agent-lint-rules.mjs';
+import { cssParser } from './scripts/decoration-lint-rules.mjs';
 
 const draftOrderRules = [
   {
@@ -18,6 +19,7 @@ const draftOrderRules = [
 
 const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates. List new I/O owners in effectOwners in eslint.config.js.';
 const effectOwners = [
+  'scripts/persistence/native-visibility.mjs',
   'shared/src/catalog/**',
   'scripts/src/{contract-source-schema,script-file-schemas}.ts',
   '**/*.test.{ts,tsx,mjs}',
@@ -32,8 +34,11 @@ const effectOwners = [
 
 const processExceptions = [
   '**/*.test.{ts,tsx,mjs}',
-  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports}.mjs',
+  'scripts/{probe-source-condition,probe-workspace-gates,probe-agent-gates,audit-unused-exports,tracked-files,check-pr-size}.mjs',
 ];
+
+/** Workspaces that render UI: the decoration rules cover their class strings and stylesheets. */
+const uiDirectories = gateWorkspaces.filter(({ globals }) => globals !== 'node').map(({ directory }) => directory);
 
 const environments = {
   node: globals.node,
@@ -63,7 +68,7 @@ export default tseslint.config(
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
     languageOptions: { parser: tseslint.parser },
     plugins: { agent: agentRules },
-    rules: { 'agent/no-closed-root-import': 'error' },
+    rules: { 'agent/no-closed-root-import': 'error', 'agent/reasoned-disable': 'error' },
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
@@ -118,5 +123,46 @@ export default tseslint.config(
       'agent/no-cross-package-import': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
     },
+  },
+  {
+    // shared/src/league owns positions and the season rule; shared/src/http parses HTTP dates, not seasons.
+    files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),
+    ignores: ['**/*.test.{ts,tsx}', 'shared/src/league/**', 'shared/src/http/**'],
+    plugins: { agent: agentRules },
+    rules: {
+      'agent/no-position-array': 'error',
+    },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['**/*.test.{ts,tsx,js,mjs,cjs}', 'shared/src/league/season.ts', 'shared/src/http/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-inline-season': 'error' },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),
+    ignores: ['shared/src/units/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-unit-cast': 'error' },
+  },
+  {
+    // The clock owns the system time; the HTTP and process runners time I/O, not domain state.
+    files: ['shared/src/**/*.ts'],
+    ignores: ['**/*.test.ts', 'shared/src/units/clock.ts', 'shared/src/http/**', 'shared/src/node/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-domain-clock': 'error' },
+  },
+  {
+    // Banned decorations (pills, accent stripes) in UI class strings and stylesheets; see docs/design-system/README.md.
+    files: uiDirectories.map((directory) => `${directory}/src/**/*.{ts,tsx}`),
+    ignores: ['**/*.test.{ts,tsx}'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
+  },
+  {
+    files: uiDirectories.map((directory) => `${directory}/src/**/*.css`),
+    languageOptions: { parser: cssParser },
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-pill-shape': 'error', 'agent/no-accent-stripe': 'error' },
   },
 );

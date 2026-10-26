@@ -1,6 +1,8 @@
 import { evaluateDraftReadiness, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
+import { fixedClock, systemClock } from '../units/clock.js';
 import { createDefaultLeagueSettings, isLeagueSettings, type LeagueSettings } from '../league-settings.js';
 import type { KeeperPreloadStatus } from './keeper-preload-status.js';
+import { currentSeason } from '../league/season.js';
 
 interface WorkspaceDraftReadinessInput {
   readonly sources: Readonly<Partial<Record<DraftReadinessKey, DraftReadinessSourceObservation>>>;
@@ -46,9 +48,9 @@ function hasPrimaryLeagueSettings(
 
 export function evaluateWorkspaceDraftReadiness(
   input: WorkspaceDraftReadinessInput,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): DraftReadinessReport {
-  const currentSeason = new Date(now).getUTCFullYear();
+  const season = currentSeason(fixedClock(now));
   const usingPracticeSettings = input.usePrimaryLeagueSettings === true &&
     input.leagueSettings.source === 'default' && input.leagueSettings.leagueId === null;
   const validPracticeSettings = usingPracticeSettings &&
@@ -84,7 +86,7 @@ export function evaluateWorkspaceDraftReadiness(
       : 'Connect the Primary League draft to load provider-confirmed settings.',
   };
   const keeperSupplyIsInvalid =
-    input.keeperStatus.season !== currentSeason ||
+    input.keeperStatus.season !== season ||
     input.keeperStatus.configuredCount !== 10 ||
     input.keeperStatus.resolvedCount !== 10 ||
     input.keeperStatus.canonicalCount !== 10 ||

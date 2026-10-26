@@ -12,6 +12,9 @@ import { buildReadinessFixture } from './persistence/ui-readiness.mjs';
 import { buildCatalogFixture } from './persistence/ui-adapter.mjs';
 
 const env = { MODE: 'production', DEV: false, PROD: true, VITE_STORAGE_ACTIVATION: 'idb' };
+test('production proof accepts the default activation build', () => {
+  expect(() => assertProductionEnvironment({ ...env, VITE_STORAGE_ACTIVATION: undefined })).not.toThrow();
+});
 test('production proof rejects dev mode, the harness and static demo mode', () => {
   expect(() => assertProductionEnvironment(env)).not.toThrow();
   for (const overrides of [{ DEV: true }, { MODE: 'development' }, { PROD: false }, { VITE_STORAGE_ACTIVATION: 'v1' }, { VITE_PERSISTENCE_HARNESS: 'idb' }, { VITE_DEMO_MODE: 'true' }]) expect(() => assertProductionEnvironment({ ...env, ...overrides })).toThrow();

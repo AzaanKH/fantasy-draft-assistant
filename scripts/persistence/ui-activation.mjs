@@ -23,7 +23,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const args = process.argv.slice(2);
-const { extensionSetupOnly, rootTier2Smoke, rootTier2Preflight, workload } = runnerMode(args);
+const { extensionSetupOnly, rootTier2Smoke, rootTier2Preflight, useReadinessFixture, workload } = runnerMode(args);
 const flag = name => args.includes(`--${name}`);
 const option = name => args.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
 const int = (name, fallback) => { const value = process.env[name] === undefined ? fallback : Number(process.env[name]); if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`); return value; };
@@ -102,7 +102,7 @@ if (fixtureReadyScope && ['UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_
 
 delete process.env.VITE_PERSISTENCE_HARNESS;
 delete process.env.VITE_DEMO_MODE;
-process.env.VITE_STORAGE_ACTIVATION = 'idb';
+delete process.env.VITE_STORAGE_ACTIVATION;
 process.env.BROWSER_DATA_SOURCE = 'demo';
 
 const requireScripts = createRequire(path.join(root, 'scripts/package.json'));
@@ -251,7 +251,7 @@ async function prepareCatalogFixture() {
   const identities = decodePlayerIdentityFile(identityInput);
   const originalCount = original.rankings.length;
   let { snapshot, catalog } = buildCatalogFixture(original, identities, predictions);
-  if (fixtureReadyScope) {
+  if (useReadinessFixture) {
     const sleeper = JSON.parse(await readFile(path.join(root, 'demo-data/sleeper-adp.json'), 'utf8'));
     fixtureCatalog = selectCatalog(catalog, 300);
     readinessFixture = buildReadinessFixture({ snapshot, identities, sleeper, catalog });
@@ -322,7 +322,7 @@ async function launch(label, { extensionDir } = {}) {
   return { ctx, worker, extensionId: id, runtime, launchOptions, profile };
 }
 
-const draftUrl = (id, host = 'localhost') => `http://${host}:${config.port}/draft?provider=sleeper&draftId=${id}&position=1${fixtureReadyScope ? '&settings=quick-mock' : ''}`;
+const draftUrl = (id, host = 'localhost') => `http://${host}:${config.port}/draft?provider=sleeper&draftId=${id}&position=1${useReadinessFixture ? '&settings=quick-mock' : ''}`;
 const header = ctx => ctx.getByRole('button', { name: UI.workspaceNav, exact: true });
 
 async function appState(ctx, timeout = 60000) {
@@ -600,7 +600,7 @@ async function openTab(ctxInfo, id, name = 'tab0') {
   const page = await ctxInfo.ctx.newPage();
   await page.goto(draftUrl(id));
   await appReady(page, name);
-  if (fixtureReadyScope) await fixtureRules(page);
+  if (useReadinessFixture) await fixtureRules(page);
   return { name, page, ctx: page, kind: 'tab' };
 }
 async function installDraftContextAndRestartWorker(ctxInfo, id) {
@@ -635,13 +635,13 @@ async function mountPanel(panel, ctxInfo, id) {
   if (ready === 'error') throw new Error(`Side panel reported a setup error: ${(await page.locator('#error-state').innerText()).trim()}`);
   await diagnostics.attachFrame(frame, ctxInfo.ctx, currentLabel);
   const documentStarted = await frame.evaluate(() => performance.timeOrigin);
-  const openControl = fixtureReadyScope ? await inspectControl(open, 'Open local workspace') : undefined;
+  const openControl = useReadinessFixture ? await inspectControl(open, 'Open local workspace') : undefined;
   await open.click();
   await appReady(frame, 'panel');
   check(await frame.evaluate(() => performance.timeOrigin) === documentStarted, 'Open local workspace navigated the iframe document');
   results.progress.push({ stage: 'panel-local-workspace', id, frameUrl: frame.url(), openControl }); await save();
   panel.ctx = frame; panel.frame = frame;
-  if (fixtureReadyScope) await fixtureRules(frame);
+  if (useReadinessFixture) await fixtureRules(frame);
   navigation?.panelReady(page);
 }
 async function reloadActors(ctxInfo, actors, id) {
@@ -1160,7 +1160,7 @@ async function lifecycle(ctxInfo, ids, catalog, nameToId) {
     await Promise.all(pages.map(p => p.goto(draftUrl(id)))); await Promise.all(pages.map(p => appReady(p, 'lifecycle')));
     const actors = pages.map((page, i) => ({ name: `tab${i}`, page, ctx: page, kind: 'tab', session: id }));
     const receiver = 1 - sender; const player = catalog[10];
-    for (const actor of actors) { if (fixtureReadyScope) await fixtureRules(actor.ctx); await inspectPoolControl(actor, player, false); }
+    for (const actor of actors) { if (useReadinessFixture) await fixtureRules(actor.ctx); await inspectPoolControl(actor, player, false); }
     // The receiver must lose focus before the write, or bringing it back fires no focus and nothing re-reads.
     await pages[receiver].bringToFront(); await pages[sender].bringToFront();
     const receipt = await runCommand(actors[sender], { id: 'lifecycle:add', type: 'queueAdd', playerId: player.id, name: player.name });
@@ -1264,7 +1264,7 @@ try {
       plugins: [{ name: 'ui-activation-fixture', enforce: 'pre', configResolved(c) { c.server.watch = null; }, configureServer(vite) { vite.middlewares.use((req, res, next) => fixture.handler(req, res, next)); } }] });
     const env = server.config.env;
     results.metadata.resolvedEnv = { VITE_STORAGE_ACTIVATION: env.VITE_STORAGE_ACTIVATION, VITE_PERSISTENCE_HARNESS: env.VITE_PERSISTENCE_HARNESS, VITE_DEMO_MODE: env.VITE_DEMO_MODE, MODE: env.MODE, DEV: env.DEV, PROD: env.PROD };
-    if (env.VITE_STORAGE_ACTIVATION !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined) throw new Error('Vite resolved the wrong build environment');
+    if ((env.VITE_STORAGE_ACTIVATION ?? 'idb') !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined) throw new Error('Vite resolved the wrong build environment');
     if (server.config.server.hmr !== false || server.config.server.watch !== null) throw new Error('HMR/watch must be disabled');
     server.watcher.on('all', (event, file) => diagnostics.server('watcher', { event, file }));
     server.ws.on('connection', socket => {

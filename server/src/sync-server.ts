@@ -1,3 +1,4 @@
+import { currentSeason } from '@fantasy-draft/shared/league';
 import { http, HttpError as RequestHttpError } from '@fantasy-draft/shared/http';
 import { decodeProviderDraftSnapshot } from '@fantasy-draft/shared/catalog';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -664,7 +665,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     if (url.pathname === '/api/market-adp' && request.method === 'GET') {
       const format = url.searchParams.get('format') ?? 'ppr';
       const teams = Number(url.searchParams.get('teams') ?? '10');
-      const season = Number(url.searchParams.get('season') ?? String(new Date().getFullYear()));
+      const season = Number(url.searchParams.get('season') ?? String(currentSeason()));
       if (
         !isMarketAdpFormat(format) ||
         !Number.isInteger(teams) ||

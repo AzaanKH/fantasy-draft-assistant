@@ -3,6 +3,7 @@ import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
   document.body.innerHTML = `
     <iframe id="sidepanel-frame"></iframe>
     <div id="loading-state"></div><div id="error-state"></div>

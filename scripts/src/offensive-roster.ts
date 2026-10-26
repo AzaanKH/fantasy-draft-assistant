@@ -1,6 +1,7 @@
-import type { OffensivePosition } from './model/position-residual-model.js';
+import { FLEX_GROUPS, OFFENSIVE_POSITIONS, type OffensivePosition } from '@fantasy-draft/shared/league';
 
-export const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
+/** deriveRosterRules counts only standard FLEX slots. */
+const FLEX_POSITIONS: readonly OffensivePosition[] = FLEX_GROUPS.standard;
 
 export const POSITION_MAXIMUMS: Readonly<Record<OffensivePosition, number>> = {
   QB: 4,
@@ -61,11 +62,15 @@ function cloneRosterWith<Player extends { position: OffensivePosition }>(
 }
 
 function flexEligibleCount<Player>(roster: OffensiveRoster<Player>): number {
-  return roster.RB.length + roster.WR.length + roster.TE.length;
+  return FLEX_POSITIONS.reduce((sum, position) => sum + roster[position].length, 0);
+}
+
+function fixedFlexStarters(rules: RosterRules): number {
+  return FLEX_POSITIONS.reduce((sum, position) => sum + rules.fixedStarters[position], 0);
 }
 
 function flexTarget(rules: RosterRules): number {
-  return rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE + rules.flexStarters;
+  return fixedFlexStarters(rules) + rules.flexStarters;
 }
 
 export function missingRequiredSlots<Player>(
@@ -76,7 +81,7 @@ export function missingRequiredSlots<Player>(
     (sum, position) => sum + Math.max(0, rules.fixedStarters[position] - roster[position].length),
     0
   );
-  const fixedFlexBase = rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE;
+  const fixedFlexBase = fixedFlexStarters(rules);
   const filledFlex = Math.min(rules.flexStarters, Math.max(0, flexEligibleCount(roster) - fixedFlexBase));
   return missingFixed + Math.max(0, rules.flexStarters - filledFlex);
 }
@@ -100,7 +105,7 @@ export function rosterAdjustedValue<Player extends { position: OffensivePosition
   rules: RosterRules
 ): number {
   const fixedNeed = roster[candidate.position].length < rules.fixedStarters[candidate.position];
-  const flexEligible = candidate.position === 'RB' || candidate.position === 'WR' || candidate.position === 'TE';
+  const flexEligible = FLEX_POSITIONS.includes(candidate.position);
   const flexNeed = flexEligible && flexEligibleCount(roster) < flexTarget(rules);
   const redundantMultiplier = candidate.position === 'QB' || candidate.position === 'TE'
     ? REDUNDANT_SINGLE_STARTER_MULTIPLIERS[candidate.position]

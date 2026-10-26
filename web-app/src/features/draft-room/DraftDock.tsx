@@ -7,31 +7,17 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { MotionCount, MotionExpandable } from '@/components/motion';
-import { WorkspacePanelSkeleton } from '@/components/skeletons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { DraftPlayerPool } from './DraftPlayerPool';
-
-const DraftSuggestions = React.lazy(() =>
-  import('./DraftSuggestions').then((module) => ({ default: module.DraftSuggestions }))
-);
-
-const DraftQueuePanel = React.lazy(() =>
-  import('./DraftQueuePanel').then((module) => ({ default: module.DraftQueuePanel }))
-);
-
-const DraftRosterPanel = React.lazy(() =>
-  import('./DraftRosterPanel').then((module) => ({ default: module.DraftRosterPanel }))
-);
+import { DraftQueuePanel } from './DraftQueuePanel';
+import { DraftRosterPanel } from './DraftRosterPanel';
+import { DraftSuggestions } from './DraftSuggestions';
 
 /** Matches the design system's xl breakpoint, where the roster becomes a sidebar. */
 const SPLIT_LAYOUT_QUERY = '(min-width: 80rem)';
-
-function WorkspacePanelLoading(): React.ReactElement {
-  return <WorkspacePanelSkeleton />;
-}
 
 function DockTab({
   value,
@@ -51,10 +37,13 @@ function DockTab({
 }
 
 export function DraftDock({
+  checklist,
   expanded: isExpanded,
   onExpandedChange,
   onOpenAssistant,
 }: {
+  /** Shown above the dock's columns, inside its frame, and kept while the dock is collapsed. */
+  readonly checklist?: React.ReactNode;
   readonly expanded: boolean;
   readonly onExpandedChange: (expanded: boolean) => void;
   readonly onOpenAssistant: (target: AssistantNavigationTarget) => void;
@@ -87,19 +76,13 @@ export function DraftDock({
   const secondaryPanels = (
     <>
       <TabsContent value="roster" className="draft-dock-panel">
-        <React.Suspense fallback={<WorkspacePanelLoading />}>
-          <DraftRosterPanel />
-        </React.Suspense>
+        <DraftRosterPanel />
       </TabsContent>
       <TabsContent value="queue" className="draft-dock-panel">
-        <React.Suspense fallback={<WorkspacePanelLoading />}>
-          <DraftQueuePanel />
-        </React.Suspense>
+        <DraftQueuePanel />
       </TabsContent>
       <TabsContent value="suggestions" className="draft-dock-panel">
-        <React.Suspense fallback={<WorkspacePanelLoading />}>
-          <DraftSuggestions onOpenAssistant={onOpenAssistant} />
-        </React.Suspense>
+        <DraftSuggestions onOpenAssistant={onOpenAssistant} />
       </TabsContent>
     </>
   );
@@ -108,6 +91,7 @@ export function DraftDock({
     <section className={cn('draft-dock', isSplit && 'is-split', !isExpanded && 'is-collapsed')} aria-label="Draft tools">
       <h2 className="sr-only">Draft workspace</h2>
       <p className="sr-only">Player pool ordered by {recommendationsBlocked ? RANKING_LABELS.long : output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player'}</p>
+      {checklist ? <div className="draft-dock-checklist">{checklist}</div> : null}
       {isSplit ? (
         <>
           <div className="draft-dock-pool">

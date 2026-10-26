@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 // @vitest-environment jsdom
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -12,15 +13,14 @@ import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { getDraftView } from '@/workspace/useDraftView';
-import { DraftDecisionBar } from './DraftDecisionBar';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
 const player: Player = {
   id: 'observed-receiver', name: 'Observed Receiver', position: 'WR', team: 'BUF',
-  byeWeek: 8, ecrRank: 1, positionalRank: 1, sleeperAdp: 1, valueScore: 0,
+  byeWeek: 8, ecrRank: asRank(1), positionalRank: asRank(1), sleeperAdp: 1, valueScore: 0,
   marketRank: 1, marketAdp: 1, marketAdpTrend: 0, isContractYear: false,
-  offensiveEnvironmentScore: 7, projectedPoints: 240, valueOverReplacement: 50,
-  tier: 1, tierDropoffScore: 0, nextPickSurvivalProbability: 0.5,
+  offensiveEnvironmentScore: 7, projectedPoints: 240, valueOverReplacement: asVor(50),
+  tier: 1, tierDropoffScore: 0, nextPickSurvivalProbability: asProbability(0.5),
   ceilingScore: 0, floorScore: 0, upsideScore: 0, uncertaintyScore: 0,
   injuryRiskScore: 0, predictionSource: 'heuristic', newsStatus: 'healthy',
   stackPartnerTeam: 'BUF', highlightLevel: 'neutral',
@@ -162,15 +162,6 @@ describe('ProvisionalPickDialog linear order', () => {
 
 describe('rendered linear turn timing', () => {
   it.each([
-    { currentPick: 5, expected: '1 picks away' },
-    { currentPick: 6, expected: 'Your turn' },
-  ])('shows decision-bar timing at linear pick $currentPick', ({ currentPick, expected }) => {
-    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
-    render(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
-    expect(container.textContent).toContain(expected);
-  });
-
-  it.each([
     { currentPick: 5, expected: 'Your pick in 1' },
     { currentPick: 6, expected: 'Your pick now' },
     { currentPick: 13, expected: 'Draft complete' },
@@ -191,11 +182,9 @@ describe('legacy auction presentation', () => {
     expect(store.getState().draftHistory[0]).toMatchObject({ pickNumber: 5, teamIndex: 3 });
   });
 
-  it('keeps the decision bar and Companion on nominal snake timing for auctions', () => {
+  it('keeps Companion on nominal snake timing for auctions', () => {
     store.getState().setConfig({ draftType: 'auction' });
-    render(createElement('div', null,
-      createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }), createElement(SidePanelPage)));
-    expect(container.textContent).toContain('2 picks away');
+    render(createElement(SidePanelPage));
     expect(container.textContent).toContain('Your pick in 2');
   });
 });

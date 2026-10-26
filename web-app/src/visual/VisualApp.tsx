@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { createWorkspace } from '@/workspace/workspace';
 import { DraftDataRefreshRequestContext } from '@/hooks/useDraftDataRefresh';
@@ -5,6 +6,7 @@ import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  FLEX_GROUPS,
   type NFLTeam,
   type Player,
   type Position,
@@ -20,6 +22,7 @@ import { MotionProvider } from '@/components/motion';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { NotificationProvider } from '@/components/notifications';
 import { AssistantPage } from '@/features/assistant/AssistantPage';
+import { AssistantSkeleton } from '@/features/assistant/AssistantLayout';
 import type { AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftBoard } from '@/features/draft-room/DraftBoard';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
@@ -31,6 +34,7 @@ import {
   DraftDecisionProvider,
 } from '@/features/recommendations/DraftDecisionContext';
 import { RosterSettings } from '@/features/roster-settings/RosterSettings';
+import { SidePanelSkeleton } from '@/features/sidepanel/SidePanelFrame';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import {
   PlayerDataFixtureProvider,
@@ -68,8 +72,8 @@ export const VISUAL_PLAYERS: readonly Player[] = PLAYER_FIXTURES.map(
     position: fixture.position,
     team: fixture.team,
     byeWeek: 6 + index % 8,
-    ecrRank: 47 + index,
-    positionalRank: 8 + index,
+    ecrRank: asRank(47 + index),
+    positionalRank: asRank(8 + index),
     sleeperAdp: 50 + index * 1.4,
     sleeperSearchRank: 50 + index,
     consensusAdp: 51 + index * 1.2,
@@ -81,13 +85,13 @@ export const VISUAL_PLAYERS: readonly Player[] = PLAYER_FIXTURES.map(
     contractEndYear: 2027,
     offensiveEnvironmentScore: 8.4 - index * 0.25,
     projectedPoints: 248 - index * 8.5,
-    valueOverReplacement: 64 - index * 4.5,
+    valueOverReplacement: asVor(64 - index * 4.5),
     tier: index < 4 ? 2 : index < 8 ? 3 : 4,
     fantasyProsTier: index < 4 ? 2 : index < 8 ? 3 : 4,
     tierSource: 'league-projection',
     tierDropoffScore: index === 3 || index === 7 ? 0.78 : 0.24,
     tierDropoffPoints: index === 3 || index === 7 ? 13.5 : 3.2,
-    nextPickSurvivalProbability: Math.max(0.14, 0.76 - index * 0.06),
+    nextPickSurvivalProbability: asProbability(Math.max(0.14, 0.76 - index * 0.06)),
     nextPickNumber: 56,
     nextPickLabel: '6.6',
     picksUntilNextPick: 10,
@@ -250,6 +254,13 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
   },
 };
 
+/** Player data still loading, for render checks of each loading state against its loaded fixture. */
+export const VISUAL_LOADING_PLAYER_DATA: PlayerDataQueryResult = {
+  ...VISUAL_PLAYER_DATA,
+  players: [],
+  isLoading: true,
+};
+
 function createFixtureHistory(): RecordedDraftPick[] {
   return Array.from({ length: 46 }, (_, index) => {
     const pickNumber = index + 1;
@@ -269,10 +280,27 @@ function createFixtureHistory(): RecordedDraftPick[] {
   });
 }
 
-export function createVisualDraftStore(): DraftStoreApi {
+/** `superflex` lets QBs fill the fixture league's FLEX slots, for render checks of superflex leagues. */
+type VisualLeague = 'standard' | 'superflex';
+
+export function getVisualLeague(search: string): VisualLeague {
+  return new URLSearchParams(search).get('league') === 'superflex' ? 'superflex' : 'standard';
+}
+
+export function createVisualDraftStore(league: VisualLeague = 'standard'): DraftStoreApi {
   const store = createDraftStore();
   const draftHistory = createFixtureHistory();
+  const { config } = store.getState();
   store.setState({
+    ...(league === 'superflex' ? {
+      config: {
+        ...config,
+        rosterRequirements: {
+          ...config.rosterRequirements,
+          FLEX: { ...config.rosterRequirements.FLEX, eligiblePositions: [...FLEX_GROUPS.superflex] },
+        },
+      },
+    } : {}),
     sessionMode: 'mock',
     draftProgress: { anchor: { kind: 'carry', pickNumber: 47 }, historyLength: draftHistory.length },
     draftHistory,
@@ -307,6 +335,7 @@ export type VisualRoute =
   | { readonly screen: 'mobile-draft'; readonly state: 'draft' }
   | { readonly screen: 'mobile-assistant'; readonly state: AssistantLens }
   | { readonly screen: 'readiness'; readonly state: 'blocked' | 'ready'; readonly refresh: VisualRefreshState }
+  | { readonly screen: 'loading'; readonly state: 'draft' | 'assistant' | 'sidepanel' }
   | { readonly screen: 'not-found'; readonly state: 'not-found' };
 
 export function getVisualRoute(pathname: string, search: string): VisualRoute {
@@ -331,6 +360,9 @@ export function getVisualRoute(pathname: string, search: string): VisualRoute {
       screen: 'mobile-assistant',
       state: state === 'compare' || state === 'roster' || state === 'why' ? state : 'wait',
     };
+  }
+  if (pathname === '/__visual/loading') {
+    return { screen: 'loading', state: state === 'assistant' || state === 'sidepanel' ? state : 'draft' };
   }
   if (pathname === '/__visual/readiness') {
     const refresh = new URLSearchParams(search).get('refresh');
@@ -407,6 +439,12 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
         </main>
       );
     }
+    case 'loading':
+      return route.state === 'draft'
+        ? <DraftWorkspaceFixture />
+        : route.state === 'assistant'
+          ? <><Header route="assistant" /><AssistantSkeleton analysisTab="wait" onReturnToDraft={() => undefined} /></>
+          : <SidePanelSkeleton />;
     case 'not-found':
       return <main className="p-4">Visual fixture not found.</main>;
   }
@@ -441,7 +479,7 @@ function VisualReadySignal(): null {
 }
 
 export function VisualApp(): React.ReactElement {
-  const [draftStore] = React.useState(createVisualDraftStore);
+  const [draftStore] = React.useState(() => createVisualDraftStore(getVisualLeague(window.location.search)));
   const [workspace] = React.useState(() => createWorkspace({ draftStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),
@@ -469,11 +507,12 @@ export function VisualApp(): React.ReactElement {
       <QueryClientProvider client={queryClient}>
         <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
           <WorkspaceProvider workspace={workspace}>
-            <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
+            <PlayerDataFixtureProvider value={route.screen === 'loading' ? VISUAL_LOADING_PLAYER_DATA : VISUAL_PLAYER_DATA}>
               <NotificationProvider>
                 <TooltipProvider><MotionProvider>
                   <LiveDraftSyncProvider>
-                    <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                    {/* Readiness has no sources until player data loads, so loading screens are also blocked. */}
+                    <DraftDecisionProvider readiness={route.screen === 'loading' ? VISUAL_BLOCKED_REPORT : VISUAL_READY_REPORT}>
                       <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
                         <VisualRouteContent route={route} />
                       </div>

@@ -8,4 +8,4 @@ declare global {
 }
 
 const storageActivation = typeof import.meta.env === 'undefined' ? undefined : import.meta.env.VITE_STORAGE_ACTIVATION;
-export const STORAGE_ACTIVATION_ENABLED = (storageActivation ?? 'v1') === 'idb';
+export const STORAGE_ACTIVATION_ENABLED = (storageActivation ?? 'idb') === 'idb';

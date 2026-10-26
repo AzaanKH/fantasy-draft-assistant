@@ -18,14 +18,14 @@ import type {
   VolumeLevel,
 } from '@fantasy-draft/shared/catalog';
 import { decodeTeamStatRows } from './script-file-schemas.js';
-import { NFL_TEAMS, isNFLTeam } from '@fantasy-draft/shared/league';
+import { currentSeason, NFL_TEAMS, isNFLTeam } from '@fantasy-draft/shared/league';
 import { io, runMain } from './effect-runtime.js';
 import { withMemoryDb } from './model/duckdb.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
 const OUTPUT_FILE = join(DATA_DIR, 'team-environment.json');
-const COMPLETED_SEASON = new Date().getFullYear() - 1;
+const COMPLETED_SEASON = currentSeason() - 1;
 const SOURCE_URL =
   `https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_reg_${COMPLETED_SEASON}.parquet`;
 

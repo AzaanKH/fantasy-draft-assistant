@@ -270,3 +270,19 @@ test.each([[0, false], [1, false], [0, true]])('the actual reachability orchestr
     expect(scenario.reachability.find(row => row.kind === 'slice').commands.map(cmd => cmd.playerId)).toEqual([actualCatalog[0].id, actualCatalog[75].id]);
   } else expect(pool.map(row => row.queued)).toEqual([false, true, false, true]);
 });
+
+test.each([
+  ['2027-02-28T23:59:59.999Z', 2026],
+  ['2027-03-01T00:00:00.000Z', 2027],
+  ['2026-12-31T16:00:00.000-08:00', 2026],
+])('readiness fixtures match the product NFL season at %s', async (timestamp, season) => {
+  const time = Date.parse(timestamp);
+  const fixture = buildReadinessFixture({ snapshot, identities: input[1], sleeper: input[3], catalog }, time);
+  expect.soft(fixture.files['/data/fantasypros-snapshot.json'].metadata.season).toBe(season);
+  expect.soft(fixture.files['/data/player-identity.json'].season).toBe(season);
+  expect.soft(fixture.files['/api/draft-data/current-keepers'].season).toBe(season);
+  const settings = JSON.parse(await readFile(new URL('../demo-data/primary-league-settings.json', import.meta.url), 'utf8'));
+  const files = { ...fixture.files, '/data/primary-league-settings.json': { ...settings, season, confirmedAt: fixture.timestamp } };
+  const report = await buildDraftReadinessReport(time, async path => ({ path, error: null, value: files[`/${path}`] ?? null }));
+  expect(report.productBlockingFailures.map(item => item.key)).toEqual(['primary-league-settings']);
+});

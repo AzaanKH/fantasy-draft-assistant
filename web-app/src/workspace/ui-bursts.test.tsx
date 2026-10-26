@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { currentSeason } from '@fantasy-draft/shared/league';
 import { act, createElement, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -22,7 +23,7 @@ vi.mock('@fantasy-draft/shared/sync', async importOriginal => ({ ...await import
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
 vi.mock('@/hooks/useLeagueTimingEvidence', () => ({ useLeagueTimingEvidence: () => ({ model: null, isLoading: false }) }));
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); });
-afterEach(() => { vi.unstubAllGlobals(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 const first = VISUAL_PLAYERS[0]; const second = VISUAL_PLAYERS[1];
 if (!first || !second) throw new Error('Missing player fixtures');
 async function owner() {
@@ -73,10 +74,13 @@ it('submits one reconciliation for an unchanged snapshot and retains its committ
   await raw.sendDurable(['setSessionMode', 'live']);
   await raw.sendDurable(['recordProvisionalPick', { pickNumber: 1, playerId: first.id, playerName: first.name, position: first.position, teamIndex: 0, teamName: 'My Team' }]);
   let calls = 0;
+  let release = () => {}; let committed = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const receiptCommitted = new Promise<void>(resolve => { committed = resolve; });
   const workspace = { ...raw, sendDurable: async (command: Parameters<typeof raw.sendDurable>[0]) => {
     if (command[0] === 'reconcileSyncedPicks') calls++;
     const receipt = await raw.sendDurable(command);
-    if (command[0] === 'reconcileSyncedPicks') await new Promise<void>(resolve => { setTimeout(resolve, 10); });
+    if (command[0] === 'reconcileSyncedPicks') { committed(); await gate; }
     return receipt;
   } };
   const snapshot: DraftSyncSnapshot = { provider: 'sleeper', draftId: '123', status: 'synced', draft: null, picks: [], lastSuccessfulSyncAt: 100, lastError: null, lastPolledAt: 100 };
@@ -85,11 +89,14 @@ it('submits one reconciliation for an unchanged snapshot and retains its committ
   const container = document.createElement('div'); const root = createRoot(container);
   try {
     act(() => { root.render(createElement(WorkspaceProvider, { workspace, children: createElement(Consumer) })); });
-    for (let attempt = 0; attempt < 5; attempt++) await act(async () => { await raw.sendDurable(['setSearchQuery', 'drain']); await new Promise<void>(resolve => { setTimeout(resolve, 10); }); });
+    await act(async () => { await receiptCommitted; await raw.sendDurable(['setSearchQuery', 'drain']); });
+    expect(calls).toBe(1);
+    await act(async () => { release(); await raw.sendDurable(['setSearchQuery', 'drain']); });
+    for (let attempt = 0; attempt < 5; attempt++) await act(async () => { await raw.sendDurable(['setSearchQuery', 'drain']); });
     expect(raw.draft.getState().draftHistory).toHaveLength(0);
     expect(sync?.reconciliationSummary?.removals).toHaveLength(1);
     expect(calls).toBe(1);
-  } finally { act(() => { root.unmount(); }); raw.dispose(); }
+  } finally { release(); act(() => { root.unmount(); }); raw.dispose(); }
 });
 
 
@@ -174,7 +181,7 @@ it('keeps stale queue clicks absolute and preserves the latest exact order after
 });
 
 it('settles bootstrap keeper preload when adopted sessions give player data new references', async () => {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updatedAt: '2026-01-01T00:00:00.000Z', season: new Date().getUTCFullYear(), keepers: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ updatedAt: '2026-01-01T00:00:00.000Z', season: currentSeason(), keepers: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
   const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
   const raw = createDurableWorkspace({ database, search: '', initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 } });
   await raw.sendDurable(['setSessionMode', 'live']);
@@ -188,13 +195,21 @@ it('settles bootstrap keeper preload when adopted sessions give player data new 
   }
   const container = document.createElement('div'); const root = createRoot(container);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  async function flush() {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+      await raw.sendDurable(['setSearchQuery', 'drain']);
+    });
+  }
   try {
     act(() => { root.render(createElement(QueryClientProvider, { client }, createElement(WorkspaceProvider, { workspace, children: createElement(Consumer) }))); });
-    for (let wait = 0; wait < 20; wait++) await act(async () => { await new Promise<void>(resolve => { setTimeout(resolve, 10); }); });
+    for (let round = 0; round < 20; round++) await flush();
     const settled = calls.mock.calls.filter(([command]) => command[0] === 'preloadKeepers').length;
-    for (let wait = 0; wait < 10; wait++) await act(async () => { await new Promise<void>(resolve => { setTimeout(resolve, 10); }); });
+    for (let round = 0; round < 10; round++) await flush();
     expect(workspace.status?.getState().pending).toBe(0);
     expect(calls.mock.calls.filter(([command]) => command[0] === 'preloadKeepers')).toHaveLength(settled);
+    expect(settled).toBeGreaterThan(0);
     expect(settled).toBeLessThanOrEqual(2);
-  } finally { act(() => { root.unmount(); }); raw.dispose(); }
+  } finally { act(() => { root.unmount(); }); raw.dispose(); client.clear(); }
 });

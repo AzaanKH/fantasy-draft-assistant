@@ -73,7 +73,8 @@ export async function runSmokeDriver(args = process.argv.slice(2), inputEnv = pr
   const sourceHashes = Object.fromEntries(tracked.map(file => [file, sha(readFileSync(path.join(root, file)))]));
   mkdirSync(out); const write = (name, value) => writeFileSync(path.join(out, name), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
   write('driver-preflight.json', { ...before, driverPid: process.pid, ci, unit: inputEnv.UI_SLOT_OWNER, scope: mode.scope, plan: mode.plan, sourceHashes, fullMatrixClaim: false, preflight: mode.preflight });
-  const env = { ...inputEnv, VITE_STORAGE_ACTIVATION: 'idb' };
+  const env = { ...inputEnv };
+  delete env.VITE_STORAGE_ACTIVATION;
   const unset = ['VITE_PERSISTENCE_HARNESS', 'VITE_DEMO_MODE', 'UI_SCENARIOS', 'UI_SUITES', 'UI_SEEDS', 'UI_COMMANDS_PER_ACTOR', 'UI_PICK_CONFLICTS', 'UI_MOVE_CONFLICTS', 'UI_BURSTS', 'UI_CONTROL', 'UI_LIFECYCLE', 'UI_BURST_PICKS'];
   for (const name of unset) delete env[name];
   let abort;

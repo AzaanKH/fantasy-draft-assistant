@@ -1,56 +1,101 @@
 {
   "cli/src/context.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 2
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "9cac0aee8f789bb295f73d9a65a1dd925f5db1b2b9694c8c91328f485e525c59",
+        "80135a9e049b1e6442b23e8e369a1ba00d5294ea17c4b321f84fd9a642293b26"
+      ]
     }
   },
   "cli/src/roster.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "26b114bbeead413ff0193cfcf61e7abb8a55f847150ceb5f6d6e2377ce6f2b18"
+      ]
+    }
+  },
+  "scripts/src/model/historical-snapshots.ts": {
+    "reason": "FantasyPros historical rankings label defenses 'DST', so this SQL list uses the source vocabulary rather than league positions.",
+    "occurrences": {
+      "agent/no-position-array": [
+        "e2d354cc4772a354e79e9c9900a504877c60f02dc506e1a45f0be11554565b6c"
+      ]
     }
   },
   "web-app/src/components/ui/badge.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "c3d72650a1a13e2e2704fab0df5fa7792876091eadfa3fe20ad28a1c73ca64b4"
+      ]
     }
   },
   "web-app/src/components/ui/dialog.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 7
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "415a21ff2a5b4edf991aac07c962f7cf6e666b89a1c0753da297224cffcf55b1",
+        "fd00fcc47aaf0dae8e1fd22d572eb06ce91c1295a3e38726e3bb5bf329ae39cf",
+        "fb031593d06f86bdfac666e776b8a55f882df042ac26bfc6d88bbf1cce28a0cc",
+        "55cfbfd2fa62ed74c3d16cd3ad6ace36ab32d404fc6c92bbde0cc48be1109d4c",
+        "4dd35c8f36b6cf265378a1446a293ed2018fd1f3523f25e709ba07752b5b2932",
+        "3490ad3c818a39e126acf5f2183c8a48bb5f9e368a2ca6a7cc63c000b9629674",
+        "9414eb5dd98bf5c2042e9bf3542f0882c1b5de8f1b7772e61f82ea9cdede92fe"
+      ]
     }
   },
   "web-app/src/components/ui/input.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "af7d67450c98b71f54cb0100ee17bd31eab6271dfa85270ad22914434bd4d3a5"
+      ]
     }
   },
   "web-app/src/components/ui/tabs.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 4
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "585e5dfe2290c4feaf5925733d5ce3f16285cea1df17e7bae67c1188755be524",
+        "f5f5427bf7c841c96eac671b8f423ef891d9d411bd2a0436c99df44439ab2c59",
+        "599755dbae6914a6bece5f20679a2652091322f5e6e77175bfaccff4493a38c9",
+        "2301cd260593b6ae2921a06bd4a576ecdb6a628a5be63793beafd0a6bfb72140"
+      ]
     }
   },
   "web-app/src/features/draft-room/DraftConnectionControl.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "c7b68ee6d5bbf32c3359e04731536a89a2d72ffe04f120345ba28b3c5e648320"
+      ]
     }
   },
   "web-app/src/hooks/useLeagueTimingEvidence.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 1
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "6472bee79d25d1c0f6f07bc885cc612e7eed2dd59869bfb2dba19f3c00bccefa"
+      ]
     }
   },
   "web-app/src/hooks/usePlayerData.ts": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "counts": {
-      "@typescript-eslint/explicit-module-boundary-types": 2
+    "occurrences": {
+      "@typescript-eslint/explicit-module-boundary-types": [
+        "56ad57af644a54021fec842617d30123bb584094711429939ba2a438f4667014",
+        "d41c01b4453edb9bb9e9b32b991ab979fe7373d34c94b7e0cb54091848be91b4"
+      ]
+    }
+  },
+  "web-app/src/visual/VisualApp.tsx": {
+    "reason": "The visual fixture cycles positions in a fixed display order; it is sample data, not a position group.",
+    "occurrences": {
+      "agent/no-position-array": [
+        "8ba86862d8bca191d15c95bf0e273826e9f910033d68507328e1b0280f9213f7"
+      ]
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import type { Root } from 'react-dom/client';
 import type { Workspace } from './workspace';
 import type { VerifiedStorageSharing } from './storage-sharing';
@@ -8,6 +8,51 @@ import { observeDurableWorkspace } from './ui-dispatch';
 
 type Controller = ReturnType<typeof createActivationStorage>;
 type Review = Extract<ActivationReview, { status: 'review' }>;
+
+function OpeningWorkspace({ database, controller, ready, activated }: {
+  readonly database: Awaited<ReturnType<Controller['activate']>>;
+  readonly controller: Controller;
+  readonly ready: (workspace: Workspace) => void;
+  readonly activated: boolean;
+}): ReactElement {
+  const [slow, setSlow] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const workspace = createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true });
+    let active = true;
+    let published = false;
+    const timer = window.setTimeout(() => { setSlow(true); }, 10_000);
+    void (async () => {
+      try {
+        await workspace.ready;
+        window.clearTimeout(timer);
+        if (!active) return;
+        setSlow(false);
+        published = true;
+        ready(observeDurableWorkspace(workspace));
+        if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
+      } catch (failure) {
+        window.clearTimeout(timer);
+        workspace.dispose();
+        if (!active) return;
+        controller.close();
+        setError(failure instanceof Error ? failure.message : String(failure));
+      }
+    })();
+    return () => { active = false; window.clearTimeout(timer); if (!published) workspace.dispose(); };
+  }, [database, controller, ready]);
+  if (error !== null) return activated
+    ? <main role="alert" className="mx-auto max-w-4xl space-y-5 p-6 text-foreground" data-storage-blocked="activated">
+      <p>Draft storage was activated, but the app couldn't open it. Reload the page to continue.</p><p>{error}</p>
+    </main>
+    : <main role="alert" data-storage-blocked="activation">Draft storage setup failed. Your v1 records remain retained. Reload the page to try again. {error}</main>;
+  return <main role="status" className="mx-auto max-w-4xl space-y-5 p-6 text-foreground">
+    {slow ? <>
+      <p>Still opening your draft storage. This usually means another draft tab is busy. Close other draft tabs or reload.</p>
+      <button type="button" className="rounded border px-4 py-2" onClick={() => { location.reload(); }}>Reload</button>
+    </> : activated ? 'Activating...' : 'Checking draft storage...'}
+  </main>;
+}
 
 function ReadOnlyDrafts({ review }: { readonly review: Review }): ReactElement {
   return <section aria-label="Saved drafts, read only" className="space-y-3">
@@ -27,12 +72,8 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
   const [closed, setClosed] = useState(false);
   const [pending, setPending] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [database, setDatabase] = useState<Awaited<ReturnType<Controller['activate']>> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const bind = (database: Awaited<ReturnType<Controller['activate']>>): void => {
-    const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
-    ready(workspace);
-    if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
-  };
   const choose = async (decision: ActivationDecision): Promise<void> => {
     setPending(true); setError(null);
     const next = [...decisions.filter(row => row.blockerId !== decision.blockerId), decision];
@@ -41,9 +82,11 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
     finally { setPending(false); }
   };
   const activate = async (): Promise<void> => {
-    if (!closed || pending || cancelled) return;
+    if (!closed || pending || cancelled || database !== null) return;
     setPending(true); setError(null);
-    try { bind(await controller.activate(decisions, { otherTabsClosed: true })); }
+    try {
+      setDatabase(await controller.activate(decisions, { otherTabsClosed: true }));
+    }
     catch (failure) {
       if (failure instanceof ActivationStaleError) {
         setDecisions([]); setClosed(false);
@@ -53,6 +96,7 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally { setPending(false); }
   };
+  if (database) return <OpeningWorkspace database={database} controller={controller} ready={ready} activated />;
   return <main className="mx-auto max-w-4xl space-y-5 p-6 text-foreground" data-storage-activation="review">
     <h1 className="text-2xl font-semibold">Draft storage setup</h1>
     <p>Your v1 draft data is read only while storage setup is open.</p>
@@ -98,12 +142,10 @@ export function showStorageActivation({ root, verified, ready }: { readonly root
     }
     const database = await controller.resume();
     if (database) {
-      const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
-      ready(workspace);
-      if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
+      root.render(<OpeningWorkspace database={database} controller={controller} ready={ready} activated={false} />);
       return;
     }
     const review = await controller.preflight();
     root.render(<ActivationSetup controller={controller} initial={review} ready={ready} />);
-  })().catch((error: unknown) => { controller.close(); root.render(<main role="alert" data-storage-blocked="activation">Draft storage setup failed. Your v1 records remain retained. {String(error)}</main>); });
+  })().catch((error: unknown) => { controller.close(); root.render(<main role="alert" data-storage-blocked="activation">Draft storage setup failed. Your v1 records remain retained. Reload the page to try again. {String(error)}</main>); });
 }

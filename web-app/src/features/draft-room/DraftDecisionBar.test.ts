@@ -1,9 +1,10 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { createDraftStore } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Recommendation,
   RecommendationDecisionFactors,
@@ -12,11 +13,14 @@ import { DraftDecisionBar } from './DraftDecisionBar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 
-vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => VISUAL_PLAYER_DATA }));
+vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ ...VISUAL_PLAYER_DATA, isLoading: decision.playersLoading }) }));
 
 const decision = vi.hoisted(() => ({
   output: { bestPick: null as Recommendation | null },
   isLoading: true,
+  recommendationsBlocked: false,
+  playersLoading: false,
+  readiness: null as unknown,
 }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => decision,
@@ -26,30 +30,54 @@ vi.mock('@/hooks/useQueueActions', () => ({
 }));
 
 describe('DraftDecisionBar loading', () => {
-  it.each([true, false])('keeps the settled pick visible while loading, compact=%s', (compact) => {
+  afterEach(() => { Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false, readiness: null }); });
+
+  it('keeps the settled pick visible while loading', () => {
     decision.output.bestPick = recommendation();
-    const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { compact, onOpenAssistant: vi.fn() })));
-    expect(markup).toContain(compact ? 'Why this pick' : 'Assistant');
+    const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() })));
+    expect(markup).toContain('Why this pick');
     expect(markup).toContain('Add Best Pick to the local queue');
   });
 
-  it('shows compact loading feedback and retains the full loading skeleton', () => {
+  it('reports loading, not a paused setup, while player data loads', () => {
     decision.output.bestPick = null;
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { compact: true, onOpenAssistant: vi.fn() }))).toContain('Finding your best pick');
-    expect(renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }))).toContain('Loading the current Best Pick');
+    decision.isLoading = false;
+    decision.recommendationsBlocked = true;
+    decision.playersLoading = true;
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain('Finding your best pick');
+    expect(markup).not.toContain('Paused until setup');
+  });
+
+  it.each([
+    ['loading', { isLoading: true }, 'Finding your best pick…'],
+    ['blocked', { isLoading: false, recommendationsBlocked: true }, 'Paused until setup is finished.'],
+    ['empty', { isLoading: false }, 'No pick available'],
+  ] as const)('keeps the %s status to one truncated line, so the bar height never changes', (_, state, message) => {
+    decision.output.bestPick = null;
+    Object.assign(decision, state);
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain(`<p class="min-w-0 truncate text-sm text-muted-foreground">${message}</p>`);
+  });
+
+  it('shows loading feedback in the same bar before the first pick', () => {
+    decision.output.bestPick = null;
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain('class="draft-best-pick-inline"');
+    expect(markup).toContain('Finding your best pick');
   });
 });
 
 function decisionFactors(): RecommendationDecisionFactors {
   return {
-    playerQuality: { ecrRank: 8, score: -8 },
+    playerQuality: { ecrRank: asRank(8), score: -8 },
     leagueValue: {
       score: 2,
       minScore: 0,
       maxScore: 6,
       projectedPoints: 240,
       replacementPoints: 200,
-      valueOverReplacement: 40,
+      valueOverReplacement: asVor(40),
       materiallyChangedOrdering: false,
     },
     rosterFit: {
@@ -95,13 +123,13 @@ function decisionFactors(): RecommendationDecisionFactors {
       nextPickNumber: 25,
       nextPickLabel: '3.05',
       picksUntilNextPick: 10,
-      returnProbability: 0.18,
+      returnProbability: asProbability(0.18),
       candidateValue: 40,
       costOfWaiting: 16.5,
       materiallyChangedOrdering: false,
     },
     conservativeBoundary: {
-      ecrRankLimit: 9,
+      ecrRankLimit: asRank(9),
       samePositionTier: false,
       withinBoundary: true,
       feasibilityException: false,
@@ -150,7 +178,7 @@ describe('getDraftDecisionBarReason', () => {
     const factors = decisionFactors();
     const pick = recommendation({
       ...factors,
-      leagueValue: { ...factors.leagueValue, valueOverReplacement: value },
+      leagueValue: { ...factors.leagueValue, valueOverReplacement: asVor(value) },
     });
     const signedValue = value > 0 ? `+${String(value)}` : String(value);
 

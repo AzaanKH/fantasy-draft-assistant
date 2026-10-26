@@ -1,3 +1,4 @@
+import { createStore } from 'zustand/vanilla';
 import { createDraftStore } from '@/stores/draftStore';
 import { isDraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import type { DraftState } from '@/stores/draft/types';
@@ -6,7 +7,7 @@ import {
   resolveInitialConnection, isDraftPosition, persistConnection, readStoredConnection,
   type PersistedDraftSyncConnection,
 } from '@/workspace/connection-hints';
-import { connectionReader, connectionHint, connectionPreferences, getConnection } from './connection';
+import { connectionHint, connectionPreferences, getConnection, type ConnectionQuery } from './connection';
 import type { WorkspaceCommand } from './commands';
 import { dispatchDraftCommand } from './dispatch-command';
 import { initialDraftState, stateFromSession, type DraftCommand } from './draft-reducer';
@@ -30,14 +31,22 @@ export function createDurableWorkspace({ database, search, initialConnection = r
   initialConnection?: PersistedDraftSyncConnection | null;
   resumeConfirmedConnection?: boolean;
   onError?: (error: unknown) => void;
-}): Omit<Workspace, 'sendDurable'> & { sendDurable: (command: WorkspaceCommand | DraftCommand) => Promise<DurableReceipt> } {
+}): Omit<Workspace, 'sendDurable'> & { readonly ready: Promise<void>; sendDurable: (command: WorkspaceCommand | DraftCommand) => Promise<DurableReceipt> } {
   const draft = createDraftStore({ storage: null });
-  const connection = connectionReader(draft, state => state.sessionMode === 'mock' && binding ? { ...binding.indexed.draft.getState(), connectionPreferences: state.connectionPreferences } : state);
+  const connection = createStore<ConnectionQuery>(() => ({ connection: getConnection(draft.getState()) }));
   const initial = resolveInitialConnection(search, initialConnection);
   let binding: Binding | null = null;
   let disposed = false;
   let memoryState: DraftState | null = null;
   const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('fantasy-draft-workspace-v2') : null;
+
+  function publishConnection(): void {
+    const state = draft.getState();
+    const next = getConnection(state.sessionMode === 'mock' && binding
+      ? { ...binding.indexed.draft.getState(), connectionPreferences: state.connectionPreferences } : state);
+    if (JSON.stringify(next) !== JSON.stringify(connection.getState().connection)) connection.setState({ connection: next }, true);
+  }
+  const unsubscribeConnection = draft.subscribe(publishConnection);
 
   let projected: string | undefined;
   function persistProjection(disconnect = false): void {
@@ -58,7 +67,9 @@ export function createDurableWorkspace({ database, search, initialConnection = r
     const indexed = createIndexedWorkspace({ database, identity, report: onError, closeDatabase: false, initialState: { ...state, connectionPreferences: undefined } });
     const next: Binding = { publishedRevision: -1, identity, indexed, seed: state, unsubscribe: () => {} };
     next.unsubscribe = indexed.draft.subscribe(value => {
-      if (!disposed && binding === next && draft.getState().sessionMode === 'live') draft.setState({ ...value, connectionPreferences: draft.getState().connectionPreferences });
+      if (disposed || binding !== next) return;
+      if (draft.getState().sessionMode === 'live') draft.setState({ ...value, connectionPreferences: draft.getState().connectionPreferences });
+      publishConnection();
     });
     binding = next;
   }
@@ -206,8 +217,9 @@ export function createDurableWorkspace({ database, search, initialConnection = r
   channel?.addEventListener('message', reread);
 
   return {
+    ready: initialized,
     draft: { getState: draft.getState, getInitialState: draft.getInitialState, subscribe: draft.subscribe },
-    connection,
+    connection: { getState: connection.getState, getInitialState: connection.getInitialState, subscribe: connection.subscribe },
     send: () => { throw new Error('Use sendDurable for an activated workspace'); },
     sendDurable,
     dispose: () => {
@@ -217,6 +229,7 @@ export function createDurableWorkspace({ database, search, initialConnection = r
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', visible);
       channel?.removeEventListener('message', reread);
       channel?.close();
+      unsubscribeConnection();
       releaseBinding();
       draft.dispose();
       database.close();

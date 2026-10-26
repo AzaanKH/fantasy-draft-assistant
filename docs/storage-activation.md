@@ -1,12 +1,22 @@
 # Activate durable draft storage and recover a rollback
 
-Production activation stays off by default. `VITE_STORAGE_ACTIVATION=idb` enables the activation path at build time. Deploy the main-compatible tombstone release before enabling activation for users. A localStorage setting or URL parameter cannot enable it.
+Production activation is on by default for the web app and extension. The main-compatible tombstone release is on main. The shared build-time switch defaults to `idb`; a localStorage setting or URL parameter cannot change it.
+
+The hosted static demo is an explicit v1 exception. `pnpm build:web:demo` and `pnpm dev:web:demo` set `VITE_STORAGE_ACTIVATION=v1`. HTTPS demo origins cannot share the canonical localhost app's storage and do not activate it.
+
+To build the v1 rollback release for both consumers, run:
+
+```sh
+VITE_STORAGE_ACTIVATION=v1 pnpm build
+```
+
+This build selects the v1 path without opening IndexedDB. It still honors an existing tombstone. Before users can write v1 again, complete the operator rollback export and verification below. Changing the build switch alone does not remove the marker.
 
 ## Activate a draft origin
 
 Activation first checks the canonical origin and extension storage sharing. It opens IndexedDB, writes and reads a probe, deletes the probe, and dry-runs the v1 import. Open, resume snapshot, and probe cleanup waits have a timeout. A timeout or unavailable store leaves the tombstone unwritten and the draft read-only in the setup flow.
 
-Review every invalid record, unresolved journal, rejected value, changed source, and prior refusal. Each decision binds to the exact raw bytes, incoming session, committed session, and comparison shown. A change invalidates the decision. Confirm that other draft tabs and extension side panels are closed.
+Review every invalid record, unresolved journal, rejected value, changed source, and prior refusal. Each decision binds to the exact raw bytes, incoming session, committed session, and comparison shown. A change invalidates the decision. Confirm that other draft tabs and extension side panels are closed. The pre-tombstone `8f1d26a` release cannot observe the marker and remains an unfenced writer under either build mode. The close-tabs confirmation mitigates that accepted Amendment 8 risk. The tombstone-aware main release freezes writes without changing saved bytes.
 
 The controller commits the imported sessions, retained raw source, decisions, and activation record in one IndexedDB transaction. Only after completion does it write `fantasy-draft-storage-migrated` and hand the database to the durable workspace. Normal reload resumes the committed database without another confirmation. A crash before the tombstone resumes the existing import instead of duplicating it.
 
@@ -56,8 +66,34 @@ If export writing was interrupted, retry `writeRollbackExport` with the recovere
 
 ## Soak before retiring v1 writers
 
-The rollout owner should require at least 14 consecutive days of successful activated use, including a complete live-draft rehearsal. Extend the period until every supported extension release has propagated through the store and its measured update lag has elapsed. Record the deployed versions, observation dates, and any active old clients.
+The soak clock starts when this default-on release is deployed. The rollout owner must record the deployment time and require at least 14 consecutive days of successful activated use, including a complete live-draft rehearsal. Extend the period until every supported extension release has propagated through the store and its measured update lag has elapsed. Record the deployed versions, observation dates, and any active old clients.
 
 Exit criteria are no unexplained acknowledged-write loss, no unresolved activation or rollback defects, passed final-head transaction and production UI gates, native hidden-to-visible recovery evidence, and an exact pinned-reader rollback rehearsal including journal accounting. Reset the soak after a storage correctness incident.
 
 Unit 11d owns v1 writer deletion. Delete the writer only after the rollout owner records those exit criteria and a supported recovery procedure. Continue honoring the tombstone for as long as an old cached tab or extension version can exist, including extension-store release lag. Do not expire the tombstone on a timer or delete retained IndexedDB and rollback artifacts as part of writer retirement.
+
+## Check native visibility recovery
+
+Native hidden-to-visible recovery is proven at `2eb3a06` on 2026-10-24. All five tab switches and all five minimize/restore trials retained the acknowledged write without a reload. Each tab-switch trial began a real IndexedDB read while visible and unfocused, before focus. Minimize/restore proves recovery; macOS focused the receiver naturally, so those trials do not isolate visibility from focus.
+
+Read the [round 2 evidence](../../artifacts/agent-friendly-plan/units/flip/native-visibility/round2/NATIVE-VISIBILITY.md), [trial results](../../artifacts/agent-friendly-plan/units/flip/native-visibility/round2/results.json), and [independent audit](../../artifacts/agent-friendly-plan/units/flip/native-visibility/round2/evidence-audit.json) in the operator's retained artifacts.
+
+The opt-in headed check is outside `pnpm verify`. Run it on macOS with the recorded Playwright 1.57 implementation and a fresh absolute output directory:
+
+```sh
+NATIVE_VISIBILITY_OUTPUT=/absolute/path/to/fresh-evidence pnpm --filter scripts exec tsx --conditions=@fantasy-draft/source ../scripts/persistence/native-visibility.mjs
+```
+
+The check disables focus emulation on Playwright's owning main-frame CDP session. Disabling it on an additional session leaves Playwright's override active and prevents native hiding. The private session access is version-specific. Recheck it before upgrading Playwright. The check preserves browser profiles and closes only its own browser contexts and static server.
+
+The check exits with failure if either five-trial path is incomplete or fails, a page error occurs, or cleanup fails. A partial native proof cannot return success.
+
+## Check the release default and rollback readers
+
+Run the opt-in production first-run proof on a clean committed head, with installed demo data and a fresh evidence directory:
+
+```sh
+FLIP_EXPECTED_HEAD=$(git rev-parse HEAD) FLIP_OUTPUT=/absolute/path/to/fresh-flip-evidence pnpm --filter scripts exec tsx --conditions=@fantasy-draft/source ../scripts/persistence/flip-first-run.mjs --browser-authorized
+```
+
+It seeds bytes from real `origin/main` and `8f1d26a` modules, checks read-only review and confirmation, verifies the import and tombstone, and checks reload recovery. It captures the production database and runs the real rollback exporter against an isolated copy. Both pinned old readers load and write that exact output, including journals. The v1 build also loads the rollback output and writes without opening IndexedDB. The proof records the pre-tombstone writer's unfenced behavior under both build modes. It does not remove a marker from the production origin.

@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DuckDBConnection } from '@duckdb/node-api';
+import { OFFENSIVE_POSITIONS, sqlPositionList } from '@fantasy-draft/shared/league';
 
 import {
   EXCLUDES_FANTASYPROS,
@@ -63,7 +64,7 @@ const FANTASYPROS_FREE_UNIVERSE_SQL = `insert into source.historical_snapshot_ra
           where fantasypros_id is not null and gsis_id is not null
         ) ids
           on ids.gsis_id = stats.player_id
-        where stats.position in ('QB', 'RB', 'WR', 'TE', 'K')
+        where stats.position in ${sqlPositionList([...OFFENSIVE_POSITIONS, 'K'])}
           and stats.fantasy_points_ppr is not null
       )
       select

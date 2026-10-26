@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { decodePredictionsDataFile } from '@fantasy-draft/shared/catalog';
-import { POSITIONS } from '@fantasy-draft/shared/league';
+import { OFFENSIVE_POSITIONS, POSITIONS } from '@fantasy-draft/shared/league';
 
 function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
   return Schema.StructWithRest(Schema.Struct(fields), [Schema.Record(Schema.String, Schema.Unknown)]);
@@ -266,7 +266,7 @@ const profilePosition = Schema.Struct({
 export const decodeProfilePositionRows = Schema.decodeUnknownSync(Schema.Array(profilePosition));
 
 const residualTrainingRow = Schema.Struct({
-  season: duckdbCount, position: Schema.Literals(['QB', 'RB', 'WR', 'TE']), target_residual: duckdbCount,
+  season: duckdbCount, position: Schema.Literals(OFFENSIVE_POSITIONS), target_residual: duckdbCount,
   trailing_pass_attempts_per_game_3yr: Schema.NullOr(duckdbCount),
   trailing_completion_percentage_above_expectation_3yr: Schema.NullOr(duckdbCount),
   trailing_pressure_rate_3yr: Schema.NullOr(duckdbCount),

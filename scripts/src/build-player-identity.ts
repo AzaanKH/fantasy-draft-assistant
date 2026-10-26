@@ -5,7 +5,7 @@ import type {
   NFLTeam,
   Position,
 } from '@fantasy-draft/shared/league';
-import { decodeFantasyProsSnapshot, decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
+import { READINESS_MINIMUMS, decodeFantasyProsSnapshot, decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
 import type {
   ECRPlayer,
   FantasyProsAdpPlayer,
@@ -22,9 +22,9 @@ type SleeperPlayer = ReturnType<typeof decodeSleeperDataFile>['players'][number]
 type FantasyProsPlayer = ECRPlayer | FantasyProsAdpPlayer;
 type MatchMethod = 'exact-name-team' | 'unique-name-position' | 'team-defense' | 'unmatched';
 
-const MIN_IDENTITY_RECORDS = 800;
-const MIN_RANKING_MATCH_RATE = 0.98;
-const EXPECTED_DEFENSES = 32;
+const MIN_IDENTITY_RECORDS = READINESS_MINIMUMS.identities;
+const MIN_RANKING_MATCH_RATE = READINESS_MINIMUMS.identityRankingMatchRate;
+const EXPECTED_DEFENSES = READINESS_MINIMUMS.defenses;
 
 const PLAYER_NAME_ALIASES: Readonly<Record<string, string>> = {
   hollywoodbrown: 'marquisebrown',

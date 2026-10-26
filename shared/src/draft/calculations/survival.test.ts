@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '../../units/brands.js';
 import { describe, expect, it } from 'vitest';
 import type { Player } from '../../player.js';
 import {
@@ -13,8 +14,8 @@ function createPlayer(overrides: Partial<Player> = {}): Player {
     position: 'QB',
     team: 'BAL',
     byeWeek: 7,
-    ecrRank: 38,
-    positionalRank: 6,
+    ecrRank: asRank(38),
+    positionalRank: asRank(6),
     sleeperAdp: 40,
     valueScore: 2,
     marketRank: 40,
@@ -23,10 +24,10 @@ function createPlayer(overrides: Partial<Player> = {}): Player {
     isContractYear: false,
     offensiveEnvironmentScore: 7,
     projectedPoints: 250,
-    valueOverReplacement: 20,
+    valueOverReplacement: asVor(20),
     tier: 1,
     tierDropoffScore: 0.8,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 9,
     floorScore: 7,
     upsideScore: 8,
@@ -387,7 +388,7 @@ describe('estimateLeagueSurvivalProbability', () => {
     expect(far.historicalExpectedPick).toBeUndefined();
     expect(far.survivalModelSampleSize).toBeUndefined();
     // Reusing a previously adjusted player must not retain its old probability.
-    expect(estimateLeagueSurvivalProbability({ ...player, nextPickSurvivalProbability: 0.01 }, null,
+    expect(estimateLeagueSurvivalProbability({ ...player, nextPickSurvivalProbability: asProbability(0.01) }, null,
       context).nextPickSurvivalProbability).toBe(near.nextPickSurvivalProbability);
   });
 

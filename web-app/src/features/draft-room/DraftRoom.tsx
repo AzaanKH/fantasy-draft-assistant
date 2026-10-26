@@ -1,12 +1,11 @@
 import { useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
 import * as React from 'react';
-import { RouteSkeleton } from '@/components/skeletons';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { MockDraftControls } from '@/features/draft-board/MockDraftControls';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
-import { DraftReadinessBlockedNotice } from './DraftReadinessBlockedNotice';
+import { DraftReadinessBlockedNotice, hasReadinessBlockers } from './DraftReadinessBlockedNotice';
 import { DraftWorkspace } from './DraftWorkspace';
 import { useLiveDraftSync } from './LiveDraftSyncProvider';
 import { ManualContinuityControl } from './ManualContinuityControl';
@@ -24,16 +23,14 @@ export function DraftRoom({
   const { sync } = useLiveDraftSync();
   const config = useDraftState((state) => state.config);
   const { readiness, recommendationsBlocked } = useDraftDecision();
-  if (isLoading) {
-    return <RouteSkeleton route="draft" />;
-  }
 
+  // While player data loads, the workspace itself is the loading state; notices wait for the data they describe.
   return (
     <DraftWorkspace
       onOpenAssistant={onOpenAssistant}
-      notices={(
+      setupChecklist={!isLoading && recommendationsBlocked && readiness && hasReadinessBlockers(readiness) ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
+      notices={isLoading ? null : (
         <>
-          {recommendationsBlocked && readiness ? <DraftReadinessBlockedNotice readiness={readiness} /> : null}
           {sessionMode === 'live' && sync.reconciliationSummary ? (
             <ReconciliationSummary
               summary={sync.reconciliationSummary}

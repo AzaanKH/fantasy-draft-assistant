@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   POSITIONS,
@@ -23,8 +24,8 @@ const players: Player[] = Array.from({ length: 600 }, (_, index) => {
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank: rank,
-    positionalRank: rank,
+    ecrRank: asRank(rank),
+    positionalRank: asRank(rank),
     sleeperAdp: rank + 4,
     valueScore: 4,
     marketRank: rank + 4,
@@ -33,11 +34,11 @@ const players: Player[] = Array.from({ length: 600 }, (_, index) => {
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints: 300 - rank * 0.2,
-    valueOverReplacement: Math.max(0, 110 - rank * 0.18),
+    valueOverReplacement: asVor(Math.max(0, 110 - rank * 0.18)),
     tier: Math.floor(index / 50) + 1,
     tierDropoffScore: 0.8,
     nextPickNumber: 65,
-    nextPickSurvivalProbability: Math.max(0.05, 1 - rank / 700),
+    nextPickSurvivalProbability: asProbability(Math.max(0.05, 1 - rank / 700)),
     ceilingScore: 7,
     floorScore: 6,
     upsideScore: 6,
