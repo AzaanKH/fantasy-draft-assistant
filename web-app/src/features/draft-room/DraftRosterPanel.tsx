@@ -3,11 +3,12 @@ import { useDraftView } from '@/workspace/useDraftView';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
+import { SkeletonText } from '@/components/skeletons';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getRosterSlots } from './roster-slots';
 
 export function DraftRosterPanel(): React.ReactElement {
-  const { players } = usePlayerDataQuery();
+  const { players, isLoading } = usePlayerDataQuery();
   const myRoster = useDraftView((view) => view.myRoster);
   const config = useDraftState((state) => state.config);
   const draftHistory = useDraftState((state) => state.draftHistory);
@@ -51,7 +52,9 @@ export function DraftRosterPanel(): React.ReactElement {
                   />
                   <span className="min-w-0 flex-1">
                     <span className="draft-roster-name">{name}</span>
-                    {details || slot.label === 'FLEX' || slot.label === 'BN' ? (
+                    {isLoading ? (
+                      <span className="draft-roster-meta"><SkeletonText className="w-24" /></span>
+                    ) : details || slot.label === 'FLEX' || slot.label === 'BN' ? (
                       <span className="draft-roster-meta">
                         {[slot.label === 'FLEX' || slot.label === 'BN' ? position : null, details]
                           .filter(Boolean)

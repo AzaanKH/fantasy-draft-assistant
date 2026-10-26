@@ -1,0 +1,131 @@
+/* Generated from docs/design-system/tokens.json by `pnpm tokens:write`. Edit tokens.json, then regenerate web-app/src/design-tokens.css. */
+:root {
+  --motion-duration-instant: 0ms;
+  --motion-duration-feedback: 150ms;
+  --motion-duration-content: 210ms;
+  --motion-duration-layout: 280ms;
+  --motion-duration-exit: 100ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Night palette, shared by the dark theme and the always-dark board. */
+  --night-background: #05091E;
+  --night-surface: #141B38;
+  --night-raised: #1C2643;
+  --night-inset: #0B1027;
+  --night-border: #34415E;
+  --night-text: #FFFFFF;
+  --night-text-muted: #A5B3CB;
+  --night-accent: #03FFFA;
+  --night-accent-hover: #5CFFFC;
+  --night-accent-subtle: #0A3447;
+  --night-ink: #051827;
+  --night-success: #49E8CC;
+  --night-warning: #FDE047;
+  --night-danger: #FF8A97;
+
+  color-scheme: light;
+}
+
+@theme {
+  /* Light theme. The dark theme below uses the night palette. */
+  --color-background: #f3f5f3;
+  --color-foreground: #24382e;
+  --color-card: #fff;
+  --color-card-foreground: #24382e;
+  --color-popover: #fff;
+  --color-popover-foreground: #24382e;
+  --color-primary: #245944;
+  --color-primary-foreground: #fff;
+  --color-secondary: #e7eee9;
+  --color-secondary-foreground: #24382e;
+  --color-muted: #e7eee9;
+  --color-muted-foreground: #647369;
+  --color-accent: #e7eee9;
+  --color-accent-foreground: #24382e;
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-destructive-foreground: oklch(0.99 0 0);
+  --color-border: #d7e0da;
+  --color-input: #d7e0da;
+  --color-ring: #245944;
+
+  /* Design-system surfaces and draft states. */
+  --color-surface: #fff;
+  --color-surface-raised: #e7eee9;
+  --color-surface-inset: #f8faf8;
+  --color-primary-hover: #2d6e54;
+  --color-primary-subtle: #e1efe8;
+  --color-on-clock: #FDE047;
+  --color-timer: #FCD0CC;
+  --color-position-qb: #FF80AD;
+  --color-position-rb: #49E8CC;
+  --color-position-wr: #4AD0EE;
+  --color-position-te: #FFAF16;
+  --color-position-k: #B5A3FF;
+  --color-position-def: #B4C2D9;
+  --color-position-ink: #051827;
+  --color-success: #1d7a5f;
+  --color-warning: #8a6a00;
+  --color-danger: #b4232f;
+  --color-paused: #4f55c9;
+  --color-keeper: #6a52d6;
+
+  /* Draft-specific colors */
+  --color-strong-buy: oklch(0.723 0.191 142.495);
+  --color-good-value: oklch(0.795 0.184 86.047);
+  --color-neutral: oklch(0.922 0 0);
+  --color-avoid: oklch(0.577 0.245 27.325);
+
+  --font-sans: "DM Sans", sans-serif;
+  --font-display: "Barlow Condensed", sans-serif;
+  --tracking-label: 0.04em;
+  --container-sidebar: 360px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 0.75rem;
+  --radius-pill: 999px;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-background: var(--night-background);
+  --color-foreground: var(--night-text);
+  --color-card: var(--night-surface);
+  --color-card-foreground: var(--night-text);
+  --color-popover: var(--night-raised);
+  --color-popover-foreground: var(--night-text);
+  --color-primary: var(--night-accent);
+  --color-primary-foreground: var(--night-ink);
+  --color-secondary: var(--night-raised);
+  --color-secondary-foreground: var(--night-text);
+  --color-muted: var(--night-raised);
+  --color-muted-foreground: var(--night-text-muted);
+  --color-accent: var(--night-raised);
+  --color-accent-foreground: var(--night-text);
+  --color-destructive: var(--night-danger);
+  --color-destructive-foreground: var(--night-ink);
+  --color-border: var(--night-border);
+  --color-input: var(--night-border);
+  --color-ring: var(--night-accent);
+
+  --color-surface: var(--night-surface);
+  --color-surface-raised: var(--night-raised);
+  --color-surface-inset: var(--night-inset);
+  --color-primary-hover: var(--night-accent-hover);
+  --color-primary-subtle: var(--night-accent-subtle);
+  --color-success: var(--night-success);
+  --color-warning: var(--night-warning);
+  --color-danger: var(--night-danger);
+  --color-paused: #A6AAFF;
+  --color-keeper: #B5A3FF;
+
+  /* Existing positive-state accents share the primary cyan range. */
+  --color-emerald-300: #5CFFFC;
+  --color-emerald-500: #03FFFA;
+  --color-emerald-600: #00D9D5;
+  --color-emerald-700: #00AAA8;
+  --color-emerald-800: #0A5C6A;
+  --color-emerald-950: #0A3447;
+}

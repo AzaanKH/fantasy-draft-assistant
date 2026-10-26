@@ -21,7 +21,13 @@ Paper reported: "Weekly MCP limit reached. It resets tomorrow." The quota stoppe
 - `preview.html` renders the completed 1600px desktop and 390px compact compositions.
 - `pending-paper-import.json` contains the remaining incremental Paper operations, including a new compact artboard.
 - `tokens.json` contains the exact token names, types, values and descriptions saved in Paper.
-- `tokens.css` contains equivalent Tailwind v4 theme variables.
+- `tokens.css` contains equivalent Tailwind v4 theme variables. It is generated from `tokens.json`.
+
+## Token source
+
+`tokens.json` is the only place a token value is written. Its `tokens` list holds the Paper tokens. Its `web` section holds the web app's light theme, dark theme and night palette. A value in braces, such as `{--color-primary}`, reuses the Paper token of that name, so a Paper value appears once.
+
+`pnpm tokens:write` regenerates `tokens.css` and `web-app/src/design-tokens.css`, which `web-app/src/index.css` imports. Do not edit either generated file. `pnpm tokens:check` fails when a generated file differs from `tokens.json`. `pnpm verify` runs it.
 
 The local preview is static. Player data reflects the reference mock draft; it is not a live data feed. Its controls illustrate states and do not draft, resume, queue or change league settings.
 

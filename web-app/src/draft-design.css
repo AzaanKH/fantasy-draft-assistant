@@ -249,12 +249,12 @@ button,input,select {
 .position-text[data-position=DEF] { color: var(--position-def-ink, var(--color-position-def)); }
 /* Position hues are tuned for the night palette; darken them for text on light surfaces. */
 :root:not(.dark) {
-  --position-qb-ink: color-mix(in oklab, var(--color-position-qb) 55%, #051827);
-  --position-rb-ink: color-mix(in oklab, var(--color-position-rb) 45%, #051827);
-  --position-wr-ink: color-mix(in oklab, var(--color-position-wr) 45%, #051827);
-  --position-te-ink: color-mix(in oklab, var(--color-position-te) 50%, #051827);
-  --position-k-ink: color-mix(in oklab, var(--color-position-k) 55%, #051827);
-  --position-def-ink: color-mix(in oklab, var(--color-position-def) 45%, #051827);
+  --position-qb-ink: color-mix(in oklab, var(--color-position-qb) 55%, var(--color-position-ink));
+  --position-rb-ink: color-mix(in oklab, var(--color-position-rb) 45%, var(--color-position-ink));
+  --position-wr-ink: color-mix(in oklab, var(--color-position-wr) 45%, var(--color-position-ink));
+  --position-te-ink: color-mix(in oklab, var(--color-position-te) 50%, var(--color-position-ink));
+  --position-k-ink: color-mix(in oklab, var(--color-position-k) 55%, var(--color-position-ink));
+  --position-def-ink: color-mix(in oklab, var(--color-position-def) 45%, var(--color-position-ink));
 }
 .draft-workspace .draft-pill-action { min-width: 64px; border-radius: var(--radius-sm); font-weight: 700; }
 @media (hover: hover) and (pointer: fine) { .draft-workspace .draft-pill-action:hover:not(:disabled) { background: var(--color-primary-hover); } }

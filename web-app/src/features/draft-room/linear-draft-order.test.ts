@@ -13,7 +13,6 @@ import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { getDraftView } from '@/workspace/useDraftView';
-import { DraftDecisionBar } from './DraftDecisionBar';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
 const player: Player = {
@@ -163,15 +162,6 @@ describe('ProvisionalPickDialog linear order', () => {
 
 describe('rendered linear turn timing', () => {
   it.each([
-    { currentPick: 5, expected: '1 picks away' },
-    { currentPick: 6, expected: 'Your turn' },
-  ])('shows decision-bar timing at linear pick $currentPick', ({ currentPick, expected }) => {
-    store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
-    render(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
-    expect(container.textContent).toContain(expected);
-  });
-
-  it.each([
     { currentPick: 5, expected: 'Your pick in 1' },
     { currentPick: 6, expected: 'Your pick now' },
     { currentPick: 13, expected: 'Draft complete' },
@@ -192,11 +182,9 @@ describe('legacy auction presentation', () => {
     expect(store.getState().draftHistory[0]).toMatchObject({ pickNumber: 5, teamIndex: 3 });
   });
 
-  it('keeps the decision bar and Companion on nominal snake timing for auctions', () => {
+  it('keeps Companion on nominal snake timing for auctions', () => {
     store.getState().setConfig({ draftType: 'auction' });
-    render(createElement('div', null,
-      createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }), createElement(SidePanelPage)));
-    expect(container.textContent).toContain('2 picks away');
+    render(createElement(SidePanelPage));
     expect(container.textContent).toContain('Your pick in 2');
   });
 });
