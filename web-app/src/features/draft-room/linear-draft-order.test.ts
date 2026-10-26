@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 // @vitest-environment jsdom
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -17,10 +18,10 @@ import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 
 const player: Player = {
   id: 'observed-receiver', name: 'Observed Receiver', position: 'WR', team: 'BUF',
-  byeWeek: 8, ecrRank: 1, positionalRank: 1, sleeperAdp: 1, valueScore: 0,
+  byeWeek: 8, ecrRank: asRank(1), positionalRank: asRank(1), sleeperAdp: 1, valueScore: 0,
   marketRank: 1, marketAdp: 1, marketAdpTrend: 0, isContractYear: false,
-  offensiveEnvironmentScore: 7, projectedPoints: 240, valueOverReplacement: 50,
-  tier: 1, tierDropoffScore: 0, nextPickSurvivalProbability: 0.5,
+  offensiveEnvironmentScore: 7, projectedPoints: 240, valueOverReplacement: asVor(50),
+  tier: 1, tierDropoffScore: 0, nextPickSurvivalProbability: asProbability(0.5),
   ceilingScore: 0, floorScore: 0, upsideScore: 0, uncertaintyScore: 0,
   injuryRiskScore: 0, predictionSource: 'heuristic', newsStatus: 'healthy',
   stackPartnerTeam: 'BUF', highlightLevel: 'neutral',

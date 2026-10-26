@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { BACKTESTS_MODEL_DIR, DATA_DIR, REPO_ROOT, sqlString } from './model/duckdb.js';
+import { OFFENSIVE_POSITIONS, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
 import {
   ageBucket,
   evaluateContractReleaseGate,
@@ -21,7 +22,6 @@ import {
   predictionBreakdown,
   type ExpectedRole,
   type ModelPrediction,
-  type OffensivePosition,
   type PlayerSeasonRow,
   type SeasonComparison,
 } from './contract-year-backtest-core.js';
@@ -72,7 +72,7 @@ function asNumber(value: number | bigint | null): number {
 }
 
 function isPosition(value: string): value is OffensivePosition {
-  return value === 'QB' || value === 'RB' || value === 'WR' || value === 'TE';
+  return OFFENSIVE_POSITIONS.some((position) => position === value);
 }
 
 function isExpectedRole(value: string): value is ExpectedRole {
@@ -137,7 +137,7 @@ async function loadPlayerSeasons(): Promise<PlayerSeasonRow[]> {
           max(target_share)::double as target_share
         from read_parquet(${sqlList(statsUrls(statsSeasons))}, union_by_name = true)
         where season_type = 'REG'
-          and position in ('QB', 'RB', 'WR', 'TE')
+          and position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
           and player_id is not null
         group by season, player_id
       ),
@@ -153,7 +153,7 @@ async function loadPlayerSeasons(): Promise<PlayerSeasonRow[]> {
           any_value(birth_date)::date as birth_date
         from read_parquet(${sqlList(rosterUrls(rosterSeasons))}, union_by_name = true)
         where game_type = 'REG'
-          and position in ('QB', 'RB', 'WR', 'TE')
+          and position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
           and gsis_id is not null
         group by season, gsis_id
       ),

@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { createWorkspace, type Workspace } from '@/workspace/workspace';
 import { getDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -129,8 +130,8 @@ function createPlayer(
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank,
-    positionalRank,
+    ecrRank: asRank(ecrRank),
+    positionalRank: asRank(positionalRank),
     sleeperAdp: ecrRank + 2,
     consensusAdp: ecrRank + 1,
     valueScore: 1,
@@ -140,12 +141,12 @@ function createPlayer(
     isContractYear: false,
     offensiveEnvironmentScore: 6,
     projectedPoints,
-    valueOverReplacement,
+    valueOverReplacement: asVor(valueOverReplacement),
     tier: Math.ceil(positionalRank / 6),
     tierSource: 'league-projection',
     tierDropoffScore: positionalRank % 6 === 0 ? 0.8 : 0.2,
     tierDropoffPoints: positionalRank % 6 === 0 ? 8 : 2,
-    nextPickSurvivalProbability: Math.max(0.05, 0.82 - ecrRank / 220),
+    nextPickSurvivalProbability: asProbability(Math.max(0.05, 0.82 - ecrRank / 220)),
     ceilingScore: 8,
     floorScore: 6,
     upsideScore: 7,

@@ -1,3 +1,4 @@
+import { asProbability } from '@fantasy-draft/shared/units';
 import { IDBFactory, IDBRequest, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { describe, expect, it, vi } from 'vitest';
 import { openDraftDatabase } from './indexed-db';
@@ -80,7 +81,7 @@ describe('transactional workspace', () => {
     await reader.send('setMockSettings', { randomness: 0.75 });
     await reader.send('setMockAutoAdvancePaused', true);
     await reader.send('setMockSettingsOpen', true);
-    await reader.send('setMockSurvivalProbabilities', { qb: 0.5 });
+    await reader.send('setMockSurvivalProbabilities', { qb: asProbability(0.5) });
     expect(await database.read(identity)).toEqual(before);
     expect(channel.postMessage).not.toHaveBeenCalled();
     const { workspace: writer } = await setup(factory);

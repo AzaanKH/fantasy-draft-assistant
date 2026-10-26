@@ -1,4 +1,5 @@
 import { createSlotSequence, type SlotRef } from '../../draft-order.js';
+import { asProbability, type Probability } from '../../units/brands.js';
 import { type DraftType } from '../../sync.js';
 import { type Player, type Position } from '../../player.js';
 
@@ -188,16 +189,16 @@ function getConditionalSurvivalProbability(
   scale: number,
   currentPick: number,
   nextPick: number
-): number {
+): Probability {
   // P(available at next | available now) = (1 - F(next)) / (1 - F(current)).
   // Divide in log space so far-past-ADP players do not underflow to 0 / 0.
   const logStillAvailableAtCurrentPick = -softplus((currentPick - expectedPick) / scale);
   const logStillAvailableAtNextPick = -softplus((nextPick - expectedPick) / scale);
-  return round(clamp(
+  return asProbability(round(clamp(
     Math.exp(logStillAvailableAtNextPick - logStillAvailableAtCurrentPick),
     0.03,
     0.97
-  ), 2);
+  ), 2));
 }
 
 function withHeuristicSurvivalSource(
@@ -213,7 +214,7 @@ function withHeuristicSurvivalSource(
     : consensusMarketPick * 0.95 + sleeperTimingPick * 0.05;
   return {
     ...player,
-    nextPickSurvivalProbability: nextPick === null ? 1 : getConditionalSurvivalProbability(
+    nextPickSurvivalProbability: nextPick === null ? asProbability(1) : getConditionalSurvivalProbability(
       expectedPick,
       expectedPick <= 60 ? 7 : 11,
       context.currentPick,

@@ -1,6 +1,4 @@
-export const OFFENSIVE_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
-
-export type OffensivePosition = (typeof OFFENSIVE_POSITIONS)[number];
+import type { OffensivePosition } from '@fantasy-draft/shared/league';
 
 export const POSITION_FEATURES = {
   QB: [

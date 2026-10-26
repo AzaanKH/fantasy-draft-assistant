@@ -1,15 +1,16 @@
+import { asRank } from '@fantasy-draft/shared/units';
 import { describe, expect, it } from 'vitest';
 
 import { buildPositionTiers, isTierDepleted, type TierPlayer } from './assistant-tiers';
 
 const rb = (id: string, tier: number, ecrRank: number): TierPlayer => ({
-  id, name: `Back ${id}`, position: 'RB', team: 'DET', tier, ecrRank,
+  id, name: `Back ${id}`, position: 'RB', team: 'DET', tier, ecrRank: asRank(ecrRank),
 });
 const players: readonly TierPlayer[] = [
   rb('a', 1, 1), rb('b', 1, 2),
   rb('c', 2, 5), rb('d', 2, 4), rb('e', 2, 8), rb('f', 2, 9), rb('g', 2, 10), rb('h', 2, 11),
   rb('i', 3, 20),
-  { id: 'wr', name: 'Receiver', position: 'WR', team: 'CIN', tier: 1, ecrRank: 3 },
+  { id: 'wr', name: 'Receiver', position: 'WR', team: 'CIN', tier: 1, ecrRank: asRank(3) },
 ];
 const drafted = new Set(['a', 'b', 'e', 'f', 'g', 'h']);
 

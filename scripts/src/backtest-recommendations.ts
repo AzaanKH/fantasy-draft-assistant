@@ -18,9 +18,12 @@ import {
   connectModelDb,
 } from './model/duckdb.js';
 import {
+  FLEX_GROUPS,
+  OFFENSIVE_POSITIONS,
   calculateLeagueScoringAdjustment,
   getHistoricalLeagueScoringAdjustments,
-} from './model/league-scoring.js';
+  type OffensivePosition,
+} from '@fantasy-draft/shared/league';
 import {
   POSITION_FEATURES,
   POSITION_MODEL_CANDIDATE_SET_VERSION,
@@ -31,7 +34,6 @@ import {
   fitPositionResidualModelForSeason,
   MIN_TRAINING_ROWS,
   predictPositionResidual,
-  type OffensivePosition,
   type PositionResidualRow,
 } from './model/position-residual-model.js';
 import {
@@ -47,7 +49,6 @@ import {
   deriveRosterRules,
   isLegalCandidate as isLegalOffensiveCandidate,
   missingRequiredSlots,
-  OFFENSIVE_POSITIONS,
   POSITION_MAXIMUMS,
   rosterAdjustedValue,
   type OffensiveRoster,
@@ -196,7 +197,7 @@ function pickEvRequirements(rules: RosterRules): RosterRequirements {
     RB: { starters: rules.fixedStarters.RB, max: POSITION_MAXIMUMS.RB },
     WR: { starters: rules.fixedStarters.WR, max: POSITION_MAXIMUMS.WR },
     TE: { starters: rules.fixedStarters.TE, max: POSITION_MAXIMUMS.TE },
-    FLEX: { starters: rules.flexStarters, eligiblePositions: ['RB', 'WR', 'TE'] },
+    FLEX: { starters: rules.flexStarters, eligiblePositions: [...FLEX_GROUPS.standard] },
     K: { starters: 0, max: 0 },
     DEF: { starters: 0, max: 0 },
     BENCH: { spots: Math.max(0, rules.totalOffensiveSlots - fixedSlots - rules.flexStarters) },

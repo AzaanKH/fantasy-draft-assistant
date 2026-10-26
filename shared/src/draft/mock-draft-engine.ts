@@ -1,6 +1,8 @@
 import { createSlotSequence, type SlotRef } from '../draft-order.js';
 import { type DraftType } from '../sync.js';
-import { type Player, type Position } from '../player.js';
+import { type Player } from '../player.js';
+import { OFFENSIVE_POSITIONS, isFlexEligible, type Position } from '../league/positions.js';
+import { asProbability, type Probability } from '../units/brands.js';
 import { type RosterRequirements } from '../draft.js';
 
 type MockPickSource = 'manual' | 'cpu' | 'keeper' | 'sync' | 'provisional';
@@ -95,9 +97,6 @@ export interface SimulatedMockPick extends MockDraftPickLike {
 
 type PositionCounts = Record<Position, number>;
 
-const FLEX_POSITIONS: readonly Position[] = ['RB', 'WR', 'TE'];
-const OFFENSIVE_POSITIONS: readonly Position[] = ['QB', 'RB', 'WR', 'TE'];
-
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -177,6 +176,20 @@ function totalRostered(counts: PositionCounts): number {
   return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
 
+/** Fixed starters and rostered players at the league's FLEX-eligible positions. */
+function countFlexEligible(
+  counts: PositionCounts,
+  requirements: RosterRequirements
+): { readonly fixedFlexBase: number; readonly flexRostered: number } {
+  let fixedFlexBase = 0;
+  let flexRostered = 0;
+  for (const position of requirements.FLEX.eligiblePositions) {
+    fixedFlexBase += requirements[position].starters;
+    flexRostered += counts[position];
+  }
+  return { fixedFlexBase, flexRostered };
+}
+
 function missingRequiredSlots(
   counts: PositionCounts,
   requirements: RosterRequirements
@@ -186,8 +199,7 @@ function missingRequiredSlots(
     0
   ) + Math.max(0, requirements.K.starters - counts.K) +
     Math.max(0, requirements.DEF.starters - counts.DEF);
-  const fixedFlexBase = requirements.RB.starters + requirements.WR.starters + requirements.TE.starters;
-  const flexRostered = counts.RB + counts.WR + counts.TE;
+  const { fixedFlexBase, flexRostered } = countFlexEligible(counts, requirements);
   const flexFilled = Math.max(0, flexRostered - fixedFlexBase);
   return fixedMissing + Math.max(0, requirements.FLEX.starters - flexFilled);
 }
@@ -254,10 +266,9 @@ function getRosterNeedScore(
     return position === 'QB' || position === 'TE' ? 12 : 10;
   }
 
-  const fixedFlexBase = requirements.RB.starters + requirements.WR.starters + requirements.TE.starters;
+  const { fixedFlexBase, flexRostered } = countFlexEligible(counts, requirements);
   const flexTarget = fixedFlexBase + requirements.FLEX.starters;
-  const flexRostered = counts.RB + counts.WR + counts.TE;
-  if (FLEX_POSITIONS.includes(position) && flexRostered < flexTarget) return 5;
+  if (isFlexEligible(requirements, position) && flexRostered < flexTarget) return 5;
 
   if (position === 'QB') return counts.QB >= 1 ? -28 - Math.max(0, counts.QB - 1) * 12 : 0;
   if (position === 'TE') return counts.TE >= 1 ? -17 - Math.max(0, counts.TE - 1) * 8 : 0;
@@ -480,7 +491,7 @@ export function estimateMockSurvivalProbabilities(input: {
   readonly historyModel?: MockLeagueHistoryModel | null;
   readonly iterations?: number;
   readonly iterationOffset?: number;
-}): Readonly<Record<string, number>> {
+}): Readonly<Record<string, Probability>> {
   const order = createSlotSequence({ type: input.config.draftType, teams: input.config.totalTeams, rounds: input.config.totalRounds });
   const nextUserPick = order.nextForTeam(input.config.myPickPosition - 1, input.currentPick + 1)?.pick ?? null;
   const availablePlayers = input.players.filter((player) =>
@@ -548,7 +559,7 @@ export function estimateMockSurvivalProbabilities(input: {
   return Object.fromEntries(
     [...survived.entries()].map(([playerId, count]) => [
       playerId,
-      round(count / iterations, 3),
+      asProbability(round(count / iterations, 3)),
     ])
   );
 }

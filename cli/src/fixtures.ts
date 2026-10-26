@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { type Position } from '@fantasy-draft/shared/league';
 import { createDefaultLeagueSettings, createLeagueSettings } from '@fantasy-draft/shared/league';
 import { type DraftPickEvent, type DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
+import { READINESS_MINIMUMS } from '@fantasy-draft/shared/catalog';
 
 export const FIXTURE_NOW = Date.parse('2026-09-10T12:00:00.000Z');
 const timestamp = new Date(FIXTURE_NOW).toISOString();
@@ -28,7 +29,7 @@ export function fixtureSnapshot(overrides: Partial<DraftSyncSnapshot> = {}): Dra
 }
 
 export async function writeFixtureData(root: string): Promise<void> {
-  const rankings = Array.from({ length: 350 }, (_, index) => ({
+  const rankings = Array.from({ length: READINESS_MINIMUMS.rankings }, (_, index) => ({
     fantasyProsId: `fp${String(index + 1)}`, rank: index + 1, name: `Player ${String(index + 1)}`,
     position: positions[index % positions.length] ?? 'RB', team: 'DET', byeWeek: 5,
     positionalRank: Math.floor(index / positions.length) + 1,
@@ -41,11 +42,11 @@ export async function writeFixtureData(root: string): Promise<void> {
   }));
   const artifacts = {
     'data/fantasypros-snapshot.json': { metadata: { season: 2026, sourceType: 'manual-refresh',
-      source: 'fixture', refreshedAt: timestamp, rankingCount: 350, adpCount: 0, projectionCount: 350, newsCount: 0 },
+      source: 'fixture', refreshedAt: timestamp, rankingCount: rankings.length, adpCount: 0, projectionCount: rankings.length, newsCount: 0 },
       rankings, projections: rankings.map(row => ({ ...row, projectedPoints: 400 - row.rank * 0.65 })), adp: [], news: [] },
     'data/player-identity.json': { generatedAt: timestamp, season: 2026, players: identities,
-      coverage: { fantasyProsRankingMatchRate: 1, matchedDefenses: 32 } },
-    'data/sleeper-adp.json': { fetchedAt: timestamp, source: 'fixture', playerCount: 350,
+      coverage: { fantasyProsRankingMatchRate: 1, matchedDefenses: READINESS_MINIMUMS.defenses } },
+    'data/sleeper-adp.json': { fetchedAt: timestamp, source: 'fixture', playerCount: rankings.length,
       players: rankings.map(row => ({ ...row, playerId: `p${String(row.rank)}`, sleeperAdp: row.rank + 3,
         age: 25, yearsExp: 3, status: 'Active' })) },
     'data/primary-league-settings.json': { season: 2026, leagueName: 'Ummati Official', source: 'sleeper',

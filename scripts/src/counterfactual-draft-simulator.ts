@@ -7,8 +7,7 @@ import {
   type OffensiveRoster,
   type RosterRules,
 } from './offensive-roster.js';
-
-const SIMULATED_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
+import { OFFENSIVE_POSITIONS as SIMULATED_POSITIONS } from '@fantasy-draft/shared/league';
 
 export type SimulatedPosition = (typeof SIMULATED_POSITIONS)[number];
 type CounterfactualStrategy = 'ecr' | 'model';

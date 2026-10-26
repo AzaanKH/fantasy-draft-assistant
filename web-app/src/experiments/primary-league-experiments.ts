@@ -2,6 +2,7 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   type Player,
   type Position,
+  OFFENSIVE_POSITIONS,
   POSITIONS,
 } from '@fantasy-draft/shared/league';
 import {
@@ -261,7 +262,7 @@ interface BestPickAuditSummary {
   };
 }
 
-const CORE_POSITIONS: readonly CorePosition[] = ['QB', 'RB', 'WR', 'TE'];
+const CORE_POSITIONS: readonly CorePosition[] = OFFENSIVE_POSITIONS;
 const DEFAULT_SCALE: ExperimentScale = {
   tournamentIterations: 150,
   timingIterations: 100,
@@ -486,7 +487,7 @@ function getSelectedStarters(
         starters.push(player);
       });
   };
-  for (const position of ['QB', 'RB', 'WR', 'TE', 'K'] as const) {
+  for (const position of [...OFFENSIVE_POSITIONS, 'K'] as const) {
     add(
       rosterPlayers.filter((player) => player.position === position),
       requirements[position].starters

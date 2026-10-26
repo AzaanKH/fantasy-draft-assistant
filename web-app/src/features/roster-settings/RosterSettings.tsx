@@ -1,7 +1,7 @@
 import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
-import type { Position } from '@fantasy-draft/shared/league';
+import { POSITIONS } from '@fantasy-draft/shared/league';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
-const EDITABLE_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const satisfies readonly Position[];
+const EDITABLE_POSITIONS = POSITIONS;
 
 function numericValue(value: string, maximum: number = 20): number {
   const parsed = Number.parseInt(value, 10);

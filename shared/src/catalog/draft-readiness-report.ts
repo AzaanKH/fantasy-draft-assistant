@@ -1,5 +1,8 @@
 import { Schema } from 'effect';
 import { CATALOG, catalogPath } from './manifest.js';
+import { POSITIONS } from '../league/positions.js';
+import { calendarSeason } from '../league/season.js';
+import { READINESS_MINIMUMS, formatIdentityCoverage } from './readiness-minimums.js';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile, decodeOrNull } from './decoders.js';
 import { evaluateDraftReadiness, formatDraftReadinessTimestamp, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
 
@@ -19,7 +22,7 @@ const hasContractContext = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Stru
 const hasKeeperSupply = /* @__PURE__ */ Schema.is(/* @__PURE__ */ Schema.Struct({
   season: Schema.Finite,
   keepers: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Struct({
-    playerName: Schema.String, position: /* @__PURE__ */ Schema.Literals(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']),
+    playerName: Schema.String, position: /* @__PURE__ */ Schema.Literals(POSITIONS),
     team: /* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value) && value >= 1 && value <= 10)),
     round: /* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value) && value >= 1)),
   })),
@@ -166,7 +169,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
     onWarning: message => decodeWarnings.push({ key: 'prediction-decode', label: 'Experimental predictions',
       sourceLabel: 'Prediction data', message, correctiveAction: 'Regenerate the experimental prediction data.' }),
   }));
-  const season = new Date(now).getUTCFullYear();
+  const season = calendarSeason(now);
   const rankingsTimestamp = timestamp(nested(rankings.value, 'metadata', 'refreshedAt'));
   const identityTimestamp = timestamp(nested(identities.value, 'generatedAt'));
   const sleeperTimestamp = timestamp(nested(sleeper.value, 'fetchedAt'));
@@ -186,18 +189,18 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
       rankingsTimestamp,
       nested(rankings.value, 'metadata', 'season') === season &&
         ['api', 'manual-refresh'].includes(String(nested(rankings.value, 'metadata', 'sourceType'))) &&
-        rankingRows.length >= 350,
-      `Expected at least 350 trusted ${String(season)} rankings from the FantasyPros API or reviewed manual refresh. Found ${String(rankingRows.length)}.`
+        rankingRows.length >= READINESS_MINIMUMS.rankings,
+      `Expected at least ${String(READINESS_MINIMUMS.rankings)} trusted ${String(season)} rankings from the FantasyPros API or reviewed manual refresh. Found ${String(rankingRows.length)}.`
     ),
     'canonical-player-identities': observation(
       identities,
       identityTimestamp,
       nested(identities.value, 'season') === season &&
-        identityRows.length >= 800 &&
+        identityRows.length >= READINESS_MINIMUMS.identities &&
         isFiniteNumber(identityCoverage) &&
-        identityCoverage >= 0.98 &&
-        matchedDefenses === 32,
-      `Expected at least 800 identities, 98% ranked-player coverage, and all 32 defenses for ${String(season)}.`,
+        identityCoverage >= READINESS_MINIMUMS.identityRankingMatchRate &&
+        matchedDefenses === READINESS_MINIMUMS.defenses,
+      `Expected at least ${String(READINESS_MINIMUMS.identities)} identities, ${formatIdentityCoverage()} ranked-player coverage, and all ${String(READINESS_MINIMUMS.defenses)} defenses for ${String(season)}.`,
       [
         { key: 'trusted-rankings', label: 'Trusted rankings', timestamp: rankingsTimestamp },
         { key: 'sleeper-player-directory', label: 'Sleeper player directory', timestamp: sleeperTimestamp },
@@ -219,7 +222,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
       predictions,
       timestamp(nested(predictions.value, 'generatedAt')),
       typeof nested(predictions.value, 'modelVersion') === 'string' &&
-        predictionRows.length >= 800 &&
+        predictionRows.length >= READINESS_MINIMUMS.predictions &&
         predictionRows.every(hasPredictionScore),
       'The experimental prediction rows or model version are invalid.',
       [
@@ -232,8 +235,8 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
       contracts,
       timestamp(nested(contracts.value, 'generatedAt')) ??
         timestamp(nested(contracts.value, 'scrapedAt')),
-      contractRows.length >= 50 && contractRows.every(hasContractContext),
-      'Expected at least 50 valid contract-context rows.'
+      contractRows.length >= READINESS_MINIMUMS.contracts && contractRows.every(hasContractContext),
+      `Expected at least ${String(READINESS_MINIMUMS.contracts)} valid contract-context rows.`
     ),
     'sportsbook-context': observation(
       sportsbook,

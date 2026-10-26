@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
-import { DEFAULT_SCORING_RULES } from '../scoring.js';
+import { DEFAULT_SCORING_RULES } from '../league/scoring.js';
 import { createDefaultLeagueSettings, createLeagueSettings } from '../league-settings.js';
 import { type DraftReadinessKey, type DraftReadinessSourceObservation } from '../draft-readiness.js';
 import { createQuickMockSettings } from './quick-mock-settings.js';

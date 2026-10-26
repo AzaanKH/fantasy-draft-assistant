@@ -1,5 +1,6 @@
 import { isPlainObject } from '../objects.js';
 import { isBoundedInteger } from '../limits.js';
+import { FLEX_GROUPS } from '../league/positions.js';
 import { createDefaultLeagueSettings, createLeagueSettings, type LeagueSettings } from '../league-settings.js';
 
 export interface QuickMockPreferences {
@@ -40,7 +41,7 @@ export function createQuickMockSettings(preferences: QuickMockPreferences = DEFA
     },
     rosterRequirements: {
       ...base.rosterRequirements,
-      FLEX: { starters: 1, eligiblePositions: ['RB', 'WR', 'TE'] },
+      FLEX: { starters: 1, eligiblePositions: [...FLEX_GROUPS.standard] },
       DEF: { starters: 1, max: 2 },
       BENCH: { spots: Math.max(1, preferences.totalRounds - 9) },
     },

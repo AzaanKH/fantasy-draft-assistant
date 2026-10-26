@@ -6,10 +6,15 @@ const directories = new Set(gateWorkspaces.map(({ directory }) => directory));
 const draftRosterExports = Object.fromEntries(['DEFAULT_ROSTER_REQUIREMENTS', 'createEmptyRoster', 'Roster', 'RosterRequirements'].map(name => [name, '@fantasy-draft/shared/league']));
 const closedModules = { '@fantasy-draft/shared/draft': draftRosterExports };
 const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-draft/shared/catalog, @fantasy-draft/shared/league or @fantasy-draft/shared/sync instead of casting JSON.parse() or response.json().';
+const leaguePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
+// A quoted, comma-separated position list inside a string or SQL template, such as `in ('QB', 'RB')`.
+const quotedPositionList = /'(?:QB|RB|WR|TE|K|DEF)'(?:\s*,\s*'(?:QB|RB|WR|TE|K|DEF)')+/g;
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-cross-package-import',
   '@typescript-eslint/explicit-module-boundary-types',
+  'agent/no-position-array',
+  'agent/no-inline-season',
 ];
 
 function staticModuleName(node) {
@@ -219,6 +224,72 @@ export default {
             if (isGlobalObject(source)) context.report({ node, messageId: 'runner' });
           },
         };
+      },
+    },
+    'no-position-array': {
+      meta: {
+        type: 'problem', schema: [],
+        messages: { league: 'Name the position group from @fantasy-draft/shared/league instead of listing positions: POSITIONS, OFFENSIVE_POSITIONS, KICKER_DEFENSE_POSITIONS or FLEX_GROUPS, and isFlexEligible for the league-configured FLEX. Add a new group in shared/src/league/positions.ts; build SQL lists with sqlPositionList.' },
+      },
+      create(context) {
+        return {
+          ArrayExpression(node) {
+            const positions = node.elements.map(staticModuleName).filter((value) => leaguePositions.has(value));
+            // A sequence that repeats a position is fixture data, not a position group.
+            if (positions.length >= 2 && new Set(positions).size === positions.length) {
+              context.report({ node, messageId: 'league' });
+            }
+          },
+          'Literal, TemplateElement'(node) {
+            const text = node.type === 'Literal' ? node.value : node.value.cooked;
+            if (typeof text !== 'string') return;
+            for (const [list] of text.matchAll(quotedPositionList)) {
+              const positions = list.match(/[A-Z]+/g);
+              if (new Set(positions).size === positions.length) context.report({ node, messageId: 'league' });
+            }
+          },
+        };
+      },
+    },
+    'no-inline-season': {
+      meta: {
+        type: 'problem', schema: [],
+        messages: { season: 'Do not derive the season from a Date year. Use calendarSeason from @fantasy-draft/shared/league, which owns the season rule.' },
+      },
+      create(context) {
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (callee.type !== 'MemberExpression') return;
+            const name = callee.computed ? staticModuleName(callee.property) : callee.property.name;
+            if (name === 'getFullYear' || name === 'getUTCFullYear') context.report({ node, messageId: 'season' });
+          },
+        };
+      },
+    },
+    'no-unit-cast': {
+      meta: {
+        type: 'problem', schema: [],
+        messages: { constructor: 'Do not cast to {{name}}. Create units with asProbability, asPercent, asRank or asVor from @fantasy-draft/shared/units where external data becomes domain data.' },
+      },
+      create(context) {
+        // Finds a unit anywhere in the cast type, such as Rank | undefined or Record<string, Probability>.
+        function unitIn(type) {
+          if (!type || typeof type !== 'object') return undefined;
+          if (type.type === 'TSTypeReference' && type.typeName.type === 'Identifier' &&
+              ['Probability', 'Percent', 'Rank', 'Vor'].includes(type.typeName.name)) return type.typeName.name;
+          for (const [key, value] of Object.entries(type)) {
+            if (key === 'parent' || key === 'loc' || key === 'range') continue;
+            const found = Array.isArray(value) ? value.map(unitIn).find(Boolean) : unitIn(value);
+            if (found) return found;
+          }
+          return undefined;
+        }
+        function check(node) {
+          const name = unitIn(node.typeAnnotation);
+          if (name) context.report({ node, messageId: 'constructor', data: { name } });
+        }
+        return { TSAsExpression: check, TSTypeAssertion: check };
       },
     },
     'no-cross-package-import': {

@@ -171,6 +171,76 @@ describe('agent lint rules', () => {
   });
 });
 
+describe('league constant rules', () => {
+  function leagueMessages(source, file = 'web-app/src/probe.ts') {
+    return new Linter().verify(source, [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-position-array': 'error', 'agent/no-inline-season': 'error' },
+    }], { filename: file });
+  }
+  it.each([
+    "const FLEX_POSITIONS: readonly Position[] = ['RB', 'WR', 'TE'];",
+    "const filters = ['ALL', 'QB', 'RB', 'FLEX'];",
+    "const late = new Set(['K', `DEF`]);",
+    "const sql = `select * from stats where position in ('QB', 'RB', 'WR', 'TE')`;",
+    "const sql = \"where pos in ('K', 'DEF')\";",
+  ])('rejects position groups outside shared/src/league: %s', (source) => {
+    expect(leagueMessages(source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-position-array', message: expect.stringContaining('OFFENSIVE_POSITIONS'),
+    })]);
+  });
+  it.each([
+    "const filters = ['ALL', ...OFFENSIVE_POSITIONS, 'FLEX'];",
+    "const cycle = ['RB', 'WR', 'WR', 'RB'];",
+    "if (position === 'TE') bonus();",
+    "const sql = `where position in ${sqlPositionList(OFFENSIVE_POSITIONS)} and position = 'TE'`;",
+    "const label = 'QB, RB, WR, TE';",
+  ])('allows named groups, repeated fixture sequences and single positions: %s', (source) => {
+    expect(leagueMessages(source)).toEqual([]);
+  });
+  it.each([
+    'const season = new Date().getFullYear();',
+    'const season = new Date(now).getUTCFullYear();',
+    "const season = time['getUTCFullYear']();",
+  ])('rejects Date-year seasons: %s', (source) => {
+    expect(leagueMessages(source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-inline-season', message: expect.stringContaining('calendarSeason'),
+    })]);
+  });
+  it('applies to production source outside shared/src/league and shared/src/http, under the ratchet', async () => {
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    for (const [filePath, expected] of [
+      ['web-app/src/probe.ts', [2]], ['scripts/src/probe.ts', [2]], ['shared/src/draft/probe.ts', [2]],
+      ['shared/src/league/probe.ts', [0]], ['shared/src/http/probe.ts', [0]], ['web-app/src/probe.test.ts', [0]],
+    ]) {
+      const config = await eslint.calculateConfigForFile(filePath);
+      expect(config.rules['agent/no-position-array'] ?? [0], filePath).toEqual(expected);
+      expect(config.rules['agent/no-inline-season'] ?? [0], filePath).toEqual(expected);
+    }
+    expect(baselineRuleIds).toEqual(expect.arrayContaining(['agent/no-position-array', 'agent/no-inline-season']));
+  });
+});
+
+describe('unit constructors', () => {
+  function unitMessages(source) {
+    return new Linter().verify(source, [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-unit-cast': 'error' },
+    }], { filename: 'web-app/src/probe.ts' });
+  }
+  it.each(['const p = 0.4 as Probability;', 'const r = <Rank>value;', 'const v = row.vor as Vor;',
+    'const r = value as Rank | undefined;', 'const map = raw as Readonly<Record<string, Probability>>;', 'const list = values as Percent[];'])('rejects unit casts: %s', (source) => {
+    expect(unitMessages(source)).toEqual([expect.objectContaining({ ruleId: 'agent/no-unit-cast', message: expect.stringContaining('asProbability') })]);
+  });
+  it('allows constructors and unrelated casts, and exempts shared/src/units', async () => {
+    expect(unitMessages('const p = asProbability(0.4); const n = value as number;')).toEqual([]);
+    const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+    expect((await eslint.calculateConfigForFile('shared/src/units/brands.ts')).rules['agent/no-unit-cast']).toBeUndefined();
+    expect((await eslint.calculateConfigForFile('shared/src/draft/probe.ts')).rules['agent/no-unit-cast']).toEqual([2]);
+    expect((await eslint.calculateConfigForFile('web-app/src/probe.test.ts')).rules['agent/no-unit-cast']).toEqual([2]);
+  });
+});
+
 describe('closed shared root exports', () => {
   it.each([
     "import { Player as Local } from '@fantasy-draft/shared';",

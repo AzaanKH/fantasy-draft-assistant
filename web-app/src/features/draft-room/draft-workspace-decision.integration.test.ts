@@ -1,3 +1,4 @@
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { deriveDraftState } from '@/stores/draft/source';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import * as React from 'react';
@@ -33,8 +34,8 @@ function player(
     position,
     team: 'DET',
     byeWeek: 6,
-    ecrRank,
-    positionalRank: ecrRank,
+    ecrRank: asRank(ecrRank),
+    positionalRank: asRank(ecrRank),
     sleeperAdp: ecrRank,
     valueScore: 0,
     marketRank: ecrRank,
@@ -43,10 +44,10 @@ function player(
     isContractYear: false,
     offensiveEnvironmentScore: 5,
     projectedPoints: 200 + valueOverReplacement,
-    valueOverReplacement,
+    valueOverReplacement: asVor(valueOverReplacement),
     tier: 1,
     tierDropoffScore: 0.5,
-    nextPickSurvivalProbability: 0.5,
+    nextPickSurvivalProbability: asProbability(0.5),
     ceilingScore: 7,
     floorScore: 6,
     upsideScore: 6,
