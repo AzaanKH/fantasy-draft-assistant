@@ -16,6 +16,7 @@ import { decodeResidualTrainingRows, decodePredictionOutputRows, decodeDuckDbTab
 import { access, writeFile } from 'node:fs/promises';
 import { relative } from 'node:path';
 import { Effect } from 'effect';
+import { fixedClock } from '@fantasy-draft/shared/units';
 import { decodeFantasyProsSnapshot, decodeSleeperDataFile } from '@fantasy-draft/shared/catalog';
 import {
   BACKTESTS_MODEL_DIR,
@@ -27,7 +28,7 @@ import {
   runStatements,
   sqlString,
 } from './model/duckdb.js';
-import { KICKER_DEFENSE_POSITIONS, OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
+import { currentSeason, KICKER_DEFENSE_POSITIONS, OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
 import { buildHistoricalSnapshots } from './model/historical-snapshots.js';
 import {
   POSITION_FEATURES,
@@ -35,7 +36,7 @@ import {
   type FittedPositionResidualModel,
   type PositionResidualRow,
 } from './model/position-residual-model.js';
-import { io, runMain } from './effect-runtime.js';
+import { io, isEntryPoint, runMain } from './effect-runtime.js';
 
 const SOURCE_RESPONSIBILITIES = {
   nflverse: [
@@ -252,21 +253,19 @@ function getSeasonWindow(currentSeason: number): readonly number[] {
   return range(start, end);
 }
 
-/** NFL drafts run from spring to September, so January and February belong to the prior season. */
 function seasonAt(timestamp: string | undefined): number {
-  const date = timestamp ? new Date(timestamp) : new Date();
-  const time = Number.isNaN(date.getTime()) ? new Date() : date;
-  return time.getUTCMonth() < 2 ? time.getUTCFullYear() - 1 : time.getUTCFullYear();
+  const time = timestamp ? Date.parse(timestamp) : NaN;
+  return Number.isNaN(time) ? currentSeason() : currentSeason(fixedClock(time));
 }
 
-function readCurrentSeason(): Effect.Effect<number, Error> {
+export function readCurrentSeason(): Effect.Effect<number, Error> {
   if (EXCLUDES_FANTASYPROS) {
     return io(() => readJsonFile(MODEL_PATHS.sleeperAdpJson, value => decodeSleeperDataFile(value, { onWarning: console.warn }))).pipe(
       Effect.map((sleeper) => seasonAt(sleeper.fetchedAt))
     );
   }
   return io(() => readJsonFile(MODEL_PATHS.fantasyProsSnapshotJson, decodeFantasyProsSnapshot)).pipe(
-    Effect.map((snapshot) => snapshot.metadata?.season ?? new Date().getFullYear())
+    Effect.map((snapshot) => snapshot.metadata.season)
   );
 }
 
@@ -1754,4 +1753,6 @@ const program = Effect.gen(function* () {
   }));
 });
 
-runMain(program, 'Prediction dataset build failed:');
+if (isEntryPoint(import.meta.url)) {
+  runMain(program, 'Prediction dataset build failed:');
+}

@@ -204,20 +204,23 @@ describe('league constant rules', () => {
     "const season = time['getUTCFullYear']();",
   ])('rejects Date-year seasons: %s', (source) => {
     expect(leagueMessages(source)).toEqual([expect.objectContaining({
-      ruleId: 'agent/no-inline-season', message: expect.stringContaining('calendarSeason'),
+      ruleId: 'agent/no-inline-season', message: expect.stringContaining('currentSeason(clock)'),
     })]);
   });
-  it('applies to production source outside shared/src/league and shared/src/http, under the ratchet', async () => {
+  it('enforces the season owner in workspace source and scripts without baseline allowances', async () => {
     const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
-    for (const [filePath, expected] of [
-      ['web-app/src/probe.ts', [2]], ['scripts/src/probe.ts', [2]], ['shared/src/draft/probe.ts', [2]],
-      ['shared/src/league/probe.ts', [0]], ['shared/src/http/probe.ts', [0]], ['web-app/src/probe.test.ts', [0]],
+    for (const [filePath, positions, season] of [
+      ['web-app/src/probe.ts', 2, 2], ['scripts/src/probe.ts', 2, 2], ['shared/src/draft/probe.ts', 2, 2],
+      ['scripts/persistence/probe.mjs', 0, 2], ['shared/src/league/probe.ts', 0, 2],
+      ['shared/src/league/season.ts', 0, 0], ['shared/src/http/probe.ts', 0, 0],
+      ['web-app/src/probe.test.ts', 0, 0], ['scripts/probe.test.mjs', 0, 0],
     ]) {
       const config = await eslint.calculateConfigForFile(filePath);
-      expect(config.rules['agent/no-position-array'] ?? [0], filePath).toEqual(expected);
-      expect(config.rules['agent/no-inline-season'] ?? [0], filePath).toEqual(expected);
+      expect(config.rules['agent/no-position-array'] ?? [0], filePath).toEqual([positions]);
+      expect(config.rules['agent/no-inline-season'] ?? [0], filePath).toEqual([season]);
     }
-    expect(baselineRuleIds).toEqual(expect.arrayContaining(['agent/no-position-array', 'agent/no-inline-season']));
+    expect(baselineRuleIds).toContain('agent/no-position-array');
+    expect(baselineRuleIds).not.toContain('agent/no-inline-season');
   });
 });
 

@@ -7,7 +7,7 @@ const policy = { timeoutMs: 10000, retries: 0, retryAfter: false };
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 export const forbiddenRuntimePath = pathname => /^\/(?:@vite(?:\/|$)|@react-refresh(?:\/|$)|src(?:\/|$)|node_modules(?:\/|$))/.test(pathname);
 export function assertProductionEnvironment(env) {
-  if (env.MODE !== 'production' || env.DEV !== false || env.PROD !== true || env.VITE_STORAGE_ACTIVATION !== 'idb' ||
+  if (env.MODE !== 'production' || env.DEV !== false || env.PROD !== true || (env.VITE_STORAGE_ACTIVATION ?? 'idb') !== 'idb' ||
       env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined) throw new Error('Production proof requires activation ON, MODE=production, DEV=false, PROD=true, harness/demo mode unset');
 }
 export async function inspectProductionBuild(dist, env) {

@@ -982,3 +982,30 @@ describe('provider HTTP requests', () => {
     }
   }, 2000);
 });
+
+describe('market ADP season default', () => {
+  it.each([
+    ['2027-02-28T23:59:59.999Z', 2026],
+    ['2027-03-01T00:00:00.000Z', 2027],
+    ['2026-12-31T16:00:00.000-08:00', 2026],
+  ])('requests the NFL season at %s and preserves explicit overrides', async (timestamp, season) => {
+    vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });
+    const urls: string[] = [];
+    const server = createSyncServer({ fetchJson: async url => {
+      urls.push(url);
+      return { status: 'Success', players: [] };
+    } });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      await fetch(`http://127.0.0.1:${port}/api/market-adp`, { headers: { 'X-Sync-Token': TOKEN } });
+      expect(urls[0]).toContain(`year=${season}`);
+      await fetch(`http://127.0.0.1:${port}/api/market-adp?season=2024`, { headers: { 'X-Sync-Token': TOKEN } });
+      expect(urls[1]).toContain('year=2024');
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => { resolve(); }));
+      vi.useRealTimers();
+    }
+  });
+});

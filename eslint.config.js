@@ -19,6 +19,7 @@ const draftOrderRules = [
 
 const effectBoundaryMessage = 'Decode at the boundary: put Effect Schema in shared/src/catalog; leaf modules use plain predicates. List new I/O owners in effectOwners in eslint.config.js.';
 const effectOwners = [
+  'scripts/persistence/native-visibility.mjs',
   'shared/src/catalog/**',
   'scripts/src/{contract-source-schema,script-file-schemas}.ts',
   '**/*.test.{ts,tsx,mjs}',
@@ -130,8 +131,13 @@ export default tseslint.config(
     plugins: { agent: agentRules },
     rules: {
       'agent/no-position-array': 'error',
-      'agent/no-inline-season': 'error',
     },
+  },
+  {
+    files: gateWorkspaces.map(({ directory }) => `${directory}/**/*.{ts,tsx,js,mjs,cjs}`),
+    ignores: ['**/*.test.{ts,tsx,js,mjs,cjs}', 'shared/src/league/season.ts', 'shared/src/http/**'],
+    plugins: { agent: agentRules },
+    rules: { 'agent/no-inline-season': 'error' },
   },
   {
     files: gateWorkspaces.map(({ directory }) => `${directory}/src/**/*.{ts,tsx}`),

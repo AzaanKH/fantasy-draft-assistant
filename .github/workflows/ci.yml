@@ -51,3 +51,7 @@ jobs:
         run: pnpm --filter scripts exec playwright install --with-deps chromium
       - name: Browser gate (visual fixtures, narrow readiness, draft flow)
         run: pnpm browser:gate
+      - name: Hosted static demo starts without local storage activation
+        run: |
+          pnpm build:web:demo
+          FLIP_DEMO_OUTPUT="${RUNNER_TEMP}/fda-hosted-demo" pnpm --filter scripts exec tsx --conditions=@fantasy-draft/source ../scripts/persistence/flip-demo.mjs

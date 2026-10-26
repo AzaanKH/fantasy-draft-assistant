@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import {
   type NFLTeam,
   type Position,
+  currentSeason,
   POSITIONS,
   NFL_TEAMS,
 } from '@fantasy-draft/shared/league';
@@ -236,7 +237,7 @@ const program = Effect.gen(function* () {
   const snapshot: unknown = JSON.parse(
     yield* io(() => readFile(join(DATA_DIR, 'fantasypros-snapshot.json'), 'utf8'))
   );
-  const byeWeeks = getTeamByeWeeks(snapshot, new Date().getFullYear());
+  const byeWeeks = getTeamByeWeeks(snapshot, currentSeason());
 
   // Scrape raw data
   const rawData = yield* scrapeRawData;

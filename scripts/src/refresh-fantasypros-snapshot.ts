@@ -1,3 +1,5 @@
+import { fixedClock } from '@fantasy-draft/shared/units';
+import { currentSeason } from '@fantasy-draft/shared/league';
 import { CATALOG, catalogPath } from '@fantasy-draft/shared/catalog';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -29,7 +31,7 @@ async function readEcrFile(): Promise<FantasyProsSnapshot> {
   const data = decodeEcrSourceFile(JSON.parse(await readFile(INPUT_FILE, 'utf8')));
   return decodeFantasyProsSnapshot({
     metadata: {
-      season: data.season ?? new Date(data.scrapedAt).getFullYear(),
+      season: data.season ?? currentSeason(fixedClock(Date.parse(data.scrapedAt))),
       sourceType: 'manual-refresh', source: data.source, refreshedAt: data.scrapedAt,
       rankingCount: data.players.length, adpCount: 0, projectionCount: 0, newsCount: 0,
     },
@@ -86,7 +88,7 @@ const program = Effect.gen(function* () {
   const snapshot = apiKey && snapshotMode !== 'manual'
     ? yield* fetchFantasyProsSnapshot({
       apiKey,
-      season: new Date().getFullYear(),
+      season: currentSeason(),
       scoring: 'PPR',
     }).pipe(
       Effect.map((fetched) => preserveUsableProjections(fetched, existingSnapshot)),

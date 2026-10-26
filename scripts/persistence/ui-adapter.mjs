@@ -259,7 +259,7 @@ export function hasProductionProof(meta) {
   const build = meta.productionBuild;
   const http = meta.productionHttp;
   if (meta.serve !== 'production-static' || env?.MODE !== 'production' || env.DEV !== false || env.PROD !== true ||
-      env.VITE_STORAGE_ACTIVATION !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined ||
+      (env.VITE_STORAGE_ACTIVATION ?? 'idb') !== 'idb' || env.VITE_PERSISTENCE_HARNESS !== undefined || env.VITE_DEMO_MODE !== undefined ||
       JSON.stringify(build?.env) !== JSON.stringify(env) || !build?.noViteClientOrHmr || !build.files?.['index.html']) return false;
   const executable = Object.entries(build.files).filter(([file]) => /\.(?:html|m?js|css)$/.test(file));
   if (!executable.length || executable.some(([file, hash]) => !/^[a-f0-9]{64}$/.test(hash) || http?.verified?.[file] !== hash ||
@@ -284,7 +284,7 @@ function evaluateUiGateEvidence(results) {
   if (!meta.catalogFixture?.schemaDecoded || meta.catalogFixture.identityCount !== 900) failures.push('Real 900-identity catalog fixture was not validated');
   if (results.cleanupErrors?.length) failures.push('Runner cleanup failed');
   if (meta.smoke) failures.push('Smoke runs cannot pass the gate');
-  if (meta.env?.VITE_STORAGE_ACTIVATION !== 'idb' || meta.env?.VITE_PERSISTENCE_HARNESS !== undefined || meta.env?.VITE_DEMO_MODE !== undefined) {
+  if ((meta.env?.VITE_STORAGE_ACTIVATION ?? 'idb') !== 'idb' || meta.env?.VITE_PERSISTENCE_HARNESS !== undefined || meta.env?.VITE_DEMO_MODE !== undefined) {
     failures.push('Build env is not switch ON with the harness unset and demo mode unset');
   }
   if (meta.suites !== DEFAULTS.suites || meta.seeds !== DEFAULTS.seeds || meta.commandsPerActor !== DEFAULTS.perActor) failures.push('Requires 3 suites, 5 seeds, 300 commands per actor');
@@ -328,7 +328,7 @@ export function evaluateTier2(results) {
   try {
     const meta = results.metadata;
     if (!meta.finished || !meta.sourceStable || !meta.sourceHashes || !meta.sourceHashesEnd || JSON.stringify(meta.sourceHashes) !== JSON.stringify(meta.sourceHashesEnd)) failures.push('Sources changed or run unfinished');
-    if (meta.env?.VITE_STORAGE_ACTIVATION !== 'idb' || meta.env?.VITE_PERSISTENCE_HARNESS !== undefined || meta.env?.VITE_DEMO_MODE !== undefined || !meta.catalogFixture?.schemaDecoded || meta.catalogFixture.identityCount !== 900) failures.push('Wrong environment or unvalidated catalog');
+    if ((meta.env?.VITE_STORAGE_ACTIVATION ?? 'idb') !== 'idb' || meta.env?.VITE_PERSISTENCE_HARNESS !== undefined || meta.env?.VITE_DEMO_MODE !== undefined || !meta.catalogFixture?.schemaDecoded || meta.catalogFixture.identityCount !== 900) failures.push('Wrong environment or unvalidated catalog');
     if (meta.suites !== 1 || meta.seeds !== 1 || meta.commandsPerActor !== 300) failures.push('Wrong Tier 2 workload size');
     if (results.fatal || results.pageErrors.length || results.scenarioErrors.length || results.cleanupErrors.length) failures.push('Runner, page, scenario or cleanup error');
     if (JSON.stringify(results.scenarios.map(row => row.label).sort()) !== JSON.stringify([...SCENARIOS].sort())) failures.push('Requires all four affected scenarios');

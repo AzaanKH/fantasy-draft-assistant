@@ -1,3 +1,5 @@
+import { currentSeason } from '@fantasy-draft/shared/league';
+import { fixedClock } from '@fantasy-draft/shared/units';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodeSleeperDataFile, decodeDraftDataRefreshStatus } from '@fantasy-draft/shared/catalog';
 
 export const FIXTURE_LEAGUE = { profile: 'quick-mock', quickMock: { totalTeams: 20, totalRounds: 20, reception: 1, passingTouchdown: 4 } };
@@ -11,7 +13,7 @@ export function hasReadinessProof(meta) {
 }
 
 export function buildReadinessFixture({ snapshot, identities, sleeper, catalog }, now = Date.now()) {
-  const timestamp = new Date(now - 1000).toISOString(), season = new Date(now).getUTCFullYear();
+  const timestamp = new Date(now - 1000).toISOString(), season = currentSeason(fixedClock(now));
   const ranks = decodeFantasyProsSnapshot({ ...snapshot, metadata: { ...snapshot.metadata, season,
     sourceType: 'manual-refresh', source: 'Controlled offline manual-refresh fixture, reviewed real identities; not live provider data', refreshedAt: timestamp } });
   const canonical = decodePlayerIdentityFile({ ...identities, season, generatedAt: timestamp });

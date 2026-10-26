@@ -99,6 +99,12 @@ async function checkVisualRoute(browser: Browser, check: VisualCheck, width: num
   }
 }
 
+async function activateStorage(page: Page): Promise<void> {
+  await page.getByRole('checkbox', { name: 'I have closed other draft tabs and side panels' }).check();
+  await page.getByRole('button', { name: 'Activate IndexedDB', exact: true }).click();
+  await page.locator('[data-storage-activation="review"]').waitFor({ state: 'detached' });
+}
+
 function footerCount(text: string): number {
   return Number(/(\d+) players shown/.exec(text)?.[1] ?? NaN);
 }
@@ -112,6 +118,7 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
   try {
     const errors = watchErrors(page);
     await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
     const pool = page.locator('.draft-pool');
     const footer = pool.locator('.draft-pool-footer');
     await footer.getByText(/players shown/).waitFor({ timeout: 20_000 });
@@ -139,6 +146,7 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
     const queue = pool.getByRole('button', { name: `Add ${target} to local shortlist` });
     await queue.click();
     const unqueue = pool.getByRole('button', { name: `Remove ${target} from local shortlist` });
+    await unqueue.waitFor();
     assert(await unqueue.getAttribute('aria-pressed') === 'true', `Queueing ${target} did not mark it queued`);
     await unqueue.click();
     await queue.waitFor();
@@ -171,6 +179,7 @@ async function checkPhoneWorkspace(browser: Browser): Promise<void> {
   const page = await browser.newPage({ viewport: { width: PHONE, height: 844 } });
   try {
     await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
     await page.locator('.draft-pool-footer').getByText(/players shown/).waitFor({ timeout: 20_000 });
     if (await page.locator('.draft-setup-item').count() > 0) await assertReadableChecklist(page, 'Draft workspace @ 390px');
     await assertNoPageOverflow(page, 'Draft workspace @ 390px');
@@ -189,6 +198,7 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
     const assistantModule = '**/src/features/assistant/AssistantPage.tsx*';
     await page.route(assistantModule, (route) => route.abort());
     await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
     await page.getByRole('button', { name: 'Start mock', exact: true }).click();
     await page.getByRole('button', { name: 'Start mock draft' }).click();
     // Pause so CPU picks cannot move the current pick between the two reads.

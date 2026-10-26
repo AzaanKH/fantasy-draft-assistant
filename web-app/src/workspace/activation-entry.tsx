@@ -9,6 +9,17 @@ import { observeDurableWorkspace } from './ui-dispatch';
 type Controller = ReturnType<typeof createActivationStorage>;
 type Review = Extract<ActivationReview, { status: 'review' }>;
 
+async function readyWorkspace(database: Awaited<ReturnType<Controller['activate']>>): Promise<Workspace> {
+  const workspace = createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true });
+  try {
+    await workspace.ready;
+    return observeDurableWorkspace(workspace);
+  } catch (error) {
+    workspace.dispose();
+    throw error;
+  }
+}
+
 function ReadOnlyDrafts({ review }: { readonly review: Review }): ReactElement {
   return <section aria-label="Saved drafts, read only" className="space-y-3">
     <h2 className="text-lg font-semibold">Saved drafts, read only</h2>
@@ -27,9 +38,10 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
   const [closed, setClosed] = useState(false);
   const [pending, setPending] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [openingError, setOpeningError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const bind = (database: Awaited<ReturnType<Controller['activate']>>): void => {
-    const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
+  const bind = async (database: Awaited<ReturnType<Controller['activate']>>): Promise<void> => {
+    const workspace = await readyWorkspace(database);
     ready(workspace);
     if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
   };
@@ -41,9 +53,16 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
     finally { setPending(false); }
   };
   const activate = async (): Promise<void> => {
-    if (!closed || pending || cancelled) return;
+    if (!closed || pending || cancelled || openingError !== null) return;
     setPending(true); setError(null);
-    try { bind(await controller.activate(decisions, { otherTabsClosed: true })); }
+    try {
+      const database = await controller.activate(decisions, { otherTabsClosed: true });
+      try { await bind(database); }
+      catch (failure) {
+        controller.close();
+        setOpeningError(failure instanceof Error ? failure.message : String(failure));
+      }
+    }
     catch (failure) {
       if (failure instanceof ActivationStaleError) {
         setDecisions([]); setClosed(false);
@@ -53,6 +72,10 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally { setPending(false); }
   };
+  if (openingError !== null) return <main role="alert" className="mx-auto max-w-4xl space-y-5 p-6 text-foreground" data-storage-blocked="activated">
+    <p>Draft storage was activated, but the app couldn't open it. Reload the page to continue.</p>
+    <p>{openingError}</p>
+  </main>;
   return <main className="mx-auto max-w-4xl space-y-5 p-6 text-foreground" data-storage-activation="review">
     <h1 className="text-2xl font-semibold">Draft storage setup</h1>
     <p>Your v1 draft data is read only while storage setup is open.</p>
@@ -98,12 +121,12 @@ export function showStorageActivation({ root, verified, ready }: { readonly root
     }
     const database = await controller.resume();
     if (database) {
-      const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
+      const workspace = await readyWorkspace(database);
       ready(workspace);
       if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
       return;
     }
     const review = await controller.preflight();
     root.render(<ActivationSetup controller={controller} initial={review} ready={ready} />);
-  })().catch((error: unknown) => { controller.close(); root.render(<main role="alert" data-storage-blocked="activation">Draft storage setup failed. Your v1 records remain retained. {String(error)}</main>); });
+  })().catch((error: unknown) => { controller.close(); root.render(<main role="alert" data-storage-blocked="activation">Draft storage setup failed. Your v1 records remain retained. Reload the page to try again. {String(error)}</main>); });
 }

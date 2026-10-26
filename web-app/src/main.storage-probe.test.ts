@@ -3,8 +3,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 const calls = vi.hoisted(() => ({ probe: vi.fn(), verify: vi.fn(), appImported: vi.fn(),
   createBrowserWorkspace: vi.fn((_search: string, factory?: () => unknown) => factory?.()),
-  createHarnessWorkspace: vi.fn(), render: vi.fn() }));
-vi.mock('./workspace/storage-sharing', () => ({ serveStorageProbe: calls.probe, verifyStorageSharing: calls.verify }));
+  createHarnessWorkspace: vi.fn(), render: vi.fn(), activation: vi.fn(), responder: vi.fn() }));
+vi.mock('./workspace/storage-sharing', () => ({ serveStorageProbe: calls.probe, verifyStorageSharing: calls.verify, installStorageSharingResponder: calls.responder }));
+vi.mock('./workspace/activation-entry', () => ({ showStorageActivation: calls.activation }));
 vi.mock('./workspace/browser-workspace', () => ({ createBrowserWorkspace: calls.createBrowserWorkspace }));
 vi.mock('./workspace/harness-workspace', () => ({ createHarnessWorkspace: calls.createHarnessWorkspace }));
 vi.mock('./App', () => { calls.appImported(); return { App: () => null }; });
@@ -34,6 +35,7 @@ it.each([false, true])('keeps the helper route free of workspace construction wh
 });
 
 it('constructs the normal harness through the verified factory as a control', async () => {
+  vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
   vi.stubEnv('VITE_PERSISTENCE_HARNESS', 'idb');
   vi.stubEnv('VITE_CANONICAL_WEB_ORIGIN', location.origin);
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
@@ -46,4 +48,19 @@ it('constructs the normal harness through the verified factory as a control', as
   expect(calls.createBrowserWorkspace).toHaveBeenCalledOnce();
   expect(calls.createHarnessWorkspace).toHaveBeenCalledWith(verified);
   expect(calls.render).toHaveBeenCalledOnce();
+});
+
+it.each([undefined, 'idb'])('routes first-run startup through activation for setting %s', async setting => {
+  vi.stubEnv('VITE_STORAGE_ACTIVATION', setting);
+  vi.stubEnv('VITE_CANONICAL_WEB_ORIGIN', location.origin);
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  const verified = { origin: location.origin, kind: 'origin-only' };
+  calls.verify.mockResolvedValueOnce(verified);
+  calls.responder.mockReturnValue(() => undefined);
+  document.body.innerHTML = '<div id="root"></div>';
+  await import('./main');
+  await vi.dynamicImportSettled();
+  expect(calls.activation).toHaveBeenCalledWith(expect.objectContaining({ verified }));
+  expect(calls.createBrowserWorkspace).not.toHaveBeenCalled();
+  expect(calls.createHarnessWorkspace).not.toHaveBeenCalled();
 });
