@@ -33,12 +33,13 @@ export function DraftDecisionBar({
     return (
       <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite" aria-busy={isLoading}>
         <div className="draft-best-pick-content">
-          <span className="text-xs font-semibold text-primary">Best Pick</span>
-          <p className="text-sm text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-primary">Best Pick</span>
+          {/* One line in every state, so a status change never resizes the bar; the setup checklist sits directly below. */}
+          <p className="min-w-0 truncate text-sm text-muted-foreground">
             {isLoading
               ? 'Finding your best pick…'
               : recommendationsBlocked
-                ? 'Paused until setup is finished. See the checklist above.'
+                ? 'Paused until setup is finished.'
                 : 'No pick available'}
           </p>
         </div>

@@ -20,6 +20,7 @@ const decision = vi.hoisted(() => ({
   isLoading: true,
   recommendationsBlocked: false,
   playersLoading: false,
+  readiness: null as unknown,
 }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => decision,
@@ -29,7 +30,7 @@ vi.mock('@/hooks/useQueueActions', () => ({
 }));
 
 describe('DraftDecisionBar loading', () => {
-  afterEach(() => { Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false }); });
+  afterEach(() => { Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false, readiness: null }); });
 
   it('keeps the settled pick visible while loading', () => {
     decision.output.bestPick = recommendation();
@@ -46,6 +47,17 @@ describe('DraftDecisionBar loading', () => {
     const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
     expect(markup).toContain('Finding your best pick');
     expect(markup).not.toContain('Paused until setup');
+  });
+
+  it.each([
+    ['loading', { isLoading: true }, 'Finding your best pick…'],
+    ['blocked', { isLoading: false, recommendationsBlocked: true }, 'Paused until setup is finished.'],
+    ['empty', { isLoading: false }, 'No pick available'],
+  ] as const)('keeps the %s status to one truncated line, so the bar height never changes', (_, state, message) => {
+    decision.output.bestPick = null;
+    Object.assign(decision, state);
+    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
+    expect(markup).toContain(`<p class="min-w-0 truncate text-sm text-muted-foreground">${message}</p>`);
   });
 
   it('shows loading feedback in the same bar before the first pick', () => {

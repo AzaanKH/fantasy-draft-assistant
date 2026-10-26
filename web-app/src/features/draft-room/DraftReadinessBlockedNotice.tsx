@@ -138,6 +138,11 @@ function InstructionRow({ item }: { readonly item: DraftReadinessItem }): React.
   );
 }
 
+/** Whether readiness has blockers for the checklist to list; other blocks, such as provider identity, have their own notices. */
+export function hasReadinessBlockers(readiness: DraftReadinessReport | null | undefined): boolean {
+  return (readiness?.productBlockingFailures.length ?? 0) > 0;
+}
+
 /**
  * Lists every Core Draft Data blocker with the action that clears it. It stays visible until
  * readiness passes, so a reload or a new session shows what still needs attention.

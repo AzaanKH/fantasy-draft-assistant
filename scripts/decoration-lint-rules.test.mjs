@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { ESLint, Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
@@ -133,6 +134,14 @@ describe('decoration lint', () => {
     const config = await new ESLint({ cwd: root }).calculateConfigForFile(filePath);
     expect(config.rules['agent/no-pill-shape']).toEqual([2]);
     expect(config.rules['agent/no-accent-stripe']).toEqual([2]);
+  });
+
+  it('has no accepted exceptions in the baseline', async () => {
+    const baseline = JSON.parse(await readFile(new URL('../eslint-baseline.json', import.meta.url), 'utf8'));
+    const excepted = Object.entries(baseline)
+      .filter(([, entry]) => Object.keys(entry.occurrences ?? {}).some((rule) => rule === 'agent/no-pill-shape' || rule === 'agent/no-accent-stripe'))
+      .map(([file]) => file);
+    expect(excepted).toEqual([]);
   });
 
   it('counts both rules under the baseline ratchet', () => {
