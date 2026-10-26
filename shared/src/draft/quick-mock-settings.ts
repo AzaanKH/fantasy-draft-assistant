@@ -1,4 +1,5 @@
 import { isPlainObject } from '../objects.js';
+import { systemClock } from '../units/clock.js';
 import { isBoundedInteger } from '../limits.js';
 import { FLEX_GROUPS } from '../league/positions.js';
 import { createDefaultLeagueSettings, createLeagueSettings, type LeagueSettings } from '../league-settings.js';
@@ -27,7 +28,7 @@ export const DEFAULT_QUICK_MOCK: QuickMockPreferences = {
   totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4,
 };
 
-export function createQuickMockSettings(preferences: QuickMockPreferences = DEFAULT_QUICK_MOCK, now = Date.now()): LeagueSettings {
+export function createQuickMockSettings(preferences: QuickMockPreferences = DEFAULT_QUICK_MOCK, now = systemClock.now()): LeagueSettings {
   const base = createDefaultLeagueSettings(now);
   return createLeagueSettings({
     ...base,

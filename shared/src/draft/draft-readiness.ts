@@ -1,4 +1,5 @@
 import { evaluateDraftReadiness, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
+import { systemClock } from '../units/clock.js';
 import { createDefaultLeagueSettings, isLeagueSettings, type LeagueSettings } from '../league-settings.js';
 import type { KeeperPreloadStatus } from './keeper-preload-status.js';
 import { calendarSeason } from '../league/season.js';
@@ -47,7 +48,7 @@ function hasPrimaryLeagueSettings(
 
 export function evaluateWorkspaceDraftReadiness(
   input: WorkspaceDraftReadinessInput,
-  now: number = Date.now()
+  now: number = systemClock.now()
 ): DraftReadinessReport {
   const currentSeason = calendarSeason(now);
   const usingPracticeSettings = input.usePrimaryLeagueSettings === true &&

@@ -26,6 +26,7 @@ export default {
   rules: {
     'no-closed-root-import': {
       meta: {
+        docs: { description: 'Rejects the shared root and temporary draft-url subpath, plus named roster contracts imported from /draft instead of /league.' },
         type: 'problem', schema: [],
         messages: {
           draftUrl: 'The temporary draft URL subpath is closed. Import draft URL contracts from @fantasy-draft/shared/sync.',
@@ -93,7 +94,9 @@ export default {
       },
     },
     'no-bare-child-process': {
-      meta: { type: 'problem', schema: [], messages: {
+      meta: {
+        docs: { description: 'Rejects child_process imports and supported require, createRequire, and process.getBuiltinModule loads. Process lifecycle belongs in shared/node.' },
+        type: 'problem', schema: [], messages: {
         runner: 'For process lifecycle, use Processes from @fantasy-draft/shared/node.',
       } },
       create(context) {
@@ -141,7 +144,9 @@ export default {
       },
     },
     'no-node-in-browser': {
-      meta: { type: 'problem', schema: [], messages: {
+      meta: {
+        docs: { description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source.' },
+        type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
       } },
       create(context) {
@@ -160,7 +165,9 @@ export default {
       },
     },
     'no-json-cast': {
-      meta: { type: 'problem', schema: [], messages: { decode: decoderMessage } },
+      meta: {
+        docs: { description: 'Rejects as casts of JSON.parse() and .json() call results, including awaited results. Decode unknown JSON at the boundary.' },
+        type: 'problem', schema: [], messages: { decode: decoderMessage } },
       create(context) {
         return {
           TSAsExpression(node) {
@@ -179,6 +186,7 @@ export default {
     },
     'no-bare-fetch': {
       meta: {
+        docs: { description: 'Outside shared/src/http/**, rejects native fetch references, global fetch properties, destructuring, aliases, and writes. Local bindings and type-only typeof fetch remain valid.' },
         type: 'problem', schema: [],
         messages: { runner: 'For HTTP requests, use @fantasy-draft/shared/http. Native fetch references are restricted to shared/src/http for shared timeout, body cancel, and retry policy.' },
       },
@@ -228,6 +236,7 @@ export default {
     },
     'no-position-array': {
       meta: {
+        docs: { description: 'Rejects arrays containing at least two distinct position literals without repeats, and quoted comma-separated position lists in strings or templates. Use league position groups.' },
         type: 'problem', schema: [],
         messages: { league: 'Name the position group from @fantasy-draft/shared/league instead of listing positions: POSITIONS, OFFENSIVE_POSITIONS, KICKER_DEFENSE_POSITIONS or FLEX_GROUPS, and isFlexEligible for the league-configured FLEX. Add a new group in shared/src/league/positions.ts; build SQL lists with sqlPositionList.' },
       },
@@ -253,6 +262,7 @@ export default {
     },
     'no-inline-season': {
       meta: {
+        docs: { description: 'Rejects calls to getFullYear() and getUTCFullYear(). Use calendarSeason from shared/league.' },
         type: 'problem', schema: [],
         messages: { season: 'Do not derive the season from a Date year. Use calendarSeason from @fantasy-draft/shared/league, which owns the season rule.' },
       },
@@ -269,6 +279,7 @@ export default {
     },
     'no-unit-cast': {
       meta: {
+        docs: { description: 'Rejects as and angle-bracket casts whose type contains Probability, Percent, Rank, or Vor. Use the unit constructors.' },
         type: 'problem', schema: [],
         messages: { constructor: 'Do not cast to {{name}}. Create units with asProbability, asPercent, asRank or asVor from @fantasy-draft/shared/units where external data becomes domain data.' },
       },
@@ -292,8 +303,37 @@ export default {
         return { TSAsExpression: check, TSTypeAssertion: check };
       },
     },
+    'no-domain-clock': {
+      meta: {
+        docs: { description: 'Rejects Date.now() and zero-argument new Date(), including host-global Date forms. Pass now or a Clock to domain code.' },
+        type: 'problem', schema: [],
+        messages: { clock: 'Domain code does not read the system time. Take a `now` value or a Clock, defaulting to systemClock from @fantasy-draft/shared/units.' },
+      },
+      create(context) {
+        // Date, or Date read from a host global such as globalThis.Date.
+        function isDate(node) {
+          if (node.type === 'Identifier') return node.name === 'Date';
+          return node.type === 'MemberExpression' && node.object.type === 'Identifier' &&
+            ['globalThis', 'window', 'self', 'global'].includes(node.object.name) &&
+            (node.computed ? staticModuleName(node.property) : node.property.name) === 'Date';
+        }
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (callee.type === 'MemberExpression' && isDate(callee.object) &&
+                (callee.computed ? staticModuleName(callee.property) : callee.property.name) === 'now') {
+              context.report({ node, messageId: 'clock' });
+            }
+          },
+          NewExpression(node) {
+            if (isDate(node.callee) && node.arguments.length === 0) context.report({ node, messageId: 'clock' });
+          },
+        };
+      },
+    },
     'no-cross-package-import': {
       meta: {
+        docs: { description: 'Rejects relative imports and re-exports into another registered workspace, and the CLI web-app @/ alias. Use public package exports.' },
         type: 'problem', schema: [],
         messages: { boundary: 'Import the workspace package by name through its public exports. Move shared code into @fantasy-draft/shared; cli must not use the web-app @/ alias.' },
       },
