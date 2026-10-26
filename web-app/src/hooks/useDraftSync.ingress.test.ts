@@ -193,7 +193,9 @@ describe('Sleeper sync ingress and reconciliation', () => {
       },
     };
     mocks.query.mockReturnValue({ data: snapshot });
-    const { store, cleanup } = renderDraft('Draft_1-abc');
+    const store = createDraftStore();
+    workspaceForTestStore(store).send('connection.startConnection', 'sleeper', 'Draft_1-abc');
+    const { cleanup } = renderDraft('Draft_1-abc', store);
     try {
       expect(store.getState().config.draftType).toBe('linear');
       expect(store.getState().draftHistory[0]).toMatchObject({ playerId: 'known' });

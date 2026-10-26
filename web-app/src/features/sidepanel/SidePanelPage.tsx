@@ -1,6 +1,5 @@
 import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
-import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
+import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
 import {
@@ -56,6 +55,7 @@ import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { cn } from '@/lib/utils';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
+import { SidePanelSlotControl } from './SidePanelSlotControl';
 import { reconcileComparisonSelection } from './comparison-selection';
 
 type SidePanelView = 'draft' | 'compare' | 'assistant' | 'roster';
@@ -68,23 +68,6 @@ interface SidePanelConnection {
   readonly provider: DraftProvider;
   readonly draftId: string | null;
   readonly draftPosition: number | null;
-}
-
-function readConnection(): SidePanelConnection {
-  const params = new URLSearchParams(window.location.search);
-  const providerValue = params.get('provider');
-  const provider: DraftProvider = providerValue === 'yahoo' || providerValue === 'sleeper'
-    ? providerValue
-    : 'espn';
-  const draftId = provider === 'yahoo'
-    ? params.get('leagueId') ?? params.get('draftId')
-    : params.get('draftId') ?? params.get('leagueId');
-  const positionValue = Number.parseInt(params.get('position') ?? '', 10);
-  const draftPosition = Number.isInteger(positionValue) && positionValue >= 1 && positionValue <= 20
-    ? positionValue
-    : null;
-
-  return { provider, draftId, draftPosition };
 }
 
 function getProviderLabel(provider: DraftProvider): string {
@@ -157,19 +140,7 @@ function getPositionTextColor(position: Position): string {
 }
 
 function useSidePanelSync(connection: SidePanelConnection) {
-  const workspace = useWorkspace();
-
   const sync = useDraftSync(connection.provider, connection.draftId, true);
-
-  React.useEffect(() => {
-    if (connection.draftPosition !== null) {
-      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { myPickPosition: connection.draftPosition }); } else { workspace.send('setConfig', { myPickPosition: connection.draftPosition }); }
-    }
-  }, [connection.draftPosition, workspace]);
-
-  React.useEffect(() => {
-    if (sync.draft) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'live'); } else { workspace.send('setSessionMode', 'live'); }
-  }, [workspace, sync.draft]);
 
   return sync;
 }
@@ -756,11 +727,13 @@ function BottomNavigation({
 
 /** Keeps the draft connection alive while the panel content shows an error fallback. */
 export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: () => void } = {}): React.ReactElement {
-  const [connection] = React.useState(readConnection);
+  const selected = useConnectionState(state => state.connection);
+  const connection: SidePanelConnection = selected ?? { provider: 'espn', draftId: null, draftPosition: null };
   const sync = useSidePanelSync(connection);
   return (
     <RouteErrorBoundary>
         {STORAGE_ACTIVATION_ENABLED && onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
+      <SidePanelSlotControl />
       <SidePanelContent connection={connection} sync={sync} />
     </RouteErrorBoundary>
   );

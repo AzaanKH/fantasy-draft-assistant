@@ -12,7 +12,7 @@ import type { DraftActions, DraftState, SetDraftState } from '@/stores/draft/typ
 import type { DraftSessionIdentity, PersistedDraftSession } from '@/stores/draftSessionStorage';
 import type { WorkspaceCommand } from './commands';
 
-export type DraftCommand = Exclude<WorkspaceCommand, WorkspaceCommand<`connection.${keyof import('./commands').ConnectionActions}`>> | ['moveShortlistedPlayerTo', player: string, index: number] | ['addShortlistedPlayer', player: string] | ['setPlayerShortlisted', player: string, shortlisted: boolean] | ['advanceSyncFreshness', confirmedAt: number];
+export type DraftCommand = Exclude<WorkspaceCommand, WorkspaceCommand<`connection.${keyof import('./commands').ConnectionActions}`>> | ['moveShortlistedPlayerTo', player: string, index: number] | ['addShortlistedPlayer', player: string] | ['setPlayerShortlisted', player: string, shortlisted: boolean] | ['advanceSyncFreshness', confirmedAt: number] | ['confirmDraftSlot', position: number];
 
 export function initialDraftState(identity: DraftSessionIdentity): DraftState {
   return {
@@ -55,6 +55,11 @@ export function reduceDraftCommand(previous: DraftState, command: DraftCommand):
     const confirmedAt = command[1];
     if (!Number.isFinite(confirmedAt) || confirmedAt < 0) throw new Error('Invalid sync freshness boundary');
     if (confirmedAt > (state.lastConfirmedSyncAt ?? -1)) state = { ...state, lastConfirmedSyncAt: confirmedAt };
+    return { state, result: undefined };
+  }
+  if (command[0] === 'confirmDraftSlot') {
+    actions.setConfig({ myPickPosition: command[1] });
+    actions.setSessionMode('live');
     return { state, result: undefined };
   }
   const result = dispatchDraftCommand(actions, command, () => state.shortlistedPlayerIds);

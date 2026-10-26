@@ -51,6 +51,15 @@ describe('side panel stored URL', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'GET_DRAFT_STATUS' });
   });
 
+  it('leaves a fresh detected draft slot unconfirmed when no hint exists', async () => {
+    vi.stubGlobal('chrome', {
+      storage: { local: { get: vi.fn().mockResolvedValue({}) }, onChanged: { addListener: vi.fn() } },
+      runtime: { sendMessage: vi.fn().mockResolvedValue({ success: true, data: { picks: [], status: { isInDraftRoom: true, provider: 'sleeper', draftId: 'fresh-draft' } } }), onMessage: { addListener: vi.fn() } },
+    });
+    await import('./sidepanel');
+    await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toBe(`${DEFAULT_WEB_APP_URL}/sidepanel?provider=sleeper&draftId=fresh-draft`); });
+  });
+
   it('retains the stored draft position when the URL and status response are invalid', async () => {
     vi.stubGlobal('chrome', {
       storage: {

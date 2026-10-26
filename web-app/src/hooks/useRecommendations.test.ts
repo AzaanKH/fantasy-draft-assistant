@@ -7,7 +7,7 @@ import { useRecommendations } from './useRecommendations';
 import { createDraftStore } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { createQuickMockSettings, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
-import type { PersistedDraftSyncConnection } from '@/stores/draftSyncStore';
+import type { PersistedDraftSyncConnection } from '@/workspace/connection-hints';
 import type { LocalLeagueProfile } from '@/stores/leagueSetupStore';
 
 const setup = vi.hoisted(() => ({

@@ -29,7 +29,7 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bind = (database: Awaited<ReturnType<Controller['activate']>>): void => {
-    const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search }));
+    const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
     ready(workspace);
     if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
   };
@@ -98,7 +98,7 @@ export function showStorageActivation({ root, verified, ready }: { readonly root
     }
     const database = await controller.resume();
     if (database) {
-      const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search }));
+      const workspace = observeDurableWorkspace(createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true }));
       ready(workspace);
       if (import.meta.env.DEV) void import('./operator-rollback').then(({ installRollbackOperator }) => { installRollbackOperator(workspace); });
       return;
