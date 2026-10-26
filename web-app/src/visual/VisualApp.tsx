@@ -22,6 +22,7 @@ import { MotionProvider } from '@/components/motion';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { NotificationProvider } from '@/components/notifications';
 import { AssistantPage } from '@/features/assistant/AssistantPage';
+import { AssistantSkeleton } from '@/features/assistant/AssistantLayout';
 import type { AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftBoard } from '@/features/draft-room/DraftBoard';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
@@ -33,6 +34,7 @@ import {
   DraftDecisionProvider,
 } from '@/features/recommendations/DraftDecisionContext';
 import { RosterSettings } from '@/features/roster-settings/RosterSettings';
+import { SidePanelSkeleton } from '@/features/sidepanel/SidePanelFrame';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import {
   PlayerDataFixtureProvider,
@@ -252,6 +254,13 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
   },
 };
 
+/** Player data still loading, for render checks of each loading state against its loaded fixture. */
+export const VISUAL_LOADING_PLAYER_DATA: PlayerDataQueryResult = {
+  ...VISUAL_PLAYER_DATA,
+  players: [],
+  isLoading: true,
+};
+
 function createFixtureHistory(): RecordedDraftPick[] {
   return Array.from({ length: 46 }, (_, index) => {
     const pickNumber = index + 1;
@@ -326,6 +335,7 @@ export type VisualRoute =
   | { readonly screen: 'mobile-draft'; readonly state: 'draft' }
   | { readonly screen: 'mobile-assistant'; readonly state: AssistantLens }
   | { readonly screen: 'readiness'; readonly state: 'blocked' | 'ready'; readonly refresh: VisualRefreshState }
+  | { readonly screen: 'loading'; readonly state: 'draft' | 'assistant' | 'sidepanel' }
   | { readonly screen: 'not-found'; readonly state: 'not-found' };
 
 export function getVisualRoute(pathname: string, search: string): VisualRoute {
@@ -350,6 +360,9 @@ export function getVisualRoute(pathname: string, search: string): VisualRoute {
       screen: 'mobile-assistant',
       state: state === 'compare' || state === 'roster' || state === 'why' ? state : 'wait',
     };
+  }
+  if (pathname === '/__visual/loading') {
+    return { screen: 'loading', state: state === 'assistant' || state === 'sidepanel' ? state : 'draft' };
   }
   if (pathname === '/__visual/readiness') {
     const refresh = new URLSearchParams(search).get('refresh');
@@ -426,6 +439,12 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
         </main>
       );
     }
+    case 'loading':
+      return route.state === 'draft'
+        ? <DraftWorkspaceFixture />
+        : route.state === 'assistant'
+          ? <><Header route="assistant" /><AssistantSkeleton analysisTab="wait" onReturnToDraft={() => undefined} /></>
+          : <SidePanelSkeleton />;
     case 'not-found':
       return <main className="p-4">Visual fixture not found.</main>;
   }
@@ -488,11 +507,12 @@ export function VisualApp(): React.ReactElement {
       <QueryClientProvider client={queryClient}>
         <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
           <WorkspaceProvider workspace={workspace}>
-            <PlayerDataFixtureProvider value={VISUAL_PLAYER_DATA}>
+            <PlayerDataFixtureProvider value={route.screen === 'loading' ? VISUAL_LOADING_PLAYER_DATA : VISUAL_PLAYER_DATA}>
               <NotificationProvider>
                 <TooltipProvider><MotionProvider>
                   <LiveDraftSyncProvider>
-                    <DraftDecisionProvider readiness={VISUAL_READY_REPORT}>
+                    {/* Readiness has no sources until player data loads, so loading screens are also blocked. */}
+                    <DraftDecisionProvider readiness={route.screen === 'loading' ? VISUAL_BLOCKED_REPORT : VISUAL_READY_REPORT}>
                       <div className="min-h-screen bg-background text-foreground" data-visual-screen={route.screen}>
                         <VisualRouteContent route={route} />
                       </div>

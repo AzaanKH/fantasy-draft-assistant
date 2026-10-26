@@ -7,31 +7,17 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
 import { MotionCount, MotionExpandable } from '@/components/motion';
-import { WorkspacePanelSkeleton } from '@/components/skeletons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { DraftPlayerPool } from './DraftPlayerPool';
-
-const DraftSuggestions = React.lazy(() =>
-  import('./DraftSuggestions').then((module) => ({ default: module.DraftSuggestions }))
-);
-
-const DraftQueuePanel = React.lazy(() =>
-  import('./DraftQueuePanel').then((module) => ({ default: module.DraftQueuePanel }))
-);
-
-const DraftRosterPanel = React.lazy(() =>
-  import('./DraftRosterPanel').then((module) => ({ default: module.DraftRosterPanel }))
-);
+import { DraftQueuePanel } from './DraftQueuePanel';
+import { DraftRosterPanel } from './DraftRosterPanel';
+import { DraftSuggestions } from './DraftSuggestions';
 
 /** Matches the design system's xl breakpoint, where the roster becomes a sidebar. */
 const SPLIT_LAYOUT_QUERY = '(min-width: 80rem)';
-
-function WorkspacePanelLoading(): React.ReactElement {
-  return <WorkspacePanelSkeleton />;
-}
 
 function DockTab({
   value,
@@ -87,19 +73,13 @@ export function DraftDock({
   const secondaryPanels = (
     <>
       <TabsContent value="roster" className="draft-dock-panel">
-        <React.Suspense fallback={<WorkspacePanelLoading />}>
-          <DraftRosterPanel />
-        </React.Suspense>
+        <DraftRosterPanel />
       </TabsContent>
       <TabsContent value="queue" className="draft-dock-panel">
-        <React.Suspense fallback={<WorkspacePanelLoading />}>
-          <DraftQueuePanel />
-        </React.Suspense>
+        <DraftQueuePanel />
       </TabsContent>
       <TabsContent value="suggestions" className="draft-dock-panel">
-        <React.Suspense fallback={<WorkspacePanelLoading />}>
-          <DraftSuggestions onOpenAssistant={onOpenAssistant} />
-        </React.Suspense>
+        <DraftSuggestions onOpenAssistant={onOpenAssistant} />
       </TabsContent>
     </>
   );

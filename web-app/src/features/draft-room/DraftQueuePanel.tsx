@@ -4,14 +4,28 @@ import * as React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionLabel } from '@/components/PositionLabel';
+import { SkeletonBlock } from '@/components/skeletons';
+import { PlayerLinesPlaceholder } from './DraftPlayerPool';
 import { MotionReorderItem, MotionReorderList } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { useDraftPlayerAction } from '@/hooks/useDraftPlayerAction';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 
+function QueueRowPlaceholder({ index }: { readonly index: number }): React.ReactElement {
+  return (
+    <div aria-hidden="true" className="draft-queue-row">
+      <span className="draft-queue-index">{String(index + 1)}</span>
+      <SkeletonBlock className="size-9 shrink-0 rounded-full" />
+      <PlayerLinesPlaceholder />
+      <SkeletonBlock className="h-8 w-16 rounded-sm" />
+      <SkeletonBlock className="size-8 rounded-sm" />
+    </div>
+  );
+}
+
 export function DraftQueuePanel(): React.ReactElement {
-  const { players } = usePlayerDataQuery();
+  const { players, isLoading } = usePlayerDataQuery();
   const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { removePlayerFromQueue } = useQueueActions(players);
   const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
@@ -23,6 +37,15 @@ export function DraftQueuePanel(): React.ReactElement {
     const player = playerById.get(playerId);
     return player ? [player] : [];
   });
+
+  // The queue's length is known before its players' details load.
+  if (isLoading && queuedPlayerIds.length > 0) {
+    return (
+      <div className="draft-queue-list">
+        {queuedPlayerIds.map((playerId, index) => <QueueRowPlaceholder key={playerId} index={index} />)}
+      </div>
+    );
+  }
 
   if (queuedPlayers.length === 0) {
     return (

@@ -33,6 +33,14 @@ describe('visual fixtures', () => {
       screen: 'mobile-assistant',
       state: 'wait',
     });
+    expect(getVisualRoute('/__visual/loading', '?state=assistant')).toEqual({
+      screen: 'loading',
+      state: 'assistant',
+    });
+    expect(getVisualRoute('/__visual/loading', '')).toEqual({
+      screen: 'loading',
+      state: 'draft',
+    });
     expect(getVisualRoute('/__visual/readiness', '?state=blocked')).toEqual({
       screen: 'readiness',
       state: 'blocked',

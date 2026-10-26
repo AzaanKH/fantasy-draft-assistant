@@ -41,6 +41,7 @@ const VISUAL_CHECKS: readonly VisualCheck[] = [
     widths: [DESKTOP, ...NARROW_WIDTHS],
   })),
   { url: '/__visual/readiness?state=ready', widths: [DESKTOP, PHONE] },
+  ...(['draft', 'assistant', 'sidepanel'] as const).map((state) => ({ url: `/__visual/loading?state=${state}`, widths: [DESKTOP, PHONE] })),
 ];
 
 class GateFailure extends Error {}
@@ -144,7 +145,7 @@ async function checkDraftFlow(browser: Browser): Promise<void> {
 
     await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
     await page.waitForURL(/\/assistant/);
-    await page.locator('.rec-workspace').waitFor({ timeout: 20_000 });
+    await page.locator('.rec-workspace:not([aria-busy])').waitFor({ timeout: 20_000 });
     await page.goBack();
     await page.waitForURL(/\/draft/);
     await page.locator('.draft-board').getByText(target).first().waitFor();
@@ -196,7 +197,7 @@ async function checkRouteFailure(browser: Browser): Promise<void> {
     // The browser keeps the failed module, so recovery is a reload that fetches it again.
     await page.unroute(assistantModule);
     await page.getByRole('button', { name: 'Reload app' }).click();
-    await page.locator('.rec-workspace').waitFor({ timeout: 20_000 });
+    await page.locator('.rec-workspace:not([aria-busy])').waitFor({ timeout: 20_000 });
   } finally {
     await page.close();
   }

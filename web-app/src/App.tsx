@@ -8,12 +8,12 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { DraftHeader } from '@/components/DraftHeader';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
-import { RouteSkeleton } from '@/components/skeletons';
 import {
   DEFAULT_ASSISTANT_NAVIGATION_TARGET,
   getAssistantNavigationTarget,
   type AssistantNavigationTarget,
 } from '@/features/assistant/assistant-navigation';
+import { AssistantSkeleton } from '@/features/assistant/AssistantLayout';
 import { DraftRoom } from '@/features/draft-room/DraftRoom';
 import { LiveDraftSyncProvider } from '@/features/draft-room/LiveDraftSyncProvider';
 import { MockDraftAutoAdvance } from '@/features/draft-board/mock-auto-advance';
@@ -25,6 +25,7 @@ import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
 import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
 import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
 import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
+import { SidePanelSkeleton } from '@/features/sidepanel/SidePanelFrame';
 
 const LeagueSetupDialog = React.lazy(() => import('@/features/league-setup/LeagueSetupDialog').then((module) => ({ default: module.LeagueSetupDialog })));
 
@@ -51,10 +52,6 @@ const SidePanelPage = React.lazy(() =>
     default: module.SidePanelPage,
   }))
 );
-
-function RouteLoading({ route }: { readonly route: AppRoute }): React.ReactElement {
-  return <RouteSkeleton route={route} />;
-}
 
 export function App(): React.ReactElement {
   const [leagueSetupOpen, setLeagueSetupOpen] = React.useState(false);
@@ -169,7 +166,7 @@ export function App(): React.ReactElement {
       <div className="min-h-screen bg-background text-foreground">
         <DraftDecisionProvider readiness={readiness}>
           <RouteErrorBoundary>
-            <React.Suspense fallback={<RouteLoading route="sidepanel" />}>
+            <React.Suspense fallback={<SidePanelSkeleton />}>
               <SidePanelPage onOpenWorkspace={STORAGE_ACTIVATION_ENABLED ? () => { setRoute('draft'); } : undefined} />
             </React.Suspense>
           </RouteErrorBoundary>
@@ -204,7 +201,10 @@ export function App(): React.ReactElement {
               <ShadowRecommendationObserver />
               <MockDraftAutoAdvance />
               <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
-                <React.Suspense fallback={<RouteLoading route={route} />}>
+                {/* DraftRoom ships in this chunk and is its own loading state, so only the lazy Assistant needs a fallback. */}
+                <React.Suspense fallback={route === 'assistant'
+                  ? <AssistantSkeleton analysisTab={assistantNavigationTarget.lens} onReturnToDraft={() => { navigate('draft'); }} />
+                  : null}>
                   {route === 'assistant' ? (
                     <AssistantPage
                       key={`${assistantNavigationTarget.lens}:${assistantNavigationTarget.selectedPlayerId ?? 'none'}`}

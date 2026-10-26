@@ -3,6 +3,7 @@ import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import { getSyncStatus, type AssistantDraftMode, type PickWindow } from './assistant-context';
 import { useNow } from '@/workspace/useNow';
+import { LensToggle } from './AssistantLayout';
 
 const MODE_LABELS: Readonly<Record<AssistantDraftMode, string>> = {
   companion: 'Companion',
@@ -51,10 +52,7 @@ export function AssistantContextBar({
       <div className="rec-context-status">
         <AssistantSyncStatus sync={sync} />
         <span className="rec-muted rec-mode-label">{MODE_LABELS[mode]}</span>
-        <div className="rec-lens" role="group" aria-label="Decision lens">
-          <button type="button" aria-pressed={lens === 'best-pick'} onClick={() => { onLensChange('best-pick'); }}>Best Pick</button>
-          <button type="button" aria-pressed={lens === 'best-player'} onClick={() => { onLensChange('best-player'); }}>Best Player</button>
-        </div>
+        <LensToggle lens={lens} onChange={onLensChange} />
       </div>
     </div>
   );
