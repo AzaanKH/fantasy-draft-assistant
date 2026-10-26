@@ -130,3 +130,28 @@ it.each([false, true])('invalidates the real parent-opened control in the first 
   expect(slotSelect()).toBe(originalSelect);
   expect(store.getState().draftHistory.some(row => row.pickNumber === selected + 1)).toBe(false);
 });
+
+
+it.each([false, true])('invalidates keeper occupation in the first commit, correction=%s', correcting => {
+  if (correcting) expect(store.getState().recordProvisionalPick(pick(1, observed))).toBe(true);
+  const editingPick = correcting ? store.getState().draftHistory[0] : undefined;
+  const commits: CommittedChoice[] = [];
+  const capture = (choice: CommittedChoice) => { commits.push(choice); };
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store,
+    children: createElement(Fragment, null,
+      createElement(ProvisionalPickDialog, { open: true, onOpenChange: vi.fn(), editingPick, initialPlayerId: observed.id }),
+      createElement(CommitProbe, { capture, correcting })) })); });
+  const originalSelect = slotSelect();
+  choosePick('2');
+  expect(saveButton(correcting).disabled).toBe(false);
+  commits.length = 0;
+  act(() => { store.getState().preloadKeepers([{ playerId: elsewhere.id, playerName: elsewhere.name,
+    position: elsewhere.position, teamIndex: 1, round: 1, isMyKeeper: false }]); });
+  expect(commits.length).toBeGreaterThan(0);
+  expect(commits.every(choice => choice.select === originalSelect)).toBe(true);
+  expect(commits.map(choice => ({ value: choice.value, disabled: choice.disabled, alert: choice.alert }))).toEqual([
+    { value: '', disabled: true, alert: 'Pick 2 was just recorded elsewhere. Choose a pick.' },
+  ]);
+  expect(slotSelect()).toBe(originalSelect);
+  if (correcting) expect(store.getState().draftHistory.find(row => row.pickNumber === 1)?.playerId).toBe(observed.id);
+});

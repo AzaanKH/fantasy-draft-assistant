@@ -159,8 +159,8 @@ function ProvisionalPickForm({
     const player = selectablePlayers.find(
       (candidate) => candidate.id === selectedPlayerId
     );
-    const pickNumber = Number.parseInt(selectedPickNumber, 10);
-    if (!player || !Number.isInteger(pickNumber)) {
+    const pickNumber = Number(displayedPickNumber);
+    if (!player || !displayedPickNumber || !Number.isInteger(pickNumber) || !editablePickNumbers.includes(pickNumber)) {
       setError('Choose an available player and draft position.');
       return;
     }
