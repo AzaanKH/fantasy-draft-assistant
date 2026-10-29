@@ -14,6 +14,10 @@ const YAHOO_HOSTS = new Set([
 ]);
 const ESPN_HOSTS = new Set(['fantasy.espn.com']);
 
+export function isDraftProviderHost(hostname: string): boolean {
+  return SLEEPER_HOSTS.has(hostname) || YAHOO_HOSTS.has(hostname) || ESPN_HOSTS.has(hostname);
+}
+
 interface DraftRoute {
   readonly provider: DraftProvider;
   readonly draftId?: string;
