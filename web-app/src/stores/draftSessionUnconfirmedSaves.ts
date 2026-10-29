@@ -1,10 +1,11 @@
 import { assertDraftStorageWritable, DraftStorageMigratedError } from './draftStorageMigration';
 import { decodeDraftSessionChange } from '@fantasy-draft/shared/catalog';
 import type { RecordedDraftPick } from './draft/types';
-import type {
-  DraftSessionIdentity,
-  DraftSessionStorage,
-  PersistedDraftSession,
+import {
+  joinStorageKey,
+  type DraftSessionIdentity,
+  type DraftSessionStorage,
+  type PersistedDraftSession,
 } from './draftSessionStorage';
 
 /**
@@ -62,14 +63,15 @@ export interface StoredDraftSessionChange {
   readonly change: DraftSessionChange;
 }
 
+const UNCONFIRMED_SAVE_KEY = 'fantasy-draft-session-unconfirmed-v1';
+
 function getUnconfirmedSaveKeyPrefix(identity: DraftSessionIdentity): string {
-  // Draft IDs never contain a colon, so the prefix cannot match another draft.
-  return `fantasy-draft-session-unconfirmed-v1:${identity.provider}:${identity.draftId}:`;
+  return `${joinStorageKey(UNCONFIRMED_SAVE_KEY, identity.provider, identity.draftId)}:`;
 }
 
 /** Each tab keeps its latest save under its own key, which no other tab writes. */
 function getUnconfirmedSaveKey(identity: DraftSessionIdentity, tabId: string): string {
-  return `${getUnconfirmedSaveKeyPrefix(identity)}${tabId}`;
+  return joinStorageKey(UNCONFIRMED_SAVE_KEY, identity.provider, identity.draftId, tabId);
 }
 
 /** Deep equality for JSON data; key order and undefined properties are ignored. */
