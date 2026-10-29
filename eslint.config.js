@@ -24,7 +24,7 @@ const effectOwners = [
   'scripts/src/{contract-source-schema,script-file-schemas}.ts',
   '**/*.test.{ts,tsx,mjs}',
   'cli/src/{archive,client,connections,data,errors,files,run}.ts',
-  'extension/src/background/{background-controller,sync-snapshot-client}.ts',
+  'extension/src/background/{background-controller,snapshot-request-ledger,sync-snapshot-client}.ts',
   'extension/src/shared/boundary-decoders.ts',
   'extension/config/manifest-decoder.ts',
   'server/src/{draft-data-refresh,fantasy-football-calculator,http-security,shadow-logger,shared-poll,sleeper-adapter,sync-adapter,sync-server,yahoo-adapter}.ts',
