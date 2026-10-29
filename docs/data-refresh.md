@@ -176,7 +176,7 @@ Browser exposure is `all` for local and demo builds, `local` for local builds on
 | Artifact | Source | Notes | Browser | Retention |
 | --- | --- | --- | --- | --- |
 | `data/contracts.json` | nflverse historical contracts sourced from OverTheCap | Informational contract context; a passing backtest alone does not enable live recommendation influence. | `local` | tracked |
-| `data/fantasypros-snapshot.json` | FantasyPros API or manual fallback | Current ECR, consensus PPR ADP, projections, and news. | `all` | private |
+| `data/fantasypros-snapshot.json` | FantasyPros API | Current ECR, consensus PPR ADP, projections, and news. | `all` | private |
 | `data/league-history/survival-model.json` | Imported league draft history plus Sleeper proxy | Room-specific timing adjustment, not player-quality training data. | `all` | private |
 | `data/player-identity.json` | Generated from FantasyPros and Sleeper | Canonical IDs, aliases, and explicit team-defense mappings. | `all` | private |
 | `data/predictions.json` | DuckDB prediction pipeline | Includes league scoring plus leakage-safe trailing snap-share and Next Gen Stats adjustments. | `all` | private |
@@ -197,7 +197,6 @@ Browser exposure is `all` for local and demo builds, `local` for local builds on
 | `data/draft-prep-report.json` | Generated report | Machine-readable draft-week summary. | `none` | private |
 | `data/historical-snapshot-report.json` | Historical snapshot builder | As-of-draft source coverage and leakage checks. | `none` | private |
 | `data/league-history/leagueDraftHistory.json` | Imported league draft history | Private historical selections used by the survival model and backtests. | `none` | private |
-| `data/ecr-rankings.json` | FantasyPros manual scrape | Raw ECR fallback input for the normalized snapshot. | `none` | private |
 | `data/primary-league-experiments.json` | Primary League experiment runner | Decision experiment results and comparison evidence. | `none` | private |
 
 Additional retention rules come from the same manifest. Exact tracked exceptions take precedence over private prefixes. Unknown paths and paths with empty, `.`, or `..` segments have no classification.

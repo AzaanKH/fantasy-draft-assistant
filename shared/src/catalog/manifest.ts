@@ -22,7 +22,7 @@ export const CATALOG = {
     notes: 'Informational contract context; a passing backtest alone does not enable live recommendation influence.',
   }),
   snapshot: file('fantasypros-snapshot', 'all', 'private', {
-    source: 'FantasyPros API or manual fallback',
+    source: 'FantasyPros API',
     notes: 'Current ECR, consensus PPR ADP, projections, and news.',
   }),
   survival: file('league-history/survival-model', 'all', 'private', {
@@ -104,10 +104,6 @@ export const CATALOG = {
   leagueHistory: file('league-history/leagueDraftHistory', 'none', 'private', {
     source: 'Imported league draft history',
     notes: 'Private historical selections used by the survival model and backtests.',
-  }),
-  ecr: file('ecr-rankings', 'none', 'private', {
-    source: 'FantasyPros manual scrape',
-    notes: 'Raw ECR fallback input for the normalized snapshot.',
   }),
   experiments: file('primary-league-experiments', 'none', 'private', {
     source: 'Primary League experiment runner',

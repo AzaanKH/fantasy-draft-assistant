@@ -51,7 +51,6 @@ extension/dist/
 # Licensed or private data stays local; demo-data/ holds the publishable copy.
 # FantasyPros data and everything derived from it:
 data/fantasypros-snapshot.json
-data/ecr-rankings.json
 data/player-identity.json
 data/predictions.json
 data/primary-league-experiments.json
