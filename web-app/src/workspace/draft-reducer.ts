@@ -1,13 +1,12 @@
 import { createModeActions } from '@/stores/draft/mode-actions';
 import { dispatchDraftCommand } from './dispatch-command';
-import { produce } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import { createConfigurationActions } from '@/stores/draft/configuration-actions';
 import { createPickActions } from '@/stores/draft/pick-actions';
 import { createProvisionalActions } from '@/stores/draft/provisional-actions';
 import { createReconciliationActions } from '@/stores/draft/reconciliation';
-import { defaultConfig, defaultFilter, defaultMockSettings } from '@/stores/draft/state';
+import { defaultConfig, defaultFilter, defaultMockSettings, runDraftTransition } from '@/stores/draft/state';
 import type { DraftActions, DraftState, SetDraftState } from '@/stores/draft/types';
 import type { DraftSessionIdentity, PersistedDraftSession } from '@/stores/draftSessionStorage';
 import type { WorkspaceCommand } from './commands';
@@ -42,7 +41,11 @@ export function sessionFromState(state: DraftState, identity: DraftSessionIdenti
 
 export function reduceDraftCommand(previous: DraftState, command: DraftCommand): { state: DraftState; result: unknown } {
   let state = previous;
-  const set: SetDraftState = transition => { state = produce(state, transition); return true; };
+  const set: SetDraftState = transition => {
+    const { next, result } = runDraftTransition(state, transition);
+    state = next;
+    return { status: 'committed', result };
+  };
   const actions: DraftActions = {
     ...createConfigurationActions(set), ...createPickActions(set), ...createProvisionalActions(set), ...createReconciliationActions(set),
     setLiveDraftSession: identity => { if (identity?.provider !== state.liveSession?.provider || identity?.draftId !== state.liveSession?.draftId) throw new Error('Open another workspace to change the durable session'); },
