@@ -1,4 +1,4 @@
-import type { ECRPlayer } from '../../scrapers.js';
+import type { ECRPlayer } from '../../catalog/decoders.js';
 import type { FantasyProsAdpPlayer, FantasyProsNewsItem, FantasyProsProjection } from '../../fantasypros.js';
 import type { NFLTeam, Player, PlayerPrediction } from '../../player.js';
 import type { SportsbookSnapshot } from '../../sportsbook.js';

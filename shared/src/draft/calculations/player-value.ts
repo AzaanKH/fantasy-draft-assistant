@@ -4,7 +4,7 @@ import type { FantasyProsProjection, FantasyProsAdpPlayer, FantasyProsNewsItem }
 import { type FantasyProsMarketStats, type SportsbookSnapshot, calculateSportsbookProjectionAdjustment } from '../../sportsbook.js';
 import type { MarketAdpPlayer } from '../../market-adp.js';
 import type { TeamEnvironment } from '../../team-environment.js';
-import type { ECRPlayer } from '../../scrapers.js';
+import type { ECRPlayer } from '../../catalog/decoders.js';
 import { type RosterRequirements, DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
 import { type ScoringRules, DEFAULT_SCORING_RULES, calculateLeagueProjection } from '../../league/scoring.js';
 import { applyDynamicValueOverReplacement, estimatePlayerPrediction } from './prediction-score.js';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
 import { DEFAULT_SCORING_RULES } from '../../league/scoring.js';
 import { evaluateDraftReadiness, type DraftReadinessSourceObservation } from '../../draft-readiness.js';
-import { type ECRPlayer } from '../../scrapers.js';
+import { type ECRPlayer } from '../../catalog/decoders.js';
 import { type FantasyProsProjection } from '../../fantasypros.js';
 import { type NFLTeam, type PlayerPrediction } from '../../player.js';
 import { type SportsbookSnapshot } from '../../sportsbook.js';
