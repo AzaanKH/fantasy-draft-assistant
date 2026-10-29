@@ -149,17 +149,48 @@ describe('v1 independent entry import', () => {
     expect(result.rejected).toEqual([]);
   });
 
-  it.each([
-    { shape: 'original', overrides: { revision: undefined, lineage: undefined, draftProgress: undefined }, draftType: undefined, digest: 'dc07a9715802a2d151e7ce5339797ea1ac48874497eb36ea7fdd834b9b8df5ba' },
-    { shape: 'current', overrides: {}, draftType: 'snake', digest: '2396511736af22bd096b731584b61f531f97ca8678168c5b47b08fa56e964b78' },
-  ])('keeps the import digest earlier releases recorded for $shape sessions', async ({ overrides, draftType, digest }) => {
-    const value = session({ currentPick: 7, draftHistory: [pick(2), pick(1)] });
-    const result = importV1([stored({ ...value, ...overrides, config: { ...value.config, draftType } })]);
-    const imported = result.sessions[0];
-    if (!imported) throw new Error('Expected an imported session');
-    await expect(importSourceDigest(result.source, imported)).resolves.toBe(digest);
+  it('keeps the import digest earlier releases recorded for every legacy field combination', async () => {
+    await expect(legacyImportDigests()).resolves.toEqual(LEGACY_IMPORT_DIGESTS);
   });
 });
+
+const LEGACY_FIELDS = ['draftType', 'revision', 'lineage', 'draftProgress'] as const;
+
+const LEGACY_IMPORT_DIGESTS: Record<string, string> = {
+  'none': 'dc07a9715802a2d151e7ce5339797ea1ac48874497eb36ea7fdd834b9b8df5ba',
+  'draftType': '3ccb6ae7fdd5241d96edc85ea99981e5508586f9af838e050c3324b74972cd73',
+  'revision': 'a43834a6f2610f1402a2157416b23209a46afe05f57d1deb0cbf999e7abf0813',
+  'draftType+revision': '99a1478c3bc5c6a3c08bc10ff7ac472ff0d879aa5a245cf3406b2325a605c21d',
+  'lineage': 'aa420b1b7bcb6563720cc295545eb27bc01914014aaabd67aad2071a4f972e82',
+  'draftType+lineage': '713cdcccbee352bca4e8df059e01341d644883b4320f1ec5f91aa09997bccdb1',
+  'revision+lineage': '29c7cd2d5f3c68ee7eff77d4c6574ad159cdd94e50793e5bbd278ee6fc6d4a5b',
+  'draftType+revision+lineage': '57ebf8203051ba6956e36a5e964e5266a393293ddfb8f99597a1be89d27196d1',
+  'draftProgress': '93083af84b4f91788e33ac00b1181fca1bea5c0aa6b42ed1e41279c63e42502a',
+  'draftType+draftProgress': '906db23152a3ec66b6b495b064b44c6c1581671d23948cb99c0ec2651eb56481',
+  'revision+draftProgress': '93e174188d5e7697dc96019c77f474740261f53f13461e55572ea21c334bf7f6',
+  'draftType+revision+draftProgress': '488f4bc50f8de7246eaaf5efcabb898490a4d1cf238ae40ec3c3e20cdda8b4e7',
+  'lineage+draftProgress': '51456f336d7582b5402889122ed8c2cd5238342b3bc0852538cab1489bdb7b1a',
+  'draftType+lineage+draftProgress': '25987e1a715d045ab1b03fec386f110cd1f60e469a976644da3280239a057b21',
+  'revision+lineage+draftProgress': '978ee3c7b3e56f45d8c2d85dcb0d1bdca2bfb9f584ca3c80d515cf9e88b60563',
+  'draftType+revision+lineage+draftProgress': '2396511736af22bd096b731584b61f531f97ca8678168c5b47b08fa56e964b78',
+};
+
+async function legacyImportDigests(): Promise<Record<string, string>> {
+  const digests: Record<string, string> = {};
+  for (let mask = 0; mask < 1 << LEGACY_FIELDS.length; mask++) {
+    const present = LEGACY_FIELDS.filter((_, index) => mask & 1 << index);
+    const value: Record<string, unknown> = { ...session({ currentPick: 7, draftHistory: [pick(2), pick(1)] }) };
+    const config: Record<string, unknown> = { ...session().config };
+    if (!present.includes('draftType')) config.draftType = undefined;
+    value.config = config;
+    for (const field of ['revision', 'lineage', 'draftProgress'] as const) if (!present.includes(field)) value[field] = undefined;
+    const result = importV1([stored(value)]);
+    const imported = result.sessions[0];
+    if (!imported) throw new Error('Expected an imported session');
+    digests[present.join('+') || 'none'] = await importSourceDigest(result.source, imported);
+  }
+  return digests;
+}
 
 describe('v1 cursor history', () => {
   it('preserves insertion order and validates the progress prefix in pick order', () => {

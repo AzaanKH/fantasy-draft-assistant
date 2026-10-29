@@ -137,8 +137,13 @@ function decodeSession(value: Record<string, unknown>, identity: DraftSessionIde
   const decoded = decodeStoredDraftSessionRecord({
     ...migrateLegacyDraftSession(value), draftHistory: [], preloadedKeepers: [], shortlistedPlayerIds: [], unresolvedProviderPicks: [],
   });
-  const { draftProgress: _draftProgress, ...unprogressed } = decoded;
-  const header = 'draftProgress' in value ? decoded : unprogressed;
+  const header = { ...decoded };
+  for (const field of ['revision', 'lineage', 'draftProgress'] as const) {
+    if (field in value) continue;
+    const migrated = header[field];
+    Reflect.deleteProperty(header, field);
+    Reflect.set(header, field, migrated);
+  }
   if (!same(header.identity, identity)) throw new Error('Session identity does not match its storage key');
   const { config } = header;
   const total = config.totalTeams * config.totalRounds;
