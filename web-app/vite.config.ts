@@ -8,6 +8,7 @@ import path from 'path';
 import { browserDataFiles } from '../shared/src/catalog/manifest';
 
 import { localApiSecurity } from '../server/src/vite-security';
+import { browserDataCandidates, resolveDataSource, type BrowserDataPhase } from './src/lib/browser-data-source';
 
 const BROWSER_DATA_FILES = browserDataFiles('local');
 const DEMO_BROWSER_DATA_FILES = browserDataFiles('demo');
@@ -17,43 +18,23 @@ const { webPort, apiOrigin, webOrigin } = localDevPorts(process.env);
 const repoRoot = path.resolve(__dirname, '..');
 const browserDataPaths = new Set<string>(BROWSER_DATA_FILES);
 
-// BROWSER_DATA_SOURCE=demo serves demo-data/ (including its recommendation
-// policy) without changing data/. The dev server falls back to data/ for files
-// the demo does not ship; a demo build emits only demo-data/ files and fails if
-// one it needs is missing, so local data never reaches a published demo.
-const browserDataSource = process.env['BROWSER_DATA_SOURCE'] ?? 'local';
-if (browserDataSource !== 'local' && browserDataSource !== 'demo') {
-  throw new Error(`BROWSER_DATA_SOURCE must be "local" or "demo"; got "${browserDataSource}".`);
-}
-// VITE_DEMO_MODE=true also switches the app to its static demo runtime.
-if (process.env['VITE_DEMO_MODE'] === 'true' && browserDataSource !== 'demo') {
-  throw new Error('VITE_DEMO_MODE=true requires BROWSER_DATA_SOURCE=demo.');
-}
+const browserDataSource = resolveDataSource(process.env);
 
-function demoDataPath(fileName: string): string {
-  return path.join(repoRoot, 'demo-data', path.relative('data', fileName));
-}
-
-async function readBrowserData(fileName: string): Promise<Buffer> {
-  if (browserDataSource === 'demo') {
+async function readBrowserData(fileName: string, phase: BrowserDataPhase): Promise<Buffer> {
+  const candidates = browserDataCandidates(browserDataSource, phase, fileName);
+  for (const [index, candidate] of candidates.entries()) {
     try {
-      return await readFile(demoDataPath(fileName));
+      return await readFile(path.join(repoRoot, candidate));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      if (index < candidates.length - 1) continue;
+      if (phase === 'build' && browserDataSource === 'demo') {
+        throw new Error(`Demo build is missing ${candidate}. Run \`pnpm data:demo:build\` to regenerate demo-data/.`);
+      }
+      throw error;
     }
   }
-  return readFile(path.join(repoRoot, fileName));
-}
-
-async function readDemoBuildData(fileName: string): Promise<Buffer> {
-  try {
-    return await readFile(demoDataPath(fileName));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    throw new Error(
-      `Demo build is missing demo-data/${path.relative('data', fileName)}. Run \`pnpm data:demo:build\` to regenerate demo-data/.`
-    );
-  }
+  throw new Error(`No browser data candidates for ${fileName}.`);
 }
 
 function browserDataPlugins(): Plugin[] {
@@ -76,7 +57,7 @@ function browserDataPlugins(): Plugin[] {
           return;
         }
 
-        void readBrowserData(pathname).then((content) => {
+        void readBrowserData(pathname, 'serve').then((content) => {
           response.statusCode = 200;
           response.setHeader('Content-Type', 'application/json; charset=utf-8');
           response.setHeader('Cache-Control', 'no-store');
@@ -91,13 +72,8 @@ function browserDataPlugins(): Plugin[] {
     name: 'browser-data-build',
     apply: 'build',
     async buildStart() {
-      const demoBuild = browserDataSource === 'demo';
-      for (const fileName of demoBuild ? DEMO_BROWSER_DATA_FILES : BROWSER_DATA_FILES) {
-        this.emitFile({
-          type: 'asset',
-          fileName,
-          source: await (demoBuild ? readDemoBuildData(fileName) : readBrowserData(fileName)),
-        });
+      for (const fileName of browserDataSource === 'demo' ? DEMO_BROWSER_DATA_FILES : BROWSER_DATA_FILES) {
+        this.emitFile({ type: 'asset', fileName, source: await readBrowserData(fileName, 'build') });
       }
     },
   }];
