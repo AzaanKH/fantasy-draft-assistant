@@ -1,4 +1,4 @@
-import { DRAFT_STORAGE_MIGRATION_KEY } from '@fantasy-draft/shared/sync';
+import { DRAFT_STORAGE_MIGRATION_KEY, isDraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { DraftStorageMigratedError, isDraftStorageMigrated, showDraftStorageReloadNotice } from './draftStorageMigration';
 import { create, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -6,11 +6,13 @@ import { enableMapSet } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import {
   createDraftSessionWriteId,
+  EMPTY_DRAFT_SESSION_BASE,
   getBrowserDraftSessionStorage,
   getDraftSessionStorageKey,
   parseStoredDraftSession,
   persistDraftSession,
   readStoredDraftSessionText,
+  type DraftSessionBase,
   type DraftSessionIdentity,
   type DraftSessionStorage,
   type PersistedDraftSession,
@@ -22,19 +24,15 @@ import {
   type DraftSessionChange,
   type StoredDraftSessionChange,
 } from './draftSessionUnconfirmedSaves';
-import type { DraftStore, SetDraftState } from './draft/types';
+import type { DraftState, DraftStore, DraftTransition, SetDraftState } from './draft/types';
 import {
   defaultConfig,
   defaultFilter,
   defaultMockSettings,
   runDraftTransition,
 } from './draft/state';
-import {
-  applySavedDraftSession,
-  createSessionActions,
-  EMPTY_DRAFT_SESSION_BASE,
-  type DraftSessionPersistence,
-} from './draft/session-actions';
+import { applySavedDraftSession } from './draft/saved-session';
+import { createModeActions } from './draft/mode-actions';
 import { createConfigurationActions } from './draft/configuration-actions';
 import { createProvisionalActions } from './draft/provisional-actions';
 import { createPickActions } from './draft/pick-actions';
@@ -80,21 +78,50 @@ export function subscribeToBrowserStorageEvents(
   return () => { window.removeEventListener('storage', onStorage); };
 }
 
-/** Retries before a save overwrites a tab that keeps saving first; that tab's save is then merged back. */
+/** Fields whose change is written to the stored session. */
+const STORED_FIELDS = [
+  'liveSession',
+  'sessionMode',
+  'config',
+  'leagueSettings',
+  'draftHistory',
+  'draftProgress',
+  'shortlistedPlayerIds',
+  'preloadedKeepers',
+  'keepersInitialized',
+  'unresolvedProviderPicks',
+  'decisionLens',
+  'manualContinuityBaselineAt',
+  'lastConfirmedSyncAt',
+  'lastConfirmedPickNumber',
+] as const satisfies readonly (keyof DraftState)[];
+
+function changesStoredSession(previous: DraftState, next: DraftState): boolean {
+  return STORED_FIELDS.some((field) => previous[field] !== next[field]);
+}
+
+/**
+ * localStorage has no compare-and-set, so a tab that keeps losing the race to
+ * save would never write. Its final attempt overwrites the newer save instead,
+ * and that save is merged back from its recorded change.
+ */
 const MAX_SAVE_ATTEMPTS = 5;
+
+interface SaveAttempt {
+  readonly final: boolean;
+}
+
+/** `conflict`: another tab saved first and nothing was written. `refused`: draft storage has migrated. */
+type SaveOutcome = 'saved' | 'conflict' | 'refused';
 
 export function createDraftStore({
   storage = null,
   session = null,
   externalChanges = null,
 }: DraftStoreOptions = {}): DraftStoreApi {
-  const persistence: DraftSessionPersistence = { base: EMPTY_DRAFT_SESSION_BASE };
-  // Each page load records its saves under a new key, so a reloaded tab's last
-  // save stays in storage for any tab to merge back if it was overwritten.
+  let base: DraftSessionBase = EMPTY_DRAFT_SESSION_BASE;
+  // A reloaded tab gets a new ID, so its last recorded save stays in storage for any tab to merge back.
   const tabId = createDraftSessionWriteId();
-  let adoptingSavedSession = false;
-  let forceSave = false;
-  let saveConflicted = false;
   let storageFrozen = false;
   function v1Frozen(): boolean {
     const migrated = isDraftStorageMigrated(storage);
@@ -102,136 +129,39 @@ export function createDraftStore({
     storageFrozen ||= migrated;
     return storageFrozen;
   }
+  function freezeStorage(): void {
+    storageFrozen = true;
+    showDraftStorageReloadNotice();
+  }
+  let stopExternalChanges: (() => void) | undefined;
+
   const store = create<DraftStore>()(
-  immer((rawSet, get) => {
-  // Every change starts from the newest saved session, so edits from other tabs are kept.
-  // If another tab saves between that check and this tab's write, the change is
-  // reapplied to the newer session before the action reports its result.
-  const set: SetDraftState = (transition) => {
-    const previousSession = get().liveSession;
-    for (let attempt = 1; ; attempt += 1) {
-      syncFromOtherTabs();
-      const previous = get();
-      const { next, result } = runDraftTransition(previous, transition);
-      // Persistent contention is not expected; the overwritten save is merged back later.
-      forceSave = attempt >= MAX_SAVE_ATTEMPTS;
-      saveConflicted = false;
-      try {
-        rawSet(next, true);
-      } catch (error) {
-        if (!(error instanceof DraftStorageMigratedError)) throw error;
-        adoptingSavedSession = true;
-        try { store.setState(previous, true); } finally { adoptingSavedSession = false; }
-        storageFrozen = true;
-        showDraftStorageReloadNotice();
-        return { status: 'refused' };
-      } finally {
-        forceSave = false;
-      }
-      if (saveConflicted) continue;
-      // A newly loaded session may be missing a save overwritten before its tab reloaded.
-      const { liveSession } = get();
-      if (liveSession && (liveSession.provider !== previousSession?.provider ||
-          liveSession.draftId !== previousSession.draftId)) syncFromOtherTabs(true);
-      return { status: 'committed', result };
-    }
-  };
-  const loadSession: SetDraftState = (transition) => {
-    if (!v1Frozen()) return set(transition);
-    adoptingSavedSession = true;
-    try {
-      const { next, result } = runDraftTransition(get(), transition);
-      rawSet(next, true);
-      return { status: 'committed', result };
-    } finally { adoptingSavedSession = false; }
-  };
-  return {
-    sessionMode: 'setup',
-    liveSession: null,
-    manualContinuityBaselineAt: null,
-    lastConfirmedSyncAt: null,
-    lastConfirmedPickNumber: 0,
-    config: defaultConfig,
-    leagueSettings: createDefaultLeagueSettings(),
-    mockSettings: defaultMockSettings,
-    mockAutoAdvance: { paused: false, settingsOpen: false },
-    draftProgress: { anchor: { kind: 'start' }, historyLength: 0 },
-    draftHistory: [],
-    shortlistedPlayerIds: [],
-    preloadedKeepers: [],
-    keepersInitialized: false,
-    mockSurvivalProbabilities: {},
-    unresolvedProviderPicks: [],
-    decisionLens: 'best-pick',
-    filter: defaultFilter,
+  immer((rawSet, get, api) => {
+  const show = (next: DraftStore): void => { rawSet(next, true); };
 
-    ...createSessionActions(set, get, storage, persistence, loadSession),
-    ...createConfigurationActions(set),
-    ...createProvisionalActions(set),
-    ...createPickActions(set),
-    ...createReconciliationActions(set),
-    setDecisionLens: (lens) =>
-      { set((state) => {
-        state.decisionLens = lens;
-      }); },
-
-    setPositionFilter: (position) =>
-      { set((state) => {
-        state.filter.position = position;
-      }); },
-
-    setSearchQuery: (query) =>
-      { set((state) => {
-        state.filter.searchQuery = query;
-      }); },
-
-  };
-  })
-  );
-  store.subscribe((state, previous) => {
-    if (state.liveSession !== previous.liveSession ||
-        state.sessionMode !== previous.sessionMode ||
-        state.config !== previous.config || state.leagueSettings !== previous.leagueSettings ||
-        state.draftHistory !== previous.draftHistory ||
-        state.draftProgress !== previous.draftProgress ||
-        state.shortlistedPlayerIds !== previous.shortlistedPlayerIds ||
-        state.preloadedKeepers !== previous.preloadedKeepers || state.keepersInitialized !== previous.keepersInitialized ||
-        state.unresolvedProviderPicks !== previous.unresolvedProviderPicks ||
-        state.decisionLens !== previous.decisionLens ||
-        state.manualContinuityBaselineAt !== previous.manualContinuityBaselineAt ||
-        state.lastConfirmedSyncAt !== previous.lastConfirmedSyncAt ||
-        state.lastConfirmedPickNumber !== previous.lastConfirmedPickNumber) {
-      if (adoptingSavedSession) return;
-      const sessionChanged = state.liveSession !== previous.liveSession;
-      if (!saveSession(state) && !sessionChanged) saveConflicted = true;
-    }
-  });
-
-  /** Returns false when another tab saved first and nothing was written. */
-  function saveSession(state: DraftStore, mergedWriteIds: readonly string[] = []): boolean {
+  function saveSession(state: DraftStore, attempt: SaveAttempt, mergedWriteIds: readonly string[] = []): SaveOutcome {
     if (storageFrozen && storage && state.liveSession && state.sessionMode !== 'mock') {
       throw new DraftStorageMigratedError();
     }
-    const result = persistDraftSession(storage, state, persistence.base, { force: forceSave, tabId, mergedWriteIds });
-    if (result.status === 'conflict') return false;
-    if (result.status === 'written') persistence.base = result.base;
-    return true;
+    const result = persistDraftSession(storage, state, base, { force: attempt.final, tabId, mergedWriteIds });
+    if (result.status === 'conflict') return 'conflict';
+    if (result.status === 'written') base = result.base;
+    return 'saved';
   }
 
-  function adoptSavedSession(saved: PersistedDraftSession, serialized: string | null): void {
-    const { liveSession } = store.getState();
-    if (!liveSession) return;
-    persistence.base = { revision: saved.revision, serialized, lineage: saved.lineage, session: saved };
-    showSession(liveSession, saved);
-  }
-
-  function showSession(liveSession: DraftSessionIdentity, session: PersistedDraftSession): void {
-    adoptingSavedSession = true;
+  function saveChange(previous: DraftStore, next: DraftStore, attempt: SaveAttempt): SaveOutcome {
+    if (!changesStoredSession(previous, next)) return 'saved';
     try {
-      store.setState((state) => { applySavedDraftSession(state, liveSession, session); });
-    } finally {
-      adoptingSavedSession = false;
+      return saveSession(next, attempt);
+    } catch (error) {
+      if (!(error instanceof DraftStorageMigratedError)) throw error;
+      freezeStorage();
+      return 'refused';
     }
+  }
+
+  function showSavedSession(liveSession: DraftSessionIdentity, saved: PersistedDraftSession): void {
+    rawSet((state) => { applySavedDraftSession(state, liveSession, saved); });
   }
 
   /**
@@ -244,10 +174,10 @@ export function createDraftStore({
    * overwritten save is kept, since merging both restores the session it built on.
    */
   function takeOverwrittenChanges(
+    storage: DraftSessionStorage,
     liveSession: DraftSessionIdentity,
     saved: PersistedDraftSession
   ): DraftSessionChange[] {
-    if (!storage) return [];
     const included = new Set(saved.lineage);
     const newestWriteId = saved.lineage.at(-1);
     const oldestCoveredRevision = saved.revision - saved.lineage.length + 1;
@@ -278,63 +208,156 @@ export function createDraftStore({
     return overwritten.sort((left, right) => left.revision - right.revision);
   }
 
-  /**
-   * Adopts newer saves from other tabs and merges back any recorded save that a
-   * concurrent save overwrote. Recorded saves are checked only when the stored
-   * session changed, or when `checkRecordedSaves` is set after loading a session.
-   */
+  /** Adopts a newer save from another tab, then merges back recorded saves that a concurrent save overwrote. */
+  function mergeNewerSaves(
+    storage: DraftSessionStorage,
+    liveSession: DraftSessionIdentity,
+    checkRecordedSaves: boolean,
+    attempt: SaveAttempt
+  ): SaveOutcome {
+    const serialized = readStoredDraftSessionText(storage, liveSession);
+    const changed = serialized !== base.serialized;
+    if (!changed && !checkRecordedSaves) return 'saved';
+    const saved = changed ? parseStoredDraftSession(serialized, liveSession) : base.session;
+    // An unreadable entry is overwritten by the next save.
+    if (!saved) return 'saved';
+    if (changed) {
+      base = { revision: saved.revision, serialized, lineage: saved.lineage, session: saved };
+      showSavedSession(liveSession, saved);
+    }
+    const overwritten = takeOverwrittenChanges(storage, liveSession, saved);
+    if (overwritten.length === 0) return 'saved';
+
+    // A change that no longer fits the newer session, such as a pick beyond a
+    // shortened draft, is dropped; the provider restores any pick it reports.
+    const merged = overwritten.reduce(
+      (session, change) =>
+        parseStoredDraftSession(JSON.stringify(applyDraftSessionChange(session, change)), liveSession) ?? session,
+      saved
+    );
+    showSavedSession(liveSession, merged);
+    return saveSession(get(), attempt, overwritten.map((change) => change.writeId));
+  }
+
+  /** `checkRecordedSaves` merges overwritten saves even when the stored session is unchanged. */
   function syncFromOtherTabs(checkRecordedSaves = false): void {
     if (v1Frozen()) return;
-    try { syncUnmigratedSession(checkRecordedSaves); } catch (error) {
-      if (!(error instanceof DraftStorageMigratedError)) throw error;
-      storageFrozen = true;
-      showDraftStorageReloadNotice();
-    }
-  }
-
-  function syncUnmigratedSession(checkRecordedSaves: boolean): void {
-    // Runs inside action calls, which only happen after the store exists.
-    const { liveSession, sessionMode } = store.getState();
+    const { liveSession, sessionMode } = get();
     if (!storage || !liveSession || sessionMode === 'mock') return;
-    for (let attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt += 1) {
-      const serialized = readStoredDraftSessionText(storage, liveSession);
-      const changed = serialized !== persistence.base.serialized;
-      if (!changed && !checkRecordedSaves) return;
-      const saved = changed ? parseStoredDraftSession(serialized, liveSession) : persistence.base.session;
-      // An unreadable entry is overwritten by the next save.
-      if (!saved) return;
-      if (changed) adoptSavedSession(saved, serialized);
-      const overwritten = takeOverwrittenChanges(liveSession, saved);
-      if (overwritten.length === 0) return;
-
-      // A change that no longer fits the newer session, such as a pick beyond a
-      // shortened draft, is dropped; the provider restores any pick it reports.
-      const merged = overwritten.reduce(
-        (session, change) =>
-          parseStoredDraftSession(JSON.stringify(applyDraftSessionChange(session, change)), liveSession) ?? session,
-        saved
-      );
-      showSession(liveSession, merged);
-      forceSave = attempt === MAX_SAVE_ATTEMPTS;
-      try {
-        if (saveSession(store.getState(), overwritten.map((change) => change.writeId))) return;
-      } finally {
-        forceSave = false;
+    try {
+      for (let attempt = 1; ; attempt += 1) {
+        const outcome = mergeNewerSaves(storage, liveSession, checkRecordedSaves, { final: attempt === MAX_SAVE_ATTEMPTS });
+        if (outcome !== 'conflict') return;
       }
-      // Another tab saved first; merge into its session on the next pass.
-      checkRecordedSaves = true;
+    } catch (error) {
+      if (!(error instanceof DraftStorageMigratedError)) throw error;
+      freezeStorage();
     }
   }
 
-  const stopExternalChanges = externalChanges?.((key, newValue) => {
-    if (key === DRAFT_STORAGE_MIGRATION_KEY && newValue !== null && !storageFrozen) {
-      storageFrozen = true;
-      showDraftStorageReloadNotice();
+  const set: SetDraftState = (transition) => {
+    for (let attempt = 1; ; attempt += 1) {
+      syncFromOtherTabs();
+      const previous = get();
+      const { next, result } = runDraftTransition(previous, transition);
+      const outcome = saveChange(previous, next, { final: attempt === MAX_SAVE_ATTEMPTS });
+      if (outcome === 'refused') return { status: 'refused' };
+      if (outcome === 'saved') {
+        show(next);
+        return { status: 'committed', result };
+      }
     }
+  };
+
+  function openSession(identity: DraftSessionIdentity | null): void {
+    const serialized = identity ? readStoredDraftSessionText(storage, identity) : null;
+    const saved = identity ? parseStoredDraftSession(serialized, identity) : null;
+    const savedBase = saved
+      ? { revision: saved.revision, serialized, lineage: saved.lineage, session: saved }
+      : EMPTY_DRAFT_SESSION_BASE;
+    const open: DraftTransition<void> = (state) => {
+      applySavedDraftSession(state, identity, saved);
+      state.filter = { ...defaultFilter };
+    };
+    if (v1Frozen()) {
+      base = savedBase;
+      show(runDraftTransition(get(), open).next);
+      return;
+    }
+    syncFromOtherTabs();
+    const previous = get();
+    const { next } = runDraftTransition(previous, open);
+    base = savedBase;
+    if (saveChange(previous, next, { final: false }) === 'refused') return;
+    show(next);
+    // A save overwritten just before its tab reloaded survives only as a recorded change.
+    if (identity) syncFromOtherTabs(true);
+  }
+
+  const applyState = api.setState.bind(api);
+  api.setState = (...args: unknown[]) => {
+    const previous = get();
+    Reflect.apply(applyState, undefined, args);
+    const next = get();
+    if (changesStoredSession(previous, next)) saveSession(next, { final: false });
+  };
+
+  stopExternalChanges = externalChanges?.((key, newValue) => {
+    if (key === DRAFT_STORAGE_MIGRATION_KEY && newValue !== null && !storageFrozen) freezeStorage();
     if (v1Frozen()) return;
-    const { liveSession } = store.getState();
+    const { liveSession } = get();
     if (liveSession && (key === null || key === getDraftSessionStorageKey(liveSession))) syncFromOtherTabs();
   });
+
+  return {
+    sessionMode: 'setup',
+    liveSession: null,
+    manualContinuityBaselineAt: null,
+    lastConfirmedSyncAt: null,
+    lastConfirmedPickNumber: 0,
+    config: defaultConfig,
+    leagueSettings: createDefaultLeagueSettings(),
+    mockSettings: defaultMockSettings,
+    mockAutoAdvance: { paused: false, settingsOpen: false },
+    draftProgress: { anchor: { kind: 'start' }, historyLength: 0 },
+    draftHistory: [],
+    shortlistedPlayerIds: [],
+    preloadedKeepers: [],
+    keepersInitialized: false,
+    mockSurvivalProbabilities: {},
+    unresolvedProviderPicks: [],
+    decisionLens: 'best-pick',
+    filter: defaultFilter,
+
+    ...createModeActions(set),
+    setLiveDraftSession: (identity) => {
+      if (identity !== null && !isDraftSessionIdentity(identity)) return;
+      const current = get().liveSession;
+      if (current?.provider === identity?.provider && current?.draftId === identity?.draftId) return;
+      openSession(identity);
+    },
+    ...createConfigurationActions(set),
+    ...createProvisionalActions(set),
+    ...createPickActions(set),
+    ...createReconciliationActions(set),
+    setDecisionLens: (lens) =>
+      { set((state) => {
+        state.decisionLens = lens;
+      }); },
+
+    setPositionFilter: (position) =>
+      { set((state) => {
+        state.filter.position = position;
+      }); },
+
+    setSearchQuery: (query) =>
+      { set((state) => {
+        state.filter.searchQuery = query;
+      }); },
+
+  };
+  })
+  );
   if (session) store.getState().setLiveDraftSession(session);
   v1Frozen();
   return Object.assign(store, { dispose: () => { stopExternalChanges?.(); } });

@@ -49,10 +49,13 @@ export function acceptProvisionalProgress(state: Pick<
   state.mockSurvivalProbabilities = {};
 }
 
-export function runDraftTransition<State extends DraftState, Result>(state: State, transition: DraftTransition<Result>) {
+export function runDraftTransition<State extends DraftState, Result>(
+  state: State,
+  transition: DraftTransition<Result>
+): { readonly next: State; readonly result: Result } {
   const draft = createDraft(state);
   const result = transition(draft);
-  return { next: finishDraft(draft), result };
+  return { next: finishDraft(draft) as State, result };
 }
 
 export const defaultFilter: FilterState = {
