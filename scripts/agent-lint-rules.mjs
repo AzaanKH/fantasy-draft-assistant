@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { gateWorkspaces } from '../gate-workspaces.js';
 import { decorationRules } from './decoration-lint-rules.mjs';
 
@@ -10,6 +13,9 @@ const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-dr
 const leaguePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 // A quoted, comma-separated position list inside a string or SQL template, such as `in ('QB', 'RB')`.
 const quotedPositionList = /'(?:QB|RB|WR|TE|K|DEF)'(?:\s*,\s*'(?:QB|RB|WR|TE|K|DEF)')+/g;
+// The server workspace directory and its package name, either of which can load server modules.
+const serverRoots = [...new Set(['server', JSON.parse(readFileSync(path.join(root, 'server/package.json'), 'utf8')).name])];
+const compilerOptionsByConfig = new Map();
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-cross-package-import',
@@ -22,6 +28,33 @@ export const baselineRuleIds = [
 function staticModuleName(node) {
   return node?.type === 'TemplateLiteral' && node.expressions.length === 0
     ? node.quasis[0].value.cooked : node?.value;
+}
+
+function compilerOptions(directory) {
+  const configPath = ts.findConfigFile(directory, ts.sys.fileExists);
+  if (!configPath) return {};
+  if (!compilerOptionsByConfig.has(configPath)) {
+    const { config } = ts.readConfigFile(configPath, ts.sys.readFile);
+    compilerOptionsByConfig.set(configPath, ts.parseJsonConfigFileContent(config ?? {}, ts.sys, path.dirname(configPath)).options);
+  }
+  return compilerOptionsByConfig.get(configPath);
+}
+
+// Every path a specifier can load from directory: relative, absolute, file URL, or tsconfig paths alias.
+function modulePaths(name, directory) {
+  if (name.startsWith('file:')) {
+    try { return [fileURLToPath(name)]; } catch { return []; }
+  }
+  if (name.startsWith('.') || path.isAbsolute(name)) return [path.resolve(directory, name)];
+  const { paths = {}, baseUrl, pathsBasePath } = compilerOptions(directory);
+  return Object.entries(paths).flatMap(([pattern, targets]) => {
+    const [prefix, suffix] = pattern.includes('*') ? pattern.split('*') : [pattern, undefined];
+    const matches = suffix === undefined ? name === prefix
+      : name.length >= prefix.length + suffix.length && name.startsWith(prefix) && name.endsWith(suffix);
+    if (!matches) return [];
+    const capture = suffix === undefined ? '' : name.slice(prefix.length, name.length - suffix.length);
+    return targets.map(target => path.resolve(baseUrl ?? pathsBasePath, target.replace('*', capture)));
+  });
 }
 
 export default {
@@ -179,7 +212,7 @@ export default {
     },
     'no-node-in-browser': {
       meta: {
-        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node or the server workspace, including its local sync token, in browser source.' },
+        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node or the server workspace, including its local sync token, in browser source. Server targets resolve through relative and absolute paths, file URLs, tsconfig paths aliases, and the server package name.' },
         type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
         server: 'Browser source must not load server modules such as the local sync token; keep them in Node entry points and Vite configuration.',
@@ -190,8 +223,10 @@ export default {
           const name = staticModuleName(source);
           if (typeof name !== 'string') return;
           if (name === '@fantasy-draft/shared/node') context.report({ node, messageId: 'browser' });
-          const target = name.startsWith('.') ? path.relative(root, path.resolve(directory, name)).split(path.sep).join('/') : name;
-          if (target === 'server' || target.startsWith('server/')) context.report({ node, messageId: 'server' });
+          const targets = [name, ...modulePaths(name, directory).map(target => path.relative(root, target).split(path.sep).join('/'))];
+          if (targets.some(target => serverRoots.some(server => target === server || target.startsWith(`${server}/`)))) {
+            context.report({ node, messageId: 'server' });
+          }
         }
         return {
           ImportDeclaration: node => check(node, node.source),

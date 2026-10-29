@@ -43,6 +43,12 @@ describe('agent lint rules', () => {
     ['web-app/src/probe.ts', "const auth = import('../../server/src/local-auth.js');"],
     ['extension/src/background/probe.ts', "export { getLocalSyncToken } from '../../../server/src/local-auth.js';"],
     ['extension/src/content/probe.ts', "import { getLocalSyncToken } from 'server/src/local-auth';"],
+    ['extension/src/content/probe.ts', "import server from 'server';"],
+    ['web-app/src/probe.ts', "import { getLocalSyncToken } from '@/../../server/src/local-auth';"],
+    ['web-app/src/lib/probe.ts', "export * from '@/../../server/src/local-auth.js';"],
+    ['web-app/src/probe.ts', "type Auth = typeof import('@/../../server/src');"],
+    ['web-app/src/probe.ts', `import { getLocalSyncToken } from '${new URL('../server/src/local-auth', import.meta.url).pathname}';`],
+    ['extension/src/background/probe.ts', `const auth = import('${new URL('../server/src/local-auth.ts', import.meta.url).href}');`],
   ])('keeps server modules out of browser source: %s', async (filePath, source) => {
     const cwd = new URL('..', import.meta.url).pathname;
     const config = await new ESLint({ cwd }).calculateConfigForFile(filePath);
@@ -54,9 +60,13 @@ describe('agent lint rules', () => {
       ruleId: 'agent/no-node-in-browser', severity: 2, message: expect.stringContaining('local sync token'),
     })]);
   });
-  it('lets browser source import its own relative modules', () => {
+  it.each([
+    "import { serverTime } from './server/clock';",
+    "import { serverTime } from '@/server/clock';",
+    "import { serverTime } from '@/lib/../server/clock';",
+  ])('lets browser source import its own modules: %s', source => {
     const cwd = new URL('..', import.meta.url).pathname;
-    const result = new Linter({ cwd }).verify("import { serverTime } from './server/clock';", [{
+    const result = new Linter({ cwd }).verify(source, [{
       files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
       plugins: { agent }, rules: { 'agent/no-node-in-browser': 'error' },
     }], { filename: `${cwd}web-app/src/probe.ts` });
