@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isEspnDraftSnapshot } from '@fantasy-draft/shared/catalog';
 import {
   buildEspnDraftSnapshot,
   getEspnDraftFrameCommand,
@@ -99,6 +100,7 @@ describe('ESPN page snapshot normalization', () => {
         draftSlot: 3,
       }),
     ]);
+    expect(isEspnDraftSnapshot(snapshot)).toBe(true);
     expect(JSON.stringify(snapshot)).not.toContain('memberId');
     expect(JSON.stringify(snapshot)).not.toContain('private');
   });

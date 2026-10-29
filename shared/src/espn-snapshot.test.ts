@@ -1,4 +1,5 @@
-import { isDraftMetadata, isEspnDraftSnapshot } from './catalog/sync-decoders.js';
+import { decodeEspnDraftSnapshot, isDraftMetadata, isEspnDraftSnapshot } from './catalog/sync-decoders.js';
+import { createDefaultLeagueSettings } from './league-settings.js';
 import { describe, expect, it } from 'vitest';
 import {
   type DraftMetadata,
@@ -81,6 +82,26 @@ describe('ESPN snapshot validation', () => {
     expect(isEspnDraftSnapshot(snapshot({ draft: { ...draft, settings: { teams: 33, rounds: 14, pickTimer: 90 } } }))).toBe(false);
     expect(isEspnDraftSnapshot(snapshot({ draft: { ...draft, draftOrder: { owner: 33 } } }))).toBe(false);
     expect(isEspnDraftSnapshot(snapshot({ draft: { ...draft, draftOrder: { owner: 3 } } }))).toBe(true);
+  });
+
+  it.each([
+    ['snapshot', (value: Record<string, unknown>) => ({ ...value, swid: '{AUTH}' })],
+    ['draft', (value: Record<string, unknown>) => ({ ...value, draft: { ...draft, espnS2: 'cookie' } })],
+    ['draft settings', (value: Record<string, unknown>) => ({ ...value, draft: { ...draft, settings: { ...draft.settings, memberId: 'member' } } })],
+    ['pick', (value: Record<string, unknown>) => ({ ...value, picks: [{ ...pick(), memberId: '{MEMBER}' }] })],
+  ])('rejects undeclared %s fields such as auth tokens, member IDs, or raw payloads', (_label, extend) => {
+    const tainted = extend(snapshot());
+    expect(isEspnDraftSnapshot(tainted)).toBe(false);
+    expect(() => decodeEspnDraftSnapshot(tainted)).toThrow();
+  });
+
+  it('decodes a well-formed observation to exactly its declared fields', () => {
+    expect(decodeEspnDraftSnapshot(snapshot({ myDraftSlot: 3 }))).toEqual(snapshot({ myDraftSlot: 3 }));
+  });
+
+  it('accepts the league profile the background attaches before publishing', () => {
+    const profiled = snapshot({ draft: { ...draft, leagueId: '4242', leagueSettings: createDefaultLeagueSettings(1_000) } });
+    expect(decodeEspnDraftSnapshot(profiled)).toEqual(profiled);
   });
 
   it('rejects non-object input', () => {
