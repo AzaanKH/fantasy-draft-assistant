@@ -100,15 +100,12 @@ export function createReconciliationActions(
         removals: [],
         unresolvedIdentities: [],
       };
-      let result = unchanged;
-      const applied = set((state) => {
-        // A save conflict retries this on a newer session; report only the final attempt.
-        result = unchanged;
+      const outcome = set((state): DraftReconciliationResult => {
         if (confirmedAt !== undefined && (!Number.isFinite(confirmedAt) || confirmedAt < 0 ||
-            (state.lastConfirmedSyncAt !== null && confirmedAt < state.lastConfirmedSyncAt))) return;
+            (state.lastConfirmedSyncAt !== null && confirmedAt < state.lastConfirmedSyncAt))) return unchanged;
         // An old cached history must not erase observations restored after an outage.
         if (state.manualContinuityBaselineAt !== null &&
-            (confirmedAt === undefined || confirmedAt <= state.manualContinuityBaselineAt)) return;
+            (confirmedAt === undefined || confirmedAt <= state.manualContinuityBaselineAt)) return unchanged;
         if (confirmedAt !== undefined && Number.isFinite(confirmedAt) && confirmedAt >= 0) {
           state.lastConfirmedSyncAt = confirmedAt;
           state.lastConfirmedPickNumber = Math.max(0, ...incomingPicks.map((pick) => pick.pickNumber), ...unresolvedPicks.map((pick) => pick.pickNumber));
@@ -230,7 +227,7 @@ export function createReconciliationActions(
           !unresolvedIdentitiesChanged &&
           deriveDraftState(state).currentPick === canonicalNextPick
         ) {
-          return;
+          return unchanged;
         }
 
         for (const existing of state.draftHistory) {
@@ -247,7 +244,7 @@ export function createReconciliationActions(
         state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
         state.draftProgress = draftProgress;
         state.mockSurvivalProbabilities = {};
-        result = {
+        return {
           changed: true,
           confirmations,
           corrections,
@@ -257,7 +254,7 @@ export function createReconciliationActions(
             : [],
         };
       });
-      return applied ? result : { ...unchanged, refused: true };
+      return outcome.status === 'committed' ? outcome.result : { ...unchanged, refused: true };
     },
 
   };

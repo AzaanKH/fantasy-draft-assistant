@@ -27,6 +27,7 @@ import {
   defaultConfig,
   defaultFilter,
   defaultMockSettings,
+  runDraftTransition,
 } from './draft/state';
 import {
   applySavedDraftSession,
@@ -111,34 +112,38 @@ export function createDraftStore({
     for (let attempt = 1; ; attempt += 1) {
       syncFromOtherTabs();
       const previous = get();
+      const { next, result } = runDraftTransition(previous, transition);
       // Persistent contention is not expected; the overwritten save is merged back later.
       forceSave = attempt >= MAX_SAVE_ATTEMPTS;
       saveConflicted = false;
       try {
-        rawSet(transition);
+        rawSet(next, true);
       } catch (error) {
         if (!(error instanceof DraftStorageMigratedError)) throw error;
         adoptingSavedSession = true;
         try { store.setState(previous, true); } finally { adoptingSavedSession = false; }
         storageFrozen = true;
         showDraftStorageReloadNotice();
-        return false;
+        return { status: 'refused' };
       } finally {
         forceSave = false;
       }
-      if (!saveConflicted) break;
+      if (saveConflicted) continue;
+      // A newly loaded session may be missing a save overwritten before its tab reloaded.
+      const { liveSession } = get();
+      if (liveSession && (liveSession.provider !== previousSession?.provider ||
+          liveSession.draftId !== previousSession.draftId)) syncFromOtherTabs(true);
+      return { status: 'committed', result };
     }
-    // A newly loaded session may be missing a save overwritten before its tab reloaded.
-    const { liveSession } = get();
-    if (liveSession && (liveSession.provider !== previousSession?.provider ||
-        liveSession.draftId !== previousSession.draftId)) syncFromOtherTabs(true);
-    return true;
   };
   const loadSession: SetDraftState = (transition) => {
     if (!v1Frozen()) return set(transition);
     adoptingSavedSession = true;
-    try { rawSet(transition); } finally { adoptingSavedSession = false; }
-    return true;
+    try {
+      const { next, result } = runDraftTransition(get(), transition);
+      rawSet(next, true);
+      return { status: 'committed', result };
+    } finally { adoptingSavedSession = false; }
   };
   return {
     sessionMode: 'setup',
