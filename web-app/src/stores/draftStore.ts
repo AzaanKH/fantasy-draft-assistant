@@ -17,13 +17,7 @@ import {
   type DraftSessionStorage,
   type PersistedDraftSession,
 } from './draftSessionStorage';
-import {
-  applyDraftSessionChange,
-  readDraftSessionChanges,
-  removeDraftSessionChange,
-  type DraftSessionChange,
-  type StoredDraftSessionChange,
-} from './draftSessionUnconfirmedSaves';
+import { applyDraftSessionChange, takeOverwrittenSaves } from './draftSessionUnconfirmedSaves';
 import type { DraftState, DraftStore, DraftTransition, SetDraftState } from './draft/types';
 import {
   defaultConfig,
@@ -164,50 +158,6 @@ export function createDraftStore({
     rawSet((state) => { applySavedDraftSession(state, liveSession, saved); });
   }
 
-  /**
-   * Recorded saves, from any tab, that a concurrent save overwrote. A save the session
-   * already includes is kept while it is the newest, since a stale save could still
-   * overwrite it, and removed once a later save builds on it. Saves older than the
-   * lineage are removed too: later saves built on them, so merging them again would
-   * undo edits like a queue toggle. So are saves built on a session outside its
-   * history, such as one that was corrupted and replaced. A save built on another
-   * overwritten save is kept, since merging both restores the session it built on.
-   */
-  function takeOverwrittenChanges(
-    storage: DraftSessionStorage,
-    liveSession: DraftSessionIdentity,
-    saved: PersistedDraftSession
-  ): DraftSessionChange[] {
-    const included = new Set(saved.lineage);
-    const newestWriteId = saved.lineage.at(-1);
-    const oldestCoveredRevision = saved.revision - saved.lineage.length + 1;
-    let pending: StoredDraftSessionChange[] = [];
-    for (const stored of readDraftSessionChanges(storage, liveSession)) {
-      const { change } = stored;
-      if (change.writeId === newestWriteId) continue;
-      if (included.has(change.writeId) || change.revision < oldestCoveredRevision) {
-        removeDraftSessionChange(storage, stored);
-      } else {
-        pending.push(stored);
-      }
-    }
-    // Resolve bases through the lineage or through other overwritten saves before removing any.
-    const resolved = new Set(included);
-    const overwritten: DraftSessionChange[] = [];
-    for (let progressed = true; progressed;) {
-      const before = pending.length;
-      pending = pending.filter(({ change }) => {
-        if (change.baseWriteId !== null && !resolved.has(change.baseWriteId)) return true;
-        resolved.add(change.writeId);
-        overwritten.push(change);
-        return false;
-      });
-      progressed = pending.length < before;
-    }
-    for (const stored of pending) removeDraftSessionChange(storage, stored);
-    return overwritten.sort((left, right) => left.revision - right.revision);
-  }
-
   /** Adopts a newer save from another tab, then merges back recorded saves that a concurrent save overwrote. */
   function mergeNewerSaves(
     storage: DraftSessionStorage,
@@ -225,7 +175,7 @@ export function createDraftStore({
       base = { revision: saved.revision, serialized, lineage: saved.lineage, session: saved };
       showSavedSession(liveSession, saved);
     }
-    const overwritten = takeOverwrittenChanges(storage, liveSession, saved);
+    const overwritten = takeOverwrittenSaves(storage, liveSession, saved);
     if (overwritten.length === 0) return 'saved';
 
     // A change that no longer fits the newer session, such as a pick beyond a
