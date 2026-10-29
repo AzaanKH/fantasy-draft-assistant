@@ -1,5 +1,6 @@
 import { Processes, ProcessError } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { Effect, Fiber } from 'effect';
 import {
   DRAFT_DATA_REFRESH_STEPS,
@@ -52,9 +53,7 @@ const describeDuration = (ms: number): string => ms % 60_000 === 0
   : `${String(ms)} ms`;
 
 function lastLines(output: string): string | null {
-  const lines = output
-    // eslint-disable-next-line no-control-regex -- strips terminal color codes from script output
-    .replace(/\u001b\[[0-9;]*m/g, '')
+  const lines = stripVTControlCharacters(output)
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
