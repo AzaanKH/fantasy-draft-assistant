@@ -22,6 +22,7 @@ import {
 } from '@fantasy-draft/shared/sync';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
 import { SharedPoll } from './shared-poll.js';
+import { assertObservedNearNow, ObservationOrder } from './espn-observation.js';
 import {
   SleeperSyncAdapter,
   SLEEPER_API_BASE,
@@ -100,7 +101,7 @@ class DraftSession {
   private pollSleeping = false;
   private readonly poll = new SharedPoll(() => this.performPoll());
   private consecutiveFailures = 0;
-  private lastIngestedAt: number | null = null;
+  private espnOrder = new ObservationOrder();
 
   public constructor(
     provider: DraftProvider,
@@ -127,7 +128,7 @@ class DraftSession {
   public reset(): DraftSyncSnapshot {
     const { provider, draftId } = this.engine.getSnapshot();
     this.engine = new DraftSyncEngine(provider, draftId);
-    this.lastIngestedAt = null;
+    this.espnOrder = new ObservationOrder();
     this.lastActivityAt = Date.now();
     const snapshot = this.engine.getSnapshot();
     this.broadcast({ type: 'snapshot', snapshot });
@@ -184,17 +185,9 @@ class DraftSession {
     draft: DraftMetadata,
     picks: readonly DraftPickEvent[],
     observedAt: number,
-    now: number = Date.now()
+    now: number
   ): DraftSyncSnapshot {
-    if (Math.abs(observedAt - now) > 5 * 60_000) {
-      throw new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
-    }
-    if (this.lastIngestedAt !== null && observedAt < this.lastIngestedAt) {
-      throw new HttpError(409, 'Stale ESPN snapshot');
-    }
-    // Failed reconciliation must not advance the ordering marker.
-    const { snapshot, newPicks } = this.engine.reconcile(draft, picks, now);
-    this.lastIngestedAt = observedAt;
+    const { snapshot, newPicks } = this.espnOrder.commit(observedAt, () => this.engine.reconcile(draft, picks, now));
     this.lastActivityAt = now;
 
     for (const pick of newPicks) {
@@ -731,15 +724,15 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
+      const now = Date.now();
       // Reject bogus clocks before allocating a session.
-      if (Math.abs(espnPayload.observedAt - Date.now()) > 5 * 60_000) {
-        return yield* new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
-      }
+      yield* attempt(() => { assertObservedNearNow(espnPayload.observedAt, now); });
       const session = yield* attempt(() => getSession(route.provider, route.draftId));
       const snapshot = yield* attempt(() => session.ingest(
         espnPayload.draft,
         espnPayload.picks,
-        espnPayload.observedAt
+        espnPayload.observedAt,
+        now
       ));
       sendJson(request, response, 200, snapshot, allowedOrigins);
       return;
