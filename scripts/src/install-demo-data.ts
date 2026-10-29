@@ -4,7 +4,7 @@
  * files are never overwritten.
  */
 
-import { copyFile, mkdir, readdir } from 'node:fs/promises';
+import { constants, copyFile, mkdir, readdir } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { Effect } from 'effect';
 import { DATA_DIR, REPO_ROOT } from './model/duckdb.js';
@@ -21,8 +21,7 @@ const program = Effect.gen(function* () {
     const target = join(DATA_DIR, file);
     await mkdir(dirname(target), { recursive: true });
     try {
-      // COPYFILE_EXCL (1) fails instead of replacing a local file.
-      await copyFile(join(DEMO_DATA_DIR, file), target, 1);
+      await copyFile(join(DEMO_DATA_DIR, file), target, constants.COPYFILE_EXCL);
       return [file];
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'EEXIST') return [];
