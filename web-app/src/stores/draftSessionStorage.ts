@@ -50,8 +50,13 @@ export interface PersistedDraftSession {
   readonly lastConfirmedPickNumber: number;
 }
 
+/** Escapes each segment, so a key prefix ending in `:` matches only keys under exactly those segments. */
+export function joinStorageKey(...segments: readonly string[]): string {
+  return segments.map(encodeURIComponent).join(':');
+}
+
 export function getDraftSessionStorageKey(identity: DraftSessionIdentity): string {
-  return `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
+  return joinStorageKey('fantasy-draft-session-v1', identity.provider, identity.draftId);
 }
 
 export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {

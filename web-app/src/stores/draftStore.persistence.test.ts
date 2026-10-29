@@ -9,6 +9,7 @@ import {
   parseStoredDraftSession,
   type DraftSessionIdentity,
 } from './draftSessionStorage';
+import { readDraftSessionChanges, writeDraftSessionChange } from './draftSessionUnconfirmedSaves';
 import { DRAFT_SYNC_STORAGE_KEY } from '@/workspace/connection-hints';
 
 const identity: DraftSessionIdentity = { provider: 'sleeper', draftId: '123' };
@@ -718,6 +719,11 @@ describe('durable draft sessions', () => {
     expect(recordedKey).toMatch(/^fantasy-draft-session-unconfirmed-v1:sleeper:123:[a-z0-9]+-[a-z0-9]+$/);
     expect(sessionKey).toBe('fantasy-draft-session-v1:sleeper:123');
     expect(others).toEqual([]);
+
+    const [recorded] = readDraftSessionChanges(storage, identity);
+    if (!recorded) throw new Error('Missing recorded save');
+    writeDraftSessionChange(storage, { provider: 'sleeper', draftId: '123:other' }, 'tab', recorded.change);
+    expect(readDraftSessionChanges(storage, identity).map(({ key }) => key)).toEqual([recordedKey]);
   });
 
   it('restores the draft type and treats sessions saved before draft types as snake drafts', () => {
