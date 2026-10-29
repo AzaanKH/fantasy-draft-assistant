@@ -29,10 +29,39 @@ const sleeperDraftMetadata = /* @__PURE__ */ openStruct({
   status, type: draftType,
   settings: /* @__PURE__ */ openStruct({ teams, rounds, pick_timer: timer }), draft_order: draftOrder,
 });
+const point = Schema.Finite;
+const positionRequirement = /* @__PURE__ */ Schema.Struct({ starters: Schema.Finite, max: Schema.Finite });
+const leagueSettings = /* @__PURE__ */ Schema.Struct({
+  source: /* @__PURE__ */ Schema.Literals(['default', 'sleeper', 'espn']),
+  leagueId: /* @__PURE__ */ Schema.NullOr(Schema.String), totalTeams: Schema.Finite,
+  scoringRules: /* @__PURE__ */ Schema.Struct({
+    passing: /* @__PURE__ */ Schema.Struct({ yardsPerPoint: point, touchdown: point, interception: point, twoPointConversion: point }),
+    rushing: /* @__PURE__ */ Schema.Struct({ yardsPerPoint: point, touchdown: point, attemptBonus: point, twoPointConversion: point }),
+    receiving: /* @__PURE__ */ Schema.Struct({ reception: point, yardsPerPoint: point, touchdown: point, tePremium: point, twoPointConversion: point }),
+    kicking: /* @__PURE__ */ Schema.Struct({
+      fieldGoal0_39: point, fieldGoal40_49: point, fieldGoal50Plus: point, extraPoint: point, missedFieldGoal: point, missedExtraPoint: point,
+    }),
+    defense: /* @__PURE__ */ Schema.Struct({
+      touchdown: point, sack: point, interception: point, fumbleRecovery: point, safety: point, blockedKick: point,
+      pointsAllowed: /* @__PURE__ */ Schema.Struct({
+        shutout: point, tier1_6: point, tier7_13: point, tier14_20: point, tier21_27: point, tier28_34: point, tier35Plus: point,
+      }),
+    }),
+    misc: /* @__PURE__ */ Schema.Struct({ fumbleLost: point, fumbleRecoveryTD: point }),
+  }),
+  rosterRequirements: /* @__PURE__ */ Schema.Struct({
+    QB: positionRequirement, RB: positionRequirement, WR: positionRequirement, TE: positionRequirement,
+    FLEX: /* @__PURE__ */ Schema.Struct({ starters: Schema.Finite, eligiblePositions: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Literals(POSITIONS)) }),
+    K: positionRequirement, DEF: positionRequirement, BENCH: /* @__PURE__ */ Schema.Struct({ spots: Schema.Finite }),
+  }),
+  rawScoringSettings: /* @__PURE__ */ Schema.Record(Schema.String, Schema.Finite),
+  unsupportedScoringKeys: /* @__PURE__ */ Schema.Array(Schema.String), unsupportedRosterSlots: /* @__PURE__ */ Schema.Array(Schema.String),
+  keepersEnabled: /* @__PURE__ */ Schema.NullOr(Schema.Boolean), fingerprint: Schema.String, updatedAt: Schema.Finite,
+}).check(/* @__PURE__ */ Schema.makeFilter(isLeagueSettings));
 const draftMetadataFields = {
   provider, draftId, providerKey: /* @__PURE__ */ boundedString(256),
   leagueId: /* @__PURE__ */ Schema.optional(Schema.String),
-  leagueSettings: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.declare(isLeagueSettings)),
+  leagueSettings: /* @__PURE__ */ Schema.optional(leagueSettings),
   status, type: draftType, draftOrder,
 };
 const draftSettingsFields = { teams, rounds, pickTimer: timer };
