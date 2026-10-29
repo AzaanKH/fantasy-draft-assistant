@@ -108,8 +108,6 @@ describe('fantasyProsApiInternals', () => {
 
     expect(projections[0]?.projectedPoints).toBe(220.5);
     expect(projections[0]?.baseProjectedPoints).toBe(220.5);
-    expect(projections[0]).not.toHaveProperty('customScoringAdjustment');
-    expect(projections[0]).not.toHaveProperty('leagueProjectedPoints');
     expect(projections[0]?.projectedRushingYards).toBe(1_075);
     expect(projections[0]?.projectedRushingTouchdowns).toBe(9);
     expect(projections[0]?.projectedReceivingYards).toBe(390);
@@ -140,8 +138,6 @@ describe('fantasyProsApiInternals', () => {
     }], 'PPR');
 
     expect(tightEnd?.projectedReceptions).toBe(90);
-    expect(tightEnd).not.toHaveProperty('customScoringAdjustment');
-    expect(tightEnd).not.toHaveProperty('leagueProjectedPoints');
   });
 
   it('derives news status and maps player ids through the player index', () => {

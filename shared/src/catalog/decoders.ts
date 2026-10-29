@@ -47,10 +47,7 @@ const fantasyProsProjection = /* @__PURE__ */ openStruct({
   projectedPassingTouchdowns: optionalNumber, projectedRushingYards: optionalNumber,
   projectedRushingTouchdowns: optionalNumber, projectedReceivingYards: optionalNumber,
   projectedReceivingTouchdowns: optionalNumber,
-  /** @deprecated Consumers calculate scoring adjustments locally. */
-  customScoringAdjustment: optionalNumber,
-  /** @deprecated Consumers rescore projectedPoints locally. */
-  leagueProjectedPoints: optionalNumber, ceilingPoints: optionalNumber, floorPoints: optionalNumber,
+  ceilingPoints: optionalNumber, floorPoints: optionalNumber,
 }).check(/* @__PURE__ */ Schema.makeFilter((row) => Object.entries(row).every(([key, value]) =>
   !key.startsWith('projected') || value === undefined || Number.isFinite(value)
 )));
