@@ -100,3 +100,12 @@ it('imports carry when recovered picks change the accepted prefix without moving
   expect(merged.currentPick).toBe(96);
   expect(merged.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 96 }, historyLength: 2 });
 });
+
+it('keeps the later cursor when both saves moved it', () => {
+  const base = session({ currentPick: 2 });
+  const overwritten = session({ currentPick: 4 });
+  const newer = session({ currentPick: 3 });
+  const merged = applyDraftSessionChange(newer, computeDraftSessionChange(base, overwritten, 'lost'));
+  expect(merged.currentPick).toBe(4);
+  expect(merged.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 4 }, historyLength: 0 });
+});

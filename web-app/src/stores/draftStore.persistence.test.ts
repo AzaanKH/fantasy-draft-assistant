@@ -598,6 +598,128 @@ describe('durable draft sessions', () => {
     expect(tabA.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['other']);
   });
 
+  it('reports a provisional pick as not recorded when the newer session already took its slot', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let racingReads: number | null = null;
+    const racingStorage = memoryStorage(storage.values);
+    racingStorage.getItem.mockImplementation((storedKey: string) => {
+      if (racingReads !== null && storedKey === key && (racingReads += 1) === 2) {
+        expect(tabB.getState().recordProvisionalPick(pick(1, 'other'))).toBe(true);
+      }
+      return storage.getItem(storedKey);
+    });
+    const tabA = openSession(racingStorage);
+    const tabB = openSession(storage);
+    racingReads = 0;
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(false);
+
+    for (const state of [tabA.getState(), createDraftStore({ storage, session: identity }).getState()]) {
+      expect(state.draftHistory.map((entry) => entry.playerId)).toEqual(['other']);
+    }
+  });
+
+  it('overwrites a tab that keeps saving first, then merges that tab’s overwritten save back', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    const queued: string[] = [];
+    let contending = false;
+    const racingStorage = memoryStorage(storage.values);
+    racingStorage.getItem.mockImplementation((storedKey: string) => {
+      // Tab B saves before every read of tab A, far longer than tab A retries.
+      if (contending && storedKey === key && queued.length < 50) {
+        queued.push(`queued-${String(queued.length)}`);
+        tabB.getState().togglePlayerShortlisted(queued.at(-1) ?? '');
+      }
+      return storage.getItem(storedKey);
+    });
+    const tabA = openSession(racingStorage);
+    const tabB = openSession(storage);
+    contending = true;
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    contending = false;
+
+    const written = parseStoredDraftSession(storage.getItem(key), identity);
+    expect(queued.length).toBeLessThan(50);
+    expect(written?.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(written?.shortlistedPlayerIds).toEqual(queued.slice(0, -1));
+    const reloaded = createDraftStore({ storage, session: identity }).getState();
+    expect(reloaded.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(reloaded.shortlistedPlayerIds).toEqual(queued);
+  });
+
+  it('adopts another tab’s save without writing it back', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let notify: ((key: string | null, newValue: string | null) => void) | undefined;
+    const tabB = createDraftStore({ storage, session: identity, externalChanges: (onChange) => { notify = onChange; return () => {}; } });
+    tabB.getState().setSessionMode('live');
+    const tabA = openSession(storage);
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    const stored = storage.getItem(key);
+    storage.setItem.mockClear();
+
+    notify?.(key, stored);
+
+    expect(tabB.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(storage.getItem(key)).toBe(stored);
+  });
+
+  it('keeps the newest recorded save after another tab adopts it, so a stale overwrite can still be merged back', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    let notify: ((key: string | null, newValue: string | null) => void) | undefined;
+    const tabA = openSession(storage);
+    const tabB = createDraftStore({ storage, session: identity, externalChanges: (onChange) => { notify = onChange; return () => {}; } });
+    tabB.getState().setSessionMode('live');
+    let staleRead: string | null = null;
+    const staleStorage = memoryStorage(storage.values);
+    staleStorage.getItem.mockImplementation((storedKey: string) =>
+      storedKey === key && staleRead !== null ? staleRead : storage.getItem(storedKey));
+    const tabC = openSession(staleStorage);
+    staleRead = storage.getItem(key);
+
+    expect(tabA.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    notify?.(key, storage.getItem(key));
+    expect(tabB.getState().draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    tabC.getState().setDecisionLens('best-player');
+    expect(parseStoredDraftSession(storage.getItem(key), identity)?.draftHistory).toEqual([]);
+
+    const reloaded = createDraftStore({ storage, session: identity }).getState();
+    expect(reloaded.draftHistory.map((entry) => entry.playerId)).toEqual(['observed']);
+    expect(reloaded.decisionLens).toBe('best-player');
+  });
+
+  it('drops a recorded save built on a session outside the stored history', () => {
+    const storage = memoryStorage();
+    const key = getDraftSessionStorageKey(identity);
+    const tab = openSession(storage);
+    const baseline = storage.getItem(key);
+    expect(tab.getState().recordProvisionalPick(pick(1, 'base'))).toBe(true);
+    expect(tab.getState().recordProvisionalPick(pick(2, 'dependent'))).toBe(true);
+    const [recordedKey] = [...storage.values.keys()].filter((name) => name !== key);
+    if (baseline === null || recordedKey === undefined) throw new Error('Missing saved fixture');
+    storage.values.set(key, baseline);
+
+    const reloaded = createDraftStore({ storage, session: identity }).getState();
+
+    expect(reloaded.draftHistory).toEqual([]);
+    expect(storage.values.has(recordedKey)).toBe(false);
+  });
+
+  it('stores sessions and recorded saves under keys scoped to one provider and draft', () => {
+    const storage = memoryStorage();
+    const tab = openSession(storage);
+    expect(tab.getState().recordProvisionalPick(pick(1, 'observed'))).toBe(true);
+    const [recordedKey, sessionKey, ...others] = [...storage.values.keys()].sort();
+    expect(recordedKey).toMatch(/^fantasy-draft-session-unconfirmed-v1:sleeper:123:[a-z0-9]+-[a-z0-9]+$/);
+    expect(sessionKey).toBe('fantasy-draft-session-v1:sleeper:123');
+    expect(others).toEqual([]);
+  });
+
   it('restores the draft type and treats sessions saved before draft types as snake drafts', () => {
     const storage = memoryStorage();
     const store = openSession(storage);
