@@ -39,16 +39,15 @@ export class ShadowRecommendationLogger {
     return Effect.suspend(() => {
       if (this.pending >= this.limits.maxPending) return Effect.fail(new HttpError(429, 'Shadow log queue is full'));
       this.pending += 1;
-      // Waiting for the permit stays interruptible; a started append always finishes, so the
-      // byte count and dedupe set match the file.
-      return this.writer.withPermits(1)(Effect.uninterruptible(this.append(event))).pipe(
+      return this.writer.withPermits(1)(this.append(event)).pipe(
         Effect.ensuring(Effect.sync(() => { this.pending -= 1; })),
       );
     });
   }
 
+  /** Once started, an append finishes, so the byte count and dedupe set match the file. */
   private append(event: ShadowRecommendationEvent): Effect.Effect<boolean, HttpError | ShadowLogError> {
-    return Effect.gen({ self: this }, function* () {
+    return Effect.uninterruptible(Effect.gen({ self: this }, function* () {
       yield* this.initialize();
       if (this.eventIds.has(event.eventId)) return false;
 
@@ -71,7 +70,7 @@ export class ShadowRecommendationLogger {
       this.bytes += bytes;
       this.remember(event.eventId);
       return true;
-    });
+    }));
   }
 
   private remember(eventId: string): void {
