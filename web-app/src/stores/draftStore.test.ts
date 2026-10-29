@@ -1088,6 +1088,21 @@ describe('draftStore shortlist', () => {
     expect(deriveDraftState(state).currentPick).toBe(39);
   });
 
+  it('passes the configured keeper slot in a mock when Provider Truth drafted the keeper elsewhere', () => {
+    const { preloadKeepers, reconcileSyncedPicks, setSessionMode } = draftStore.getState();
+    preloadKeepers([{ playerId: 'keeper', playerName: 'Keeper', position: 'TE', teamIndex: 1, round: 4, isMyKeeper: false }]);
+    reconcileSyncedPicks([{ pickNumber: 38, playerId: 'keeper', playerName: 'Keeper', position: 'TE',
+      teamIndex: 0, teamName: 'Team 1', isMyPick: false }], 39);
+    setSessionMode('mock');
+
+    draftStore.getState().consumeKeeperAtCurrentPick(39);
+
+    const state = draftStore.getState();
+    expect(state.draftHistory.map(pick => [pick.pickNumber, pick.playerId])).toEqual([[38, 'keeper']]);
+    expect(state.draftProgress).toEqual({ anchor: { kind: 'carry', pickNumber: 40 }, historyLength: 1 });
+    expect(deriveDraftState(state).currentPick).toBe(40);
+  });
+
   it('reconciles the Rashee Rice and Omarion Hampton keeper conflict from Provider Truth', () => {
     const { preloadKeepers, reconcileSyncedPicks } =
       draftStore.getState();
