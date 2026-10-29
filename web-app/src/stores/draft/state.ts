@@ -48,17 +48,12 @@ export function acceptProvisionalProgress(state: Pick<
   state.mockSurvivalProbabilities = {};
 }
 
-/**
- * Default filter state
- */
 export const defaultFilter: FilterState = {
   position: 'ALL',
   searchQuery: '',
 };
 
-/**
- * Default draft configuration for the Primary League (10 teams, 14 rounds)
- */
+/** Default draft configuration for the Primary League. */
 export const defaultConfig: DraftConfig = {
   totalTeams: 10,
   totalRounds: 14,

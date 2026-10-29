@@ -157,7 +157,5 @@ export function createConfigurationActions(
       { set((state) => { state.mockAutoAdvance.paused = paused; }); },
     setMockSettingsOpen: (open) =>
       { set((state) => { state.mockAutoAdvance.settingsOpen = open; }); },
-
-    // Draft actions
   };
 }
