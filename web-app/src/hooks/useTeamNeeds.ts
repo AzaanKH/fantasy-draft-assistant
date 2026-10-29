@@ -1,14 +1,5 @@
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
-/**
- * Team Needs Hook
- *
- * Calculates positional scarcity and team needs based on:
- * - Current roster state
- * - Available players in the draft
- * - League roster requirements
- */
-
 import { useMemo } from 'react';
 import type { Position } from '@fantasy-draft/shared/league';
 import type { PositionNeed } from '@fantasy-draft/shared/draft';
@@ -19,10 +10,7 @@ import {
 } from '@fantasy-draft/shared/draft';
 import { usePlayerDataQuery } from './usePlayerData';
 
-/**
- * Hook to calculate team positional needs
- * Returns prioritized list of positions the team needs to fill
- */
+/** Positions the team still needs to fill, in priority order. */
 export function useTeamNeeds(): {
   needs: PositionNeed[];
   criticalPositions: Position[];

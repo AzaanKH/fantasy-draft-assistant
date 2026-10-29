@@ -21,30 +21,18 @@ function decodeOptionalFile<A>(value: unknown, decode: (value: unknown, options?
   return { ...data, warnings };
 }
 
-/**
- * Fetch FantasyPros snapshot data
- */
 export async function fetchFantasyProsSnapshot(): Promise<FantasyProsSnapshot> {
   return fantasyProsProvider.getSnapshot();
 }
 
-/**
- * Fetch Sleeper ADP data
- */
 export async function fetchSleeperData(): Promise<SleeperDataFile & { readonly warnings: readonly string[] }> {
   return fetchCatalogFile(CATALOG.sleeper, 'Sleeper data', value => decodeOptionalFile(value, decodeSleeperDataFile, 'Sleeper'));
 }
 
-/**
- * Fetch team environment data
- */
 export async function fetchTeamEnvData(): Promise<TeamEnvDataFile & { readonly warnings: readonly string[] }> {
   return fetchCatalogFile(CATALOG.environment, 'team environment data', value => decodeOptionalFile(value, decodeTeamEnvDataFile, 'team environment'));
 }
 
-/**
- * Fetch contract year data
- */
 export async function fetchContractData(): Promise<ContractDataFile & { readonly warnings: readonly string[] }> {
   return fetchCatalogFile(CATALOG.contracts, 'contract data', value => decodeOptionalFile(value, decodeContractDataFile, 'contract'));
 }

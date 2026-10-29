@@ -4,8 +4,6 @@ import { useNow } from '@/workspace/useNow';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useLeagueSetupStore } from '@/stores/leagueSetupStore';
 /**
- * Draft Connection Component
- *
  * Guides the user through connecting a provider draft and keeps the live sync
  * state visible while they use the draft board.
  */

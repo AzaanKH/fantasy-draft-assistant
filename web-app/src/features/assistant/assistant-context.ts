@@ -18,7 +18,6 @@ export interface UpcomingTeamPicks {
 }
 
 export interface PickWindow {
-  /** The pick currently on the clock. */
   readonly currentPick: number;
   /** Whether the manager owns the current pick. */
   readonly onClock: boolean;
