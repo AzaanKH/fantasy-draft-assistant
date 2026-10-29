@@ -49,6 +49,10 @@ class LeagueSettingsCache {
     this.currentGeneration += 1;
   }
 
+  public retainLeague(leagueId: string | null): void {
+    if (this.entry?.leagueId !== leagueId) this.invalidate();
+  }
+
   public storeForGeneration(generation: number, leagueId: string, settings: LeagueSettings, now: number): void {
     if (generation === this.currentGeneration) {
       this.entry = { leagueId, settings, expiresAt: now + SLEEPER_SETTINGS_CACHE_MS };
@@ -82,6 +86,7 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
       }
 
       const leagueId = resolveSleeperDraftLeagueId(draft);
+      this.settings.retainLeague(leagueId);
       // League settings refine the draft, so a failed lookup still publishes picks.
       const leagueSettings = leagueId
         ? yield* this.fetchLeagueSettings(leagueId).pipe(Effect.orElseSucceed(() => undefined))
