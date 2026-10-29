@@ -2,8 +2,6 @@
  * Copies demo-data/ into data/ for every file that is missing, so CI and fresh
  * clones can build and test without the untracked local data. Existing local
  * files are never overwritten.
- *
- * Usage: pnpm data:demo:install
  */
 
 import { copyFile, mkdir, readdir } from 'node:fs/promises';

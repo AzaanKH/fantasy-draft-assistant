@@ -1,10 +1,6 @@
 /**
- * FantasyPros ECR Rankings Scraper
- *
  * Scrapes the FantasyPros PPR rankings page and outputs
  * structured player data for the draft assistant.
- *
- * Usage: pnpm scrape:ecr
  */
 
 import { Effect } from 'effect';
@@ -43,16 +39,10 @@ interface RawRowData {
   avg: string;
 }
 
-/**
- * Validates that a string is a valid Position
- */
 function isValidPosition(value: string): value is Position {
   return POSITIONS.includes(value as Position);
 }
 
-/**
- * Normalize team abbreviation from FantasyPros to standard format
- */
 function normalizeTeam(team: string): string {
   const teamMap: Record<string, string> = {
     JAC: 'JAX', // Jacksonville uses JAC on FantasyPros, JAX in our system
@@ -60,32 +50,22 @@ function normalizeTeam(team: string): string {
   return teamMap[team] ?? team;
 }
 
-/**
- * Normalize position from FantasyPros to standard format
- */
 function normalizePosition(position: string): string {
   const posMap: Record<string, string> = {
-    DST: 'DEF', // Defense/Special Teams
+    DST: 'DEF',
   };
   return posMap[position] ?? position;
 }
 
-/**
- * Validates that a string is a valid NFLTeam
- */
 function isValidTeam(value: string): value is NFLTeam {
   return NFL_TEAMS.includes(value as NFLTeam);
 }
 
-/**
- * Scrape raw data from FantasyPros ECR table
- */
 const scrapeRawData = Effect.sync(() => { console.log('Launching browser...'); }).pipe(
   Effect.andThen(withBrowserPage((page) => io(async (): Promise<RawRowData[]> => {
     console.log(`Navigating to ${ECR_URL}...`);
     await page.goto(ECR_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    // Wait for table to be visible
     console.log('Waiting for rankings table...');
     await page.waitForSelector('table.player-table tbody tr', { timeout: 30000 });
 
@@ -143,50 +123,41 @@ const scrapeRawData = Effect.sync(() => { console.log('Launching browser...'); }
   }))),
 );
 
-/**
- * Parse and validate raw data into ECRPlayer objects
- */
 function parseECRData(rawData: RawRowData[], byeWeeks: ReadonlyMap<string, number>): ECRPlayer[] {
   const players: ECRPlayer[] = [];
   const errors: string[] = [];
 
   for (const row of rawData) {
-    // Parse rank
     const rank = parseInt(row.rank, 10);
     if (isNaN(rank)) {
       errors.push(`Invalid rank: ${row.rank}`);
       continue;
     }
 
-    // Parse player name and team
     const nameTeam = parsePlayerNameAndTeam(row.playerCell);
     if (!nameTeam) {
       errors.push(`Could not parse player cell: ${row.playerCell}`);
       continue;
     }
 
-    // Normalize and validate team
     const normalizedTeam = normalizeTeam(nameTeam.team);
     if (!isValidTeam(normalizedTeam)) {
       errors.push(`Invalid team: ${nameTeam.team} for ${nameTeam.name}`);
       continue;
     }
 
-    // Parse position
     const positionData = parsePositionString(row.positionCell);
     if (!positionData) {
       errors.push(`Could not parse position: ${row.positionCell}`);
       continue;
     }
 
-    // Normalize and validate position
     const normalizedPosition = normalizePosition(positionData.position);
     if (!isValidPosition(normalizedPosition)) {
       errors.push(`Invalid position: ${positionData.position}`);
       continue;
     }
 
-    // Parse numeric fields
     const best = parseInt(row.best, 10);
     const worst = parseInt(row.worst, 10);
     const avg = parseFloat(row.avg);
@@ -226,9 +197,6 @@ function parseECRData(rawData: RawRowData[], byeWeeks: ReadonlyMap<string, numbe
   return players;
 }
 
-/**
- * Main scraper function
- */
 const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('FantasyPros ECR Rankings Scraper');
@@ -239,21 +207,17 @@ const program = Effect.gen(function* () {
   );
   const byeWeeks = getTeamByeWeeks(snapshot, currentSeason());
 
-  // Scrape raw data
   const rawData = yield* scrapeRawData;
 
   if (rawData.length === 0) {
     return yield* Effect.fail(new Error('No data scraped from FantasyPros'));
   }
 
-  // Parse and validate
   const players = parseECRData(rawData, byeWeeks);
   console.log(`\nSuccessfully parsed ${players.length} players`);
 
-  // Ensure data directory exists
   yield* io(() => mkdir(DATA_DIR, { recursive: true }));
 
-  // Write output
   const output = {
     scrapedAt: new Date().toISOString(),
     source: ECR_URL,
@@ -264,7 +228,6 @@ const program = Effect.gen(function* () {
   yield* io(() => writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2)));
   console.log(`\nData written to ${OUTPUT_FILE}`);
 
-  // Summary stats
   const positionCounts = players.reduce<Record<string, number>>(
     (acc, p) => {
       acc[p.position] = (acc[p.position] ?? 0) + 1;

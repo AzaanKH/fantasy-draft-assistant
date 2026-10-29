@@ -2,8 +2,6 @@
  * Generates reproducible team offensive environments from the latest completed
  * nflverse regular season. This is a baseline for the upcoming draft season;
  * current offseason news remains a separate recommendation signal.
- *
- * Usage: pnpm --filter scripts generate:team-env
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
