@@ -426,7 +426,6 @@ export function AssistantPage({
                       recommendation={recommendation}
                       player={playerById.get(recommendation.playerId)}
                       rank={poolDecision.rankByPlayerId.get(recommendation.playerId) ?? order + 1}
-                      order={order}
                       isSelected={highlightedPlayerIds.has(recommendation.playerId)}
                       selectionLabel={isComparing ? 'Comparing' : 'Viewing'}
                       isBestPick={recommendation.playerId === bestPickId}

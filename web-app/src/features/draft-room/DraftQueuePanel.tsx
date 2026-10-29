@@ -64,7 +64,6 @@ export function DraftQueuePanel(): React.ReactElement {
       {queuedPlayers.map((player, index) => (
         <MotionReorderItem
           key={player.id}
-          order={index}
           className="draft-queue-row"
         >
           <span className="draft-queue-index">
