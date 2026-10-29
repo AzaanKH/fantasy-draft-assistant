@@ -30,18 +30,38 @@ function decodeDraftPayload<A>(decode: (value: unknown) => A): (value: unknown) 
   };
 }
 
+type LeagueSettings = ReturnType<typeof normalizeSleeperLeagueSettings>;
+
+/** Verified league settings within their TTL. Invalidation also discards lookups started before it. */
+class LeagueSettingsCache {
+  private entry: { readonly leagueId: string; readonly settings: LeagueSettings; readonly expiresAt: number } | undefined;
+  private currentGeneration = 0;
+
+  public get generation(): number { return this.currentGeneration; }
+
+  public get(leagueId: string, now: number): LeagueSettings | undefined {
+    const entry = this.entry;
+    return entry?.leagueId === leagueId && entry.expiresAt > now ? entry.settings : undefined;
+  }
+
+  public invalidate(): void {
+    this.entry = undefined;
+    this.currentGeneration += 1;
+  }
+
+  public storeForGeneration(generation: number, leagueId: string, settings: LeagueSettings, now: number): void {
+    if (generation === this.currentGeneration) {
+      this.entry = { leagueId, settings, expiresAt: now + SLEEPER_SETTINGS_CACHE_MS };
+    }
+  }
+}
+
 export class SleeperSyncAdapter implements DraftSyncAdapter {
   public readonly provider = 'sleeper' as const;
-  private settingsCache: {
-    leagueId: string;
-    expiresAt: number;
-    settings: ReturnType<typeof normalizeSleeperLeagueSettings>;
-  } | undefined;
-  private settingsGeneration = 0;
+  private readonly settings = new LeagueSettingsCache();
 
   public invalidateSettings(): void {
-    this.settingsCache = undefined;
-    this.settingsGeneration += 1;
+    this.settings.invalidate();
   }
 
   public constructor(
@@ -62,7 +82,6 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
       }
 
       const leagueId = resolveSleeperDraftLeagueId(draft);
-      if (this.settingsCache?.leagueId !== leagueId) this.invalidateSettings();
       // League settings refine the draft, so a failed lookup still publishes picks.
       const leagueSettings = leagueId
         ? yield* this.fetchLeagueSettings(leagueId).pipe(Effect.orElseSucceed(() => undefined))
@@ -77,13 +96,9 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
 
   private fetchLeagueSettings(leagueId: string) {
     return Effect.gen({ self: this }, function* () {
-      const cached = this.settingsCache;
-      if (cached?.leagueId === leagueId && cached.expiresAt > Date.now()) {
-        return cached.settings;
-      }
-      // Never fall back to expired settings when a verification request fails.
-      this.settingsCache = undefined;
-      const generation = this.settingsGeneration;
+      const cached = this.settings.get(leagueId, Date.now());
+      if (cached) return cached;
+      const generation = this.settings.generation;
       const settings = yield* requestJson(this.fetchJson, `${SLEEPER_API_BASE}/league/${leagueId}`, value => {
         if (!isSleeperLeague(value) || value.league_id !== leagueId) {
           console.warn('[sleeper-adapter] Rejected invalid league settings');
@@ -91,10 +106,7 @@ export class SleeperSyncAdapter implements DraftSyncAdapter {
         }
         return normalizeSleeperLeagueSettings(value);
       });
-      // An interrupted poll never reaches this point, so only completed lookups are cached.
-      if (generation === this.settingsGeneration) {
-        this.settingsCache = { leagueId, settings, expiresAt: Date.now() + SLEEPER_SETTINGS_CACHE_MS };
-      }
+      this.settings.storeForGeneration(generation, leagueId, settings, Date.now());
       return settings;
     });
   }
