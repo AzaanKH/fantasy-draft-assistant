@@ -72,7 +72,6 @@ export function subscribeToBrowserStorageEvents(
   return () => { window.removeEventListener('storage', onStorage); };
 }
 
-/** Fields whose change is written to the stored session. */
 const STORED_FIELDS = [
   'liveSession',
   'sessionMode',
@@ -105,7 +104,6 @@ interface SaveAttempt {
   readonly final: boolean;
 }
 
-/** `conflict`: another tab saved first and nothing was written. `refused`: draft storage has migrated. */
 type SaveOutcome = 'saved' | 'conflict' | 'refused';
 
 export function createDraftStore({
@@ -158,7 +156,6 @@ export function createDraftStore({
     rawSet((state) => { applySavedDraftSession(state, liveSession, saved); });
   }
 
-  /** Adopts a newer save from another tab, then merges back recorded saves that a concurrent save overwrote. */
   function mergeNewerSaves(
     storage: DraftSessionStorage,
     liveSession: DraftSessionIdentity,
@@ -178,8 +175,6 @@ export function createDraftStore({
     const overwritten = takeOverwrittenSaves(storage, liveSession, saved);
     if (overwritten.length === 0) return 'saved';
 
-    // A change that no longer fits the newer session, such as a pick beyond a
-    // shortened draft, is dropped; the provider restores any pick it reports.
     const merged = overwritten.reduce(
       (session, change) =>
         parseStoredDraftSession(JSON.stringify(applyDraftSessionChange(session, change)), liveSession) ?? session,
