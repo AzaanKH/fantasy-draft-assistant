@@ -1,7 +1,24 @@
+import { existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { ESLint, Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import agent, { baselineRuleIds } from './agent-lint-rules.mjs';
+
+const repoRoot = new URL('..', import.meta.url).pathname;
+const caseInsensitive = existsSync(path.join(repoRoot, 'SERVER'));
+const linkDirectory = mkdtempSync(path.join(tmpdir(), 'agent-lint-'));
+symlinkSync(path.join(repoRoot, 'server/src'), path.join(linkDirectory, 'server-source'));
+afterAll(() => rmSync(linkDirectory, { recursive: true, force: true }));
+
+async function browserMessages(filePath, source) {
+  const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(filePath);
+  return new Linter({ cwd: repoRoot }).verify(source, [{
+    files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+    plugins: { agent }, rules: { 'agent/no-node-in-browser': config.rules['agent/no-node-in-browser'] ?? 'off' },
+  }], { filename: `${repoRoot}${filePath}` });
+}
 
 function messages(source, file = 'cli/src/probe.ts') {
   return new Linter({ cwd: new URL('..', import.meta.url).pathname }).verify(source, [{
@@ -40,37 +57,51 @@ describe('agent lint rules', () => {
   });
   it.each([
     ['web-app/src/lib/probe.ts', "import { getLocalSyncToken } from '../../../server/src/local-auth';"],
+    ['web-app/src/probe.ts', "import '../../server/src/local-auth';"],
+    ['web-app/src/probe.ts', "import type { LocalAuth } from '@/../../server/src/local-auth';"],
     ['web-app/src/probe.ts', "const auth = import('../../server/src/local-auth.js');"],
+    ['web-app/src/probe.ts', "const auth = require('../../server/src/local-auth');"],
+    ['web-app/src/probe.ts', "import token from '../../server/src/local-auth.ts?raw';"],
     ['extension/src/background/probe.ts', "export { getLocalSyncToken } from '../../../server/src/local-auth.js';"],
     ['extension/src/content/probe.ts', "import { getLocalSyncToken } from 'server/src/local-auth';"],
     ['extension/src/content/probe.ts', "import server from 'server';"],
     ['web-app/src/probe.ts', "import { getLocalSyncToken } from '@/../../server/src/local-auth';"],
     ['web-app/src/lib/probe.ts', "export * from '@/../../server/src/local-auth.js';"],
     ['web-app/src/probe.ts', "type Auth = typeof import('@/../../server/src');"],
+    ['web-app/src/probe.ts', "import { getLocalSyncToken } from 'src/../../server/src/local-auth';"],
+    ['web-app/src/probe.ts', "import { secret } from 'src/../../server/src/not-yet-written';"],
     ['web-app/src/probe.ts', `import { getLocalSyncToken } from '${new URL('../server/src/local-auth', import.meta.url).pathname}';`],
     ['extension/src/background/probe.ts', `const auth = import('${new URL('../server/src/local-auth.ts', import.meta.url).href}');`],
-  ])('keeps server modules out of browser source: %s', async (filePath, source) => {
-    const cwd = new URL('..', import.meta.url).pathname;
-    const config = await new ESLint({ cwd }).calculateConfigForFile(filePath);
-    const result = new Linter({ cwd }).verify(source, [{
-      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
-      plugins: { agent }, rules: { 'agent/no-node-in-browser': config.rules['agent/no-node-in-browser'] ?? 'off' },
-    }], { filename: `${cwd}${filePath}` });
-    expect(result).toEqual([expect.objectContaining({
+    ['web-app/src/probe.ts', `import { getLocalSyncToken } from '${path.join(linkDirectory, 'server-source/local-auth')}';`],
+  ])('keeps server modules out of browser source: %s %s', async (filePath, source) => {
+    expect(await browserMessages(filePath, source)).toEqual([expect.objectContaining({
       ruleId: 'agent/no-node-in-browser', severity: 2, message: expect.stringContaining('local sync token'),
+    })]);
+  });
+  it.skipIf(!caseInsensitive).each([
+    "import { getLocalSyncToken } from '@/../../SERVER/src/local-auth.ts';",
+    "import { getLocalSyncToken } from '../../Server/src/Local-Auth';",
+  ])('keeps case-variant server paths out of browser source on case-insensitive disks: %s', async source => {
+    expect(await browserMessages('web-app/src/probe.ts', source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-node-in-browser', message: expect.stringContaining('local sync token'),
+    })]);
+  });
+  it.each([
+    "import { localDevPorts } from '../../shared/src/node';",
+    "import { localDevPorts } from 'src/../../shared/src/node/index';",
+  ])('keeps shared Node modules out of browser source by path: %s', async source => {
+    expect(await browserMessages('web-app/src/probe.ts', source)).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-node-in-browser', message: expect.stringContaining('localDevPorts from @fantasy-draft/shared/sync'),
     })]);
   });
   it.each([
     "import { serverTime } from './server/clock';",
     "import { serverTime } from '@/server/clock';",
     "import { serverTime } from '@/lib/../server/clock';",
-  ])('lets browser source import its own modules: %s', source => {
-    const cwd = new URL('..', import.meta.url).pathname;
-    const result = new Linter({ cwd }).verify(source, [{
-      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
-      plugins: { agent }, rules: { 'agent/no-node-in-browser': 'error' },
-    }], { filename: `${cwd}web-app/src/probe.ts` });
-    expect(result).toEqual([]);
+    "import { localDevPorts } from '@fantasy-draft/shared/sync';",
+    "import { serverName } from 'src/server-name';",
+  ])('lets browser source import its own modules: %s', async source => {
+    expect(await browserMessages('web-app/src/probe.ts', source)).toEqual([]);
   });
   it.each([
     "import { spawn } from 'child_process';",
