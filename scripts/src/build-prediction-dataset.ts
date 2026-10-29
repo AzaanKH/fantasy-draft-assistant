@@ -7,10 +7,6 @@ import { decodeResidualTrainingRows, decodePredictionOutputRows, decodeDuckDbTab
  *   schedules, team stats, and player IDs
  * - ffopportunity / ffverse: expected fantasy points and opportunity metrics
  * - DynastyProcess / ffverse rankings: historical pre-draft and market-style rankings
- *
- * Usage:
- *   pnpm --filter scripts model:duckdb:init
- *   pnpm --filter scripts model:dataset
  */
 
 import { access, writeFile } from 'node:fs/promises';
@@ -292,10 +288,6 @@ const program = Effect.gen(function* () {
       `create schema if not exists source`,
       `create schema if not exists model`,
 
-      /**
-       * nflreadpy / nflverse responsibility:
-       * historical NFL stats, rosters, schedules, team stats, and player IDs.
-       */
       `create or replace table source.nflverse_player_stats as
         select *
         from read_parquet(${sqlList(
@@ -358,18 +350,10 @@ const program = Effect.gen(function* () {
         from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenRushing)})
         where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
 
-      /**
-       * ffopportunity / ffverse responsibility:
-       * expected fantasy points and opportunity metrics.
-       */
       `create or replace table source.ffopportunity_weekly as
         select *
         from read_parquet(${sqlList(ffopportunityWeeklyUrls(seasons))})`,
 
-      /**
-       * DynastyProcess / ffverse rankings responsibility:
-       * historical pre-draft / market-style rankings and fantasy IDs.
-       */
       // Its rows are FantasyPros ECR, so the FantasyPros-free profile keeps only the columns.
       `create or replace table source.dynastyprocess_rankings as
         select *

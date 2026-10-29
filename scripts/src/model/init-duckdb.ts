@@ -1,7 +1,5 @@
 /**
  * Initializes the local DuckDB modeling workspace from the runtime JSON cache.
- *
- * Usage: pnpm --filter scripts model:duckdb:init
  */
 
 import { Effect } from 'effect';

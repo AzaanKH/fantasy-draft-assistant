@@ -1,11 +1,8 @@
 /**
- * Sleeper ADP Fetcher
- *
  * Fetches player data from the Sleeper API including its search-rank proxy.
  * This is a Sleeper platform signal, not a true draft-derived ADP feed.
  *
  * API Docs: https://docs.sleeper.com/
- * Usage: pnpm fetch:sleeper
  */
 
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -26,9 +23,6 @@ const OUTPUT_FILE = join(DATA_DIR, 'sleeper-adp.json');
 
 const SLEEPER_PLAYERS_URL = 'https://api.sleeper.app/v1/players/nfl';
 
-/**
- * Raw player data from Sleeper API
- */
 const sleeperPlayerSchema = Schema.StructWithRest(Schema.Struct({
   player_id: Schema.optional(Schema.String), first_name: Schema.optional(Schema.NullOr(Schema.String)),
   last_name: Schema.optional(Schema.NullOr(Schema.String)), full_name: Schema.optional(Schema.NullOr(Schema.String)),
@@ -41,9 +35,6 @@ const sleeperPlayerSchema = Schema.StructWithRest(Schema.Struct({
 const decodeSleeperPlayers = Schema.decodeUnknownSync(Schema.Record(Schema.String, sleeperPlayerSchema));
 type SleeperPlayers = ReturnType<typeof decodeSleeperPlayers>;
 
-/**
- * Processed Sleeper ADP data
- */
 interface SleeperADPPlayer {
   readonly playerId: string;
   readonly name: string;
@@ -57,9 +48,6 @@ interface SleeperADPPlayer {
   readonly depthChartOrder: number | null;
 }
 
-/**
- * Validates that a string is a valid Position
- */
 function isValidPosition(value: string): value is Position {
   return isPosition(value);
 }
@@ -79,25 +67,16 @@ function isExcludedSleeperStatus(status: string): boolean {
   return status === 'Reserve/Retired';
 }
 
-/**
- * Validates that a string is a valid NFLTeam
- */
 function isValidTeam(value: string | null): value is NFLTeam {
   return isNFLTeam(value);
 }
 
-/**
- * Fetch all players from Sleeper API
- */
 // The full player catalog is several megabytes, so allow a slow but bounded download.
 export const fetchSleeperPlayers = Effect.sync(() => { console.log(`Fetching from ${SLEEPER_PLAYERS_URL}...`); }).pipe(
   Effect.andThen(fetchJson(SLEEPER_PLAYERS_URL, decodeSleeperPlayers, { label: 'Sleeper API', timeoutMs: 60_000 }, cause => cause instanceof Error ? cause : new Error(String(cause)))),
   Effect.tap((data) => Effect.sync(() => { console.log(`Received ${Object.keys(data).length} total player records`); })),
 );
 
-/**
- * Filter and process players for fantasy relevance
- */
 function processSleeperData(rawData: SleeperPlayers): SleeperADPPlayer[] {
   const players: SleeperADPPlayer[] = [];
   const errors: string[] = [];
@@ -119,7 +98,6 @@ function processSleeperData(rawData: SleeperPlayers): SleeperADPPlayer[] {
       (player.search_rank === null || player.search_rank === undefined)
     ) continue;
 
-    // Validate team
     if (!isValidTeam(canonicalTeam)) {
       errors.push(`Invalid team: ${canonicalTeam} for ${player.full_name}`);
       continue;
@@ -149,31 +127,23 @@ function processSleeperData(rawData: SleeperPlayers): SleeperADPPlayer[] {
     }
   }
 
-  // Sort by ADP
   players.sort((a, b) => a.sleeperAdp - b.sleeperAdp);
 
   return players;
 }
 
-/**
- * Main function
- */
 const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('Sleeper ADP Fetcher');
   console.log('='.repeat(50));
 
-  // Fetch raw data
   const rawData = yield* fetchSleeperPlayers;
 
-  // Process and filter
   const players = processSleeperData(rawData);
   console.log(`\nProcessed ${players.length} fantasy-relevant players`);
 
-  // Ensure data directory exists
   yield* io(() => mkdir(DATA_DIR, { recursive: true }));
 
-  // Write output
   const output = {
     fetchedAt: new Date().toISOString(),
     source: SLEEPER_PLAYERS_URL,
@@ -186,7 +156,6 @@ const program = Effect.gen(function* () {
   yield* io(() => writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2)));
   console.log(`\nData written to ${OUTPUT_FILE}`);
 
-  // Summary stats
   const positionCounts = players.reduce<Record<string, number>>(
     (acc, p) => {
       acc[p.position] = (acc[p.position] ?? 0) + 1;
@@ -202,7 +171,6 @@ const program = Effect.gen(function* () {
     console.log(`  ${entry[0]}: ${entry[1]}`);
   }
 
-  // Show top 20 by ADP
   console.log('\nTop 20 by Sleeper ADP:');
   players.slice(0, 20).forEach((p, i) => {
     console.log(`  ${i + 1}. ${p.name} (${p.team}) - ${p.position} - ADP: ${p.sleeperAdp}`);

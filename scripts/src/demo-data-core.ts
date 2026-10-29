@@ -414,7 +414,6 @@ const LEAK_PATTERNS: readonly (readonly [label: string, pattern: RegExp])[] = [
 const FANTASYPROS_ID_LITERAL =
   /fantasyProsId\\*["'`]?\s*:\s*(?:\\*["'`]([^"'`\\$]*)\\*["'`]|(\d+)\b)/g;
 
-/** Returns a description of each leak found in one published file. */
 export function findDemoDataLeaks(fileName: string, content: string): readonly string[] {
   const leaks = LEAK_PATTERNS.flatMap(([label, pattern]) =>
     pattern.test(content) ? [`${fileName} contains ${label}`] : []);

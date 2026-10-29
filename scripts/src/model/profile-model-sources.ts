@@ -1,8 +1,6 @@
 import { decodeDuckDbTableCounts, decodeProfileCoverageRows, decodeProfilePositionRows } from '../script-file-schemas.js';
 /**
  * Profiles the local DuckDB model sources and writes a compact JSON report.
- *
- * Usage: pnpm --filter scripts model:profile
  */
 
 import { writeFile } from 'node:fs/promises';

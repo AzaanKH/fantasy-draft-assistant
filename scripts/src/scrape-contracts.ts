@@ -1,10 +1,6 @@
 /**
- * Spotrac Contract Year Scraper
- *
  * Scrapes Spotrac for players in contract years (final year of deal).
  * This data is used to identify motivated players who may outperform.
- *
- * Usage: pnpm scrape:contracts
  */
 
 import { Effect } from 'effect';
@@ -28,7 +24,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
 const OUTPUT_FILE = join(DATA_DIR, 'contracts.json');
 
-// Spotrac free agent pages by position
 const SPOTRAC_URLS: Record<string, string> = {
   QB: 'https://www.spotrac.com/nfl/free-agents/_/year/2026/position/quarterback',
   RB: 'https://www.spotrac.com/nfl/free-agents/_/year/2026/position/running-back',
@@ -36,7 +31,6 @@ const SPOTRAC_URLS: Record<string, string> = {
   TE: 'https://www.spotrac.com/nfl/free-agents/_/year/2026/position/tight-end',
 };
 
-// Contract end year for players becoming free agents
 const CONTRACT_END_YEAR = 2026;
 
 interface RawContractData {
@@ -45,23 +39,14 @@ interface RawContractData {
   position: string;
 }
 
-/**
- * Validates that a string is a valid Position
- */
 function isValidPosition(value: string): value is Position {
   return POSITIONS.includes(value as Position);
 }
 
-/**
- * Validates that a string is a valid NFLTeam
- */
 function isValidTeam(value: string): value is NFLTeam {
   return NFL_TEAMS.includes(value as NFLTeam);
 }
 
-/**
- * Normalize team abbreviation from Spotrac to standard format
- */
 function normalizeTeam(team: string): string {
   const teamMap: Record<string, string> = {
     // Spotrac sometimes uses different abbreviations
@@ -80,9 +65,6 @@ function normalizeTeam(team: string): string {
   return teamMap[team] ?? team;
 }
 
-/**
- * Scrape contract data from a single Spotrac page
- */
 async function scrapePositionPage(
   page: Page,
   url: string,
@@ -93,7 +75,6 @@ async function scrapePositionPage(
   try {
     await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
 
-    // Wait for table
     await page.waitForSelector('table', { timeout: 10000 });
 
     const rawData = await page.evaluate((pos: string) => {
@@ -131,21 +112,16 @@ async function scrapePositionPage(
   }
 }
 
-/**
- * Parse and validate raw data into ContractPlayer objects
- */
 function parseContractData(rawData: RawContractData[]): ContractPlayer[] {
   const players: ContractPlayer[] = [];
   const errors: string[] = [];
 
   for (const row of rawData) {
-    // Validate position
     if (!isValidPosition(row.position)) {
       errors.push(`Invalid position: ${row.position}`);
       continue;
     }
 
-    // Normalize and validate team
     const normalizedTeam = normalizeTeam(row.team);
     if (!isValidTeam(normalizedTeam)) {
       errors.push(`Invalid team: ${row.team} (normalized: ${normalizedTeam}) for ${row.name}`);
@@ -172,9 +148,6 @@ function parseContractData(rawData: RawContractData[]): ContractPlayer[] {
   return players;
 }
 
-/**
- * Main scraper function
- */
 const program = Effect.gen(function* () {
   console.log('='.repeat(50));
   console.log('Spotrac Contract Year Scraper');
@@ -184,12 +157,10 @@ const program = Effect.gen(function* () {
     console.log(`\nScraping ${CONTRACT_END_YEAR} free agents (contract year players)...`);
     const scraped: RawContractData[] = [];
 
-    // Scrape each position page
     for (const [position, url] of Object.entries(SPOTRAC_URLS)) {
       const positionData = await scrapePositionPage(page, url, position as Position);
       scraped.push(...positionData);
 
-      // Small delay between requests
       await page.waitForTimeout(1000);
     }
     return scraped;
@@ -197,14 +168,11 @@ const program = Effect.gen(function* () {
 
   console.log(`\nTotal raw data: ${allRawData.length} players`);
 
-  // Parse and validate
   const players = parseContractData(allRawData);
   console.log(`Successfully parsed ${players.length} contract year players`);
 
-  // Ensure data directory exists
   yield* io(() => mkdir(DATA_DIR, { recursive: true }));
 
-  // Write output
   const output = {
     scrapedAt: new Date().toISOString(),
     contractYear: CONTRACT_END_YEAR,
@@ -215,7 +183,6 @@ const program = Effect.gen(function* () {
   yield* io(() => writeFile(OUTPUT_FILE, JSON.stringify(output, null, 2)));
   console.log(`\nData written to ${OUTPUT_FILE}`);
 
-  // Summary stats
   const positionCounts = players.reduce<Record<string, number>>(
     (acc, p) => {
       acc[p.position] = (acc[p.position] ?? 0) + 1;
