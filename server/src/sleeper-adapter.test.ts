@@ -126,6 +126,27 @@ describe('Sleeper settings cache', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('does not cache a lookup that was in flight when settings were invalidated', async () => {
+    let settingsRequests = 0;
+    let releaseLookup: (() => void) | undefined;
+    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, fixtureFetchJson(async (url: string): Promise<unknown> => {
+      if (url.endsWith('/picks')) return picksFixture;
+      if (url.includes('/draft/')) return draftFixture;
+      settingsRequests += 1;
+      if (settingsRequests === 1) await new Promise<void>((resolve) => { releaseLookup = resolve; });
+      return leagueFixture;
+    }));
+    const firstPoll = Effect.runPromise(adapter.poll());
+    await vi.waitFor(() => { expect(releaseLookup).toBeDefined(); });
+    adapter.invalidateSettings();
+    releaseLookup?.();
+    expect((await firstPoll).draft.leagueSettings).toBeDefined();
+    await Effect.runPromise(adapter.poll());
+    expect(settingsRequests).toBe(2);
+    await Effect.runPromise(adapter.poll());
+    expect(settingsRequests).toBe(2);
+  });
+
   it('does not reuse settings from a different league', async () => {
     const test = setup();
     await Effect.runPromise(test.adapter.poll());
