@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { gateWorkspaces, testPolicy } from './gate-workspaces.js';
 import { sourceCondition } from './source-condition.js';
+import { localDevPorts } from './shared/src/local-dev.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const contractTest = 'src/shared-package-contract.test.ts';
@@ -14,6 +15,7 @@ export default defineConfig({
       ...gateWorkspaces.map(({ directory, environment, testGlobals = false }) => ({
         root: `${root}${directory}`,
         ...sourceCondition,
+        define: { __DRAFT_LOCAL_PORTS__: JSON.stringify(localDevPorts()) },
         resolve: {
           ...sourceCondition.resolve,
           alias: directory === 'web-app'
