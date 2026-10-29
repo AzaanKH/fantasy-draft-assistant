@@ -1,12 +1,18 @@
-import { validateUiEntryBundle } from './config/ui-bundle-guard';
+import { validateClassicContentScript, validateExtensionPageBundle } from './config/ui-bundle-guard';
 import { decodeExtensionManifest } from './config/manifest-decoder';
-import { defineConfig, type Plugin } from 'vite';
+import { build, defineConfig, type BuildOptions, type Plugin } from 'vite';
 import { sourceCondition } from '../source-condition.js';
 import { resolve } from 'path';
 import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { localDevPorts } from '../shared/src/local-dev';
 
 const ports = localDevPorts(process.env);
+const define = { __DRAFT_LOCAL_PORTS__: JSON.stringify(ports) };
+const output = { entryFileNames: '[name].js', chunkFileNames: '[name].js', assetFileNames: '[name].[ext]' };
+const classicContentScripts = {
+  content: resolve(__dirname, 'src/content/sleeper-detector.ts'),
+  'espn-page': resolve(__dirname, 'src/content/espn-page-bridge.ts'),
+};
 
 function copyStaticFiles(): Plugin {
   return {
@@ -59,35 +65,68 @@ function copyStaticFiles(): Plugin {
   };
 }
 
-function validateClassicContentScripts(): Plugin {
+function validateExtensionPages(): Plugin {
   return {
-    name: 'validate-classic-content-scripts',
+    name: 'validate-extension-pages',
     generateBundle(_options, bundle) {
-      validateUiEntryBundle(bundle);
+      validateExtensionPageBundle(bundle);
+    },
+  };
+}
+
+function buildClassicContentScripts(): Plugin {
+  let watch: BuildOptions['watch'] = null;
+  let started = false;
+  return {
+    name: 'build-classic-content-scripts',
+    apply: 'build',
+    configResolved(config) {
+      watch = config.build.watch;
+    },
+    async closeBundle() {
+      if (started && watch) return;
+      started = true;
+      for (const [name, entry] of Object.entries(classicContentScripts)) {
+        await build({
+          ...sourceCondition,
+          root: __dirname,
+          configFile: false,
+          define,
+          logLevel: 'warn',
+          plugins: [{
+            name: 'validate-classic-content-script',
+            generateBundle(_options, bundle) {
+              validateClassicContentScript(bundle, `${name}.js`);
+            },
+          }],
+          build: {
+            outDir: resolve(__dirname, 'dist'),
+            emptyOutDir: false,
+            minify: false,
+            sourcemap: true,
+            watch,
+            rollupOptions: { input: { [name]: entry }, output: { ...output, inlineDynamicImports: true } },
+          },
+        });
+      }
     },
   };
 }
 
 export default defineConfig({
   ...sourceCondition,
-  define: { __DRAFT_LOCAL_PORTS__: JSON.stringify(ports) },
-  plugins: [validateClassicContentScripts(), copyStaticFiles()],
+  define,
+  plugins: [validateExtensionPages(), copyStaticFiles(), buildClassicContentScripts()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
         background: resolve(__dirname, 'src/background/service-worker.ts'),
-        content: resolve(__dirname, 'src/content/sleeper-detector.ts'),
-        'espn-page': resolve(__dirname, 'src/content/espn-page-bridge.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.ts'),
         options: resolve(__dirname, 'src/options/options.ts'),
       },
-      output: {
-        entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]',
-      },
+      output,
     },
     // Don't minify for easier debugging during development
     minify: false,
