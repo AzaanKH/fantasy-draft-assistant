@@ -235,9 +235,6 @@ export function MotionReorderItem({
 }: {
   readonly children: React.ReactNode;
   readonly className?: string;
-  // Retained for existing callers; Motion measures the rendered layout.
-  readonly order: number;
-  readonly rowHeight?: number;
 }): React.ReactElement {
   const reduceMotion = usePrefersReducedMotion();
 

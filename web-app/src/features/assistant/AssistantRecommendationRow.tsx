@@ -20,7 +20,6 @@ export function AssistantRecommendationRow({
   recommendation,
   player,
   rank,
-  order,
   isSelected,
   selectionLabel = 'Viewing',
   isBestPick,
@@ -32,7 +31,6 @@ export function AssistantRecommendationRow({
   readonly recommendation: Recommendation;
   readonly player?: Player;
   readonly rank: number;
-  readonly order: number;
   readonly isSelected: boolean;
   readonly selectionLabel?: 'Viewing' | 'Comparing';
   readonly isBestPick: boolean;
@@ -46,7 +44,7 @@ export function AssistantRecommendationRow({
 
   return (
     <div data-player-row>
-      <MotionReorderItem order={order} className={isSelected ? 'rec-candidate rec-candidate-selected' : 'rec-candidate'}>
+      <MotionReorderItem className={isSelected ? 'rec-candidate rec-candidate-selected' : 'rec-candidate'}>
         <span className="rec-candidate-rank" aria-label={`Rank ${String(rank)}`}>{String(rank)}</span>
         <button
           type="button"
