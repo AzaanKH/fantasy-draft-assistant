@@ -503,6 +503,12 @@ describe('createSyncServer', () => {
       expect(stale.status).toBe(409);
       expect(await stale.json()).toEqual({ error: 'Stale ESPN snapshot' });
 
+      for (const skewed of [now - 5 * 60_000 - 1_000, now + 5 * 60_000 + 1_000]) {
+        const rejected = await publish([], skewed);
+        expect(rejected.status).toBe(400);
+        expect(await rejected.json()).toEqual({ error: 'ESPN observation time must be within five minutes of the server clock' });
+      }
+
       const undone = await publish([], now + 1);
       expect(undone.ok).toBe(true);
       const undoSnapshot = decodeDraftSyncSnapshot(await undone.json());
