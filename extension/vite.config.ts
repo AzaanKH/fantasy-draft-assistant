@@ -8,19 +8,16 @@ import { localDevPorts } from '../shared/src/local-dev';
 
 const ports = localDevPorts(process.env);
 
-// Plugin to copy static files after build
 function copyStaticFiles(): Plugin {
   return {
     name: 'copy-static-files',
     closeBundle() {
       const distDir = resolve(__dirname, 'dist');
 
-      // Ensure dist directory exists
       if (!existsSync(distDir)) {
         mkdirSync(distDir, { recursive: true });
       }
 
-      // Copy manifest.json
       const manifest = decodeExtensionManifest(JSON.parse(readFileSync(resolve(__dirname, 'public/manifest.json'), 'utf8')));
       const hostPermissions = [
         ...manifest.host_permissions.filter((origin: string) => !origin.startsWith('http://localhost:') && !origin.startsWith('http://127.0.0.1:')),
@@ -36,7 +33,6 @@ function copyStaticFiles(): Plugin {
       };
       writeFileSync(resolve(distDir, 'manifest.json'), JSON.stringify(emittedManifest, null, 2) + '\n');
 
-      // Copy sidepanel.html
       copyFileSync(
         resolve(__dirname, 'src/sidepanel/sidepanel.html'),
         resolve(distDir, 'sidepanel.html')
@@ -47,7 +43,6 @@ function copyStaticFiles(): Plugin {
         resolve(distDir, 'sidepanel.css')
       );
 
-      // Copy icons if they exist
       for (const file of ['options.html', 'options.css']) {
         copyFileSync(resolve(__dirname, 'src/options', file), resolve(distDir, file));
       }

@@ -12,7 +12,7 @@ export class CliError extends Data.TaggedError('CliError')<{
   }
 }
 
-/** Report an unanticipated failure with its own message, as the CLI did before typed errors. */
+/** Report an unanticipated failure with its own message. */
 export const unexpected = (error: unknown): CliError => new CliError('COMMAND_FAILED',
   error instanceof Error ? error.message : 'The command failed.');
 
