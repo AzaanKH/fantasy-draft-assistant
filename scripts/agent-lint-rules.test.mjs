@@ -39,6 +39,30 @@ describe('agent lint rules', () => {
     }
   });
   it.each([
+    ['web-app/src/lib/probe.ts', "import { getLocalSyncToken } from '../../../server/src/local-auth';"],
+    ['web-app/src/probe.ts', "const auth = import('../../server/src/local-auth.js');"],
+    ['extension/src/background/probe.ts', "export { getLocalSyncToken } from '../../../server/src/local-auth.js';"],
+    ['extension/src/content/probe.ts', "import { getLocalSyncToken } from 'server/src/local-auth';"],
+  ])('keeps server modules out of browser source: %s', async (filePath, source) => {
+    const cwd = new URL('..', import.meta.url).pathname;
+    const config = await new ESLint({ cwd }).calculateConfigForFile(filePath);
+    const result = new Linter({ cwd }).verify(source, [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-node-in-browser': config.rules['agent/no-node-in-browser'] ?? 'off' },
+    }], { filename: `${cwd}${filePath}` });
+    expect(result).toEqual([expect.objectContaining({
+      ruleId: 'agent/no-node-in-browser', severity: 2, message: expect.stringContaining('local sync token'),
+    })]);
+  });
+  it('lets browser source import its own relative modules', () => {
+    const cwd = new URL('..', import.meta.url).pathname;
+    const result = new Linter({ cwd }).verify("import { serverTime } from './server/clock';", [{
+      files: ['**/*.ts'], languageOptions: { parser: tseslint.parser },
+      plugins: { agent }, rules: { 'agent/no-node-in-browser': 'error' },
+    }], { filename: `${cwd}web-app/src/probe.ts` });
+    expect(result).toEqual([]);
+  });
+  it.each([
     "import { spawn } from 'child_process';",
     "import cp from 'node:child_process';",
     "export * from 'node:child_process';",

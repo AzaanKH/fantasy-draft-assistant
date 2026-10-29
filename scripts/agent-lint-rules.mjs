@@ -179,13 +179,19 @@ export default {
     },
     'no-node-in-browser': {
       meta: {
-        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source.' },
+        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node or the server workspace, including its local sync token, in browser source.' },
         type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
+        server: 'Browser source must not load server modules such as the local sync token; keep them in Node entry points and Vite configuration.',
       } },
       create(context) {
+        const directory = path.dirname(path.resolve(context.cwd, context.filename));
         function check(node, source) {
-          if (staticModuleName(source) === '@fantasy-draft/shared/node') context.report({ node, messageId: 'browser' });
+          const name = staticModuleName(source);
+          if (typeof name !== 'string') return;
+          if (name === '@fantasy-draft/shared/node') context.report({ node, messageId: 'browser' });
+          const target = name.startsWith('.') ? path.relative(root, path.resolve(directory, name)).split(path.sep).join('/') : name;
+          if (target === 'server' || target.startsWith('server/')) context.report({ node, messageId: 'server' });
         }
         return {
           ImportDeclaration: node => check(node, node.source),
