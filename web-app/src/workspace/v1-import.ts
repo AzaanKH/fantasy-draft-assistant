@@ -14,6 +14,7 @@ import { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/sync';
 import { MAX_DRAFT_PICKS } from '@fantasy-draft/shared/units';
 import type { DraftSessionIdentity, PersistedDraftSession } from '../stores/draftSessionStorage';
 import type { DraftSessionChange } from '../stores/draftSessionUnconfirmedSaves';
+import { migrateLegacyDraftSession } from '../stores/legacyDraftSession';
 
 export interface RawV1Entry {
   readonly key: string;
@@ -108,11 +109,6 @@ function carry(session: Pick<PersistedDraftSession, 'currentPick' | 'draftHistor
   return { anchor: { kind: 'carry', pickNumber: session.currentPick }, historyLength: session.draftHistory.length };
 }
 
-function normalizeLegacyV1Config(config: ReturnType<typeof decodeStoredDraftSessionRecord>['config']): PersistedDraftSession['config'] {
-  if (config.draftType === undefined) return { ...config, draftType: 'snake' };
-  return { ...config, draftType: config.draftType };
-}
-
 function decodeV1ProgressToFrozenPrefix({ progress, originalHistory, acceptedHistory, session }: {
   progress: unknown;
   originalHistory: unknown;
@@ -139,10 +135,10 @@ function decodeV1ProgressToFrozenPrefix({ progress, originalHistory, acceptedHis
 
 function decodeSession(value: Record<string, unknown>, identity: DraftSessionIdentity, reject: Reject): PersistedDraftSession {
   const header = decodeStoredDraftSessionRecord({
-    ...value, draftHistory: [], preloadedKeepers: [], shortlistedPlayerIds: [], unresolvedProviderPicks: [],
+    ...migrateLegacyDraftSession(value), draftHistory: [], preloadedKeepers: [], shortlistedPlayerIds: [], unresolvedProviderPicks: [],
   });
   if (!same(header.identity, identity)) throw new Error('Session identity does not match its storage key');
-  const config = normalizeLegacyV1Config(header.config);
+  const { config } = header;
   const total = config.totalTeams * config.totalRounds;
   const sequence = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds });
   const slots = new Set<number>();
@@ -179,7 +175,7 @@ function decodeSession(value: Record<string, unknown>, identity: DraftSessionIde
     return pick;
   }, reject, total);
   const session: PersistedDraftSession = {
-    ...header, config, revision: header.revision ?? 0, lineage: [...header.lineage ?? []],
+    ...header, lineage: [...header.lineage],
     draftHistory, preloadedKeepers, unresolvedProviderPicks,
     keepersInitialized: header.keepersInitialized && keeperSupplyComplete,
     shortlistedPlayerIds: [...new Set(entries(value.shortlistedPlayerIds, '$.shortlistedPlayerIds', input => decodeStoredPlayerId(input), reject))],
