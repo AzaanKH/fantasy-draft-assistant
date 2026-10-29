@@ -88,7 +88,6 @@ Each change below was checked against a running process, not only the unit tests
 
 ## Bugs fixed along the way
 
-- `scrape-contracts.ts` called `process.exit(1)` inside its `catch` block, so its `finally` never closed the browser after a failure.
 - `scrape-ecr.ts` launched the browser before its `try` block, so a failure while opening the page left the browser running.
 
 ## Mistakes caught in review
@@ -103,7 +102,7 @@ A review of the first version of this stack found six regressions that the tests
 
 ## Known issues not addressed
 
-`pnpm scrape:ecr` finds 559 rows but parses none, and `pnpm scrape:contracts` finds no rows. Both fail the same way on `main`, so the conversion did not cause this. The source pages have probably changed. The FantasyPros API remains the primary rankings source.
+`pnpm scrape:ecr` finds 559 rows but parses none. It fails the same way on `main`, so the conversion did not cause this. The source page has probably changed. The FantasyPros API remains the primary rankings source.
 
 ## Possible next steps
 
