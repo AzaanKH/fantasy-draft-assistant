@@ -1,17 +1,4 @@
-import type { NFLTeam, Position } from './player.js';
-
 export type { ECRPlayer } from './catalog/decoders.js';
-
-/**
- * Contract year player data from Spotrac
- */
-export interface ContractPlayer {
-  readonly name: string;
-  readonly position: Position;
-  readonly team: NFLTeam;
-  readonly contractEndYear: number;
-  readonly isContractYear: boolean;
-}
 
 /**
  * Format: "Ja'Marr Chase (CIN)"

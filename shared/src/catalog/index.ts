@@ -23,7 +23,6 @@ export { getTeamByeWeeks } from '../scrapers.js';
 export { parsePlayerNameAndTeam } from '../scrapers.js';
 export { parsePositionString } from '../scrapers.js';
 export type { ECRPlayer } from '../scrapers.js';
-export type { ContractPlayer } from '../scrapers.js';
 export type { FantasyProsProjection } from '../fantasypros.js';
 export type { FantasyProsAdpPlayer } from '../fantasypros.js';
 export type { FantasyProsNewsItem } from '../fantasypros.js';

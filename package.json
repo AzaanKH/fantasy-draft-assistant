@@ -47,7 +47,6 @@
     "data:identity": "pnpm --filter scripts build:player-identity",
     "refresh:team-env": "pnpm --filter scripts generate:team-env",
     "refresh:daily": "pnpm refresh:sleeper && pnpm refresh:fantasypros && pnpm data:identity && pnpm refresh:contracts && pnpm refresh:team-env",
-    "scrape:contracts": "pnpm --filter scripts scrape:contracts",
     "refresh:contracts": "pnpm --filter scripts refresh:contracts",
     "data:demo:build": "pnpm --filter scripts build:demo-data && pnpm data:demo:check",
     "data:demo:install": "pnpm --filter scripts install:demo-data",
