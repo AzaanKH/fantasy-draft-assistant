@@ -50,6 +50,14 @@ describe('extension sender boundary', () => {
       ...sleeper, url: 'https://sleeper.com/leagues',
     }, id)).toBe(true);
   });
+
+  it('accepts every draft-room URL the content script recognizes', () => {
+    const message = { type: 'DRAFT_ROOM_STATUS', data: { isInDraftRoom: true, provider: 'sleeper', draftId: '123' } };
+    for (const host of ['www.sleeper.app', 'www.sleeper.com']) {
+      expect(acceptsAuthorizedMessage(message, { ...sender, url: `https://${host}/draft/nfl/123` }, id)).toBe(true);
+    }
+    expect(acceptsAuthorizedMessage(snapshot, { ...sender, url: sender.url.replace('/draft?', '/draft/?') }, id)).toBe(true);
+  });
 });
 
 
