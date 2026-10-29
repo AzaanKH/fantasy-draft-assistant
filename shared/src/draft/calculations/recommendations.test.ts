@@ -6,7 +6,6 @@ import { DEFAULT_SCORING_RULES, calculateLeagueProjection } from '../../league/s
 import { POSITIONS, type Player } from '../../player.js';
 import { type FantasyProsProjection } from '../../fantasypros.js';
 
-// Helper to create a mock player
 function createPlayer(
   id: string,
   position: Player['position'],
@@ -45,7 +44,6 @@ function createPlayer(
   };
 }
 
-// Helper to create position needs
 function createNeeds(
   needsConfig: Array<{
     position: Player['position'];

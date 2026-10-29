@@ -7,7 +7,6 @@ import {
 } from './scarcity.js';
 import type { Player } from '../../player.js';
 
-// Helper to create a mock player
 function createPlayer(id: string, position: Player['position'], ecrRank: number): Player {
   return {
     id,
@@ -41,7 +40,6 @@ function createPlayer(id: string, position: Player['position'], ecrRank: number)
   };
 }
 
-// Helper to create multiple players at a position
 function createPlayersAtPosition(
   position: Player['position'],
   count: number,
@@ -140,11 +138,9 @@ describe('calculatePositionalScarcity', () => {
       const rbs = createPlayersAtPosition('RB', 24, 1);
       const players = [...qbs, ...rbs];
 
-      // QB scarcity should only count QBs
       const qbScarcity = calculatePositionalScarcity('QB', players);
       expect(qbScarcity).toBe(1);
 
-      // RB scarcity should only count RBs
       const rbScarcity = calculatePositionalScarcity('RB', players);
       expect(rbScarcity).toBe(1);
     });

@@ -1,15 +1,7 @@
-/**
- * Positional scarcity calculation
- *
- * Measures how scarce elite players are at each position
- * based on how many elite-tier players remain available.
- */
-
 import type { Player } from '../../player.js';
 import { POSITIONS, type Position } from '../../league/positions.js';
 
 /**
- * Elite player thresholds by position
  * Represents the ECR rank cutoff for "elite" tier at each position
  */
 export const ELITE_THRESHOLDS: Record<Position, number> = {
@@ -22,14 +14,8 @@ export const ELITE_THRESHOLDS: Record<Position, number> = {
 };
 
 /**
- * Calculate positional scarcity score
- *
  * Higher score = more scarce (fewer elite players available)
  * Scale: 1-10 where 10 is maximum scarcity
- *
- * @param position - The position to evaluate
- * @param availablePlayers - Array of players still available in the draft
- * @returns Scarcity score from 1 (abundant) to 10 (very scarce)
  *
  * @example
  * // All elite RBs still available (24 with ECR <= 24)
@@ -45,26 +31,15 @@ export function calculatePositionalScarcity(
 ): number {
   const threshold = ELITE_THRESHOLDS[position];
 
-  // Count elite players still available at this position
   const eliteAvailable = availablePlayers.filter(
     (p) => p.position === position && p.positionalRank <= threshold
   ).length;
 
-  // Calculate scarcity: fewer elite players = higher scarcity
-  // When all elite players available: scarcity = 0
-  // When no elite players available: scarcity = 10
   const scarcity = 10 - (eliteAvailable / threshold) * 10;
 
-  // Clamp to 1-10 range
   return Math.max(1, Math.min(10, scarcity));
 }
 
-/**
- * Calculate scarcity scores for all positions
- *
- * @param availablePlayers - Array of players still available
- * @returns Map of position to scarcity score
- */
 export function calculateAllScarcityScores(
   availablePlayers: readonly Player[]
 ): Map<Position, number> {

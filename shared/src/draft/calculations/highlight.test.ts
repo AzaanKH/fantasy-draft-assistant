@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { determineHighlightLevel } from './highlight.js';
 import type { TeamEnvironment } from '../../team-environment.js';
 
-// Helper to create a team environment with specific offense score
 function createTeamEnv(offenseScore: number): TeamEnvironment {
   return {
     team: 'DET',

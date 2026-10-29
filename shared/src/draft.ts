@@ -2,9 +2,7 @@ import type { Position, SurvivalModelSource, TierSource } from './player.js';
 import { FLEX_GROUPS } from './league/positions.js';
 import type { Probability, Rank, Vor } from './units/brands.js';
 
-/**
- * Roster structure tracking player IDs by position
- */
+/** Player IDs by position. */
 export interface Roster {
   readonly QB: readonly string[];
   readonly RB: readonly string[];
@@ -14,9 +12,6 @@ export interface Roster {
   readonly DEF: readonly string[];
 }
 
-/**
- * Creates an empty roster with no players
- */
 export function createEmptyRoster(): Roster {
   return {
     QB: [],
@@ -28,26 +23,16 @@ export function createEmptyRoster(): Roster {
   };
 }
 
-/**
- * Position slot requirements for starters and max roster
- */
 interface PositionRequirement {
   readonly starters: number;
   readonly max: number;
 }
 
-/**
- * FLEX position configuration
- */
 interface FlexRequirement {
   readonly starters: number;
   readonly eligiblePositions: readonly Position[];
 }
 
-/**
- * Complete roster requirements for the league
- * 10-team keeper league configuration
- */
 export interface RosterRequirements {
   readonly QB: PositionRequirement;
   readonly RB: PositionRequirement;
@@ -59,9 +44,6 @@ export interface RosterRequirements {
   readonly BENCH: { readonly spots: number };
 }
 
-/**
- * Default roster requirements for 10-team league
- */
 export const DEFAULT_ROSTER_REQUIREMENTS: RosterRequirements = {
   QB: { starters: 1, max: 4 },
   RB: { starters: 2, max: 8 },
@@ -73,9 +55,6 @@ export const DEFAULT_ROSTER_REQUIREMENTS: RosterRequirements = {
   BENCH: { spots: 5 },
 } as const;
 
-/**
- * Individual draft pick record
- */
 export interface DraftPick {
   readonly pickNumber: number;
   readonly playerId: string;
@@ -86,16 +65,10 @@ export interface DraftPick {
   readonly timestamp: number;
 }
 
-/**
- * Priority levels for team positional needs
- */
 const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'defer', 'filled'] as const;
 
 export type NeedPriority = (typeof NEED_PRIORITIES)[number];
 
-/**
- * Positional need assessment for team building
- */
 export interface PositionNeed {
   readonly position: Position;
   readonly priority: NeedPriority;
@@ -200,9 +173,6 @@ export interface RecommendationDecisionFactors {
   };
 }
 
-/**
- * Player recommendation with reasoning
- */
 export interface Recommendation {
   readonly playerId: string;
   readonly playerName: string;
@@ -288,9 +258,6 @@ export interface DecisionOutput {
   readonly decisionDivergenceExplanation: string | null;
 }
 
-/**
- * Type guard to check if a value is a valid NeedPriority
- */
 export function isNeedPriority(value: unknown): value is NeedPriority {
   return NEED_PRIORITIES.some(priority => priority === value);
 }
