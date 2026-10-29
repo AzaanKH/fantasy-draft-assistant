@@ -1,9 +1,6 @@
 import type { Probability, Rank, Vor } from './units/brands.js';
 import { isPosition, type Position } from './league/positions.js';
 
-/**
- * NFL team abbreviations
- */
 export const NFL_TEAMS = [
   'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE',
   'DAL', 'DEN', 'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC',
@@ -50,9 +47,6 @@ export type SurvivalModelSource = (typeof SURVIVAL_MODEL_SOURCES)[number];
 
 export type { PlayerPrediction } from './catalog/decoders.js';
 
-/**
- * Core player interface with all ranking and metadata fields
- */
 export interface Player {
   readonly id: string;
   readonly name: string;
@@ -72,16 +66,12 @@ export interface Player {
   readonly consensusAdp?: number;
   /** Consensus ADP - ECR (positive = expert value versus observed market cost) */
   readonly valueScore: number;
-  /** Generic market/platform rank snapshot */
   readonly marketRank: number;
-  /** Generic market ADP snapshot */
   readonly marketAdp: number;
   /** Positive means player is rising up the market */
   readonly marketAdpTrend: number;
 
-  /** Player is in final year of contract */
   readonly isContractYear: boolean;
-  /** Year contract expires (if known) */
   readonly contractEndYear?: number;
   /** Team offensive environment score (1-10 scale) */
   readonly offensiveEnvironmentScore: number;
@@ -133,11 +123,8 @@ export interface Player {
   readonly sleeperTimingPick?: number;
   /** Primary League pick sample behind the historical estimate. */
   readonly survivalModelSampleSize?: number;
-  /** Ceiling-oriented score */
   readonly ceilingScore: number;
-  /** Floor-oriented score */
   readonly floorScore: number;
-  /** Upside-oriented score */
   readonly upsideScore: number;
   /** Higher means wider projection range / lower confidence */
   readonly uncertaintyScore: number;
@@ -150,22 +137,15 @@ export interface Player {
   /** Simple same-team stack partners for QB/WR/TE-style correlations */
   readonly stackPartnerTeam: NFLTeam;
 
-  /** Calculated highlight level for UI */
   readonly highlightLevel: HighlightLevel;
   /** Custom projected points based on league scoring */
   readonly customProjectedPoints?: number;
 }
 
-/**
- * Type guard to check if a value is a valid NFLTeam
- */
 export function isNFLTeam(value: unknown): value is NFLTeam {
   return typeof value === 'string' && NFL_TEAMS.some(item => item === value);
 }
 
-/**
- * Type guard to check if a value is a valid HighlightLevel
- */
 function isHighlightLevel(value: unknown): value is HighlightLevel {
   return typeof value === 'string' && HIGHLIGHT_LEVELS.some(item => item === value);
 }
@@ -190,9 +170,6 @@ function isSurvivalModelSource(value: unknown): value is Player['survivalModelSo
   return value === undefined || SURVIVAL_MODEL_SOURCES.some(item => item === value);
 }
 
-/**
- * Type guard to validate Player object structure
- */
 export function isPlayer(obj: unknown): obj is Player {
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
     return false;

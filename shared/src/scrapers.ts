@@ -9,14 +9,11 @@ export interface ContractPlayer {
   readonly name: string;
   readonly position: Position;
   readonly team: NFLTeam;
-  /** Year the contract expires */
   readonly contractEndYear: number;
-  /** Whether this is the final year of their contract */
   readonly isContractYear: boolean;
 }
 
 /**
- * Parse player name and team from combined string
  * Format: "Ja'Marr Chase (CIN)"
  */
 export function parsePlayerNameAndTeam(
@@ -33,7 +30,6 @@ export function parsePlayerNameAndTeam(
 }
 
 /**
- * Parse position string to extract position and rank
  * Format: "WR1", "RB12", "TE3"
  */
 export function parsePositionString(

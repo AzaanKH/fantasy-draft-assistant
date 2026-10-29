@@ -1,10 +1,3 @@
-/**
- * Recommendation engine
- *
- * Generates player recommendations based on ECR rankings,
- * team needs, and positional scarcity.
- */
-
 import { asVor, type Vor } from '../../units/brands.js';
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
 import { POSITIONS, type Position, type Player } from '../../player.js';
@@ -43,9 +36,6 @@ export interface RecommendationContext {
   readonly selectionsRemaining?: number;
 }
 
-/**
- * Result of the recommendation engine
- */
 export interface RecommendationResult {
   /** Roster-aware answer to "Who should I draft right now?" */
   readonly draftNow: readonly Recommendation[];
@@ -427,8 +417,6 @@ function buildNeedRecommendation(
 }
 
 /**
- * Generate player recommendations
- *
  * Six recommendation lists:
  * 1. Draft Now: Combined roster-aware ranking for the current pick
  * 2. Best RB / Intentional Reach: RB-only roster/scarcity choice with explicit market cost
@@ -436,11 +424,6 @@ function buildNeedRecommendation(
  * 4. Best Value: Actionable Sleeper market discounts above replacement level
  * 5. By Need: Position-filtered view for urgent roster gaps
  * 6. Market Stashes: Discounted replacement-level players hidden from Best Value by default
- *
- * @param availablePlayers - Players not yet drafted
- * @param teamNeeds - Current team positional needs
- * @param limit - Maximum recommendations per list (default: 10)
- * @returns Object with all recommendation arrays
  *
  * @example
  * const { bestAvailable, byNeed } = getRecommendations(available, needs, 5);
@@ -607,12 +590,10 @@ function calculateRecommendations(
     .sort(sortByMarketDiscount)
     .slice(0, limit);
 
-  // By Need: Factor in team needs and scarcity
   const criticalPositions = teamNeeds
     .filter((n) => n.priority === 'critical' || n.priority === 'high')
     .map((n) => n.position);
 
-  // If no critical/high needs, fall back to medium priority
   const targetPositions = criticalPositions.length > 0
     ? criticalPositions
     : teamNeeds
