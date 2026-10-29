@@ -4,9 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import { createDraftStore } from './draftStore';
-import { getDraftSessionStorageKey, parseStoredDraftSession, persistDraftSession } from './draftSessionStorage';
+import { EMPTY_DRAFT_SESSION_BASE, getDraftSessionStorageKey, parseStoredDraftSession, persistDraftSession } from './draftSessionStorage';
 import { defaultConfig } from './draft/state';
-import { EMPTY_DRAFT_SESSION_BASE } from './draft/session-actions';
 
 const identity = { provider: 'sleeper', draftId: '123' } as const;
 const key = getDraftSessionStorageKey(identity);

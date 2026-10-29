@@ -129,6 +129,8 @@ export interface DraftSessionBase {
   readonly session: PersistedDraftSession | null;
 }
 
+export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [], session: null };
+
 interface DraftSessionWriteOptions {
   /** Skips the conflict check, leaving the overwritten tab's save to be merged back. */
   readonly force?: boolean;
