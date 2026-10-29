@@ -4,6 +4,7 @@ import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import type { PersistedDraftSession } from '../stores/draftSessionStorage';
 import type { DraftSessionChange } from '../stores/draftSessionUnconfirmedSaves';
 import type { RecordedDraftPick } from '../stores/draft/types';
+import { importSourceDigest } from './indexed-db';
 import { importV1, snapshotV1Storage, type RawV1Entry } from './v1-import';
 
 function pick(pickNumber: number, playerId = `player-${pickNumber}`): RecordedDraftPick {
@@ -146,6 +147,17 @@ describe('v1 independent entry import', () => {
     expect(result.sessions[0]?.config.draftType).toBe(expected);
     expect(result.sessions[0]?.draftHistory).toEqual([provisional]);
     expect(result.rejected).toEqual([]);
+  });
+
+  it.each([
+    { shape: 'original', overrides: { revision: undefined, lineage: undefined, draftProgress: undefined }, draftType: undefined, digest: 'dc07a9715802a2d151e7ce5339797ea1ac48874497eb36ea7fdd834b9b8df5ba' },
+    { shape: 'current', overrides: {}, draftType: 'snake', digest: '2396511736af22bd096b731584b61f531f97ca8678168c5b47b08fa56e964b78' },
+  ])('keeps the import digest earlier releases recorded for $shape sessions', async ({ overrides, draftType, digest }) => {
+    const value = session({ currentPick: 7, draftHistory: [pick(2), pick(1)] });
+    const result = importV1([stored({ ...value, ...overrides, config: { ...value.config, draftType } })]);
+    const imported = result.sessions[0];
+    if (!imported) throw new Error('Expected an imported session');
+    await expect(importSourceDigest(result.source, imported)).resolves.toBe(digest);
   });
 });
 

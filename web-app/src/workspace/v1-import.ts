@@ -134,9 +134,11 @@ function decodeV1ProgressToFrozenPrefix({ progress, originalHistory, acceptedHis
 }
 
 function decodeSession(value: Record<string, unknown>, identity: DraftSessionIdentity, reject: Reject): PersistedDraftSession {
-  const header = decodeStoredDraftSessionRecord({
+  const decoded = decodeStoredDraftSessionRecord({
     ...migrateLegacyDraftSession(value), draftHistory: [], preloadedKeepers: [], shortlistedPlayerIds: [], unresolvedProviderPicks: [],
   });
+  const { draftProgress: _draftProgress, ...unprogressed } = decoded;
+  const header = 'draftProgress' in value ? decoded : unprogressed;
   if (!same(header.identity, identity)) throw new Error('Session identity does not match its storage key');
   const { config } = header;
   const total = config.totalTeams * config.totalRounds;
