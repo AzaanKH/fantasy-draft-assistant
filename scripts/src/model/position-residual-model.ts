@@ -71,11 +71,6 @@ export interface FittedPositionResidualModel {
   readonly selectionValidationRows: number;
 }
 
-/**
- * This declaration is the model-selection protocol for the 2026 build. Changing
- * any candidate, feature list, or threshold requires a new version; historical
- * outer-fold results from an older version must not be used to tune the new set.
- */
 export const POSITION_MODEL_CANDIDATE_SET_VERSION = '2026-predeclared-v1';
 
 export const POSITION_MODEL_SPECIFICATIONS = [
@@ -122,6 +117,7 @@ type PositionModelSpecificationId =
 export const POSITION_MODEL_LAMBDA_CANDIDATES = [
   1, 10, 100, 1_000, 10_000, 1_000_000_000,
 ] as const;
+export const POSITION_MODEL_DEFAULT_LAMBDA = 100;
 export const POSITION_MODEL_VOLUME_THRESHOLD_CANDIDATES:
 Readonly<Record<OffensivePosition, readonly number[]>> = {
   QB: [50, 100, 200, 400, 800],
@@ -129,7 +125,7 @@ Readonly<Record<OffensivePosition, readonly number[]>> = {
   WR: [20, 40, 80, 160, 320],
   TE: [50, 100, 200, 400, 800],
 };
-const DEFAULT_VOLUME_THRESHOLDS: Record<OffensivePosition, number> = {
+export const POSITION_MODEL_DEFAULT_VOLUME_THRESHOLDS: Readonly<Record<OffensivePosition, number>> = {
   QB: 200,
   RB: 80,
   WR: 80,
@@ -382,8 +378,8 @@ function selectHyperparameters(
       ...right, trainingSeasons, validationSeason, validationRows: validationRows.length,
     })) ?? Number.POSITIVE_INFINITY;
     return leftError - rightError || right.lambda - left.lambda ||
-      Math.abs(left.volumeThreshold - DEFAULT_VOLUME_THRESHOLDS[position]) -
-        Math.abs(right.volumeThreshold - DEFAULT_VOLUME_THRESHOLDS[position]) ||
+      Math.abs(left.volumeThreshold - POSITION_MODEL_DEFAULT_VOLUME_THRESHOLDS[position]) -
+        Math.abs(right.volumeThreshold - POSITION_MODEL_DEFAULT_VOLUME_THRESHOLDS[position]) ||
       left.specificationId.localeCompare(right.specificationId);
   })[0];
   const fallback = POSITION_MODEL_SPECIFICATIONS.find(
@@ -394,8 +390,8 @@ function selectHyperparameters(
     : {
         specificationId: fallback.id,
         featureNames: fallback.features[position] as readonly string[],
-        lambda: 100,
-        volumeThreshold: DEFAULT_VOLUME_THRESHOLDS[position],
+        lambda: POSITION_MODEL_DEFAULT_LAMBDA,
+        volumeThreshold: POSITION_MODEL_DEFAULT_VOLUME_THRESHOLDS[position],
       };
   return {
     ...choice,
