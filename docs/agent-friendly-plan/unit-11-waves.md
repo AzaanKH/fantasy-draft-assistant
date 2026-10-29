@@ -27,7 +27,7 @@ Build a readwrite IndexedDB transaction per command. Read the latest facts, vali
 Start from these files:
 
 - New browser persistence and import modules in `web-app/src/workspace/`, with the owner, provider, and command types from 11b.
-- Existing `draftSessionStorage.ts`, `draftSessionUnconfirmedSaves.ts`, and `draft/session-actions.ts` as retained import-only dependencies.
+- Existing `draftSessionStorage.ts`, `draftSessionUnconfirmedSaves.ts`, and `draft/saved-session.ts` as retained import-only dependencies.
 - `shared/src/catalog/sync-decoders.ts` and the stored-session boundary decoders it references.
 - `shared/src/local-dev.ts`, `extension/src/shared/local-urls.ts`, `extension/src/shared/types.ts`, `extension/src/sidepanel/sidepanel.ts`, the side-panel HTML, and extension URL and permission tests.
 - Workspace, migration, lifecycle, permission, rollback, and persistence tests, plus the browser adapter and runner.
@@ -68,7 +68,7 @@ The real-app browser gate must retain all 9,000 acknowledged effects in the two-
 
 After 11c clears activation and rollout gates, delete the CAS retry loop, lineage merge writer, unconfirmed-save writer, and their store subscriptions. Delete old singleton compatibility APIs left only for tests. Retain a small, read-only v1 importer and the real old-module fixtures needed by the rollback contract. Cleanup does not authorize deleting data or the importer. Remove fields and exports only after a caller search finds no supported reader.
 
-Start from `web-app/src/stores/draftStore.ts`, `draftSessionStorage.ts`, `draftSessionUnconfirmedSaves.ts`, `draft/session-actions.ts`, their test files, and the import owner in `workspace/`. Update shared stored-session or journal exports only where there is no remaining import or rollback reader. Expect fewer than 30 changed files.
+Start from `web-app/src/stores/draftStore.ts`, `draftSessionStorage.ts`, `draftSessionUnconfirmedSaves.ts`, `draft/saved-session.ts`, their test files, and the import owner in `workspace/`. Update shared stored-session or journal exports only where there is no remaining import or rollback reader. Expect fewer than 30 changed files.
 
 Run `pnpm verify`, the full 11c browser and old-module gates, and searches proving that no workspace command writes v1 directly. The explicit handoff and rollback rules remain in force. Do not delete the compatibility fence merely because the new writer no longer imports the old store.
 

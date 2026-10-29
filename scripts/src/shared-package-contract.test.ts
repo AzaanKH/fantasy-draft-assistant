@@ -105,7 +105,7 @@ console.log(JSON.stringify({ exports, plainImports, route: sync.parseDraftRoomUr
   it('loads the helpers used by draft consumers without loading Effect', () => {
     const consumers = [
       ['web-app/src/hooks/useDraftSync.ts', 'isValidDraftSyncId', ['sleeper', 'Draft_1-abc']],
-      ['web-app/src/stores/draft/session-actions.ts', 'isDraftSessionIdentity', [{ provider: 'espn', draftId: '4242' }]],
+      ['web-app/src/stores/draftStore.ts', 'isDraftSessionIdentity', [{ provider: 'espn', draftId: '4242' }]],
       ['web-app/src/features/league-setup/LeagueSetupDialog.tsx', 'isQuickMockPreferences', [{ totalTeams: 12, totalRounds: 15, reception: 1, passingTouchdown: 4 }]],
     ] as const;
     const probes = consumers.map(([path, name, args]) => {
