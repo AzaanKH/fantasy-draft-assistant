@@ -11,7 +11,6 @@ vi.mock('./effect-runtime.js', async importOriginal => ({
   ...await importOriginal<typeof import('./effect-runtime.js')>(), runMain: vi.fn(), isEntryPoint: () => true,
 }));
 vi.mock('./fantasypros-api.js', () => ({ fetchFantasyProsSnapshot: vi.fn() }));
-vi.mock('./playwright-browser.js', () => ({ withBrowserPage: () => Effect.fail(new Error('scrape reached')) }));
 vi.mock('./model/duckdb.js', async importOriginal => ({
   ...await importOriginal<typeof import('./model/duckdb.js')>(),
   withMemoryDb: (use: (connection: unknown) => Effect.Effect<unknown, unknown>) => Effect.suspend(() => use({
@@ -92,11 +91,4 @@ it.each(boundaries)('selects the season before the current NFL season for team e
   await expect(runCaptured()).rejects.toThrow('team query captured');
   expect(fixture.sql[0]).toContain(`stats_team_reg_${season - 1}.parquet`);
   expect(fixture.sql[0]).toContain(`where season = ${season - 1}`);
-});
-
-it.each(boundaries)('accepts the current NFL season bye-week cache before scraping at %s', async (timestamp, season) => {
-  vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });
-  vi.mocked(readFile).mockResolvedValue(JSON.stringify({ metadata: { season }, rankings: [{ team: 'CIN', byeWeek: 10 }] }));
-  await import('./scrape-ecr.js');
-  await expect(runCaptured()).rejects.toThrow('scrape reached');
 });

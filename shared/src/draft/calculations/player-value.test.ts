@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ECRPlayer } from '../../scrapers.js';
+import type { ECRPlayer } from '../../catalog/decoders.js';
 import type { FantasyProsProjection } from '../../fantasypros.js';
 import type { NFLTeam, Player } from '../../player.js';
 import type { TeamEnvironment } from '../../team-environment.js';

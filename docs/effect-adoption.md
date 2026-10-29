@@ -86,10 +86,6 @@ Each change below was checked against a running process, not only the unit tests
 - Ctrl-C now releases DuckDB connections and Playwright browsers. Scripts that use them exit with code 130 after cleanup. DuckDB cancels a running query first, because closing a connection otherwise waits for a slow remote Parquet read. A second Ctrl-C, or cleanup longer than five seconds, exits immediately.
 - A newer snapshot request from the extension now cancels a stale read for the same draft. Before, the read ran to completion and the controller discarded its result. ESPN snapshot uploads are never cancelled.
 
-## Bugs fixed along the way
-
-- `scrape-ecr.ts` launched the browser before its `try` block, so a failure while opening the page left the browser running.
-
 ## Mistakes caught in review
 
 A review of the first version of this stack found six regressions that the tests did not cover. Each now has a test that fails without its fix.
@@ -99,10 +95,6 @@ A review of the first version of this stack found six regressions that the tests
 - An `Effect.callback` cleanup that only sent SIGTERM let interruption finish while the child still ran. Cleanup now waits for the exit.
 - Parsing in `Effect.map` turned a malformed payload into a defect, which skipped the FantasyPros fallback. Parsers now run in `Effect.try`.
 - One cancellation slot for both reads and uploads let a status refresh cancel an ESPN upload.
-
-## Known issues not addressed
-
-`pnpm scrape:ecr` finds 559 rows but parses none. It fails the same way on `main`, so the conversion did not cause this. The source page has probably changed. The FantasyPros API remains the primary rankings source.
 
 ## Possible next steps
 
