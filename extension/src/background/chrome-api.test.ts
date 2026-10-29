@@ -308,6 +308,41 @@ describe('background controller with mocked Chrome APIs', () => {
       },
     });
   });
+
+  it('lets an older upload finish without overwriting a newer read', async () => {
+    const olderPublish = createDeferred<DraftSyncSnapshot>();
+    const newerFetch = createDeferred<DraftSyncSnapshot | null>();
+    let publishAborted = false;
+    publishEspnSnapshot.mockImplementationOnce(() => Effect.promise((signal) => {
+      signal.addEventListener('abort', () => { publishAborted = true; });
+      return olderPublish.promise;
+    }));
+    fetchSnapshot.mockImplementationOnce(() => Effect.promise(() => newerFetch.promise));
+    const draft: EspnDraftSnapshot['draft'] = {
+      provider: 'espn',
+      draftId: '4242',
+      providerKey: '2026:4242',
+      status: 'drafting',
+      type: 'snake',
+      settings: { teams: 10, rounds: 16, pickTimer: 30 },
+      draftOrder: null,
+    };
+
+    dispatch({ type: 'ESPN_DRAFT_SNAPSHOT', data: { draft, picks: [], observedAt: 1000 } });
+    dispatch({
+      type: 'DRAFT_ROOM_STATUS',
+      data: { isInDraftRoom: true, provider: 'espn', draftId: '4242' },
+    });
+    newerFetch.resolve({ ...createSnapshot('espn', '4242'), lastSuccessfulSyncAt: 2000 });
+    await flushPromises();
+    olderPublish.resolve({ ...createSnapshot('espn', '4242'), draft, lastSuccessfulSyncAt: 1000 });
+    await flushPromises();
+
+    expect(publishAborted).toBe(false);
+    expect(dispatch({ type: 'GET_DRAFT_STATUS' })).toMatchObject({
+      data: { snapshot: { lastSuccessfulSyncAt: 2000 } },
+    });
+  });
 });
 
 describe('background controller with the real sync client', () => {
