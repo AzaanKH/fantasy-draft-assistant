@@ -140,58 +140,62 @@ function groupPickChanges(picks: readonly DraftPickChange[]): DraftPickChange[][
   return groups.map((group) => [...group.picks]);
 }
 
-/**
- * Merges an overwritten save into a newer session. Picks merge by pick number and
- * the queue by adds and removes. Where both saves changed the same pick or field,
- * the newer session wins; a later pick is still never placed behind the merged picks.
- * Pick changes involving the same player, such as a move, apply together or not at
- * all, so a conflicting destination never leaves the original pick deleted.
- * The result is unvalidated; callers must parse it before use.
- */
-export function applyDraftSessionChange(
-  session: PersistedDraftSession,
-  change: DraftSessionChange
-): PersistedDraftSession {
-  const history = new Map(session.draftHistory.map((pick) => [pick.pickNumber, pick]));
-  for (const group of groupPickChanges(change.picks)) {
-    if (!group.every((pick) => isSameSessionValue(history.get(pick.pickNumber) ?? null, pick.before))) continue;
-    const slots = new Set(group.map((pick) => pick.pickNumber));
-    // A player the newer session drafted at another pick stays there, and these slots keep their picks.
-    const draftedElsewhere = new Set(
-      [...history.values()].filter((pick) => !slots.has(pick.pickNumber)).map((pick) => pick.playerId)
-    );
-    if (group.some(({ after }) => after && draftedElsewhere.has(after.playerId))) continue;
+function canApplyPickGroup(history: ReadonlyMap<number, RecordedDraftPick>, group: readonly DraftPickChange[]): boolean {
+  if (!group.every((pick) => isSameSessionValue(history.get(pick.pickNumber) ?? null, pick.before))) return false;
+  const slots = new Set(group.map((pick) => pick.pickNumber));
+  const draftedElsewhere = new Set(
+    [...history.values()].filter((pick) => !slots.has(pick.pickNumber)).map((pick) => pick.playerId)
+  );
+  return !group.some(({ after }) => after && draftedElsewhere.has(after.playerId));
+}
+
+function mergePicks(draftHistory: readonly RecordedDraftPick[], picks: readonly DraftPickChange[]): RecordedDraftPick[] {
+  const history = new Map(draftHistory.map((pick) => [pick.pickNumber, pick]));
+  for (const group of groupPickChanges(picks)) {
+    if (!canApplyPickGroup(history, group)) continue;
     for (const { pickNumber, after } of group) {
       if (after) history.set(pickNumber, after);
       else history.delete(pickNumber);
     }
   }
+  return [...history.values()].sort((left, right) => left.pickNumber - right.pickNumber);
+}
 
+function mergeQueue(queue: readonly string[], change: DraftSessionChange): string[] {
   const removed = new Set(change.queueRemoved);
-  const queue = session.shortlistedPlayerIds.filter((playerId) => !removed.has(playerId));
-  for (const playerId of change.queueAdded) if (!queue.includes(playerId)) queue.push(playerId);
+  const merged = queue.filter((playerId) => !removed.has(playerId));
+  for (const playerId of change.queueAdded) if (!merged.includes(playerId)) merged.push(playerId);
+  return merged;
+}
 
-  const merged: PersistedDraftSession = {
-    ...session,
-    draftHistory: [...history.values()].sort((left, right) => left.pickNumber - right.pickNumber),
-    shortlistedPlayerIds: queue,
-  };
+function mergeFields(session: PersistedDraftSession, fields: FieldChanges): Partial<Record<MergedField, unknown>> {
+  const merged: Partial<Record<MergedField, unknown>> = {};
   for (const field of MERGED_FIELDS) {
-    const fieldChange = change.fields[field];
-    if (!fieldChange) continue;
-    if (isSameSessionValue(session[field], fieldChange.before)) {
-      Object.assign(merged, { [field]: fieldChange.after });
-    } else if (field === 'currentPick') {
-      Object.assign(merged, { currentPick: Math.max(session.currentPick, change.fields.currentPick?.after ?? session.currentPick) });
-    }
+    const fieldChange = fields[field];
+    if (fieldChange && isSameSessionValue(session[field], fieldChange.before)) merged[field] = fieldChange.after;
   }
-  if (merged.currentPick !== session.currentPick || !isSameSessionValue(merged.draftHistory, session.draftHistory)) {
-    // Journals omit progress for older readers; history or cursor changes import the legacy merged cursor.
-    return { ...merged, draftProgress: {
-      anchor: { kind: 'carry', pickNumber: merged.currentPick }, historyLength: merged.draftHistory.length,
-    } };
+  const cursor = fields.currentPick;
+  if (cursor && !isSameSessionValue(session.currentPick, cursor.before)) {
+    merged.currentPick = Math.max(session.currentPick, cursor.after);
   }
   return merged;
+}
+
+/** Merges an overwritten save into a newer session. The result is unvalidated; callers must parse it before use. */
+export function applyDraftSessionChange(
+  session: PersistedDraftSession,
+  change: DraftSessionChange
+): PersistedDraftSession {
+  const merged: PersistedDraftSession = Object.assign({
+    ...session,
+    draftHistory: mergePicks(session.draftHistory, change.picks),
+    shortlistedPlayerIds: mergeQueue(session.shortlistedPlayerIds, change),
+  }, mergeFields(session, change.fields));
+  if (merged.currentPick === session.currentPick && isSameSessionValue(merged.draftHistory, session.draftHistory)) return merged;
+  // Recorded saves omit progress for older readers, so a moved cursor or history imports the legacy cursor.
+  return { ...merged, draftProgress: {
+    anchor: { kind: 'carry', pickNumber: merged.currentPick }, historyLength: merged.draftHistory.length,
+  } };
 }
 
 function parseDraftSessionChange(serialized: string | null): DraftSessionChange | null {
@@ -262,4 +266,58 @@ export function removeDraftSessionChange(storage: DraftSessionStorage, stored: S
     if (error instanceof DraftStorageMigratedError) throw error;
     // A leftover entry is removed by a later check.
   }
+}
+
+/**
+ * How a recorded save relates to the stored session. `newest`: the session's latest
+ * write, kept because a stale save could still overwrite it. `superseded`: a later
+ * save built on it, so merging it again would undo later edits. `overwritten`: a
+ * concurrent save replaced it, so it must be merged back.
+ */
+type RecordedSaveStatus = 'newest' | 'superseded' | 'overwritten';
+
+function getRecordedSaveStatus(change: DraftSessionChange, session: PersistedDraftSession): RecordedSaveStatus {
+  if (change.writeId === session.lineage.at(-1)) return 'newest';
+  const oldestCoveredRevision = session.revision - session.lineage.length + 1;
+  if (session.lineage.includes(change.writeId) || change.revision < oldestCoveredRevision) return 'superseded';
+  return 'overwritten';
+}
+
+/**
+ * Splits overwritten saves into those that build on the session's history, directly
+ * or through another such save, and orphans built on a session outside it.
+ */
+function partitionByBase(
+  overwritten: readonly StoredDraftSessionChange[],
+  lineage: readonly string[]
+): { readonly connected: StoredDraftSessionChange[]; readonly orphaned: StoredDraftSessionChange[] } {
+  const reachable = new Set(lineage);
+  const connected: StoredDraftSessionChange[] = [];
+  let pending = [...overwritten];
+  for (let progressed = true; progressed;) {
+    const before = pending.length;
+    pending = pending.filter((stored) => {
+      const { baseWriteId, writeId } = stored.change;
+      if (baseWriteId !== null && !reachable.has(baseWriteId)) return true;
+      reachable.add(writeId);
+      connected.push(stored);
+      return false;
+    });
+    progressed = pending.length < before;
+  }
+  return { connected, orphaned: pending };
+}
+
+/** Removes recorded saves the session no longer needs and returns, oldest first, those it must merge back. */
+export function takeOverwrittenSaves(
+  storage: DraftSessionStorage,
+  identity: DraftSessionIdentity,
+  session: PersistedDraftSession
+): DraftSessionChange[] {
+  const recorded = readDraftSessionChanges(storage, identity);
+  const superseded = recorded.filter(({ change }) => getRecordedSaveStatus(change, session) === 'superseded');
+  const overwritten = recorded.filter(({ change }) => getRecordedSaveStatus(change, session) === 'overwritten');
+  const { connected, orphaned } = partitionByBase(overwritten, session.lineage);
+  for (const stored of [...superseded, ...orphaned]) removeDraftSessionChange(storage, stored);
+  return connected.map(({ change }) => change).sort((left, right) => left.revision - right.revision);
 }
