@@ -285,10 +285,6 @@ function getRecordedSaveStatus(change: DraftSessionChange, session: PersistedDra
   return 'overwritten';
 }
 
-/**
- * Splits overwritten saves into those that build on the session's history, directly
- * or through another such save, and orphans built on a session outside it.
- */
 function partitionByBase(
   overwritten: readonly StoredDraftSessionChange[],
   lineage: readonly string[]
