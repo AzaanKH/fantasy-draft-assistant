@@ -1,15 +1,8 @@
 import { LOCAL_PORTS } from './local-config';
-/**
- * Extension message types for communication between
- * content script, background service worker, and side panel
- */
 
 export type { DetectedPick, ExtensionState, ExtensionMessage } from './boundary-decoders';
 export type { DraftRoomStatus } from '@fantasy-draft/shared/sync';
 
-/**
- * Response type for messages
- */
 export interface MessageResponse {
   success: boolean;
   error?: string;
@@ -28,8 +21,5 @@ export const STORAGE_KEYS = {
   SYNC_TOKEN: 'syncToken',
 } as const;
 
-/**
- * Default web app URL
- */
 export const DEFAULT_WEB_APP_URL = LOCAL_PORTS.webOrigin;
 export const DEFAULT_SYNC_SERVER_URL = `http://localhost:${String(LOCAL_PORTS.apiPort)}`;

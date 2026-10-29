@@ -1,6 +1,4 @@
 /**
- * Background service-worker entry point.
- *
  * Chrome I/O is wired here; state policy and orchestration live in testable
  * modules that do not execute merely by being imported.
  */

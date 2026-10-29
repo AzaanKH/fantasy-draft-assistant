@@ -1,7 +1,5 @@
 /// <reference types="vite/client" />
 /**
- * Side panel bootstrap.
- *
  * The extension owns provider detection and draft-room context. The rendered
  * side panel comes from the web app so rankings, roster state, comparison
  * logic, and theme preferences stay identical across both surfaces.
