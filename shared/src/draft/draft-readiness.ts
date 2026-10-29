@@ -1,4 +1,4 @@
-import { evaluateDraftReadiness, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
+import { evaluateDraftReadiness, type DraftReadinessKey, type RankingsSource, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
 import { fixedClock, systemClock } from '../units/clock.js';
 import { createDefaultLeagueSettings, isLeagueSettings, type LeagueSettings } from '../league-settings.js';
 import type { KeeperPreloadStatus } from './keeper-preload-status.js';
@@ -12,12 +12,7 @@ interface WorkspaceDraftReadinessInput {
   readonly usePrimaryLeagueSettings?: boolean;
   readonly useQuickMockSettings?: boolean;
   readonly keeperStatus: KeeperPreloadStatus;
-  /**
-   * The static demo: its bundled snapshot does not expire, and its rankings
-   * come from the experimental model rather than FantasyPros.
-   */
-  readonly demo?: boolean;
-  readonly demoRankingsSource?: string;
+  readonly rankingsSource?: RankingsSource;
 }
 
 function hasPrimaryLeagueSettings(
@@ -51,6 +46,7 @@ export function evaluateWorkspaceDraftReadiness(
   now: number = systemClock.now()
 ): DraftReadinessReport {
   const season = currentSeason(fixedClock(now));
+  const rankingsSource = input.rankingsSource ?? { kind: 'live' };
   const usingPracticeSettings = input.usePrimaryLeagueSettings === true &&
     input.leagueSettings.source === 'default' && input.leagueSettings.leagueId === null;
   const validPracticeSettings = usingPracticeSettings &&
@@ -126,9 +122,9 @@ export function evaluateWorkspaceDraftReadiness(
       } : keeperObservation,
     },
     warnings: input.warnings,
-    enforceMaxAge: input.demo !== true,
+    enforceMaxAge: rankingsSource.kind === 'live',
   }, now);
-  const demoSource = input.demo === true ? input.demoRankingsSource : undefined;
+  const demoSource = rankingsSource.kind === 'demo' ? rankingsSource.label : undefined;
   const relabelDemo = (item: DraftReadinessReport['coreDraftData'][number]) => demoSource && item.key === 'trusted-rankings'
     ? {
       ...item,

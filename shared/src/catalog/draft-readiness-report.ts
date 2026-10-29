@@ -5,7 +5,7 @@ import { POSITIONS } from '../league/positions.js';
 import { currentSeason } from '../league/season.js';
 import { READINESS_MINIMUMS, formatIdentityCoverage } from './readiness-minimums.js';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodePrimaryLeagueSettingsFile, decodePredictionsDataFile, decodeOrNull } from './decoders.js';
-import { evaluateDraftReadiness, formatDraftReadinessTimestamp, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
+import { evaluateDraftReadiness, formatDraftReadinessTimestamp, isTrustedRankingSourceType, type DraftReadinessDependencyObservation, type DraftReadinessKey, type DraftReadinessReport, type DraftReadinessSourceObservation, type DraftReadinessWarningInput } from '../draft-readiness.js';
 
 
 export interface LoadedArtifact {
@@ -189,7 +189,7 @@ export async function buildDraftReadinessReport(now: number, loadArtifact: (path
       rankings,
       rankingsTimestamp,
       nested(rankings.value, 'metadata', 'season') === season &&
-        ['api', 'manual-refresh'].includes(String(nested(rankings.value, 'metadata', 'sourceType'))) &&
+        isTrustedRankingSourceType({ kind: 'live' }, nested(rankings.value, 'metadata', 'sourceType')) &&
         rankingRows.length >= READINESS_MINIMUMS.rankings,
       `Expected at least ${String(READINESS_MINIMUMS.rankings)} trusted ${String(season)} rankings from the FantasyPros API or reviewed manual refresh. Found ${String(rankingRows.length)}.`
     ),

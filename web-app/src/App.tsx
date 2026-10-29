@@ -22,7 +22,7 @@ import { DraftDecisionProvider } from '@/features/recommendations/DraftDecisionC
 import { useKeeperPreload } from '@/hooks/useKeeperPreload';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getAppHref, getAppRoute, type AppRoute } from '@/lib/app-route';
-import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
+import { IS_DEMO, RANKINGS_SOURCE } from '@/lib/demo-mode';
 import { DraftConnectionControl } from '@/features/draft-room/DraftConnectionControl';
 import { DraftSetupActionsContext, type DraftSetupActions } from '@/features/draft-room/draft-setup-actions';
 import { SidePanelSkeleton } from '@/features/sidepanel/SidePanelFrame';
@@ -97,8 +97,7 @@ export function App(): React.ReactElement {
     keeperStatus,
     usePrimaryLeagueSettings,
     useQuickMockSettings,
-    demo: IS_DEMO,
-    demoRankingsSource: `Demo rankings (${RANKING_LABELS.source})`,
+    rankingsSource: RANKINGS_SOURCE,
   }, readinessNow), [
     dataInfo.readinessSources,
     dataInfo.readinessWarnings,

@@ -1,3 +1,4 @@
+import type { FantasyProsSnapshot } from './catalog/decoders.js';
 import { systemClock } from './units/clock.js';
 export const CORE_DRAFT_DATA_KEYS = [
   'trusted-rankings',
@@ -11,6 +12,20 @@ export const OPTIONAL_SIGNAL_KEYS = [
   'contract-context',
   'sportsbook-context',
 ] as const;
+
+/** Where trusted rankings come from: live refreshes, or the static demo's bundled fixture. */
+export type RankingsSource =
+  | { readonly kind: 'live' }
+  | { readonly kind: 'demo'; readonly label: string };
+
+const TRUSTED_RANKING_SOURCE_TYPES = {
+  live: ['api', 'manual-refresh'],
+  demo: ['fixture'],
+} as const satisfies Record<RankingsSource['kind'], readonly FantasyProsSnapshot['metadata']['sourceType'][]>;
+
+export function isTrustedRankingSourceType(source: RankingsSource, sourceType: unknown): boolean {
+  return (TRUSTED_RANKING_SOURCE_TYPES[source.kind] as readonly unknown[]).includes(sourceType);
+}
 
 export type CoreDraftDataKey = (typeof CORE_DRAFT_DATA_KEYS)[number];
 type OptionalSignalKey = (typeof OPTIONAL_SIGNAL_KEYS)[number];

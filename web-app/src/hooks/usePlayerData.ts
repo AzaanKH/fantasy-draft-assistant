@@ -10,8 +10,8 @@ import {
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
-import { DEMO_RANKINGS_SOURCE_TYPE, IS_DEMO, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
-import { READINESS_MINIMUMS, createSafeRecommendationPolicy, formatIdentityCoverage } from '@fantasy-draft/shared/catalog';
+import { IS_DEMO, RANKINGS_SOURCE, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
+import { READINESS_MINIMUMS, createSafeRecommendationPolicy, formatIdentityCoverage, isTrustedRankingSourceType } from '@fantasy-draft/shared/catalog';
 import {
   fetchContractData,
   fetchFantasyProsSnapshot,
@@ -26,10 +26,6 @@ import {
 } from '@/lib/player-data/queries';
 
 const SAFE_RECOMMENDATION_POLICY = createSafeRecommendationPolicy(DRAFT_DISPLAY);
-
-const TRUSTED_RANKING_SOURCE_TYPES: readonly string[] = IS_DEMO
-  ? [DEMO_RANKINGS_SOURCE_TYPE]
-  : ['api', 'manual-refresh'];
 
 function useLivePlayerDataQuery() {
   const leagueSettings = useDraftState((state) => state.leagueSettings);
@@ -128,7 +124,7 @@ function useLivePlayerDataQuery() {
         : fantasyProsQuery.data &&
             fantasyProsQuery.data.metadata.season === season &&
             fantasyProsQuery.data.rankings.length >= READINESS_MINIMUMS.rankings &&
-            TRUSTED_RANKING_SOURCE_TYPES.includes(fantasyProsQuery.data.metadata.sourceType)
+            isTrustedRankingSourceType(RANKINGS_SOURCE, fantasyProsQuery.data.metadata.sourceType)
           ? 'available'
           : fantasyProsQuery.data
             ? 'invalid'

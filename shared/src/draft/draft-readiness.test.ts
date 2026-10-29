@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
 import { DEFAULT_SCORING_RULES } from '../league/scoring.js';
 import { createDefaultLeagueSettings, createLeagueSettings } from '../league-settings.js';
-import { type DraftReadinessKey, type DraftReadinessSourceObservation } from '../draft-readiness.js';
+import { isTrustedRankingSourceType, type DraftReadinessKey, type DraftReadinessSourceObservation } from '../draft-readiness.js';
 import { createQuickMockSettings } from './quick-mock-settings.js';
 import type { KeeperPreloadStatus } from './keeper-preload-status.js';
 import {
@@ -294,13 +294,20 @@ describe('Static demo readiness', () => {
   it('keeps the bundled snapshot usable after the live age limits pass', () => {
     expect(evaluateWorkspaceDraftReadiness(input, MONTHS_LATER).productBlockingFailures.map((item) => item.key))
       .toEqual(['trusted-rankings', 'canonical-player-identities']);
-    const report = evaluateWorkspaceDraftReadiness({ ...input, demo: true }, MONTHS_LATER);
+    const report = evaluateWorkspaceDraftReadiness({ ...input, rankingsSource: { kind: 'demo', label: 'Demo rankings' } }, MONTHS_LATER);
     expect(report.status).toBe('ready');
     expect(blocksRecommendations('mock', report, true)).toBe(false);
   });
 
+  it.each([
+    [{ kind: 'live' } as const, ['api', 'manual-refresh']],
+    [{ kind: 'demo', label: 'Demo rankings' } as const, ['fixture']],
+  ])('trusts only the %o rankings source types', (source, trusted) => {
+    expect(['api', 'manual-refresh', 'fixture'].filter((type) => isTrustedRankingSourceType(source, type))).toEqual(trusted);
+  });
+
   it('names the demo ranking source instead of FantasyPros', () => {
-    const report = evaluateWorkspaceDraftReadiness({ ...input, demo: true, demoRankingsSource: 'Demo rankings',
+    const report = evaluateWorkspaceDraftReadiness({ ...input, rankingsSource: { kind: 'demo', label: 'Demo rankings' },
       sources: { ...sources, 'trusted-rankings': { availability: 'invalid', timestamp: FRESH } },
     }, NOW);
     const rankings = report.productBlockingFailures.find((item) => item.key === 'trusted-rankings');
