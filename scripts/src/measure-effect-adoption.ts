@@ -10,8 +10,7 @@ import {
 import { REPO_ROOT } from './model/duckdb.js';
 
 const WORKSPACES = ['cli', 'server', 'scripts', 'extension', 'shared', 'web-app'] as const;
-// These files spell out the patterns they count.
-const EXCLUDED_FILES = new Set(['effect-adoption-metrics.ts', 'measure-effect-adoption.ts']);
+const SELF_COUNTING_FILES = new Set(['effect-adoption-metrics.ts', 'measure-effect-adoption.ts']);
 const run = (command: string, args: readonly string[], options: { cwd: string; signal?: AbortSignal }) =>
   Processes.run(command, args, { ...options, timeoutMs: 60_000 });
 
@@ -22,7 +21,7 @@ const listSources = (directory: string): Effect.Effect<string[]> => Effect.promi
     throw error;
   });
   return entries
-    .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.(?:test|spec)\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts') && !EXCLUDED_FILES.has(entry.name))
+    .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.(?:test|spec)\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts') && !SELF_COUNTING_FILES.has(entry.name))
     .map(entry => join(entry.parentPath, entry.name));
 });
 
