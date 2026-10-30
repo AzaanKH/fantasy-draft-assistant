@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import type { Position } from '@fantasy-draft/shared/league';
 import type { RosterRequirements } from '@fantasy-draft/shared/league';
 import {
-  PICK_EV_OVERRIDE_THRESHOLD,
+  PICK_EV_MIN_OVERRIDE_ADVANTAGE,
   scorePickEvBoard,
   selectPickEvRecommendation,
   type PickEvLayers,
@@ -336,7 +336,7 @@ function choosePickEv(
     pickEvPlayers,
     scores,
     true,
-    PICK_EV_OVERRIDE_THRESHOLD
+    PICK_EV_MIN_OVERRIDE_ADVANTAGE
   );
   return legal.find((candidate) => candidate.sleeper_player_id === selection.playerId);
 }
@@ -1254,7 +1254,7 @@ async function main(): Promise<void> {
     };
     const fullVsEcr = architectureComparison.incrementalDeltas.fullVsEcr;
     const pickEvOverrideValidation = {
-      threshold: PICK_EV_OVERRIDE_THRESHOLD,
+      threshold: PICK_EV_MIN_OVERRIDE_ADVANTAGE,
       checks: {
         starterPointsImprove: fullVsEcr.starterPoints > 0,
         vorDoesNotRegress: fullVsEcr.vorCaptured >= 0,
@@ -1419,7 +1419,7 @@ async function main(): Promise<void> {
     await writeRecommendationEvaluation(DATA_DIR, {
       generatedAt: report.generatedAt,
       modelVersion: report.modelVersion,
-      pickEvOverrideThreshold: PICK_EV_OVERRIDE_THRESHOLD,
+      pickEvOverrideThreshold: PICK_EV_MIN_OVERRIDE_ADVANTAGE,
       pickEvOverrideValidation,
       evaluatedArchitecture: 'pick-ev-v1',
       pickEvEvaluation: {

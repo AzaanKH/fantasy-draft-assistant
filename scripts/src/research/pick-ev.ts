@@ -78,9 +78,8 @@ export const DEFAULT_PICK_EV_LAYERS: PickEvLayers = {
   risk: false,
 };
 
-/** PickEV is a tie-breaker around ECR, not permission to make large reaches. */
-const PICK_EV_ECR_GUARDRAIL = 8;
-export const PICK_EV_OVERRIDE_THRESHOLD = 4;
+const PICK_EV_MAX_ECR_REACH = 8;
+export const PICK_EV_MIN_OVERRIDE_ADVANTAGE = 4;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -276,8 +275,8 @@ export function scorePickEvBoard(
       costOfWaiting +
       raw.lateRoundOptionValue -
       (layers.risk ? raw.riskAdjustedLoss : 0) -
-      (player.ecrRank > bestAvailableEcr + PICK_EV_ECR_GUARDRAIL
-        ? 1_000 + player.ecrRank - bestAvailableEcr - PICK_EV_ECR_GUARDRAIL
+      (player.ecrRank > bestAvailableEcr + PICK_EV_MAX_ECR_REACH
+        ? 1_000 + player.ecrRank - bestAvailableEcr - PICK_EV_MAX_ECR_REACH
         : 0);
 
     scores.set(player.id, {
@@ -300,7 +299,7 @@ export function selectPickEvRecommendation(
   players: readonly PickEvPlayer[],
   scores: ReadonlyMap<string, PickEvScore>,
   allowOverrides: boolean,
-  overrideThreshold: number = PICK_EV_OVERRIDE_THRESHOLD
+  overrideThreshold: number = PICK_EV_MIN_OVERRIDE_ADVANTAGE
 ): PickEvSelection {
   const ecrChampion = [...players].sort((a, b) => a.ecrRank - b.ecrRank)[0];
   if (!ecrChampion) {
@@ -315,7 +314,7 @@ export function selectPickEvRecommendation(
   }
 
   const eligible = players.filter(
-    (player) => player.ecrRank <= ecrChampion.ecrRank + PICK_EV_ECR_GUARDRAIL
+    (player) => player.ecrRank <= ecrChampion.ecrRank + PICK_EV_MAX_ECR_REACH
   );
   const challenger = [...eligible].sort((a, b) =>
     (scores.get(b.id)?.score ?? Number.NEGATIVE_INFINITY) -
