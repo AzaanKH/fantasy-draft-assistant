@@ -65,6 +65,7 @@ export function MockDraftControls({
   const draftHistory = useDraftState((state) => state.draftHistory);
   const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
+  const effectiveKeepers = useDraftView((view) => view.effectiveKeepers);
   const currentPick = useDraftView((view) => view.currentPick);
   const config = useDraftState((state) => state.config);
   const mockSettings = useDraftState((state) => state.mockSettings);
@@ -122,7 +123,7 @@ export function MockDraftControls({
         players,
         draftedPlayerIds,
         history: draftHistory,
-        keepers: preloadedKeepers,
+        keepers: effectiveKeepers,
         currentPick,
         config: engineConfig,
         historyModel: timingEvidence.model,
@@ -150,7 +151,7 @@ export function MockDraftControls({
     timingEvidence.model,
     mockSettings.survivalIterations,
     players,
-    preloadedKeepers,
+    effectiveKeepers,
     sessionMode,
   ]);
 
@@ -163,7 +164,7 @@ export function MockDraftControls({
 
   const totalPicks = config.totalTeams * config.totalRounds;
   const keeperAtCurrentPick = getKeeperAtPick(
-    preloadedKeepers,
+    effectiveKeepers,
     currentPick,
     config.totalTeams,
     config.draftType

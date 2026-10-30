@@ -67,8 +67,7 @@ export function deriveDraft(source: DraftSource, format: DraftFormat, players: r
   const currentPick = deriveDraftCursor(source.history, source.progress);
   const mine = teamRosters[source.myTeamIndex] ?? emptyRoster();
   const isMyTurn = order.nextForTeam(source.myTeamIndex, currentPick)?.pick === currentPick;
-  const hasKeeperAtCurrentPick = source.keepers.some(keeper =>
-    order.forTeamRound(keeper.teamIndex, keeper.round).pick === currentPick);
+  const hasKeeperAtCurrentPick = effectiveKeepers.some(keeper => keeper.pickNumber === currentPick);
   const canDraft = source.sessionMode === 'mock' && isMyTurn && !hasKeeperAtCurrentPick;
   const canDraftByPosition = {
     QB: false, RB: false, WR: false, TE: false, K: false, DEF: false,
