@@ -10,7 +10,9 @@
   ],
   "host_permissions": [
     "https://sleeper.app/*",
+    "https://www.sleeper.app/*",
     "https://sleeper.com/*",
+    "https://www.sleeper.com/*",
     "https://football.fantasysports.yahoo.com/*",
     "https://sports-fantasy.media.yahoo.com/*",
     "https://fantasy.espn.com/*",
@@ -37,7 +39,9 @@
     {
       "matches": [
         "https://sleeper.app/*",
+        "https://www.sleeper.app/*",
         "https://sleeper.com/*",
+        "https://www.sleeper.com/*",
         "https://football.fantasysports.yahoo.com/*",
         "https://sports-fantasy.media.yahoo.com/*",
         "https://fantasy.espn.com/*"
