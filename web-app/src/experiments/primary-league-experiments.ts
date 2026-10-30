@@ -369,7 +369,7 @@ function buildPlayers(scoringRules: ScoringRules): Player[] {
     environments.teams,
     {
       onWarning: (message) => { console.warn(message); },
-      fantasyProsAdp: fantasyPros.adp ?? [],
+      fantasyProsAdp: fantasyPros.adp,
       identities: identities.players,
       leagueContext: {
         scoringRules,

@@ -12,7 +12,7 @@ import { decodeIndexedSession } from './idb-session';
 import { readDraftSessionChanges } from '@/stores/draftSessionUnconfirmedSaves';
 import {
   ROLLBACK_METADATA, ROLLBACK_READERS, digestRollbackFacts, digestRollbackJournals, finalizeRollback, prepareRollback, recoverRollbackExport, rollbackFacts, toV1Session, writeRollbackExport,
-  type RollbackExport, type RollbackVerification,
+  type RollbackDecision, type RollbackExport, type RollbackVerification,
 } from './rollback-export';
 
 const HEAD = 'fantasy-draft-session-v1:sleeper:123';
@@ -525,6 +525,10 @@ describe('rollback recovery and decision boundaries', () => {
     await expect(finalizeRollback({ database: value, storage: localStorage, export: partial, verification: syntheticVerification(partial), confirmation })).rejects.toThrow(/reconcil/i);
     const stale = await prepareRollback(value, { decisions: [{ blockerId: blocker.id, digest: 'old digest', action: 'keep-indexed' }] });
     expect(stale.reconciliation.stale).toEqual([blocker.id]);
+    const unknownAction = { blockerId: blocker.id, digest: blocker.digest, action: 'discard' } as unknown as RollbackDecision;
+    const refused = await prepareRollback(value, { decisions: [unknownAction] });
+    expect(refused.reconciliation.decisions).toEqual([]);
+    expect(refused.reconciliation.stale).toEqual([blocker.id]);
   });
 
   it('retains newly observed sources before write and rechecks them at finalization', async () => {

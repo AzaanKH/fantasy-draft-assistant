@@ -804,7 +804,7 @@ function SidePanelContent({
             totalTeams={totalTeams}
             draftType={draftType}
           />
-        ) : showReadinessBlock && decision.readiness ? (
+        ) : showReadinessBlock ? (
           <DraftReadinessBlockedNotice readiness={decision.readiness} />
         ) : view === 'draft' ? (
           <>
