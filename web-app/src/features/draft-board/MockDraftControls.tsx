@@ -34,6 +34,10 @@ function numericValue(value: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+export function clampBranchPick(currentPick: number, requested: string): number {
+  return Math.min(currentPick, numericValue(requested, currentPick));
+}
+
 function getNextUserPick(
   currentPick: number,
   myPickPosition: number,
@@ -394,10 +398,8 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // Branch only to the current or an earlier pick: skipping ahead leaves
-                    // CPU teams with too few picks to fill their required roster slots.
-                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'branchFromPick', Math.min(currentPick, numericValue(branchPick, currentPick))
-                    ); } else { workspace.send('branchFromPick', Math.min(currentPick, numericValue(branchPick, currentPick))); }
+                    const pick = clampBranchPick(currentPick, branchPick);
+                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'branchFromPick', pick); } else { workspace.send('branchFromPick', pick); }
                   }}
                 >
                   Create branch
