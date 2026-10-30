@@ -112,9 +112,9 @@ describe('production durable workspace', () => {
       workspace.sendDurable(['addShortlistedPlayer', 'b']),
       workspace.sendDurable(['moveShortlistedPlayerTo', 'b', 0]),
     ]);
-    expect(receipts[0]?.result).toBe(true);
-    expect(receipts[2]?.result).toMatchObject({ changed: true });
-    expect(receipts[3]?.result).toBe(true);
+    expect(receipts[0].result).toBe(true);
+    expect(receipts[2].result).toMatchObject({ changed: true });
+    expect(receipts[3].result).toBe(true);
     const saved = await database.read(identity);
     expect(saved?.draftHistory.map(value => value.playerId)).toEqual(['user', 'cpu', 'next']);
     expect(saved?.shortlistedPlayerIds).toEqual(['b', 'a']);

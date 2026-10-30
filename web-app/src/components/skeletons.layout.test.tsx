@@ -79,7 +79,7 @@ describe('loading states share the loaded layout', () => {
     // Readiness is blocked until data arrives; the workspace reports loading, not paused advice.
     expect(loading.querySelector('.draft-best-pick-inline')?.textContent).toContain('Finding your best pick');
     expect(loading.querySelector('.draft-pool-paused')).toBeNull();
-    const suggestions = [...loading.querySelectorAll<HTMLElement>('[role=tab]')].find((tab) => tab.textContent?.startsWith('Suggestions'));
+    const suggestions = [...loading.querySelectorAll<HTMLElement>('[role=tab]')].find((tab) => tab.textContent.startsWith('Suggestions'));
     act(() => { suggestions?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })); });
     expect(loading.querySelector('[role=tabpanel][data-state=active]')?.textContent).toContain('Loading suggestions');
   });

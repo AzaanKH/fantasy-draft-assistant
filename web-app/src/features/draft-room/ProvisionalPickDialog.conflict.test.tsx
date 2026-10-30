@@ -162,7 +162,7 @@ describe.each([false, true])('storage activation=%s', enabled => {
       children: createElement(Fragment, null, createElement(ManualContinuityControl), createElement(CommitProbe, { capture, correcting })) })); });
     const open = [...container.querySelectorAll('button')].find(button => correcting
       ? button.getAttribute('aria-label') === `Correct Provisional Pick for ${observed.name}`
-      : button.textContent?.includes('Add Provisional Pick'));
+      : button.textContent.includes('Add Provisional Pick'));
     if (!open) throw new Error('Missing real parent entry button');
     act(() => { open.click(); });
     const originalSelect = slotSelect();
