@@ -9,7 +9,7 @@ import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { getDraftView } from '@/workspace/useDraftView';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 
-import { MockDraftControls } from './MockDraftControls';
+import { clampBranchPick, MockDraftControls } from './MockDraftControls';
 import { MockDraftAutoAdvance } from './mock-auto-advance';
 
 function player(index: number): Player {
@@ -86,6 +86,21 @@ function button(label: string): HTMLButtonElement {
   if (!match) throw new Error(`Missing button ${label}`);
   return match;
 }
+
+describe('clampBranchPick', () => {
+  it('keeps the current or an earlier pick', () => {
+    expect(clampBranchPick(12, '5')).toBe(5);
+    expect(clampBranchPick(12, '12')).toBe(12);
+  });
+
+  it('never branches past the current pick', () => {
+    expect(clampBranchPick(12, '30')).toBe(12);
+  });
+
+  it('falls back to the current pick for unparseable input', () => {
+    expect(clampBranchPick(12, '')).toBe(12);
+  });
+});
 
 describe('mock draft auto-advance', () => {
   it('runs CPU picks to the user slot and resumes after the user drafts', () => {
