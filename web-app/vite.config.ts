@@ -8,6 +8,7 @@ import path from 'path';
 import { browserDataFiles } from '../shared/src/catalog/manifest';
 
 import { localApiSecurity } from '../server/src/vite-security';
+import { noNodeInBrowserBundle } from '../scripts/no-node-in-browser-bundle';
 import { browserDataCandidates, resolveDataSource, type BrowserDataPhase } from './src/lib/browser-data-source';
 
 const BROWSER_DATA_FILES = browserDataFiles('local');
@@ -83,7 +84,7 @@ export default defineConfig({
   ...sourceCondition,
   publicDir: false,
   define: { 'import.meta.env.VITE_CANONICAL_WEB_ORIGIN': JSON.stringify(webOrigin) },
-  plugins: [localApiSecurity(), ...browserDataPlugins(), react(), tailwindcss()],
+  plugins: [noNodeInBrowserBundle(), localApiSecurity(), ...browserDataPlugins(), react(), tailwindcss()],
   resolve: {
     ...sourceCondition.resolve,
     alias: {
