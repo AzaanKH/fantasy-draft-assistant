@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { RequestListener } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createSyncServer, type SyncServer } from './sync-server.js';
 
@@ -13,6 +14,14 @@ const servers: SyncServer[] = [];
 async function start(options: Parameters<typeof createSyncServer>[0] = {}) {
   const server = createSyncServer({ requestToken: TOKEN, fetchJson: async () => { throw new Error('No live requests'); }, ...options });
   servers.push(server);
+  // Other local processes can probe any new localhost listener, such as a dev tool's port
+  // scan sending GET /. Answer them before the request limits count them; tests only call /api/.
+  const [handle] = server.listeners('request') as RequestListener[];
+  if (!handle) throw new Error('Missing sync server request listener');
+  server.removeAllListeners('request');
+  server.on('request', (request, response) => {
+    if (request.url?.startsWith('/api/')) handle(request, response); else response.writeHead(404).end();
+  });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
