@@ -20,8 +20,6 @@ const nodeOnlyTargets = [
 ].map(target => ({ ...target, directories: target.directories.map(directory => canonicalPath(path.join(root, directory))) }));
 const resolutionByConfig = new Map();
 const nodeOnlyLoads = new Map();
-// Permissive host: resolution succeeds on the first candidate path, so a missing or non-TypeScript file still has a location.
-const anyFileHost = { ...ts.sys, fileExists: () => true, directoryExists: () => true };
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-cross-package-import',
@@ -73,8 +71,7 @@ function nodeOnlyTargetsLoadedBy(name, containingFile, mode) {
     if (name.startsWith('file:')) {
       try { specifier = fileURLToPath(name); } catch { /* An invalid file URL loads nothing. */ }
     }
-    const resolved = ts.resolveModuleName(specifier, containingFile, options, ts.sys, cache, undefined, mode).resolvedModule?.resolvedFileName ??
-      ts.resolveModuleName(specifier, containingFile, options, anyFileHost, undefined, undefined, mode).resolvedModule?.resolvedFileName;
+    const resolved = ts.resolveModuleName(specifier, containingFile, options, ts.sys, cache, undefined, mode).resolvedModule?.resolvedFileName;
     const file = resolved && canonicalPath(path.resolve(resolved));
     nodeOnlyLoads.set(key, nodeOnlyTargets.filter(target => name === target.specifier || name.startsWith(`${target.specifier}/`) ||
       (file !== undefined && target.directories.some(directory => isInside(file, directory)))));
