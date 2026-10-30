@@ -82,7 +82,7 @@ function draftMyPick(): void {
 
 function button(label: string): HTMLButtonElement {
   const match = Array.from(container.querySelectorAll('button'))
-    .find((element) => element.textContent?.trim() === label);
+    .find((element) => element.textContent.trim() === label);
   if (!match) throw new Error(`Missing button ${label}`);
   return match;
 }
@@ -157,7 +157,7 @@ describe('mock draft auto-advance', () => {
 
     act(() => { button('Settings').click(); });
     const input = Array.from(document.body.querySelectorAll('label'))
-      .find((label) => label.textContent?.includes('Branch at overall pick'))
+      .find((label) => label.textContent.includes('Branch at overall pick'))
       ?.querySelector('input');
     if (!input) throw new Error('Missing branch input');
     act(() => {
@@ -165,7 +165,7 @@ describe('mock draft auto-advance', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     const create = Array.from(document.body.querySelectorAll('button'))
-      .find((element) => element.textContent?.trim() === 'Create branch');
+      .find((element) => element.textContent.trim() === 'Create branch');
     act(() => { create?.click(); });
     expect(getDraftView(store).currentPick).toBe(3);
     expect(store.getState().draftHistory).toHaveLength(2);
