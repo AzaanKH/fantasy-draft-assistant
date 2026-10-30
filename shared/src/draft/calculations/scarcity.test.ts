@@ -3,7 +3,9 @@ import { describe, it, expect } from 'vitest';
 import {
   calculatePositionalScarcity,
   calculateAllScarcityScores,
-  ELITE_THRESHOLDS,
+  ELITE_POSITIONAL_RANK_CUTOFFS,
+  MAX_SCARCITY,
+  MIN_SCARCITY,
 } from './scarcity.js';
 import type { Player } from '../../player.js';
 
@@ -50,14 +52,18 @@ function createPlayersAtPosition(
   );
 }
 
-describe('ELITE_THRESHOLDS', () => {
+function scarcityWithEliteLeft(position: Player['position'], eliteLeft: number): number {
+  return MAX_SCARCITY - (eliteLeft / ELITE_POSITIONAL_RANK_CUTOFFS[position]) * MAX_SCARCITY;
+}
+
+describe('ELITE_POSITIONAL_RANK_CUTOFFS', () => {
   it('has correct thresholds for each position', () => {
-    expect(ELITE_THRESHOLDS.QB).toBe(12);
-    expect(ELITE_THRESHOLDS.RB).toBe(24);
-    expect(ELITE_THRESHOLDS.WR).toBe(30);
-    expect(ELITE_THRESHOLDS.TE).toBe(10);
-    expect(ELITE_THRESHOLDS.K).toBe(12);
-    expect(ELITE_THRESHOLDS.DEF).toBe(12);
+    expect(ELITE_POSITIONAL_RANK_CUTOFFS.QB).toBe(12);
+    expect(ELITE_POSITIONAL_RANK_CUTOFFS.RB).toBe(24);
+    expect(ELITE_POSITIONAL_RANK_CUTOFFS.WR).toBe(30);
+    expect(ELITE_POSITIONAL_RANK_CUTOFFS.TE).toBe(10);
+    expect(ELITE_POSITIONAL_RANK_CUTOFFS.K).toBe(12);
+    expect(ELITE_POSITIONAL_RANK_CUTOFFS.DEF).toBe(12);
   });
 });
 
@@ -66,19 +72,19 @@ describe('calculatePositionalScarcity', () => {
     it('returns 1 when all elite QBs are available', () => {
       const players = createPlayersAtPosition('QB', 12, 1);
       const result = calculatePositionalScarcity('QB', players);
-      expect(result).toBe(1);
+      expect(result).toBe(MIN_SCARCITY);
     });
 
     it('returns 1 when all elite RBs are available', () => {
       const players = createPlayersAtPosition('RB', 24, 1);
       const result = calculatePositionalScarcity('RB', players);
-      expect(result).toBe(1);
+      expect(result).toBe(MIN_SCARCITY);
     });
 
     it('returns 1 when all elite TEs are available', () => {
       const players = createPlayersAtPosition('TE', 10, 1);
       const result = calculatePositionalScarcity('TE', players);
-      expect(result).toBe(1);
+      expect(result).toBe(MIN_SCARCITY);
     });
   });
 
@@ -87,29 +93,27 @@ describe('calculatePositionalScarcity', () => {
       // All QBs have rank > 12
       const players = createPlayersAtPosition('QB', 10, 15);
       const result = calculatePositionalScarcity('QB', players);
-      expect(result).toBe(10);
+      expect(result).toBe(MAX_SCARCITY);
     });
 
     it('returns 10 when no elite RBs are available', () => {
       const players = createPlayersAtPosition('RB', 10, 30);
       const result = calculatePositionalScarcity('RB', players);
-      expect(result).toBe(10);
+      expect(result).toBe(MAX_SCARCITY);
     });
   });
 
   describe('partial scarcity', () => {
     it('returns middle value when half elite TEs are available', () => {
-      // 5 out of 10 elite TEs available
       const players = createPlayersAtPosition('TE', 5, 1);
       const result = calculatePositionalScarcity('TE', players);
-      expect(result).toBe(5); // 10 - (5/10)*10 = 5
+      expect(result).toBe(scarcityWithEliteLeft('TE', 5));
     });
 
     it('returns high scarcity when few elite WRs remain', () => {
-      // 6 out of 30 elite WRs available
       const players = createPlayersAtPosition('WR', 6, 1);
       const result = calculatePositionalScarcity('WR', players);
-      expect(result).toBe(8); // 10 - (6/30)*10 = 8
+      expect(result).toBe(scarcityWithEliteLeft('WR', 6));
     });
 
     it('ignores non-elite players in calculation', () => {
@@ -119,7 +123,7 @@ describe('calculatePositionalScarcity', () => {
       const players = [...eliteTEs, ...nonEliteTEs];
 
       const result = calculatePositionalScarcity('TE', players);
-      expect(result).toBe(5); // Only counts the 5 elite TEs
+      expect(result).toBe(scarcityWithEliteLeft('TE', 5));
     });
 
     it('uses positional rank instead of overall ECR rank', () => {
@@ -130,7 +134,7 @@ describe('calculatePositionalScarcity', () => {
 
       const result = calculatePositionalScarcity('QB', qbs);
 
-      expect(result).toBe(1);
+      expect(result).toBe(MIN_SCARCITY);
     });
 
     it('only counts players at the specified position', () => {
@@ -139,24 +143,23 @@ describe('calculatePositionalScarcity', () => {
       const players = [...qbs, ...rbs];
 
       const qbScarcity = calculatePositionalScarcity('QB', players);
-      expect(qbScarcity).toBe(1);
+      expect(qbScarcity).toBe(MIN_SCARCITY);
 
       const rbScarcity = calculatePositionalScarcity('RB', players);
-      expect(rbScarcity).toBe(1);
+      expect(rbScarcity).toBe(MIN_SCARCITY);
     });
   });
 
   describe('edge cases', () => {
     it('returns 10 when no players available', () => {
       const result = calculatePositionalScarcity('QB', []);
-      expect(result).toBe(10);
+      expect(result).toBe(MAX_SCARCITY);
     });
 
     it('clamps result to minimum of 1', () => {
-      // Even with more than threshold elite players, min is 1
       const players = createPlayersAtPosition('QB', 20, 1);
       const result = calculatePositionalScarcity('QB', players);
-      expect(result).toBeGreaterThanOrEqual(1);
+      expect(result).toBeGreaterThanOrEqual(MIN_SCARCITY);
     });
   });
 });
@@ -182,11 +185,8 @@ describe('calculateAllScarcityScores', () => {
     expect(scores.has('K')).toBe(true);
     expect(scores.has('DEF')).toBe(true);
 
-    // QB: 6/12 elite = scarcity 5
-    expect(scores.get('QB')).toBe(5);
-    // RB: 12/24 elite = scarcity 5
-    expect(scores.get('RB')).toBe(5);
-    // TE: 5/10 elite = scarcity 5
-    expect(scores.get('TE')).toBe(5);
+    expect(scores.get('QB')).toBe(scarcityWithEliteLeft('QB', 6));
+    expect(scores.get('RB')).toBe(scarcityWithEliteLeft('RB', 12));
+    expect(scores.get('TE')).toBe(scarcityWithEliteLeft('TE', 5));
   });
 });
