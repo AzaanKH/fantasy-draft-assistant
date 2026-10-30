@@ -96,11 +96,11 @@ export function countTeamsNeeding(teams: readonly UpcomingTeamPicks[], position:
   return teams.filter((team) => team.openStarters.includes(position)).length;
 }
 
-/** Picks past consensus ADP before a falling-player chip is shown. Display-only; not a policy input. */
-const ADP_ALERT_THRESHOLD = 3;
-/** A position run is this many of the most recent picks at one position. Display-only. */
-const RUN_ALERT_MINIMUM = 3;
-const RUN_ALERT_WINDOW = 5;
+const DISPLAY_ONLY_ALERT_THRESHOLDS = {
+  minPicksPastAdp: 3,
+  minPositionRunPicks: 3,
+  positionRunWindow: 5,
+} as const;
 
 /**
  * Optional, text-labelled signals for a candidate. Each is omitted when its data is unavailable;
@@ -130,12 +130,12 @@ export function getAlertSignals({
   const adp = player.consensusAdp;
   if (typeof adp === 'number' && adp > 0) {
     const picksPast = Math.round(currentPick - adp);
-    if (picksPast >= ADP_ALERT_THRESHOLD) signals.push(`${String(picksPast)} picks past ADP`);
+    if (picksPast >= DISPLAY_ONLY_ALERT_THRESHOLDS.minPicksPastAdp) signals.push(`${String(picksPast)} picks past ADP`);
   }
 
-  const window = recentPicks.slice(-RUN_ALERT_WINDOW);
+  const window = recentPicks.slice(-DISPLAY_ONLY_ALERT_THRESHOLDS.positionRunWindow);
   const run = window.filter((pick) => pick.position === player.position).length;
-  if (run >= RUN_ALERT_MINIMUM) signals.push(`${player.position} run · ${String(run)} of last ${String(window.length)} picks`);
+  if (run >= DISPLAY_ONLY_ALERT_THRESHOLDS.minPositionRunPicks) signals.push(`${player.position} run · ${String(run)} of last ${String(window.length)} picks`);
   return signals;
 }
 
