@@ -59,7 +59,7 @@ try {
     await run(process.execPath, [tsx, '--tsconfig', path.join(checkout, 'web-app/tsconfig.json'), '--conditions=@fantasy-draft/source', 'scripts/persistence/old-module-writer.mts', checkout, path.join(out, `${name}-bytes.json`)], `${name}-seed`);
   }
   server = createServer((request, response) => handler(request, response));
-  let handler;
+  let handler = (_request, response) => { response.statusCode = 404; response.end(); };
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port, origin = `http://localhost:${port}`;
   process.env.DRAFT_WEB_PORT = String(port); process.env.BROWSER_DATA_SOURCE = 'demo';
