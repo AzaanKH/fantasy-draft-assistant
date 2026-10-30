@@ -5,6 +5,7 @@ import { sourceCondition } from '../source-condition.js';
 import { resolve } from 'path';
 import { copyFileSync, mkdirSync, existsSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { localDevPorts } from '../shared/src/local-dev';
+import { noNodeInBrowserBundle } from '../scripts/no-node-in-browser-bundle';
 
 const ports = localDevPorts(process.env);
 const distDir = resolve(__dirname, 'dist');
@@ -104,7 +105,7 @@ function buildClassicContentScripts(): Plugin {
           configFile: false,
           define,
           logLevel: 'warn',
-          plugins: [{
+          plugins: [noNodeInBrowserBundle(), {
             name: 'validate-classic-content-script',
             generateBundle(_options, bundle) {
               validateClassicContentScript(bundle, `${name}.js`);
@@ -131,7 +132,7 @@ function buildClassicContentScripts(): Plugin {
 export default defineConfig({
   ...sourceCondition,
   define,
-  plugins: [validateExtensionPages(), copyStaticFiles(), buildClassicContentScripts()],
+  plugins: [noNodeInBrowserBundle(), validateExtensionPages(), copyStaticFiles(), buildClassicContentScripts()],
   build: {
     outDir: 'dist',
     emptyOutDir: false,
