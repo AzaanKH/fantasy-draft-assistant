@@ -20,9 +20,15 @@ interface PositionTiers {
   readonly groups: readonly TierGroup[];
 }
 
-/** A tier is nearly gone at two or fewer players and a third or less of its size. Display-only. */
+const DISPLAY_ONLY_DEPLETED_TIER = {
+  maxAvailable: 2,
+  maxAvailableShare: 1 / 3,
+} as const;
+
 export function isTierDepleted(group: Pick<TierGroup, 'available' | 'total'>): boolean {
-  return group.available > 0 && group.available <= 2 && group.available / group.total <= 1 / 3;
+  return group.available > 0 &&
+    group.available <= DISPLAY_ONLY_DEPLETED_TIER.maxAvailable &&
+    group.available / group.total <= DISPLAY_ONLY_DEPLETED_TIER.maxAvailableShare;
 }
 
 /**
