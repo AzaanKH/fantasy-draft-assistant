@@ -73,6 +73,15 @@ function useChangeAnimation(
   }, [duration, element, keyframes, motionKey, reduceMotion]);
 }
 
+/** Returns whether the element is still present; an exiting element is inert. */
+function useInertWhenExiting(element: React.RefObject<HTMLElement | null>): boolean {
+  const isPresent = useIsPresent();
+  React.useLayoutEffect(() => {
+    if (element.current) element.current.inert = !isPresent;
+  }, [element, isPresent]);
+  return isPresent;
+}
+
 const FADE_KEYFRAMES: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }];
 
 /** Update in place so focus and actions always belong to the current player. */
@@ -100,13 +109,8 @@ function MotionSwapContent({
   readonly kind: 'content-swap' | 'player-identity';
 }): React.ReactElement {
   const reduceMotion = usePrefersReducedMotion();
-  const isPresent = useIsPresent();
   const element = React.useRef<HTMLDivElement>(null);
-
-  React.useLayoutEffect(() => {
-    // A departing recommendation must not expose stale draft actions or labels.
-    if (element.current) element.current.inert = !isPresent;
-  }, [isPresent]);
+  const isPresent = useInertWhenExiting(element);
 
   return (
     <m.div
