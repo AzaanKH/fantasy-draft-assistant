@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Effect } from 'effect';
@@ -7,17 +8,21 @@ import { fetchJson, parseRetryAfter } from './effect-runtime.js';
 type Handler = (request: IncomingMessage, response: ServerResponse, hit: number) => void;
 const servers: (() => Promise<void>)[] = [];
 
+// Other local processes can probe any new localhost listener, such as a dev tool's
+// port scan sending GET /. Only requests to this server's unique path are the client's.
 async function serve(handler: Handler) {
+  const path = `/${randomUUID()}/data`;
   let hits = 0;
   let closedConnections = 0;
   const server = createServer((request, response) => {
+    if (request.url !== path) { response.writeHead(404).end(); return; }
     request.socket.once('close', () => { closedConnections += 1; });
     handler(request, response, ++hits);
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   servers.push(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => { resolve(); }); }));
   const { port } = server.address() as AddressInfo;
-  return { url: `http://127.0.0.1:${String(port)}/data`, hits: () => hits, closed: () => closedConnections };
+  return { url: `http://127.0.0.1:${String(port)}${path}`, hits: () => hits, closed: () => closedConnections };
 }
 
 afterEach(async () => { await Promise.all(servers.splice(0).map((stop) => stop())); });
