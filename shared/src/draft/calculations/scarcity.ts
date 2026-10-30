@@ -1,10 +1,7 @@
 import type { Player } from '../../player.js';
 import { POSITIONS, type Position } from '../../league/positions.js';
 
-/**
- * Represents the ECR rank cutoff for "elite" tier at each position
- */
-export const ELITE_THRESHOLDS: Record<Position, number> = {
+export const ELITE_POSITIONAL_RANK_CUTOFFS: Record<Position, number> = {
   QB: 12,  // Top 12 QBs in 1QB league
   RB: 24,  // Need 2+ starters, scarcity matters more
   WR: 30,  // Need 2+ starters, deeper position
@@ -13,31 +10,23 @@ export const ELITE_THRESHOLDS: Record<Position, number> = {
   DEF: 12, // Streaming viable, but elite defenses help
 };
 
-/**
- * Higher score = more scarce (fewer elite players available)
- * Scale: 1-10 where 10 is maximum scarcity
- *
- * @example
- * // All elite RBs still available (24 with ECR <= 24)
- * calculatePositionalScarcity('RB', allPlayers) // Returns 1 (not scarce)
- *
- * @example
- * // Only 2 elite TEs left (out of 10 threshold)
- * calculatePositionalScarcity('TE', fewTEsLeft) // Returns 8 (very scarce)
- */
+export const MIN_SCARCITY = 1;
+export const MAX_SCARCITY = 10;
+
+/** Higher score = fewer elite players left at the position. */
 export function calculatePositionalScarcity(
   position: Position,
   availablePlayers: readonly Player[]
 ): number {
-  const threshold = ELITE_THRESHOLDS[position];
+  const cutoff = ELITE_POSITIONAL_RANK_CUTOFFS[position];
 
   const eliteAvailable = availablePlayers.filter(
-    (p) => p.position === position && p.positionalRank <= threshold
+    (p) => p.position === position && p.positionalRank <= cutoff
   ).length;
 
-  const scarcity = 10 - (eliteAvailable / threshold) * 10;
+  const scarcity = MAX_SCARCITY - (eliteAvailable / cutoff) * MAX_SCARCITY;
 
-  return Math.max(1, Math.min(10, scarcity));
+  return Math.max(MIN_SCARCITY, Math.min(MAX_SCARCITY, scarcity));
 }
 
 export function calculateAllScarcityScores(
