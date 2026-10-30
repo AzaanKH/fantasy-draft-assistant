@@ -332,7 +332,7 @@ export function createActivationStorage({ storage, factory, report, now = Date.n
   let handedOut = false;
   let opening: Promise<DraftDatabase> | undefined;
   let openEpoch = 0;
-  let cancelled = false;
+  const cancellation = new AbortController();
   let reviewed: { sourceDigest: string; snapshot: string } | undefined;
   const diagnostics: StorageDiagnostic[] = [];
   const track = (diagnostic: StorageDiagnostic): void => { diagnostics.push(diagnostic); report(diagnostic); };
@@ -420,12 +420,12 @@ export function createActivationStorage({ storage, factory, report, now = Date.n
 
     async activate(decisions, confirmation) {
       if (!confirmed(confirmation.otherTabsClosed)) throw new Error('Confirm that other draft tabs and side panels are closed before activating.');
-      if (cancelled) throw new ActivationCancelledError();
+      cancellation.signal.throwIfAborted();
       if (!reviewed) throw new Error('Show the activation review before activating.');
       const { review: current, plan: result } = await review(decisions);
       if (current.status !== 'review' || !result) throw new ActivationUnavailableError(current as Extract<ActivationReview, { status: 'unavailable' | 'rollback-in-progress' }>);
       if (!current.ready || current.sourceDigest !== reviewed.sourceDigest || snapshotKey(result.snapshot) !== reviewed.snapshot) throw new ActivationStaleError(current);
-      if (cancelled) throw new ActivationCancelledError();
+      cancellation.signal.throwIfAborted();
       const db = await open();
       const captured = new Map(current.source.map(entry => [entry.key, entry.serialized]));
       const verifySource = (): void => {
@@ -479,7 +479,7 @@ export function createActivationStorage({ storage, factory, report, now = Date.n
         if (error instanceof DatabaseConflictError || error instanceof V1SourceChangedError) throw new ActivationStaleError((await review(decisions)).review);
         throw error;
       }
-      if (cancelled) throw new ActivationCancelledError();
+      cancellation.signal.throwIfAborted();
       try { writeTombstone(record, verifySource); }
       catch (error) {
         if (error instanceof V1SourceChangedError) throw new ActivationStaleError((await review([])).review);
@@ -490,7 +490,7 @@ export function createActivationStorage({ storage, factory, report, now = Date.n
     },
 
     async resume() {
-      if (cancelled) return null;
+      if (cancellation.signal.aborted) return null;
       try {
         const db = await open();
         const { record } = activationRecordOf(await within(db.snapshot()));
@@ -501,7 +501,7 @@ export function createActivationStorage({ storage, factory, report, now = Date.n
       } catch { return null; }
     },
 
-    cancel() { cancelled = true; },
+    cancel() { cancellation.abort(new ActivationCancelledError()); },
     close() { openEpoch += 1; if (!handedOut) database?.close(); database = undefined; },
   };
 }
