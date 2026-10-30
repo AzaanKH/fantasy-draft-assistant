@@ -33,7 +33,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     if (view.currentPick > totalPicks) return false;
 
     const keeper = getKeeperAtPick(
-      state.preloadedKeepers,
+      view.effectiveKeepers,
       view.currentPick,
       state.config.totalTeams,
       state.config.draftType
@@ -52,7 +52,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       players,
       draftedPlayerIds: view.draftedPlayerIds,
       history: state.draftHistory,
-      keepers: state.preloadedKeepers,
+      keepers: view.effectiveKeepers,
       currentPick: view.currentPick,
       config: {
         totalTeams: state.config.totalTeams,
@@ -108,7 +108,7 @@ export function MockDraftAutoAdvance(): null {
     const totalPicks = state.config.totalTeams * state.config.totalRounds;
     if (view.currentPick > totalPicks) return;
     const keeper = getKeeperAtPick(
-      state.preloadedKeepers,
+      view.effectiveKeepers,
       view.currentPick,
       state.config.totalTeams,
       state.config.draftType
