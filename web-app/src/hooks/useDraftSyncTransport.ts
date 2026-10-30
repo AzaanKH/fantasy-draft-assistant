@@ -55,23 +55,23 @@ export function applyDraftSyncHeartbeat(
   };
 }
 
-function selectLatestDraftSnapshot(
-  current: DraftSyncSnapshot | null | undefined,
+function isStaleSnapshot(
+  current: DraftSyncSnapshot,
   incoming: DraftSyncSnapshot
-): DraftSyncSnapshot {
-  // A refresh response can arrive after a newer stream event. Poll time also
-  // orders errors and syncing states that have no new successful sync time.
-  if (
-    current?.provider === incoming.provider &&
+): boolean {
+  return current.provider === incoming.provider &&
     current.draftId === incoming.draftId &&
     (
       (incoming.lastSuccessfulSyncAt ?? -Infinity) < (current.lastSuccessfulSyncAt ?? -Infinity) ||
       (incoming.lastPolledAt ?? -Infinity) < (current.lastPolledAt ?? -Infinity)
-    )
-  ) {
-    return current;
-  }
-  return incoming;
+    );
+}
+
+function selectLatestDraftSnapshot(
+  current: DraftSyncSnapshot | null | undefined,
+  incoming: DraftSyncSnapshot
+): DraftSyncSnapshot {
+  return current && isStaleSnapshot(current, incoming) ? current : incoming;
 }
 
 function readDraftSnapshot(
