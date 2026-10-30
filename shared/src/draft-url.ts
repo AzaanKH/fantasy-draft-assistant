@@ -7,7 +7,8 @@ export interface DraftRoomStatus {
   status?: 'pre_draft' | 'drafting' | 'paused' | 'complete';
 }
 
-const SLEEPER_HOSTS = new Set(['sleeper.app', 'www.sleeper.app', 'sleeper.com', 'www.sleeper.com']);
+export const SLEEPER_DRAFT_HOSTS: readonly string[] = ['sleeper.app', 'www.sleeper.app', 'sleeper.com', 'www.sleeper.com'];
+const SLEEPER_HOSTS = new Set(SLEEPER_DRAFT_HOSTS);
 const YAHOO_HOSTS = new Set([
   'football.fantasysports.yahoo.com',
   'sports-fantasy.media.yahoo.com',
