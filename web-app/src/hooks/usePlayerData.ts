@@ -374,7 +374,7 @@ function useLivePlayerDataQuery() {
       news: fantasyProsQuery.data.news,
       sleeperPlayers: sleeperQuery.data?.players ?? [],
       teamEnvironments: teamEnvQuery.data?.teams ?? {},
-      fantasyProsAdp: fantasyProsQuery.data.adp ?? [],
+      fantasyProsAdp: fantasyProsQuery.data.adp,
       identities: identityQuery.data.players,
       leagueContext: {
         marketAdp: marketAdpQuery.data?.players ?? [],

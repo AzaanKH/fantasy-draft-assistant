@@ -229,7 +229,7 @@ async function rollbackBlockers(snapshot: DatabaseSnapshot, source: readonly Raw
 function assertReconciled(value: RollbackExport): void {
   const { blockers, decisions, pending, stale } = value.reconciliation;
   if (pending.length || stale.length || blockers.some(blocker => !decisions.some(decision =>
-    decision.blockerId === blocker.id && decision.digest === blocker.digest && decision.action === 'keep-indexed'))) throw new RollbackReconciliationError();
+    decision.blockerId === blocker.id && decision.digest === blocker.digest))) throw new RollbackReconciliationError();
 }
 
 /** Fences every IndexedDB writer, then builds a deterministic export of every committed and retained fact. */
@@ -247,7 +247,7 @@ export async function prepareRollback(database: DraftDatabase, { storage, decisi
   const source = storage ? snapshotV1Storage(storage) : [];
   const journals = await rollbackJournals(snapshot, source);
   const blockers = await rollbackBlockers(snapshot, source, journals);
-  const accepted = decisions.filter(decision => blockers.some(blocker => blocker.id === decision.blockerId && blocker.digest === decision.digest && decision.action === 'keep-indexed'));
+  const accepted = decisions.filter(decision => isRollbackDecision(decision) && blockers.some(blocker => blocker.id === decision.blockerId && blocker.digest === decision.digest));
   const reconciliation = { blockers, decisions: accepted,
     pending: blockers.filter(blocker => !accepted.some(decision => decision.blockerId === blocker.id)).map(blocker => blocker.id),
     stale: decisions.filter(decision => !accepted.includes(decision)).map(decision => decision.blockerId) };
@@ -278,6 +278,8 @@ function validArray(value: unknown, valid: (item: unknown) => boolean): boolean 
 }
 const validString = (value: unknown): boolean => typeof value === 'string';
 const validRawEntry = (value: unknown): boolean => record(value) && validString(value.key) && validString(value.serialized);
+const isRollbackDecision = (value: unknown): value is RollbackDecision =>
+  record(value) && validString(value.blockerId) && validString(value.digest) && value.action === 'keep-indexed';
 function decodes(value: unknown, decode: (input: unknown) => unknown): boolean {
   try { decode(value); return true; } catch { return false; }
 }
@@ -300,7 +302,7 @@ function isRollbackExport(value: unknown): value is RollbackExport {
       decodes(row.from, decodeStoredDraftProgress) && decodes(row.to, decodeStoredDraftProgress)) || !record(value.reconciliation)) return false;
   const reconciliation = value.reconciliation;
   return validArray(reconciliation.pending, validString) && validArray(reconciliation.stale, validString) &&
-    validArray(reconciliation.decisions, row => record(row) && validString(row.blockerId) && validString(row.digest) && row.action === 'keep-indexed') &&
+    validArray(reconciliation.decisions, isRollbackDecision) &&
     validArray(reconciliation.blockers, row => record(row) && validString(row.id) && validString(row.digest) &&
       (row.kind === 'retained-entry' || row.kind === 'invalid-indexed') && validRawEntry(row.entry) &&
       (row.indexed === null || decodes(row.indexed, decodeIndexedSession)) && validImport(row.incoming) &&
