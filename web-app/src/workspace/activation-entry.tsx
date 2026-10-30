@@ -19,14 +19,14 @@ function OpeningWorkspace({ database, controller, ready, activated }: {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const workspace = createDurableWorkspace({ database, search: window.location.search, resumeConfirmedConnection: true });
-    let active = true;
+    const lifetime = new AbortController();
     let published = false;
     const timer = window.setTimeout(() => { setSlow(true); }, 10_000);
     void (async () => {
       try {
         await workspace.ready;
         window.clearTimeout(timer);
-        if (!active) return;
+        if (lifetime.signal.aborted) return;
         setSlow(false);
         published = true;
         ready(observeDurableWorkspace(workspace));
@@ -34,12 +34,12 @@ function OpeningWorkspace({ database, controller, ready, activated }: {
       } catch (failure) {
         window.clearTimeout(timer);
         workspace.dispose();
-        if (!active) return;
+        if (lifetime.signal.aborted) return;
         controller.close();
         setError(failure instanceof Error ? failure.message : String(failure));
       }
     })();
-    return () => { active = false; window.clearTimeout(timer); if (!published) workspace.dispose(); };
+    return () => { lifetime.abort(); window.clearTimeout(timer); if (!published) workspace.dispose(); };
   }, [database, controller, ready]);
   if (error !== null) return activated
     ? <main role="alert" className="mx-auto max-w-4xl space-y-5 p-6 text-foreground" data-storage-blocked="activated">
