@@ -87,6 +87,19 @@ export function getNextOpenPickNumber(
  * Resolves nullable provider positions from local player identity data. Picks
  * that still lack a position are deliberately omitted from the store.
  */
+function getKeeperSlotKey(playerId: string, pickNumber: number): string {
+  return `${playerId}:${String(pickNumber)}`;
+}
+
+function isPreloadedKeeperPick(
+  pick: DraftPickEvent,
+  matchedPlayerId: string,
+  preloadedKeeperKeys: ReadonlySet<string>
+): boolean {
+  return pick.isKeeper &&
+    preloadedKeeperKeys.has(getKeeperSlotKey(matchedPlayerId, pick.pickNumber));
+}
+
 export function resolveDraftPickImports(
   picks: readonly DraftPickEvent[],
   players: readonly Player[],
@@ -103,9 +116,10 @@ export function resolveDraftPickImports(
   const rejectedPicks: DraftPickImportRejection[] = [];
   const preloadedKeeperKeys = new Set(
     totalTeams > 0 && draftType !== null
-      ? preloadedKeepers.map((keeper) => `${keeper.playerId}:${String(
+      ? preloadedKeepers.map((keeper) => getKeeperSlotKey(
+        keeper.playerId,
         getKeeperPickNumber(keeper, totalTeams, draftType)
-      )}`)
+      ))
       : []
   );
 
@@ -149,12 +163,7 @@ export function resolveDraftPickImports(
       continue;
     }
 
-    // Exact keeper matches are already reserved by useKeeperPreload. A provider
-    // keeper at another slot is a real conflict and must reach reconciliation.
-    if (
-      pick.isKeeper &&
-      preloadedKeeperKeys.has(`${matchedPlayer.id}:${String(pick.pickNumber)}`)
-    ) {
+    if (isPreloadedKeeperPick(pick, matchedPlayer.id, preloadedKeeperKeys)) {
       continue;
     }
 
