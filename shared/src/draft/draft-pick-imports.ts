@@ -83,10 +83,6 @@ export function getNextOpenPickNumber(
   return totalPicks + 1;
 }
 
-/**
- * Resolves nullable provider positions from local player identity data. Picks
- * that still lack a position are deliberately omitted from the store.
- */
 function getKeeperSlotKey(playerId: string, pickNumber: number): string {
   return `${playerId}:${String(pickNumber)}`;
 }
@@ -100,6 +96,10 @@ function isPreloadedKeeperPick(
     preloadedKeeperKeys.has(getKeeperSlotKey(matchedPlayerId, pick.pickNumber));
 }
 
+/**
+ * Resolves nullable provider positions from local player identity data. Picks
+ * that still lack a position are deliberately omitted from the store.
+ */
 export function resolveDraftPickImports(
   picks: readonly DraftPickEvent[],
   players: readonly Player[],
