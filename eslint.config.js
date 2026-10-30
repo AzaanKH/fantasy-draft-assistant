@@ -59,7 +59,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-syntax': ['error', ...draftOrderRules],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/no-unnecessary-condition': directory === 'web-app' ? 'error' : 'off',
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
     },
