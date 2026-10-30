@@ -2,6 +2,7 @@ import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-js
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer as createHttpServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
@@ -970,8 +971,11 @@ describe('provider HTTP requests', () => {
   it('closes the connection of an error response whose body stalls', async () => {
     let connectionClosed!: () => void;
     const closed = new Promise<void>((resolve) => { connectionClosed = resolve; });
-    // Send the error status and part of a body, then never finish it.
+    // Send the error status and part of a body, then never finish it. Other local processes
+    // can probe any new localhost listener with GET /, so only the unique path is the client's.
+    const path = `/${randomUUID()}/data`;
     const upstream = createHttpServer((request, response) => {
+      if (request.url !== path) { response.writeHead(404).end(); return; }
       request.socket.once('close', connectionClosed);
       response.writeHead(503, { 'Content-Type': 'text/plain' });
       response.write('unavailable');
@@ -979,7 +983,7 @@ describe('provider HTTP requests', () => {
     await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
     const { port } = upstream.address() as AddressInfo;
     try {
-      await expect(syncServerInternals.defaultFetchJson(`http://127.0.0.1:${String(port)}/`, new AbortController().signal, decodeDraftSyncSnapshot))
+      await expect(syncServerInternals.defaultFetchJson(`http://127.0.0.1:${String(port)}${path}`, new AbortController().signal, decodeDraftSyncSnapshot))
         .rejects.toThrow('request failed: 503');
       await closed;
     } finally {
