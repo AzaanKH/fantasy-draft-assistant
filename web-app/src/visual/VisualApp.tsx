@@ -462,7 +462,7 @@ function VisualReadySignal(): null {
       }, 0);
     };
 
-    if (document.fonts) {
+    if ('fonts' in document) {
       void document.fonts.ready.then(markReady);
     } else {
       markReady();
