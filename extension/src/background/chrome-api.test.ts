@@ -5,6 +5,7 @@ import type {
 } from '@fantasy-draft/shared/sync';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { Effect } from 'effect';
+import { decodeEspnDraftSnapshot } from '@fantasy-draft/shared/catalog';
 import type {
   DetectedPick,
   DraftRoomStatus,
@@ -255,6 +256,7 @@ describe('background controller with mocked Chrome APIs', () => {
       totalTeams: 14,
       keepersEnabled: false,
     });
+    expect(decodeEspnDraftSnapshot(publishedSnapshot)).toEqual(publishedSnapshot);
   });
 
   it('cancels an older request so it cannot overwrite a newer snapshot', async () => {

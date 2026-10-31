@@ -1,4 +1,7 @@
+import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { gateWorkspaces } from '../gate-workspaces.js';
 import { decorationRules } from './decoration-lint-rules.mjs';
 
@@ -10,6 +13,13 @@ const decoderMessage = 'Decode the unknown value with a decoder from @fantasy-dr
 const leaguePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 // A quoted, comma-separated position list inside a string or SQL template, such as `in ('QB', 'RB')`.
 const quotedPositionList = /'(?:QB|RB|WR|TE|K|DEF)'(?:\s*,\s*'(?:QB|RB|WR|TE|K|DEF)')+/g;
+// Node-only code that browser source must never load, by package specifier and by canonical directory.
+const nodeOnlyTargets = [
+  { messageId: 'browser', specifier: '@fantasy-draft/shared/node', directories: ['shared/src/node', 'shared/dist/node'] },
+  { messageId: 'server', specifier: JSON.parse(readFileSync(path.join(root, 'server/package.json'), 'utf8')).name, directories: ['server'] },
+].map(target => ({ ...target, directories: target.directories.map(directory => canonicalPath(path.join(root, directory))) }));
+const resolutionByConfig = new Map();
+const nodeOnlyLoads = new Map();
 export const baselineRuleIds = [
   'agent/no-json-cast',
   'agent/no-cross-package-import',
@@ -22,6 +32,51 @@ export const baselineRuleIds = [
 function staticModuleName(node) {
   return node?.type === 'TemplateLiteral' && node.expressions.length === 0
     ? node.quasis[0].value.cooked : node?.value;
+}
+
+// Resolves symlinks and on-disk casing. A missing file keeps its name under its nearest existing directory.
+function canonicalPath(file) {
+  try {
+    return realpathSync.native(file);
+  } catch {
+    const parent = path.dirname(file);
+    return parent === file ? file : path.join(canonicalPath(parent), path.basename(file));
+  }
+}
+
+function isInside(file, directory) {
+  const relative = path.relative(directory, file);
+  return relative === '' || (relative.split(path.sep)[0] !== '..' && !path.isAbsolute(relative));
+}
+
+function moduleResolution(containingFile) {
+  const configPath = ts.findConfigFile(path.dirname(containingFile), ts.sys.fileExists) ?? '';
+  if (!resolutionByConfig.has(configPath)) {
+    const options = configPath
+      ? ts.parseJsonConfigFileContent(ts.readConfigFile(configPath, ts.sys.readFile).config ?? {}, ts.sys, path.dirname(configPath)).options
+      : {};
+    const cache = ts.createModuleResolutionCache(root, name => ts.sys.useCaseSensitiveFileNames ? name : name.toLowerCase(), options);
+    resolutionByConfig.set(configPath, { options, cache });
+  }
+  return resolutionByConfig.get(configPath);
+}
+
+// The Node-only targets a specifier loads, found with TypeScript's resolver for the importing file's tsconfig.
+function nodeOnlyTargetsLoadedBy(name, containingFile, mode) {
+  const key = `${path.dirname(containingFile)}\0${mode}\0${name}`;
+  if (!nodeOnlyLoads.has(key)) {
+    const { options, cache } = moduleResolution(containingFile);
+    // TypeScript does not read file URLs; bundlers and Node load them as absolute paths.
+    let specifier = name;
+    if (name.startsWith('file:')) {
+      try { specifier = fileURLToPath(name); } catch { /* An invalid file URL loads nothing. */ }
+    }
+    const resolved = ts.resolveModuleName(specifier, containingFile, options, ts.sys, cache, undefined, mode).resolvedModule?.resolvedFileName;
+    const file = resolved && canonicalPath(path.resolve(resolved));
+    nodeOnlyLoads.set(key, nodeOnlyTargets.filter(target => name === target.specifier || name.startsWith(`${target.specifier}/`) ||
+      (file !== undefined && target.directories.some(directory => isInside(file, directory)))));
+  }
+  return nodeOnlyLoads.get(key);
 }
 
 export default {
@@ -179,21 +234,25 @@ export default {
     },
     'no-node-in-browser': {
       meta: {
-        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node in browser source.' },
+        docs: { hint: 'Use browser-safe shared subpaths and keep Node I/O in Node entry points.', description: 'Rejects imports, re-exports, and supported module loads of @fantasy-draft/shared/node or the server workspace, including its local sync token, in browser source. Specifiers resolve with TypeScript module resolution for the importing tsconfig, then through symlinks and on-disk casing, before the containment check.' },
         type: 'problem', schema: [], messages: {
         browser: 'Browser source must use browser-safe shared subpaths. Import localDevPorts from @fantasy-draft/shared/sync; keep Processes in Node entry points.',
+        server: 'Browser source must not load server modules such as the local sync token; keep them in Node entry points and Vite configuration.',
       } },
       create(context) {
-        function check(node, source) {
-          if (staticModuleName(source) === '@fantasy-draft/shared/node') context.report({ node, messageId: 'browser' });
+        const containingFile = path.resolve(context.cwd, context.filename);
+        function check(node, source, mode = ts.ModuleKind.ESNext) {
+          const name = staticModuleName(source);
+          if (typeof name !== 'string') return;
+          for (const { messageId } of nodeOnlyTargetsLoadedBy(name, containingFile, mode)) context.report({ node, messageId });
         }
         return {
           ImportDeclaration: node => check(node, node.source),
           ExportNamedDeclaration: node => check(node, node.source),
           ExportAllDeclaration: node => check(node, node.source),
           ImportExpression: node => check(node, node.source),
-          CallExpression: node => { if (node.callee.name === 'require') check(node, node.arguments[0]); },
-          TSExternalModuleReference: node => check(node, node.expression),
+          CallExpression: node => { if (node.callee.name === 'require') check(node, node.arguments[0], ts.ModuleKind.CommonJS); },
+          TSExternalModuleReference: node => check(node, node.expression, ts.ModuleKind.CommonJS),
           TSImportType: node => check(node, node.source),
         };
       },

@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  MIN_TRAINING_ROWS,
   POSITION_MODEL_CANDIDATE_SET_VERSION,
+  POSITION_MODEL_DEFAULT_LAMBDA,
+  POSITION_MODEL_DEFAULT_VOLUME_THRESHOLDS,
   POSITION_MODEL_LAMBDA_CANDIDATES,
   POSITION_MODEL_SPECIFICATIONS,
   POSITION_MODEL_VOLUME_THRESHOLD_CANDIDATES,
@@ -35,15 +39,20 @@ function row(
 }
 
 describe('position residual ridge model', () => {
-  it('keeps the 2026 candidate set and thresholds in one versioned declaration', () => {
-    expect(POSITION_MODEL_CANDIDATE_SET_VERSION).toBe('2026-predeclared-v1');
-    expect(POSITION_MODEL_SPECIFICATIONS.map((specification) => specification.id)).toEqual([
-      'workload-only-v1',
-      'role-opportunity-v1',
-      'expanded-efficiency-v1',
-    ]);
-    expect(POSITION_MODEL_LAMBDA_CANDIDATES).toEqual([1, 10, 100, 1_000, 10_000, 1_000_000_000]);
-    expect(POSITION_MODEL_VOLUME_THRESHOLD_CANDIDATES.QB).toEqual([50, 100, 200, 400, 800]);
+  it('requires a new candidate set version whenever a candidate, feature list, or threshold changes', () => {
+    const declarationHashes: Record<string, string> = {
+      '2026-predeclared-v1': '614415fef937ec892353c25971dc3ae9bf7b178b64305ae590881d80ddcfa2b5',
+    };
+    const declaration = JSON.stringify({
+      specifications: POSITION_MODEL_SPECIFICATIONS,
+      lambdas: POSITION_MODEL_LAMBDA_CANDIDATES,
+      defaultLambda: POSITION_MODEL_DEFAULT_LAMBDA,
+      volumeThresholds: POSITION_MODEL_VOLUME_THRESHOLD_CANDIDATES,
+      defaultVolumeThresholds: POSITION_MODEL_DEFAULT_VOLUME_THRESHOLDS,
+      minTrainingRows: MIN_TRAINING_ROWS,
+    });
+    const hash = createHash('sha256').update(declaration).digest('hex');
+    expect(declarationHashes[POSITION_MODEL_CANDIDATE_SET_VERSION]).toBe(hash);
   });
 
   it('selects on the prior season, refits through it, and never reads the outer test season', () => {

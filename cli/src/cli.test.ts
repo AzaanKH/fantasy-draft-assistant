@@ -449,6 +449,25 @@ describe('draft CLI against a local fixture server', () => {
     expect(status.result.data.sync.lastError).toBe('Provider unavailable');
   });
 
+  it('reports on a session without player data but refuses commands that need the pool', async () => {
+    const path = join(root, 'data/fantasypros-snapshot.json');
+    const original = await readFile(path, 'utf8');
+    await writeFile(path, '{}');
+    try {
+      const status = await command(['status', '--session', 'fixture', '--json']);
+      expect(status.code).toBe(0);
+      expect(status.result.data.warnings).toContainEqual(expect.stringContaining('Rankings or canonical player identities'));
+      const readiness = await command(['readiness', '--session', 'fixture', '--json']);
+      expect(readiness.code).toBe(3);
+      expect(readiness.result.data.readyForAdvice).toBe(false);
+      for (const name of ['players', 'recommend', 'roster']) {
+        const refused = await command([name, '--session', 'fixture', '--json']);
+        expect.soft(refused.code, name).toBe(3);
+        expect.soft(refused.result.error.code, name).toBe('CORE_DATA_INVALID');
+      }
+    } finally { await writeFile(path, original); }
+  });
+
   it('does not mark malformed ranking rows ready merely because the cache has enough rows', async () => {
     const path = join(root, 'data/fantasypros-snapshot.json');
     const original = await readFile(path, 'utf8');

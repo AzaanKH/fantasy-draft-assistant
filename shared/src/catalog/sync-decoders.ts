@@ -29,11 +29,45 @@ const sleeperDraftMetadata = /* @__PURE__ */ openStruct({
   status, type: draftType,
   settings: /* @__PURE__ */ openStruct({ teams, rounds, pick_timer: timer }), draft_order: draftOrder,
 });
-const draftMetadata = /* @__PURE__ */ openStruct({
+const point = Schema.Finite;
+const positionRequirement = /* @__PURE__ */ Schema.Struct({ starters: Schema.Finite, max: Schema.Finite });
+const leagueSettings = /* @__PURE__ */ Schema.Struct({
+  source: /* @__PURE__ */ Schema.Literals(['default', 'sleeper', 'espn']),
+  leagueId: /* @__PURE__ */ Schema.NullOr(Schema.String), totalTeams: Schema.Finite,
+  scoringRules: /* @__PURE__ */ Schema.Struct({
+    passing: /* @__PURE__ */ Schema.Struct({ yardsPerPoint: point, touchdown: point, interception: point, twoPointConversion: point }),
+    rushing: /* @__PURE__ */ Schema.Struct({ yardsPerPoint: point, touchdown: point, attemptBonus: point, twoPointConversion: point }),
+    receiving: /* @__PURE__ */ Schema.Struct({ reception: point, yardsPerPoint: point, touchdown: point, tePremium: point, twoPointConversion: point }),
+    kicking: /* @__PURE__ */ Schema.Struct({
+      fieldGoal0_39: point, fieldGoal40_49: point, fieldGoal50Plus: point, extraPoint: point, missedFieldGoal: point, missedExtraPoint: point,
+    }),
+    defense: /* @__PURE__ */ Schema.Struct({
+      touchdown: point, sack: point, interception: point, fumbleRecovery: point, safety: point, blockedKick: point,
+      pointsAllowed: /* @__PURE__ */ Schema.Struct({
+        shutout: point, tier1_6: point, tier7_13: point, tier14_20: point, tier21_27: point, tier28_34: point, tier35Plus: point,
+      }),
+    }),
+    misc: /* @__PURE__ */ Schema.Struct({ fumbleLost: point, fumbleRecoveryTD: point }),
+  }),
+  rosterRequirements: /* @__PURE__ */ Schema.Struct({
+    QB: positionRequirement, RB: positionRequirement, WR: positionRequirement, TE: positionRequirement,
+    FLEX: /* @__PURE__ */ Schema.Struct({ starters: Schema.Finite, eligiblePositions: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Literals(POSITIONS)) }),
+    K: positionRequirement, DEF: positionRequirement, BENCH: /* @__PURE__ */ Schema.Struct({ spots: Schema.Finite }),
+  }),
+  rawScoringSettings: /* @__PURE__ */ Schema.Record(Schema.String, Schema.Finite),
+  unsupportedScoringKeys: /* @__PURE__ */ Schema.Array(Schema.String), unsupportedRosterSlots: /* @__PURE__ */ Schema.Array(Schema.String),
+  keepersEnabled: /* @__PURE__ */ Schema.NullOr(Schema.Boolean), fingerprint: Schema.String, updatedAt: Schema.Finite,
+}).check(/* @__PURE__ */ Schema.makeFilter(isLeagueSettings));
+const draftMetadataFields = {
   provider, draftId, providerKey: /* @__PURE__ */ boundedString(256),
   leagueId: /* @__PURE__ */ Schema.optional(Schema.String),
-  leagueSettings: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.declare(isLeagueSettings)),
-  status, type: draftType, settings: /* @__PURE__ */ openStruct({ teams, rounds, pickTimer: timer }), draftOrder,
+  leagueSettings: /* @__PURE__ */ Schema.optional(leagueSettings),
+  status, type: draftType, draftOrder,
+};
+const draftSettingsFields = { teams, rounds, pickTimer: timer };
+const draftMetadata = /* @__PURE__ */ openStruct({
+  ...draftMetadataFields,
+  settings: /* @__PURE__ */ openStruct(draftSettingsFields),
 });
 const sleeperDraftPick = /* @__PURE__ */ openStruct({
   round: rounds, roster_id: /* @__PURE__ */ Schema.NullOr(Schema.Finite), player_id: Schema.String,
@@ -42,7 +76,7 @@ const sleeperDraftPick = /* @__PURE__ */ openStruct({
   is_keeper: /* @__PURE__ */ Schema.NullOr(Schema.Boolean), draft_slot: /* @__PURE__ */ integer(1, MAX_DRAFT_TEAMS), draft_id: Schema.String,
 });
 const sleeperDraftPickList = /* @__PURE__ */ Schema.Array(sleeperDraftPick).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
-const draftPickEvent = /* @__PURE__ */ openStruct({
+const draftPickEventFields = {
   draftId, pickNumber: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS), round: rounds,
   rosterId: /* @__PURE__ */ Schema.NullOr(Schema.Finite), draftSlot: /* @__PURE__ */ integer(1, MAX_DRAFT_TEAMS),
   teamIndex: /* @__PURE__ */ integer(0, MAX_DRAFT_TEAMS - 1), playerId: draftId,
@@ -50,15 +84,17 @@ const draftPickEvent = /* @__PURE__ */ openStruct({
   nflTeam: /* @__PURE__ */ Schema.NullOr(Schema.String), isKeeper: Schema.Boolean,
   source: /* @__PURE__ */ Schema.Literals(['sleeper-api', 'yahoo-public', 'espn-extension', 'extension-dom', 'manual']),
   confidence: /* @__PURE__ */ Schema.Literals(['confirmed', 'probable']), observedAt: Schema.Finite,
-});
+};
+const draftPickEvent = /* @__PURE__ */ openStruct(draftPickEventFields);
 const providerDraftSnapshot = /* @__PURE__ */ openStruct({
   draft: draftMetadata, picks: /* @__PURE__ */ Schema.Array(draftPickEvent),
 });
 export const decodeProviderDraftSnapshot: (value: unknown) => {
   readonly draft: DraftMetadata; readonly picks: readonly DraftPickEvent[];
 } = /* @__PURE__ */ Schema.decodeUnknownSync(providerDraftSnapshot);
-const espnDraftSnapshot = /* @__PURE__ */ openStruct({
-  draft: draftMetadata, picks: /* @__PURE__ */ Schema.Array(draftPickEvent), observedAt: Schema.Finite,
+const espnDraftSnapshot = /* @__PURE__ */ Schema.Struct({
+  draft: /* @__PURE__ */ Schema.Struct({ ...draftMetadataFields, settings: /* @__PURE__ */ Schema.Struct(draftSettingsFields) }),
+  picks: /* @__PURE__ */ Schema.Array(/* @__PURE__ */ Schema.Struct(draftPickEventFields)), observedAt: Schema.Finite,
   myDraftSlot: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ integer(1, MAX_DRAFT_TEAMS)),
 }).check(/* @__PURE__ */ Schema.makeFilter(value => {
   const { draft, picks } = value;
@@ -100,7 +136,7 @@ export const decodeDraftMetadata: (value: unknown) => DraftMetadata = /* @__PURE
 export const decodeSleeperDraftMetadata: (value: unknown) => SleeperDraftMetadata = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftMetadata);
 export const decodeSleeperDraftPick: (value: unknown) => SleeperDraftPick = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftPick);
 export const decodeSleeperDraftPickList: (value: unknown) => readonly SleeperDraftPick[] = /* @__PURE__ */ Schema.decodeUnknownSync(sleeperDraftPickList);
-export const decodeEspnDraftSnapshot: (value: unknown) => EspnDraftSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(espnDraftSnapshot);
+export const decodeEspnDraftSnapshot: (value: unknown) => EspnDraftSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(espnDraftSnapshot, { onExcessProperty: 'error' });
 export const decodeDraftSyncSnapshot: (value: unknown) => DraftSyncSnapshot = /* @__PURE__ */ Schema.decodeUnknownSync(draftSyncSnapshot);
 export const decodeDraftSyncUpdate: (value: unknown) => DraftSyncUpdate = /* @__PURE__ */ Schema.decodeUnknownSync(draftSyncUpdate);
 export const decodeDraftSessionSummary: (value: unknown) => DraftSessionSummary = /* @__PURE__ */ Schema.decodeUnknownSync(draftSessionSummary);
@@ -109,7 +145,9 @@ export const isDraftMetadata: (value: unknown) => value is DraftMetadata = /* @_
 export const isSleeperDraftMetadata: (value: unknown) => value is SleeperDraftMetadata = /* @__PURE__ */ Schema.is(sleeperDraftMetadata);
 export const isSleeperDraftPick: (value: unknown) => value is SleeperDraftPick = /* @__PURE__ */ Schema.is(sleeperDraftPick);
 export const isSleeperDraftPickList: (value: unknown) => value is readonly SleeperDraftPick[] = /* @__PURE__ */ Schema.is(sleeperDraftPickList);
-export const isEspnDraftSnapshot: (value: unknown) => value is EspnDraftSnapshot = /* @__PURE__ */ Schema.is(espnDraftSnapshot);
+export function isEspnDraftSnapshot(value: unknown): value is EspnDraftSnapshot {
+  try { decodeEspnDraftSnapshot(value); return true; } catch { return false; }
+}
 export const isDraftSyncSnapshot: (value: unknown) => value is DraftSyncSnapshot = /* @__PURE__ */ Schema.is(draftSyncSnapshot);
 export const isDraftSyncUpdate: (value: unknown) => value is DraftSyncUpdate = /* @__PURE__ */ Schema.is(draftSyncUpdate);
 export const isDraftSessionSummary: (value: unknown) => value is DraftSessionSummary = /* @__PURE__ */ Schema.is(draftSessionSummary);

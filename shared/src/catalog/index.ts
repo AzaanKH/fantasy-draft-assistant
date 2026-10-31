@@ -35,6 +35,8 @@ export { CORE_DRAFT_DATA_KEYS } from '../draft-readiness.js';
 export { OPTIONAL_SIGNAL_KEYS } from '../draft-readiness.js';
 export { DRAFT_READINESS_DEFINITIONS } from '../draft-readiness.js';
 export { evaluateDraftReadiness } from '../draft-readiness.js';
+export { isTrustedRankingSourceType } from '../draft-readiness.js';
+export type { RankingsSource } from '../draft-readiness.js';
 export { formatDraftReadinessAge } from '../draft-readiness.js';
 export { formatDraftReadinessTimestamp } from '../draft-readiness.js';
 export type { CoreDraftDataKey } from '../draft-readiness.js';

@@ -1,4 +1,7 @@
-import { isDraftMetadata, isEspnDraftSnapshot } from './catalog/sync-decoders.js';
+import { decodeEspnDraftSnapshot, isDraftMetadata, isEspnDraftSnapshot } from './catalog/sync-decoders.js';
+import { DEFAULT_ROSTER_REQUIREMENTS } from './draft.js';
+import { DEFAULT_SCORING_RULES } from './league/scoring.js';
+import { createDefaultLeagueSettings, type LeagueSettings } from './league-settings.js';
 import { describe, expect, it } from 'vitest';
 import {
   type DraftMetadata,
@@ -81,6 +84,58 @@ describe('ESPN snapshot validation', () => {
     expect(isEspnDraftSnapshot(snapshot({ draft: { ...draft, settings: { teams: 33, rounds: 14, pickTimer: 90 } } }))).toBe(false);
     expect(isEspnDraftSnapshot(snapshot({ draft: { ...draft, draftOrder: { owner: 33 } } }))).toBe(false);
     expect(isEspnDraftSnapshot(snapshot({ draft: { ...draft, draftOrder: { owner: 3 } } }))).toBe(true);
+  });
+
+  it.each([
+    ['snapshot', (value: Record<string, unknown>) => ({ ...value, swid: '{AUTH}' })],
+    ['draft', (value: Record<string, unknown>) => ({ ...value, draft: { ...draft, espnS2: 'cookie' } })],
+    ['draft settings', (value: Record<string, unknown>) => ({ ...value, draft: { ...draft, settings: { ...draft.settings, memberId: 'member' } } })],
+    ['pick', (value: Record<string, unknown>) => ({ ...value, picks: [{ ...pick(), memberId: '{MEMBER}' }] })],
+  ])('rejects undeclared %s fields such as auth tokens, member IDs, or raw payloads', (_label, extend) => {
+    const tainted = extend(snapshot());
+    expect(isEspnDraftSnapshot(tainted)).toBe(false);
+    expect(() => decodeEspnDraftSnapshot(tainted)).toThrow();
+  });
+
+  it('decodes a well-formed observation to exactly its declared fields', () => {
+    expect(decodeEspnDraftSnapshot(snapshot({ myDraftSlot: 3 }))).toEqual(snapshot({ myDraftSlot: 3 }));
+  });
+
+  it('accepts the league profile the background attaches before publishing', () => {
+    const profiled = snapshot({ draft: { ...draft, leagueId: '4242', leagueSettings: createDefaultLeagueSettings(1_000) } });
+    expect(decodeEspnDraftSnapshot(profiled)).toEqual(profiled);
+  });
+
+  it.each([
+    ['league settings', (settings: LeagueSettings) => ({ ...settings, espnS2: 'secret' })],
+    ['a roster requirement', (settings: LeagueSettings) => ({
+      ...settings, rosterRequirements: { ...DEFAULT_ROSTER_REQUIREMENTS, QB: { ...DEFAULT_ROSTER_REQUIREMENTS.QB, rawSocket: { auth: 'secret' } } },
+    })],
+    ['the flex requirement', (settings: LeagueSettings) => ({
+      ...settings, rosterRequirements: { ...DEFAULT_ROSTER_REQUIREMENTS, FLEX: { ...DEFAULT_ROSTER_REQUIREMENTS.FLEX, memberId: '{MEMBER}' } },
+    })],
+    ['scoring rules', (settings: LeagueSettings) => ({ ...settings, scoringRules: { ...DEFAULT_SCORING_RULES, swid: '{AUTH}' } })],
+    ['a numeric scoring group', (settings: LeagueSettings) => ({
+      ...settings, scoringRules: { ...DEFAULT_SCORING_RULES, passing: { ...DEFAULT_SCORING_RULES.passing, memberId: 42 } },
+    })],
+    ['the points-allowed tiers', (settings: LeagueSettings) => ({
+      ...settings,
+      scoringRules: {
+        ...DEFAULT_SCORING_RULES,
+        defense: { ...DEFAULT_SCORING_RULES.defense, pointsAllowed: { ...DEFAULT_SCORING_RULES.defense.pointsAllowed, memberId: 12345 } },
+      },
+    })],
+    ['a raw scoring value', (settings: LeagueSettings) => ({ ...settings, rawScoringSettings: { pass_td: { auth: 'secret' } } })],
+  ])('rejects undeclared fields inside %s', (_label, extend) => {
+    const tainted = { ...snapshot(), draft: { ...draft, leagueSettings: extend(createDefaultLeagueSettings(1_000)) } };
+    expect(isEspnDraftSnapshot(tainted)).toBe(false);
+    expect(() => decodeEspnDraftSnapshot(tainted)).toThrow();
+  });
+
+  it('keeps raw scoring settings open to any provider key with a numeric value', () => {
+    const settings = { ...createDefaultLeagueSettings(1_000), rawScoringSettings: { pass_td: 4, yds_allow_550p: -5 } };
+    const profiled = snapshot({ draft: { ...draft, leagueSettings: settings } });
+    expect(decodeEspnDraftSnapshot(profiled)).toEqual(profiled);
   });
 
   it('rejects non-object input', () => {

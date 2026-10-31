@@ -19,6 +19,7 @@ import { DraftClient, readPairingToken } from './client';
 import { loadDraftData, loadPrimaryLeagueSettings, resolveKeepers, type DraftData } from './data';
 import { connectedSettings, createSessionContext, withConnectedReadiness, withLocalKeeperReadiness, replaceCoreReadiness, requireAdvice, adviceBoard, type SessionContext } from './context';
 import { attempt, CliError, required, unexpected } from './errors';
+import type { Command } from './commands';
 import { EMPTY_CONNECTIONS, loadConnections, saveConnection } from './connections';
 import { archivedData, createArchive, readArchive, replayBoundaries, replaySnapshot, saveArchive, type SessionArchive } from './archive';
 import { inspectRoster } from './roster';
@@ -33,6 +34,17 @@ interface Runtime {
   readonly signal: AbortSignal;
   readonly now?: () => number;
 }
+
+type PoolOptionalCommand = Extract<Command, 'status' | 'readiness' | 'connect'>;
+
+function isPoolOptional(command: Command): command is PoolOptionalCommand {
+  return command === 'status' || command === 'readiness' || command === 'connect';
+}
+
+/** Commands that report on the draft tolerate a missing player pool; every other command has one. */
+type PlayerPool =
+  | { readonly kind: 'optional'; readonly command: PoolOptionalCommand; readonly data: DraftData | null }
+  | { readonly kind: 'required'; readonly data: DraftData };
 
 function envelope(command: string, data: unknown) { return { schemaVersion: 1, command, data }; }
 
@@ -134,45 +146,42 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   const settings = connectedSettings(snapshot, now);
   const rounds = snapshot.draft?.settings.rounds ?? 14;
   const warnings: string[] = [...(archive?.warnings ?? [])];
-  let data: DraftData | null = archive ? archivedData(archive) : null;
   let localReadiness = archive?.readiness ?? (['status', 'connect'].includes(args.command) ? null : yield* buildReadiness(now, root));
   const needsMarket = !archive && ['players', 'recommend', 'compare', 'wait', 'roster', 'export'].includes(args.command);
   const market = needsMarket ? yield* required(client, 'server client').marketAdp(settings, currentSeason(fixedClock(now))) : { players: [] };
   if (market.warning) warnings.push(market.warning);
-  if (!archive) {
-    const loaded = yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null, { onWarning: message => warnings.push(message) }));
-    if (Result.isSuccess(loaded)) data = loaded.success;
-    else {
-      const error = loaded.failure;
-      if (!['status', 'readiness', 'connect'].includes(args.command)) {
-        return yield* new CliError(error.code, error.message, error.exitCode, { readiness: localReadiness });
-      }
-      if (localReadiness) localReadiness = markInvalidCoreData(localReadiness, error);
-      warnings.push(error.message);
-    }
+  const loaded = archive ? Result.succeed(archivedData(archive))
+    : yield* Effect.result(loadDraftData(root, settings, rounds, market.players, snapshot.draft?.type ?? null, { onWarning: message => warnings.push(message) }));
+  const playerPool: PlayerPool = isPoolOptional(args.command)
+    ? { kind: 'optional', command: args.command, data: Result.isSuccess(loaded) ? loaded.success : null }
+    : Result.isSuccess(loaded)
+      ? { kind: 'required', data: loaded.success }
+      : yield* new CliError(loaded.failure.code, loaded.failure.message, loaded.failure.exitCode, { readiness: localReadiness });
+  if (Result.isFailure(loaded)) {
+    if (localReadiness) localReadiness = markInvalidCoreData(localReadiness, loaded.failure);
+    warnings.push(loaded.failure.message);
   }
   const slot = args.slot;
-  const context = yield* attempt(() => createSessionContext(snapshot, data, slot, now));
+  const context = yield* attempt(() => createSessionContext(snapshot, playerPool.data, slot, now));
   const origin = archive ? { source: 'replay', replay: { file: resolve(required(args.replayFile, 'replay file')),
     capturedAt: archive.capturedAt, requestedPick: args.pick ?? null } } : { source: 'live' };
-  if (args.command === 'connect') {
-    const waitingForObservation = session.provider === 'espn' && snapshot.draft === null;
-    if (!waitingForObservation && (snapshot.draft === null || context.sync.health !== 'healthy')) {
-      return yield* new CliError('CONNECTION_FAILED', 'The provider draft could not be connected. Check the draft ID and provider availability.', 1, { sync: context.sync });
+  if (playerPool.kind === 'optional') {
+    if (playerPool.command === 'connect') {
+      const waitingForObservation = session.provider === 'espn' && snapshot.draft === null;
+      if (!waitingForObservation && (snapshot.draft === null || context.sync.health !== 'healthy')) {
+        return yield* new CliError('CONNECTION_FAILED', 'The provider draft could not be connected. Check the draft ID and provider availability.', 1, { sync: context.sync });
+      }
+      const configFile = yield* saveConnection(root, session, args.slot, args.serverUrl, now);
+      return { data: { ...statusData(context, session.id, warnings), ...origin,
+        connected: !waitingForObservation, waitingForObservation, activeSession: session.id, configFile,
+        ...(waitingForObservation ? { nextAction: 'Keep the signed-in ESPN draft tab open with the paired extension to provide draft observations.' } : {}) }, exitCode: 0 };
     }
-    const configFile = yield* saveConnection(root, session, args.slot, args.serverUrl, now);
-    return { data: { ...statusData(context, session.id, warnings), ...origin,
-      connected: !waitingForObservation, waitingForObservation, activeSession: session.id, configFile,
-      ...(waitingForObservation ? { nextAction: 'Keep the signed-in ESPN draft tab open with the paired extension to provide draft observations.' } : {}) }, exitCode: 0 };
-  }
-  if (args.command === 'status') {
-    return { data: { ...statusData(context, session.id, warnings), ...origin }, exitCode: 0 };
-  }
-  // A missing player pool must still produce a connected readiness report with actionable failures.
-  const readinessData = data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds, snapshot.draft?.type ?? null).status,
-    survivalModel: null, policy: SAFE_RECOMMENDATION_POLICY };
-  const readiness = withConnectedReadiness(required(localReadiness, 'readiness report'), snapshot, readinessData, now);
-  if (args.command === 'readiness') {
+    if (playerPool.command === 'status') {
+      return { data: { ...statusData(context, session.id, warnings), ...origin }, exitCode: 0 };
+    }
+    const readinessData = playerPool.data ?? { players: [], keepers: [], keeperStatus: resolveKeepers(null, [], settings.totalTeams, rounds, snapshot.draft?.type ?? null).status,
+      survivalModel: null, policy: SAFE_RECOMMENDATION_POLICY };
+    const readiness = withConnectedReadiness(required(localReadiness, 'readiness report'), snapshot, readinessData, now);
     const blockers = [
       ...(context.sync.health !== 'healthy' ? [{ code: 'SYNC_UNHEALTHY', message: 'Restore provider synchronization before using advice.' }] : []),
       ...(context.unresolvedPicks.length > 0 ? [{ code: 'PLAYER_IDENTITY_UNRESOLVED', message: 'Refresh canonical identities to resolve provider picks.' }] : []),
@@ -184,9 +193,9 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
       keepers: { ...readinessData.keeperStatus, error: readinessData.keeperStatus.error?.message ?? null },
       sync: context.sync, warnings }, exitCode: readyForAdvice ? 0 : 3 };
   }
+  const pool = playerPool.data;
+  const readiness = withConnectedReadiness(required(localReadiness, 'readiness report'), snapshot, pool, now);
   if (!snapshot.draft) return yield* new CliError('SESSION_NOT_READY', 'The draft has no provider metadata yet. Check draft status and restore the provider connection.');
-  // Commands past this point rethrow player-data failures above, so the pool is always loaded.
-  const pool = required(data, 'player data');
   if (args.command === 'export') {
     const file = resolve(required(args.outputFile, 'output file'));
     const saved = createArchive(snapshot, pool, readiness, args.slot, warnings, now);
