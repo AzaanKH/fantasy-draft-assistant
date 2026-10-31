@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { Effect } from 'effect';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { runMain } from './effect-runtime.js';
+import { HttpRequestError, runMain } from './effect-runtime.js';
 import { fetchFantasyProsSnapshot } from './fantasypros-api.js';
 
 const fixture = vi.hoisted(() => ({ sql: [] as string[], rows: [] as Record<string, unknown>[] }));
@@ -11,7 +11,6 @@ vi.mock('./effect-runtime.js', async importOriginal => ({
   ...await importOriginal<typeof import('./effect-runtime.js')>(), runMain: vi.fn(), isEntryPoint: () => true,
 }));
 vi.mock('./fantasypros-api.js', () => ({ fetchFantasyProsSnapshot: vi.fn() }));
-vi.mock('./playwright-browser.js', () => ({ withBrowserPage: () => Effect.fail(new Error('scrape reached')) }));
 vi.mock('./model/duckdb.js', async importOriginal => ({
   ...await importOriginal<typeof import('./model/duckdb.js')>(),
   withMemoryDb: (use: (connection: unknown) => Effect.Effect<unknown, unknown>) => Effect.suspend(() => use({
@@ -28,6 +27,7 @@ beforeEach(() => {
   vi.mocked(runMain).mockClear();
   vi.mocked(writeFile).mockClear();
   vi.mocked(readFile).mockReset();
+  vi.mocked(fetchFantasyProsSnapshot).mockReset();
   fixture.sql = []; fixture.rows = [];
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -49,7 +49,6 @@ const boundaries = [
 it.each(boundaries)('requests FantasyPros API data for the NFL season at %s', async (timestamp, season) => {
   vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });
   vi.stubEnv('FANTASYPROS_API_KEY', 'fixture-only');
-  vi.stubEnv('FANTASYPROS_SNAPSHOT_MODE', 'api');
   vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
   vi.mocked(fetchFantasyProsSnapshot).mockImplementation(options => Effect.succeed({
     metadata: { season: options.season, rankingCount: 0, adpCount: 0, projectionCount: 0, newsCount: 0,
@@ -60,18 +59,20 @@ it.each(boundaries)('requests FantasyPros API data for the NFL season at %s', as
   expect(fetchFantasyProsSnapshot).toHaveBeenCalledWith(expect.objectContaining({ season }));
 });
 
-it.each(boundaries)('infers a manual ECR season from its scrape timestamp at %s', async (timestamp, season) => {
-  vi.useFakeTimers({ now: Date.parse('2030-09-01T00:00:00Z'), toFake: ['Date'] });
-  vi.stubEnv('FANTASYPROS_SNAPSHOT_MODE', 'manual');
-  vi.mocked(readFile).mockImplementation(async path => {
-    if (typeof path === 'string' && path.endsWith('ecr-rankings.json')) return JSON.stringify({ scrapedAt: timestamp, source: 'fixture', playerCount: 0, players: [] });
-    throw Object.assign(new Error('missing'), { code: 'ENOENT' });
-  });
+it('fails the FantasyPros refresh without writing when the API request fails', async () => {
+  vi.stubEnv('FANTASYPROS_API_KEY', 'fixture-only');
+  vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+  vi.mocked(fetchFantasyProsSnapshot).mockReturnValue(Effect.fail(new HttpRequestError({ message: 'FantasyPros unavailable', url: 'https://fixture.invalid' })));
   await import('./refresh-fantasypros-snapshot.js');
-  await runCaptured();
-  const output = vi.mocked(writeFile).mock.calls[0]?.[1];
-  if (typeof output !== 'string') throw new Error('Missing snapshot');
-  expect(JSON.parse(output)).toMatchObject({ metadata: { season } });
+  await expect(runCaptured()).rejects.toThrow('FantasyPros unavailable');
+  expect(writeFile).not.toHaveBeenCalled();
+});
+
+it('fails the FantasyPros refresh when no API key is set', async () => {
+  vi.stubEnv('FANTASYPROS_API_KEY', '');
+  await import('./refresh-fantasypros-snapshot.js');
+  await expect(runCaptured()).rejects.toThrow('FANTASYPROS_API_KEY is not set');
+  expect(fetchFantasyProsSnapshot).not.toHaveBeenCalled();
 });
 
 it.each(boundaries)('selects contract context for the NFL season at %s', async (timestamp, season) => {
@@ -92,11 +93,4 @@ it.each(boundaries)('selects the season before the current NFL season for team e
   await expect(runCaptured()).rejects.toThrow('team query captured');
   expect(fixture.sql[0]).toContain(`stats_team_reg_${season - 1}.parquet`);
   expect(fixture.sql[0]).toContain(`where season = ${season - 1}`);
-});
-
-it.each(boundaries)('accepts the current NFL season bye-week cache before scraping at %s', async (timestamp, season) => {
-  vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });
-  vi.mocked(readFile).mockResolvedValue(JSON.stringify({ metadata: { season }, rankings: [{ team: 'CIN', byeWeek: 10 }] }));
-  await import('./scrape-ecr.js');
-  await expect(runCaptured()).rejects.toThrow('scrape reached');
 });

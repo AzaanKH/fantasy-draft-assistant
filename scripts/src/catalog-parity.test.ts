@@ -40,7 +40,7 @@ const addSnapshot = (label: string, value: unknown) => corpus.push({ label, shap
 const tightenings = new Set([
   'metadata missing required fields', 'metadata invalid sourceType',
   'ranking malformed optional provider id', 'ranking malformed optional tier',
-  'news missing headline', 'nonfinite custom scoring adjustment',
+  'news missing headline',
 ]);
 
 describe('P7 acceptance corpus', () => {

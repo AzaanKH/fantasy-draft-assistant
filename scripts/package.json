@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --conditions=@fantasy-draft/source src/dev.ts",
-    "scrape:ecr": "tsx --conditions=@fantasy-draft/source src/scrape-ecr.ts",
     "refresh:fantasypros-snapshot": "tsx --conditions=@fantasy-draft/source src/refresh-fantasypros-snapshot.ts",
-    "scrape:contracts": "tsx --conditions=@fantasy-draft/source src/scrape-contracts.ts",
     "refresh:contracts": "tsx --conditions=@fantasy-draft/source src/refresh-contracts.ts",
     "fetch:sleeper": "tsx --conditions=@fantasy-draft/source src/fetch-sleeper-adp.ts",
     "import:sportsbook": "python3 import-sportsbook-lines.py",
@@ -29,7 +27,7 @@
     "generate:draft-prep": "tsx --conditions=@fantasy-draft/source src/generate-draft-prep-report.ts",
     "backtest:recommendations": "tsx --conditions=@fantasy-draft/source src/backtest-recommendations.ts",
     "backtest:contracts": "tsx --conditions=@fantasy-draft/source src/backtest-contract-years.ts",
-    "fetch:all": "tsx --conditions=@fantasy-draft/source src/scrape-ecr.ts && tsx --conditions=@fantasy-draft/source src/fetch-sleeper-adp.ts && tsx --conditions=@fantasy-draft/source src/generate-team-env.ts",
+    "fetch:all": "tsx --conditions=@fantasy-draft/source src/fetch-sleeper-adp.ts && tsx --conditions=@fantasy-draft/source src/generate-team-env.ts",
     "model:duckdb:init": "tsx --conditions=@fantasy-draft/source src/model/init-duckdb.ts",
     "model:profile": "tsx --conditions=@fantasy-draft/source src/model/profile-model-sources.ts",
     "model:dataset": "tsx --conditions=@fantasy-draft/source src/build-prediction-dataset.ts",
