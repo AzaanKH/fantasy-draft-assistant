@@ -1,6 +1,6 @@
 /**
- * Content-script entry point. URL policy, pick parsing, lifecycle
- * orchestration, and Chrome I/O live in separate testable modules.
+ * URL policy, pick parsing, lifecycle orchestration, and Chrome I/O live in
+ * separate testable modules.
  */
 
 import { createChromeMessageSender, createChromeUndecodedEspnSnapshotRelay } from './chrome-messenger';

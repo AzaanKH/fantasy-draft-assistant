@@ -1,7 +1,7 @@
 /**
  * Browser gate: renders every `/__visual/` fixture and walks a short draft flow in the
  * real app with the checked-in data. It starts its own Vite dev server and never
- * contacts a draft provider. Usage: `pnpm browser:gate` (needs `playwright install chromium`).
+ * contacts a draft provider. Needs `playwright install chromium`.
  */
 import { http, HttpError } from '@fantasy-draft/shared/http';
 import { Processes, type ProcessService } from '@fantasy-draft/shared/node';

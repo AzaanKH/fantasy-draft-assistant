@@ -1,16 +1,7 @@
-/**
- * Highlight level determination
- *
- * Determines how a player should be highlighted in the UI
- * based on value score, contract status, and offensive environment.
- */
-
 import type { HighlightLevel } from '../../player.js';
 import { type TeamEnvironment, isTopOffense, isDecentOffense } from '../../team-environment.js';
 
 /**
- * Determine the highlight level for a player based on multiple factors
- *
  * Rules:
  * - strong-buy: Value >= +10 AND (contract year OR top-10 offense)
  * - good-value: Value >= +5 OR contract year with decent offense (score >= 6)
@@ -18,9 +9,6 @@ import { type TeamEnvironment, isTopOffense, isDecentOffense } from '../../team-
  * - avoid: Value <= -15 (significantly overvalued)
  *
  * @param valueScore - The calculated value score (ADP - ECR)
- * @param isContractYear - Whether the player is in a contract year
- * @param teamEnvironment - The player's team offensive environment (optional)
- * @returns The appropriate highlight level
  *
  * @example
  * // Great value on a top offense
@@ -35,7 +23,6 @@ export function determineHighlightLevel(
   isContractYear: boolean,
   teamEnvironment: TeamEnvironment | undefined
 ): HighlightLevel {
-  // Avoid: significantly overvalued
   if (valueScore <= -15) {
     return 'avoid';
   }
@@ -43,12 +30,10 @@ export function determineHighlightLevel(
   const isTop = teamEnvironment ? isTopOffense(teamEnvironment) : false;
   const isDecent = teamEnvironment ? isDecentOffense(teamEnvironment) : false;
 
-  // Strong Buy: Great value + motivation factor (contract year OR top offense)
   if (valueScore >= 10 && (isContractYear || isTop)) {
     return 'strong-buy';
   }
 
-  // Good Value: Solid value or contract year with decent situation
   if (valueScore >= 5) {
     return 'good-value';
   }

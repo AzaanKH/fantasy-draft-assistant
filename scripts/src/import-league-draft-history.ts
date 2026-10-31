@@ -1,7 +1,5 @@
 /**
  * Imports historical Sleeper league drafts into a clean local JSON dataset.
- *
- * Usage: pnpm --filter scripts import:league-history
  */
 
 import { createHash } from 'node:crypto';

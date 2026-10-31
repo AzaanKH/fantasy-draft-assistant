@@ -33,9 +33,6 @@ export interface FilterState {
   searchQuery: string;
 }
 
-/**
- * Draft configuration
- */
 export interface DraftConfig {
   totalTeams: number;
   totalRounds: number;
@@ -154,13 +151,11 @@ export interface DraftState {
   lastConfirmedSyncAt: number | null;
   lastConfirmedPickNumber: number;
 
-  // Draft configuration
   config: DraftConfig;
   leagueSettings: LeagueSettings;
   mockSettings: MockDraftSettings;
   mockAutoAdvance: MockAutoAdvanceState;
 
-  // Draft progress
   draftProgress: DraftProgress;
   draftHistory: RecordedDraftPick[];
   shortlistedPlayerIds: string[];
@@ -170,20 +165,15 @@ export interface DraftState {
   /** Provider picks excluded from canonical state until their player identity resolves. */
   unresolvedProviderPicks: UnresolvedProviderPick[];
 
-  // UI state
   decisionLens: DecisionLens;
   filter: FilterState;
 }
 
-/**
- * Draft store actions
- */
 export interface DraftActions {
   setSessionMode: (mode: DraftSessionMode) => void;
   setLiveDraftSession: (identity: DraftSessionIdentity | null) => void;
   enterManualContinuity: (baselineAt: number) => void;
 
-  // Configuration
   setConfig: (config: Partial<DraftConfig>) => void;
   applyLeagueSettings: (settings: LeagueSettings) => void;
   setRosterRequirements: (requirements: RosterRequirements) => void;
@@ -191,7 +181,6 @@ export interface DraftActions {
   setMockAutoAdvancePaused: (paused: boolean) => void;
   setMockSettingsOpen: (open: boolean) => void;
 
-  // Draft actions
   markPlayerDrafted: (
     playerId: string,
     playerName: string,
@@ -228,7 +217,6 @@ export interface DraftActions {
   /** Moves a queued player by one or more places; out-of-range moves are ignored. */
   moveShortlistedPlayer: (playerId: string, offset: number) => void;
 
-  // UI actions
   setDecisionLens: (lens: DecisionLens) => void;
   setPositionFilter: (position: Position | 'ALL') => void;
   setSearchQuery: (query: string) => void;

@@ -1,10 +1,3 @@
-/**
- * Team needs calculation
- *
- * Evaluates which positions a team needs to fill
- * based on roster requirements and positional scarcity.
- */
-
 import { POSITIONS, type Position } from '../../league/positions.js';
 import type { Roster, RosterRequirements, PositionNeed, NeedPriority } from '../../draft.js';
 import {
@@ -14,9 +7,7 @@ import {
   type DraftStageContext,
 } from './draft-stage.js';
 
-/**
- * Priority order for sorting needs (lower index = higher priority)
- */
+/** Lower index = higher priority. */
 const PRIORITY_ORDER: Record<NeedPriority, number> = {
   critical: 0,
   high: 1,
@@ -30,8 +21,6 @@ const HIGH_SCARCITY_SCORE = 7;
 const MID_DRAFT_PROGRESS = 0.5;
 
 /**
- * Calculate team positional needs based on current roster and scarcity
- *
  * Priority levels:
  * - critical: Empty position under starter-slot, scarcity, or draft-stage pressure
  * - high: Open fixed/FLEX starter slot with elevated scarcity or draft-stage pressure
@@ -40,10 +29,7 @@ const MID_DRAFT_PROGRESS = 0.5;
  * - defer: Kicker or defense before the late rounds
  * - filled: At max roster for position
  *
- * @param roster - Current team roster
- * @param requirements - League roster requirements
  * @param scarcityScores - Map of position to scarcity score (1-10)
- * @param context - Current draft stage
  * @returns Array of position needs sorted by priority
  *
  * @example
@@ -150,16 +136,9 @@ export function calculateTeamNeeds(
     });
   }
 
-  // Sort by priority (critical first, filled last)
   return needs.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 }
 
-/**
- * Get positions with critical or high priority needs
- *
- * @param needs - Array of position needs
- * @returns Array of positions that need attention
- */
 export function getCriticalPositions(needs: readonly PositionNeed[]): Position[] {
   return needs
     .filter((n) => n.priority === 'critical' || n.priority === 'high')

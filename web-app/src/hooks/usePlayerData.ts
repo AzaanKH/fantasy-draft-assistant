@@ -31,9 +31,6 @@ const TRUSTED_RANKING_SOURCE_TYPES: readonly string[] = IS_DEMO
   ? [DEMO_RANKINGS_SOURCE_TYPE]
   : ['api', 'manual-refresh'];
 
-/**
- * Hook to load and merge all player data sources
- */
 function useLivePlayerDataQuery() {
   const leagueSettings = useDraftState((state) => state.leagueSettings);
   const totalTeams = useDraftState((state) => state.config.totalTeams);

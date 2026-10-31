@@ -3,8 +3,6 @@
  *
  * Run the FantasyPros-free model first:
  *   MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset
- *
- * Usage: pnpm data:demo:build
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';

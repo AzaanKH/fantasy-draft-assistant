@@ -1,10 +1,3 @@
-/**
- * Player value calculation utilities
- *
- * Merges ECR + Sleeper platform proxy + Team Environment data
- * and calculates value scores and highlight levels.
- */
-
 import { asProbability, asRank, asVor, type Probability } from '../../units/brands.js';
 import type { Player, NFLTeam, PlayerPrediction, Position } from '../../player.js';
 import type { FantasyProsProjection, FantasyProsAdpPlayer, FantasyProsNewsItem } from '../../fantasypros.js';
@@ -52,17 +45,14 @@ export function normalizePlayerName(name: string): string {
   return name
     .toLowerCase()
     .replace(/[''`]/g, "'") // Normalize apostrophes
-    .replace(/jr\.?$/i, '') // Remove Jr suffix
-    .replace(/sr\.?$/i, '') // Remove Sr suffix
-    .replace(/iii$/i, '') // Remove III suffix
-    .replace(/ii$/i, '') // Remove II suffix
-    .replace(/\s+/g, ' ') // Normalize whitespace
+    .replace(/jr\.?$/i, '')
+    .replace(/sr\.?$/i, '')
+    .replace(/iii$/i, '')
+    .replace(/ii$/i, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Create a lookup key for matching players
- */
 function createPlayerKey(name: string, team: NFLTeam): string {
   return `${normalizePlayerName(name)}|${team}`;
 }
@@ -406,9 +396,6 @@ export function mergePlayerData(
   );
 }
 
-/**
- * Filter out drafted players
- */
 export function filterDrafted(
   players: Player[],
   draftedIds: ReadonlySet<string>,

@@ -1,14 +1,5 @@
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
-/**
- * Recommendations Hook
- *
- * Generates player recommendations based on:
- * - Best available by ECR ranking
- * - Team needs and positional scarcity
- * - TE premium scoring consideration
- */
-
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { useMemo } from 'react';
 import {
@@ -53,12 +44,6 @@ export function hasRemainingDraftDecision(
   return currentPick <= totalPicks && rosterSize < totalRounds;
 }
 
-/**
- * Hook to get player recommendations
- *
- * @param limit - Maximum number of recommendations per list (default: 5)
- * @returns Object with bestAvailable and byNeed recommendation arrays
- */
 interface PositionRecommendationDecision {
   readonly recommendations: readonly Recommendation[];
   readonly bestAvailable: readonly Recommendation[];

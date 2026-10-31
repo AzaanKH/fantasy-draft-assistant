@@ -20,7 +20,7 @@ export function runMain(program: Effect.Effect<void, unknown>, failureLabel?: st
   }, { failureLabel });
 }
 
-/** Wrap file or process I/O, keeping the original Error so failures print as they did before. */
+/** Wrap file or process I/O, keeping the original Error. */
 export const io = <A>(run: () => Promise<A>): Effect.Effect<A, Error> => Effect.tryPromise({
   try: run,
   catch: (cause) => cause instanceof Error ? cause : new Error(String(cause)),

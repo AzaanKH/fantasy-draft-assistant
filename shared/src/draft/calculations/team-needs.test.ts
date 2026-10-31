@@ -5,7 +5,6 @@ import {
 } from './team-needs.js';
 import { type Roster, DEFAULT_ROSTER_REQUIREMENTS } from '../../draft.js';
 
-// Helper to create a roster
 function createRoster(positions: Partial<Record<keyof Roster, string[]>>): Roster {
   return {
     QB: positions.QB ?? [],
@@ -17,7 +16,6 @@ function createRoster(positions: Partial<Record<keyof Roster, string[]>>): Roste
   };
 }
 
-// Helper to create scarcity scores
 function createScarcityScores(
   scores: Partial<Record<keyof Roster, number>>
 ): Map<keyof Roster, number> {
@@ -252,7 +250,6 @@ describe('calculateTeamNeeds', () => {
 
       const needs = calculateTeamNeeds(roster, DEFAULT_ROSTER_REQUIREMENTS, scarcity);
 
-      // WR should be first (critical)
       expect(needs[0]?.position).toBe('WR');
       expect(needs[0]?.priority).toBe('critical');
     });

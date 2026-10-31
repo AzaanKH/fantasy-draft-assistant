@@ -82,9 +82,6 @@ export function subscribeToBrowserStorageEvents(
 /** Retries before a save overwrites a tab that keeps saving first; that tab's save is then merged back. */
 const MAX_SAVE_ATTEMPTS = 5;
 
-/**
- * Create the draft store with Zustand + immer for immutable updates
- */
 export function createDraftStore({
   storage = null,
   session = null,
@@ -144,7 +141,6 @@ export function createDraftStore({
     return true;
   };
   return {
-    // Initial state
     sessionMode: 'setup',
     liveSession: null,
     manualContinuityBaselineAt: null,
@@ -169,7 +165,6 @@ export function createDraftStore({
     ...createProvisionalActions(set),
     ...createPickActions(set),
     ...createReconciliationActions(set),
-    // UI actions
     setDecisionLens: (lens) =>
       { set((state) => {
         state.decisionLens = lens;
