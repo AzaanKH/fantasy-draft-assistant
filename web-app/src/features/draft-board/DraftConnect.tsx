@@ -70,6 +70,14 @@ interface InitialConnection {
   readonly draftId: string;
 }
 
+function tryParseUrl(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
 function parseDraftId(
   selectedProvider: DraftProvider,
   input: string
@@ -89,19 +97,15 @@ function parseDraftId(
     return { provider: 'sleeper', draftId: sleeperMatch[1] };
   }
 
-  try {
-    const url = new URL(trimmed);
-    const leagueId = url.searchParams.get('leagueId');
-    if (
-      url.hostname === 'fantasy.espn.com' &&
-      url.pathname === '/football/draft' &&
-      leagueId &&
-      /^\d{1,20}$/.test(leagueId)
-    ) {
-      return { provider: 'espn', draftId: leagueId };
-    }
-  } catch {
-    // A provider draft ID is also valid input.
+  const url = tryParseUrl(trimmed);
+  const leagueId = url?.searchParams.get('leagueId');
+  if (
+    url?.hostname === 'fantasy.espn.com' &&
+    url.pathname === '/football/draft' &&
+    leagueId &&
+    /^\d{1,20}$/.test(leagueId)
+  ) {
+    return { provider: 'espn', draftId: leagueId };
   }
 
   if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return null;

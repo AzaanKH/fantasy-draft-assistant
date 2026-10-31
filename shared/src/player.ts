@@ -22,13 +22,7 @@ export const NEWS_STATUSES = [
 
 export type NewsStatus = (typeof NEWS_STATUSES)[number];
 
-/**
- * Highlight levels for player recommendations
- * - strong-buy: Value >= +10 AND (contract year OR top-10 offense)
- * - good-value: Value >= +5 OR contract year with decent offense
- * - neutral: Default state
- * - avoid: Value <= -15 (significantly overvalued)
- */
+/** Thresholds live in determineHighlightLevel. */
 const HIGHLIGHT_LEVELS = ['strong-buy', 'good-value', 'neutral', 'avoid'] as const;
 
 export type HighlightLevel = (typeof HIGHLIGHT_LEVELS)[number];

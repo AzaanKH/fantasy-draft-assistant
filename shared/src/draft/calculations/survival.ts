@@ -136,6 +136,17 @@ function getCurrentPositionPercentile(
   return index / (positionPlayers.length - 1);
 }
 
+const MIN_EMPIRICAL_PICK_SAMPLES = 8;
+
+function getEmpiricalPicks(
+  model: LeagueSurvivalModel,
+  position: Position
+): number[] | null {
+  const picks = model.historicalPickNumbers?.[position]
+    ?.filter((pick) => isPositiveFinite(pick));
+  return picks && picks.length >= MIN_EMPIRICAL_PICK_SAMPLES ? picks : null;
+}
+
 function getHistoricalExpectedPick(
   player: Player,
   playerPool: readonly Player[],
@@ -143,17 +154,22 @@ function getHistoricalExpectedPick(
   consensusMarketPick: number,
   summary: LeagueSurvivalPositionSummary
 ): number {
-  const empiricalPicks = model.historicalPickNumbers?.[player.position]
-    ?.filter((pick) => isPositiveFinite(pick));
-  if (empiricalPicks && empiricalPicks.length >= 8) {
+  const empiricalPicks = getEmpiricalPicks(model, player.position);
+  if (empiricalPicks) {
     return quantile(
       empiricalPicks,
       getCurrentPositionPercentile(player, playerPool)
     );
   }
+  return getSparseSampleExpectedPick(player, model, consensusMarketPick, summary);
+}
 
-  // Version-one artifacts do not contain empirical samples. Preserve a
-  // deterministic history-led fallback until the local model is regenerated.
+function getSparseSampleExpectedPick(
+  player: Player,
+  model: LeagueSurvivalModel,
+  consensusMarketPick: number,
+  summary: LeagueSurvivalPositionSummary
+): number {
   const bucketPressure = getAdpBucketPressure(
     model,
     player.position,
@@ -174,9 +190,8 @@ function getSurvivalScale(
   model: LeagueSurvivalModel,
   leagueAdjustedMarketRank: number
 ): number {
-  const empiricalPicks = model.historicalPickNumbers?.[player.position]
-    ?.filter((pick) => isPositiveFinite(pick));
-  if (empiricalPicks && empiricalPicks.length >= 8) {
+  const empiricalPicks = getEmpiricalPicks(model, player.position);
+  if (empiricalPicks) {
     const interquartileRange = quantile(empiricalPicks, 0.75) -
       quantile(empiricalPicks, 0.25);
     return clamp(interquartileRange / 6, 5, 12);

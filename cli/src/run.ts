@@ -80,8 +80,7 @@ function playerSummary(recommendation: Recommendation) {
 
 const write = (output: Output['stdout'], text: string) => Effect.promise(async () => { await output(text); });
 
-// These failures will repeat on every attempt, so reconnecting would only hide them.
-const FATAL_STREAM_ERRORS = new Set(['PAIRING_REJECTED', 'INVALID_STREAM', 'SERVER_ERROR']);
+const NON_RETRYABLE_STREAM_ERRORS = new Set(['PAIRING_REJECTED', 'INVALID_STREAM', 'SERVER_ERROR']);
 
 const watch = Effect.fn('watch')(function* (session: SessionId, client: DraftClient, io: Output, now: () => number) {
   let sequence = 0;
@@ -91,7 +90,7 @@ const watch = Effect.fn('watch')(function* (session: SessionId, client: DraftCli
   for (;;) {
     yield* client.events(session).pipe(
       Stream.runForEach(update => { failures = 0; return emit(update); }),
-      Effect.catchIf(error => !FATAL_STREAM_ERRORS.has(error.code), () => Effect.void),
+      Effect.catchIf(error => !NON_RETRYABLE_STREAM_ERRORS.has(error.code), () => Effect.void),
     );
     const retryInMs = Math.min(30_000, 1000 * 2 ** Math.min(failures++, 5));
     yield* emit({ type: 'reconnecting', retryInMs });

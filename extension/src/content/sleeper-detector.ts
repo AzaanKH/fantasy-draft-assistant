@@ -7,6 +7,8 @@ import { createChromeMessageSender, createChromeUndecodedEspnSnapshotRelay } fro
 import { createDraftRoomLifecycle } from './draft-room-lifecycle';
 import { startEspnContentBridge } from './espn-content-bridge';
 
+const LATE_SPA_SHELL_RESTART_MS = 2000;
+
 const sendMessage = createChromeMessageSender();
 startEspnContentBridge(createChromeUndecodedEspnSnapshotRelay());
 
@@ -40,8 +42,6 @@ if (document.readyState === 'loading') {
   lifecycle.start();
 }
 
-// Some provider pages complete their SPA shell after document_idle. `start`
-// is idempotent, so this fallback cannot create duplicate observers or polls.
 window.setTimeout(() => {
   lifecycle.start();
-}, 2000);
+}, LATE_SPA_SHELL_RESTART_MS);
