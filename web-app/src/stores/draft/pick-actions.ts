@@ -1,5 +1,5 @@
-import { deriveDraftCursor, canonicalizeKeeperSupply, getEffectiveKeeperAssignments, getKeeperPickNumber, createSlotSequence } from '@fantasy-draft/shared/draft';
-import { deriveDraftState } from './source';
+import { deriveDraftCursor, canonicalizeKeeperSupply, getKeeperPickNumber, createSlotSequence } from '@fantasy-draft/shared/draft';
+import { deriveDraftState, effectiveKeepers } from './source';
 import type { DraftActions, SetDraftState } from './types';
 
 export function createPickActions(
@@ -97,17 +97,11 @@ export function createPickActions(
         state.preloadedKeepers = assignments.map((keeper) => ({ ...keeper }));
         state.keepersInitialized = supplyIsValid && supplyComplete;
         state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
-        const effectiveKeepers = getEffectiveKeeperAssignments(
-          state.preloadedKeepers,
-          state.draftHistory,
-          state.config.totalTeams,
-          state.config.draftType
-        );
         state.draftProgress = {
           historyLength: state.draftHistory.length,
           anchor: state.sessionMode === 'live'
             ? { kind: 'past-keepers', fromPick,
-                keeperSlots: effectiveKeepers.map(keeper => getKeeperPickNumber(keeper, state.config.totalTeams, state.config.draftType)),
+                keeperSlots: effectiveKeepers(state).map(keeper => getKeeperPickNumber(keeper, state.config.totalTeams, state.config.draftType)),
                 totalPicks: state.config.totalTeams * state.config.totalRounds }
             : { kind: 'carry', pickNumber: fromPick },
         };
@@ -118,21 +112,11 @@ export function createPickActions(
       { set((state) => {
         const { currentPick } = deriveDraftState(state);
         if (expectedPickNumber !== undefined && currentPick !== expectedPickNumber) throw new Error('The draft advanced before the keeper could be recorded.');
-        const keeper = state.preloadedKeepers.find(
+        const keeper = effectiveKeepers(state).find(
           (candidate) => getKeeperPickNumber(candidate, state.config.totalTeams, state.config.draftType) === currentPick
         );
         if (!keeper) return;
         if (state.draftHistory.some((pick) => pick.pickNumber === currentPick)) return;
-        const keeperDraftedAtAnotherSlot = state.draftHistory.some((pick) => pick.playerId === keeper.playerId);
-        if (keeperDraftedAtAnotherSlot) {
-          const pickAfterKeeperSlot = deriveDraftCursor(state.draftHistory, state.draftProgress) + 1;
-          state.draftProgress = {
-            anchor: { kind: 'carry', pickNumber: pickAfterKeeperSlot },
-            historyLength: state.draftHistory.length,
-          };
-          state.mockSurvivalProbabilities = {};
-          return;
-        }
 
         const isMyKeeper = keeper.teamIndex === state.config.myPickPosition - 1;
         state.draftHistory.push({

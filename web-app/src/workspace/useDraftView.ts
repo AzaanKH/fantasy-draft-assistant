@@ -1,14 +1,15 @@
-import { deriveDraftState } from '@/stores/draft/source';
+import { deriveDraftState, effectiveKeepers } from '@/stores/draft/source';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
-import { getEffectiveKeeperAssignments, type DerivedDraft } from '@fantasy-draft/shared/draft';
+import type { DerivedDraft } from '@fantasy-draft/shared/draft';
 import type { Player } from '@fantasy-draft/shared/league';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useWorkspace } from './WorkspaceProvider';
-import type { DraftState } from '@/stores/draft/types';
+import type { DraftState, PreloadedKeeper } from '@/stores/draft/types';
 
 export interface DraftView extends DerivedDraft {
   readonly draftedPlayers: readonly { readonly playerName: string; readonly position: Player['position'] }[];
+  readonly effectiveKeepers: readonly PreloadedKeeper[];
 }
 
 type Inputs = Pick<DraftState, 'draftProgress' | 'sessionMode' | 'draftHistory' | 'preloadedKeepers' | 'config' | 'shortlistedPlayerIds'>;
@@ -25,14 +26,11 @@ function selectDraftView(store: DraftViewStore, state: Inputs, players: readonly
   if (before && before.draftProgress === state.draftProgress && before.sessionMode === state.sessionMode &&
       before.draftHistory === state.draftHistory && before.preloadedKeepers === state.preloadedKeepers &&
       before.config === state.config && before.shortlistedPlayerIds === state.shortlistedPlayerIds) return previous.view;
-  const { config } = state;
-  const derived = deriveDraftState(state, players);
+  const keepers = effectiveKeepers(state);
   const view: DraftView = {
-    ...derived,
-    draftedPlayers: [
-      ...state.draftHistory,
-      ...getEffectiveKeeperAssignments(state.preloadedKeepers, state.draftHistory, config.totalTeams, config.draftType),
-    ],
+    ...deriveDraftState(state, players),
+    draftedPlayers: [...state.draftHistory, ...keepers],
+    effectiveKeepers: keepers,
   };
   catalogs.set(players, { inputs: state, view });
   return view;

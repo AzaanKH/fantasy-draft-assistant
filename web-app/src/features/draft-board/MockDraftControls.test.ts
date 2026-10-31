@@ -211,6 +211,56 @@ describe('mock draft auto-advance', () => {
     expect(getDraftView(store).currentPick).toBe(3);
   });
 
+  it('runs a CPU pick at a keeper slot whose keeper Provider Truth drafted earlier', () => {
+    // Snake order: pick 7 is team 2's round-2 slot; Provider Truth took the keeper at pick 6.
+    store.getState().preloadKeepers([{
+      playerId: 'keeper-1', playerName: 'Keeper', position: 'TE', teamIndex: 1, round: 2, isMyKeeper: false,
+    }]);
+    store.getState().reconcileSyncedPicks([1, 2, 3, 4, 5, 6].map((pickNumber) => {
+      const teamIndex = [0, 1, 2, 3, 3, 2][pickNumber - 1] ?? 0;
+      return {
+        pickNumber,
+        playerId: pickNumber === 6 ? 'keeper-1' : `synced-${String(pickNumber)}`,
+        playerName: pickNumber === 6 ? 'Keeper' : `Synced ${String(pickNumber)}`,
+        position: pickNumber === 6 ? 'TE' : 'RB',
+        teamIndex,
+        teamName: `Team ${String(teamIndex + 1)}`,
+        isMyPick: teamIndex === 2,
+      };
+    }), 7);
+    render({ onBoard: true });
+    advance(3000);
+
+    const history = store.getState().draftHistory;
+    expect(history.map((pick) => pick.pickNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(history.find((pick) => pick.pickNumber === 7)).toMatchObject({ source: 'cpu', teamIndex: 1 });
+    expect(getDraftView(store).currentPick).toBe(11);
+  });
+
+  it('stops for the user at their keeper slot when Provider Truth drafted the keeper earlier', () => {
+    // Snake order: pick 6 is the user's round-2 slot; Provider Truth took the keeper at pick 5.
+    store.getState().preloadKeepers([{
+      playerId: 'keeper-1', playerName: 'Keeper', position: 'TE', teamIndex: 2, round: 2, isMyKeeper: true,
+    }]);
+    store.getState().reconcileSyncedPicks([1, 2, 3, 4, 5].map((pickNumber) => {
+      const teamIndex = [0, 1, 2, 3, 3][pickNumber - 1] ?? 0;
+      return {
+        pickNumber,
+        playerId: pickNumber === 5 ? 'keeper-1' : `synced-${String(pickNumber)}`,
+        playerName: pickNumber === 5 ? 'Keeper' : `Synced ${String(pickNumber)}`,
+        position: pickNumber === 5 ? 'TE' : 'RB',
+        teamIndex,
+        teamName: `Team ${String(teamIndex + 1)}`,
+        isMyPick: teamIndex === 2,
+      };
+    }), 6);
+    render({ onBoard: true });
+    advance(3000);
+
+    expect(store.getState().draftHistory.map((pick) => pick.pickNumber)).toEqual([1, 2, 3, 4, 5]);
+    expect(getDraftView(store)).toMatchObject({ currentPick: 6, isMyTurn: true, canDraft: true });
+  });
+
   it('holds keeper slots while the settings dialog is open', () => {
     store.getState().preloadKeepers([{
       playerId: 'keeper-1', playerName: 'Keeper', position: 'RB', teamIndex: 0, round: 1, isMyKeeper: false,
