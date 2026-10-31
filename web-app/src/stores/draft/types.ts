@@ -225,4 +225,11 @@ export interface DraftActions {
 export type DraftStore = DraftState & DraftActions;
 
 
-export type SetDraftState = (transition: (state: Draft<DraftState>) => void) => boolean;
+export type DraftTransition<Result> = (state: Draft<DraftState>) => Result;
+
+/** A refused transition left the draft unchanged because draft storage has migrated. */
+export type DraftTransitionOutcome<Result> =
+  | { readonly status: 'committed'; readonly result: Result }
+  | { readonly status: 'refused' };
+
+export type SetDraftState = <Result = void>(transition: DraftTransition<Result>) => DraftTransitionOutcome<Result>;

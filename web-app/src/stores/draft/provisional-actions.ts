@@ -17,12 +17,9 @@ export function createProvisionalActions(
 > {
   return {
     recordProvisionalPick: (pick) => {
-      let recorded = false;
-      const applied = set((state) => {
-        // A save conflict replays this transition on another tab's newer session.
-        recorded = false;
+      const outcome = set((state) => {
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        if (!Number.isInteger(pick.pickNumber) || pick.pickNumber < 1 || pick.pickNumber > totalPicks) return;
+        if (!Number.isInteger(pick.pickNumber) || pick.pickNumber < 1 || pick.pickNumber > totalPicks) return false;
         const expectedTeamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(pick.pickNumber).teamIndex;
         const reservedKeeperPickNumbers = getKeeperPickNumbers(
           state.preloadedKeepers,
@@ -38,7 +35,7 @@ export function createProvisionalActions(
             draftPick.pickNumber === pick.pickNumber ||
             draftPick.playerId === pick.playerId
           );
-        if (invalidPick) return;
+        if (invalidPick) return false;
 
         const shortlistIndex = state.shortlistedPlayerIds.indexOf(pick.playerId);
         if (shortlistIndex >= 0) {
@@ -51,25 +48,23 @@ export function createProvisionalActions(
           ...(shortlistIndex >= 0 ? { shortlistIndex } : {}),
         });
         acceptProvisionalProgress(state);
-        recorded = true;
+        return true;
       });
-      return applied && recorded;
+      return outcome.status === 'committed' && outcome.result;
     },
 
     correctProvisionalPick: (originalPickNumber, replacement) => {
-      let corrected = false;
-      const applied = set((state) => {
-        corrected = false;
+      const outcome = set((state) => {
         const originalIndex = state.draftHistory.findIndex(
           (pick) =>
             pick.pickNumber === originalPickNumber &&
             pick.source === 'provisional'
         );
         const original = state.draftHistory[originalIndex];
-        if (!original || state.sessionMode !== 'live') return;
+        if (!original || state.sessionMode !== 'live') return false;
 
         const totalPicks = state.config.totalTeams * state.config.totalRounds;
-        if (!Number.isInteger(replacement.pickNumber) || replacement.pickNumber < 1 || replacement.pickNumber > totalPicks) return;
+        if (!Number.isInteger(replacement.pickNumber) || replacement.pickNumber < 1 || replacement.pickNumber > totalPicks) return false;
         const expectedTeamIndex = createSlotSequence({ type: state.config.draftType, teams: state.config.totalTeams, rounds: state.config.totalRounds }).at(replacement.pickNumber).teamIndex;
         const keeperPlayerIds = new Set(
           state.preloadedKeepers.map((keeper) => keeper.playerId)
@@ -92,7 +87,7 @@ export function createProvisionalActions(
           keeperPlayerIds.has(replacement.playerId) ||
           reservedKeeperPickNumbers.has(replacement.pickNumber) ||
           duplicatesAnotherPick;
-        if (invalidReplacement) return;
+        if (invalidReplacement) return false;
 
         const isUnchanged =
           original.pickNumber === replacement.pickNumber &&
@@ -101,7 +96,7 @@ export function createProvisionalActions(
           original.position === replacement.position &&
           original.teamIndex === replacement.teamIndex &&
           original.teamName === replacement.teamName;
-        if (isUnchanged) return;
+        if (isUnchanged) return false;
 
         let shortlistIndex = original.shortlistIndex;
         if (original.playerId !== replacement.playerId) {
@@ -125,29 +120,27 @@ export function createProvisionalActions(
             : {}),
         };
         acceptProvisionalProgress(state);
-        corrected = true;
+        return true;
       });
-      return applied && corrected;
+      return outcome.status === 'committed' && outcome.result;
     },
 
     removeProvisionalPick: (pickNumber) => {
-      let removed = false;
-      const applied = set((state) => {
-        removed = false;
-        if (state.sessionMode !== 'live') return;
+      const outcome = set((state) => {
+        if (state.sessionMode !== 'live') return false;
         const pickIndex = state.draftHistory.findIndex(
           (pick) =>
             pick.pickNumber === pickNumber && pick.source === 'provisional'
         );
         const pick = state.draftHistory[pickIndex];
-        if (!pick) return;
+        if (!pick) return false;
 
         restoreShortlistedPlayer(state.shortlistedPlayerIds, pick);
         state.draftHistory.splice(pickIndex, 1);
         acceptProvisionalProgress(state);
-        removed = true;
+        return true;
       });
-      return applied && removed;
+      return outcome.status === 'committed' && outcome.result;
     },
 
   };

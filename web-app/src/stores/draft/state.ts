@@ -1,8 +1,9 @@
+import { createDraft, finishDraft } from 'immer';
 import { deriveDraftState } from './source';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared/league';
 import type { DraftType } from '@fantasy-draft/shared/sync';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
-import type { PreloadedKeeper, DraftState, RecordedDraftPick, FilterState, DraftConfig, MockDraftSettings } from './types';
+import type { PreloadedKeeper, DraftState, DraftTransition, RecordedDraftPick, FilterState, DraftConfig, MockDraftSettings } from './types';
 
 export function getKeeperPickNumbers(
   keepers: readonly PreloadedKeeper[],
@@ -46,6 +47,15 @@ export function acceptProvisionalProgress(state: Pick<
     historyLength: state.draftHistory.length,
   };
   state.mockSurvivalProbabilities = {};
+}
+
+export function runDraftTransition<State extends DraftState, Result>(
+  state: State,
+  transition: DraftTransition<Result>
+): { readonly next: State; readonly result: Result } {
+  const draft = createDraft(state);
+  const result = transition(draft);
+  return { next: finishDraft(draft) as State, result };
 }
 
 export const defaultFilter: FilterState = {

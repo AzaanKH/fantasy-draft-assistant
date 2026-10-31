@@ -50,8 +50,13 @@ export interface PersistedDraftSession {
   readonly lastConfirmedPickNumber: number;
 }
 
+/** Escapes each segment, so a key prefix ending in `:` matches only keys under exactly those segments. */
+export function joinStorageKey(...segments: readonly string[]): string {
+  return segments.map(encodeURIComponent).join(':');
+}
+
 export function getDraftSessionStorageKey(identity: DraftSessionIdentity): string {
-  return `fantasy-draft-session-v1:${identity.provider}:${identity.draftId}`;
+  return joinStorageKey('fantasy-draft-session-v1', identity.provider, identity.draftId);
 }
 
 export function getBrowserDraftSessionStorage(): DraftSessionStorage | null {
@@ -129,8 +134,10 @@ export interface DraftSessionBase {
   readonly session: PersistedDraftSession | null;
 }
 
+export const EMPTY_DRAFT_SESSION_BASE: DraftSessionBase = { revision: 0, serialized: null, lineage: [], session: null };
+
 interface DraftSessionWriteOptions {
-  /** Skips the conflict check, leaving the overwritten tab's save to be merged back. */
+  /** Skips the conflict check. */
   readonly force?: boolean;
   /** Records this save under the tab's own key so any tab can merge it back. */
   readonly tabId?: string | null;
@@ -147,10 +154,7 @@ export function createDraftSessionWriteId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-/**
- * Writes the session only if no other tab saved since `base`. On conflict the
- * caller must reapply its change to the newer session and try again.
- */
+/** Writes the session only if no other tab saved since `base`. */
 export function persistDraftSession(
   storage: DraftSessionStorage | null,
   state: DraftStore,
