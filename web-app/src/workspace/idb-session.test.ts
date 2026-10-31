@@ -63,7 +63,7 @@ describe('IndexedDB session boundary', () => {
 
   it('requires a normalized draft type in native IndexedDB records', () => {
     const session = sessionFromState(initialDraftState(identity), identity, 1);
-    expect(() => decodeIndexedSession({ ...session, config: { ...session.config, draftType: undefined } })).toThrow('requires a draft type');
+    expect(() => decodeIndexedSession({ ...session, config: { ...session.config, draftType: undefined } })).toThrow('draftType');
   });
 
   it('does not revise schema-decoded facts for a rejected or duplicate command', async () => {

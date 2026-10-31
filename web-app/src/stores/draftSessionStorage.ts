@@ -5,6 +5,7 @@ import { DRAFT_SESSION_LINEAGE_LIMIT, type DraftSessionIdentity } from '@fantasy
 export type { DraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { canonicalizeKeeperSupply, type DraftProgress } from '@fantasy-draft/shared/draft';
 import { decodeStoredDraftSession } from '@fantasy-draft/shared/catalog';
+import { readLegacyDraftSession } from './legacyDraftSession';
 export { DRAFT_SESSION_LINEAGE_LIMIT } from '@fantasy-draft/shared/sync';
 import {
   computeDraftSessionChange,
@@ -31,14 +32,12 @@ export interface PersistedDraftSession {
    * Recent write IDs this session includes, newest last: saves it builds on and
    * overwritten saves merged back into it. A recorded save missing from the
    * lineage was overwritten by a concurrent save and must be merged back.
-   * Sessions saved before multi-tab merging have none.
    */
   readonly lineage: readonly string[];
   readonly identity: DraftSessionIdentity;
   readonly config: DraftConfig;
   readonly leagueSettings: LeagueSettings;
   readonly currentPick: number;
-  /** Optional in stored records; parsing imports missing progress from the legacy cursor. */
   readonly draftProgress: DraftProgress;
   readonly draftHistory: RecordedDraftPick[];
   readonly shortlistedPlayerIds: string[];
@@ -69,18 +68,16 @@ export function parseStoredDraftSession(
 ): PersistedDraftSession | null {
   if (!serialized || serialized.length > 2_000_000) return null;
   try {
-    const value = decodeStoredDraftSession(JSON.parse(serialized));
+    const value = decodeStoredDraftSession(readLegacyDraftSession(serialized));
     if (value.identity.provider !== identity.provider || value.identity.draftId !== identity.draftId) return null;
     const config: DraftConfig = {
       totalTeams: value.config.totalTeams,
       totalRounds: value.config.totalRounds,
       myPickPosition: value.config.myPickPosition,
       rosterRequirements: value.config.rosterRequirements,
-      // eslint-disable-next-line no-restricted-syntax -- Version 1 sessions predating draftType used snake order.
-      draftType: value.config.draftType ?? 'snake',
+      draftType: value.config.draftType,
     };
     const draftHistory = value.draftHistory;
-    const lineage: readonly string[] = value.lineage ?? [];
     const preloadedKeepers = value.preloadedKeepers;
     if (new Set(draftHistory.map((pick) => pick.pickNumber)).size !== draftHistory.length ||
         new Set(draftHistory.map((pick) => pick.playerId)).size !== draftHistory.length) return null;
@@ -89,7 +86,7 @@ export function parseStoredDraftSession(
 
     return {
       version: 1,
-      revision: value.revision ?? 0,
+      revision: value.revision,
       identity: { provider: identity.provider, draftId: identity.draftId },
       config,
       leagueSettings: value.leagueSettings,
@@ -104,7 +101,7 @@ export function parseStoredDraftSession(
       manualContinuityBaselineAt: value.manualContinuityBaselineAt,
       lastConfirmedSyncAt: value.lastConfirmedSyncAt,
       lastConfirmedPickNumber: value.lastConfirmedPickNumber,
-      lineage,
+      lineage: [...value.lineage],
     };
   } catch {
     return null;

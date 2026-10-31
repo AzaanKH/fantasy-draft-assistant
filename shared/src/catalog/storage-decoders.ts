@@ -42,7 +42,7 @@ export const decodeLeagueSetupPreferences = /* @__PURE__ */ Schema.decodeUnknown
 }));
 
 const configFields = { totalTeams: /* @__PURE__ */ integer(2, MAX_DRAFT_TEAMS), totalRounds: /* @__PURE__ */ integer(1, MAX_DRAFT_ROUNDS),
-  myPickPosition: /* @__PURE__ */ integer(1, MAX_DRAFT_TEAMS), rosterRequirements, draftType: /* @__PURE__ */ Schema.optional(draftType),
+  myPickPosition: /* @__PURE__ */ integer(1, MAX_DRAFT_TEAMS), rosterRequirements, draftType,
 };
 const config = /* @__PURE__ */ object(configFields).check(/* @__PURE__ */ Schema.makeFilter(value => isDraftSize(value.totalTeams, value.totalRounds) && value.myPickPosition <= value.totalTeams));
 const recordedPick = /* @__PURE__ */ object({ pickNumber: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS), playerId: text, playerName: text, position,
@@ -60,17 +60,16 @@ const keepers = /* @__PURE__ */ Schema.Array(keeper).check(/* @__PURE__ */ Schem
 const unresolved = /* @__PURE__ */ Schema.Array(unresolvedPick).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
 const lens = /* @__PURE__ */ Schema.Literals(['best-pick', 'best-player']);
 const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal(1), identity, config, leagueSettings,
-  draftProgress: /* @__PURE__ */ Schema.optional(Schema.Unknown),
+  draftProgress: Schema.Unknown,
   currentPick: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1), draftHistory: history, preloadedKeepers: keepers,
   shortlistedPlayerIds: playerIds, keepersInitialized: Schema.Boolean, unresolvedProviderPicks: unresolved,
   decisionLens: lens, manualContinuityBaselineAt: nullableTimestamp, lastConfirmedSyncAt: nullableTimestamp,
-  lastConfirmedPickNumber: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS), revision: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ integer(0, Number.MAX_SAFE_INTEGER)),
-  lineage: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Array(text).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= DRAFT_SESSION_LINEAGE_LIMIT))),
+  lastConfirmedPickNumber: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS), revision: /* @__PURE__ */ integer(0, Number.MAX_SAFE_INTEGER),
+  lineage: /* @__PURE__ */ Schema.Array(text).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= DRAFT_SESSION_LINEAGE_LIMIT)),
 }).check(/* @__PURE__ */ Schema.makeFilter(value => {
   const c = value.config;
   const total = c.totalTeams * c.totalRounds;
-  // eslint-disable-next-line no-restricted-syntax -- Version 1 sessions predating draftType used snake order.
-  const sequence = createSlotSequence({ type: c.draftType ?? 'snake', teams: c.totalTeams, rounds: c.totalRounds });
+  const sequence = createSlotSequence({ type: c.draftType, teams: c.totalTeams, rounds: c.totalRounds });
   return value.currentPick <= total + 1 && value.lastConfirmedPickNumber <= total &&
     (value.manualContinuityBaselineAt === null || value.identity.provider === 'sleeper') &&
     value.draftHistory.length <= total && value.preloadedKeepers.length <= total && value.unresolvedProviderPicks.length <= total &&
@@ -115,27 +114,23 @@ export function decodeStoredDraftSession(input: unknown): ReturnType<typeof deco
   const value = decodeSession(input);
   // Legacy reloads sort picks; validate the command prefix against that same order.
   const draftHistory = [...value.draftHistory].sort((left, right) => left.pickNumber - right.pickNumber);
-  let draftProgress: DraftProgress = {
-    anchor: { kind: 'carry', pickNumber: value.currentPick }, historyLength: value.draftHistory.length,
-  };
-  if (value.draftProgress !== undefined) {
-    try {
-      const decoded = decodeProgress(value.draftProgress);
-      if (decoded.historyLength > value.draftHistory.length ||
-          deriveDraftCursor(draftHistory, decoded) !== value.currentPick) {
-        throw new Error('Progress does not match the saved history and cursor');
-      }
-      draftProgress = decoded;
-    } catch {
-      console.warn('[Fantasy Draft] Could not restore stored draft progress; imported the saved cursor as carry.', { identity: value.identity });
+  let draftProgress: DraftProgress;
+  try {
+    draftProgress = decodeProgress(value.draftProgress);
+    if (draftProgress.historyLength > value.draftHistory.length ||
+        deriveDraftCursor(draftHistory, draftProgress) !== value.currentPick) {
+      throw new Error('Progress does not match the saved history and cursor');
     }
+  } catch {
+    console.warn('[Fantasy Draft] Could not restore stored draft progress; imported the saved cursor as carry.', { identity: value.identity });
+    draftProgress = { anchor: { kind: 'carry', pickNumber: value.currentPick }, historyLength: value.draftHistory.length };
   }
   return { ...value, draftHistory, draftProgress };
 }
 
 function change<S extends Schema.Top>(schema: S) { return /* @__PURE__ */ object({ before: schema, after: schema }); }
 const changeFields = {
-  config: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ object({ ...configFields, draftType }))), leagueSettings: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(leagueSettings)),
+  config: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ object(configFields))), leagueSettings: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(leagueSettings)),
   preloadedKeepers: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ Schema.mutable(keepers))), keepersInitialized: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(Schema.Boolean)),
   unresolvedProviderPicks: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(/* @__PURE__ */ Schema.mutable(unresolved))), decisionLens: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(lens)),
   manualContinuityBaselineAt: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(nullableTimestamp)), lastConfirmedSyncAt: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ change(nullableTimestamp)),

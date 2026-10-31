@@ -123,11 +123,11 @@ export function createPickActions(
         );
         if (!keeper) return;
         if (state.draftHistory.some((pick) => pick.pickNumber === currentPick)) return;
-        // A legacy synced keeper may already exist at another slot. The
-        // canonical keeper still owns this slot, so advance instead of stalling.
-        if (state.draftHistory.some((pick) => pick.playerId === keeper.playerId)) {
+        const keeperDraftedAtAnotherSlot = state.draftHistory.some((pick) => pick.playerId === keeper.playerId);
+        if (keeperDraftedAtAnotherSlot) {
+          const pickAfterKeeperSlot = deriveDraftCursor(state.draftHistory, state.draftProgress) + 1;
           state.draftProgress = {
-            anchor: { kind: 'carry', pickNumber: deriveDraftCursor(state.draftHistory, state.draftProgress) + 1 },
+            anchor: { kind: 'carry', pickNumber: pickAfterKeeperSlot },
             historyLength: state.draftHistory.length,
           };
           state.mockSurvivalProbabilities = {};
