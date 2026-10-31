@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Effect, Stream } from 'effect';
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { DraftClient } from './client';
 import { http } from '@fantasy-draft/shared/http';
@@ -55,15 +56,19 @@ describe('draft server requests', () => {
 
   /** A server that sends headers and part of a body, then never finishes it. */
   async function stalledBodyServer(contentType = 'application/json', partialBody = '{"sessions": [') {
+    // Other local processes can probe any new localhost listener, such as a dev tool's
+    // port scan sending GET /. Only requests under this server's unique prefix are the client's.
+    const prefix = `/${randomUUID()}`;
     let closed = false;
     const server = createServer((request, response) => {
+      if (!request.url?.startsWith(`${prefix}/`)) { response.writeHead(404).end(); return; }
       response.writeHead(200, { 'content-type': contentType });
       response.write(partialBody);
       request.socket.once('close', () => { closed = true; });
     });
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as AddressInfo;
-    return { url: `http://127.0.0.1:${String(port)}`, isClosed: () => closed,
+    return { url: `http://127.0.0.1:${String(port)}${prefix}`, isClosed: () => closed,
       stop: () => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => { resolve(); }); }) };
   }
 

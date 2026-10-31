@@ -26,6 +26,9 @@ beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'draft-cli-'));
   await writeFixtureData(root);
   server = createServer((request, response) => {
+    // Other local processes can probe any new localhost listener, such as a dev tool's
+    // port scan sending GET /. The CLI only requests /api/ routes, so count only those.
+    if (!request.url?.startsWith('/api/')) { response.writeHead(404).end(); return; }
     requestCount += 1;
     if (request.url?.startsWith('/api/market-adp?')) {
       marketSeason = new URL(request.url, 'http://fixture').searchParams.get('season');
