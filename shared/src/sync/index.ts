@@ -22,7 +22,7 @@ export type {
   DraftSyncSnapshot,
   DraftSyncUpdate,
 } from '../sync.js';
-export { isDraftProviderHost, parseDraftRoomUrl } from '../draft-url.js';
+export { isDraftProviderHost, parseDraftRoomUrl, SLEEPER_DRAFT_HOSTS } from '../draft-url.js';
 export type { DraftRoomStatus } from '../draft-url.js';
 
 export { DRAFT_STORAGE_MIGRATION_KEY, isDraftStorageMigration, type DraftStorageMigration } from './storage-migration.js';
