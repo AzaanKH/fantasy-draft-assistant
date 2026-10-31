@@ -126,6 +126,27 @@ describe('Sleeper settings cache', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('does not cache a lookup that was in flight when settings were invalidated', async () => {
+    let settingsRequests = 0;
+    let releaseLookup: (() => void) | undefined;
+    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, fixtureFetchJson(async (url: string): Promise<unknown> => {
+      if (url.endsWith('/picks')) return picksFixture;
+      if (url.includes('/draft/')) return draftFixture;
+      settingsRequests += 1;
+      if (settingsRequests === 1) await new Promise<void>((resolve) => { releaseLookup = resolve; });
+      return leagueFixture;
+    }));
+    const firstPoll = Effect.runPromise(adapter.poll());
+    await vi.waitFor(() => { expect(releaseLookup).toBeDefined(); });
+    adapter.invalidateSettings();
+    releaseLookup?.();
+    expect((await firstPoll).draft.leagueSettings).toBeDefined();
+    await Effect.runPromise(adapter.poll());
+    expect(settingsRequests).toBe(2);
+    await Effect.runPromise(adapter.poll());
+    expect(settingsRequests).toBe(2);
+  });
+
   it('does not reuse settings from a different league', async () => {
     const test = setup();
     await Effect.runPromise(test.adapter.poll());
@@ -133,6 +154,27 @@ describe('Sleeper settings cache', () => {
     const changed = await Effect.runPromise(test.adapter.poll());
     expect(test.count()).toBe(2);
     expect(changed.draft.leagueSettings?.leagueId).toBe('another-league');
+  });
+
+  it.each([
+    ['a draft without a league', null, false],
+    ['a failed lookup for another league', 'another-league', true],
+  ])('verifies settings again after %s', async (_label, otherLeague, otherFails) => {
+    let leagueId: string | null = leagueFixture.league_id;
+    const settingsRequests: string[] = [];
+    const adapter = new SleeperSyncAdapter(draftFixture.draft_id, fixtureFetchJson(async (url: string): Promise<unknown> => {
+      if (url.endsWith('/picks')) return picksFixture;
+      if (url.includes('/draft/')) return { ...draftFixture, league_id: leagueId };
+      settingsRequests.push(url);
+      if (otherFails && leagueId === otherLeague) throw new Error('Settings unavailable');
+      return { ...leagueFixture, league_id: leagueId };
+    }));
+    await Effect.runPromise(adapter.poll());
+    leagueId = otherLeague;
+    expect((await Effect.runPromise(adapter.poll())).draft.leagueSettings).toBeUndefined();
+    leagueId = leagueFixture.league_id;
+    await Effect.runPromise(adapter.poll());
+    expect(settingsRequests.filter(url => url.endsWith(`/league/${leagueFixture.league_id}`))).toHaveLength(2);
   });
 
   it('keeps picks but drops expired settings after a refresh failure', async () => {

@@ -24,10 +24,10 @@ const effectOwners = [
   'scripts/src/{contract-source-schema,script-file-schemas}.ts',
   '**/*.test.{ts,tsx,mjs}',
   'cli/src/{archive,client,connections,data,errors,files,run}.ts',
-  'extension/src/background/{background-controller,sync-snapshot-client}.ts',
+  'extension/src/background/{background-controller,snapshot-request-ledger,sync-snapshot-client}.ts',
   'extension/src/shared/boundary-decoders.ts',
   'extension/config/manifest-decoder.ts',
-  'server/src/{draft-data-refresh,fantasy-football-calculator,http-security,shadow-logger,sleeper-adapter,sync-adapter,sync-server,yahoo-adapter}.ts',
+  'server/src/{draft-data-refresh,fantasy-football-calculator,http-security,shadow-logger,shared-poll,sleeper-adapter,sync-adapter,sync-server,yahoo-adapter}.ts',
   'scripts/src/{browser-gate,build-demo-data,build-historical-snapshots,build-prediction-dataset,check-data-quality,check-demo-data,effect-runtime,fantasypros-api,fetch-sleeper-adp,generate-team-env,import-league-draft-history,install-demo-data,measure-effect-adoption,primary-league-release-gate,refresh-contracts,refresh-fantasypros-snapshot,recommendation-evaluation}.ts',
   'scripts/src/model/{duckdb,init-duckdb,profile-model-sources}.ts',
 ];

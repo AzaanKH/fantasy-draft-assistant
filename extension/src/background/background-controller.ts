@@ -1,4 +1,4 @@
-import { Effect, Fiber } from 'effect';
+import { Effect } from 'effect';
 import {
   type DraftSyncSnapshot,
   type EspnDraftSnapshot,
@@ -15,6 +15,7 @@ import { getEspnLeagueSettingsProfile } from '../content/espn-league-profile';
 import type { DraftStorage } from './draft-storage';
 import { EMPTY_DRAFT_STATE, isDuplicatePick } from './draft-state';
 import type { SyncRequestError, SyncSnapshotClient } from './sync-snapshot-client';
+import { createSnapshotRequestLedger, type SnapshotRequestKind } from './snapshot-request-ledger';
 
 type SendResponse = (response: MessageResponse) => void;
 
@@ -43,9 +44,6 @@ function sameDraft(
     (left.provider ?? 'sleeper') === (right.provider ?? 'sleeper')
   );
 }
-
-/** Identifies the newest request for a draft; only its result is applied. */
-type SnapshotRequest = object;
 
 /**
  * Keep the page-world bridge dependency-free so Chrome can execute it as a
@@ -79,11 +77,7 @@ export function createBackgroundController(
   let detectedPicks = [...EMPTY_DRAFT_STATE.picks];
   let draftStatus: DraftRoomStatus = EMPTY_DRAFT_STATE.status;
   let syncSnapshot: DraftSyncSnapshot | null = null;
-  // The newest request per draft, read or upload, decides the shown snapshot.
-  const latestRequests = new Map<string, SnapshotRequest>();
-  // Any newer request cancels a stale read's network call. Uploads are never
-  // cancelled, because each one carries draft state the server must ingest.
-  const readFibers = new Map<string, Fiber.Fiber<void>>();
+  const requests = createSnapshotRequestLedger();
 
   const reportFailure = (operation: string, error: unknown) => {
     logger.warn(`[Fantasy Draft BG] ${operation}:`, error);
@@ -118,38 +112,26 @@ export function createBackgroundController(
   const runSnapshotRequest = (
     requestedStatus: DraftRoomStatus,
     request: Effect.Effect<DraftSyncSnapshot | null, SyncRequestError>,
-    options: { readonly failureLabel: string; readonly isRead: boolean }
+    options: { readonly failureLabel: string; readonly kind: SnapshotRequestKind }
   ): void => {
-    const key = `${requestedStatus.provider ?? 'sleeper'}:${requestedStatus.draftId ?? ''}`;
-    const staleRead = readFibers.get(key);
-    if (staleRead) Effect.runFork(Fiber.interrupt(staleRead));
-    readFibers.delete(key);
-    const current: SnapshotRequest = {};
-    latestRequests.set(key, current);
-    const isCurrent = () => latestRequests.get(key) === current && sameDraft(requestedStatus, draftStatus);
-    const fiber = Effect.runFork(request.pipe(
-      Effect.match({
-        onSuccess: (snapshot) => {
-          if (isCurrent()) syncSnapshot = snapshot;
-        },
-        onFailure: (error) => {
-          if (isCurrent()) syncSnapshot = null;
-          reportFailure(options.failureLabel, error);
-        },
-      }),
-      Effect.andThen(Effect.sync(() => {
-        if (isCurrent()) notifySidePanel();
-      })),
-      Effect.ensuring(Effect.sync(() => {
-        if (latestRequests.get(key) === current) latestRequests.delete(key);
-      })),
-    ));
-    if (options.isRead) {
-      readFibers.set(key, fiber);
-      fiber.addObserver(() => {
-        if (readFibers.get(key) === fiber) readFibers.delete(key);
-      });
-    }
+    const draftKey = `${requestedStatus.provider ?? 'sleeper'}:${requestedStatus.draftId ?? ''}`;
+    requests.run(draftKey, options.kind, (isLatest) => {
+      const isCurrent = () => isLatest() && sameDraft(requestedStatus, draftStatus);
+      return request.pipe(
+        Effect.match({
+          onSuccess: (snapshot) => {
+            if (isCurrent()) syncSnapshot = snapshot;
+          },
+          onFailure: (error) => {
+            if (isCurrent()) syncSnapshot = null;
+            reportFailure(options.failureLabel, error);
+          },
+        }),
+        Effect.andThen(Effect.sync(() => {
+          if (isCurrent()) notifySidePanel();
+        })),
+      );
+    });
   };
 
   const refreshSnapshot = (requestedStatus: DraftRoomStatus) => {
@@ -159,7 +141,7 @@ export function createBackgroundController(
       return;
     }
     runSnapshotRequest(requestedStatus, dependencies.syncClient.fetch(requestedStatus),
-      { failureLabel: 'Failed to refresh sync snapshot', isRead: true });
+      { failureLabel: 'Failed to refresh sync snapshot', kind: 'read' });
   };
 
   const publishEspnSnapshot = (
@@ -167,7 +149,7 @@ export function createBackgroundController(
     requestedStatus: DraftRoomStatus
   ) => {
     runSnapshotRequest(requestedStatus, dependencies.syncClient.publishEspnSnapshot(snapshot),
-      { failureLabel: 'Failed to publish ESPN draft snapshot', isRead: false });
+      { failureLabel: 'Failed to publish ESPN draft snapshot', kind: 'upload' });
   };
 
   const initialize = async () => {

@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { Cause, Deferred, Effect, Fiber } from 'effect';
+import { Cause, Effect, Fiber } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
   isMarketAdpFormat, CATALOG, catalogPath, decodeKeeperFile, decodeSportsbookSnapshot, decodeEspnDraftSnapshot, decodeShadowRecommendationEvent, decodeOrNull,
@@ -21,6 +21,8 @@ import {
   type DraftSyncUpdate,
 } from '@fantasy-draft/shared/sync';
 import { ShadowRecommendationLogger } from './shadow-logger.js';
+import { SharedPoll } from './shared-poll.js';
+import { assertObservedNearNow, ObservationOrder } from './espn-observation.js';
 import {
   SleeperSyncAdapter,
   SLEEPER_API_BASE,
@@ -97,10 +99,9 @@ class DraftSession {
   private nextClientId = 1;
   private pollFiber: Fiber.Fiber<void> | null = null;
   private pollSleeping = false;
-  // Concurrent callers share the poll in progress instead of each polling the provider.
-  private pollInFlight: Deferred.Deferred<boolean> | null = null;
+  private readonly poll = new SharedPoll(() => this.performPoll());
   private consecutiveFailures = 0;
-  private lastIngestedAt: number | null = null;
+  private espnOrder = new ObservationOrder();
 
   public constructor(
     provider: DraftProvider,
@@ -122,12 +123,12 @@ class DraftSession {
 
   public get clientCount(): number { return this.clients.size; }
 
-  public get canEvict(): boolean { return this.clients.size === 0 && this.pollInFlight === null; }
+  public get canEvict(): boolean { return this.clients.size === 0 && !this.poll.inFlight; }
 
   public reset(): DraftSyncSnapshot {
     const { provider, draftId } = this.engine.getSnapshot();
     this.engine = new DraftSyncEngine(provider, draftId);
-    this.lastIngestedAt = null;
+    this.espnOrder = new ObservationOrder();
     this.lastActivityAt = Date.now();
     const snapshot = this.engine.getSnapshot();
     this.broadcast({ type: 'snapshot', snapshot });
@@ -174,14 +175,8 @@ class DraftSession {
 
   public refresh(): Effect.Effect<DraftSyncSnapshot> {
     return Effect.gen({ self: this }, function* () {
-      if (this.adapter) {
-        // A reconnect must verify settings, so it never reuses a poll that began
-        // before it was called: wait for that one, then start or join a fresh poll.
-        const earlier = this.pollInFlight;
-        if (earlier) yield* Deferred.await(earlier);
-        this.adapter.invalidateSettings?.();
-        yield* this.pollOnce();
-      }
+      const adapter = this.adapter;
+      if (adapter) yield* this.poll.joinFresh(Effect.sync(() => adapter.invalidateSettings?.()));
       return this.engine.getSnapshot();
     });
   }
@@ -190,17 +185,9 @@ class DraftSession {
     draft: DraftMetadata,
     picks: readonly DraftPickEvent[],
     observedAt: number,
-    now: number = Date.now()
+    now: number
   ): DraftSyncSnapshot {
-    if (Math.abs(observedAt - now) > 5 * 60_000) {
-      throw new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
-    }
-    if (this.lastIngestedAt !== null && observedAt < this.lastIngestedAt) {
-      throw new HttpError(409, 'Stale ESPN snapshot');
-    }
-    // Failed reconciliation must not advance the ordering marker.
-    const { snapshot, newPicks } = this.engine.reconcile(draft, picks, now);
-    this.lastIngestedAt = observedAt;
+    const { snapshot, newPicks } = this.espnOrder.commit(observedAt, () => this.engine.reconcile(draft, picks, now));
     this.lastActivityAt = now;
 
     for (const pick of newPicks) {
@@ -234,38 +221,13 @@ class DraftSession {
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
       for (;;) {
-        yield* this.pollOnce();
+        yield* this.poll.join();
         if (this.clients.size === 0) return;
         this.pollSleeping = true;
         yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
           Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),
         );
       }
-    });
-  }
-
-  /**
-   * Join the poll in progress or start one. The poll runs in its own fiber, so
-   * a waiting caller that is interrupted does not cancel it for the others.
-   */
-  private pollOnce(): Effect.Effect<boolean> {
-    return Effect.suspend(() => {
-      let poll = this.pollInFlight;
-      if (!poll) {
-        const started = Deferred.makeUnsafe<boolean>();
-        poll = started;
-        this.pollInFlight = started;
-        // Clear the slot before waking waiters, so a refresh that waited for this
-        // poll starts a fresh one instead of reusing the finished result.
-        Effect.runFork(this.performPoll().pipe(
-          Effect.exit,
-          Effect.flatMap((exit) => Effect.sync(() => {
-            if (this.pollInFlight === started) this.pollInFlight = null;
-            Deferred.doneUnsafe(started, exit);
-          })),
-        ));
-      }
-      return Deferred.await(poll);
     });
   }
 
@@ -762,15 +724,15 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         sendJson(request, response, 400, { error: 'Invalid ESPN draft snapshot' }, allowedOrigins);
         return;
       }
+      const now = Date.now();
       // Reject bogus clocks before allocating a session.
-      if (Math.abs(espnPayload.observedAt - Date.now()) > 5 * 60_000) {
-        return yield* new HttpError(400, 'ESPN observation time must be within five minutes of the server clock');
-      }
+      yield* attempt(() => { assertObservedNearNow(espnPayload.observedAt, now); });
       const session = yield* attempt(() => getSession(route.provider, route.draftId));
       const snapshot = yield* attempt(() => session.ingest(
         espnPayload.draft,
         espnPayload.picks,
-        espnPayload.observedAt
+        espnPayload.observedAt,
+        now
       ));
       sendJson(request, response, 200, snapshot, allowedOrigins);
       return;
