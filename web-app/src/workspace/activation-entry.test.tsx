@@ -61,7 +61,7 @@ it('surfaces a failed stale preflight in the setup UI and releases pending state
     await until(() => Boolean(container.querySelector('input')));
     act(() => { container.querySelector('input')?.click(); });
     act(() => { [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB')?.click(); });
-    await until(() => container.textContent?.includes('Preflight storage denied') ?? false);
+    await until(() => container.textContent.includes('Preflight storage denied'));
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Preflight storage denied');
     expect(container.textContent).not.toContain('Activating...');
   } finally { act(() => { root.unmount(); }); }
@@ -127,7 +127,7 @@ it('requires reload after activation commits but the first workspace binding fai
     await until(() => Boolean(container.querySelector('input')));
     act(() => { container.querySelector('input')?.click(); });
     act(() => { [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB')?.click(); });
-    await until(() => container.textContent?.includes('Initial draft read failed') ?? false);
+    await until(() => container.textContent.includes('Initial draft read failed'));
     expect(localStorage.getItem('fantasy-draft-storage-migrated')).not.toBeNull();
     expect(ready).not.toHaveBeenCalled();
     const retry = [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB');

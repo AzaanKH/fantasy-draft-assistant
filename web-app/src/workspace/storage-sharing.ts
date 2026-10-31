@@ -112,7 +112,7 @@ export async function verifyStorageSharing(options: ProbeOptions & { readonly ca
   };
   try {
     assertCanonicalOrigin(options.canonicalOrigin, location);
-    if (nonce === null || nonce === undefined) {
+    if (nonce === null) {
       if (embedded || location.pathname === '/sidepanel') throw new StorageSharingError('Storage sharing has not been checked. Open the web app to retry.');
       return { [verifiedSharing]: true, origin: location.origin, kind: 'origin-only' };
     }

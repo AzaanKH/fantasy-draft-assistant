@@ -150,7 +150,7 @@ function renderPage(sessionMode: 'live' | 'mock'): void {
 
 function button(name: string | RegExp): HTMLButtonElement {
   const match = [...document.querySelectorAll('button')].find((candidate) =>
-    typeof name === 'string' ? candidate.textContent?.trim() === name : name.test(candidate.textContent ?? ''));
+    typeof name === 'string' ? candidate.textContent.trim() === name : name.test(candidate.textContent));
   if (!match) throw new Error(`No button named ${String(name)}`);
   return match;
 }

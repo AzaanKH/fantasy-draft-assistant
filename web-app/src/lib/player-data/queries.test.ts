@@ -117,7 +117,7 @@ describe('prediction response validation', () => {
       mockJsonResponse(predictionsFile({ ...prediction, [field]: value }));
       const data = await fetchPredictionData();
       expect(data.players).toEqual([]);
-      expect(data.warnings?.[0]).toContain('Dropped 1 invalid prediction');
+      expect(data.warnings[0]).toContain('Dropped 1 invalid prediction');
     }
   });
 
@@ -126,7 +126,7 @@ describe('prediction response validation', () => {
       mockJsonResponse(predictionsFile({ ...prediction, [field]: value }));
       const data = await fetchPredictionData();
       expect(data.players).toEqual([]);
-      expect(data.warnings?.[0]).toContain('Dropped 1 invalid prediction');
+      expect(data.warnings[0]).toContain('Dropped 1 invalid prediction');
     }
   });
 

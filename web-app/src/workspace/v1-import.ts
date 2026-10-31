@@ -235,8 +235,8 @@ function pickGroups<T>(values: readonly T[], tokens: (value: T) => Set<string>):
 
 function decodeJournal(value: Record<string, unknown>, reject: Reject): { change: DraftSessionChange; complete: boolean } {
   const header = decodeDraftSessionChange({ ...value, picks: [], queueAdded: [], queueRemoved: [], fields: {} });
-  let complete = true;
-  const rejected: Reject = (path, raw, reason) => { complete = false; reject(path, raw, reason); };
+  let rejections = 0;
+  const rejected: Reject = (path, raw, reason) => { rejections += 1; reject(path, raw, reason); };
   const rawPicks: unknown[] = Array.isArray(value.picks) ? value.picks : [];
   if (!Array.isArray(value.picks)) rejected('$.picks', value.picks, 'Expected an array');
   const decoded = rawPicks.map((raw, index) => ({ raw, index, pick: decode(raw, `$.picks[${index}]`, input => {
@@ -256,12 +256,12 @@ function decodeJournal(value: Record<string, unknown>, reject: Reject): { change
   for (const [field, raw] of Object.entries(rawFields ?? {})) {
     const decodedField = decode(raw, `$.fields.${field}`, input =>
       decodeDraftSessionChange({ ...header, fields: { [field]: input } }).fields, rejected);
-    if (decodedField && (field !== 'currentPick' || complete)) Object.assign(fields, decodedField);
+    if (decodedField && (field !== 'currentPick' || rejections === 0)) Object.assign(fields, decodedField);
   }
   return { change: { ...header, picks, fields,
     queueAdded: [...new Set(entries(value.queueAdded, '$.queueAdded', input => decodeStoredPlayerId(input), rejected))],
     queueRemoved: [...new Set(entries(value.queueRemoved, '$.queueRemoved', input => decodeStoredPlayerId(input), rejected))],
-  }, complete };
+  }, complete: rejections === 0 };
 }
 
 function applyJournal(session: PersistedDraftSession, change: DraftSessionChange): { session: PersistedDraftSession; complete: boolean } {

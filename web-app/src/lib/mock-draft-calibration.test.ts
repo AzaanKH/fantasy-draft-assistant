@@ -5,6 +5,7 @@ import {
   type Position,
 } from '@fantasy-draft/shared/league';
 import {
+  decodeFantasyProsSnapshot,
   type FantasyProsSnapshot,
   type TeamEnvironment,
 } from '@fantasy-draft/shared/catalog';
@@ -96,7 +97,7 @@ describe('2026 mock draft calibration', () => {
   let historyModel: MockLeagueHistoryModel | null = null;
 
   beforeAll(() => {
-    const fantasyPros = fantasyProsJson as unknown as FantasyProsSnapshot;
+    const fantasyPros = decodeFantasyProsSnapshot(fantasyProsJson);
     const sleeper = sleeperJson as unknown as SleeperFile;
     const environments = teamEnvironmentJson as unknown as TeamEnvironmentFile;
     const identities = identityJson as unknown as IdentityFile;
@@ -109,7 +110,7 @@ describe('2026 mock draft calibration', () => {
       sleeper.players,
       environments.teams,
       {
-        fantasyProsAdp: fantasyPros.adp ?? [],
+        fantasyProsAdp: fantasyPros.adp,
         identities: identities.players,
       }
     );
