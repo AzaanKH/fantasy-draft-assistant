@@ -7,7 +7,7 @@ import * as React from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3 } from 'lucide-react';
 import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { isMotionDisabled, usePrefersReducedMotion } from '@/components/motion';
+import { isMotionDisabled, MOTION_EASE_CSS, usePrefersReducedMotion } from '@/components/motion';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
@@ -494,9 +494,9 @@ export function DraftBoard({
     previouslyYourTurn.current = isYourTurn;
     if (!justStarted || reduceMotion || !turnIndicatorRef.current) return;
     const animation = turnIndicatorRef.current.animate([
-      { boxShadow: '0 0 0 0 rgba(253, 224, 71, 0.6)' },
-      { boxShadow: '0 0 0 10px rgba(253, 224, 71, 0)' },
-    ], { duration: 600, easing: 'ease-out' });
+      { opacity: 1, transform: 'scale(1)' },
+      { opacity: 0, transform: 'scale(1.25)' },
+    ], { duration: 600, easing: MOTION_EASE_CSS, pseudoElement: '::after' });
     return () => { animation.cancel(); };
   }, [isYourTurn, reduceMotion]);
 

@@ -1,6 +1,6 @@
 # 005 — Turn ring animates composite-only properties
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: e655db6
 - **Severity**: LOW
 - **Category**: Performance
@@ -77,3 +77,10 @@ const animation = turnIndicatorRef.current.animate([
   - Confirm the Performance panel shows no paint on the chip during the pulse.
   - Compare against the old ring at 10% playback. The new ring is a scaled outline, not a growing spread, so confirm it still reads as an alert.
 - **Done when**: the pulse animates only `transform` and `opacity`.
+
+## Outcome
+
+- `web-app/src/features/draft-room/draft-board.css` adds `position: relative` to `.board-current-pick` (it was not positioned) and a static `::after` ring that rests at `opacity: 0`.
+- `web-app/src/features/draft-room/DraftBoard.tsx` animates that pseudo-element's `opacity` and `transform` (`scale(1)` → `scale(1.25)`) over 600ms with `MOTION_EASE_CSS` from `components/motion.tsx`, using WAAPI's `pseudoElement: '::after'` option. The `reduceMotion` guard, the turn-start trigger, and the `cancel()` cleanup are unchanged.
+- No test was added: asserting the keyframe arguments would only restate the implementation. Typecheck, lint, and tests pass.
+- Needs a human look. The ring scales with the chip's shape, so on a wide chip it grows about 20px sideways but only about 4px vertically. The old ring spread 10px evenly on every side. Check that it still reads as an alert.

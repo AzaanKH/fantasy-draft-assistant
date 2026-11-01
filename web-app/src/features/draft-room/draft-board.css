@@ -36,6 +36,9 @@
 .board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: var(--color-foreground); background: var(--board-slot-raised); border-radius: var(--radius-xs); font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .board-current-pick.is-your-turn { color: var(--board-ink); background: var(--board-on-clock); }
 .board-current-pick.is-complete { color: var(--board-ink); background: var(--board-complete); }
+/* The turn-start ring animates only transform and opacity, through WAAPI's pseudoElement option. */
+.board-current-pick { position: relative; }
+.board-current-pick::after { position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 2px rgba(253, 224, 71, 0.6); opacity: 0; pointer-events: none; content: ""; }
 .board-scroll { height: var(--draft-board-height, 320px); overscroll-behavior: contain; padding: 0 10px 10px 0; scrollbar-color: var(--color-border) var(--color-background); scrollbar-width: thin; }
 .board-grid { gap: 4px; background: var(--color-background); isolation: isolate; }
 .board-corner, .board-team-header { height: 76px; background: var(--color-background); }
