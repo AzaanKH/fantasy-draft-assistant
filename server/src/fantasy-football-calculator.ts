@@ -11,7 +11,7 @@ import {
   type MarketAdpSnapshot,
 } from '@fantasy-draft/shared/catalog';
 import { Effect, Schema } from 'effect';
-import { ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
+import { decodePayload, ProviderError, requestJson, type FetchJson } from './sync-adapter.js';
 
 export const FFC_API_BASE = 'https://fantasyfootballcalculator.com/api/v1/adp';
 const DEFAULT_MARKET_ADP_CACHE_MS = 60 * 60 * 1000;
@@ -22,7 +22,8 @@ interface CacheEntry {
 }
 
 const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
-const decodeProviderEnvelope = Schema.decodeUnknownSync(Schema.Struct({ status: Schema.Literal('Success'), players: Schema.Unknown, meta: Schema.optional(Schema.Unknown) }));
+const decodeProviderEnvelope = decodePayload(Schema.Struct({ status: Schema.Literal('Success'), players: Schema.Unknown, meta: Schema.optional(Schema.Unknown) }),
+  'Fantasy Football Calculator returned an invalid ADP payload');
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -50,12 +51,10 @@ function normalizeTeam(value: unknown): NFLTeam | null {
   return isNFLTeam(normalized) ? normalized : null;
 }
 
-const decodeProviderPlayers = Schema.decodeUnknownSync(Schema.Array(Schema.Unknown));
+const decodeProviderPlayers = decodePayload(Schema.Array(Schema.Unknown), 'Fantasy Football Calculator returned an invalid player list');
 
 function normalizePlayers(value: unknown, warnings: string[]): MarketAdpPlayer[] {
-  let rows: readonly unknown[];
-  try { rows = decodeProviderPlayers(value); }
-  catch { throw new Error('Fantasy Football Calculator returned an invalid player list'); }
+  const rows = decodeProviderPlayers(value);
   const players: MarketAdpPlayer[] = [];
   for (const item of rows) {
     if (!isRecord(item)) continue;
@@ -84,8 +83,7 @@ function normalizePlayers(value: unknown, warnings: string[]): MarketAdpPlayer[]
   return players;
 }
 
-function getDraftCount(payload: Record<string, unknown>): number | null {
-  const meta = payload['meta'];
+function getDraftCount(meta: unknown): number | null {
   if (!isRecord(meta)) return null;
   return finiteNumber(meta['total_drafts']);
 }
@@ -116,9 +114,7 @@ export class FantasyFootballCalculatorAdpProvider {
 
       const url = `${FFC_API_BASE}/${format}?teams=${String(normalizedTeams)}&year=${String(normalizedSeason)}`;
       const decoded = yield* requestJson(this.fetchJson, url, value => {
-        let payload: ReturnType<typeof decodeProviderEnvelope>;
-        try { payload = decodeProviderEnvelope(value); }
-        catch { throw new ProviderError({ message: 'Fantasy Football Calculator returned an invalid ADP payload' }); }
+        const payload = decodeProviderEnvelope(value);
         const warnings: string[] = [];
         const snapshot: MarketAdpSnapshot = {
           source: 'fantasy-football-calculator',
@@ -126,7 +122,7 @@ export class FantasyFootballCalculatorAdpProvider {
           teams: normalizedTeams,
           season: normalizedSeason,
           refreshedAt: new Date(now).toISOString(),
-          draftCount: getDraftCount(payload),
+          draftCount: getDraftCount(payload.meta),
           players: normalizePlayers(payload.players, warnings),
         };
         return { ...snapshot, ...(warnings.length ? { warnings } : {}) };
