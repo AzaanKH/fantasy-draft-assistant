@@ -94,3 +94,7 @@ Implemented, with one correction to the sketch. In fill layout, `.board-scroll` 
   - The 720px cap holds, and cancel keeps the last height.
   - Both cases fail on the previous implementation (3 extra board renders).
 - Fill-layout `flex-basis` sizing is not covered by the test (jsdom has no layout). It needs a browser check, as does the Performance trace.
+
+## Follow-ups
+
+- **Dock collapse mid-drag (review S1).** Collapsing the dock unmounts the separator, so its `pointerup`/`pointercancel` never fired: the drag stayed active, `data-resizing` stayed on the stack, and reopening showed the pre-drag height. `DraftWorkspace` now routes `onExpandedChange` through `changeDockExpanded`, which finishes an active drag (commits `latestHeight`, clears the drag and resizing state) before collapsing. The layout effect then clears the inline sizes. Covered by the collapse case in `DraftWorkspace.resize.test.tsx`.

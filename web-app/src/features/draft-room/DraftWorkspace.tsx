@@ -131,14 +131,24 @@ export function DraftWorkspace({
     showDragHeight(stackRef.current, event.currentTarget, next, fillsViewport);
   };
 
+  const finishDrag = (drag: DragState): void => {
+    dragRef.current = null;
+    setIsResizing(false);
+    commitHeight(drag.latestHeight);
+  };
+
   const endDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     // A cancelled pointer has no meaningful position, so it keeps the last height shown.
     if (event.type === 'pointerup') dragTo(drag, event);
-    dragRef.current = null;
-    setIsResizing(false);
-    commitHeight(drag.latestHeight);
+    finishDrag(drag);
+  };
+
+  // Collapsing unmounts the separator, so its pointerup never fires; keep the height the drag reached.
+  const changeDockExpanded = (expanded: boolean): void => {
+    if (!expanded && dragRef.current) finishDrag(dragRef.current);
+    setIsDockExpanded(expanded);
   };
 
   const visibleBoardHeight = Math.round(Math.min(boardHeight, maxBoardHeight));
@@ -211,7 +221,7 @@ export function DraftWorkspace({
         <DraftDock
           checklist={setupChecklist}
           expanded={isDockExpanded}
-          onExpandedChange={setIsDockExpanded}
+          onExpandedChange={changeDockExpanded}
           onOpenAssistant={onOpenAssistant}
         />
       </div>
