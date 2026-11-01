@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
-import { DecisionSwap, MotionIdentitySwap, MotionMetricSwap } from '@/components/motion';
+import { DecisionSwap, MotionIdentitySwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { getPositionRecommendations } from '@/features/assistant/assistant-position-rankings';
 import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
@@ -190,20 +190,15 @@ function SidePanelStatus({
 function SignalValue({
   label,
   value,
-  motionKey,
 }: {
   readonly label: string;
   readonly value: string;
-  readonly motionKey: React.Key;
 }): React.ReactElement {
   return (
     <div className="min-w-0 px-2 text-center">
-      <MotionMetricSwap
-        motionKey={motionKey}
-        className="font-mono text-base font-bold text-emerald-700 dark:text-emerald-300"
-      >
+      <div className="font-mono text-base font-bold text-emerald-700 dark:text-emerald-300">
         {value}
-      </MotionMetricSwap>
+      </div>
       <div className="mt-1 truncate text-[10px] text-muted-foreground">{label}</div>
     </div>
   );
@@ -271,22 +266,19 @@ function RecommendationHero({
           <SignalValue
             label="VOR"
             value={diagnostics ? formatSignedNumber(diagnostics.valueOverReplacement, 0) : '—'}
-            motionKey={diagnostics?.valueOverReplacement ?? 'none'}
           />
           <SignalValue
             label={diagnostics?.isLastInTier ? 'last in tier' : 'position tier'}
             value={`Tier ${String(diagnostics?.tier ?? '—')}`}
-            motionKey={`${String(diagnostics?.tier)}:${String(diagnostics?.isLastInTier)}`}
           />
           <SignalValue
             label={diagnostics?.nextPickLabel ? `at pick ${diagnostics.nextPickLabel}` : 'at next pick'}
             value={survival === null ? '—' : `${String(survival)}%`}
-            motionKey={`${String(survival)}:${diagnostics?.nextPickLabel ?? 'none'}`}
           />
         </div>
         <div className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
           <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-300" />
-          <MotionMetricSwap motionKey={explanation}>{explanation}</MotionMetricSwap>
+          <div>{explanation}</div>
         </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Button onClick={onCompare}>
@@ -437,7 +429,7 @@ function HeadToHead({
 
   return (
     <>
-      <DecisionSwap motionKey={`${first.playerId}:${second.playerId}`}>
+      <div key={`${first.playerId}:${second.playerId}`}>
         <section className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
           <div className="border-b border-border/70 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Head-to-head
@@ -482,7 +474,7 @@ function HeadToHead({
             {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)} policy · rank #{String(decision.rankByPlayerId.get(preferred.playerId) ?? '—')}
           </p>
         </section>
-      </DecisionSwap>
+      </div>
       <Button className="w-full" onClick={onAskWhy}>
         <Lightbulb className="size-4" /> Ask why
       </Button>
@@ -561,7 +553,7 @@ function AssistantPanel({
         ))}
       </div>
       <section className={HERO_CARD}>
-        <DecisionSwap motionKey={`${lens}:${recommendation.playerId}:${comparison?.playerId ?? 'none'}`}>
+        <div key={`${lens}:${recommendation.playerId}:${comparison?.playerId ?? 'none'}`}>
           {lens === 'why' ? (
             <div>
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">Why this player?</h3>
@@ -610,7 +602,7 @@ function AssistantPanel({
               <p className="mt-2 text-sm text-muted-foreground">{need ? `${getNeedSlotSummary(need)}.` : 'Roster context is unavailable.'}</p>
             </div>
           )}
-        </DecisionSwap>
+        </div>
       </section>
     </>
   );
@@ -788,14 +780,12 @@ function SidePanelContent({
         />
       ) : null}
 
-      <DecisionSwap
-        motionKey={showProviderIdentityBlock
+      <div
+        key={showProviderIdentityBlock
           ? 'provider-identity-blocked'
           : showReadinessBlock
             ? 'readiness-blocked'
             : view}
-        axis="x"
-        distance={12}
         className="space-y-3"
       >
         {showProviderIdentityBlock ? (
@@ -859,7 +849,7 @@ function SidePanelContent({
         ) : (
           <RosterPanel playerById={playerById} needs={needs} />
         )}
-      </DecisionSwap>
+      </div>
     </SidePanelFrame>
   );
 }

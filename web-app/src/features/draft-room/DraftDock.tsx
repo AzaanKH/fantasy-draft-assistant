@@ -6,7 +6,7 @@ import * as React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AssistantNavigationTarget } from '@/features/assistant/assistant-navigation';
-import { MotionCount, MotionExpandable } from '@/components/motion';
+import { MotionExpandable } from '@/components/motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -69,7 +69,7 @@ export function DraftDock({
     </Button>
   );
   const rosterTab = <DockTab value="roster" label="Roster" count={`${String(rosterCount)} / ${String(totalRounds)}`} />;
-  const queueTab = <DockTab value="queue" label="Queue" count={<MotionCount value={queuedCount} />} />;
+  const queueTab = <DockTab value="queue" label="Queue" count={<span aria-live="polite">{String(queuedCount)}</span>} />;
   const suggestionsTab = (
     <DockTab value="suggestions" label="Suggestions" count={String(Math.min(3, overall.recommendations.length))} />
   );

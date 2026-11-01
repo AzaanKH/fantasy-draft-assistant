@@ -3,8 +3,12 @@ import { AnimatePresence, LazyMotion, MotionConfig, useIsPresent } from 'motion/
 import * as m from 'motion/react-m';
 import { cn } from '@/lib/utils';
 
+/** Mirrors --motion-* in design-tokens.css (generated from docs/design-system/tokens.json). */
 const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
-const CONTENT_TRANSITION = { duration: 0.21, ease: MOTION_EASE };
+export const MOTION_EASE_CSS = `cubic-bezier(${MOTION_EASE.join(', ')})`;
+export const MOTION_MS = { feedback: 150, content: 210, layout: 280, exit: 100 } as const;
+
+const CONTENT_TRANSITION = { duration: MOTION_MS.content / 1000, ease: MOTION_EASE };
 const loadMotionFeatures = () => import('./motion-features').then((module) => module.default);
 
 export function MotionProvider({
@@ -14,10 +18,11 @@ export function MotionProvider({
 }): React.ReactElement {
   const reduceMotion = usePrefersReducedMotion();
 
+  // Reduced motion drops transform and layout animation but keeps opacity fades; visual fixtures disable everything.
   return (
     <MotionConfig
       reducedMotion={reduceMotion ? 'always' : 'never'}
-      transition={reduceMotion ? { duration: 0 } : CONTENT_TRANSITION}
+      transition={isMotionDisabled() ? { duration: 0 } : CONTENT_TRANSITION}
     >
       <LazyMotion features={loadMotionFeatures} strict>{children}</LazyMotion>
     </MotionConfig>
@@ -57,20 +62,20 @@ function useChangeAnimation(
   keyframes: Keyframe[],
   duration: number
 ): void {
-  const reduceMotion = usePrefersReducedMotion();
   const previousKey = React.useRef(motionKey);
 
+  // The keyframes are opacity-only, so they still run under reduced motion.
   React.useLayoutEffect(() => {
     const changed = !Object.is(previousKey.current, motionKey);
     previousKey.current = motionKey;
-    if (!changed || reduceMotion || !element.current) return;
+    if (!changed || isMotionDisabled() || !element.current) return;
 
     const animation = element.current.animate(keyframes, {
       duration,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      easing: MOTION_EASE_CSS,
     });
     return () => { animation.cancel(); };
-  }, [duration, element, keyframes, motionKey, reduceMotion]);
+  }, [duration, element, keyframes, motionKey]);
 }
 
 /** Returns whether the element is still present; an exiting element is inert. */
@@ -91,24 +96,23 @@ export function MotionFade({ motionKey, children, className }: {
   readonly className?: string;
 }): React.ReactElement {
   const element = React.useRef<HTMLDivElement>(null);
-  useChangeAnimation(element, motionKey, FADE_KEYFRAMES, 180);
+  useChangeAnimation(element, motionKey, FADE_KEYFRAMES, MOTION_MS.feedback);
   return <div ref={element} className={className} data-motion="recommendation-fade">{children}</div>;
 }
+
+const SWAP_TRANSITION = { duration: MOTION_MS.feedback / 1000, ease: MOTION_EASE };
 
 function MotionSwapContent({
   children,
   className,
-  axis,
-  distance,
   kind,
 }: {
   readonly children: React.ReactNode;
   readonly className?: string;
-  readonly axis: 'x' | 'y' | 'none';
-  readonly distance: number;
   readonly kind: 'content-swap' | 'player-identity';
 }): React.ReactElement {
-  const reduceMotion = usePrefersReducedMotion();
+  // Opacity-only, so the swap still fades under reduced motion.
+  const motionDisabled = isMotionDisabled();
   const element = React.useRef<HTMLDivElement>(null);
   const isPresent = useInertWhenExiting(element);
 
@@ -118,14 +122,10 @@ function MotionSwapContent({
       className={className}
       data-motion={kind}
       aria-hidden={isPresent ? undefined : true}
-      initial={reduceMotion ? false : {
-        opacity: 0,
-        x: axis === 'x' ? distance : 0,
-        y: axis === 'y' ? distance : 0,
-      }}
-      animate={{ opacity: 1, x: 0, y: 0 }}
-      exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.08 } }}
-      transition={reduceMotion ? { duration: 0 } : CONTENT_TRANSITION}
+      initial={motionDisabled ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={motionDisabled ? undefined : { opacity: 0, transition: { duration: MOTION_MS.exit / 1000 } }}
+      transition={motionDisabled ? { duration: 0 } : SWAP_TRANSITION}
     >
       {children}
     </m.div>
@@ -136,18 +136,14 @@ export function DecisionSwap({
   motionKey,
   children,
   className,
-  axis = 'y',
-  distance = 8,
 }: {
   readonly motionKey: React.Key;
   readonly children: React.ReactNode;
   readonly className?: string;
-  readonly axis?: 'x' | 'y' | 'none';
-  readonly distance?: number;
 }): React.ReactElement {
   return (
     <AnimatePresence initial={false} mode="wait">
-      <MotionSwapContent key={motionKey} className={className} axis={axis} distance={distance} kind="content-swap">
+      <MotionSwapContent key={motionKey} className={className} kind="content-swap">
         {children}
       </MotionSwapContent>
     </AnimatePresence>
@@ -165,57 +161,10 @@ export function MotionIdentitySwap({
 }): React.ReactElement {
   return (
     <AnimatePresence initial={false} mode="wait">
-      <MotionSwapContent key={motionKey} className={className} axis="x" distance={7} kind="player-identity">
+      <MotionSwapContent key={motionKey} className={className} kind="player-identity">
         {children}
       </MotionSwapContent>
     </AnimatePresence>
-  );
-}
-
-export function MotionMetricSwap({
-  motionKey,
-  children,
-  className,
-  as: Component = 'div',
-}: {
-  readonly motionKey: React.Key;
-  readonly children: React.ReactNode;
-  readonly className?: string;
-  readonly as?: 'div' | 'span';
-}): React.ReactElement {
-  const element = React.useRef<HTMLElement>(null);
-  const keyframes = React.useMemo<Keyframe[]>(() => [
-    { opacity: 0.35, transform: 'translateY(4px)' },
-    { opacity: 1, transform: 'translateY(0)' },
-  ], []);
-  useChangeAnimation(element, motionKey, keyframes, 190);
-
-  return (
-    <Component ref={element as React.Ref<HTMLDivElement> & React.Ref<HTMLSpanElement>} className={className} data-motion="metric-change">
-      {children}
-    </Component>
-  );
-}
-
-export function MotionCount({
-  value,
-  className,
-}: {
-  readonly value: number;
-  readonly className?: string;
-}): React.ReactElement {
-  const element = React.useRef<HTMLSpanElement>(null);
-  const keyframes = React.useMemo<Keyframe[]>(() => [
-    { transform: 'translateY(0) scale(1)', opacity: 1 },
-    { transform: 'translateY(-2px) scale(1.18)', opacity: 0.8, offset: 0.42 },
-    { transform: 'translateY(0) scale(1)', opacity: 1 },
-  ], []);
-  useChangeAnimation(element, value, keyframes, 260);
-
-  return (
-    <span ref={element} className={className} aria-live="polite" data-motion="count-change">
-      {String(value)}
-    </span>
   );
 }
 
@@ -247,13 +196,7 @@ export function MotionReorderItem({
       className={className}
       data-motion="reorder-item"
       layout={reduceMotion ? false : 'position'}
-      initial={reduceMotion ? false : { opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={reduceMotion ? { duration: 0 } : {
-        duration: 0.24,
-        ease: MOTION_EASE,
-        layout: { duration: 0.25, ease: MOTION_EASE },
-      }}
+      transition={reduceMotion ? { duration: 0 } : { layout: { duration: MOTION_MS.layout / 1000, ease: MOTION_EASE } }}
     >
       {children}
     </m.div>

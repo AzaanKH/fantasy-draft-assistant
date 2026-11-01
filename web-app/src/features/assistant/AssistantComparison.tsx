@@ -1,5 +1,4 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
-import { DecisionSwap } from '@/components/motion';
 import {
   getPreferredRecommendation,
   type DraftDecisionView,
@@ -49,7 +48,7 @@ export function CompareAnswer({
           onSelect={onComparisonPlayerChange}
         />
       </div>
-      <DecisionSwap motionKey={second.playerId} className="rec-compare-body">
+      <div key={second.playerId} className="rec-compare-body">
         <div className="rec-compare-side">
           <dl className="rec-answer-rows" aria-label="Meaningful differences">
             {(highlights.length > 0 ? highlights : [{
@@ -71,7 +70,7 @@ export function CompareAnswer({
           ranks={decision.rankByPlayerId}
           playerById={playerById}
         />
-      </DecisionSwap>
+      </div>
     </div>
   );
 }

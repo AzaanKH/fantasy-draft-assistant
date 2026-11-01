@@ -15,17 +15,28 @@
   }
 }
 
+/* The panel starts on its trigger's side, so it always moves away from the trigger. */
 .metric-help-overlay {
+  --metric-help-enter-from: translateY(3px);
   animation: metric-help-enter var(--motion-duration-feedback) var(--motion-ease-out);
 }
 
+.metric-help-overlay[data-side="bottom"] { --metric-help-enter-from: translateY(-3px); }
+.metric-help-overlay[data-side="left"] { --metric-help-enter-from: translateX(3px); }
+.metric-help-overlay[data-side="right"] { --metric-help-enter-from: translateX(-3px); }
+
 .metric-help-overlay[data-state="closed"] {
-  animation: metric-help-exit 100ms ease-in;
+  animation: metric-help-exit var(--motion-duration-exit) var(--motion-ease-out);
+}
+
+/* Radix skips the tooltip delay while the pointer sweeps across triggers; those tooltips appear at once. */
+.metric-help-overlay[data-state="instant-open"] {
+  animation: none;
 }
 
 @keyframes metric-help-enter {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: var(--metric-help-enter-from); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes metric-help-exit {
@@ -39,7 +50,7 @@
 }
 
 .dialog-overlay[data-state="closed"] {
-  animation: dialog-fade-out var(--motion-duration-exit) ease-in both;
+  animation: dialog-fade-out var(--motion-duration-exit) var(--motion-ease-out) both;
 }
 
 .dialog-content[data-state="open"] {
@@ -47,15 +58,15 @@
 }
 
 .dialog-content[data-state="closed"] {
-  animation: dialog-content-exit var(--motion-duration-exit) ease-in both;
+  animation: dialog-content-exit var(--motion-duration-exit) var(--motion-ease-out) both;
 }
 
 .dialog-content.dialog-sheet-right[data-state="open"] {
-  animation: dialog-sheet-enter var(--motion-duration-layout) var(--motion-ease-out) both;
+  animation: dialog-sheet-enter var(--motion-duration-layout) var(--motion-ease-drawer) both;
 }
 
 .dialog-content.dialog-sheet-right[data-state="closed"] {
-  animation: dialog-sheet-exit var(--motion-duration-feedback) ease-in both;
+  animation: dialog-sheet-exit var(--motion-duration-feedback) var(--motion-ease-drawer) both;
 }
 
 @keyframes dialog-fade-in {
@@ -112,7 +123,7 @@
 }
 
 .motion-expandable-grid[data-reduced-motion="true"] {
-  transition: none;
+  transition: opacity var(--motion-duration-content) var(--motion-ease-out);
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -173,23 +184,9 @@ textarea {
   background: color-mix(in oklab, var(--color-primary) 32%, transparent);
 }
 
-@keyframes draft-pick-settle {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes draft-pick-highlight {
   from { opacity: 0.22; }
   to { opacity: 0; }
-}
-
-@keyframes skeleton-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.draft-pick-confirmed {
-  animation: draft-pick-settle 180ms var(--motion-ease-out) both;
 }
 
 .draft-pick-confirmed::after {
@@ -199,22 +196,29 @@ textarea {
   border-radius: inherit;
   content: "";
   pointer-events: none;
-  animation: draft-pick-highlight 420ms ease-out both;
+  animation: draft-pick-highlight 250ms var(--motion-ease-out) both;
 }
 
-.skeleton-enter {
-  animation: skeleton-enter var(--motion-duration-content) var(--motion-ease-out) both;
-}
-
+/* Reduced motion drops movement (translate, scale, rotate, layout) but keeps the fades and color changes that show what changed. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    animation-duration: var(--motion-duration-instant) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: var(--motion-duration-instant) !important;
   }
+
+  .metric-help-overlay { animation-name: dialog-fade-in; }
+  .metric-help-overlay[data-state="closed"] { animation-name: dialog-fade-out; }
+  .dialog-content[data-state="open"],
+  .dialog-content.dialog-sheet-right[data-state="open"] { animation-name: dialog-fade-in; }
+  .dialog-content[data-state="closed"],
+  .dialog-content.dialog-sheet-right[data-state="closed"] { animation-name: dialog-fade-out; }
+  .motion-expandable-grid { transition: opacity var(--motion-duration-content) var(--motion-ease-out); }
+  .motion-expandable-grid[data-state="closed"] { transform: none; }
+  /* Loaders hold still instead of spinning once; the chevron flips without rotating. */
+  .animate-spin { animation: none; }
+  .transition-transform { transition-property: none; }
 }
 
 html[data-visual-test] *,

@@ -58,7 +58,7 @@ export function DraftDecisionBar({
         <span className="draft-best-pick-label">
           <MetricHelp metric="bestPick" context={<p><strong>{bestPick.playerName}.</strong> {reason}</p>} />
         </span>
-        <MotionFade motionKey={`${bestPick.playerId}:${reason}`} className="draft-best-pick-recommendation">
+        <MotionFade motionKey={bestPick.playerId} className="draft-best-pick-recommendation">
           <div className="draft-best-pick-identity">
             <strong title={bestPick.playerName}>{bestPick.playerName}</strong>
             <span>{bestPick.position}</span>

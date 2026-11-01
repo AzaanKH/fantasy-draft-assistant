@@ -11,7 +11,6 @@ import {
   createSlotSequence,
   type Recommendation,
 } from '@fantasy-draft/shared/draft';
-import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { resolveViewedPlayer, type AssistantLens } from '@/features/assistant/assistant-navigation';
@@ -333,7 +332,7 @@ export function AssistantPage({
                   {viewedPlayerId === leader?.playerId ? lensLabel : 'Viewing'}: {viewedName}
                 </p>
               ) : null}
-              <DecisionSwap motionKey={`${analysisTab}:${viewedPlayerId ?? 'none'}`}>
+              <div key={`${analysisTab}:${viewedPlayerId ?? 'none'}`}>
                 {unavailableViewed ? (
                   <p role="status" className="rec-answer-footnote">
                     {unavailableViewed.reason === 'drafted'
@@ -361,7 +360,7 @@ export function AssistantPage({
                 ) : (
                   <RosterAnswer needs={needs} recommendation={selectedRecommendation} player={selectedPlayer} sameByeName={sameByeName} />
                 )}
-              </DecisionSwap>
+              </div>
             </div>
           </section>
 

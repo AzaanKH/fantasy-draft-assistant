@@ -6,6 +6,7 @@
   --motion-duration-layout: 280ms;
   --motion-duration-exit: 100ms;
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Night palette, shared by the dark theme and the always-dark board. */
   --night-background: #05091E;

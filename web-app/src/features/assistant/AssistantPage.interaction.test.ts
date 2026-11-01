@@ -1,7 +1,7 @@
 import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 // @vitest-environment jsdom
-import { act, createElement, type ReactNode } from 'react';
+import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -81,11 +81,6 @@ const mocks = vi.hoisted(() => ({
   togglePlayerQueued: vi.fn(),
 }));
 
-// Render swapped answers immediately instead of waiting for exit animations.
-vi.mock('@/components/motion', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/components/motion')>(),
-  DecisionSwap: ({ children }: { readonly children: ReactNode }) => children,
-}));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => ({
     isLoading: false,

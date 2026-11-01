@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { DecisionSwap, MotionProvider } from './motion';
+import { DecisionSwap, MotionFade, MotionProvider } from './motion';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -71,4 +71,57 @@ it('hides and disables outgoing decision content until the incoming player repla
   const incoming = swapContentFor('Chase');
   expect(incoming?.inert).toBeFalsy();
   expect(incoming?.getAttribute('aria-hidden')).toBeNull();
+});
+
+function renderFade(player: string): void {
+  act(() => {
+    root.render(<MotionFade motionKey={player}><span>{player}</span></MotionFade>);
+  });
+}
+
+/** jsdom has no Web Animations API, so record calls instead. */
+function stubAnimate(): ReturnType<typeof vi.fn> {
+  const animate = vi.fn(() => ({ cancel: () => undefined }));
+  Object.defineProperty(HTMLElement.prototype, 'animate', { configurable: true, value: animate });
+  return animate;
+}
+
+function removeAnimate(): void {
+  Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+}
+
+function stubReducedMotion(): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(prefers-reduced-motion: reduce)',
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
+it('keeps the opacity fade when the user prefers reduced motion', () => {
+  stubReducedMotion();
+  const animate = stubAnimate();
+  try {
+    renderFade('Bijan');
+    renderFade('Chase');
+    expect(animate).toHaveBeenCalledTimes(1);
+    expect(animate.mock.calls[0]?.[0]).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+  } finally {
+    removeAnimate();
+  }
+});
+
+it('runs no fade in visual fixtures', () => {
+  stubReducedMotion();
+  document.documentElement.setAttribute('data-visual-test', '');
+  const animate = stubAnimate();
+  try {
+    renderFade('Bijan');
+    renderFade('Chase');
+    expect(animate).not.toHaveBeenCalled();
+  } finally {
+    document.documentElement.removeAttribute('data-visual-test');
+    removeAnimate();
+  }
 });

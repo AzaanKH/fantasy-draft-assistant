@@ -26,6 +26,34 @@ interface DragState {
   readonly startY: number;
   readonly startHeight: number;
   readonly maxHeight: number;
+  /** The height shown on screen; React state catches up when the drag ends. */
+  latestHeight: number;
+}
+
+/**
+ * Sizes the board scrollers directly while dragging, so no React render or inherited CSS variable change
+ * happens per pointer move. Fill layout sizes the scroller with flex-basis; scrolling layout uses height.
+ */
+function showDragHeight(
+  stack: HTMLElement | null,
+  separator: HTMLElement,
+  height: number,
+  fillsViewport: boolean
+): void {
+  const size = `${String(height)}px`;
+  for (const scroller of stack?.querySelectorAll<HTMLElement>('.board-scroll') ?? []) {
+    if (fillsViewport) scroller.style.flexBasis = size;
+    else scroller.style.height = size;
+  }
+  separator.setAttribute('aria-valuenow', String(height));
+  separator.setAttribute('aria-valuetext', `Draft board ${String(height)} pixels tall`);
+}
+
+function clearDragHeight(stack: HTMLElement | null): void {
+  for (const scroller of stack?.querySelectorAll<HTMLElement>('.board-scroll') ?? []) {
+    scroller.style.removeProperty('flex-basis');
+    scroller.style.removeProperty('height');
+  }
 }
 
 function getVisibleHeight(container: HTMLElement | null, selector: string): number | null {
@@ -85,17 +113,32 @@ export function DraftWorkspace({
     return () => { observer.disconnect(); };
   }, [fillsViewport, isDockExpanded]);
 
+  // Runs after the committed --draft-board-height reaches the DOM and before paint, so the board never jumps.
+  React.useLayoutEffect(() => {
+    if (isResizing && isDockExpanded) return;
+    clearDragHeight(stackRef.current);
+  }, [isDockExpanded, isResizing]);
+
   const commitHeight = (height: number): void => {
     setBoardHeight(height);
     storeBoardHeight(height);
   };
 
+  const dragTo = (drag: DragState, event: React.PointerEvent<HTMLDivElement>): void => {
+    const next = clampBoardHeight(drag.startHeight + event.clientY - drag.startY, drag.maxHeight);
+    if (next === drag.latestHeight) return;
+    drag.latestHeight = next;
+    showDragHeight(stackRef.current, event.currentTarget, next, fillsViewport);
+  };
+
   const endDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    // A cancelled pointer has no meaningful position, so it keeps the last height shown.
+    if (event.type === 'pointerup') dragTo(drag, event);
     dragRef.current = null;
     setIsResizing(false);
-    commitHeight(clampBoardHeight(drag.startHeight + event.clientY - drag.startY, drag.maxHeight));
+    commitHeight(drag.latestHeight);
   };
 
   const visibleBoardHeight = Math.round(Math.min(boardHeight, maxBoardHeight));
@@ -129,20 +172,22 @@ export function DraftWorkspace({
               event.preventDefault();
               event.currentTarget.setPointerCapture(event.pointerId);
               const bounds = getResizeBounds();
+              const startHeight = clampBoardHeight(bounds.current, bounds.max);
               setMaxBoardHeight(bounds.max);
               dragRef.current = {
                 pointerId: event.pointerId,
                 startY: event.clientY,
                 startHeight: bounds.current,
                 maxHeight: bounds.max,
+                latestHeight: startHeight,
               };
-              setBoardHeight(clampBoardHeight(bounds.current, bounds.max));
+              setBoardHeight(startHeight);
               setIsResizing(true);
             }}
             onPointerMove={(event) => {
               const drag = dragRef.current;
               if (!drag || drag.pointerId !== event.pointerId) return;
-              setBoardHeight(clampBoardHeight(drag.startHeight + event.clientY - drag.startY, drag.maxHeight));
+              dragTo(drag, event);
             }}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
