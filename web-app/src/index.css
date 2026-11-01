@@ -56,11 +56,11 @@
 }
 
 .dialog-content.dialog-sheet-right[data-state="open"] {
-  animation: dialog-sheet-enter var(--motion-duration-layout) var(--motion-ease-out) both;
+  animation: dialog-sheet-enter var(--motion-duration-layout) var(--motion-ease-drawer) both;
 }
 
 .dialog-content.dialog-sheet-right[data-state="closed"] {
-  animation: dialog-sheet-exit var(--motion-duration-feedback) var(--motion-ease-out) both;
+  animation: dialog-sheet-exit var(--motion-duration-feedback) var(--motion-ease-drawer) both;
 }
 
 @keyframes dialog-fade-in {

@@ -1,6 +1,6 @@
 # 006 — Sheet uses the drawer curve
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: e655db6
 - **Severity**: LOW
 - **Category**: Easing & duration
@@ -59,3 +59,9 @@ A full-height panel travelling 440px reads better with the iOS-like drawer curve
   - Open and close the connection sheet. It should arrive quickly and ease into place without a hard stop.
   - At 10% playback, confirm most of the travel happens in the first third.
 - **Done when**: both sheet rules reference `--motion-ease-drawer`, and the token is generated from JSON.
+
+## Outcome
+
+- `docs/design-system/tokens.json` gains `--motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1)` after `--motion-ease-out`. `pnpm tokens:write` regenerated `web-app/src/design-tokens.css`. `docs/design-system/tokens.css` did not change, because the motion block is only emitted to the web-app output.
+- Both `.dialog-sheet-right` rules in `web-app/src/index.css` use `var(--motion-ease-drawer)`. Durations are unchanged.
+- `pnpm tokens:check` and `scripts/design-tokens.test.mjs` pass. Not checked in a browser.

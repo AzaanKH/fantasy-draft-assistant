@@ -61,7 +61,7 @@ Vetted against the cited code. Ordered by leverage (impact ÷ effort).
 | 003 | [Reduced motion keeps fades](003-reduced-motion-keeps-fades.md) | MEDIUM | TODO | — |
 | 004 | [Measure the dock expand layout cost](004-dock-expand-layout-cost.md) | MEDIUM | TODO | — |
 | 005 | [Turn ring animates composite-only properties](005-turn-ring-composite-only.md) | LOW | TODO | — |
-| 006 | [Sheet uses the drawer curve](006-sheet-drawer-curve.md) | LOW | TODO | 001 |
+| 006 | [Sheet uses the drawer curve](006-sheet-drawer-curve.md) | LOW | DONE | 001 |
 | 007 | [Consolidate motion tokens](007-motion-token-consolidation.md) | LOW | DONE | 001, 006 |
 | 008 | [Resize the board without re-rendering every pointer move](008-board-resize-without-rerender.md) | MEDIUM | TODO | — |
 
