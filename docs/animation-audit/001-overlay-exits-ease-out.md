@@ -1,6 +1,6 @@
 # 001 — Overlay exits use ease-out
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: e655db6
 - **Severity**: HIGH
 - **Category**: Easing & duration

@@ -56,7 +56,7 @@ Vetted against the cited code. Ordered by leverage (impact ÷ effort).
 
 | # | Title | Severity | Status | Depends on |
 | --- | --- | --- | --- | --- |
-| 001 | [Overlay exits use ease-out](001-overlay-exits-ease-out.md) | HIGH | TODO | — |
+| 001 | [Overlay exits use ease-out](001-overlay-exits-ease-out.md) | HIGH | DONE | — |
 | 002 | [Overlay entrance follows its side](002-overlay-entrance-follows-side.md) | MEDIUM | TODO | 001 |
 | 003 | [Reduced motion keeps fades](003-reduced-motion-keeps-fades.md) | MEDIUM | TODO | — |
 | 004 | [Measure the dock expand layout cost](004-dock-expand-layout-cost.md) | MEDIUM | TODO | — |

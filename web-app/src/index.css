@@ -20,7 +20,7 @@
 }
 
 .metric-help-overlay[data-state="closed"] {
-  animation: metric-help-exit 100ms ease-in;
+  animation: metric-help-exit var(--motion-duration-exit) var(--motion-ease-out);
 }
 
 /* Radix skips the tooltip delay while the pointer sweeps across triggers; those tooltips appear at once. */
@@ -44,7 +44,7 @@
 }
 
 .dialog-overlay[data-state="closed"] {
-  animation: dialog-fade-out var(--motion-duration-exit) ease-in both;
+  animation: dialog-fade-out var(--motion-duration-exit) var(--motion-ease-out) both;
 }
 
 .dialog-content[data-state="open"] {
@@ -52,7 +52,7 @@
 }
 
 .dialog-content[data-state="closed"] {
-  animation: dialog-content-exit var(--motion-duration-exit) ease-in both;
+  animation: dialog-content-exit var(--motion-duration-exit) var(--motion-ease-out) both;
 }
 
 .dialog-content.dialog-sheet-right[data-state="open"] {
@@ -60,7 +60,7 @@
 }
 
 .dialog-content.dialog-sheet-right[data-state="closed"] {
-  animation: dialog-sheet-exit var(--motion-duration-feedback) ease-in both;
+  animation: dialog-sheet-exit var(--motion-duration-feedback) var(--motion-ease-out) both;
 }
 
 @keyframes dialog-fade-in {
