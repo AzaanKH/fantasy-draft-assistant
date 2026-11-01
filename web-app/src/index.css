@@ -23,6 +23,11 @@
   animation: metric-help-exit 100ms ease-in;
 }
 
+/* Radix skips the tooltip delay while the pointer sweeps across triggers; those tooltips appear at once. */
+.metric-help-overlay[data-state="instant-open"] {
+  animation: none;
+}
+
 @keyframes metric-help-enter {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
@@ -173,23 +178,9 @@ textarea {
   background: color-mix(in oklab, var(--color-primary) 32%, transparent);
 }
 
-@keyframes draft-pick-settle {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes draft-pick-highlight {
   from { opacity: 0.22; }
   to { opacity: 0; }
-}
-
-@keyframes skeleton-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.draft-pick-confirmed {
-  animation: draft-pick-settle 180ms var(--motion-ease-out) both;
 }
 
 .draft-pick-confirmed::after {
@@ -199,11 +190,7 @@ textarea {
   border-radius: inherit;
   content: "";
   pointer-events: none;
-  animation: draft-pick-highlight 420ms ease-out both;
-}
-
-.skeleton-enter {
-  animation: skeleton-enter var(--motion-duration-content) var(--motion-ease-out) both;
+  animation: draft-pick-highlight 250ms ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {

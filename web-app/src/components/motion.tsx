@@ -95,17 +95,15 @@ export function MotionFade({ motionKey, children, className }: {
   return <div ref={element} className={className} data-motion="recommendation-fade">{children}</div>;
 }
 
+const SWAP_TRANSITION = { duration: 0.15, ease: MOTION_EASE };
+
 function MotionSwapContent({
   children,
   className,
-  axis,
-  distance,
   kind,
 }: {
   readonly children: React.ReactNode;
   readonly className?: string;
-  readonly axis: 'x' | 'y' | 'none';
-  readonly distance: number;
   readonly kind: 'content-swap' | 'player-identity';
 }): React.ReactElement {
   const reduceMotion = usePrefersReducedMotion();
@@ -118,14 +116,10 @@ function MotionSwapContent({
       className={className}
       data-motion={kind}
       aria-hidden={isPresent ? undefined : true}
-      initial={reduceMotion ? false : {
-        opacity: 0,
-        x: axis === 'x' ? distance : 0,
-        y: axis === 'y' ? distance : 0,
-      }}
-      animate={{ opacity: 1, x: 0, y: 0 }}
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.08 } }}
-      transition={reduceMotion ? { duration: 0 } : CONTENT_TRANSITION}
+      transition={reduceMotion ? { duration: 0 } : SWAP_TRANSITION}
     >
       {children}
     </m.div>
@@ -136,18 +130,14 @@ export function DecisionSwap({
   motionKey,
   children,
   className,
-  axis = 'y',
-  distance = 8,
 }: {
   readonly motionKey: React.Key;
   readonly children: React.ReactNode;
   readonly className?: string;
-  readonly axis?: 'x' | 'y' | 'none';
-  readonly distance?: number;
 }): React.ReactElement {
   return (
     <AnimatePresence initial={false} mode="wait">
-      <MotionSwapContent key={motionKey} className={className} axis={axis} distance={distance} kind="content-swap">
+      <MotionSwapContent key={motionKey} className={className} kind="content-swap">
         {children}
       </MotionSwapContent>
     </AnimatePresence>
@@ -165,57 +155,10 @@ export function MotionIdentitySwap({
 }): React.ReactElement {
   return (
     <AnimatePresence initial={false} mode="wait">
-      <MotionSwapContent key={motionKey} className={className} axis="x" distance={7} kind="player-identity">
+      <MotionSwapContent key={motionKey} className={className} kind="player-identity">
         {children}
       </MotionSwapContent>
     </AnimatePresence>
-  );
-}
-
-export function MotionMetricSwap({
-  motionKey,
-  children,
-  className,
-  as: Component = 'div',
-}: {
-  readonly motionKey: React.Key;
-  readonly children: React.ReactNode;
-  readonly className?: string;
-  readonly as?: 'div' | 'span';
-}): React.ReactElement {
-  const element = React.useRef<HTMLElement>(null);
-  const keyframes = React.useMemo<Keyframe[]>(() => [
-    { opacity: 0.35, transform: 'translateY(4px)' },
-    { opacity: 1, transform: 'translateY(0)' },
-  ], []);
-  useChangeAnimation(element, motionKey, keyframes, 190);
-
-  return (
-    <Component ref={element as React.Ref<HTMLDivElement> & React.Ref<HTMLSpanElement>} className={className} data-motion="metric-change">
-      {children}
-    </Component>
-  );
-}
-
-export function MotionCount({
-  value,
-  className,
-}: {
-  readonly value: number;
-  readonly className?: string;
-}): React.ReactElement {
-  const element = React.useRef<HTMLSpanElement>(null);
-  const keyframes = React.useMemo<Keyframe[]>(() => [
-    { transform: 'translateY(0) scale(1)', opacity: 1 },
-    { transform: 'translateY(-2px) scale(1.18)', opacity: 0.8, offset: 0.42 },
-    { transform: 'translateY(0) scale(1)', opacity: 1 },
-  ], []);
-  useChangeAnimation(element, value, keyframes, 260);
-
-  return (
-    <span ref={element} className={className} aria-live="polite" data-motion="count-change">
-      {String(value)}
-    </span>
   );
 }
 
@@ -247,13 +190,7 @@ export function MotionReorderItem({
       className={className}
       data-motion="reorder-item"
       layout={reduceMotion ? false : 'position'}
-      initial={reduceMotion ? false : { opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={reduceMotion ? { duration: 0 } : {
-        duration: 0.24,
-        ease: MOTION_EASE,
-        layout: { duration: 0.25, ease: MOTION_EASE },
-      }}
+      transition={reduceMotion ? { duration: 0 } : { layout: { duration: 0.25, ease: MOTION_EASE } }}
     >
       {children}
     </m.div>

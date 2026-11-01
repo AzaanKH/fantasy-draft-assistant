@@ -6,7 +6,6 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
 import { type PositionNeed } from '@fantasy-draft/shared/draft';
 import { Check, ChevronDown, ChevronRight, ListPlus, X } from 'lucide-react';
-import { MotionFade } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { MetricHelp } from '@/features/help/MetricHelp';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
@@ -72,33 +71,31 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
       ) : null}
       {players.length === 0 ? <p className="depth-empty" role="status">No players remain in this group. Choose another tier.</p> : (
         <>
-          <MotionFade motionKey={players.map((player) => player.id).join(':')}>
-            <div className="depth-player-scroll">
-              <table className="depth-player-table">
-                <caption className="sr-only">Available {position} players in {tierLabel(tier)}, ordered by {RANKING_LABELS.long}</caption>
-                <thead><tr>
-                  <th scope="col">Player</th>
-                  <th scope="col"><MetricHelp metric="vor" label="Value" /></th>
-                  <th scope="col"><MetricHelp metric="returnProbability" label="At next pick" /></th>
-                  <th scope="col">Queue</th>
-                </tr></thead>
-                <tbody>{players.slice(0, limit).map((player) => {
-                  const queued = queuedIds.includes(player.id);
-                  const chance = timing.get(player.id);
-                  return <tr key={player.id}>
-                    <th scope="row"><span className="depth-player-name">{player.name}</span><span className="depth-player-meta">{player.team} · {tierLabel(depthTier(player.tier))} · {RANKING_LABELS.short} #{String(player.ecrRank)}</span></th>
-                    <td>{Number.isFinite(player.valueOverReplacement) ? formatSignedNumber(player.valueOverReplacement, 0) : '—'}</td>
-                    <td>{chance == null ? <span title="No next-pick estimate available">—</span> : `${String(chance)}%`}</td>
-                    <td><Button variant={queued ? 'secondary' : 'ghost'} size="icon-sm" aria-pressed={queued}
-                      aria-label={`${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} queue`}
-                      onClick={() => { togglePlayerQueued(player.id); }}>
-                      {queued ? <Check className="size-4" /> : <ListPlus className="size-4" />}
-                    </Button></td>
-                  </tr>;
-                })}</tbody>
-              </table>
-            </div>
-          </MotionFade>
+          <div className="depth-player-scroll">
+            <table className="depth-player-table">
+              <caption className="sr-only">Available {position} players in {tierLabel(tier)}, ordered by {RANKING_LABELS.long}</caption>
+              <thead><tr>
+                <th scope="col">Player</th>
+                <th scope="col"><MetricHelp metric="vor" label="Value" /></th>
+                <th scope="col"><MetricHelp metric="returnProbability" label="At next pick" /></th>
+                <th scope="col">Queue</th>
+              </tr></thead>
+              <tbody>{players.slice(0, limit).map((player) => {
+                const queued = queuedIds.includes(player.id);
+                const chance = timing.get(player.id);
+                return <tr key={player.id}>
+                  <th scope="row"><span className="depth-player-name">{player.name}</span><span className="depth-player-meta">{player.team} · {tierLabel(depthTier(player.tier))} · {RANKING_LABELS.short} #{String(player.ecrRank)}</span></th>
+                  <td>{Number.isFinite(player.valueOverReplacement) ? formatSignedNumber(player.valueOverReplacement, 0) : '—'}</td>
+                  <td>{chance == null ? <span title="No next-pick estimate available">—</span> : `${String(chance)}%`}</td>
+                  <td><Button variant={queued ? 'secondary' : 'ghost'} size="icon-sm" aria-pressed={queued}
+                    aria-label={`${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} queue`}
+                    onClick={() => { togglePlayerQueued(player.id); }}>
+                    {queued ? <Check className="size-4" /> : <ListPlus className="size-4" />}
+                  </Button></td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </div>
           {players.length > limit ? <Button variant="ghost" size="sm" className="depth-show-more" onClick={() => { setLimit((value) => value + 8); }}>Show {String(Math.min(8, players.length - limit))} more · {String(players.length - limit)} remaining</Button> : null}
         </>
       )}
@@ -157,7 +154,7 @@ export default function PositionalDepthChart({ needs }: {
               return <td key={tier}><button type="button" className="depth-count-button" data-selected={selected}
                 aria-label={`${position} ${tierLabel(tier)}: ${String(count)} available players`}
                 aria-expanded={selected} aria-controls={expanded ? detailId : undefined} onClick={(event) => { selectionTrigger.current = event.currentTarget; select(position, tier); }}>
-                <MotionFade motionKey={count}>{String(count)}</MotionFade>
+                {String(count)}
               </button></td>;
             })}
           </tr>;

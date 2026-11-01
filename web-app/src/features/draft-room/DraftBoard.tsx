@@ -442,7 +442,7 @@ export function DraftBoard({
     setSettlingPickNumber(latestPickNumber);
     const timeout = window.setTimeout(() => {
       setSettlingPickNumber(null);
-    }, 450);
+    }, 300);
     return () => { window.clearTimeout(timeout); };
   }, [latestPickNumber]);
 

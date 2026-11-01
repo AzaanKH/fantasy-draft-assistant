@@ -1,4 +1,3 @@
-import { MotionReorderItem } from '@/components/motion';
 import { PositionTag } from '@/components/PositionTag';
 import { formatSignedNumber, survivalPercent } from '@fantasy-draft/shared/draft';
 import { type Player } from '@fantasy-draft/shared/league';
@@ -44,7 +43,7 @@ export function AssistantRecommendationRow({
 
   return (
     <div data-player-row>
-      <MotionReorderItem className={isSelected ? 'rec-candidate rec-candidate-selected' : 'rec-candidate'}>
+      <div className={isSelected ? 'rec-candidate rec-candidate-selected' : 'rec-candidate'}>
         <span className="rec-candidate-rank" aria-label={`Rank ${String(rank)}`}>{String(rank)}</span>
         <button
           type="button"
@@ -73,7 +72,7 @@ export function AssistantRecommendationRow({
         >
           {isQueued ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}
         </button>
-      </MotionReorderItem>
+      </div>
     </div>
   );
 }
