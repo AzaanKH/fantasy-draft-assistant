@@ -100,6 +100,11 @@ A review of the first version of this stack found six regressions that the tests
 
 - Replace the hand-written type guards in `cli/src/archive.ts`, `cli/src/data.ts`, and the server adapters with `Schema` from `effect`. The guards make up most of the remaining `throw` statements and `as` casts.
 - Run the server's fibers on one `ManagedRuntime`. The server calls the Effect runtime in seven places. Four start a request, a poll loop, a shared poll, or a refresh job, and three interrupt a fiber.
-- Move CLI argument parsing to `effect/cli` once the JSON error contract can be kept.
+- CLI argument parsing stays on `node:util` `parseArgs`. A prototype on `effect/cli` 4.0.0 failed the usage contract pinned in `cli/src/usage-contract.test.ts`:
+  - It writes its own help to stdout on every parse error, even with `renderErrors: false`. That breaks the one-line JSON error on stdout.
+  - It rejects options placed before the command name, such as `draft --limit 5 recommend`.
+  - It reports its own messages for unknown commands and options, so `Unknown command X. Run draft --help.` and `--X is not supported by COMMAND.` would need a translation layer.
+  - It needs stub file system, terminal, process, and stdio services, plus a replacement for its built-in `--help`.
+  - It adds about 120 kB raw (38 kB gzip) to the CLI bundle.
+  The shim this needs is larger than the 20 lines of parsing it would replace. The command-specific validation would stay hand-written either way. Revisit if `effect/cli` adds a way to turn off help on errors and to allow options before the subcommand.
 - Adopt the Effect language service (`@effect/tsgo`) after `typescript-eslint` supports TypeScript 7.
-- Test the declared minimum Node version (22.18) in CI.
