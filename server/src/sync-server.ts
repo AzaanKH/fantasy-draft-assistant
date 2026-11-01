@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { Cause, Effect, Fiber } from 'effect';
+import { Cause, Effect, Fiber, Layer, ManagedRuntime } from 'effect';
 import { attempt, DEFAULT_RESOURCE_LIMITS, hasRequestToken, HttpError, RequestBudget, writeBoundedEvent, type ResourceLimits } from './http-security.js';
 import {
   isMarketAdpFormat, CATALOG, catalogPath, decodeKeeperFile, decodeSportsbookSnapshot, decodeEspnDraftSnapshot, decodeShadowRecommendationEvent, decodeOrNull,
@@ -99,7 +99,7 @@ class DraftSession {
   private nextClientId = 1;
   private pollFiber: Fiber.Fiber<void> | null = null;
   private pollSleeping = false;
-  private readonly poll = new SharedPoll(() => this.performPoll());
+  private readonly poll: SharedPoll<boolean>;
   private consecutiveFailures = 0;
   private espnOrder = new ObservationOrder();
 
@@ -109,9 +109,11 @@ class DraftSession {
     adapter: DraftSyncAdapter | null,
     pollIntervalMs: number,
     requestTimeoutMs: number,
-    private readonly maxBufferedBytes: number
+    private readonly maxBufferedBytes: number,
+    private readonly runtime: ManagedRuntime.ManagedRuntime<never, never>,
   ) {
     this.adapter = adapter;
+    this.poll = new SharedPoll(() => this.performPoll(), runtime);
     this.engine = new DraftSyncEngine(provider, draftId);
     this.pollIntervalMs = pollIntervalMs;
     this.requestTimeoutMs = requestTimeoutMs;
@@ -159,7 +161,7 @@ class DraftSession {
   }
 
   public dispose(): void {
-    if (this.pollFiber) Effect.runFork(Fiber.interrupt(this.pollFiber));
+    if (this.pollFiber) this.runtime.runFork(Fiber.interrupt(this.pollFiber));
     this.pollFiber = null;
     for (const { response } of this.clients.values()) {
       if (!response.writableEnded) {
@@ -202,7 +204,7 @@ class DraftSession {
       return;
     }
     let finished = false;
-    const fiber: Fiber.Fiber<void> = Effect.runFork(this.pollLoop().pipe(Effect.ensuring(Effect.sync(() => {
+    const fiber: Fiber.Fiber<void> = this.runtime.runFork(this.pollLoop().pipe(Effect.ensuring(Effect.sync(() => {
       finished = true;
       // pollFiber is still null if the loop ended before runFork returned, so fiber is never read early.
       if (this.pollFiber !== null && this.pollFiber === fiber) this.pollFiber = null;
@@ -213,7 +215,7 @@ class DraftSession {
   /** Stop between polls; a poll in progress finishes and the loop then sees no clients. */
   private stopPolling(): void {
     if (this.pollFiber !== null && this.pollSleeping) {
-      Effect.runFork(Fiber.interrupt(this.pollFiber));
+      this.runtime.runFork(Fiber.interrupt(this.pollFiber));
       this.pollFiber = null;
     }
   }
@@ -474,7 +476,8 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     options.shadowLogPath ?? DEFAULT_SHADOW_LOG_PATH
   );
   const marketAdpProvider = new FantasyFootballCalculatorAdpProvider(fetchJson);
-  const draftDataRefresh = new DraftDataRefreshJob(options.runRefreshScript);
+  const runtime = ManagedRuntime.make(Layer.empty);
+  const draftDataRefresh = new DraftDataRefreshJob(runtime, options.runRefreshScript);
 
   function evictIdleSessions(): void {
     const cutoff = Date.now() - limits.idleSessionMs;
@@ -529,7 +532,8 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
         adapter,
         pollIntervalMs,
         requestTimeoutMs,
-        limits.maxBufferedBytes
+        limits.maxBufferedBytes,
+        runtime,
       );
       sessions.set(sessionKey, session);
     }
@@ -820,7 +824,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     };
     response.once('close', release);
     response.once('finish', release);
-    void Effect.runPromise(handleRequest(request, response).pipe(
+    void runtime.runPromiseExit(handleRequest(request, response).pipe(
       Effect.catchCause((cause) => Effect.sync(() => { sendFailure(request, response, cause); })),
       Effect.ensuring(Effect.sync(release)),
     ));
@@ -840,12 +844,17 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     sessions.clear();
     draftDataRefresh.dispose();
   };
-  server.once('close', disposeSessions);
+  const runtimeDisposed = new Promise<void>((resolve) => {
+    server.once('close', () => {
+      disposeSessions();
+      void runtime.dispose().then(resolve);
+    });
+  });
 
   return Object.assign(server, {
     shutdown: (callback?: (error?: Error) => void) => {
       disposeSessions();
-      server.close(callback);
+      server.close((error) => { void runtimeDisposed.then(() => { callback?.(error); }); });
     },
   });
 }

@@ -1,7 +1,7 @@
 import { Processes, ProcessError } from '@fantasy-draft/shared/node';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
-import { Effect, Fiber } from 'effect';
+import { Effect, Fiber, type ManagedRuntime } from 'effect';
 import {
   DRAFT_DATA_REFRESH_STEPS,
   type DraftDataRefreshStatus,
@@ -78,6 +78,7 @@ export class DraftDataRefreshJob {
   private disposed = false;
 
   constructor(
+    private readonly runtime: ManagedRuntime.ManagedRuntime<never, never>,
     private readonly runScript: RunRefreshScript = runPnpmScript,
     private readonly now: () => Date = () => new Date(),
     private readonly stepTimeoutMs: number = STEP_TIMEOUT_MS
@@ -93,13 +94,13 @@ export class DraftDataRefreshJob {
     this.status = { ...initialStatus(), state: 'running', startedAt: this.now().toISOString() };
     // A fast runner can finish before runFork returns, so report the status at start.
     const started = this.status;
-    this.fiber = Effect.runFork(this.run());
+    this.fiber = this.runtime.runFork(this.run());
     return started;
   }
 
   dispose(): void {
     this.disposed = true;
-    if (this.fiber) Effect.runFork(Fiber.interrupt(this.fiber));
+    if (this.fiber) this.runtime.runFork(Fiber.interrupt(this.fiber));
     this.fiber = null;
   }
 

@@ -597,6 +597,65 @@ describe('createSyncServer', () => {
     }
   });
 
+  it('interrupts a running poll and refresh on shutdown', async () => {
+    const fixtureFetch = createMockFetchJson();
+    let pollStarted = false;
+    let pollAborted = false;
+    let refreshStarted = false;
+    let refreshStopped = false;
+    const server = createSyncServer({
+      fetchJson: (url, signal) => {
+        if (!url.endsWith('/fixture-draft/picks')) return fixtureFetch(url, signal);
+        pollStarted = true;
+        return new Promise((_, reject) => {
+          signal.addEventListener('abort', () => { pollAborted = true; reject(new Error('aborted')); });
+        });
+      },
+      runRefreshScript: () => Effect.callback(() => {
+        refreshStarted = true;
+        return Effect.sync(() => { refreshStopped = true; });
+      }),
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
+
+    const stream = await fetch(`http://127.0.0.1:${port}/api/sync/sleeper/drafts/fixture-draft/events`, { headers });
+    expect(stream.ok).toBe(true);
+    expect((await fetch(`http://127.0.0.1:${port}/api/draft-data/refresh`, { method: 'POST', headers })).status).toBe(202);
+    await vi.waitFor(() => { expect(pollStarted && refreshStarted).toBe(true); });
+
+    await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
+    expect({ pollAborted, refreshStopped }).toEqual({ pollAborted: true, refreshStopped: true });
+    await stream.body?.cancel();
+  });
+
+  it('shuts down without an unhandled rejection after a client abandons a provider request', async () => {
+    let requestStarted = false;
+    const server = createSyncServer({
+      fetchJson: () => { requestStarted = true; return new Promise(() => {}); },
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => { rejections.push(reason); };
+    process.on('unhandledRejection', onRejection);
+    try {
+      const client = new AbortController();
+      const pending = fetch(`http://127.0.0.1:${port}/api/market-adp`, {
+        headers: { 'X-Sync-Token': TOKEN }, signal: client.signal,
+      }).catch(() => undefined);
+      await vi.waitFor(() => { expect(requestStarted).toBe(true); });
+      client.abort();
+      await pending;
+      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
+      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onRejection);
+    }
+  });
+
   it.each(['current-keepers', 'sportsbook'])('rejects malformed %s files at the data endpoint', async (name) => {
     const server = createSyncServer({ draftData: { currentKeepers: {}, sportsbookSnapshot: {} } });
     await new Promise<void>(resolve => server.listen(0, resolve));

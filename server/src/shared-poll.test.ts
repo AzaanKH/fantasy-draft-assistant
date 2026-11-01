@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Deferred, Effect, Fiber } from 'effect';
+import { Deferred, Effect, Fiber, Layer, ManagedRuntime } from 'effect';
 import { SharedPoll } from './shared-poll.js';
 
 function gatedPoll() {
@@ -8,7 +8,7 @@ function gatedPoll() {
     const gate = Deferred.makeUnsafe<true>();
     gates.push(gate);
     return Deferred.await(gate).pipe(Effect.as(gates.length));
-  }));
+  }), ManagedRuntime.make(Layer.empty));
   const finish = (index: number) => Effect.runPromise(Deferred.succeed(gates[index]!, true));
   return { poll, gates, finish };
 }

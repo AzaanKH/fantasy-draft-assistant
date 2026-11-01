@@ -58,6 +58,10 @@ Measured with `pnpm measure:effect-adoption --baseline 770b4ff`, before and afte
 
 These files had no `as` casts left to remove. `cli/src/data.ts` already decoded every file through the catalog schemas, so it did not change. `isSleeperLeague` still guards the Sleeper league payload, as planned for the composite validators.
 
+### Server runtime
+
+The sync server runs its fibers on one `ManagedRuntime`, built in `createSyncServer`. Requests, session poll loops, shared polls and the Core Draft Data refresh all start on it, and the three fiber interrupts run on it too. The server disposes the runtime once, when it emits `close`. Measured from `main` at `307ec16`, the server's `Effect.run*` calls fell from 7 to 0 and its non-blank lines grew from 2079 to 2091. The script counts only `Effect.run*` calls. It does not count the seven calls to the runtime's own `runFork` and `runPromise` methods.
+
 ## Runtime cost
 
 | Measurement | `main` | Effect | Change |
@@ -94,7 +98,7 @@ Only the background loads Effect. The side panel checks the small response proje
 Each change below was checked against a running process, not only the unit tests.
 
 - The CLI `watch` command still reconnects after 30 seconds of silence and backs off exponentially. A server that stops responding now reports `SERVER_UNAVAILABLE` with a message to start the server. Before, it reported a generic `COMMAND_FAILED`. A server that sends headers and then stalls the body no longer keeps the CLI process alive after the timeout.
-- The sync server polls each draft in one fiber per session at a 1-second interval. After failures it waits 2, 4, then 8 seconds, capped at 30, which is unchanged from `main`. Polling stops when the last client disconnects, and shutdown leaves no timers running. Concurrent refreshes share polls as before: six at once make two polls. A stalled provider now reports `Sleeper request timed out` instead of `This operation was aborted`.
+- The sync server polls each draft in one fiber per session at a 1-second interval. After failures it waits 2, 4, then 8 seconds, capped at 30, which is unchanged from `main`. Polling stops when the last client disconnects, and shutdown leaves no timers running. Shutdown also interrupts a poll that is still waiting on the provider. Before the server used one runtime, that poll kept running after shutdown. The `shutdown` callback now runs after the runtime is disposed. Concurrent refreshes share polls as before: six at once make two polls. A stalled provider now reports `Sleeper request timed out` instead of `This operation was aborted`.
 - A Core Draft Data refresh step that times out now waits for its script to exit before reporting failure. The server sends SIGTERM, then SIGKILL after 10 seconds, so a new refresh cannot overlap a script that is still writing data.
 - The Sleeper player fetch in `pnpm refresh:sleeper` had no timeout, so a slow API could stall `pnpm dev:live` preflight. It now times out after 60 seconds. It also retries rate limits and server errors, honoring `Retry-After`.
 - `pnpm import:league-history` sent every season's requests at once. It now runs two seasons at a time.
@@ -113,7 +117,6 @@ A review of the first version of this stack found six regressions that the tests
 
 ## Possible next steps
 
-- Run the server's fibers on one `ManagedRuntime`. The server calls the Effect runtime in seven places. Four start a request, a poll loop, a shared poll, or a refresh job, and three interrupt a fiber.
 - CLI argument parsing stays on `node:util` `parseArgs`. A prototype on `effect/cli` 4.0.0 failed the usage contract pinned in `cli/src/usage-contract.test.ts`:
   - It writes its own help to stdout on every parse error, even with `renderErrors: false`. That breaks the one-line JSON error on stdout.
   - It rejects options placed before the command name, such as `draft --limit 5 recommend`.
