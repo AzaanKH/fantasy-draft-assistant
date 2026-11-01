@@ -824,7 +824,7 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
     };
     response.once('close', release);
     response.once('finish', release);
-    void runtime.runPromise(handleRequest(request, response).pipe(
+    void runtime.runPromiseExit(handleRequest(request, response).pipe(
       Effect.catchCause((cause) => Effect.sync(() => { sendFailure(request, response, cause); })),
       Effect.ensuring(Effect.sync(release)),
     ));

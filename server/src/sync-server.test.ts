@@ -630,6 +630,32 @@ describe('createSyncServer', () => {
     await stream.body?.cancel();
   });
 
+  it('shuts down without an unhandled rejection after a client abandons a provider request', async () => {
+    let requestStarted = false;
+    const server = createSyncServer({
+      fetchJson: () => { requestStarted = true; return new Promise(() => {}); },
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => { rejections.push(reason); };
+    process.on('unhandledRejection', onRejection);
+    try {
+      const client = new AbortController();
+      const pending = fetch(`http://127.0.0.1:${port}/api/market-adp`, {
+        headers: { 'X-Sync-Token': TOKEN }, signal: client.signal,
+      }).catch(() => undefined);
+      await vi.waitFor(() => { expect(requestStarted).toBe(true); });
+      client.abort();
+      await pending;
+      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
+      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onRejection);
+    }
+  });
+
   it.each(['current-keepers', 'sportsbook'])('rejects malformed %s files at the data endpoint', async (name) => {
     const server = createSyncServer({ draftData: { currentKeepers: {}, sportsbookSnapshot: {} } });
     await new Promise<void>(resolve => server.listen(0, resolve));
