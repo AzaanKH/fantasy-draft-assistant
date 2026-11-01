@@ -1,4 +1,4 @@
-import { Data, Effect } from 'effect';
+import { Data, Effect, Option, Schema } from 'effect';
 import type {
   DraftMetadata,
   DraftPickEvent,
@@ -37,6 +37,12 @@ export const requestJson = <A>(fetchJson: FetchJson, url: string, decode: (value
     }, init),
     catch: (cause) => providerError(cause),
   });
+
+/** Decodes a provider payload with `schema`; any mismatch fails with `message` as the sync error. */
+export function decodePayload<S extends Schema.Decoder<unknown>>(schema: S, message: string): (value: unknown) => S['Type'] {
+  const decode = Schema.decodeUnknownOption(schema);
+  return value => Option.getOrThrowWith(decode(value), () => new ProviderError({ message }));
+}
 
 /** Validate a payload inside the error channel; the validators report problems by throwing. */
 export const parsePayload = <A>(parse: () => A): Effect.Effect<A, ProviderError> =>

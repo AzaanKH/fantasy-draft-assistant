@@ -632,6 +632,11 @@ describe('draft CLI against a local fixture server', () => {
       (value: Record<string, any>) => { value.data.players[0].projectedPoints = 'invalid'; },
       (value: Record<string, any>) => { value.snapshot.picks.push(value.snapshot.picks[0]); },
       (value: Record<string, any>) => { value.readiness.status = 'blocked'; },
+      (value: Record<string, any>) => { value.session = 'not a session'; },
+      (value: Record<string, any>) => { value.slot = Number(value.snapshot.draft.settings.teams) + 1; },
+      (value: Record<string, any>) => { value.snapshot.status = 'invalid'; },
+      (value: Record<string, any>) => { value.snapshot.draft = null; },
+      (value: Record<string, any>) => { value.snapshot.picks[0].pickNumber = Number(value.snapshot.draft.settings.teams) * Number(value.snapshot.draft.settings.rounds) + 1; },
     ];
     const requests = requestCount;
     for (const corrupt of corruptions) {
@@ -639,7 +644,7 @@ describe('draft CLI against a local fixture server', () => {
       await writeFile(path, JSON.stringify(value));
       const result = await command(['replay', path, '--json']);
       expect(result.code).toBe(2);
-      expect(result.result.error.code).toBe('INVALID_ARCHIVE');
+      expect(result.result.error).toMatchObject({ code: 'INVALID_ARCHIVE', message: 'The session archive has invalid or inconsistent draft data.' });
     }
     expect(requestCount).toBe(requests);
   });

@@ -12,6 +12,7 @@ import {
 } from '@fantasy-draft/shared/sync';
 import { Effect, Schema } from 'effect';
 import {
+  decodePayload,
   parsePayload,
   requestJson,
   type DraftAdapterSnapshot,
@@ -45,13 +46,20 @@ interface YahooInitialization {
   readonly playersByKey: ReadonlyMap<string, YahooPlayer>;
 }
 
-const isYahooObject = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
-
-function getRecord(value: unknown, key: string): Record<string, unknown> | null {
-  if (!isYahooObject(value)) return null;
-  const nested = value[key];
-  return isYahooObject(nested) ? nested : null;
+const yahooObject = Schema.Record(Schema.String, Schema.Unknown);
+const isYahooObject = Schema.is(yahooObject);
+function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
+  return Schema.StructWithRest(Schema.Struct(fields), [yahooObject]);
 }
+/** Yahoo sends identifiers and counts as strings or numbers; these match the values `getString` and `getNumber` accept. */
+const yahooText = Schema.Union([Schema.String.check(Schema.makeFilter(value => value.trim() !== '')), Schema.Finite]);
+const yahooNumber = Schema.Union([Schema.Finite, Schema.String.check(Schema.makeFilter(value => value.trim() !== '' && Number.isFinite(Number(value))))]);
+
+const decodeSettingsService = decodePayload(Schema.Struct({ service: yahooObject }), 'Yahoo returned an invalid settings payload');
+const decodeRosterPositions = decodePayload(openStruct({ roster_positions: Schema.Array(Schema.Unknown) }), 'Yahoo settings did not include roster positions');
+const decodePlayerListService = decodePayload(Schema.Struct({ service: yahooObject }), 'Yahoo returned an invalid player list payload');
+const decodePlayerList = decodePayload(openStruct({ player_list: Schema.Array(openStruct({ player_key: yahooText })) }), 'Yahoo returned an invalid player list');
+const isDraftResultRow = Schema.is(openStruct({ round: yahooNumber, pick: yahooNumber, team_key: yahooText }));
 
 function getString(value: unknown): string | null {
   if (typeof value === 'string') {
@@ -75,14 +83,6 @@ function getBoolean(value: unknown): boolean {
   return value === true || value === 1 || value === '1' || value === 'true';
 }
 
-function getService(payload: unknown, label: string): Record<string, unknown> {
-  const service = getRecord(payload, 'service');
-  if (!service) {
-    throw new Error(`Yahoo returned an invalid ${label} payload`);
-  }
-  return service;
-}
-
 function normalizePosition(value: unknown): Position | null {
   const normalized = getString(value)?.toUpperCase();
   if (normalized === 'DST' || normalized === 'D/ST') return 'DEF';
@@ -95,14 +95,8 @@ function normalizeTeam(value: unknown): string | null {
 }
 
 function getDraftRounds(settings: Record<string, unknown>): number {
-  const positions = settings.roster_positions;
-  if (!Array.isArray(positions)) {
-    throw new Error('Yahoo settings did not include roster positions');
-  }
-
   const nonDraftedPositions = new Set(['IR', 'IR+', 'IL', 'IL+', 'NA']);
-  const entries: readonly unknown[] = positions;
-  const rounds = entries.reduce<number>((total, entry) => {
+  const rounds = decodeRosterPositions(settings).roster_positions.reduce<number>((total, entry) => {
     if (!isYahooObject(entry)) return total;
     const position = getString(entry.position)?.toUpperCase();
     const count = getNumber(entry.count);
@@ -144,8 +138,8 @@ function getInitialStatus(
 }
 
 function parseYahooSettings(leagueId: string, payload: unknown): DraftMetadata {
-  const service = getService(payload, 'settings');
-  const settings = getRecord(service, 'settings');
+  const { service } = decodeSettingsService(payload);
+  const settings = isYahooObject(service.settings) ? service.settings : null;
   const providerKey = getString(service.league_key);
   const teams =
     getNumber(service.num_teams) ??
@@ -171,18 +165,10 @@ function parseYahooSettings(leagueId: string, payload: unknown): DraftMetadata {
 }
 
 function parseYahooPlayers(payload: unknown): ReadonlyMap<string, YahooPlayer> {
-  const service = getService(payload, 'player list');
-  if (!Array.isArray(service.player_list)) {
-    throw new Error('Yahoo returned an invalid player list');
-  }
-
+  const { player_list: players } = decodePlayerList(decodePlayerListService(payload).service);
   const playersByKey = new Map<string, YahooPlayer>();
-  const players: readonly unknown[] = service.player_list;
   for (const rawPlayer of players) {
-    if (!isYahooObject(rawPlayer)) throw new Error('Yahoo returned an invalid player list');
-    const playerKey = getString(rawPlayer.player_key);
-    if (!playerKey) throw new Error('Yahoo returned an invalid player list');
-
+    const playerKey = String(rawPlayer.player_key).trim();
     const firstName = getString(rawPlayer.fname) ?? '';
     const lastName = getString(rawPlayer.lname) ?? '';
     const name = `${firstName} ${lastName}`.trim() || playerKey;
@@ -213,7 +199,7 @@ function collectYahooDraftResults(
   if (!isYahooObject(value)) return;
   if ('draft_result' in value) {
     const row = value.draft_result;
-    if (!isYahooObject(row) || getNumber(row.round) === null || getNumber(row.pick) === null || !getString(row.team_key)) {
+    if (!isDraftResultRow(row)) {
       throw new Error('Yahoo returned an invalid draft result');
     }
     collectYahooDraftResults(row, results);

@@ -9,8 +9,7 @@ import {
   type DraftReadinessReport,
 } from '@fantasy-draft/shared/catalog';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
-import { decodeDraftSyncSnapshot } from '@fantasy-draft/shared/catalog';
-import { isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
+import { isDraftSyncSnapshot, isRecommendationPolicyFile, isLeagueSurvivalModel } from '@fantasy-draft/shared/catalog';
 import { getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { createSessionContext } from './context';
 import { parseSession } from './arguments';
@@ -85,13 +84,13 @@ const archivedDataSchema = openStruct({
     isConfirmed: Schema.Boolean, isMockReady: Schema.Boolean, error: Schema.NullOr(Schema.String),
   }),
 });
-const decodeArchiveEnvelope = Schema.decodeUnknownSync(openStruct({
+const decodeArchive = Schema.decodeUnknownSync(openStruct({
   schemaVersion: Schema.Literal(1), kind: Schema.Literal('fantasy-draft-session'),
-  capturedAt: timestamp, session: Schema.String, slot: Schema.NullOr(count), snapshot: Schema.Unknown,
-  data: archivedDataSchema, readiness, warnings: strings,
-}));
+  capturedAt: timestamp, session: Schema.String, slot: Schema.NullOr(count), snapshot: Schema.declare(isDraftSyncSnapshot),
+  data: archivedDataSchema, readiness: readiness.check(Schema.makeFilter(hasConsistentReadiness)), warnings: strings,
+}).check(Schema.makeFilter(hasConsistentArchive)));
 
-function hasConsistentReadiness(value: DraftReadinessReport): boolean {
+function hasConsistentReadiness(value: typeof readiness.Type): boolean {
   const core = value.coreDraftData;
   const optional = value.optionalSignals;
   const failures = core.filter(item => item.status === 'blocking');
@@ -104,10 +103,18 @@ function hasConsistentReadiness(value: DraftReadinessReport): boolean {
     value.productBlockingFailures.every(item => failures.some(failure => failure.key === item.key));
 }
 
-function hasConsistentData(value: ArchivedDraftData, snapshot: DraftSyncSnapshot): boolean {
+/** Session, slot, keepers, and picks must all describe the archived draft. */
+function hasConsistentArchive({ session, slot, snapshot, data: value }: Pick<SessionArchive, 'session' | 'slot' | 'snapshot'> & { readonly data: typeof archivedDataSchema.Type }): boolean {
   const draft = snapshot.draft;
-  if (!draft) return false;
+  if (!draft || parseSession(session).id !== `${snapshot.provider}:${snapshot.draftId}` ||
+      draft.provider !== snapshot.provider || draft.draftId !== snapshot.draftId ||
+      !(slot === null || slot >= 1 && slot <= draft.settings.teams)) return false;
   const { teams, rounds } = draft.settings;
+  const totalPicks = teams * rounds;
+  if (snapshot.picks.some(pick => pick.draftId !== snapshot.draftId || pick.pickNumber > totalPicks ||
+      pick.draftSlot > teams || pick.teamIndex >= teams) ||
+      new Set(snapshot.picks.map(pick => pick.pickNumber)).size !== snapshot.picks.length ||
+      new Set(snapshot.picks.map(pick => pick.playerId)).size !== snapshot.picks.length) return false;
   const byId = new Map(value.players.map(player => [player.id, player]));
   return byId.size === value.players.length && value.keepers.every(keeper =>
     keeper.teamIndex < teams && keeper.round >= 1 && keeper.round <= rounds &&
@@ -138,29 +145,10 @@ export const readArchive = Effect.fn('readArchive')(function* (path: string) {
       ? new CliError('REPLAY_NOT_FOUND', 'The session archive does not exist.', 2)
       : new CliError('INVALID_ARCHIVE', 'The replay input must be a valid session archive within the 20 MiB size limit.', 2)));
   return yield* Effect.try({
-    try: () => validArchive(value),
+    try: (): SessionArchive => decodeArchive(value),
     catch: () => new CliError('INVALID_ARCHIVE', 'The session archive has invalid or inconsistent draft data.', 2),
   });
 });
-
-function validArchive(value: unknown): SessionArchive {
-  const envelope = decodeArchiveEnvelope(value);
-  const snapshot = decodeDraftSyncSnapshot(envelope.snapshot);
-  const draft = snapshot.draft;
-  if (!draft || parseSession(envelope.session).id !== `${snapshot.provider}:${snapshot.draftId}` ||
-      draft.provider !== snapshot.provider || draft.draftId !== snapshot.draftId ||
-      !(envelope.slot === null || envelope.slot >= 1 && envelope.slot <= draft.settings.teams) ||
-      !hasConsistentData(envelope.data, snapshot) || !hasConsistentReadiness(envelope.readiness)) {
-    throw new Error('Invalid archive');
-  }
-  const { teams, rounds } = draft.settings;
-  const totalPicks = teams * rounds;
-  if (snapshot.picks.some(pick => pick.draftId !== snapshot.draftId || pick.pickNumber > totalPicks ||
-      pick.draftSlot > teams || pick.teamIndex >= teams) ||
-      new Set(snapshot.picks.map(pick => pick.pickNumber)).size !== snapshot.picks.length ||
-      new Set(snapshot.picks.map(pick => pick.playerId)).size !== snapshot.picks.length) throw new Error('Inconsistent picks');
-  return { ...envelope, snapshot };
-}
 
 export function archivedData(archive: SessionArchive): DraftData {
   return { ...archive.data, keeperStatus: { ...archive.data.keeperStatus,

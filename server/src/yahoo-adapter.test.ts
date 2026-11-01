@@ -60,6 +60,53 @@ describe('YahooSyncAdapter', () => {
     } finally { warning.mockRestore(); }
   });
 
+  const settings = yahooSettingsFixture.service.settings;
+  it.each([
+    [null, 'Yahoo returned an invalid settings payload'],
+    [{ service: [] }, 'Yahoo returned an invalid settings payload'],
+    [{ service: { ...yahooSettingsFixture.service, league_key: ' ' } }, 'Yahoo settings did not include a complete league key'],
+    [{ service: { ...yahooSettingsFixture.service, settings: null } }, 'Yahoo settings did not include a complete league key'],
+    [{ service: { ...yahooSettingsFixture.service, num_teams: 0 } }, 'Yahoo settings did not include a complete league key'],
+    [{ service: { ...yahooSettingsFixture.service, settings: { ...settings, roster_positions: {} } } }, 'Yahoo settings did not include roster positions'],
+    [{ service: { ...yahooSettingsFixture.service, settings: { ...settings, roster_positions: [{ position: 'IR', count: 2 }, null] } } }, 'Yahoo settings returned an invalid roster size'],
+    [{ service: { ...yahooSettingsFixture.service, num_teams: 2.5 } }, undefined],
+  ])('reports an invalid settings payload as its sync error: %j', async (payload, message) => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const fixture = createYahooFetch([]);
+    const fetchInvalid: FixtureFetchJson = async (url, signal, init) => url.includes('/settings/') ? payload : fixture(url, signal, init);
+    try {
+      const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fixtureFetchJson(fetchInvalid)).poll()));
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe('ProviderError');
+        if (message) expect(result.failure.message).toBe(message);
+      }
+    } finally { warning.mockRestore(); }
+  });
+
+  it.each([
+    [null, 'Yahoo returned an invalid player list payload'],
+    [{ service: { player_list: {} } }, 'Yahoo returned an invalid player list'],
+    [{ service: { player_list: [{ player_key: '  ' }] } }, 'Yahoo returned an invalid player list'],
+    [{ service: { player_list: [] } }, 'Yahoo player list was empty'],
+  ])('reports an invalid player list as its sync error: %j', async (players, message) => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const result = await Effect.runPromise(Effect.result(new YahooSyncAdapter('7428778', fixtureFetchJson(createYahooFetch([], [], players))).poll()));
+      expect(Result.isFailure(result) && result.failure).toMatchObject({ _tag: 'ProviderError', message });
+    } finally { warning.mockRestore(); }
+  });
+
+  it('accepts numeric Yahoo player keys and trims player names', async () => {
+    const fixture = createYahooFetch([]);
+    const fetchNumeric: FixtureFetchJson = async (url, signal, init) => url.includes('/players/')
+      ? { service: { player_list: [{ player_key: ' 999.p.101 ', fname: ' Alpha ', lname: 'Quarterback' }, { player_key: 7 }] } }
+      : fixture(url, signal, init);
+    const snapshot = await Effect.runPromise(new YahooSyncAdapter('7428778', fixtureFetchJson(fetchNumeric)).poll());
+    expect(snapshot.draft.providerKey).toBe('999.l.7428778');
+    expect(snapshot.picks.map(pick => pick.playerName)).toEqual(['Alpha Quarterback', '999.p.103']);
+  });
+
   it.each([null, { round: '1', pick: 'invalid', team_key: '999.l.7428778.t.1' }])('rejects malformed declared draft results atomically', invalid => {
     expect(() => parseYahooDraftResults({ draft_result: invalid })).toThrow('Yahoo returned an invalid draft result');
   });
