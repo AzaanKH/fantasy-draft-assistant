@@ -43,6 +43,21 @@ These counts cover the four converted workspaces, from `main` to the end of the 
 
 Across the four workspaces, `throw` statements fell from 127 to 70, `try` blocks from 80 to 44, and `AbortSignal` handling from 43 to 12. Code size grew 0.7%. These historical counts precede unit 8. HTTP bodies now run through the Effect-free `@fantasy-draft/shared/http` runner. The CLI and script adapters preserve their Effect error channels and pass interruption signals to that runner. The remaining extension timers belong to the content scripts, which were left alone on purpose.
 
+### Schema boundary guards
+
+The session archive and the Yahoo and Fantasy Football Calculator adapters now parse provider and archive data with `Schema` from `effect`. The archive schema carries its consistency rules as filters: session, slot, keepers, picks and readiness must all agree with the archived draft. The Yahoo adapter declares its settings, player list and draft-result shapes as schemas. It keeps its string-or-number normalizers, because Yahoo sends both. `decodePayload` in `server/src/sync-adapter.ts` turns any schema mismatch into a `ProviderError` that carries the existing user-facing message. Error codes and messages are unchanged. Characterization tests pin each rejection message.
+
+Measured with `pnpm measure:effect-adoption --baseline 770b4ff`, before and after this step:
+
+| Metric | cli | server |
+| --- | ---: | ---: |
+| Non-blank lines | 1425 → 1413 | 2079 → 2068 |
+| `throw` statements | 20 → 18 | 30 → 23 |
+| `try` blocks | 12 | 14 → 12 |
+| Swallowed errors | 8 | 8 → 6 |
+
+These files had no `as` casts left to remove. `cli/src/data.ts` already decoded every file through the catalog schemas, so it did not change. `isSleeperLeague` still guards the Sleeper league payload, as planned for the composite validators.
+
 ## Runtime cost
 
 | Measurement | `main` | Effect | Change |
@@ -98,7 +113,6 @@ A review of the first version of this stack found six regressions that the tests
 
 ## Possible next steps
 
-- Replace the hand-written type guards in `cli/src/archive.ts`, `cli/src/data.ts`, and the server adapters with `Schema` from `effect`. The guards make up most of the remaining `throw` statements and `as` casts.
 - Run the server's fibers on one `ManagedRuntime`. The server calls the Effect runtime in seven places. Four start a request, a poll loop, a shared poll, or a refresh job, and three interrupt a fiber.
 - CLI argument parsing stays on `node:util` `parseArgs`. A prototype on `effect/cli` 4.0.0 failed the usage contract pinned in `cli/src/usage-contract.test.ts`:
   - It writes its own help to stdout on every parse error, even with `renderErrors: false`. That breaks the one-line JSON error on stdout.
