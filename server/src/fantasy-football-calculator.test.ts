@@ -1,5 +1,5 @@
 import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Effect } from 'effect';
 import {
   FantasyFootballCalculatorAdpProvider,
@@ -80,5 +80,28 @@ describe('optional market row warnings', () => {
     const snapshot = await Effect.runPromise(new FantasyFootballCalculatorAdpProvider(fixtureFetchJson(fetchJson)).getSnapshot('ppr', 10, 2026));
     expect(snapshot.players).toHaveLength(1);
     expect(snapshot).toHaveProperty('warnings', ['Dropped 2 invalid Fantasy Football Calculator rows.']);
+  });
+});
+
+describe('invalid market payloads', () => {
+  it.each([
+    [null, 'Fantasy Football Calculator returned an invalid ADP payload'],
+    [{ status: 'Error', players: [] }, 'Fantasy Football Calculator returned an invalid ADP payload'],
+    [{ status: 'Success', players: {} }, 'Fantasy Football Calculator returned an invalid player list'],
+    [{ status: 'Success', players: [null, { name: ' ', position: 'RB', adp: 1 }] }, 'Fantasy Football Calculator returned no usable ADP players'],
+  ])('reports %j as its provider error', async (payload, message) => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const provider = new FantasyFootballCalculatorAdpProvider(fixtureFetchJson(async () => payload));
+      const error = await Effect.runPromise(Effect.flip(provider.getSnapshot('ppr', 10, 2026)));
+      expect(error).toMatchObject({ _tag: 'ProviderError', message });
+    } finally { warning.mockRestore(); }
+  });
+
+  it('ignores a malformed meta block instead of rejecting the snapshot', async () => {
+    const provider = new FantasyFootballCalculatorAdpProvider(fixtureFetchJson(async () => ({
+      status: 'Success', meta: 'none', players: [{ player_id: 1, name: 'Valid', position: 'RB', adp: 10 }],
+    })));
+    expect(await Effect.runPromise(provider.getSnapshot('ppr', 10, 2026))).toMatchObject({ draftCount: null, players: [{ team: null }] });
   });
 });
