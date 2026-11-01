@@ -18,10 +18,11 @@ export function MotionProvider({
 }): React.ReactElement {
   const reduceMotion = usePrefersReducedMotion();
 
+  // Reduced motion drops transform and layout animation but keeps opacity fades; visual fixtures disable everything.
   return (
     <MotionConfig
       reducedMotion={reduceMotion ? 'always' : 'never'}
-      transition={reduceMotion ? { duration: 0 } : CONTENT_TRANSITION}
+      transition={isMotionDisabled() ? { duration: 0 } : CONTENT_TRANSITION}
     >
       <LazyMotion features={loadMotionFeatures} strict>{children}</LazyMotion>
     </MotionConfig>
@@ -61,20 +62,20 @@ function useChangeAnimation(
   keyframes: Keyframe[],
   duration: number
 ): void {
-  const reduceMotion = usePrefersReducedMotion();
   const previousKey = React.useRef(motionKey);
 
+  // The keyframes are opacity-only, so they still run under reduced motion.
   React.useLayoutEffect(() => {
     const changed = !Object.is(previousKey.current, motionKey);
     previousKey.current = motionKey;
-    if (!changed || reduceMotion || !element.current) return;
+    if (!changed || isMotionDisabled() || !element.current) return;
 
     const animation = element.current.animate(keyframes, {
       duration,
       easing: MOTION_EASE_CSS,
     });
     return () => { animation.cancel(); };
-  }, [duration, element, keyframes, motionKey, reduceMotion]);
+  }, [duration, element, keyframes, motionKey]);
 }
 
 /** Returns whether the element is still present; an exiting element is inert. */
@@ -110,7 +111,8 @@ function MotionSwapContent({
   readonly className?: string;
   readonly kind: 'content-swap' | 'player-identity';
 }): React.ReactElement {
-  const reduceMotion = usePrefersReducedMotion();
+  // Opacity-only, so the swap still fades under reduced motion.
+  const motionDisabled = isMotionDisabled();
   const element = React.useRef<HTMLDivElement>(null);
   const isPresent = useInertWhenExiting(element);
 
@@ -120,10 +122,10 @@ function MotionSwapContent({
       className={className}
       data-motion={kind}
       aria-hidden={isPresent ? undefined : true}
-      initial={reduceMotion ? false : { opacity: 0 }}
+      initial={motionDisabled ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: MOTION_MS.exit / 1000 } }}
-      transition={reduceMotion ? { duration: 0 } : SWAP_TRANSITION}
+      exit={motionDisabled ? undefined : { opacity: 0, transition: { duration: MOTION_MS.exit / 1000 } }}
+      transition={motionDisabled ? { duration: 0 } : SWAP_TRANSITION}
     >
       {children}
     </m.div>

@@ -58,7 +58,7 @@ Vetted against the cited code. Ordered by leverage (impact ÷ effort).
 | --- | --- | --- | --- | --- |
 | 001 | [Overlay exits use ease-out](001-overlay-exits-ease-out.md) | HIGH | DONE | — |
 | 002 | [Overlay entrance follows its side](002-overlay-entrance-follows-side.md) | MEDIUM | DONE | 001 |
-| 003 | [Reduced motion keeps fades](003-reduced-motion-keeps-fades.md) | MEDIUM | TODO | — |
+| 003 | [Reduced motion keeps fades](003-reduced-motion-keeps-fades.md) | MEDIUM | DONE | — |
 | 004 | [Measure the dock expand layout cost](004-dock-expand-layout-cost.md) | MEDIUM | TODO | — |
 | 005 | [Turn ring animates composite-only properties](005-turn-ring-composite-only.md) | LOW | TODO | — |
 | 006 | [Sheet uses the drawer curve](006-sheet-drawer-curve.md) | LOW | DONE | 001 |

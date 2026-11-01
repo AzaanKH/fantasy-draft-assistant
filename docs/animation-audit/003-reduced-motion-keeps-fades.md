@@ -1,6 +1,6 @@
 # 003 — Reduced motion keeps fades
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: e655db6
 - **Severity**: MEDIUM
 - **Category**: Accessibility
@@ -96,3 +96,15 @@ Each wrapper also branches to `initial={false}` / `{ duration: 0 }` (`motion.tsx
   - Queue rows do not glide.
   - Button press does not scale.
 - **Done when**: reduced motion shows opacity and color feedback with zero translate, scale, or layout movement.
+
+## Outcome
+
+Implemented with these deviations from Target, found while doing it:
+
+- **Visual fixtures stay frozen.** `html[data-visual-test]` only stops CSS animations. Motion and WAAPI animations need their own check, so `MotionSwapContent` and `useChangeAnimation` skip on `isMotionDisabled()`. `MotionProvider` keeps `reducedMotion` driven by `usePrefersReducedMotion()` (`always`/`never`), which equals `"user"` but also covers visual fixtures. Its default transition is `{ duration: 0 }` only when motion is disabled.
+- **Expandable fade uses the full shorthand.** `transition-property: opacity` alone would pair opacity with the first listed duration (`layout`, 280ms). Both the media-query rule and `[data-reduced-motion="true"]` use `transition: opacity var(--motion-duration-content) var(--motion-ease-out)` instead.
+- **No button rule.** The press scale is already inside `@media (prefers-reduced-motion: no-preference)`, so `[data-slot=button]:active { transform: none; }` would do nothing.
+- **Two additions.** The old 0ms override had also stopped spinners and the details-chevron rotation. Without it, `animate-spin` would spin once (iteration count 1) and `transition-transform` would rotate. The block now sets `.animate-spin { animation: none; }` and `.transition-transform { transition-property: none; }`.
+- Sonner already disables its own motion under reduced motion. The turn ring and the board's auto-scroll keep their reduced-motion skips.
+
+Tests added in `web-app/src/components/motion.test.tsx`: `MotionFade` still runs its opacity keyframes under `prefers-reduced-motion: reduce`, and runs nothing under `data-visual-test`. Not checked in a browser.
