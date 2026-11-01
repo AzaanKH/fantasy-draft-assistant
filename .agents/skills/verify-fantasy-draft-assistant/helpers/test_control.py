@@ -61,7 +61,7 @@ class CliIsolationTests(unittest.TestCase):
                      ["readiness", "--server-url", "http://localhost:3001"],
                      ["connect", "sleeper:x"]):
             with self.subTest(argv=argv), patch.object(control, "read_state", return_value=state), \
-                    patch.object(control, "doctor"), patch.object(control.subprocess, "run") as run:
+                    patch.object(control, "doctor"), patch.object(control, "run_forwarding_signals") as run:
                 with self.assertRaises(ValueError):
                     control.cli("fda-test", argv)
                 run.assert_not_called()
@@ -69,13 +69,22 @@ class CliIsolationTests(unittest.TestCase):
     def test_cli_preserves_readiness_exit_and_rechecks_doctor(self):
         with patch.object(control, "read_state", return_value={"mode": "offline", "copy": "/private/checkout"}), \
                 patch.object(control, "doctor") as doctor, \
-                patch.object(control.subprocess, "run", return_value=subprocess.CompletedProcess([], 3)) as run:
+                patch.object(control, "run_forwarding_signals", return_value=3) as run:
             with self.assertRaises(SystemExit) as result:
                 control.cli("fda-test", ["readiness", "--json"])
             self.assertEqual(result.exception.code, 3)
             self.assertEqual(doctor.call_count, 2)
             self.assertEqual(run.call_args.args[0], ["node", "cli/bin/draft.mjs", "readiness", "--json"])
             self.assertEqual(run.call_args.kwargs["cwd"], Path("/private/checkout"))
+
+    def test_cli_forwards_interrupt_to_its_child(self):
+        with patch.object(control.subprocess, "Popen") as popen, patch.object(control.signal, "signal") as handler:
+            popen.return_value.wait.return_value = -2
+            self.assertEqual(control.run_forwarding_signals(["node"]), -2)
+            forward = handler.call_args_list[0].args[1]
+            forward(control.signal.SIGINT, None)
+            popen.return_value.send_signal.assert_called_once_with(control.signal.SIGINT)
+            self.assertEqual(handler.call_count, 4)
 
     def test_offline_doctor_does_not_contact_existing_services(self):
         with tempfile.TemporaryDirectory(prefix="fda-verify-") as directory:
@@ -96,7 +105,7 @@ class CliIsolationTests(unittest.TestCase):
     def test_app_cli_uses_its_recorded_api_port(self):
         state = {"mode": "app", "copy": "/private/checkout", "web_port": 3100, "api_port": 3101}
         with patch.object(control, "read_state", return_value=state), patch.object(control, "doctor"), \
-                patch.object(control.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+                patch.object(control, "run_forwarding_signals", return_value=0) as run:
             with self.assertRaises(SystemExit):
                 control.cli("fda-test", ["sessions", "--json"])
             self.assertEqual(run.call_args.kwargs["env"]["DRAFT_SERVER_URL"], "http://127.0.0.1:3101")
