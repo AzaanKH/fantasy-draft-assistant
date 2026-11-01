@@ -66,9 +66,11 @@ function pointer(type: string, clientY: number): void {
   act(() => { separator().dispatchEvent(event); });
 }
 
-it('moves the board edge during a drag without re-rendering the board, then commits once', () => {
-  pointer('pointerdown', 100);
+it('starts and moves a drag without re-rendering the board, then commits once', () => {
   const rendersAtDragStart = boardRenders.count;
+  pointer('pointerdown', 100);
+  expect(boardRenders.count).toBe(rendersAtDragStart);
+  expect(container.querySelector('.draft-workspace-stack')?.hasAttribute('data-resizing')).toBe(true);
 
   for (const clientY of [120, 150, 190]) pointer('pointermove', clientY);
 
@@ -80,7 +82,8 @@ it('moves the board edge during a drag without re-rendering the board, then comm
   pointer('pointerup', 200);
 
   const committed = DEFAULT_BOARD_HEIGHT + 100;
-  expect(boardRenders.count).toBeGreaterThan(rendersAtDragStart);
+  expect(boardRenders.count).toBe(rendersAtDragStart + 1);
+  expect(container.querySelector('.draft-workspace-stack')?.hasAttribute('data-resizing')).toBe(false);
   for (const scroller of scrollers()) {
     // The inline drag height is gone; the committed variable sizes the scroller again.
     expect(scroller.style.height).toBe('');
@@ -105,5 +108,34 @@ it('keeps the drag within its bounds and commits the last height when the pointe
   for (const scroller of scrollers()) {
     expect(scroller.style.height).toBe('');
     expect(scroller.style.getPropertyValue('--draft-board-height')).toBe('260px');
+  }
+});
+
+it('finishes an active drag when the dock collapses, so reopening shows the dragged height', () => {
+  const dockToggle = (label: string): HTMLButtonElement => {
+    const button = container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    if (!button) throw new Error(`No "${label}" button rendered`);
+    return button;
+  };
+  const stack = (): HTMLElement | null => container.querySelector<HTMLElement>('.draft-workspace-stack');
+
+  pointer('pointerdown', 100);
+  pointer('pointermove', 160);
+  expect(stack()?.hasAttribute('data-resizing')).toBe(true);
+
+  // The separator unmounts with the dock, so its pointerup never arrives.
+  act(() => { dockToggle('Collapse player workspace').click(); });
+
+  const dragged = DEFAULT_BOARD_HEIGHT + 60;
+  expect(container.querySelector('[role="separator"][aria-label="Resize draft board"]')).toBeNull();
+  expect(stack()?.hasAttribute('data-resizing')).toBe(false);
+  expect(window.localStorage.getItem('draft-board-height')).toBe(String(dragged));
+  for (const scroller of scrollers()) expect(scroller.style.height).toBe('');
+
+  act(() => { dockToggle('Expand player workspace').click(); });
+
+  expect(separator().getAttribute('aria-valuenow')).toBe(String(dragged));
+  for (const scroller of scrollers()) {
+    expect(scroller.style.getPropertyValue('--draft-board-height')).toBe(`${String(dragged)}px`);
   }
 });

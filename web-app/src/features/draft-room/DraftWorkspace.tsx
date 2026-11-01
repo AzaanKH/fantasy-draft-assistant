@@ -94,7 +94,8 @@ export function DraftWorkspace({
   const { isLoading } = usePlayerDataQuery();
   const [boardHeight, setBoardHeight] = React.useState(readStoredBoardHeight);
   const [isDockExpanded, setIsDockExpanded] = React.useState(true);
-  const [isResizing, setIsResizing] = React.useState(false);
+  // Bumped when a drag ends, so the layout effect clears the inline drag sizes after the height commits.
+  const [finishedDrags, setFinishedDrags] = React.useState(0);
   const [maxBoardHeight, setMaxBoardHeight] = React.useState(SCROLLING_MAX_BOARD_HEIGHT);
   const stackRef = React.useRef<HTMLDivElement>(null);
   const dragRef = React.useRef<DragState | null>(null);
@@ -115,9 +116,9 @@ export function DraftWorkspace({
 
   // Runs after the committed --draft-board-height reaches the DOM and before paint, so the board never jumps.
   React.useLayoutEffect(() => {
-    if (isResizing && isDockExpanded) return;
+    if (dragRef.current) return;
     clearDragHeight(stackRef.current);
-  }, [isDockExpanded, isResizing]);
+  }, [finishedDrags]);
 
   const commitHeight = (height: number): void => {
     setBoardHeight(height);
@@ -131,14 +132,25 @@ export function DraftWorkspace({
     showDragHeight(stackRef.current, event.currentTarget, next, fillsViewport);
   };
 
+  const finishDrag = (drag: DragState): void => {
+    dragRef.current = null;
+    stackRef.current?.removeAttribute('data-resizing');
+    setFinishedDrags((count) => count + 1);
+    commitHeight(drag.latestHeight);
+  };
+
   const endDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     // A cancelled pointer has no meaningful position, so it keeps the last height shown.
     if (event.type === 'pointerup') dragTo(drag, event);
-    dragRef.current = null;
-    setIsResizing(false);
-    commitHeight(drag.latestHeight);
+    finishDrag(drag);
+  };
+
+  // Collapsing unmounts the separator, so its pointerup never fires; keep the height the drag reached.
+  const changeDockExpanded = (expanded: boolean): void => {
+    if (!expanded && dragRef.current) finishDrag(dragRef.current);
+    setIsDockExpanded(expanded);
   };
 
   const visibleBoardHeight = Math.round(Math.min(boardHeight, maxBoardHeight));
@@ -147,7 +159,8 @@ export function DraftWorkspace({
     <main className="draft-workspace w-full px-3 py-4 sm:px-4" data-layout={fillsViewport ? 'fill' : 'scroll'} aria-busy={isLoading || undefined}>
       {isLoading ? <LoadingStatus label="Loading player data" /> : null}
       {notices}
-      <div ref={stackRef} className="draft-workspace-stack" data-resizing={isResizing || undefined}>
+      {/* data-resizing is toggled directly during a drag, so starting one does not re-render the board. */}
+      <div ref={stackRef} className="draft-workspace-stack">
         <DraftBoard
           boardHeight={fillsViewport ? boardHeight : Math.min(boardHeight, SCROLLING_MAX_BOARD_HEIGHT)}
           fillsSpace={fillsViewport && !isDockExpanded}
@@ -182,7 +195,7 @@ export function DraftWorkspace({
                 latestHeight: startHeight,
               };
               setBoardHeight(startHeight);
-              setIsResizing(true);
+              stackRef.current?.setAttribute('data-resizing', '');
             }}
             onPointerMove={(event) => {
               const drag = dragRef.current;
@@ -211,7 +224,7 @@ export function DraftWorkspace({
         <DraftDock
           checklist={setupChecklist}
           expanded={isDockExpanded}
-          onExpandedChange={setIsDockExpanded}
+          onExpandedChange={changeDockExpanded}
           onOpenAssistant={onOpenAssistant}
         />
       </div>
