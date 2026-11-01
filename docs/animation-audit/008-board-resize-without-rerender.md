@@ -1,6 +1,6 @@
 # 008 — Resize the board without re-rendering every pointer move
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: f2be41b
 - **Severity**: MEDIUM
 - **Category**: Performance (found in the `animation-performance` pass)
@@ -74,3 +74,23 @@ Move `--draft-board-height` from the `.draft-board` section to the `.board-scrol
   - Confirm no React commits during the drag, only on release.
   - Confirm the board edge tracks the pointer with no lag, and the active slot stays in view after release.
 - **Done when**: the trace shows zero React renders and no long tasks during a drag.
+
+## Outcome
+
+Implemented, with one correction to the sketch. In fill layout, `.board-scroll` is sized by `flex: 0 1 var(--draft-board-height)` with `height: auto` (`draft-design.css:361`). An inline `height` would have done nothing there.
+
+- `web-app/src/features/draft-room/DraftWorkspace.tsx`
+  - `DragState.latestHeight` holds the height shown on screen.
+  - `showDragHeight` writes `flex-basis` (fill layout) or `height` (scrolling layout) straight onto each `.board-scroll`, and sets the separator's `aria-valuenow` and `aria-valuetext`.
+  - `onPointerMove` no longer sets React state. `endDrag` commits `latestHeight` once.
+  - A layout effect removes the inline sizes after the commit and before paint, or if the dock collapses mid-drag.
+- `pointerup` still commits the release position. `pointercancel` now keeps the last height shown. It used to read the cancelled event's `clientY`, which browsers may report as 0.
+- Bounds, keyboard resizing, double-click reset, and storage are unchanged. The drag start still renders once, as before.
+- `web-app/src/features/draft-room/DraftBoard.tsx` moves `--draft-board-height` from the `.draft-board` section onto each `.board-scroll` (a `boardHeight` prop on `DraftGrid`).
+- Scroll-follow: `boardHeight` no longer changes during a drag, so the active-slot effect runs once on release instead of on every move. During the drag the active slot is not kept in view continuously; after release it is scrolled into view as before.
+- New test `web-app/src/features/draft-room/DraftWorkspace.resize.test.tsx` (jsdom, real `DraftWorkspace` through `VisualApp`, scrolling layout). It checks that:
+  - `pointermove` events cause zero `DraftBoard` renders, and the scrollers and separator show the dragged height.
+  - Release commits the height to storage, `--draft-board-height`, and ARIA, and clears the inline sizes.
+  - The 720px cap holds, and cancel keeps the last height.
+  - Both cases fail on the previous implementation (3 extra board renders).
+- Fill-layout `flex-basis` sizing is not covered by the test (jsdom has no layout). It needs a browser check, as does the Performance trace.

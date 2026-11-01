@@ -134,6 +134,7 @@ interface DraftGridProps {
   readonly activeRound: number | null;
   readonly activeTeamIndex: number;
   readonly activeSlotRef: React.RefObject<HTMLDivElement>;
+  readonly boardHeight: number;
   readonly boardRef: React.RefObject<HTMLDivElement>;
   readonly compact: boolean;
   readonly currentPick: number;
@@ -157,6 +158,7 @@ function DraftGrid({
   activeRound,
   activeTeamIndex,
   activeSlotRef,
+  boardHeight,
   boardRef,
   compact,
   currentPick,
@@ -197,6 +199,8 @@ function DraftGrid({
         'board-scroll overflow-auto',
         wrapperClassName
       )}
+      // Set on the scroller, not the section, so a height change restyles only the elements that read it.
+      style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}
     >
       <div className="board-grid grid w-full" style={gridStyle}>
         <div className="board-corner sticky left-0 top-0 z-30">
@@ -503,6 +507,7 @@ export function DraftBoard({
   const gridProps = {
     activeRound: currentView.activeRound,
     activeTeamIndex: currentView.activeTeamIndex,
+    boardHeight,
     currentPick,
     latestPickNumber,
     settlingPickNumber,
@@ -518,7 +523,7 @@ export function DraftBoard({
   } as const;
 
   return (
-    <section className={cn('draft-board', fillsSpace && 'is-filling')} aria-label="Draft board" style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}>
+    <section className={cn('draft-board', fillsSpace && 'is-filling')} aria-label="Draft board">
       <div className="board-toolbar flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start sm:gap-5">
           <div className="min-w-0">
