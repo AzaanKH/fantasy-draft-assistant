@@ -341,6 +341,110 @@ describe('draftStore shortlist', () => {
     unsubscribe();
   });
 
+  it('intentionally removes a correct Provisional Pick that lagging Provider Truth has not reported, then restores it as a provider pick', () => {
+    // Provider Truth wins: a snapshot newer than the continuity baseline replaces local history,
+    // even when the provider has not yet caught up to a provisional pick that later proves correct.
+    const lagStore = createDraftStore({
+      session: { provider: 'sleeper', draftId: 'provider-lag' },
+    });
+    lagStore.getState().setSessionMode('live');
+    lagStore.getState().setConfig({
+      totalTeams: 10,
+      totalRounds: 15,
+      myPickPosition: 3,
+    });
+    const providerPicks = [
+      {
+        pickNumber: 1,
+        playerId: 'confirmed-one',
+        playerName: 'Confirmed One',
+        position: 'QB' as const,
+        teamIndex: 0,
+        teamName: 'Team 1',
+        isMyPick: false,
+      },
+      {
+        pickNumber: 2,
+        playerId: 'confirmed-two',
+        playerName: 'Confirmed Two',
+        position: 'WR' as const,
+        teamIndex: 1,
+        teamName: 'Team 2',
+        isMyPick: false,
+      },
+    ];
+    const observedPick = {
+      pickNumber: 3,
+      playerId: 'observed-rb',
+      playerName: 'Observed Running Back',
+      position: 'RB' as const,
+      teamIndex: 2,
+      teamName: 'My Team',
+    };
+    lagStore.getState().reconcileSyncedPicks(providerPicks, 3, [], 100);
+    lagStore.getState().enterManualContinuity(100);
+    expect(lagStore.getState().manualContinuityBaselineAt).toBe(100);
+    expect(lagStore.getState().recordProvisionalPick(observedPick)).toBe(true);
+    expect(deriveDraftState(lagStore.getState()).currentPick).toBe(4);
+
+    const laggingSnapshot = lagStore.getState().reconcileSyncedPicks(
+      providerPicks,
+      3,
+      [],
+      200
+    );
+    const afterLag = lagStore.getState();
+
+    expect(laggingSnapshot).toEqual({
+      changed: true,
+      confirmations: [],
+      corrections: [],
+      removals: [{ ...observedPick, source: 'provisional' }],
+      unresolvedIdentities: [],
+    });
+    expect(afterLag.manualContinuityBaselineAt).toBeNull();
+    expect(afterLag.draftHistory.map((pick) => [
+      pick.pickNumber,
+      pick.playerId,
+      pick.source,
+    ])).toEqual([
+      [1, 'confirmed-one', 'sync'],
+      [2, 'confirmed-two', 'sync'],
+    ]);
+    expect(deriveDraftState(afterLag).draftedPlayerIds.has('observed-rb')).toBe(false);
+    expect(deriveDraftState(afterLag).currentPick).toBe(3);
+
+    const caughtUpSnapshot = lagStore.getState().reconcileSyncedPicks(
+      [...providerPicks, { ...observedPick, isMyPick: true }],
+      4,
+      [],
+      300
+    );
+    const caughtUp = lagStore.getState();
+
+    expect(caughtUpSnapshot).toEqual({
+      changed: true,
+      confirmations: [],
+      corrections: [],
+      removals: [],
+      unresolvedIdentities: [],
+    });
+    expect(caughtUp.draftHistory.map((pick) => [
+      pick.pickNumber,
+      pick.playerId,
+      pick.source,
+    ])).toEqual([
+      [1, 'confirmed-one', 'sync'],
+      [2, 'confirmed-two', 'sync'],
+      [3, 'observed-rb', 'sync'],
+    ]);
+    expect(caughtUp.draftHistory.filter(
+      (pick) => pick.playerId === 'observed-rb'
+    )).toHaveLength(1);
+    expect(deriveDraftState(caughtUp).myRoster.RB).toEqual(['observed-rb']);
+    expect(deriveDraftState(caughtUp).currentPick).toBe(4);
+  });
+
   it('rebuilds canonical state and reports conflicts, removals, provider corrections, and unresolved identities', () => {
     const store = draftStore.getState();
     store.setSessionMode('live');

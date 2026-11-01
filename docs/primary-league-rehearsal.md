@@ -16,6 +16,9 @@ submitting picks to Sleeper. Once synchronization returns, official Sleeper
 history determines the Primary League's canonical state. Confirm matching
 picks, correct conflicts, and remove local picks absent from that history so a
 mistaken local observation cannot become a second source of truth.
+That includes a Provisional Pick in a slot Sleeper has not reported yet: the
+reconciliation removes it even if it later proves correct, and it returns as a
+provider pick once Sleeper reports that slot.
 
 The app saves each live session in browser storage under its provider and draft
 ID. The saved history includes Provisional Picks, their correction revisions,
