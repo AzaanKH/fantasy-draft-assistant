@@ -292,6 +292,19 @@ def stop(run_id: str) -> None:
     print(f"Stopped {run_id}; evidence retained at {state_path(run_id).parent}")
 
 
+def run_forwarding_signals(command: list[str], **kwargs) -> int:
+    # A backgrounded helper inherits an ignored SIGINT, so forward interrupts
+    # explicitly; otherwise `kill -INT <helper>` never stops a CLI watch stream.
+    process = subprocess.Popen(command, **kwargs)
+    forward = lambda signum, _frame: process.send_signal(signum)
+    previous = {sig: signal.signal(sig, forward) for sig in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        return process.wait()
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+
+
 def cli(run_id: str, argv: list[str]) -> None:
     state = read_state(run_id)
     doctor(run_id, output=sys.stderr)
@@ -306,10 +319,10 @@ def cli(run_id: str, argv: list[str]) -> None:
     env = cli_environment(copy)
     if state.get("mode") != "offline":
         env["DRAFT_SERVER_URL"] = f"http://127.0.0.1:{run_ports(state)[1]}"
-    result = subprocess.run(["node", "cli/bin/draft.mjs", *argv], cwd=copy, env=env)
-    if result.returncode:
+    returncode = run_forwarding_signals(["node", "cli/bin/draft.mjs", *argv], cwd=copy, env=env)
+    if returncode:
         doctor(run_id, output=sys.stderr)
-    sys.exit(result.returncode if result.returncode >= 0 else 128 - result.returncode)
+    sys.exit(returncode if returncode >= 0 else 128 - returncode)
 
 
 def extension_browser(run_id: str, executable: str | None) -> None:

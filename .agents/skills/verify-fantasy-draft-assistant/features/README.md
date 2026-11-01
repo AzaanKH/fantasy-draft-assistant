@@ -13,8 +13,8 @@ This map records user paths in the React web app and draft CLI. Start with [the 
 ## Features
 
 - [Draft board and player pool](draft-board-and-player-pool.md) covers board views, player search, position filters, and draft tools tabs.
-- [Queue and shortlist](queue-and-shortlist.md) covers adding a player from each user entry point, viewing the Queue tab, and removing a player. The player pool to Queue path has browser proof.
-- [Mock draft](mock-draft.md) covers Start mock, selecting a player, CPU turns, undo, and leaving the mock.
+- [Queue and shortlist](queue-and-shortlist.md) covers adding a player from each Draft workspace and Assistant entry point, the Queue tab and Assistant queue rail, removal, reordering, and toast Undo.
+- [Mock draft](mock-draft.md) covers Start mock, automatic CPU picks and pausing, selecting a player, undo, branching, restarting, and leaving the mock.
 - [Assistant](assistant.md) covers header and recommendation entry points, decision questions, comparisons, and return navigation.
-- [Live draft connection](live-draft-connection.md) covers provider selection, slot confirmation, status, and disconnect. It requires a real provider draft to verify sync.
+- [Live draft connection](live-draft-connection.md) covers provider selection, rules profiles, League setup, slot confirmation, status, refresh, disconnect, Manual Continuity, and the extension. It requires a real provider draft to verify sync.
 - [CLI and replay](cli-and-replay.md) covers local and connected readiness, sessions, saved connections, roster, player filters, advice, watch, export, offline replay, and machine-readable failures.
