@@ -66,9 +66,11 @@ function pointer(type: string, clientY: number): void {
   act(() => { separator().dispatchEvent(event); });
 }
 
-it('moves the board edge during a drag without re-rendering the board, then commits once', () => {
-  pointer('pointerdown', 100);
+it('starts and moves a drag without re-rendering the board, then commits once', () => {
   const rendersAtDragStart = boardRenders.count;
+  pointer('pointerdown', 100);
+  expect(boardRenders.count).toBe(rendersAtDragStart);
+  expect(container.querySelector('.draft-workspace-stack')?.hasAttribute('data-resizing')).toBe(true);
 
   for (const clientY of [120, 150, 190]) pointer('pointermove', clientY);
 
@@ -80,7 +82,8 @@ it('moves the board edge during a drag without re-rendering the board, then comm
   pointer('pointerup', 200);
 
   const committed = DEFAULT_BOARD_HEIGHT + 100;
-  expect(boardRenders.count).toBeGreaterThan(rendersAtDragStart);
+  expect(boardRenders.count).toBe(rendersAtDragStart + 1);
+  expect(container.querySelector('.draft-workspace-stack')?.hasAttribute('data-resizing')).toBe(false);
   for (const scroller of scrollers()) {
     // The inline drag height is gone; the committed variable sizes the scroller again.
     expect(scroller.style.height).toBe('');
