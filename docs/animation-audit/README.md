@@ -63,5 +63,27 @@ Vetted against the cited code. Ordered by leverage (impact ÷ effort).
 | 005 | [Turn ring animates composite-only properties](005-turn-ring-composite-only.md) | LOW | TODO | — |
 | 006 | [Sheet uses the drawer curve](006-sheet-drawer-curve.md) | LOW | TODO | 001 |
 | 007 | [Consolidate motion tokens](007-motion-token-consolidation.md) | LOW | TODO | 001, 006 |
+| 008 | [Resize the board without re-rendering every pointer move](008-board-resize-without-rerender.md) | MEDIUM | TODO | — |
 
-Recommended order: 001 → 003 → 002 → 004 → 006 → 005 → 007. Plans 002 and 006 edit the same `index.css` block as 001. Plan 007 should run last because it touches the files every other plan edits.
+Recommended order: 001 → 008 → 003 → 002 → 004 → 006 → 005 → 007. Plans 002 and 006 edit the same `index.css` block as 001. Plan 007 should run last because it touches the files every other plan edits.
+
+## Performance pass (`animation-performance`, at `f2be41b`)
+
+| Element | Driver | Properties | Plays during | Verdict |
+| --- | --- | --- | --- | --- |
+| Tooltip/popover enter/exit (`index.css:18-39`) | CSS keyframes | `opacity`, `transform` | hover/click | Composite-only |
+| Dialog overlay/content, sheet (`index.css:41-95`) | CSS keyframes | `opacity`, `transform` | open/close | Composite-only |
+| Button press (`index.css:171-175`, `ui/button.tsx:8`) | CSS transition | `transform` (+ color, border, focus `box-shadow`) | press | Composite-only; `transition-all` was removed in pass 1 |
+| Best Pick fade (`DraftDecisionBar.tsx:61`, `motion.tsx:85-96`) | WAAPI | `opacity` | after a pick (busy) | Accelerated |
+| Side panel swaps (`motion.tsx:98-158`) | Motion `m.div` | `opacity` | after a pick (busy) | Opacity only; no `x`/`y` shorthands remain |
+| Queue row movement (`motion.tsx:179-196`) | Motion `layout="position"` | transform (projection, main thread) | queue change | Short list; needs a device recording |
+| Dock/disclosure expand (`index.css:97-121`) | CSS transition | `grid-template-rows` (layout), `opacity`, `transform` | toggle | Layout-tier; plan 004 (measure first) |
+| Turn ring (`DraftBoard.tsx:491-501`) | WAAPI | `box-shadow` (paint, main thread) | your turn starts (busy) | Paint-tier on one small chip; plan 005 |
+| New-pick highlight (`index.css:181-194`) | CSS keyframes | `opacity` on `::after` | each pick | Composite-only |
+| Spinners (`animate-spin`) | CSS keyframes | `transform` | loading | Composite-only |
+| Hover colors (`draft-design.css:181, 283, 300, 379-380`) | CSS transition | `background-color`, `color` | hover | Composite-tier in current Chrome/Firefox |
+| Board resize drag (`DraftWorkspace.tsx:142-146`) | React state per `pointermove` | layout + re-render | drag | Re-renders per move, and an inherited CSS variable changes on a large subtree; plan 008 |
+
+None of these were found: `transition: all` (none left), animated `blur()` (the header and side-panel `backdrop-blur` are static), `will-change`, or a CSS variable driving child transforms.
+
+No code fix was applied in this pass. The two paint/layout animations (004, 005) need a device recording or a visual trade-off decision. The drag fix (008) changes resize state handling, which is beyond a low-risk animation edit.
