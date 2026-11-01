@@ -1,6 +1,6 @@
 # 007 — Consolidate motion tokens
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: e655db6
 - **Severity**: LOW
 - **Category**: Cohesion & tokens
@@ -75,3 +75,12 @@ const MOTION_MS = { feedback: 150, content: 210, layout: 280, exit: 100 } as con
   - Hover pool rows and position filters and confirm the color still eases in quickly.
   - Confirm the best-pick fade in the Best Pick bar doesn't feel slower.
 - **Done when**: no hand-typed curve remains outside the constants block and the token file.
+
+## Outcome
+
+Applied on `chore/animation-pass`, before plans 002–006 so they could use the shared values.
+
+- `web-app/src/components/motion.tsx` has one constants block (`MOTION_EASE`, exported `MOTION_EASE_CSS` and `MOTION_MS`). Every transition and the WAAPI fade read from it. The curve literal appears once.
+- Duration changes: swap exit 80→100ms, `MotionFade` 180→150ms, depth detail 180→150ms, hovers 120/140→150ms. The reorder layout moved 250→280ms (`MOTION_MS.layout`), as Step 1 asks. The Boundaries list omitted that change; it is 30ms on queue reorders and keeps the token single-sourced.
+- Hover color transitions in `draft-design.css` use `var(--motion-duration-feedback) ease`. The depth detail and new-pick highlight use `var(--motion-ease-out)`.
+- New test `web-app/src/components/motion-tokens.test.ts` fails if `MOTION_MS` or `MOTION_EASE_CSS` drifts from `design-tokens.css`.

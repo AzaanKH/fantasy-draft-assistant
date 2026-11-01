@@ -62,7 +62,7 @@ Vetted against the cited code. Ordered by leverage (impact ÷ effort).
 | 004 | [Measure the dock expand layout cost](004-dock-expand-layout-cost.md) | MEDIUM | TODO | — |
 | 005 | [Turn ring animates composite-only properties](005-turn-ring-composite-only.md) | LOW | TODO | — |
 | 006 | [Sheet uses the drawer curve](006-sheet-drawer-curve.md) | LOW | TODO | 001 |
-| 007 | [Consolidate motion tokens](007-motion-token-consolidation.md) | LOW | TODO | 001, 006 |
+| 007 | [Consolidate motion tokens](007-motion-token-consolidation.md) | LOW | DONE | 001, 006 |
 | 008 | [Resize the board without re-rendering every pointer move](008-board-resize-without-rerender.md) | MEDIUM | TODO | — |
 
 Recommended order: 001 → 008 → 003 → 002 → 004 → 006 → 005 → 007. Plans 002 and 006 edit the same `index.css` block as 001. Plan 007 should run last because it touches the files every other plan edits.

@@ -190,7 +190,7 @@ textarea {
   border-radius: inherit;
   content: "";
   pointer-events: none;
-  animation: draft-pick-highlight 250ms ease-out both;
+  animation: draft-pick-highlight 250ms var(--motion-ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,8 +3,12 @@ import { AnimatePresence, LazyMotion, MotionConfig, useIsPresent } from 'motion/
 import * as m from 'motion/react-m';
 import { cn } from '@/lib/utils';
 
+/** Mirrors --motion-* in design-tokens.css (generated from docs/design-system/tokens.json). */
 const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
-const CONTENT_TRANSITION = { duration: 0.21, ease: MOTION_EASE };
+export const MOTION_EASE_CSS = `cubic-bezier(${MOTION_EASE.join(', ')})`;
+export const MOTION_MS = { feedback: 150, content: 210, layout: 280, exit: 100 } as const;
+
+const CONTENT_TRANSITION = { duration: MOTION_MS.content / 1000, ease: MOTION_EASE };
 const loadMotionFeatures = () => import('./motion-features').then((module) => module.default);
 
 export function MotionProvider({
@@ -67,7 +71,7 @@ function useChangeAnimation(
 
     const animation = element.current.animate(keyframes, {
       duration,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      easing: MOTION_EASE_CSS,
     });
     return () => { animation.cancel(); };
   }, [duration, element, keyframes, motionKey, reduceMotion]);
@@ -91,11 +95,11 @@ export function MotionFade({ motionKey, children, className }: {
   readonly className?: string;
 }): React.ReactElement {
   const element = React.useRef<HTMLDivElement>(null);
-  useChangeAnimation(element, motionKey, FADE_KEYFRAMES, 180);
+  useChangeAnimation(element, motionKey, FADE_KEYFRAMES, MOTION_MS.feedback);
   return <div ref={element} className={className} data-motion="recommendation-fade">{children}</div>;
 }
 
-const SWAP_TRANSITION = { duration: 0.15, ease: MOTION_EASE };
+const SWAP_TRANSITION = { duration: MOTION_MS.feedback / 1000, ease: MOTION_EASE };
 
 function MotionSwapContent({
   children,
@@ -118,7 +122,7 @@ function MotionSwapContent({
       aria-hidden={isPresent ? undefined : true}
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.08 } }}
+      exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: MOTION_MS.exit / 1000 } }}
       transition={reduceMotion ? { duration: 0 } : SWAP_TRANSITION}
     >
       {children}
@@ -190,7 +194,7 @@ export function MotionReorderItem({
       className={className}
       data-motion="reorder-item"
       layout={reduceMotion ? false : 'position'}
-      transition={reduceMotion ? { duration: 0 } : { layout: { duration: 0.25, ease: MOTION_EASE } }}
+      transition={reduceMotion ? { duration: 0 } : { layout: { duration: MOTION_MS.layout / 1000, ease: MOTION_EASE } }}
     >
       {children}
     </m.div>
