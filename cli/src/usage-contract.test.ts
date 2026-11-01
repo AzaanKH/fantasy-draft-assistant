@@ -36,6 +36,8 @@ describe('draft usage contract', () => {
     [['status', '--session', '1', '--', '--json'], 'status', 'status expects 0 arguments.'],
     [['watch', '--session', '1', '--json'], 'watch', 'Use --format ndjson for streaming output.'],
     [['watch', '--session', '1', '--bogus'], 'watch', "Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--bogus\""],
+    [['replay', 'draft.json', '--format', 'ndjson', '--bogus'], 'replay', "Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--bogus\""],
+    [['replay', 'draft.json', '--format=ndjson', '--bogus'], 'replay', "Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--bogus\""],
   ])('writes one JSON usage error on stdout with exit 2: %j', async (argv, command, message) => {
     expect(await invoke(argv)).toEqual({ code: 2, stdout: usageError(command, message), stderr: '' });
   });
