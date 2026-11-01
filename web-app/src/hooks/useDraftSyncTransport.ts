@@ -9,6 +9,9 @@ import {
 } from '@fantasy-draft/shared/sync';
 import type { DraftSyncTransportState } from '@/lib/draft-sync-state';
 
+const SSE_RETRY_INITIAL_MS = 1000;
+const SSE_RETRY_MAX_MS = 30_000;
+
 function getSyncPath(provider: DraftProvider, draftId: string): string {
   return `/api/sync/${provider}/drafts/${encodeURIComponent(draftId)}`;
 }
@@ -136,52 +139,67 @@ export function useDraftSyncTransport(provider: DraftProvider, draftId: string |
       return;
     }
 
-    setTransportState('connecting');
-    const eventSource = new EventSource(
-      `${getSyncPath(provider, draftId)}/events`
-    );
+    let eventSource: EventSource;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let retryDelayMs = SSE_RETRY_INITIAL_MS;
 
-    eventSource.onopen = () => {
-      setTransportState('connected');
-    };
+    const connect = () => {
+      setTransportState('connecting');
+      eventSource = new EventSource(
+        `${getSyncPath(provider, draftId)}/events`
+      );
 
-    eventSource.onmessage = (event: MessageEvent<string>) => {
-      try {
-        const parsed: unknown = JSON.parse(event.data);
-        const update = decodeDraftSyncUpdate(parsed);
-        if (update.type === 'heartbeat') {
-          if (update.provider !== provider || update.draftId !== draftId) throw new Error('Heartbeat session mismatch');
+      eventSource.onopen = () => {
+        retryDelayMs = SSE_RETRY_INITIAL_MS;
+        setTransportState('connected');
+      };
+
+      eventSource.onmessage = (event: MessageEvent<string>) => {
+        try {
+          const parsed: unknown = JSON.parse(event.data);
+          const update = decodeDraftSyncUpdate(parsed);
+          if (update.type === 'heartbeat') {
+            if (update.provider !== provider || update.draftId !== draftId) throw new Error('Heartbeat session mismatch');
+            setTransportState('connected');
+            setLiveSnapshot((current) =>
+              applyDraftSyncHeartbeat(current, update, provider, draftId)
+            );
+            queryClient.setQueryData<DraftSyncSnapshot>(
+              ['draft-sync-snapshot', provider, draftId],
+              (current) => applyDraftSyncHeartbeat(
+                current ?? null, update, provider, draftId
+              ) ?? current
+            );
+            return;
+          }
+          if (update.snapshot.provider !== provider || update.snapshot.draftId !== draftId) throw new Error('Snapshot session mismatch');
           setTransportState('connected');
-          setLiveSnapshot((current) =>
-            applyDraftSyncHeartbeat(current, update, provider, draftId)
-          );
-          queryClient.setQueryData<DraftSyncSnapshot>(
+          setLiveSnapshot(update.snapshot);
+          queryClient.setQueryData(
             ['draft-sync-snapshot', provider, draftId],
-            (current) => applyDraftSyncHeartbeat(
-              current ?? null, update, provider, draftId
-            ) ?? current
+            update.snapshot
           );
+        } catch {
+          console.warn('[draft-sync] Rejected invalid draft event');
+        }
+      };
+
+      eventSource.onerror = () => {
+        // EventSource retries a dropped connection on its own, but a non-200
+        // answer (such as a client-limit 429) closes it for good.
+        if (eventSource.readyState !== EventSource.CLOSED) {
+          setTransportState('reconnecting');
           return;
         }
-        if (update.snapshot.provider !== provider || update.snapshot.draftId !== draftId) throw new Error('Snapshot session mismatch');
-        setTransportState('connected');
-        setLiveSnapshot(update.snapshot);
-        queryClient.setQueryData(
-          ['draft-sync-snapshot', provider, draftId],
-          update.snapshot
-        );
-      } catch {
-        console.warn('[draft-sync] Rejected invalid draft event');
-      }
+        setTransportState('error');
+        retryTimer = setTimeout(connect, retryDelayMs);
+        retryDelayMs = Math.min(retryDelayMs * 2, SSE_RETRY_MAX_MS);
+      };
     };
 
-    eventSource.onerror = () => {
-      // EventSource normally reconnects on its own. Surface that transition so
-      // cached draft data is never mistaken for a healthy live connection.
-      setTransportState('reconnecting');
-    };
-
+    connect();
     return () => {
+      clearTimeout(retryTimer);
       eventSource.close();
     };
   }, [draftId, provider, queryClient]);
