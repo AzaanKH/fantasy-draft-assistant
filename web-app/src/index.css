@@ -15,9 +15,15 @@
   }
 }
 
+/* The panel starts on its trigger's side, so it always moves away from the trigger. */
 .metric-help-overlay {
+  --metric-help-enter-from: translateY(3px);
   animation: metric-help-enter var(--motion-duration-feedback) var(--motion-ease-out);
 }
+
+.metric-help-overlay[data-side="bottom"] { --metric-help-enter-from: translateY(-3px); }
+.metric-help-overlay[data-side="left"] { --metric-help-enter-from: translateX(3px); }
+.metric-help-overlay[data-side="right"] { --metric-help-enter-from: translateX(-3px); }
 
 .metric-help-overlay[data-state="closed"] {
   animation: metric-help-exit var(--motion-duration-exit) var(--motion-ease-out);
@@ -29,8 +35,8 @@
 }
 
 @keyframes metric-help-enter {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: var(--metric-help-enter-from); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes metric-help-exit {

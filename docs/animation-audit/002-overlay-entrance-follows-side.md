@@ -1,6 +1,6 @@
 # 002 — Overlay entrance follows its side
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: e655db6
 - **Severity**: MEDIUM
 - **Category**: Physicality & origin
@@ -74,3 +74,9 @@ A custom property *read once in a keyframe* is fine here. It is not animated, an
   - At 10% playback, confirm the movement is 3px and the panel never travels toward its trigger.
   - Under `prefers-reduced-motion: reduce`, the panel appears with no movement.
 - **Done when**: every overlay side moves away from its trigger.
+
+## Outcome
+
+- `web-app/src/index.css` matches Target. `.metric-help-overlay` sets `--metric-help-enter-from`, three `[data-side]` rules flip it, and `@keyframes metric-help-enter` reads it and ends at `transform: none`. Duration, curve, the closed state, and `instant-open` are unchanged.
+- Confirmed in `@radix-ui/react-popper` that `data-side` sits on the same element as the content `className`, and that Radix holds `animation: none` until the panel is placed, so the side is known when the keyframe starts.
+- Lint and tests pass. The feel check is not done; no browser was run.
