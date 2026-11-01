@@ -1,6 +1,6 @@
 # 004 — Measure the dock expand layout cost
 
-- **Status**: TODO
+- **Status**: DEFERRED
 - **Commit**: e655db6
 - **Severity**: MEDIUM
 - **Category**: Performance
@@ -82,3 +82,11 @@ Pass `className="is-composite-only"` to the three `MotionExpandable` uses in `Dr
   - Confirm content below the dock jumps once rather than sliding. If that jump feels worse than the current glide, revert. The jump is the trade-off, so it needs a human call.
   - Spam the toggle and confirm the transition retargets rather than restarting.
 - **Done when**: a trace shows no dropped frames during dock expand/collapse on the target device.
+
+## Outcome
+
+Deferred on `chore/animation-pass`; no code changed. This pass had no browser or device, so Target step 1 (the trace) could not run. The only alternative here, the `is-composite-only` variant, is not visually identical. It replaces the 280ms height glide of the dock and everything below it with a single jump, and Verification already calls that trade-off a human decision. No change could make this strictly cheaper while looking the same, because the height has to be re-laid out every frame for the content below to slide.
+
+Plan 003 changed what happens under reduced motion: the dock now fades and the height changes at once. That variant can serve as a feel reference for the composite-only option.
+
+Next step: record the trace (4× CPU throttling plus a mid-range Android device). If frames drop, apply Target step 2 and get a human call on the jump.
