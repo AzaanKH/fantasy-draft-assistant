@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
-import { Effect, Fiber } from 'effect';
+import { Effect, Fiber, Layer, ManagedRuntime } from 'effect';
 import { DraftDataRefreshJob, refreshProcessInternals, type RunRefreshScript } from './draft-data-refresh.js';
 
 interface PendingRun {
@@ -23,7 +23,7 @@ const flush = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve
 describe('DraftDataRefreshJob', () => {
   it('runs the preflight scripts in order and reports each step', async () => {
     const { runner, runs } = createControlledRunner();
-    const job = new DraftDataRefreshJob(runner, () => new Date('2026-10-02T12:00:00.000Z'));
+    const job = new DraftDataRefreshJob(ManagedRuntime.make(Layer.empty), runner, () => new Date('2026-10-02T12:00:00.000Z'));
 
     expect(job.start().state).toBe('running');
     await flush();
@@ -46,7 +46,7 @@ describe('DraftDataRefreshJob', () => {
 
   it('starts only one refresh at a time', async () => {
     const { runner, runs } = createControlledRunner();
-    const job = new DraftDataRefreshJob(runner);
+    const job = new DraftDataRefreshJob(ManagedRuntime.make(Layer.empty), runner);
     job.start();
     job.start();
     await flush();
@@ -55,7 +55,7 @@ describe('DraftDataRefreshJob', () => {
 
   it('stops at the failed step and keeps its last output lines', async () => {
     const { runner, runs } = createControlledRunner();
-    const job = new DraftDataRefreshJob(runner);
+    const job = new DraftDataRefreshJob(ManagedRuntime.make(Layer.empty), runner);
     job.start();
     runs[0]?.resolve();
     await flush();
@@ -87,7 +87,7 @@ describe('DraftDataRefreshJob timeouts', () => {
       runs.push(script);
       return Effect.sleep(150).pipe(Effect.andThen(Effect.sync(() => { stopped = true; })));
     });
-    const job = new DraftDataRefreshJob(runner, () => new Date('2026-10-02T12:00:00.000Z'), 30);
+    const job = new DraftDataRefreshJob(ManagedRuntime.make(Layer.empty), runner, () => new Date('2026-10-02T12:00:00.000Z'), 30);
     job.start();
 
     await new Promise((resolve) => setTimeout(resolve, 80));

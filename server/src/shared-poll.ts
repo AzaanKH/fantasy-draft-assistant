@@ -1,4 +1,4 @@
-import { Deferred, Effect } from 'effect';
+import { Deferred, Effect, type ManagedRuntime } from 'effect';
 
 /**
  * Runs one poll at a time and shares it with every caller that arrives while it runs.
@@ -7,7 +7,10 @@ import { Deferred, Effect } from 'effect';
 export class SharedPoll<A> {
   private running: Deferred.Deferred<A> | null = null;
 
-  public constructor(private readonly run: () => Effect.Effect<A>) {}
+  public constructor(
+    private readonly run: () => Effect.Effect<A>,
+    private readonly runtime: ManagedRuntime.ManagedRuntime<never, never>,
+  ) {}
 
   public get inFlight(): boolean { return this.running !== null; }
 
@@ -17,9 +20,8 @@ export class SharedPoll<A> {
       if (this.running) return Deferred.await(this.running);
       const started = Deferred.makeUnsafe<A>();
       this.running = started;
-      Effect.runFork(this.run().pipe(
-        Effect.exit,
-        Effect.flatMap((exit) => Effect.sync(() => {
+      this.runtime.runFork(this.run().pipe(
+        Effect.onExit((exit) => Effect.sync(() => {
           this.running = null;
           Deferred.doneUnsafe(started, exit);
         })),
