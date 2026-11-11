@@ -4,6 +4,7 @@ import type { Recommendation } from '@fantasy-draft/shared/draft';
 import {
   DEFAULT_ASSISTANT_NAVIGATION_TARGET,
   getAssistantNavigationTarget,
+  isMissingSelection,
   resolveViewedPlayer,
 } from './assistant-navigation';
 
@@ -50,5 +51,15 @@ describe('resolveViewedPlayer', () => {
     }
     expect(resolveViewedPlayer({ selectedPlayerId: null, recommendationById, playerById, draftedPlayerIds: new Set(), leader: null }))
       .toEqual({ kind: 'none' });
+  });
+});
+
+describe('a selection the catalog no longer has', () => {
+  const players = new Map([['p1', { id: 'p1' } as Player]]);
+  it('is missing only once the catalog has loaded and has neither a player nor a recommendation for it', () => {
+    expect(isMissingSelection({ selectedPlayerId: 'gone', recommendationById: new Map(), playerById: players })).toBe(true);
+    expect(isMissingSelection({ selectedPlayerId: 'gone', recommendationById: new Map(), playerById: new Map() })).toBe(false);
+    expect(isMissingSelection({ selectedPlayerId: 'p1', recommendationById: new Map(), playerById: players })).toBe(false);
+    expect(isMissingSelection({ selectedPlayerId: null, recommendationById: new Map(), playerById: players })).toBe(false);
   });
 });

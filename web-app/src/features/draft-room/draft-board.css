@@ -16,7 +16,7 @@
   --board-slot-raised: var(--night-raised);
   --board-mine: var(--night-accent-subtle);
   --board-ink: var(--night-ink);
-  --board-ink-muted: #1D4258;
+  --board-ink-muted: var(--night-ink-muted);
   --board-on-clock: var(--night-warning);
   --board-complete: var(--night-success);
   background: var(--color-background);
@@ -27,25 +27,26 @@
   border-radius: 12px;
 }
 .board-toolbar { background: var(--color-background); }
-.board-toolbar .board-title { font-size: 20px; line-height: 28px; font-weight: 800; letter-spacing: -.02em; }
-.board-subtitle { margin-top: 2px; color: var(--color-muted-foreground); font-size: 13px; line-height: 18px; }
-.board-toolbar button { font-size: 12px; }
+.board-toolbar .board-title { font-size: var(--text-xl); line-height: 28px; font-weight: 800; letter-spacing: -.02em; }
+.board-subtitle { margin-top: 2px; color: var(--color-muted-foreground); font-size: var(--text-sm); line-height: 18px; }
+.board-toolbar button { font-size: var(--text-xs); }
 .board-view-toggle { display: inline-flex; padding: 3px; border-radius: var(--radius-sm); background: var(--board-slot); }
 .board-view-toggle button { border-radius: var(--radius-xs); }
 .board-toolbar .board-view-toggle button[aria-pressed=true] { background: var(--color-foreground); color: var(--board-ink); }
-.board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: var(--color-foreground); background: var(--board-slot-raised); border-radius: var(--radius-xs); font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.board-current-pick { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; color: var(--color-foreground); background: var(--board-slot-raised); border-radius: var(--radius-xs); font-size: var(--text-sm); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .board-current-pick.is-your-turn { color: var(--board-ink); background: var(--board-on-clock); }
 .board-current-pick.is-complete { color: var(--board-ink); background: var(--board-complete); }
 /* The turn-start ring animates only transform and opacity, through WAAPI's pseudoElement option. */
 .board-current-pick { position: relative; }
 .board-current-pick::after { position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 2px rgba(253, 224, 71, 0.6); opacity: 0; pointer-events: none; content: ""; }
+.board-scroll:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
 .board-scroll { height: var(--draft-board-height, 320px); overscroll-behavior: contain; padding: 0 10px 10px 0; scrollbar-color: var(--color-border) var(--color-background); scrollbar-width: thin; }
 .board-grid { gap: 4px; background: var(--color-background); isolation: isolate; }
-.board-corner, .board-team-header { height: 76px; background: var(--color-background); }
-.board-corner { display: flex; align-items: center; justify-content: center; color: var(--color-muted-foreground); font-size: 11px; }
+.board-corner, .board-team-header { height: var(--board-header-height); background: var(--color-background); }
+.board-corner { display: flex; align-items: center; justify-content: center; color: var(--color-muted-foreground); font-size: var(--text-2xs); }
 .board-team-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 6px; }
-.board-team-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--team-color); color: var(--board-ink); font-size: 12px; font-weight: 800; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-foreground) 25%, transparent); }
-.board-team-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted-foreground); font-size: 12px; font-weight: 500; }
+.board-team-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--team-color); color: var(--board-ink); font-size: var(--text-xs); font-weight: 800; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-foreground) 25%, transparent); }
+.board-team-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted-foreground); font-size: var(--text-xs); font-weight: 500; }
 .board-team-header.is-active-team .board-team-avatar { outline: 2px solid var(--board-on-clock); outline-offset: 3px; }
 /* Sticky headers cover the grid gap so scrolled picks never show between them. */
 .board-team-header { box-shadow: 4px 0 0 var(--color-background), 0 4px 0 var(--color-background), 4px 4px 0 var(--color-background); }
@@ -53,19 +54,19 @@
 .board-team-header.is-my-team { background: var(--board-mine); box-shadow: inset 1px 1px 0 var(--board-accent-edge), inset -1px 0 0 var(--board-accent-edge), 4px 0 0 var(--color-background), 0 4px 0 var(--color-background), 4px 4px 0 var(--color-background); }
 .board-corner { box-shadow: 4px 0 0 var(--color-background), 0 4px 0 var(--color-background), 4px 4px 0 var(--color-background); }
 .board-team-header.is-my-team .board-team-name { color: var(--color-foreground); font-weight: 700; }
-.board-round { height: 72px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--color-background); color: var(--color-muted-foreground); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.board-round { height: var(--board-round-height); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--color-background); color: var(--color-muted-foreground); font-size: var(--text-xs); font-weight: 600; font-variant-numeric: tabular-nums; }
 .board-round.is-active-round { color: var(--board-on-clock); }
-.board-slot { position: relative; min-width: 0; height: 72px; border-radius: 6px; background: var(--board-slot); }
+.board-slot { position: relative; min-width: 0; height: var(--board-round-height); border-radius: 6px; background: var(--board-slot); }
 .board-slot.is-my-team { background: color-mix(in srgb, var(--board-mine) 70%, var(--board-slot)); box-shadow: inset 1px 0 0 var(--board-accent-edge), inset -1px 0 0 var(--board-accent-edge); }
 .board-slot.is-my-team.is-last-round { box-shadow: inset 1px 0 0 var(--board-accent-edge), inset -1px 0 0 var(--board-accent-edge), inset 0 -1px 0 var(--board-accent-edge); }
 .board-slot.is-next-pick:not(.is-on-clock) { background: var(--board-mine); box-shadow: inset 0 0 0 1px var(--board-accent); }
 .board-slot.is-on-clock { background: var(--board-on-clock); color: var(--board-ink); box-shadow: none; }
 .board-empty-pick, .board-filled-pick { position: relative; height: 100%; border-radius: inherit; overflow: hidden; padding: 8px 8px 6px 9px; }
-.board-pick-number { position: absolute; top: 6px; right: 8px; font-size: 11px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-muted-foreground); }
-.board-pick-direction { position: absolute; bottom: 5px; left: 9px; color: #5B6A8A; }
-.board-next-pick { position: absolute; left: 9px; right: 8px; top: 28px; color: var(--board-accent); font-size: 11px; font-weight: 700; }
+.board-pick-number { position: absolute; top: 6px; right: 8px; font-size: var(--text-2xs); line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-muted-foreground); }
+.board-pick-direction { position: absolute; bottom: 5px; left: 9px; color: var(--night-text-subtle); }
+.board-next-pick { position: absolute; left: 9px; right: 8px; top: 28px; color: var(--board-accent); font-size: var(--text-2xs); font-weight: 700; }
 .board-clock-label { display: flex; align-items: end; justify-content: space-between; gap: 5px; padding-top: 18px; padding-bottom: 8px; }
-.board-clock-label strong { max-width: 90px; font-size: 15px; line-height: 1.05; font-weight: 800; }
+.board-clock-label strong { max-width: 90px; font-size: var(--text-base); line-height: 1.05; font-weight: 800; }
 .board-clock-label svg { flex-shrink: 0; }
 .is-on-clock .board-pick-number, .is-on-clock .board-pick-direction { color: var(--board-ink-muted); }
 .board-filled-pick { color: var(--board-ink); }
@@ -78,22 +79,82 @@
 .board-filled-pick.is-keeper { box-shadow: inset 0 0 0 2px var(--color-position-k); }
 .board-filled-pick .board-pick-number, .board-filled-pick .board-pick-direction { color: var(--board-ink-muted); }
 .board-player-identity { position: relative; z-index: 1; padding-right: 28px; }
-.board-player-name { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 13px; font-weight: 800; line-height: 1.1; letter-spacing: -.01em; }
-.board-player-meta { margin-top: 3px; font-size: 11px; line-height: 1.15; color: var(--board-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-player-name { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: var(--text-sm); font-weight: 800; line-height: 1.1; letter-spacing: -.01em; }
+.board-player-meta { margin-top: 3px; font-size: var(--text-2xs); line-height: 1.15; color: var(--board-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .board-player-photo { position: absolute; right: 0; bottom: -2px; width: 36px; height: 36px; }
-.board-player-photo > span { background: color-mix(in srgb, var(--color-foreground) 18%, transparent); color: #123248; font-size: 10px; }
+.board-player-photo > span { background: color-mix(in srgb, var(--color-foreground) 18%, transparent); color: var(--board-photo-ink); font-size: var(--text-2xs); }
 .board-filled-pick.is-provisional { box-shadow: inset 0 0 0 2px var(--color-foreground); }
-.board-provisional-label { display: inline-block; padding: 1px 4px; background: var(--color-background); color: var(--board-on-clock); border-radius: 4px; font-size: 8px; font-weight: 700; line-height: 1.2; }
+.board-provisional-label { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 16px; margin-top: 2px; background: var(--color-background); color: var(--board-on-clock); border-radius: var(--radius-xs); }
 .is-provisional .board-player-name { -webkit-line-clamp: 1; }
+.board-name-short { display: none; }
+/* Narrow team columns (10-12 teams at 1280-1440px): the short name gets the whole first line, the pick number
+   moves down to the meta line, and the photo, bye and a filled cell's arrow (history, not the next move) drop out. */
+.board-slot { container: board-slot / inline-size; }
+@container board-slot (max-width: 119px) {
+  .board-name-full { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .board-name-short { display: inline; white-space: nowrap; }
+  .board-name-short[data-long] { font-size: var(--text-2xs); letter-spacing: -0.04em; }
+  .board-slot > .board-empty-pick, .board-slot > .board-filled-pick { padding-inline: 6px; }
+  .board-slot > .board-filled-pick .board-pick-number { right: 6px; }
+  .board-filled-pick .board-player-identity { padding-right: 0; }
+  .board-filled-pick .board-player-name { -webkit-line-clamp: 1; font-size: var(--text-xs); }
+  .board-filled-pick .board-player-meta { max-width: calc(100% - 28px); }
+  .board-filled-pick .board-pick-number { top: auto; bottom: 5px; }
+  .board-player-bye, .board-player-photo, .board-filled-pick .board-pick-direction { display: none; }
+  .board-clock-label strong { max-width: none; font-size: var(--text-xs); white-space: nowrap; }
+  .board-clock-label svg { display: none; }
+}
 .is-compact .board-player-identity { padding-right: 17px; }
-.is-compact .board-player-name { font-size: 12px; }
-.is-compact .board-player-meta { font-size: 10px; }
+.is-compact .board-player-name { font-size: var(--text-xs); }
+.is-compact .board-player-meta { font-size: var(--text-2xs); }
 @media (max-width: 639px) {
   .board-toolbar { gap: 10px; }
-  .board-toolbar .board-title { font-size: 18px; }
-  .board-subtitle { font-size: 12px; }
+  .board-toolbar .board-title { font-size: var(--text-lg); }
+  .board-subtitle { font-size: var(--text-xs); }
   .board-scroll { padding-right: 6px; }
-  .board-clock-label strong { font-size: 12px; }
+  .board-clock-label strong { font-size: var(--text-xs); }
   .board-clock-label svg { width: 16px; }
-  .board-next-pick { font-size: 9px; }
+  .board-next-pick { font-size: var(--text-2xs); }
+}
+.board-jump-live { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--board-accent-edge); border-radius: var(--radius-xs); background: var(--board-mine); color: var(--board-accent); font-weight: 700; transition: background-color var(--motion-duration-feedback) ease; }
+@media (hover: hover) and (pointer: fine) { .board-jump-live:hover { background: var(--board-slot-raised); } }
+.board-round-now { margin-top: 4px; font-size: var(--text-2xs); line-height: 1; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+/* Laptop heights (768-999px tall): a one-line toolbar, a one-line team header and shorter rounds, so the
+   default board shows two (or three) full rounds and leaves the player pool room for 6+ rows.
+   DraftBoard measures the sticky header, so follow-live scrolling stays exact. */
+@media (min-width: 1280px) and (max-height: 999px) {
+  .board-toolbar { padding-block: 8px; }
+  .board-toolbar .board-title { display: inline; font-size: var(--text-base); line-height: 24px; }
+  .board-toolbar .board-subtitle { display: inline; margin: 0 0 0 10px; font-size: var(--text-xs); }
+  .board-current-pick, .board-jump-live { height: 32px; }
+  .board-team-header { flex-direction: row; gap: 8px; padding: 4px 8px; }
+  .board-team-avatar { width: 24px; height: 24px; font-size: var(--text-2xs); flex-shrink: 0; }
+  .board-team-header.is-active-team .board-team-avatar { outline-offset: 2px; }
+  .board-empty-pick, .board-filled-pick { padding: 6px 8px 5px 9px; }
+  .board-clock-label { padding-top: 14px; padding-bottom: 4px; }
+  .board-next-pick { top: 24px; }
+  .board-player-photo { width: 30px; height: 30px; }
+}
+/* Below 900px tall the rounds are 44px (draft-design.css): one-line names in tighter type, position and team on the
+   line below, a smaller photo and direction arrow, so a cell still reads name, position and team at a glance. */
+@media (min-width: 1280px) and (max-height: 899px) {
+  .board-team-header { padding-block: 2px; }
+  .board-empty-pick, .board-filled-pick { padding: 5px 8px 4px 8px; }
+  .board-pick-number { top: 5px; }
+  .board-player-identity { padding-right: 24px; }
+  .board-player-name { -webkit-line-clamp: 1; font-size: var(--text-xs); line-height: 1.2; }
+  .board-player-meta { margin-top: 2px; }
+  .board-player-photo { width: 24px; height: 24px; bottom: -1px; }
+  .board-clock-label { padding-top: 12px; padding-bottom: 0; }
+  .board-clock-label strong { font-size: var(--text-sm); }
+  .board-clock-label svg { width: 16px; height: 16px; }
+  .board-next-pick { top: 16px; }
+  .board-pick-direction { bottom: 3px; left: 8px; width: 11px; height: 11px; }
+  /* An open cell's status text fills its lower lines and the pick number its top right, so the arrow takes the
+     free top-left corner, clear of "On the clock" and "Your pick in N". */
+  .board-empty-pick .board-pick-direction { top: 5px; bottom: auto; }
+  .board-empty-pick .board-next-pick { top: 18px; }
+  .board-empty-pick .board-clock-label { padding-top: 13px; }
+  .board-round-now { margin-top: 2px; }
 }

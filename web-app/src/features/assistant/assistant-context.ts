@@ -4,9 +4,11 @@ import { type DraftProvider, type DraftType } from '@fantasy-draft/shared/sync';
 import { type RosterRequirements } from '@fantasy-draft/shared/league';
 import { formatDraftSyncAge, type DraftSynchronizationState } from '@/lib/draft-sync-state';
 import { getProviderName } from '@/lib/provider-name';
+import { getInjuryTag } from '@/lib/player-status';
 
 /** Starter positions shown as team needs; K and DEF are late-round context, not planning signals. */
-const NEED_POSITIONS = OFFENSIVE_POSITIONS;
+/** The starter positions the upcoming-teams context reports open. */
+export const NEED_POSITIONS = OFFENSIVE_POSITIONS;
 
 type TeamRoster = Readonly<Record<Position, readonly string[]>>;
 
@@ -48,6 +50,27 @@ export function getPickWindow(
   const picksBetween: number[] = [];
   for (let pick = onClock ? currentPick + 1 : currentPick; pick < end; pick += 1) picksBetween.push(pick);
   return { currentPick, onClock, nextPick, picksBetween };
+}
+
+/**
+ * Picks from now until the manager's next turn, that turn included ("Next turn in 13 picks"), as every Assistant
+ * surface states it; null when there is no later pick.
+ */
+export function picksUntilTurn(window: Pick<PickWindow, 'currentPick' | 'nextPick'>): number | null {
+  return window.nextPick === null ? null : window.nextPick - window.currentPick;
+}
+
+/** "1 pick" / "13 picks". */
+export function formatPickCount(count: number): string {
+  return `${String(count)} ${count === 1 ? 'pick' : 'picks'}`;
+}
+
+/**
+ * "Next turn in 23 picks (2.12)": the one wording and count the context bar, the laptop summary and the wide rail
+ * all show. Null when the manager has no later pick.
+ */
+export function formatNextTurn(count: number | null, nextPickLabel: string | null): string | null {
+  return count === null || nextPickLabel === null ? null : `Next turn in ${formatPickCount(count)} (${nextPickLabel})`;
 }
 
 function getOpenStarters(roster: TeamRoster | undefined, requirements: RosterRequirements): Position[] {
@@ -102,6 +125,13 @@ const DISPLAY_ONLY_ALERT_THRESHOLDS = {
   positionRunWindow: 5,
 } as const;
 
+/** A run on `position` among the latest picks (at least 3 of the last 5), or null. Shared by the alerts and the cards. */
+export function getPositionRun(position: Position, recentPicks: readonly Pick<DraftPick, 'position'>[]): { readonly count: number; readonly window: number } | null {
+  const window = recentPicks.slice(-DISPLAY_ONLY_ALERT_THRESHOLDS.positionRunWindow);
+  const count = window.filter((pick) => pick.position === position).length;
+  return count >= DISPLAY_ONLY_ALERT_THRESHOLDS.minPositionRunPicks ? { count, window: window.length } : null;
+}
+
 /**
  * Optional, text-labelled signals for a candidate. Each is omitted when its data is unavailable;
  * none of them changes the recommendation order.
@@ -112,13 +142,16 @@ export function getAlertSignals({
   recentPicks,
   currentPick,
 }: {
-  readonly player: Pick<Player, 'id' | 'position' | 'byeWeek' | 'consensusAdp'> | undefined;
+  readonly player: Pick<Player, 'id' | 'position' | 'byeWeek' | 'consensusAdp'> & Partial<Pick<Player, 'newsStatus'>> | undefined;
   readonly rosteredPlayers: readonly Pick<Player, 'id' | 'name' | 'position' | 'byeWeek'>[];
   readonly recentPicks: readonly Pick<DraftPick, 'position'>[];
   readonly currentPick: number;
 }): readonly string[] {
   if (!player) return [];
   const signals: string[] = [];
+  // Injury first: it is the one signal about whether the player plays at all.
+  const injury = player.newsStatus ? getInjuryTag(player.newsStatus) : null;
+  if (injury) signals.push(`Injury: ${injury.label}`);
   const sameBye = rosteredPlayers.find((rostered) =>
     rostered.id !== player.id &&
     rostered.position === player.position &&
@@ -133,9 +166,8 @@ export function getAlertSignals({
     if (picksPast >= DISPLAY_ONLY_ALERT_THRESHOLDS.minPicksPastAdp) signals.push(`${String(picksPast)} picks past ADP`);
   }
 
-  const window = recentPicks.slice(-DISPLAY_ONLY_ALERT_THRESHOLDS.positionRunWindow);
-  const run = window.filter((pick) => pick.position === player.position).length;
-  if (run >= DISPLAY_ONLY_ALERT_THRESHOLDS.minPositionRunPicks) signals.push(`${player.position} run · ${String(run)} of last ${String(window.length)} picks`);
+  const run = getPositionRun(player.position, recentPicks);
+  if (run) signals.push(`${player.position} run · ${String(run.count)} of last ${String(run.window)} picks`);
   return signals;
 }
 

@@ -28,6 +28,7 @@ vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
 vi.mock('@/hooks/useQueueActions', () => ({
   useQueueActions: () => ({ togglePlayerQueued: vi.fn() }),
 }));
+vi.mock('@/features/draft-room/LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ synchronizationState: 'confirmed' }) }));
 
 describe('DraftDecisionBar loading', () => {
   afterEach(() => { Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false, readiness: null }); });
@@ -36,7 +37,7 @@ describe('DraftDecisionBar loading', () => {
     decision.output.bestPick = recommendation();
     const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() })));
     expect(markup).toContain('Why this pick');
-    expect(markup).toContain('Add Best Pick to the local queue');
+    expect(markup).toContain('Add Best Pick to queue');
   });
 
   it('reports loading, not a paused setup, while player data loads', () => {
@@ -183,10 +184,10 @@ describe('getDraftDecisionBarReason', () => {
     const signedValue = value > 0 ? `+${String(value)}` : String(value);
 
     expect(getDraftDecisionBarReason(pick, 'league-value')).toBe(
-      `League value moves this pick first at ${signedValue} points versus replacement.`
+      `League value moves this pick first at ${signedValue} pts over a fill-in starter.`
     );
     expect(getDraftDecisionBarReason(pick)).toBe(
-      `ECR #8 with ${signedValue} points versus replacement.`
+      `ECR #8 with ${signedValue} pts over a fill-in starter.`
     );
   });
 

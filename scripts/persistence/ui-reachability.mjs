@@ -63,9 +63,9 @@ export function evaluateReachability(result) {
           if (['conflict', 'slice', 'reconcile'].includes(row.kind) && row.controls.slice(0, 2).some(value => value.name !== 'Record Provisional Pick')) failures.push('Missing Record controls');
           if (row.kind === 'move' && (row.seedQueue?.length !== 4 || row.controls.some((value, index) => !new RegExp(`^Move .+ ${index % 2 ? 'down' : 'up'} in queue$`).test(value.name)))) failures.push('Move setup did not expose the actual Assistant controls');
           if (row.kind === 'slice' && (row.plannedSlice?.total !== 300 || row.plannedSlice.perActor !== 150 || row.commands[0].slot !== 1 || row.commands[1].slot !== 76 ||
-              row.controls.slice(2).some(value => !/^Add .+ to local shortlist$/.test(value.name)))) failures.push('Slice preflight must inspect exactly the 150-per-actor plan');
+              row.controls.slice(2).some(value => !/^Add .+ to queue$/.test(value.name)))) failures.push('Slice preflight must inspect exactly the 150-per-actor plan');
           if (row.kind.startsWith('lifecycle') && (row.senderSession === row.receiverSession || !row.senderSession || !row.receiverSession ||
-              !/^Add .+ to local shortlist$/.test(row.controls[0].name) || !/^Remove .+ from local shortlist$/.test(row.controls[1].name))) failures.push('Lifecycle requires explicit sender and queued-receiver fixture selectors');
+              !/^Add .+ to queue$/.test(row.controls[0].name) || !/^Remove .+ from queue$/.test(row.controls[1].name))) failures.push('Lifecycle requires explicit sender and queued-receiver fixture selectors');
         }
         if (row.kind === 'reconcile' && (!row.restoredWithoutDialog || !row.recovery?.noOpenDialogs || !row.recovery.manualControlsAbsent ||
             row.recovery.committed.manualContinuityBaselineAt !== null || !(row.recovery.committed.lastConfirmedSyncAt > 0))) failures.push('Provider recovery did not retire manual controls');

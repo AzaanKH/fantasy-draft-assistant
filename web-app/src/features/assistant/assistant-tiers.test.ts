@@ -1,7 +1,7 @@
 import { asRank } from '@fantasy-draft/shared/units';
 import { describe, expect, it } from 'vitest';
 
-import { buildPositionTiers, isTierDepleted, type TierPlayer } from './assistant-tiers';
+import { buildOverallBands, buildPositionTiers, countAvailableByTier, formatTierScarcity, isTierDepleted, tierKey, type TierPlayer } from './assistant-tiers';
 
 const rb = (id: string, tier: number, ecrRank: number): TierPlayer => ({
   id, name: `Back ${id}`, position: 'RB', team: 'DET', tier, ecrRank: asRank(ecrRank),
@@ -44,5 +44,38 @@ describe('isTierDepleted', () => {
     expect(isTierDepleted({ available: 2, total: 6 })).toBe(true);
     expect(isTierDepleted({ available: 2, total: 4 })).toBe(false);
     expect(isTierDepleted({ available: 0, total: 3 })).toBe(false);
+  });
+});
+
+describe('buildOverallBands', () => {
+  const overall: readonly TierPlayer[] = Array.from({ length: 7 }, (_, index) => ({
+    id: `p${String(index + 1)}`, name: `Player ${String(index + 1)}`, position: index % 2 ? 'WR' : 'RB', team: 'DET', tier: 1, ecrRank: asRank(index + 1),
+  }));
+
+  it('bands the expert order by league size, skipping fully drafted bands but keeping counts', () => {
+    const bands = buildOverallBands({ players: overall, draftedPlayerIds: new Set(['p1', 'p2', 'p3', 'p5']), bandSize: 3 });
+    expect(bands.activeTier).toBe(2);
+    expect(bands.exhaustedTiers).toEqual([1]);
+    expect(bands.groups.map((band) => [band.label, band.available, band.total])).toEqual([['#4–6', 2, 3], ['#7–7', 1, 1]]);
+    expect(bands.groups[0]?.players.map((player) => player.id)).toEqual(['p4', 'p6']);
+  });
+
+  it('shows drafted players on request and filters by search', () => {
+    const drafted = new Set(['p1']);
+    expect(buildOverallBands({ players: overall, draftedPlayerIds: drafted, bandSize: 3, showDrafted: true }).groups[0]?.players).toHaveLength(3);
+    const searched = buildOverallBands({ players: overall, draftedPlayerIds: drafted, bandSize: 3, query: 'player 7' });
+    expect(searched.groups.map((band) => band.players.map((player) => player.id))).toEqual([['p7']]);
+  });
+});
+
+describe('countAvailableByTier', () => {
+  it('counts available players per position tier and skips untiered players', () => {
+    const counts = countAvailableByTier([
+      { position: 'RB', tier: 2 }, { position: 'RB', tier: 2 }, { position: 'WR', tier: 2 }, { position: 'TE', tier: 0 },
+    ]);
+    expect(counts.get(tierKey('RB', 2))).toBe(2);
+    expect(counts.get(tierKey('WR', 2))).toBe(1);
+    expect(counts.has(tierKey('TE', 0))).toBe(false);
+    expect(formatTierScarcity('RB', 2, 2)).toBe('2 left in RB T2');
   });
 });

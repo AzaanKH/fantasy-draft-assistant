@@ -68,7 +68,7 @@ for (const [side, checkout] of [['base', path.join(root, '.local/verify-base')],
     await page.getByRole('button', { name: 'Draft workspace', exact: true }).waitFor();
     await page.waitForLoadState('networkidle');
     const before = await page.evaluate(async () => ({ opened: window.__openedDatabases, databases: await indexedDB.databases(), entries: Object.keys(localStorage).filter(key => key.startsWith('fantasy-draft-session')).sort().map(key => [key, localStorage.getItem(key)]) }));
-    const add = page.getByRole('button', { name: /^Add .* to local shortlist$/ }).first();
+    const add = page.getByRole('button', { name: /^Add .* to queue$/ }).first();
     await add.click();
     await page.waitForLoadState('networkidle');
     const after = await page.evaluate(() => ({ opened: window.__openedDatabases, entries: Object.keys(localStorage).filter(key => key.startsWith('fantasy-draft-session')).sort().map(key => [key, localStorage.getItem(key)]) }));

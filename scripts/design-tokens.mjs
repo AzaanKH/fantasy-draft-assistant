@@ -43,9 +43,47 @@ function renderWebThemes(json) {
   return header(json.web.output) + blocks.join('\n');
 }
 
+/**
+ * The extension's side-panel shell is plain CSS (no Tailwind), so it gets the named web tokens as custom
+ * properties: light values from the light block, dark values (night palette references resolved). The shell
+ * follows the app's chosen theme, which the embedded app reports and the shell sets as data-theme; until it is
+ * known, prefers-color-scheme decides.
+ */
+function renderExtensionTokens(json) {
+  const { output, light, dark, names } = json.extension;
+  const paper = new Map(json.tokens.map((token) => [token.name, formatValue(token)]));
+  const block = (selector) => {
+    const found = json.web.blocks.find((candidate) => candidate.selector === selector);
+    if (!found) throw new Error(`${tokenSource}: extension block ${selector} is not a web block.`);
+    return new Map(found.groups.flatMap(({ values }) => Object.entries(values)));
+  };
+  const root = block(':root');
+  const resolve = (value, name) => String(value)
+    .replace(/\{([^}]*)\}/g, (_, reference) => {
+      if (!paper.has(reference)) throw new Error(`${tokenSource}: ${name} refers to unknown Paper token ${reference}.`);
+      return paper.get(reference);
+    })
+    .replace(/var\((--[\w-]+)\)/g, (match, reference) => root.has(reference) ? resolve(root.get(reference), reference) : match);
+  const lightValues = block(light);
+  const darkValues = block(dark);
+  const lines = (values, fallback) => names.map((name) => {
+    // A name the web block does not restate (Tailwind's own type scale) comes straight from the Paper token.
+    const value = values.get(name) ?? fallback?.get(name) ?? (paper.has(name) ? `{${name}}` : undefined);
+    if (value === undefined) throw new Error(`${tokenSource}: extension token ${name} has no value in ${light}.`);
+    return `  ${name}: ${resolve(value, name)};`;
+  });
+  const darkLines = names.filter((name) => darkValues.has(name)).map((name) => `    ${name}: ${resolve(darkValues.get(name), name)};`);
+  const darkRoot = darkLines.map((line) => line.slice(2)).join('\n');
+  return `${header(output)}:root {\n${lines(lightValues).join('\n')}\n}\n\n@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n${darkLines.join('\n')}\n  }\n}\n\n:root[data-theme="dark"] {\n${darkRoot}\n}\n`;
+}
+
 /** Every file generated from the token source, keyed by repository path. */
 export function renderTokenFiles(json) {
-  return { [paperTheme]: renderPaperTheme(json.tokens), [json.web.output]: renderWebThemes(json) };
+  return {
+    [paperTheme]: renderPaperTheme(json.tokens),
+    [json.web.output]: renderWebThemes(json),
+    ...(json.extension ? { [json.extension.output]: renderExtensionTokens(json) } : {}),
+  };
 }
 
 /** Lists each generated file whose committed text differs from the token source. */

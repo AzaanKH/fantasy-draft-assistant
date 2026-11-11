@@ -135,11 +135,17 @@ export async function serveStorageProbe(nonce: string, options: ProbeOptions = {
 }
 
 
+const REQUEST_REPEAT_MS = 250;
+
 function requestAppTab(nonce: string, timeoutMs: number): Promise<void> {
   validateNonce(nonce);
   return new Promise((resolve, reject) => {
     const channel = new BroadcastChannel(SHARING_CHANNEL);
+    // Re-ask until an app tab offers, so a tab that is still starting (e.g. one the
+    // panel just opened) can answer before the timeout.
+    const repeat = setInterval(() => { channel.postMessage({ type: 'request', nonce }); }, REQUEST_REPEAT_MS);
     const timer = setTimeout(() => {
+      clearInterval(repeat);
       channel.close();
       reject(new StorageSharingError('Keep the draft web app open in a normal tab, then retry the side panel storage check.'));
     }, timeoutMs);
@@ -148,7 +154,7 @@ function requestAppTab(nonce: string, timeoutMs: number): Promise<void> {
       if (typeof value !== 'object' || value === null || !('type' in value) || value.type !== 'offer' ||
           !('nonce' in value) || value.nonce !== nonce || !('responder' in value) || typeof value.responder !== 'string') return;
       channel.postMessage({ type: 'begin', nonce, responder: value.responder });
-      clearTimeout(timer); channel.close(); resolve();
+      clearTimeout(timer); clearInterval(repeat); channel.close(); resolve();
     });
     channel.postMessage({ type: 'request', nonce });
   });

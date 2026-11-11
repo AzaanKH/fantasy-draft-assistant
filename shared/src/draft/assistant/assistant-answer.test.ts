@@ -120,17 +120,19 @@ describe('Assistant decision answer', () => {
 
     const why = getWhyRows(selected, true);
     expect(why.map((row) => row.label)).toEqual(['Value', 'Roster fit', 'Tier', 'Why it ranks here']);
-    expect(why[0]?.answer).toBe('VOR +24. ECR #4.');
+    expect(why[0]?.answer).toBe('Projects 24 pts more than a fill-in RB. #4 overall.');
     expect(why[1]?.answer).toBe('3 starter spots and 2 FLEX spots open, 10 selections left.');
-    expect(why[3]?.answer).toBe('Draft timing changed the order. Can I wait? shows the cost.');
+    expect(why[3]?.answer).toBe('The cost of waiting moved this player up.');
     expect(why.some((row) => row.answer.includes('17.6'))).toBe(false);
+    const level = getWhyRows({ ...selected, diagnostics: selected.diagnostics ? { ...selected.diagnostics, valueOverReplacement: asVor(0.2) } : undefined }, true);
+    expect(level[0]?.answer).toBe('Projects about the same as a fill-in RB, so the roster and tier below decide. #4 overall.');
 
     const wait = getWaitAnswer(selected);
     expect(wait.headline).toBe('Unlikely to return at pick 2.03.');
     expect(wait.rows.map((row) => [row.label, row.answer])).toEqual([
-      ['At next pick', '5% Return Probability'],
+      ['At next pick', "5% chance he's still there"],
       ['Waiting cost', '17.6 expected points'],
-      ['Expected Next-Pick Alternative', 'Fallback RB, +6 expected points above replacement'],
+      ['Expected Next-Pick Alternative', 'Fallback RB, +6 expected pts over a fill-in starter'],
     ]);
     expect(getWaitingCostSummary(selected)).toEqual({
       costOfWaiting: 17.6,
@@ -174,7 +176,7 @@ describe('Assistant decision answer', () => {
     expect(getComparisonHighlights(first, second, decision)).toEqual([
       {
         label: 'League value',
-        detail: 'First RB has 12 more projected points above replacement.',
+        detail: 'First RB projects 12 more pts over a fill-in starter.',
       },
       {
         label: 'Wait risk',
@@ -182,13 +184,13 @@ describe('Assistant decision answer', () => {
       },
       {
         label: 'Player quality',
-        detail: 'First RB is ECR #4, 4 places ahead.',
+        detail: 'First RB is #4 in the rankings, 4 places ahead.',
       },
     ]);
 
     const fractionalValue = recommendation('second', 'Second RB', 25.5, 0.65, 8);
     expect(getComparisonHighlights(first, fractionalValue, decision)[0]?.detail)
-      .toBe('First RB has 4.5 more projected points above replacement.');
+      .toBe('First RB projects 4.5 more pts over a fill-in starter.');
   });
 });
 

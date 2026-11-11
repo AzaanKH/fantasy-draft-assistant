@@ -38,10 +38,10 @@ export function ProviderIdentityBlockedNotice({
             Live recommendations paused
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Provider Truth includes {String(count)} drafted{' '}
+            The provider's picks include {String(count)} drafted{' '}
             {count === 1 ? 'player' : 'players'} that cannot map to canonical
             player data. The resolved picks remain visible, but Best Pick, Best
-            Player, tier supply, and Return Probability stay off until every
+            Player, tier supply, and next-pick availability stay off until every
             identity resolves.
           </p>
         </div>
@@ -54,7 +54,7 @@ export function ProviderIdentityBlockedNotice({
             className="rounded-md border border-red-500/20 bg-background/75 px-3 py-2 text-xs"
           >
             <div className="font-semibold">{pick.playerName}</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className="mt-0.5 text-2xs text-muted-foreground">
               Pick{' '}
               <span className="font-mono tabular-nums">
                 {createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(pick.pickNumber / totalTeams) }).label(pick.pickNumber)} · #

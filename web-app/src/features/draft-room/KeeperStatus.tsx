@@ -25,23 +25,23 @@ export function KeeperStatus({ status }: { readonly status: KeeperPreloadStatus 
       className={cn(
         'flex min-w-0 items-start gap-2 rounded-md border px-3 py-3 text-xs',
         isReady
-          ? 'border-emerald-500/20 bg-emerald-500/[0.06]'
-          : 'border-amber-500/25 bg-amber-500/[0.07]'
+          ? 'border-success/20 bg-success/[0.06]'
+          : 'border-warning/25 bg-warning/[0.07]'
       )}
       role="status"
     >
       {isReady ? (
-        <CheckCircle2 className="size-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
+        <CheckCircle2 className="size-4 shrink-0 text-success" />
       ) : (
-        <CircleAlert className="size-4 shrink-0 text-amber-700 dark:text-amber-300" />
+        <CircleAlert className="size-4 shrink-0 text-warning" />
       )}
       <div className="min-w-0 leading-tight">
         <div
           className={cn(
             'font-semibold',
             isReady
-              ? 'text-emerald-800 dark:text-emerald-300'
-              : 'text-amber-800 dark:text-amber-300'
+              ? 'text-success'
+              : 'text-warning'
           )}
         >
           {isReady ? 'Mock ready' : 'Mock setup'}

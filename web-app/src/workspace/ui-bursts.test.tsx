@@ -31,7 +31,7 @@ async function owner() {
   return createDurableWorkspace({ database, search: '', initialConnection: null });
 }
 
-it('refuses a second user pick issued before the first receipt settles', async () => {
+it('blocks a second user pick issued before the first receipt settles', async () => {
   const raw = await owner(); const workspace = observeDurableWorkspace(raw);
   await raw.sendDurable(['setConfig', { totalTeams: 2, totalRounds: 3, myPickPosition: 1, draftType: 'linear' }]);
   await raw.sendDurable(['setSessionMode', 'mock']);
@@ -43,7 +43,9 @@ it('refuses a second user pick issued before the first receipt settles', async (
     await act(async () => { actions?.draftPlayer(first); actions?.draftPlayer(second); await raw.sendDurable(['setSearchQuery', 'drain']); });
     expect(raw.draft.getState().draftHistory.map(({ pickNumber, teamIndex, playerId }) => ({ pickNumber, teamIndex, playerId })))
       .toEqual([{ pickNumber: 1, teamIndex: 0, playerId: first.id }]);
-    expect(workspace.status?.getState().error).toContain('draft changed');
+    // The shared pick lock refuses the second Draft before it reaches the store, so no save error is raised.
+    expect(workspace.status?.getState().error).toBeNull();
+    expect(actions?.pickInFlight).toBe(false);
   } finally { act(() => { root.unmount(); }); raw.dispose(); }
 });
 

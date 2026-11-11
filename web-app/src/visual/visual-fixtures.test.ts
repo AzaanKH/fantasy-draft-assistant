@@ -25,6 +25,7 @@ describe('visual fixtures', () => {
       screen: 'assistant',
       state: 'wait',
     });
+    expect(getVisualRoute('/__visual/draft', '?state=checklist')).toEqual({ screen: 'draft', state: 'checklist' });
     expect(getVisualRoute('/__visual/mobile/draft', '')).toEqual({
       screen: 'mobile-draft',
       state: 'draft',

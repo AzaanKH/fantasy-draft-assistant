@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
 import { DraftPlayerPool } from './DraftPlayerPool';
 import { DraftQueuePanel } from './DraftQueuePanel';
 import { DraftRosterPanel } from './DraftRosterPanel';
-import { DraftSuggestions } from './DraftSuggestions';
+import { DraftSuggestions, SUGGESTION_COUNT } from './DraftSuggestions';
+import { SuggestionShortcutHint } from './SuggestionShortcutHint';
 
 /** Matches the design system's xl breakpoint, where the roster becomes a sidebar. */
 const SPLIT_LAYOUT_QUERY = '(min-width: 80rem)';
@@ -59,19 +60,29 @@ export function DraftDock({
   );
   const { output, overall, recommendationsBlocked } = useDraftDecision();
   const expand = (): void => { onExpandedChange(true); };
+  // In the split layout the toggle moves between the pool toolbar (expanded) and the heading row (collapsed);
+  // focus follows it so keyboard users never land on hidden content.
+  const toggleRef = React.useRef<HTMLElement>(null);
+  const toggledByUser = React.useRef(false);
+  React.useEffect(() => {
+    if (!toggledByUser.current) return;
+    toggledByUser.current = false;
+    toggleRef.current?.focus();
+  }, [isExpanded]);
 
   const collapseButton = (
-    <Button variant="ghost" size="sm" className="shrink-0 rounded-sm" aria-expanded={isExpanded}
+    <Button ref={toggleRef} variant="ghost" size="sm" className="draft-dock-toggle shrink-0 rounded-sm" aria-expanded={isExpanded}
       aria-label={isExpanded ? 'Collapse player workspace' : 'Expand player workspace'}
-      onClick={() => { onExpandedChange(!isExpanded); }}>
+      title={isExpanded ? 'Collapse player workspace' : 'Expand player workspace'}
+      onClick={() => { toggledByUser.current = true; onExpandedChange(!isExpanded); }}>
       {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-      <span className="hidden sm:inline">{isExpanded ? 'Collapse' : 'Expand'}</span>
+      <span className="draft-dock-toggle-label hidden sm:inline">{isExpanded ? 'Collapse' : 'Expand'}</span>
     </Button>
   );
   const rosterTab = <DockTab value="roster" label="Roster" count={`${String(rosterCount)} / ${String(totalRounds)}`} />;
   const queueTab = <DockTab value="queue" label="Queue" count={<span aria-live="polite">{String(queuedCount)}</span>} />;
   const suggestionsTab = (
-    <DockTab value="suggestions" label="Suggestions" count={String(Math.min(3, overall.recommendations.length))} />
+    <DockTab value="suggestions" label="Suggestions" count={String(Math.min(SUGGESTION_COUNT, overall.recommendations.length))} />
   );
   const secondaryPanels = (
     <>
@@ -81,7 +92,11 @@ export function DraftDock({
       <TabsContent value="queue" className="draft-dock-panel">
         <DraftQueuePanel />
       </TabsContent>
-      <TabsContent value="suggestions" className="draft-dock-panel">
+      <TabsContent value="suggestions" className="draft-dock-panel @container">
+        <div className="suggestion-dock-heading">
+          <h3>Suggested picks</h3>
+          <SuggestionShortcutHint />
+        </div>
         <DraftSuggestions onOpenAssistant={onOpenAssistant} />
       </TabsContent>
     </>
@@ -95,13 +110,20 @@ export function DraftDock({
       {isSplit ? (
         <>
           <div className="draft-dock-pool">
-            <div className="draft-dock-heading">
-              <h3>Available players</h3>
-              {collapseButton}
-            </div>
+            {/* Expanded, the title and toggle share the pool toolbar's row, which leaves laptop heights room for more rows. */}
+            {isExpanded ? null : (
+              <div className="draft-dock-heading">
+                <h3>Available players</h3>
+                {collapseButton}
+              </div>
+            )}
             <MotionExpandable open={isExpanded}>
-              <div className="draft-dock-panel">
-                <DraftPlayerPool />
+              <div className="draft-dock-panel is-pool">
+                <DraftPlayerPool
+                  onRevealRequest={expand}
+                  heading={<h3 className="draft-pool-title">Available players</h3>}
+                  toolbarEnd={isExpanded ? collapseButton : null}
+                />
               </div>
             </MotionExpandable>
           </div>
@@ -129,7 +151,7 @@ export function DraftDock({
           </div>
           <MotionExpandable open={isExpanded}>
             <TabsContent value="players" className="draft-dock-panel">
-              <DraftPlayerPool />
+              <DraftPlayerPool onRevealRequest={expand} />
             </TabsContent>
             {secondaryPanels}
           </MotionExpandable>

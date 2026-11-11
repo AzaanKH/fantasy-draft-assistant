@@ -1,8 +1,10 @@
+/* Side-panel shell before the web app loads. Colors come from tokens.css, generated from
+   docs/design-system/tokens.json (pnpm tokens:write); this file holds layout only. */
 :root {
   color-scheme: light dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #ffffff;
-  color: #1c211f;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
 }
 
 * {
@@ -43,21 +45,27 @@ body,
   background: inherit;
 }
 
-.panel-state[hidden] {
+.panel-state[hidden],
+button[hidden] {
   display: none;
 }
 
 #pairing-state { z-index: 3; }
 
 .panel-state strong {
-  font-size: 16px;
+  font-size: var(--text-base);
 }
 
-.panel-state span {
+.panel-state span,
+.panel-state small {
   max-width: 280px;
-  color: #6b736f;
-  font-size: 13px;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-sm);
   line-height: 1.5;
+}
+
+.panel-state small {
+  font-size: var(--text-2xs);
 }
 
 .brand-mark {
@@ -65,52 +73,79 @@ body,
   width: 44px;
   height: 48px;
   place-items: center;
-  border: 2px solid #25bd73;
+  border: 2px solid var(--color-primary);
   border-radius: 12px 12px 16px 16px;
-  color: #25bd73;
+  color: var(--color-primary);
   font-weight: 800;
 }
 
 .brand-mark.error {
-  border-color: #ef5f59;
-  color: #ef5f59;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 button {
   width: min(280px, 100%);
   min-height: 40px;
-  border: 1px solid #1a9b5d;
+  border: 1px solid var(--color-primary);
   border-radius: 10px;
-  background: #25bd73;
-  color: #0c2418;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  button:hover { background: var(--color-primary-hover); }
+  button.secondary:hover { background: var(--color-surface-raised); }
+}
+
 button.secondary {
-  border-color: #d8dedb;
+  border-color: var(--color-border);
   background: transparent;
   color: inherit;
 }
 
+/* A secondary action shown as a plain link, e.g. Retry when only a different address can fix the error. */
+button.text-link {
+  width: auto;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  button.text-link:hover { background: transparent; color: var(--color-primary-hover); }
+}
+
 button:focus-visible {
-  outline: 2px solid #25bd73;
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    background: #0b0e0d;
-    color: #f2f5f3;
+/* The shell's states appear and disappear without motion; this keeps any browser or future transition off too. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
 
-  .panel-state span {
-    color: #9ca5a0;
-  }
-
-  button.secondary {
-    border-color: #333936;
-  }
+/* Read by screen readers only: the page's one heading. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

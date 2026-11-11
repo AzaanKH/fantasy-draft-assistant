@@ -8,7 +8,7 @@ import {
   evaluateDraftReadiness,
 } from '@fantasy-draft/shared/catalog';
 import { useLeagueTimingEvidence } from './useLeagueTimingEvidence';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import { IS_DEMO, RANKINGS_SOURCE, RANKING_LABELS, DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { READINESS_MINIMUMS, createSafeRecommendationPolicy, formatIdentityCoverage, isTrustedRankingSourceType } from '@fantasy-draft/shared/catalog';
@@ -104,7 +104,10 @@ function useLivePlayerDataQuery() {
     ),
     staleTime: 60 * 60 * 1000,
     retry: 1,
-    enabled: !IS_DEMO,
+    // Market ADP is optional: a settings change makes a new key, and the last format's rows stay merged until the
+    // new ones arrive. Waiting for the snapshot keeps its season from re-keying (and refetching) the request.
+    placeholderData: keepPreviousData,
+    enabled: !IS_DEMO && !fantasyProsQuery.isLoading,
   });
 
   const effectiveRecommendationPolicy =
@@ -354,19 +357,28 @@ function useLivePlayerDataQuery() {
     teamEnvQuery.data?.generatedAt,
   ]);
   const sportsbookIsFresh = sportsbookReady;
+  // Only the required merge inputs gate the merge. Merging while the Sleeper directory is in flight would match every
+  // ranked player against an empty list and report them all missing; team environment and market ADP are optional
+  // and merge in when they arrive, so a slow or failing optional source never blanks the board.
+  const mergeInputsPending = sleeperQuery.isLoading;
   const isLoading =
-    fantasyProsQuery.isLoading || identityQuery.isLoading;
+    fantasyProsQuery.isLoading || identityQuery.isLoading || mergeInputsPending;
 
   const isError =
     fantasyProsQuery.isError ||
     identityQuery.isError;
+  // Readiness reads every source as "missing" until its first response, so a pending request is not a failure. Only
+  // the core readiness inputs (rankings and identities) and the Sleeper directory the merge needs hold it back: an
+  // optional source (market ADP, team environment, predictions, contracts, sportsbook, the policy file) that is slow
+  // must never keep the Assistant on its skeleton or hide the blocked-readiness recovery screen. They fill in later.
+  const isReadinessPending = [fantasyProsQuery, identityQuery, sleeperQuery].some((query) => query.isLoading);
 
   const error =
     fantasyProsQuery.error ?? identityQuery.error;
 
   // Optional evidence must not change the core player array's identity.
   const coreSources = useMemo<CorePlayerDataSources | null>(() => {
-    if (!fantasyProsQuery.data || !identityQuery.data) return null;
+    if (!fantasyProsQuery.data || !identityQuery.data || mergeInputsPending) return null;
     return {
       onWarning: (message) => { console.warn(message); },
       rankings: fantasyProsQuery.data.rankings,
@@ -383,7 +395,7 @@ function useLivePlayerDataQuery() {
         rosterRequirements,
       },
     };
-  }, [fantasyProsQuery.data, identityQuery.data, sleeperQuery.data, teamEnvQuery.data,
+  }, [fantasyProsQuery.data, identityQuery.data, mergeInputsPending, sleeperQuery.data, teamEnvQuery.data,
     marketAdpQuery.data?.players, leagueSettings.scoringRules, totalTeams, rosterRequirements]);
   const players = useMemo(() => coreSources ? mergeCoreSources(coreSources, []) : [], [coreSources]);
   const shadowPlayers = useMemo(() =>
@@ -397,6 +409,7 @@ function useLivePlayerDataQuery() {
     shadowPlayers,
     sportsbookSnapshot: sportsbookReady ? sportsbookQuery.data : undefined,
     isLoading,
+    isReadinessPending,
     isError,
     error,
     dataInfo: {

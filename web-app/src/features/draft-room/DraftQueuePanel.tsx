@@ -28,7 +28,8 @@ export function DraftQueuePanel(): React.ReactElement {
   const { players, isLoading } = usePlayerDataQuery();
   const queuedPlayerIds = useDraftView((view) => view.shortlistedPlayerIds);
   const { removePlayerFromQueue } = useQueueActions(players);
-  const { canDraft, canDraftPlayer, draftPlayer } = useDraftPlayerAction();
+  // The queue renders a failure only on a queued player's row; one removed from the queue falls back to the notice.
+  const { canDraft, canDraftPlayer, draftPlayer, draftStatus, pickInFlight } = useDraftPlayerAction(queuedPlayerIds);
   const playerById = React.useMemo(
     () => new Map(players.map((player) => [player.id, player])),
     [players]
@@ -80,17 +81,21 @@ export function DraftQueuePanel(): React.ReactElement {
             <div className="draft-pool-meta">
               <PositionLabel position={player.position} /> · {player.team} · {RANKING_LABELS.short} #{String(player.ecrRank)}
             </div>
+            {draftStatus?.state === 'failed' && draftStatus.playerId === player.id
+              ? <p role="alert" className="mt-1 text-xs font-semibold text-danger">{draftStatus.message}</p>
+              : null}
           </div>
           <Button
             size="sm"
             className="draft-pill-action"
-            disabled={!canDraftPlayer(player)}
+            variant={draftStatus?.state === 'failed' && draftStatus.playerId === player.id ? 'destructive' : 'default'}
+            disabled={pickInFlight || !canDraftPlayer(player)}
             title={canDraft && !canDraftPlayer(player) ? `${player.position} limit reached` : undefined}
             onClick={() => {
               draftPlayer(player);
             }}
           >
-            Draft
+            {draftStatus?.playerId === player.id ? draftStatus.state === 'pending' ? 'Saving…' : 'Retry' : 'Draft'}
           </Button>
           <Button
             variant="ghost"

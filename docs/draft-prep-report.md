@@ -1,6 +1,6 @@
 # Draft Prep Report
 
-Generated: 2026-09-26T23:03:06.970Z
+Generated: 2026-11-09T03:00:26.373Z
 
 Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
@@ -8,7 +8,7 @@ Canonical strategy principles: [draft-approach.md](./draft-approach.md)
 
 | Artifact | Source timestamp |
 | --- | --- |
-| FantasyPros | 2026-09-26T23:03:05.137Z |
+| FantasyPros | 2026-11-09T03:00:24.159Z |
 | League survival | 2026-09-05T15:17:25.870Z |
 | Team environment | 2026-09-23T01:17:19.252Z |
 | Predictions | 2026-09-05T15:17:24.662Z |
@@ -48,7 +48,7 @@ Listed current keepers are excluded from the available-player tier snapshots.
 | 36 | 3 | Drake Maye |
 | 44 | 4 | Joe Burrow |
 | 53 | 5 | Jalen Hurts |
-| 58 | 6 | Jayden Daniels |
+| 59 | 6 | Jayden Daniels |
 | 63 | 7 | Caleb Williams |
 | 69 | 8 | Justin Herbert |
 | 70 | 9 | Trevor Lawrence |
@@ -64,13 +64,13 @@ Listed current keepers are excluded from the available-player tier snapshots.
 | 31 | 2 | Colston Loveland |
 | 35 | 3 | Brock Bowers |
 | 50 | 4 | Tyler Warren |
-| 74 | 5 | Harold Fannin Jr. |
+| 73 | 5 | Harold Fannin Jr. |
 | 75 | 6 | Kyle Pitts Sr. |
 | 79 | 7 | Tucker Kraft |
-| 82 | 8 | Sam LaPorta |
+| 83 | 8 | Sam LaPorta |
 | 93 | 9 | George Kittle |
 | 98 | 10 | Travis Kelce |
-| 110 | 11 | Dalton Kincaid |
+| 112 | 11 | Dalton Kincaid |
 | 117 | 12 | Dallas Goedert |
 
 ## Draft-Week Checklist

@@ -162,8 +162,8 @@ describe('ProvisionalPickDialog linear order', () => {
 
 describe('rendered linear turn timing', () => {
   it.each([
-    { currentPick: 5, expected: 'Your pick in 1' },
-    { currentPick: 6, expected: 'Your pick now' },
+    { currentPick: 5, expected: 'Your next pick in 1 pick' },
+    { currentPick: 6, expected: "You're on the clock" },
     { currentPick: 13, expected: 'Draft complete' },
   ])('shows side-panel timing at linear pick $currentPick', ({ currentPick, expected }) => {
     store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: currentPick }, historyLength: 0 } });
@@ -185,7 +185,7 @@ describe('legacy auction presentation', () => {
   it('keeps Companion on nominal snake timing for auctions', () => {
     store.getState().setConfig({ draftType: 'auction' });
     render(createElement(SidePanelPage));
-    expect(container.textContent).toContain('Your pick in 2');
+    expect(container.textContent).toContain('Your next pick in 2 picks');
   });
 });
 

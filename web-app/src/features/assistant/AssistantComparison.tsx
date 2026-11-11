@@ -1,6 +1,6 @@
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
-  getPreferredRecommendation,
+  getComparisonPreference,
   type DraftDecisionView,
   getRecommendationExplanation,
   getComparisonHighlights,
@@ -31,8 +31,8 @@ export function CompareAnswer({
     return <p className="rec-answer-footnote">A second comparable option is not available yet.</p>;
   }
 
-  const preferred = getPreferredRecommendation(decision, [first, second]) ?? first;
-  const other = preferred.playerId === first.playerId ? second : first;
+  // The rule (overall rank, else model score) is shared/src/draft's; this only words it.
+  const { preferred, other } = getComparisonPreference(decision, first, second);
   const preferredExplanation = decision.explanationByPlayerId.get(preferred.playerId)
     ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY);
   const highlights = getComparisonHighlights(first, second, decision, DRAFT_DISPLAY);

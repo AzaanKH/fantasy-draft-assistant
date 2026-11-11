@@ -28,7 +28,11 @@ const transport = vi.hoisted(() => ({
   eventSource: vi.fn(function () { return { close: vi.fn() }; }),
 }));
 vi.mock('@/lib/http', () => ({ requestJson: transport.requestJson }));
-vi.mock('@/features/recommendations/DraftDecisionContext', () => ({ DraftDecisionProvider: ({ children }: { children: ReactNode }) => children }));
+// App mounts the page-wide 1-4 keys (SuggestionHotkeys), which read the decision; no suggestions while starting up.
+vi.mock('@/features/recommendations/DraftDecisionContext', () => {
+  const decision = { overall: { recommendations: [] }, isLoading: true };
+  return { DraftDecisionProvider: ({ children }: { children: ReactNode }) => children, useDraftDecision: () => decision };
+});
 vi.mock('@/components/DraftHeader', () => ({ DraftHeader: () => null }));
 vi.mock('@/features/draft-room/DraftRoom', () => ({ DraftRoom: () => <div data-app-mounted /> }));
 vi.mock('@/features/draft-room/ShadowRecommendationObserver', () => ({ ShadowRecommendationObserver: () => null }));
@@ -165,10 +169,9 @@ it('still applies local defaults after first activation with no saved session or
   const value = await database();
   const changes = recordChanges(value);
   const { view, published } = await start(value, true);
-  await until(() => Boolean(view.container.querySelector('input')));
-  act(() => { view.container.querySelector('input')?.click(); });
-  act(() => { [...view.container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB')?.click(); });
+  // Nothing saved: activation needs no setup screen.
   await settle(view);
+  expect(view.container.querySelector('input')).toBeNull();
   expect(published).toEqual([{ mode: 'setup', connection: null, teams: 10 }]);
   expect(view.workspace?.draft.getState().config).toMatchObject({ totalTeams: 12, totalRounds: 15 });
   expect(view.workspace?.draft.getState().leagueSettings.rosterRequirements.BENCH.spots).toBe(6);

@@ -2,6 +2,7 @@ import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import { useMemo } from 'react';
+import { getNextPickAvailability, type NextPickAvailability } from '@/lib/next-pick-availability';
 import {
   POSITIONS,
   type Position,
@@ -60,9 +61,11 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   selection: RecommendationSelection;
   positionRecommendationStates: Readonly<Record<Position, PositionRecommendationDecision>>;
   topPick: Recommendation | null;
+  /** Every available player's next-pick availability from the survival model; empty while recommendations are off. */
+  nextPickAvailabilityById: ReadonlyMap<string, NextPickAvailability>;
   isLoading: boolean;
 } {
-  const { players, isLoading: playersLoading } = usePlayerDataQuery();
+  const { players, isLoading: playersLoading, isReadinessPending } = usePlayerDataQuery();
   const { needs, isLoading: needsLoading } = useTeamNeeds();
   const available = useDraftView((view) => view.available);
   const config = useDraftState((state) => state.config);
@@ -121,6 +124,11 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
           };
     });
   }, [enabled, players, available, timingEvidence.model, currentPick, config.myPickPosition, config.totalTeams, config.totalRounds, config.draftType, mockSurvivalProbabilities, sessionMode]);
+
+  const nextPickAvailabilityById = useMemo(
+    () => new Map(availablePlayers.map((player) => [player.id, getNextPickAvailability(player)])),
+    [availablePlayers]
+  );
 
   const recommendationContext = useMemo<RecommendationContext>(() => ({
       currentPick,
@@ -192,8 +200,10 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
     ...recommendations,
     positionRecommendationStates,
     topPick,
-    isLoading: enabled && (
-      playersLoading || needsLoading || timingEvidence.isLoading
-    ),
+    nextPickAvailabilityById,
+    // Disabled because readiness has no data yet is still loading: only a settled failure may show the blocked notice.
+    isLoading: enabled
+      ? playersLoading || needsLoading || timingEvidence.isLoading
+      : playersLoading || needsLoading || isReadinessPending,
   };
 }

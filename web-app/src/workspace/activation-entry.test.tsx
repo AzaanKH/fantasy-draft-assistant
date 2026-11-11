@@ -24,6 +24,9 @@ it('reviews changed v1 data again and allows a deliberate retry without a reload
   let mounted: Workspace | undefined;
   const ready = vi.fn((workspace: Workspace) => { mounted = workspace; });
   try {
+    // One saved draft keeps the review on screen; an empty browser would activate without it.
+    const seeded = { provider: 'sleeper', draftId: 'seeded' } as const;
+    localStorage.setItem('fantasy-draft-session-v1:sleeper:seeded', JSON.stringify(sessionFromState(initialDraftState(seeded), seeded, 0)));
     act(() => { showStorageActivation({ root, verified: { ...verified, origin: location.origin }, ready }); });
     await until(() => Boolean(container.querySelector('input[type="checkbox"]')));
     const identity = { provider: 'sleeper', draftId: '123' } as const;
@@ -47,6 +50,42 @@ it('reviews changed v1 data again and allows a deliberate retry without a reload
   }
 });
 
+
+it('activates an empty browser without the setup screen', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('crypto', webcrypto);
+  const verified = await verifyStorageSharing({ canonicalOrigin: location.origin, location });
+  const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+  let mounted: Workspace | undefined;
+  const ready = vi.fn((workspace: Workspace) => { mounted = workspace; });
+  try {
+    act(() => { showStorageActivation({ root, verified, ready }); });
+    await until(() => ready.mock.calls.length === 1);
+    expect(container.querySelector('[data-storage-activation="review"]')).toBeNull();
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(localStorage.getItem('fantasy-draft-storage-migrated')).not.toBeNull();
+  } finally { mounted?.dispose(); act(() => { root.unmount(); }); container.remove(); }
+});
+
+it('falls back to the setup screen when the automatic activation of an empty browser fails', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  const empty = { status: 'review', phase: 'fresh', ready: true, sessions: [], source: [], blockers: [] };
+  const activate = vi.fn().mockRejectedValue(new Error('changed'));
+  const preflight = vi.fn().mockResolvedValue(empty);
+  vi.spyOn(activationStorage, 'createActivationStorage').mockReturnValue({ resume: async () => null, preflight, activate, cancel: vi.fn(), close: vi.fn() });
+  const verified = await verifyStorageSharing({ canonicalOrigin: location.origin, location });
+  const container = document.createElement('div'); const root = createRoot(container);
+  const ready = vi.fn();
+  try {
+    act(() => { showStorageActivation({ root, verified, ready }); });
+    await until(() => Boolean(container.querySelector('[data-storage-activation="review"]')));
+    expect(activate).toHaveBeenCalledOnce();
+    expect(preflight).toHaveBeenCalledTimes(2);
+    expect(ready).not.toHaveBeenCalled();
+  } finally { act(() => { root.unmount(); }); }
+});
 
 it('surfaces a failed stale preflight in the setup UI and releases pending state', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

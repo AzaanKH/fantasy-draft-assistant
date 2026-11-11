@@ -4,6 +4,7 @@ import { Bot, Scale, ShieldCheck, Shirt } from 'lucide-react';
 import { LoadingStatus, SkeletonBlock, SkeletonText } from '@/components/skeletons';
 import { ThemeMenu } from '@/features/theme/ThemeMenu';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 /**
  * The side panel's frame. SidePanelPage loads lazily, so its loading state renders these same pieces
@@ -18,8 +19,10 @@ const POSITION_FILTERS: readonly PositionFilter[] = ['ALL', ...POSITIONS];
 /** Card geometry shared by loaded and loading panels. */
 export const PANEL_CARD = 'rounded-xl border border-border/80 bg-card p-3 shadow-sm';
 export const HERO_CARD = 'rounded-xl border border-border/80 bg-card p-4 shadow-sm';
-export const PANEL_LABEL = 'px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground';
-export const STATUS_CARD = 'grid grid-cols-[1.55fr_.75fr_1fr] items-center overflow-hidden rounded-xl border border-border/80 bg-card text-[11px] shadow-xs';
+export const PANEL_LABEL = 'px-1 text-2xs font-bold uppercase tracking-[0.12em] text-muted-foreground';
+/** Provider and current pick share the first row; turn status gets its own full-width row so it never clips. */
+export const STATUS_CARD = 'grid grid-cols-[minmax(0,1fr)_auto] items-center overflow-hidden rounded-xl border border-border/80 bg-card text-2xs shadow-xs';
+export const STATUS_TURN_ROW = 'col-span-2 flex min-w-0 border-t border-border/70 p-1.5';
 
 export function SidePanelFrame({
   header,
@@ -52,7 +55,7 @@ export function SidePanelHeader({
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur">
       <div className="flex min-w-0 items-center gap-2.5">
-        {leading ?? <ShieldCheck className="size-7 shrink-0 text-emerald-600 dark:text-emerald-300" />}
+        {leading ?? <ShieldCheck className="size-7 shrink-0 text-success" />}
         <div className="min-w-0">
           <h1 className="truncate text-base font-bold">{title}</h1>
           {subtitle}
@@ -85,7 +88,7 @@ export function PositionFilters({
           disabled={!onChange}
           onClick={() => { onChange?.(position); }}
           className={cn(
-            'h-11 border-r border-border/70 text-[11px] font-bold transition-colors last:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'h-11 border-r border-border/70 text-2xs font-bold transition-colors last:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             position === value
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
@@ -114,7 +117,7 @@ export function SidePanelNavigation({
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-[72px] max-w-[520px] grid-cols-4 border-t border-border/80 bg-background/95 px-2 backdrop-blur" aria-label="Side panel navigation">
+    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-(--container-sidepanel-nav) max-w-[520px] grid-cols-4 border-t border-border/80 bg-background/95 px-2 backdrop-blur" aria-label="Side panel navigation">
       {items.map((item) => {
         const Icon = item.icon;
         const active = item.id === view;
@@ -126,8 +129,8 @@ export function SidePanelNavigation({
             disabled={!onChange}
             onClick={() => { onChange?.(item.id); }}
             className={cn(
-              'flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-              active ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground hover:text-foreground'
+              'flex flex-col items-center justify-center gap-1 text-2xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              active ? 'text-success' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Icon className="size-5" />
@@ -139,45 +142,54 @@ export function SidePanelNavigation({
   );
 }
 
+/**
+ * "Open local workspace" as the status card's own footer row: a secondary action inside the card, so it never
+ * floats above the header. The loading and loaded cards share it, so it is reachable before data arrives.
+ */
+export function StatusCardAction({ onOpenWorkspace }: { readonly onOpenWorkspace?: (() => void) | undefined }): React.ReactElement | null {
+  if (!onOpenWorkspace) return null;
+  return (
+    <div className={cn(STATUS_TURN_ROW, 'justify-end')}>
+      <Button size="sm" variant="ghost" onClick={onOpenWorkspace}>Open local workspace</Button>
+    </div>
+  );
+}
+
 /** Loading state for the side panel's Draft view: the real frame, header, filters and navigation, with placeholders for data. */
-export function SidePanelSkeleton(): React.ReactElement {
+export function SidePanelSkeleton({ onOpenWorkspace }: { readonly onOpenWorkspace?: (() => void) | undefined } = {}): React.ReactElement {
   return (
     <SidePanelFrame
       header={<SidePanelHeader title="Fantasy Draft" />}
       navigation={<SidePanelNavigation view="draft" />}
     >
       <LoadingStatus label="Loading draft recommendations" />
-      <div className={STATUS_CARD} aria-hidden="true">
-        <div className="flex h-14 min-w-0 flex-col justify-center gap-0.5 px-3">
+      <div className={STATUS_CARD}>
+        <div className="flex h-14 min-w-0 flex-col justify-center gap-0.5 px-3" aria-hidden="true">
           <span><SkeletonText className="w-20" /></span>
-          <span className="text-[10px]"><SkeletonText className="w-16" /></span>
+          <span className="text-2xs"><SkeletonText className="w-16" /></span>
         </div>
-        <div className="flex h-14 items-center justify-center border-x border-border/70 px-2"><SkeletonText className="w-8" /></div>
-        <div className="flex h-14 items-center justify-end px-3"><SkeletonText className="w-20" /></div>
+        <div className="flex h-14 items-center justify-center border-l border-border/70 px-4" aria-hidden="true"><SkeletonText className="w-8" /></div>
+        <div className={STATUS_TURN_ROW} aria-hidden="true"><SkeletonBlock className="h-10 w-full" /></div>
+        <StatusCardAction onOpenWorkspace={onOpenWorkspace} />
       </div>
       <PositionFilters value="ALL" />
       <section className={HERO_CARD} aria-hidden="true">
-        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Your best pick</div>
-        <div className="mt-3 flex items-center gap-3">
-          <SkeletonBlock className="size-20 rounded-xl" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-2xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Your best pick</div>
+          <SkeletonBlock className="h-[18px] w-16" />
+        </div>
+        <div className="mt-2 flex items-center gap-2.5">
+          <SkeletonBlock className="size-11 rounded-lg" />
           <div className="min-w-0 flex-1">
-            <div className="text-xl"><SkeletonText className="w-40" /></div>
-            <div className="mt-1 text-sm"><SkeletonText className="w-20" /></div>
-            <div className="mt-2 text-xs"><SkeletonText className="w-36" /></div>
+            <div className="text-base leading-6"><SkeletonText className="w-40" /></div>
+            <div className="text-xs"><SkeletonText className="w-36" /></div>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 divide-x divide-border">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="min-w-0 px-2 text-center">
-              <div className="text-base"><SkeletonText className="w-12" /></div>
-              <div className="mt-1 text-[10px]"><SkeletonText className="w-14" /></div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 text-xs leading-relaxed"><SkeletonText className="w-full" /><br /><SkeletonText className="w-3/4" /></div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <SkeletonBlock className="h-9" />
-          <SkeletonBlock className="h-9" />
+        <div className="mt-2 text-xs"><SkeletonText className="w-56" /></div>
+        <p className="mt-2 text-xs leading-5"><SkeletonText className="w-full" /></p>
+        <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <SkeletonBlock className="h-8" />
+          <SkeletonBlock className="h-8" />
         </div>
       </section>
       <section className={PANEL_CARD} aria-hidden="true">

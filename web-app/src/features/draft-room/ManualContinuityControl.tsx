@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
@@ -91,7 +90,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
     setRemovalPending(true);
     let removed: boolean;
     try {
-      const result = (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'removeProvisionalPick', pendingRemovalPick.pickNumber) : workspace.send('removeProvisionalPick', pendingRemovalPick.pickNumber));
+      const result = requestWorkspace(workspace, 'removeProvisionalPick', pendingRemovalPick.pickNumber);
       removed = result instanceof Promise ? await result : result;
     } catch (error) {
       setRemovalError(error instanceof Error ? error.message : String(error));
@@ -106,8 +105,8 @@ export function ManualContinuityControl(): React.ReactElement | null {
   };
 
   const lastTruthLabel = lastConfirmedPickNumber > 0
-    ? `Provider Truth through pick #${String(lastConfirmedPickNumber)} remains loaded.`
-    : 'The last confirmed Provider Truth remains loaded.';
+    ? `The provider's picks through #${String(lastConfirmedPickNumber)} stay loaded.`
+    : 'The provider\'s last synced picks stay loaded.';
   const isManual = synchronizationState === 'manual-continuity';
   const providerName = getProviderName(connection?.provider ?? null);
 
@@ -117,18 +116,18 @@ export function ManualContinuityControl(): React.ReactElement | null {
         className={cn(
           'flex flex-col gap-3 rounded-xl border px-4 py-3 shadow-sm',
           isManual
-            ? 'border-amber-500/55 bg-amber-500/10'
+            ? 'border-warning/55 bg-warning/10'
             : viewState.connectionState === 'error'
-              ? 'border-destructive/45 bg-destructive/5'
-              : 'border-amber-500/45 bg-amber-500/[0.07]'
+              ? 'border-danger/45 bg-danger/5'
+              : 'border-warning/45 bg-warning/[0.07]'
         )}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-3" role="status" aria-live="polite">
             {isManual ? (
-              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" />
+              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-warning" />
             ) : (
-              <CircleAlert className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" />
+              <CircleAlert className="mt-0.5 size-5 shrink-0 text-warning" />
             )}
             <div className="min-w-0">
               <h2 className="text-sm font-bold">
@@ -149,7 +148,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
           <Button
             size="sm"
             variant={isManual ? 'outline' : 'default'}
-            className={cn(isManual && 'border-amber-500/55 bg-background/70')}
+            className={cn(isManual && 'border-warning/55 bg-background/70')}
             onClick={isManual ? openEntryDialog : handleEnterManualContinuity}
           >
             <PenLine />
@@ -158,12 +157,12 @@ export function ManualContinuityControl(): React.ReactElement | null {
         </div>
 
         {isManual && provisionalPicks.length > 0 ? (
-          <div className="border-t border-amber-500/30 pt-3">
+          <div className="border-t border-warning/30 pt-3">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-amber-900 dark:text-amber-100">
+              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-warning">
                 Local picks awaiting Reconciliation
               </h3>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 Confirmed picks are locked
               </span>
             </div>
@@ -171,7 +170,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
               {provisionalPicks.map((pick) => (
                 <div
                   key={pick.pickNumber}
-                  className="flex flex-col gap-2 rounded-md border border-amber-500/35 bg-background/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-md border border-warning/35 bg-background/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   role="listitem"
                   aria-label={`${pick.playerName}, ${pick.position}, pick ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)}, ${pick.teamName}, ${pick.provisionalRevision ? `corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}` : 'recorded locally'}`}
                 >
@@ -182,7 +181,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                         {pick.position}
                       </span>
                     </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 text-2xs text-muted-foreground">
                       Pick {createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(pick.pickNumber)} · #{String(pick.pickNumber)} · {pick.teamName}
                       {pick.provisionalRevision
                         ? ` · Corrected locally ${String(pick.provisionalRevision)} ${pick.provisionalRevision === 1 ? 'time' : 'times'}`
@@ -202,7 +201,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-destructive hover:text-destructive"
+                      className="text-danger hover:text-danger"
                       onClick={() => { openRemovalDialog(pick.pickNumber); }}
                       aria-label={`Remove Provisional Pick for ${pick.playerName}`}
                     >
@@ -237,12 +236,12 @@ export function ManualContinuityControl(): React.ReactElement | null {
             <DialogTitle>Remove this Provisional Pick?</DialogTitle>
             <DialogDescription>
               {pendingRemovalPick
-                ? `${pendingRemovalPick.playerName} will return to the available-player pool and pick #${String(pendingRemovalPick.pickNumber)} will reopen. Confirmed Provider Truth will not change.`
+                ? `${pendingRemovalPick.playerName} will return to the available-player pool and pick #${String(pendingRemovalPick.pickNumber)} will reopen. Picks synced from the provider will not change.`
                 : 'This local entry is no longer available.'}
             </DialogDescription>
           </DialogHeader>
           {removalError ? (
-            <p className="text-xs font-semibold text-destructive" role="alert">
+            <p className="text-xs font-semibold text-danger" role="alert">
               {removalError}
             </p>
           ) : null}

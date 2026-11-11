@@ -1,5 +1,5 @@
 import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView, useDraftViewReader } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
@@ -40,7 +40,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
     );
     if (keeper) {
       if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(['consumeKeeperAtCurrentPick', view.currentPick]).then(() => true);
-      if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'consumeKeeperAtCurrentPick'); } else { workspace.send('consumeKeeperAtCurrentPick'); }
+      sendWorkspaceCommand(workspace, 'consumeKeeperAtCurrentPick');
       return true;
     }
 
@@ -78,7 +78,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       STORAGE_ACTIVATION_ENABLED && workspace.sendDurable ? { pickNumber: view.currentPick, actor: 'cpu' } : undefined
     ] satisfies import('@/workspace/commands').VoidWorkspaceCommand;
     if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(command).then(() => true);
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, ...command); } else { workspace.send(...command); }
+    sendWorkspaceCommand(workspace, ...command);
     return true;
   }, [workspace, readDraftView, timingEvidence.model, players]);
 }
@@ -120,9 +120,9 @@ export function MockDraftAutoAdvance(): null {
       // Pause rather than retry when no CPU candidate fits.
       const result = simulateNextCpuPick();
       if (result instanceof Promise) void result.then(advanced => {
-        if (!advanced) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); } else { workspace.send('setMockAutoAdvancePaused', true); }
-      }).catch(() => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); } else { workspace.send('setMockAutoAdvancePaused', true); } });
-      else if (!result) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', true); } else { workspace.send('setMockAutoAdvancePaused', true); }
+        if (!advanced) sendWorkspaceCommand(workspace, 'setMockAutoAdvancePaused', true);
+      }).catch(() => { sendWorkspaceCommand(workspace, 'setMockAutoAdvancePaused', true); });
+      else if (!result) sendWorkspaceCommand(workspace, 'setMockAutoAdvancePaused', true);
     }, cpuPickDelayMs);
     return () => { window.clearTimeout(timer); };
   }, [

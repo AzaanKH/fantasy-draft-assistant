@@ -81,7 +81,7 @@ describe('getRecommendationExplanation', () => {
 
     const explanation = getRecommendationExplanation(recommendation);
 
-    expect(explanation).toContain('Depth Value adds 4.0 policy points');
+    expect(explanation).toContain('Depth adds 4.0 because');
     expect(explanation).toContain('0 RB reserves against a target of 2');
     expect(explanation).toContain('That bench protection changed Best Pick.');
   });
@@ -163,10 +163,12 @@ describe('getRecommendationExplanation', () => {
 
     const explanation = getRecommendationExplanation(recommendation);
 
-    expect(explanation).toContain('anchored at ECR #30');
-    expect(explanation).toContain('Primary League value adds 0.5 policy points');
-    expect(explanation).toContain('Roster fit adds 8.0 policy points');
-    expect(explanation).toContain('roster-feasibility exception');
+    expect(explanation).toContain('is #30 in the rankings');
+    expect(explanation).toContain('Primary League value adds 0.5 to his score');
+    expect(explanation).toContain('Roster fit adds 8.0 with');
+    expect(explanation).toContain('taken early to keep the roster fillable');
+    // Plain words only: no model jargon in the full reasoning.
+    expect(explanation).not.toMatch(/policy point|replacement|Return Probability|anchored/i);
   });
 
   it('explains the tier supply factor when it changes Best Pick', () => {
@@ -252,7 +254,7 @@ describe('getRecommendationExplanation', () => {
     const explanation = getRecommendationExplanation(recommendation);
 
     expect(explanation).toContain(
-      'Tier supply adds 4.0 cost-of-waiting points with 1 left in RB Tier 1'
+      'A thinning tier adds 4.0 with 1 left in RB Tier 1'
     );
     expect(explanation).toContain('a 40.0 point drop to the next tier');
     expect(explanation).toContain('That tier cliff changed Best Pick.');
@@ -352,8 +354,8 @@ describe('getRecommendationExplanation', () => {
 
     const explanation = getRecommendationExplanation(recommendation);
 
-    expect(explanation).toContain('5% Return Probability at pick 2.03');
-    expect(explanation).toContain('Fallback RB is the expected RB fallback');
+    expect(explanation).toContain("5% chance he's still there at pick 2.03");
+    expect(explanation).toContain('If you wait, Fallback RB is the best estimated RB option');
     expect(explanation).toContain('That next-pick tradeoff changed Best Pick.');
   });
 
@@ -378,7 +380,7 @@ describe('getRecommendationExplanation', () => {
     };
 
     expect(getRecommendationExplanation(recommendation)).toBe(
-      "Ja'Marr Chase is last available player in WR Tier 1 and +127 points above replacement. The chance this player reaches your next pick is only 14%, making waiting risky."
+      "Ja'Marr Chase is last available player in WR Tier 1 and +127 pts over a fill-in starter. The chance this player reaches your next pick is only 14%, making waiting risky."
     );
   });
 
@@ -403,7 +405,7 @@ describe('getRecommendationExplanation', () => {
     };
 
     expect(getRecommendationExplanation(recommendation)).toBe(
-      "Ja'Marr Chase is last available player in WR Tier 1 and +133 points above replacement. The chance this player reaches your next pick is 75%, so waiting may be reasonable."
+      "Ja'Marr Chase is last available player in WR Tier 1 and +133 pts over a fill-in starter. The chance this player reaches your next pick is 75%, so waiting may be reasonable."
     );
   });
 

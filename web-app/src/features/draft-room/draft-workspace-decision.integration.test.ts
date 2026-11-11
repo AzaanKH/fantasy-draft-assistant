@@ -173,7 +173,7 @@ describe('Draft Workspace decision integration', () => {
       decisionDivergenceFactor: 'league-value',
     });
     expect(initial.decisionDivergenceExplanation).toBe(
-      'Prefer Roster Builder over ECR Leader because Roster Builder is +45 points above replacement, 43 more than ECR Leader in this league, while ECR Leader remains Best Player at ECR #1.'
+      'Prefer Roster Builder over ECR Leader because Roster Builder is +45 pts over a fill-in starter, 43 more than ECR Leader in this league, while ECR Leader remains Best Player at ECR #1.'
     );
 
     const stateBeforeSwitch = draftStore.getState();
@@ -392,7 +392,7 @@ describe('Draft Workspace decision integration', () => {
         onDismiss: () => undefined,
       })
     );
-    expect(summaryMarkup).toContain('Provider Truth reconciled');
+    expect(summaryMarkup).toContain('Synced picks checked');
     expect(summaryMarkup).toContain('Confirmed · 1');
     expect(summaryMarkup).toContain('ECR Leader');
     expect(summaryMarkup).toContain('1.05 · #5');

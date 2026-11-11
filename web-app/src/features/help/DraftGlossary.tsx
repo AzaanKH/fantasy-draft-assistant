@@ -1,6 +1,7 @@
 import { IS_DEMO } from '@/lib/demo-mode';
 import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { IconTooltip } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,10 @@ import {
 
 const TERMS = [
   {
-    term: 'Value over replacement',
-    short: 'VOR',
+    term: 'Points over a fill-in starter',
+    short: 'Over fill-in',
     definition:
-      'Projected points minus the points expected from a replacement-level player at the same position. For example, 337 projected minus 204 replacement equals +133 VOR. This is usually more useful for drafting than raw projected points because it captures positional advantage.',
+      'Projected points minus the points expected from a fill-in starter at the same position (the kind of player still available late). For example, 337 projected minus 204 for a fill-in starter is +133. This is usually more useful for drafting than raw projected points because it captures positional advantage.',
   },
   {
     term: 'Position tier',
@@ -33,7 +34,7 @@ const TERMS = [
     term: 'Projected points',
     short: 'Proj.',
     definition:
-      'The player\'s expected total fantasy points for the season in your scoring format. This measures total output, while VOR measures how much better that output is than an available fallback at the same position.',
+      'The player\'s expected total fantasy points for the season in your scoring format. This measures total output, while points over a fill-in starter measure how much better that output is than an available fallback at the same position.',
   },
   {
     term: IS_DEMO ? 'Model rank and draft spot' : 'Expert rank and draft spot',
@@ -53,12 +54,14 @@ const TERMS = [
 export function DraftGlossary(): React.ReactElement {
   return (
     <Dialog>
+      <IconTooltip label="How scores work">
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" aria-label="How scores work">
           <CircleHelp />
-          How scores work
+          <span className="draft-header-label">How scores work</span>
         </Button>
       </DialogTrigger>
+      </IconTooltip>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Draft score glossary</DialogTitle>

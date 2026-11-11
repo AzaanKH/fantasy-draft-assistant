@@ -39,7 +39,7 @@ function getImportWarning(
 
   return `${String(rejectedPicks.length)} ${
     rejectedPicks.length === 1 ? 'pick was' : 'picks were'
-  } not imported because Provider Truth could not map the player to canonical identity data (${examples}${remaining}). ${subject} excluded from roster and availability calculations. Live recommendations stay off until player identities are refreshed and the provider sync succeeds.`;
+  } not imported because the provider's pick could not be matched to a player in the local player data (${examples}${remaining}). ${subject} excluded from roster and availability calculations. Live recommendations stay off until player identities are refreshed and the provider sync succeeds.`;
 }
 
 export function useDraftSyncReconciliation(provider: DraftProvider, draftId: string | null, snapshot: DraftSyncSnapshot | null, shouldImportPicks: boolean): {
@@ -207,7 +207,7 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       setLastReconciledSnapshotAt(snapshot.lastSuccessfulSyncAt);
     };
     try {
-      const receipt = (STORAGE_ACTIVATION_ENABLED ? requestWorkspace(workspace, 'reconcileSyncedPicks', importResult.picks, nextOpenPickNumber, importResult.rejectedPicks, snapshot.lastSuccessfulSyncAt) : workspace.send('reconcileSyncedPicks', importResult.picks, nextOpenPickNumber, importResult.rejectedPicks, snapshot.lastSuccessfulSyncAt));
+      const receipt = requestWorkspace(workspace, 'reconcileSyncedPicks', importResult.picks, nextOpenPickNumber, importResult.rejectedPicks, snapshot.lastSuccessfulSyncAt);
       if (receipt instanceof Promise) void receipt.then(applyReceipt).catch(() => { if (inFlight.current === requestKey) inFlight.current = null; });
       else applyReceipt(receipt);
     } catch (error) {

@@ -1,5 +1,6 @@
+import { CircleHelp, ListChecks } from 'lucide-react';
 import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
 import { createQuickMockSettings, evaluateWorkspaceDraftReadiness } from '@fantasy-draft/shared/draft';
@@ -17,6 +18,8 @@ import { AssistantSkeleton } from '@/features/assistant/AssistantLayout';
 import { DraftRoom } from '@/features/draft-room/DraftRoom';
 import { LiveDraftSyncProvider } from '@/features/draft-room/LiveDraftSyncProvider';
 import { MockDraftAutoAdvance } from '@/features/draft-board/mock-auto-advance';
+import { SuggestionHotkeys } from '@/features/draft-room/useSuggestionHotkeys';
+import { SuggestionActionsProvider } from '@/features/draft-room/SuggestionActionsContext';
 import { ShadowRecommendationObserver } from '@/features/draft-room/ShadowRecommendationObserver';
 import { DraftDecisionProvider } from '@/features/recommendations/DraftDecisionContext';
 import { useKeeperPreload } from '@/hooks/useKeeperPreload';
@@ -53,6 +56,20 @@ const SidePanelPage = React.lazy(() =>
   }))
 );
 
+
+/**
+ * The two lazy header controls' exact stand-ins (same button, icon and label as How scores work and League roster),
+ * so the header keeps its width when they load and nothing beside it moves (R8-4: one blank button grew 79 → 140px).
+ */
+function HeaderControlsPlaceholder(): React.ReactElement {
+  return (
+    <>
+      <Button variant="outline" size="sm" disabled aria-label="Loading draft controls"><CircleHelp aria-hidden="true" /><span className="draft-header-label">How scores work</span></Button>
+      <Button variant="outline" size="sm" disabled aria-hidden="true" tabIndex={-1}><ListChecks aria-hidden="true" /><span className="draft-header-label">League roster</span></Button>
+    </>
+  );
+}
+
 export function App(): React.ReactElement {
   const [leagueSetupOpen, setLeagueSetupOpen] = React.useState(false);
   // Load on first open, then stay mounted so the dialog can animate closed.
@@ -82,8 +99,8 @@ export function App(): React.ReactElement {
   const useQuickMockSettings = connection ? connection.settingsProfile === 'quick-mock' : localProfile === 'quick-mock';
   React.useEffect(() => {
     if (connection || sessionMode !== 'setup' || hasPicks) return;
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'applyLeagueSettings', localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings()); } else { workspace.send('applyLeagueSettings', localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings()); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 }); } else { workspace.send('setConfig', localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 }); }
+    sendWorkspaceCommand(workspace, 'applyLeagueSettings', localProfile === 'quick-mock' ? createQuickMockSettings(quickMockPreferences) : createDefaultLeagueSettings());
+    sendWorkspaceCommand(workspace, 'setConfig', localProfile === 'quick-mock' ? { totalTeams: quickMockPreferences.totalTeams, totalRounds: quickMockPreferences.totalRounds } : { totalTeams: 10, totalRounds: 14 });
   }, [connection, sessionMode, hasPicks, localProfile, quickMockPreferences, workspace]);
   const leagueSettings = useDraftState((state) => state.leagueSettings);
   const usePrimaryLeagueSettings = connection ? connection.provider === 'sleeper' && connection.usePrimaryLeagueSettings === true : localProfile === 'primary-league';
@@ -188,7 +205,7 @@ export function App(): React.ReactElement {
                 keeperStatus={keeperStatus}
                 onManageLeagueSettings={() => { setLeagueSetupOpen(true); }}
                 secondaryControls={(
-                  <React.Suspense fallback={<Button variant="outline" size="sm" disabled aria-label="Loading draft controls" />}>
+                  <React.Suspense fallback={<HeaderControlsPlaceholder />}>
                     <DraftGlossary />
                     <RosterSettings />
                   </React.Suspense>
@@ -199,10 +216,13 @@ export function App(): React.ReactElement {
               </React.Suspense> : null}
               <ShadowRecommendationObserver />
               <MockDraftAutoAdvance />
+              {/* One set of suggestion actions for the lists and the 1-4 keys across /draft and /assistant. */}
+              <SuggestionActionsProvider>
+              <SuggestionHotkeys />
               <RouteErrorBoundary key={route} onReturnToBoard={route === 'draft' ? undefined : () => { navigate('draft'); }}>
                 {/* DraftRoom ships in this chunk and is its own loading state, so only the lazy Assistant needs a fallback. */}
                 <React.Suspense fallback={route === 'assistant'
-                  ? <AssistantSkeleton analysisTab={assistantNavigationTarget.lens} onReturnToDraft={() => { navigate('draft'); }} />
+                  ? <AssistantSkeleton analysisTab={assistantNavigationTarget.lens} />
                   : null}>
                   {route === 'assistant' ? (
                     <AssistantPage
@@ -219,6 +239,7 @@ export function App(): React.ReactElement {
                   )}
                 </React.Suspense>
               </RouteErrorBoundary>
+              </SuggestionActionsProvider>
             </RouteErrorBoundary>
           </DraftSetupActionsContext.Provider>
         </DraftDecisionProvider>

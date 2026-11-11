@@ -22,8 +22,8 @@ vi.mock('@fantasy-draft/shared/sync', async original => ({
   ...await original<object>(), get STORAGE_ACTIVATION_ENABLED() { return activation.enabled; },
 }));
 
-const [observed, elsewhere] = VISUAL_PLAYERS;
-if (!observed || !elsewhere) throw new Error('Missing player fixtures');
+const [observed, elsewhere, replacement] = VISUAL_PLAYERS;
+if (!observed || !elsewhere || !replacement) throw new Error('Missing player fixtures');
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
 vi.mock('./LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connection: { provider: 'sleeper' }, canEnterManualContinuity: true,
   synchronizationState: 'manual-continuity', lastConfirmedPickNumber: 0, provisionalPickCount: 0,
@@ -63,6 +63,14 @@ function saveButton(correcting: boolean): HTMLButtonElement {
   const button = [...document.querySelectorAll('button')].find(button => button.textContent === (correcting ? 'Save Correction' : 'Record Provisional Pick'));
   if (!button) throw new Error('Missing save button');
   return button;
+}
+function playerSelect(): HTMLSelectElement {
+  const select = document.querySelector<HTMLSelectElement>('select[aria-label="Observed player"]');
+  if (!select) throw new Error('Missing player selector');
+  return select;
+}
+function choosePlayer(value: string): void {
+  act(() => { playerSelect().value = value; playerSelect().dispatchEvent(new Event('change', { bubbles: true })); });
 }
 function choosePick(value: string): void {
   act(() => { slotSelect().value = value; slotSelect().dispatchEvent(new Event('change', { bubbles: true })); });
@@ -132,6 +140,33 @@ describe.each([false, true])('storage activation=%s', enabled => {
     expect(document.querySelector('[role="alert"]')).toBeNull();
     await act(async () => { saveButton(correcting).click(); await commit(['setSearchQuery', 'save drain']); });
     expect(state().draftHistory.find(row => row.pickNumber === selected + 1)?.playerId).toBe(observed.id);
+    expect(close).toHaveBeenCalledWith(false);
+  });
+
+  it('requires an explicit new player when the selected player is recorded elsewhere', async () => {
+    const close = vi.fn();
+    act(() => { root.render(createElement(WorkspaceProvider, { workspace,
+      children: createElement(ProvisionalPickDialog, { open: true, onOpenChange: close, initialPlayerId: observed.id }) })); });
+    choosePick('1');
+    expect(playerSelect().value).toBe(observed.id);
+    expect(saveButton(false).disabled).toBe(false);
+
+    await act(async () => { expect(await elsewhereCommit(['recordProvisionalPick', pick(2, observed)])).toBe(true); });
+
+    expect(playerSelect().value).toBe('');
+    expect(playerSelect().getAttribute('aria-invalid')).toBe('true');
+    expect(saveButton(false).disabled).toBe(true);
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe(`${observed.name} was just recorded elsewhere. Choose a player.`);
+
+    // Unrelated updates cannot silently pick a substitute player.
+    await act(async () => { await commit(['setSearchQuery', 'another render']); });
+    expect(playerSelect().value).toBe('');
+
+    choosePlayer(replacement.id);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(saveButton(false).disabled).toBe(false);
+    await act(async () => { saveButton(false).click(); await commit(['setSearchQuery', 'save drain']); });
+    expect(state().draftHistory.find(row => row.pickNumber === 1)?.playerId).toBe(replacement.id);
     expect(close).toHaveBeenCalledWith(false);
   });
 

@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
   <title>Fantasy Draft Assistant</title>
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
   <main class="sidepanel-shell">
+    <h1 class="visually-hidden">Fantasy Draft Assistant side panel</h1>
     <div id="pairing-state" class="panel-state" hidden>
       <strong>Pair this extension</strong>
       <span>Pair with the local app before connecting your draft.</span>
@@ -20,12 +22,14 @@
       <span>Connecting the side panel to the live draft room…</span>
     </div>
 
-    <div id="error-state" class="panel-state" hidden>
+    <div id="error-state" class="panel-state" role="alert" hidden>
       <div class="brand-mark error" aria-hidden="true">!</div>
-      <strong>Web app unavailable</strong>
-      <span>Run the local web app, then retry the side panel.</span>
+      <strong id="error-title">Web app unavailable</strong>
+      <span id="error-detail">Start the Fantasy Draft web app on this computer, then retry the side panel.</span>
+      <button id="use-canonical" type="button" hidden>Use the standard web app address</button>
       <button id="retry-frame" type="button">Retry</button>
       <button id="open-webapp" class="secondary" type="button">Open full draft room</button>
+      <small id="error-hint" hidden></small>
     </div>
 
     <iframe

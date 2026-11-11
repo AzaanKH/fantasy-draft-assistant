@@ -56,8 +56,10 @@ const DRAFT_LAYOUT = [
 
 const ASSISTANT_LAYOUT = [
   'rec-workspace', 'rec-context', 'rec-context-pick', 'rec-context-status', 'rec-lens', 'rec-view-tabs',
-  'rec-layout', 'rec-main', 'rec-card', 'rec-card-identity', 'rec-card-avatar', 'rec-metrics', 'rec-actions',
-  'rec-analysis', 'rec-answer', 'rec-rail', 'rec-rail-section',
+  'rec-layout', 'rec-main', 'rec-lead-heading', 'rec-search', 'suggestion-list', 'suggestion-row', 'suggestion-identity',
+  'suggestion-title', 'suggestion-name', 'suggestion-meta', 'suggestion-signals', 'suggestion-reason', 'suggestion-confidence', 'suggestion-actions',
+  'rec-side', 'rec-side-summary', 'rec-analysis', 'rec-analysis-identity', 'rec-decision', 'rec-decision-facts', 'rec-viewed-action',
+  'rec-answer', 'rec-rail', 'rec-rail-section',
 ] as const;
 
 describe('loading states share the loaded layout', () => {
@@ -93,7 +95,7 @@ describe('loading states share the loaded layout', () => {
       expect(loading.querySelector(`#${tab.getAttribute('aria-controls') ?? ''}`)).not.toBeNull();
     }
     expect([...loading.querySelectorAll('.rec-tabs [role=tab]')].map((tab) => tab.textContent)).toEqual([
-      'Suggestions', 'Position tiers', 'Why this player?', 'Compare options', 'Can I wait?', 'What does my roster need?',
+      'Suggestions', 'Position tiers', 'Why this player?', 'Compare', 'Roster needs',
     ]);
   });
 });

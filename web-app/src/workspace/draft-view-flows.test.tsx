@@ -44,7 +44,7 @@ function render(showDialog = false) {
       showDialog ? createElement(ProvisionalPickDialog, { open: true, onOpenChange: vi.fn(), initialPlayerId: firstPlayer().id }) : null)) })); });
 }
 function status() { return container.querySelector('.board-current-pick')?.textContent; }
-function poolCount() { return Number(container.querySelector('[role="table"][aria-rowcount]')?.getAttribute('aria-rowcount')) - 1; }
+function poolCount() { return Number(container.querySelector('.draft-pool-scroll[role="grid"][aria-rowcount]')?.getAttribute('aria-rowcount')) - 1; }
 function firstPlayer() { const player = players[0]; if (!player) throw new Error('Missing fixture'); return player; }
 it('renders the manager on the clock and complete browse pool beyond recommendations', () => {
   store.getState().togglePlayerShortlisted(firstPlayer().id);

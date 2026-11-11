@@ -512,8 +512,8 @@ async function uiQueueAdd(actor, cmd) {
   const ctx = actor.ctx;
   const search = await ensurePool(ctx);
   await search.fill(cmd.name);
-  await ctx.getByRole('button', { name: `Add ${cmd.name} to local shortlist`, exact: true }).click();
-  await ctx.getByRole('button', { name: `Remove ${cmd.name} from local shortlist`, exact: true }).waitFor({ timeout: 20000 });
+  await ctx.getByRole('button', { name: `Add ${cmd.name} to queue`, exact: true }).click();
+  await ctx.getByRole('button', { name: `Remove ${cmd.name} from queue`, exact: true }).waitFor({ timeout: 20000 });
   await drained(ctx);
   return { outcome: 'ack' };
 }
@@ -759,7 +759,7 @@ async function fixtureRules(ctx) {
 }
 async function inspectPoolControl(actor, player, queued) {
   const search = await ensurePool(actor.ctx); await search.fill(player.name);
-  const name = `${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} local shortlist`;
+  const name = `${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} queue`;
   return { ...await inspectControl(actor.ctx.getByRole('button', { name, exact: true }), name), playerId: player.id };
 }
 async function inspectPickControls(actors, commands) {
@@ -1169,7 +1169,7 @@ async function lifecycle(ctxInfo, ids, catalog, nameToId) {
     await pages[sender].close();
     await pages[receiver].bringToFront();
     try {
-      await pages[receiver].getByRole('button', { name: `Remove ${player.name} from local shortlist`, exact: true }).waitFor({ timeout: 20000 });
+      await pages[receiver].getByRole('button', { name: `Remove ${player.name} from queue`, exact: true }).waitFor({ timeout: 20000 });
       const events = await pages[receiver].evaluate(() => window.__lifecycle);
       row.focusRecovery = { proven: focusAfterAck(events, receipt), events };
     } catch (error) { row.focusRecovery = { proven: false, reason: error.message, events: await pages[receiver].evaluate(() => window.__lifecycle).catch(() => []) }; }

@@ -11,6 +11,8 @@ import { LivePlayerDataProvider } from './hooks/usePlayerData';
 import { createBrowserWorkspace } from './workspace/browser-workspace';
 import { WorkspaceProvider } from './workspace/WorkspaceProvider';
 import { CommandNotice } from './workspace/CommandNotice';
+import { PickFailureNotice } from './workspace/PickFailureNotice';
+import { installHeldKeyGuard } from './features/draft-room/held-key-guard';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -19,6 +21,8 @@ if (!rootElement) {
 }
 
 const root = createRoot(rootElement);
+// Holding Enter, Space, Q or 1-4 acts exactly once on every control (R12-23).
+installHeldKeyGuard();
 const visualRouteRequested = window.location.pathname.startsWith('/__visual/');
 
 function renderNormalApp(app: ReactElement, harnessFactory?: () => import('./workspace/workspace').Workspace): void {
@@ -39,7 +43,7 @@ function renderNormalApp(app: ReactElement, harnessFactory?: () => import('./wor
           <WorkspaceProvider workspace={workspace}>
             <LivePlayerDataProvider>
               <NotificationProvider>
-                <TooltipProvider><MotionProvider>{STORAGE_ACTIVATION_ENABLED ? <CommandNotice /> : null}{app}</MotionProvider></TooltipProvider>
+                <TooltipProvider><MotionProvider>{STORAGE_ACTIVATION_ENABLED ? <CommandNotice /> : null}<PickFailureNotice />{app}</MotionProvider></TooltipProvider>
               </NotificationProvider>
             </LivePlayerDataProvider>
           </WorkspaceProvider>

@@ -1,5 +1,4 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand, commitWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { isQuickMockPreferences } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
@@ -29,8 +28,11 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
   const [profile, setProfile] = React.useState<LocalLeagueProfile>(savedProfile);
   const [preferences, setPreferences] = React.useState(savedQuickMock);
   const transferringFocus = React.useRef(false);
+  const [applying, setApplying] = React.useState(false);
+  const [applyError, setApplyError] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (!open) return;
+    setApplyError(null);
     setProfile(connection ? connection.settingsProfile === 'quick-mock' ? 'quick-mock' : 'primary-league' : savedProfile);
     setPreferences(savedQuickMock);
   }, [open, connection, savedProfile, savedQuickMock]);
@@ -38,19 +40,27 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
   const unsupportedProvider = !!connection && connection.provider !== 'sleeper';
   const canApply = !localDraftInProgress && !unsupportedProvider && (profile === 'primary-league' || isQuickMockPreferences(preferences));
   const rounds = connection ? config.totalRounds : preferences.totalRounds;
-  const apply = (): void => {
-    if (!canApply) return;
-    save(profile, profile === 'quick-mock' ? preferences : savedQuickMock);
+  const apply = async (): Promise<void> => {
+    if (!canApply || applying) return;
+    setApplyError(null);
     if (connection) {
-      if (profile === 'quick-mock') if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setQuickMockSettings', true); } else { workspace.send('connection.setQuickMockSettings', true); }
-      else if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', true); } else { workspace.send('connection.setPrimaryLeagueSettings', true); }
+      // Keep the dialog open until the durable save settles so success is never announced early.
+      setApplying(true);
+      try {
+        if (profile === 'quick-mock') await commitWorkspaceCommand(workspace, 'connection.setQuickMockSettings', true);
+        else await commitWorkspaceCommand(workspace, 'connection.setPrimaryLeagueSettings', true);
+      } catch (error) {
+        setApplyError(`League settings were not saved. ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      } finally { setApplying(false); }
     }
+    save(profile, profile === 'quick-mock' ? preferences : savedQuickMock);
     toast.success(profile === 'quick-mock' ? 'Quick mock settings saved' : 'Primary League practice settings selected', { id: 'league-settings' });
     onOpenChange(false);
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl" onCloseAutoFocus={(event) => {
+      <DialogContent className="sm:max-w-xl" onCloseAutoFocus={(event) => {
         event.preventDefault();
         if (transferringFocus.current) transferringFocus.current = false;
         else document.querySelector<HTMLButtonElement>('.draft-session-status')?.focus();
@@ -84,8 +94,8 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
           <p className="text-sm leading-relaxed text-muted-foreground">For practice, use these rules with the Primary League keeper list. For your real draft, connect Sleeper to verify its scoring and roster settings.</p>
           <Button variant="outline" className="w-full" disabled={localDraftInProgress} onClick={() => {
             save('primary-league', savedQuickMock);
-            if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setPrimaryLeagueSettings', false); } else { workspace.send('connection.setPrimaryLeagueSettings', false); }
-            if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.setQuickMockSettings', false); } else { workspace.send('connection.setQuickMockSettings', false); }
+            sendWorkspaceCommand(workspace, 'connection.setPrimaryLeagueSettings', false);
+            sendWorkspaceCommand(workspace, 'connection.setQuickMockSettings', false);
             transferringFocus.current = true;
             onOpenChange(false);
             onConnectPrimary();
@@ -94,7 +104,8 @@ export function LeagueSetupDialog({ open, onOpenChange, onConnectPrimary }: {
         {localDraftInProgress ? <p role="status" className="text-sm text-muted-foreground">Exit the current mock before changing its league rules. Existing picks will stay intact until you exit.</p> : null}
         {unsupportedProvider ? <p role="status" className="text-sm text-muted-foreground">Local practice rules are available for local mocks and Sleeper mocks. This connection uses its provider settings.</p> : null}
         {profile === 'quick-mock' && (!isQuickMockPreferences(preferences) || rounds < 10) ? <p role="alert" className="text-sm text-destructive">Use 2–20 teams and 10–30 rounds for this roster.</p> : null}
-        <Button className="w-full" disabled={!canApply || (profile === 'quick-mock' && rounds < 10)} onClick={apply}>{profile === 'quick-mock' ? 'Use quick mock settings' : 'Use Primary League practice settings'}</Button>
+        {applyError ? <p role="alert" className="text-sm text-destructive">{applyError}</p> : null}
+        <Button className="w-full" aria-busy={applying || undefined} disabled={applying || !canApply || (profile === 'quick-mock' && rounds < 10)} onClick={() => { void apply(); }}>{applying ? 'Saving settings...' : profile === 'quick-mock' ? 'Use quick mock settings' : 'Use Primary League practice settings'}</Button>
       </DialogContent>
     </Dialog>
   );

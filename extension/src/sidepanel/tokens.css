@@ -1,0 +1,45 @@
+/* Generated from docs/design-system/tokens.json by `pnpm tokens:write`. Edit tokens.json, then regenerate extension/src/sidepanel/tokens.css. */
+:root {
+  --color-background: #f1f5f6;
+  --color-foreground: #1b3439;
+  --color-muted-foreground: #55676b;
+  --color-border: #d3e0e2;
+  --color-primary: #00666a;
+  --color-primary-hover: #007c80;
+  --color-primary-foreground: #fff;
+  --color-ring: #00666a;
+  --color-danger: #a51f2a;
+  --color-surface-raised: #e5eff0;
+  --font-sans: "DM Sans", sans-serif;
+  --text-2xs: 11px;
+  --text-sm: 14px;
+  --text-base: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-background: #05091E;
+    --color-foreground: #FFFFFF;
+    --color-muted-foreground: #A5B3CB;
+    --color-border: #34415E;
+    --color-primary: #03FFFA;
+    --color-primary-hover: #5CFFFC;
+    --color-primary-foreground: #051827;
+    --color-ring: #03FFFA;
+    --color-danger: #FF8A97;
+    --color-surface-raised: #1C2643;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-background: #05091E;
+  --color-foreground: #FFFFFF;
+  --color-muted-foreground: #A5B3CB;
+  --color-border: #34415E;
+  --color-primary: #03FFFA;
+  --color-primary-hover: #5CFFFC;
+  --color-primary-foreground: #051827;
+  --color-ring: #03FFFA;
+  --color-danger: #FF8A97;
+  --color-surface-raised: #1C2643;
+}

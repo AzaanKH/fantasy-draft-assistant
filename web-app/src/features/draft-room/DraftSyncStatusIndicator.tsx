@@ -36,27 +36,27 @@ const STATUS_PRESENTATION: Record<DraftSynchronizationState, StatusPresentation>
     animate: true,
   },
   confirmed: {
-    label: 'Provider Truth confirmed',
+    label: 'Synced',
     icon: Radio,
-    className: 'text-emerald-700 dark:text-emerald-300',
+    className: 'text-success',
     animate: false,
   },
   delayed: {
     label: 'Provider delayed',
     icon: RefreshCw,
-    className: 'text-amber-700 dark:text-amber-300',
+    className: 'text-warning',
     animate: false,
   },
   'manual-continuity': {
     label: 'Manual Continuity',
     icon: Clock3,
-    className: 'text-amber-700 dark:text-amber-300',
+    className: 'text-warning',
     animate: false,
   },
   complete: {
     label: 'Complete',
     icon: CheckCircle2,
-    className: 'text-emerald-700 dark:text-emerald-300',
+    className: 'text-success',
     animate: false,
   },
 };

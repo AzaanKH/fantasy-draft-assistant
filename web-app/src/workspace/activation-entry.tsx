@@ -131,6 +131,15 @@ function ActivationSetup({ controller, initial, ready }: { readonly controller: 
   </main>;
 }
 
+/**
+ * A browser with no saved v1 draft at all: nothing to review, import or reconcile, so storage activates without the
+ * setup screen. Any saved record, resumed import or blocker still gets the full review.
+ */
+export function hasNothingToMove(review: ActivationReview): boolean {
+  return review.status === 'review' && review.phase === 'fresh' && review.ready
+    && review.source.length === 0 && review.sessions.length === 0 && review.blockers.length === 0;
+}
+
 export function showStorageActivation({ root, verified, ready }: { readonly root: Root; readonly verified: VerifiedStorageSharing; readonly ready: (workspace: Workspace) => void }): void {
   if (verified.origin !== window.location.origin) throw new Error('Storage verification belongs to another origin');
   const controller = createActivationStorage({ storage: localStorage, factory: indexedDB, report: () => undefined });
@@ -145,7 +154,18 @@ export function showStorageActivation({ root, verified, ready }: { readonly root
       root.render(<OpeningWorkspace database={database} controller={controller} ready={ready} activated={false} />);
       return;
     }
-    const review = await controller.preflight();
+    let review = await controller.preflight();
+    if (hasNothingToMove(review)) {
+      try {
+        // The close-tabs confirmation guards v1 records against a racing older tab; with none saved there is nothing to guard.
+        const activated = await controller.activate([], { otherTabsClosed: true });
+        root.render(<OpeningWorkspace database={activated} controller={controller} ready={ready} activated />);
+        return;
+      } catch {
+        // Something was saved between the check and the write: show the review for what is there now.
+        review = await controller.preflight();
+      }
+    }
     root.render(<ActivationSetup controller={controller} initial={review} ready={ready} />);
   })().catch((error: unknown) => { controller.close(); root.render(<main role="alert" data-storage-blocked="activation">Draft storage setup failed. Your v1 records remain retained. Reload the page to try again. {String(error)}</main>); });
 }

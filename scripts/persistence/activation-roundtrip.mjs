@@ -61,6 +61,7 @@ try {
   server = await createServer({ root: path.join(root, 'web-app'), configFile: path.join(root, 'web-app/vite.config.ts'),
     server: { host: '127.0.0.1', port: 3002, strictPort: true, hmr: false, watch: null }, plugins: [{ name: 'old-module-browser-proof', configureServer(vite) {
       vite.middlewares.use((request,response,next) => {
+        if (request.url === '/__seed/blank') { response.setHeader('Content-Type','text/html'); response.end('<!doctype html><title>Round-trip seed</title>'); return; }
         if (request.url === '/legacy-proof') { response.setHeader('Content-Type','text/html'); response.end(html); return; }
         if (request.url?.startsWith('/legacy/')) { old.middlewares(request,response,next); return; } next();
       });
@@ -78,10 +79,10 @@ try {
       if (url.pathname.startsWith('/api/')) return route.fulfill({status:503,contentType:'application/json',body:'{"error":"offline fixture"}'});
       return route.abort();
     });
-    await page.goto(`${origin}/draft?provider=sleeper&draftId=123&position=2`);
-    await page.getByRole('button',{name:'Activate IndexedDB',exact:true}).waitFor();
+    // Seed v1 before the app first loads: an empty browser activates without the setup screen.
+    await page.goto(`${origin}/__seed/blank`);
     await page.evaluate(entries=>{for(const [key,value] of entries)localStorage.setItem(key,value);},source);
-    await page.reload(); await page.getByRole('button',{name:'Activate IndexedDB',exact:true}).waitFor();
+    await page.goto(`${origin}/draft?provider=sleeper&draftId=123&position=2`); await page.getByRole('button',{name:'Activate IndexedDB',exact:true}).waitFor();
     const legacy = await context.newPage(); await legacy.goto(`${origin}/legacy-proof`); await legacy.waitForFunction(()=>window.oldReady);
     const before = await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('fantasy-draft-session')).sort().map(key=>[key,localStorage.getItem(key)]));
     assert.equal(await page.evaluate(()=>localStorage.getItem('fantasy-draft-storage-migrated')),null);

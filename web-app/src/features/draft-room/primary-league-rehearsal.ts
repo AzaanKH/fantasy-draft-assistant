@@ -508,7 +508,7 @@ function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeague
     68
   );
   synchronizationStates.push(getDraftSynchronizationState('connected'));
-  observeDecision('Restored Provider Truth');
+  observeDecision('Restored the provider\'s picks');
 
   const reconciliationMarkup = renderToStaticMarkup(
     React.createElement(ReconciliationSummary, { draftType: 'snake',

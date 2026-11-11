@@ -67,11 +67,7 @@ async function start(firstActivation: boolean) {
   const verified = await verifyStorageSharing({ canonicalOrigin: location.origin, location });
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   act(() => { showStorageActivation({ root, verified, ready }); });
-  if (firstActivation) {
-    await until(() => Boolean(container.querySelector('input')));
-    act(() => { container.querySelector('input')?.click(); });
-    act(() => { [...container.querySelectorAll('button')].find(button => button.textContent === 'Activate IndexedDB')?.click(); });
-  }
+  // First activation of an empty browser needs no confirmation: it activates and opens the workspace itself.
   await until(() => read.mock.calls.length > 0);
   return { view, ready, close, controller, resolve: () => { resolve(session); }, reject };
 }

@@ -1,14 +1,14 @@
 import type { HelpMetric } from '@fantasy-draft/shared/draft';
-import { IS_DEMO, RANKING_LABELS } from '@/lib/demo-mode';
+import { IS_DEMO } from '@/lib/demo-mode';
 
 export const METRIC_HELP = {
   projectedPoints: {
     title: 'Projected points',
     summary: 'Expected fantasy points for the season in your scoring format.',
-    detail: 'Projected points measure total scoring. Above replacement compares that total with a replacement-level player at the same position, which makes positional value easier to compare.',
+    detail: 'Projected points measure total scoring. Points over a fill-in starter compare that total with a fill-in starter at the same position (the kind of player still available late), which makes positional value easier to compare.',
   },
   ecr: {
-    title: RANKING_LABELS.anchor,
+    title: 'Rankings',
     summary: IS_DEMO
       ? 'Model rank: the player-quality baseline for recommendations. Lower ranks are better.'
       : 'Expert consensus rank: the player-quality baseline for recommendations. Lower ranks are better.',
@@ -22,12 +22,12 @@ export const METRIC_HELP = {
     detail: 'A lower tier number represents a stronger group. The last available player in a tier matters when the next group has a meaningful drop in projected points.',
   },
   vor: {
-    title: 'Above replacement',
-    summary: 'Projected fantasy points above a replacement-level player at the same position.',
-    detail: 'This is value over replacement, or VOR. For example, 240 projected points minus a 200-point replacement baseline gives +40 VOR. It helps compare positional value in your league.',
+    title: 'Pts over a fill-in starter',
+    summary: 'Projected fantasy points above a fill-in starter at the same position.',
+    detail: 'For example, 240 projected points minus 200 for a fill-in starter gives +40. It helps compare positional value in your league.',
   },
   returnProbability: {
-    title: 'Return Probability',
+    title: "Chance he's there",
     summary: 'The estimated chance this player is still available at your next selection.',
     detail: 'The estimate uses league draft history calibrated by the current draft market. A lower percentage means waiting is riskier. A higher percentage gives you more room to consider another player, but does not guarantee availability.',
   },
@@ -42,7 +42,7 @@ export const METRIC_HELP = {
     detail: `The decision considers ${IS_DEMO ? 'model rankings' : 'expert rankings'}, league value, roster needs, useful reserves, tier supply, and next-pick timing. Best Pick can differ from Best Player, which follows the trusted player-quality ranking without roster or timing adjustments.`,
   },
   recommendationRank: {
-    title: 'Recommendation rank',
+    title: 'Rank for this pick',
     summary: "This player's place among available players in the current decision lens.",
     detail: 'Rank #1 is the first choice in that lens. Best Pick accounts for your roster and draft timing; Best Player follows the trusted player-quality ranking. This rank can change as players are drafted.',
   },

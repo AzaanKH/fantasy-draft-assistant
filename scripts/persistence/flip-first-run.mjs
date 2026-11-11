@@ -134,7 +134,7 @@ try {
           await page.getByRole('button', { name: 'Draft workspace', exact: true }).waitFor();
           assert.equal(await page.locator('[data-storage-activation="review"]').count(), 0);
           const before = await v1();
-          const add = page.getByRole('button', { name: /^Add .* to local shortlist$/ }).first(); await add.click();
+          const add = page.getByRole('button', { name: /^Add .* to queue$/ }).first(); await add.click();
           await page.waitForFunction(before => JSON.stringify(Object.keys(localStorage).filter(key => key.startsWith('fantasy-draft-session')).sort().map(key => [key, localStorage.getItem(key)])) !== before, JSON.stringify(before));
           assert.deepEqual(await page.evaluate(() => window.__flipOpened), []);
           assert.equal(await page.evaluate(() => localStorage.getItem('fantasy-draft-storage-migrated')), null);
