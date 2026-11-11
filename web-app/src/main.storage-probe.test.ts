@@ -3,8 +3,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 const calls = vi.hoisted(() => ({ probe: vi.fn(), verify: vi.fn(), appImported: vi.fn(),
   createBrowserWorkspace: vi.fn((_search: string, factory?: () => unknown) => factory?.()),
-  createHarnessWorkspace: vi.fn(), render: vi.fn(), activation: vi.fn(), responder: vi.fn() }));
-vi.mock('./workspace/storage-sharing', () => ({ serveStorageProbe: calls.probe, verifyStorageSharing: calls.verify, installStorageSharingResponder: calls.responder }));
+  createHarnessWorkspace: vi.fn(), render: vi.fn(), activation: vi.fn(), responder: vi.fn(), hostedDemo: vi.fn() }));
+vi.mock('./workspace/storage-sharing', () => ({ serveStorageProbe: calls.probe, verifyStorageSharing: calls.verify, installStorageSharingResponder: calls.responder, verifyHostedDemoStorage: calls.hostedDemo }));
 vi.mock('./workspace/activation-entry', () => ({ showStorageActivation: calls.activation }));
 vi.mock('./workspace/browser-workspace', () => ({ createBrowserWorkspace: calls.createBrowserWorkspace }));
 vi.mock('./workspace/harness-workspace', () => ({ createHarnessWorkspace: calls.createHarnessWorkspace }));
@@ -63,4 +63,19 @@ it.each([undefined, 'idb'])('routes first-run startup through activation for set
   expect(calls.activation).toHaveBeenCalledWith(expect.objectContaining({ verified }));
   expect(calls.createBrowserWorkspace).not.toHaveBeenCalled();
   expect(calls.createHarnessWorkspace).not.toHaveBeenCalled();
+});
+
+it('gives a demo build on another origin its own storage, without the localhost sharing check', async () => {
+  vi.stubEnv('VITE_DEMO_MODE', 'true');
+  vi.stubEnv('VITE_CANONICAL_WEB_ORIGIN', 'http://localhost:3999');
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  const verified = { origin: location.origin, kind: 'origin-only' };
+  calls.hostedDemo.mockReturnValueOnce(verified);
+  document.body.innerHTML = '<div id="root"></div>';
+  await import('./main');
+  await vi.dynamicImportSettled();
+  expect(calls.activation).toHaveBeenCalledWith(expect.objectContaining({ verified }));
+  expect(calls.verify).not.toHaveBeenCalled();
+  expect(calls.responder).not.toHaveBeenCalled();
+  expect(calls.createBrowserWorkspace).not.toHaveBeenCalled();
 });

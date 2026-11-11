@@ -102,6 +102,16 @@ async function runProbe(nonce: string, options: ProbeOptions, role: 'top' | 'fra
   }
 }
 
+/**
+ * The hosted static demo, on its own HTTPS origin: there is no localhost app or extension side panel to share storage
+ * with, so the page's own origin is its storage. Only a demo build, in a top-level tab, gets this.
+ */
+export function verifyHostedDemoStorage(location: Pick<Location, 'origin'> = window.location): VerifiedStorageSharing {
+  if (import.meta.env.VITE_DEMO_MODE !== 'true') throw new StorageSharingError('Only the static demo can use its own origin for draft storage.');
+  if (window.parent !== window) throw new StorageSharingError('Open the demo in its own tab to use draft storage.');
+  return { [verifiedSharing]: true, origin: location.origin, kind: 'origin-only' };
+}
+
 export async function verifyStorageSharing(options: ProbeOptions & { readonly canonicalOrigin: string; readonly nonce?: string }): Promise<VerifiedStorageSharing> {
   const location = options.location ?? window.location;
   const nonce = options.nonce ?? new URLSearchParams(location.search).get('__storageNonce');

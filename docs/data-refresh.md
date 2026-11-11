@@ -87,7 +87,7 @@ with Sleeper's order, generic league and manager names, and no news.
 | `MODEL_SOURCE_PROFILE=fantasypros-free pnpm model:dataset` | Builds the model without FantasyPros inputs into `data/model/fantasypros-free/`. See [the modeling guide](modeling-duckdb.md#fantasypros-free-profile). |
 | `pnpm data:demo:build` | Rebuilds `demo-data/` from that model, Sleeper, team environment, and anonymized league files, then runs the leak check. |
 | `pnpm data:demo:install` | Copies each demo file into `data/` only where the file is missing. CI runs it before `pnpm verify`. |
-| `pnpm build:web:demo` | Builds the static demo (`BROWSER_DATA_SOURCE=demo VITE_DEMO_MODE=true VITE_STORAGE_ACTIVATION=v1`). See [the static demo](#static-demo). |
+| `pnpm build:web:demo` | Builds the static demo (`BROWSER_DATA_SOURCE=demo VITE_DEMO_MODE=true`). See [the static demo](#static-demo). |
 | `pnpm dev:web:demo` | Serves the static demo from the Vite dev server, without the live preflight or sync server. |
 | `pnpm data:demo:check [dir ...]` | Fails if a directory contains FantasyPros IDs or URLs, the real league name, or Sleeper user, league, or draft IDs, including in compiled JavaScript and source maps. Defaults to `demo-data/`; CI also checks `web-app/dist`. |
 
@@ -113,7 +113,7 @@ which needs no local server:
   rather than FantasyPros ECR. The file keeps its `fantasypros-snapshot.json`
   name.
 
-The demo commands explicitly set `VITE_STORAGE_ACTIVATION=v1`. This keeps hosted HTTPS previews on local demo storage without the canonical localhost activation check. `BROWSER_DATA_SOURCE=demo` alone still builds the normal app with default IndexedDB activation.
+The demo uses the same IndexedDB storage as the app. A demo build served from any origin other than the local app's keeps its drafts in that origin's own IndexedDB and skips the canonical localhost sharing check, since a hosted demo has no local app or extension side panel to share with. A first visit has nothing saved, so it opens without the storage setup screen.
 
 To deploy on Cloudflare Pages, use the repository root (the directory with
 `pnpm-workspace.yaml`), output directory `web-app/dist`, and the environment

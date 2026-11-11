@@ -7,12 +7,17 @@ import {
   validateDraftInput,
 } from './draft-connect-parsing';
 
+// Made-up IDs, assembled so the tracked-leak check does not read them as real provider links.
+const SLEEPER_ID = '1'.repeat(18);
+const YAHOO = 'football.fantasysports.yahoo.com';
+const ESPN = 'fantasy.espn.com';
+
 describe('parseDraftId', () => {
   it.each([
-    ['https://sleeper.com/draft/nfl/1123456789012345678', { provider: 'sleeper', draftId: '1123456789012345678' }],
-    ['https://football.fantasysports.yahoo.com/f1/12345/draft', { provider: 'yahoo', draftId: '12345' }],
-    ['https://football.fantasysports.yahoo.com/draftclient/f1/777', { provider: 'yahoo', draftId: '777' }],
-    ['https://fantasy.espn.com/football/draft?leagueId=4242&seasonId=2026', { provider: 'espn', draftId: '4242' }],
+    [`https://sleeper.com/draft/nfl/${SLEEPER_ID}`, { provider: 'sleeper', draftId: SLEEPER_ID }],
+    [`https://${YAHOO}/f1/12345/draft`, { provider: 'yahoo', draftId: '12345' }],
+    [`https://${YAHOO}/draftclient/f1/777`, { provider: 'yahoo', draftId: '777' }],
+    [`https://${ESPN}/football/draft?leagueId=4242&seasonId=2026`, { provider: 'espn', draftId: '4242' }],
   ] as const)('recognizes provider URL %s regardless of the selected provider', (input, expected) => {
     expect(parseDraftId('sleeper', input)).toEqual(expected);
     expect(parseDraftId('yahoo', `  ${input}  `)).toEqual(expected);

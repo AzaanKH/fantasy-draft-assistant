@@ -2,7 +2,7 @@
 
 Production activation is on by default for the web app and extension. The main-compatible tombstone release is on main. The shared build-time switch defaults to `idb`; a localStorage setting or URL parameter cannot change it.
 
-The hosted static demo is an explicit v1 exception. `pnpm build:web:demo` and `pnpm dev:web:demo` set `VITE_STORAGE_ACTIVATION=v1`. HTTPS demo origins cannot share the canonical localhost app's storage and do not activate it.
+The hosted static demo uses IndexedDB too. `pnpm build:web:demo` and `pnpm dev:web:demo` no longer set `VITE_STORAGE_ACTIVATION=v1`. A demo build on an origin other than the canonical localhost app keeps its drafts in that origin's own IndexedDB (`verifyHostedDemoStorage`) and does not run the localhost sharing check. No shipped build selects v1 any more; the switch remains only for the rollback release below.
 
 To build the v1 rollback release for both consumers, run:
 

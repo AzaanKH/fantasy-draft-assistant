@@ -72,10 +72,17 @@ if (import.meta.env.DEV && visualRouteRequested) {
   void import('./App').then(async ({ App }) => {
     applyTheme(readStoredTheme());
     if (STORAGE_ACTIVATION_ENABLED) {
-      const { verifyStorageSharing, installStorageSharingResponder } = await import('./workspace/storage-sharing');
-      const stopSharing = installStorageSharingResponder({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN) });
-      window.addEventListener('pagehide', stopSharing, { once: true });
-      const verified = await verifyStorageSharing({ canonicalOrigin: String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN), location: window.location });
+      const { verifyStorageSharing, verifyHostedDemoStorage, installStorageSharingResponder } = await import('./workspace/storage-sharing');
+      const canonicalOrigin = String(import.meta.env.VITE_CANONICAL_WEB_ORIGIN);
+      let verified: Awaited<ReturnType<typeof verifyStorageSharing>>;
+      // A demo build served anywhere but the local app's origin keeps its drafts in its own origin's IndexedDB.
+      if (import.meta.env.VITE_DEMO_MODE === 'true' && window.location.origin !== canonicalOrigin) {
+        verified = verifyHostedDemoStorage();
+      } else {
+        const stopSharing = installStorageSharingResponder({ canonicalOrigin });
+        window.addEventListener('pagehide', stopSharing, { once: true });
+        verified = await verifyStorageSharing({ canonicalOrigin, location: window.location });
+      }
       const { showStorageActivation } = await import('./workspace/activation-entry');
       showStorageActivation({ root, verified, ready: workspace => { renderNormalApp(<App />, () => workspace); } });
       return;

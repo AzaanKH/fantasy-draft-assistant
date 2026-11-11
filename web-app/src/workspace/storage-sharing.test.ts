@@ -332,3 +332,17 @@ it('explains the production no-app-tab requirement without opening IndexedDB', a
     .rejects.toThrow('Keep the draft web app open in a normal tab');
   expect(open).not.toHaveBeenCalled();
 });
+
+describe('hosted demo storage', () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+  it('accepts the demo build\'s own origin without the localhost sharing check', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', 'true');
+    const { verifyHostedDemoStorage } = await import('./storage-sharing');
+    expect(verifyHostedDemoStorage({ origin: 'https://demo.example.test' })).toMatchObject({ origin: 'https://demo.example.test', kind: 'origin-only' });
+  });
+  it('refuses any build that is not the demo', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', '');
+    const { verifyHostedDemoStorage } = await import('./storage-sharing');
+    expect(() => verifyHostedDemoStorage({ origin: 'https://demo.example.test' })).toThrow('Only the static demo');
+  });
+});
