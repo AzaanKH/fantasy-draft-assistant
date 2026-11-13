@@ -534,6 +534,9 @@ function calculateRecommendations(
     .sort((a, b) =>
       Number(b.playerId === bestPickPolicy.preferredPlayerId) -
         Number(a.playerId === bestPickPolicy.preferredPlayerId) ||
+      // A surplus starter (a backup QB while the lineup has a hole) lists after every candidate who can help.
+      Number(a.decisionFactors?.rosterFit.surplusStarter === true) -
+        Number(b.decisionFactors?.rosterFit.surplusStarter === true) ||
       b.score - a.score ||
       (a.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) -
         (b.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) ||

@@ -146,7 +146,7 @@ describe('getRecommendations', () => {
         rosterFit: {
           score: 6,
           minScore: 0,
-          maxScore: 8,
+          maxScore: 14,
           fixedStartersOpen: 7,
           flexSlotsOpen: 2,
           benchSlotsOpen: 5,
@@ -181,16 +181,111 @@ describe('getRecommendations', () => {
       );
 
       expect(result.draftNow[0]?.playerId).toBe('flex-wr');
+      // A FLEX slot is still open, so a second QB is surplus rather than ordinary bench depth.
       expect(result.draftNow.find((pick) => pick.playerId === 'backup-qb')
-        ?.decisionFactors?.rosterFit.score).toBe(1);
+        ?.decisionFactors?.rosterFit).toMatchObject({ score: 0, surplusStarter: true });
       expect(result.draftNow.find((pick) => pick.playerId === 'flex-wr')
         ?.decisionFactors?.rosterFit).toMatchObject({
-          score: 4,
+          // Doubled: eight players are rostered, so this is past the manager's fifth selection.
+          score: 8,
           fixedStartersOpen: 0,
           flexSlotsOpen: 1,
           benchSlotsOpen: 5,
           materiallyChangedOrdering: true,
       });
+    });
+
+    it('sets a backup QB behind every other candidate while a starter slot is open', () => {
+      // One-QB league, QB filled, RB2 and TE still open: the two best-ranked players left are quarterbacks.
+      const quarterbacks = [createPlayer('qb-a', 'QB', 60, 'Backup QB A'), createPlayer('qb-b', 'QB', 62, 'Backup QB B')];
+      const benchReceiver = createPlayer('wr-bench', 'WR', 64, 'Bench WR');
+      const runningBack = createPlayer('rb-need', 'RB', 75, 'Needed RB');
+      const result = getRecommendations(
+        [...quarterbacks, benchReceiver, runningBack],
+        [],
+        85,
+        {
+          requirements: DEFAULT_ROSTER_REQUIREMENTS,
+          rosterCounts: { QB: 1, RB: 1, WR: 5, TE: 0, K: 0, DEF: 0 },
+          selectionsRemaining: 7,
+        }
+      );
+
+      const order = result.draftNow.map((pick) => pick.playerId);
+      expect(order.slice(-2).sort()).toEqual(['qb-a', 'qb-b']);
+      expect(['wr-bench', 'rb-need']).toContain(order[0]);
+      const backup = result.draftNow.find((pick) => pick.playerId === 'qb-a')?.decisionFactors;
+      expect(backup?.rosterFit).toMatchObject({ score: 0, surplusStarter: true });
+      expect(backup?.conservativeBoundary.withinBoundary).toBe(false);
+      // The field is measured from the best useful player, not from the quarterback above him.
+      expect(result.draftNow.find((pick) => pick.playerId === 'rb-need')?.decisionFactors?.conservativeBoundary.ecrRankLimit)
+        .toBe(64 + 8);
+    });
+
+    it('lets a player who fills an open starter reach a full round past the ECR leader', () => {
+      const benchReceiver = createPlayer('wr-bench', 'WR', 64, 'Bench WR');
+      const neededBack = createPlayer('rb-need', 'RB', 74, 'Needed RB');
+      const farBack = createPlayer('rb-far', 'RB', 77, 'Far RB');
+      const context = {
+        requirements: DEFAULT_ROSTER_REQUIREMENTS,
+        rosterCounts: { QB: 1, RB: 1, WR: 5, TE: 0, K: 0, DEF: 0 },
+        selectionsRemaining: 7,
+      };
+
+      // Ten ranks back, inside the starter window; the doubled RB2 bonus (12) outweighs the bench bonus (1).
+      const result = getRecommendations([benchReceiver, neededBack], [], 85, context);
+      expect(result.draftNow[0]?.playerId).toBe('rb-need');
+      expect(result.draftNow[0]?.decisionFactors?.rosterFit.score).toBe(12);
+      expect(result.draftNow[0]?.decisionFactors?.conservativeBoundary.withinBoundary).toBe(true);
+
+      // Thirteen ranks back is outside it, whatever the roster needs.
+      const outside = getRecommendations([benchReceiver, farBack], [], 85, context);
+      expect(outside.draftNow[0]?.playerId).toBe('wr-bench');
+    });
+
+    it('keeps the starter bonus at its base weight through the first five selections', () => {
+      const benchReceiver = createPlayer('wr-bench', 'WR', 30, 'Bench WR');
+      const neededBack = createPlayer('rb-need', 'RB', 38, 'Needed RB');
+      const result = getRecommendations([benchReceiver, neededBack], [], 40, {
+        requirements: DEFAULT_ROSTER_REQUIREMENTS,
+        rosterCounts: { QB: 0, RB: 1, WR: 3, TE: 0, K: 0, DEF: 0 },
+        selectionsRemaining: 11,
+      });
+
+      expect(result.draftNow.find((pick) => pick.playerId === 'rb-need')?.decisionFactors?.rosterFit.score).toBe(6);
+    });
+
+    it('lets a backup QB compete again once every offensive starter is filled', () => {
+      const backupQuarterback = createPlayer('qb-a', 'QB', 100, 'Backup QB');
+      const benchReceiver = createPlayer('wr-bench', 'WR', 120, 'Bench WR');
+      const result = getRecommendations(
+        [backupQuarterback, benchReceiver],
+        [],
+        110,
+        {
+          requirements: DEFAULT_ROSTER_REQUIREMENTS,
+          rosterCounts: { QB: 1, RB: 3, WR: 4, TE: 1, K: 0, DEF: 0 },
+          selectionsRemaining: 6,
+        }
+      );
+
+      expect(result.draftNow[0]?.playerId).toBe('qb-a');
+      expect(result.draftNow[0]?.decisionFactors?.rosterFit.surplusStarter).toBeUndefined();
+    });
+
+    it('still offers a quarterback when only quarterbacks are left', () => {
+      const result = getRecommendations(
+        [createPlayer('qb-a', 'QB', 60, 'Backup QB A')],
+        [],
+        85,
+        {
+          requirements: DEFAULT_ROSTER_REQUIREMENTS,
+          rosterCounts: { QB: 1, RB: 1, WR: 5, TE: 0, K: 0, DEF: 0 },
+          selectionsRemaining: 7,
+        }
+      );
+
+      expect(result.draftNow[0]?.playerId).toBe('qb-a');
     });
 
     it('prefers useful RB depth over a redundant late-round WR', () => {
@@ -551,7 +646,7 @@ describe('getRecommendations', () => {
         valueOverReplacement: asVor(0),
       };
       const outsideRunningBack = {
-        ...createPlayer('outside-rb', 'RB', 10, 'Outside RB'),
+        ...createPlayer('outside-rb', 'RB', 14, 'Outside RB'),
         projectedPoints: 300,
         valueOverReplacement: asVor(500),
         tier: 1,

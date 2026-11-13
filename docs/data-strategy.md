@@ -55,7 +55,17 @@ The live recommendation engine runs only Best Pick policy. Best Pick combines th
 with bounded league value, roster fit, tier supply, and Draft Timing over the
 Next-Pick Horizon. Conservative overrides stay near the ECR leader or within
 the permitted tier boundary, except when a legal completed roster requires an
-exception. Best Player remains available as the player-quality comparison.
+exception. Best Player remains available as the player-quality comparison:
+it lists the remaining players by expert rank with no roster adjustment.
+
+Two roster rules shape Best Pick, for every position. A candidate who fills an
+open starting slot may sit a full round (12 ranks) behind the ECR leader rather
+than 8, and from the manager's sixth selection that slot is worth double. A
+candidate at a filled position that cannot play FLEX (a backup QB in a one-QB
+league) is set behind every other candidate until the offensive starters are
+filled. These weights are covered by unit tests and the recorded boards only;
+`pnpm model:backtest` replays a different selection rule and does not measure
+them.
 
 Use [best-pick-policy.ts](../shared/src/draft/calculations/best-pick-policy.ts)
 for score bounds and selection rules, and
