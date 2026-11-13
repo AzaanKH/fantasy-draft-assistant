@@ -249,7 +249,7 @@ test.each([[0, false], [1, false], [0, true]])('the actual reachability orchestr
     process: { env: unit12 ? { UI_SLOT_OWNER: 'u12' } : {} }, PREFLIGHT_PLAN, FIXTURE_LEAGUE: { profile: 'quick-mock' }, fixtureCatalog: actualCatalog, results: result, assertNoPreflightWorkload, planSession,
     launch: async () => ({ ctx: { newPage: async () => appTab }, runtime: {} }),
     seedV1: async (_page, ids, options) => { queues = options.queues; seeded.push(...ids); },
-    activateThroughPrompt: async () => ({ completed: true, v1Snapshot: [] }), loadCatalog: async () => actualCatalog, fixtureRules: async () => {}, appReady: async () => {}, draftUrl: id => `http://localhost:3000/draft?draftId=${id}`,
+    activateOnLoad: async () => ({ completed: true, v1Snapshot: [] }), loadCatalog: async () => actualCatalog, fixtureRules: async () => {}, appReady: async () => {}, draftUrl: id => `http://localhost:3000/draft?draftId=${id}`,
     startSession: async (_ctx, id) => [0, 1].map(actor => ({ session: id, name: `actor${actor}`, ctx: { getByRole: () => ({ click: async () => {} }) } })),
     inspectAssistantMoves: async (_ctx, name) => ['up', 'down'].map(direction => control(`Move ${name} ${direction} in queue`)),
     readCommitted: async (_ctx, id) => ({ queue: queues[id] }),

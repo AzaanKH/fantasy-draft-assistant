@@ -5,7 +5,6 @@
  * logic, and theme preferences stay identical across both surfaces.
  */
 
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { LOCAL_PORTS } from '../shared/local-config';
 import { localWebAppBase } from '../shared/local-urls';
 import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
@@ -192,30 +191,21 @@ function loadSidePanel(force = false): void {
   currentFrameUrl = nextUrl;
   showLoadingState();
   clearLoadTimeout();
-  if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb'))) {
-    const attempt = ++sharingAttempt;
-    stopSharingCheck?.();
-    sharingStatus = 'pending';
-    frame.removeAttribute('src');
-    void import('./storage-sharing').then(({ startStorageSharing, describeStorageSharingFailure }) => {
-      if (attempt !== sharingAttempt) return;
-      stopSharingCheck = startStorageSharing({ frame, frameUrl: nextUrl,
-        ready: () => { sharingStatus = 'ready'; setFrameState('ready'); },
-        failed: error => {
-          sharingStatus = 'error';
-          console.warn('[Fantasy Draft] Storage sharing failed', error);
-          showErrorState(describeStorageSharingFailure(error, LOCAL_PORTS.webOrigin));
-        },
-      });
-    }).catch(() => { if (attempt === sharingAttempt) { sharingStatus = 'error'; showErrorState(); } });
-    return;
-  }
-  loadTimeout = window.setTimeout(() => {
-    showErrorState();
-  }, 8_000);
-  frame.src = force
-    ? `${nextUrl}${nextUrl.includes('?') ? '&' : '?'}retry=${String(Date.now())}`
-    : nextUrl;
+  const attempt = ++sharingAttempt;
+  stopSharingCheck?.();
+  sharingStatus = 'pending';
+  frame.removeAttribute('src');
+  void import('./storage-sharing').then(({ startStorageSharing, describeStorageSharingFailure }) => {
+    if (attempt !== sharingAttempt) return;
+    stopSharingCheck = startStorageSharing({ frame, frameUrl: nextUrl,
+      ready: () => { sharingStatus = 'ready'; setFrameState('ready'); },
+      failed: error => {
+        sharingStatus = 'error';
+        console.warn('[Fantasy Draft] Storage sharing failed', error);
+        showErrorState(describeStorageSharingFailure(error, LOCAL_PORTS.webOrigin));
+      },
+    });
+  }).catch(() => { if (attempt === sharingAttempt) { sharingStatus = 'error'; showErrorState(); } });
 }
 
 async function readExtensionState(): Promise<void> {
@@ -305,16 +295,12 @@ async function retry(): Promise<void> {
 async function openFullDraftRoom(): Promise<void> {
   // The development persistence harness opens its own canonical helper tab on retry.
   if (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb') { loadSidePanel(true); return; }
-  if (STORAGE_ACTIVATION_ENABLED) {
-    // Draft records are per origin, and the panel's storage check needs an ordinary app tab on
-    // the canonical origin. Open (or focus) the draft room there, not a configured alias with separate
-    // records. Re-running the check helps only when the panel already points at that origin; an origin
-    // mismatch stays until the address changes ("Use <origin>" or the options page).
-    await openOrFocusAppTab(LOCAL_PORTS.webOrigin, getDraftContextUrl('/draft', LOCAL_PORTS.webOrigin));
-    if (failureKind !== 'origin') loadSidePanel(true);
-    return;
-  }
-  await openOrFocusAppTab(webAppUrl, getDraftContextUrl('/draft'));
+  // Draft records are per origin, and the panel's storage check needs an ordinary app tab on
+  // the canonical origin. Open (or focus) the draft room there, not a configured alias with separate
+  // records. Re-running the check helps only when the panel already points at that origin; an origin
+  // mismatch stays until the address changes ("Use <origin>" or the options page).
+  await openOrFocusAppTab(LOCAL_PORTS.webOrigin, getDraftContextUrl('/draft', LOCAL_PORTS.webOrigin));
+  if (failureKind !== 'origin') loadSidePanel(true);
 }
 
 async function useCanonicalOrigin(): Promise<void> {
@@ -376,7 +362,7 @@ void chrome.storage.local.get(STORAGE_KEYS.PANEL_THEME).then((stored) => {
 }).catch(() => undefined);
 
 frame.addEventListener('load', () => {
-  if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb')) && sharingStatus !== 'ready') return;
+  if (sharingStatus !== 'ready') return;
   clearLoadTimeout();
   setFrameState('ready');
 });
@@ -399,9 +385,7 @@ retryButton.addEventListener('click', () => { void retry(); });
 useCanonicalButton?.addEventListener('click', () => { void useCanonicalOrigin(); });
 openWebAppButton.addEventListener('click', () => { void openFullDraftRoom(); });
 chrome.runtime.onMessage.addListener(handleMessage);
-if ((STORAGE_ACTIVATION_ENABLED || (import.meta.env.DEV && import.meta.env.VITE_PERSISTENCE_HARNESS === 'idb'))) {
-  window.addEventListener('pagehide', () => { ++sharingAttempt; stopSharingCheck?.(); }, { once: true });
-}
+window.addEventListener('pagehide', () => { ++sharingAttempt; stopSharingCheck?.(); }, { once: true });
 
 void readExtensionState()
   .catch(() => undefined)

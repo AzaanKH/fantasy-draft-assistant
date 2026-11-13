@@ -98,7 +98,7 @@ for (const firstActivation of [false, true]) {
     expect(run.view.container.textContent).toContain(notice);
     await act(async () => { run.reject(new Error('Storage read failed')); });
     await until(() => Boolean(run.view.container.querySelector('[role="alert"]')));
-    expect(run.view.container.textContent).toContain(firstActivation ? 'Draft storage was activated' : 'Draft storage setup failed');
+    expect(run.view.container.textContent).toContain(firstActivation ? 'Draft storage was activated' : 'Draft storage could not open');
     expect(run.view.container.textContent).toContain('Reload the page');
     expect(run.view.container.textContent).not.toContain(notice);
     expect(run.ready).not.toHaveBeenCalled();

@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { commitWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView, useDraftView } from '@/workspace/useDraftView';
@@ -69,7 +68,7 @@ export function useDraftPlayerAction(reportsFor?: readonly string[] | 'external'
     const hang = takeInjectedHang('pick');
     try {
       if (injected) throw injected;
-      saved = hang ?? Promise.resolve(STORAGE_ACTIVATION_ENABLED && workspace.sendDurable
+      saved = hang ?? Promise.resolve(workspace.sendDurable
         ? workspace.sendDurable(['markPlayerDrafted', player.id, player.name, player.position, teamIndex, 'My Team', view.currentPick, 'manual', { pickNumber: view.currentPick, actor: 'user' }])
         : commitWorkspaceCommand(workspace, 'markPlayerDrafted', player.id, player.name, player.position, teamIndex, 'My Team'));
     } catch (error) {

@@ -79,11 +79,10 @@ export const ASSISTANT_RAIL_BREAKPOINT = 1600;
 /** Chip-like text whose contrast is measured: status and verdict chips, position tags, badges and alerts. */
 export const CONTRAST_SELECTOR = '.status-chip, .position-tag, [data-slot="badge"], .rec-alert, .suggestion-key, .draft-turn-banner strong';
 export const USE_LOCAL_DATA = process.env['BROWSER_GATE_DATA'] === 'local';
-/** Demo data by default; an explicitly set storage mode or data source still wins. */
+/** Demo data by default; an explicitly set data source still wins. */
 export const DATA_ENV: Readonly<Record<string, string>> = USE_LOCAL_DATA ? {} : {
   BROWSER_DATA_SOURCE: process.env['BROWSER_DATA_SOURCE'] ?? 'demo',
   VITE_DEMO_MODE: process.env['VITE_DEMO_MODE'] ?? 'true',
-  VITE_STORAGE_ACTIVATION: process.env['VITE_STORAGE_ACTIVATION'] ?? 'idb',
 };
 /** Both themes: every geometry and glance check runs in each (round 12, D25). */
 export const THEMES = ['light', 'dark'] as const;

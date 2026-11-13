@@ -297,8 +297,8 @@ function evaluateUiGateEvidence(results) {
   for (const scenario of results.scenarios ?? []) {
     const tag = scenario.label;
     if (POSITIVE.includes(tag)) {
-      if (!scenario.activation?.completed || !scenario.activation.readOnlyBeforeConfirm || !scenario.activation.tombstoneAfter ||
-          !scenario.activation.secondTabNoPrompt || !scenario.activation.buttonDisabledBeforeCheckbox || !scenario.activation.v1RetainedByteIdentical || !scenario.activation.importedAll || scenario.activation.tombstoneBefore) failures.push(`${tag}: activation prompt flow incomplete`);
+      if (!scenario.activation?.completed || !scenario.activation.tombstoneAfter ||
+          !scenario.activation.secondTabNoPrompt || !scenario.activation.v1RetainedByteIdentical || !scenario.activation.importedAll || scenario.activation.tombstoneBefore) failures.push(`${tag}: activation prompt flow incomplete`);
       if (scenario.runs?.length !== 15 || scenario.runs.some(run => run.issued.length !== 2 * meta.commandsPerActor)) failures.push(`${tag}: incomplete 9,000-command schedule`);
       if (new Set((scenario.runs ?? []).map(run => `${run.suite}:${run.seed}`)).size !== 15 || scenario.runs?.some(run => run.suite < 1 || run.suite > 3 || run.seed < 1 || run.seed > 5)) failures.push(`${tag}: invalid suite/seed schedule`);
       for (const run of scenario.runs ?? []) if (!sessionPasses(auditSession(run), 2 * meta.commandsPerActor) || run.notSavedVisible?.some(Boolean)) failures.push(`${tag}: suite ${run.suite} seed ${run.seed} failed`);
@@ -336,7 +336,7 @@ export function evaluateTier2(results) {
       const tag = scenario.label;
       if (POSITIVE.includes(tag)) {
         const activation = scenario.activation;
-        if (!activation?.completed || !activation.readOnlyBeforeConfirm || !activation.secondTabNoPrompt || !activation.v1RetainedByteIdentical || !activation.buttonDisabledBeforeCheckbox || activation.tombstoneBefore) failures.push(`${tag}: activation incomplete`);
+        if (!activation?.completed || !activation.secondTabNoPrompt || !activation.v1RetainedByteIdentical || activation.tombstoneBefore) failures.push(`${tag}: activation incomplete`);
         if (scenario.runs.length !== 1 || !sessionPasses(auditSession(scenario.runs[0]), 600) || scenario.runs[0].notSavedVisible.some(Boolean)) failures.push(`${tag}: 600-command DOM workload failed`);
         if (!distinctSamples(scenario.pickConflicts, 20) || scenario.pickConflicts.some(row => !auditPickConflict(row).good)) failures.push(`${tag}: pick conflicts incomplete or failed`);
         if (!distinctSamples(scenario.moveConflicts, 20) || scenario.moveConflicts.some(row => !auditMoveConflict(row).good)) failures.push(`${tag}: moves incomplete or failed`);

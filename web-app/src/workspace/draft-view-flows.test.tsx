@@ -83,13 +83,6 @@ it('renders a live outage observation and provider correction', () => {
   act(() => { store.getState().reconcileSyncedPicks([{ pickNumber: 1, playerId: replacement.id, playerName: replacement.name, position: replacement.position, teamIndex: 0, teamName: 'My Team', isMyPick: true }], 2); });
   expect(poolCount()).toBe(players.length - 1); expect(container.querySelector('.draft-roster')?.textContent ?? container.textContent).toContain(replacement.name);
 });
-it('renders persisted reload with the retained branch cursor and membership', () => {
-  const data = new Map<string, string>(); const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); }, get length() { return data.size; }, key: (index: number) => [...data.keys()][index] ?? null };
-  const session = { provider: 'sleeper' as const, draftId: 'render-reload' };
-  const writer = createDraftStore({ storage, session }); const player = firstPlayer();
-  writer.getState().markPlayerDrafted(player.id, player.name, player.position, 0, 'My Team'); writer.getState().branchFromPick(96);
-  store = createDraftStore({ storage, session }); render(); expect(status()).toContain('10.06'); expect(poolCount()).toBe(players.length - 1);
-});
 
 it.each(POSITIONS)('renders a disabled manager Draft button at the %s maximum', position => {
   const candidate = { ...firstPlayer(), id: `candidate-${position}`, name: `Candidate ${position}`, position };

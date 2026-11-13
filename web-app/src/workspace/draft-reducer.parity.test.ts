@@ -68,7 +68,7 @@ function applyToOracle(actions: DraftActions, command: OracleCommand, queue: rea
 }
 
 function createReplay(seed: DraftState = initialDraftState(identity)) {
-  const oracle = createDraftStore({ storage: null });
+  const oracle = createDraftStore();
   stores.push(oracle);
   let state = structuredClone(seed);
   oracle.setState(structuredClone(seed));

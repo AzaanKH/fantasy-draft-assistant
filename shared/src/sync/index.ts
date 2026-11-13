@@ -26,4 +26,3 @@ export { isDraftProviderHost, parseDraftRoomUrl, SLEEPER_DRAFT_HOSTS } from '../
 export type { DraftRoomStatus } from '../draft-url.js';
 
 export { DRAFT_STORAGE_MIGRATION_KEY, isDraftStorageMigration, type DraftStorageMigration } from './storage-migration.js';
-export { STORAGE_ACTIVATION_ENABLED } from './storage-activation.js';

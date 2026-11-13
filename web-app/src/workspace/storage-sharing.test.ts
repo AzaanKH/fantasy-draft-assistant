@@ -5,7 +5,6 @@ import { openDraftDatabase } from './indexed-db';
 import { assertCanonicalOrigin, serveStorageProbe, verifyStorageSharing, installStorageSharingResponder } from './storage-sharing';
 import { startStorageSharing } from '../../../extension/src/sidepanel/storage-sharing';
 
-vi.mock('@fantasy-draft/shared/sync', async original => ({ ...await original<object>(), STORAGE_ACTIVATION_ENABLED: false }));
 
 const canonicalOrigin = 'http://localhost:3000';
 const location = { origin: canonicalOrigin, pathname: '/draft', search: '' };
@@ -75,7 +74,6 @@ describe('workspace origin and IndexedDB sharing', () => {
   });
 
   it.each(['http://127.0.0.1:3000', 'http://localhost:3002', 'https://localhost:3000'])('blocks %s before opening a database', async origin => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
     const factory = new IDBFactory();
     const open = vi.spyOn(factory, 'open');
     await expect(verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, origin }, nonce })).rejects.toThrow('Other origins');
@@ -252,21 +250,10 @@ describe('side panel bootstrap activation gate', () => {
     expect(error.hidden).toBe(true);
     expect(remove).toHaveBeenCalledExactlyOnceWith(789);
   });
-
-  it('keeps normal startup on the existing URL path without permissions, helpers, or IndexedDB', async () => {
-    const factory = new IDBFactory();
-    const open = vi.spyOn(factory, 'open');
-    vi.stubGlobal('indexedDB', factory);
-    const { frame, contains, create } = await bootstrapSidePanel({ harness: false });
-    await vi.waitFor(() => { expect(frame.src).toBe(`${canonicalOrigin}/sidepanel?provider=espn`); });
-    expect(contains).not.toHaveBeenCalled();
-    expect(create).not.toHaveBeenCalled();
-    expect(open).not.toHaveBeenCalled();
-  });
 });
 
 
-it('disables the helper writer in production even when activation is enabled', async () => {
+it('disables the helper writer in production', async () => {
   vi.stubEnv('DEV', false);
   const factory = new IDBFactory(); const open = vi.spyOn(factory, 'open');
   await expect(serveStorageProbe(nonce, { factory, canonicalOrigin, location })).rejects.toThrow('development harness');

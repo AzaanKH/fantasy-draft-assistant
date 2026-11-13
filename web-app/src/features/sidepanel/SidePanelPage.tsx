@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
@@ -314,7 +313,7 @@ export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: 
   return (
     <RouteErrorBoundary>
       <SidePanelSlotControl />
-      <SidePanelContent connection={connection} sync={sync} onOpenWorkspace={STORAGE_ACTIVATION_ENABLED ? onOpenWorkspace : undefined} />
+      <SidePanelContent connection={connection} sync={sync} onOpenWorkspace={onOpenWorkspace} />
     </RouteErrorBoundary>
   );
 }

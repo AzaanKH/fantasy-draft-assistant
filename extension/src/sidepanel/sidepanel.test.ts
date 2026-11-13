@@ -5,7 +5,6 @@ import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
 
 beforeEach(() => {
   vi.resetModules();
-  vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
   document.body.innerHTML = `
     <iframe id="sidepanel-frame"></iframe>
     <div id="loading-state"></div>
@@ -15,13 +14,25 @@ beforeEach(() => {
   `;
 });
 
+/** Stands in for the storage check so a test can read the address the panel loads. */
+function passStorageCheck(): void {
+  vi.doMock('./storage-sharing', () => ({
+    startStorageSharing: ({ frame, frameUrl, ready }: { frame: HTMLIFrameElement; frameUrl: string; ready: () => void }) => {
+      frame.src = frameUrl; ready(); return () => undefined;
+    },
+    describeStorageSharingFailure: () => undefined,
+  }));
+}
+
 afterEach(() => {
+  vi.doUnmock('./storage-sharing');
   document.getElementById('sidepanel-frame')?.dispatchEvent(new Event('load'));
   vi.unstubAllGlobals(); vi.unstubAllEnvs();
   document.body.innerHTML = '';
 });
 
 describe('side panel stored URL', () => {
+  beforeEach(passStorageCheck);
   it.each([
     ['not a URL', DEFAULT_WEB_APP_URL],
     ['https://example.com', DEFAULT_WEB_APP_URL],
@@ -88,6 +99,7 @@ describe('side panel stored URL', () => {
 
 
 describe('side panel background projections', () => {
+  beforeEach(passStorageCheck);
   function stubBackground(response: unknown): { readonly receive: (message: unknown) => void } {
     let listener: ((message: unknown) => void) | undefined;
     vi.stubGlobal('chrome', {
@@ -131,7 +143,7 @@ describe('side panel background projections', () => {
       snapshot: null,
     } });
     const expected = `${DEFAULT_WEB_APP_URL}/sidepanel?position=4&provider=sleeper&draftId=123`;
-    expect(document.querySelector('iframe')?.src).toBe(expected);
+    await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toBe(expected); });
     for (const status of [{ isInDraftRoom: 'yes' }, { isInDraftRoom: true, myDraftSlot: 1.5 }, { isInDraftRoom: true, provider: 42 }]) {
       receive({ type: 'SYNC_STATE', data: { status } });
       expect(document.querySelector('iframe')?.src).toBe(expected);
@@ -141,6 +153,7 @@ describe('side panel background projections', () => {
 });
 
 it('ignores the development harness switch in a production side panel', async () => {
+  passStorageCheck();
   vi.stubEnv('DEV', false);
   vi.stubEnv('VITE_PERSISTENCE_HARNESS', 'idb');
   vi.stubGlobal('chrome', {
@@ -164,16 +177,7 @@ describe('open full draft room', () => {
     return create;
   }
 
-  it('opens the configured web app draft room without workspace storage', async () => {
-    const create = stubChrome('http://127.0.0.1:3000');
-    await import('./sidepanel');
-    await vi.waitFor(() => { expect(document.querySelector('iframe')?.src).toContain('/sidepanel?'); });
-    document.getElementById('open-webapp')?.click();
-    expect(create).toHaveBeenCalledWith({ url: 'http://127.0.0.1:3000/draft?position=3&provider=sleeper&draftId=77' });
-  });
-
-  it('opens the canonical-origin draft room with workspace storage instead of reloading the panel', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
+  it('opens the canonical-origin draft room instead of reloading the panel', async () => {
     const { LOCAL_PORTS } = await import('../shared/local-config');
     const create = stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
@@ -198,7 +202,6 @@ describe('storage check failures', () => {
   const shown = () => ({ title: document.getElementById('error-title')?.textContent, detail: document.getElementById('error-detail')?.textContent });
 
   it('tells the user to switch to the canonical origin when the panel points elsewhere', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     stubChrome('http://127.0.0.1:3000', true);
     await import('./sidepanel');
@@ -209,7 +212,6 @@ describe('storage check failures', () => {
   });
 
   it('tells the user to allow site access when host permission is missing', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     stubChrome(LOCAL_PORTS.webOrigin, false);
     await import('./sidepanel');
@@ -250,7 +252,6 @@ describe('origin-error recovery', () => {
   }
 
   it('falls back to the default address when the stored custom address is cleared, not the old one', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const api = stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
     await vi.waitFor(() => { expect(document.getElementById('error-state')?.hidden).toBe(false); });
@@ -260,7 +261,6 @@ describe('origin-error recovery', () => {
   });
 
   it('focuses an open app tab instead of opening another, and does not re-run an origin check that cannot pass', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     const api = stubChrome('http://127.0.0.1:3000', [{ id: 4, windowId: 2, url: `${LOCAL_PORTS.webOrigin}/draft?position=3&provider=sleeper&draftId=77&tab=pool` }]);
     await import('./sidepanel');
@@ -274,7 +274,6 @@ describe('origin-error recovery', () => {
   });
 
   it('"Use <origin>" saves the canonical address and reloads against it', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     const api = stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
@@ -285,7 +284,6 @@ describe('origin-error recovery', () => {
   });
 
   it('Retry re-reads the stored address, so a fix made in options takes effect', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     const api = stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
@@ -318,7 +316,6 @@ describe('side panel shell', () => {
   }
 
   it('reloads the panel when the options page saves a new web app address', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     const api = stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
@@ -328,7 +325,6 @@ describe('side panel shell', () => {
   });
 
   it('navigates an open tab on another page or draft to the intended draft room', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     const { LOCAL_PORTS } = await import('../shared/local-config');
     const api = stubChrome('http://127.0.0.1:3000', [{ id: 4, windowId: 2, url: `${LOCAL_PORTS.webOrigin}/assistant?provider=sleeper&draftId=12` }]);
     await import('./sidepanel');
@@ -341,7 +337,6 @@ describe('side panel shell', () => {
   });
 
   it('keeps the frame inert while an overlay covers it, and makes Use <origin> the only primary action', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
     const frame = document.getElementById('sidepanel-frame');
@@ -355,7 +350,6 @@ describe('side panel shell', () => {
   });
 
   it('shows one overlay at a time: pairing covers the error, which is hidden and inert, and focus follows the visible one', async () => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'idb');
     document.getElementById('pairing-state')?.insertAdjacentHTML('beforeend', '<button id="open-pairing" type="button">Open pairing options</button>');
     const api = stubChrome('http://127.0.0.1:3000', [], false);
     await import('./sidepanel');

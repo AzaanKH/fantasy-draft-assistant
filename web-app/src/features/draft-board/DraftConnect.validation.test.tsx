@@ -31,7 +31,7 @@ let workspace: Workspace;
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   startConnection.mockReset();
-  workspace = createWorkspace({ draftStore: createDraftStore({ storage: null }) });
+  workspace = createWorkspace({ draftStore: createDraftStore() });
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   act(() => { root.render(createElement(WorkspaceProvider, { workspace,
     children: createElement(DraftConnect, { dataFreshness: [], readiness, open: true, onOpenChange: vi.fn() }) })); });

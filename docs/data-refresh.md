@@ -113,7 +113,7 @@ which needs no local server:
   rather than FantasyPros ECR. The file keeps its `fantasypros-snapshot.json`
   name.
 
-The demo uses the same IndexedDB storage as the app. A demo build served from any origin other than the local app's keeps its drafts in that origin's own IndexedDB and skips the canonical localhost sharing check, since a hosted demo has no local app or extension side panel to share with. A first visit has nothing saved, so it opens without the storage setup screen.
+The demo uses the same IndexedDB storage as the app. A demo build served from any origin other than the local app's keeps its drafts in that origin's own IndexedDB and skips the canonical localhost sharing check, since a hosted demo has no local app or extension side panel to share with. A first visit has nothing saved, so it opens directly.
 
 To deploy on Cloudflare Pages, use the repository root (the directory with
 `pnpm-workspace.yaml`), output directory `web-app/dist`, and the environment

@@ -9,13 +9,12 @@ import { useQueueActions } from './useQueueActions';
 
 const toasts = vi.hoisted(() => ({ error: vi.fn(), plain: vi.fn(), dismiss: vi.fn() }));
 vi.mock('sonner', () => ({ toast: Object.assign(toasts.plain, { error: toasts.error, dismiss: toasts.dismiss }) }));
-vi.mock('@fantasy-draft/shared/sync', async (original) => ({ ...await original<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); toasts.error.mockReset(); toasts.plain.mockReset(); toasts.dismiss.mockReset(); });
 
 it('reports a failed queue save with Retry instead of failing silently', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const store = createDraftStore({ storage: null });
+  const store = createDraftStore();
   const sendDurable = vi.fn<(command: unknown) => Promise<unknown>>(() => Promise.reject(new Error('Storage is full.')));
   const dismissError = vi.fn();
   const workspace = { ...workspaceForTestStore(store), sendDurable, dismissError };
@@ -41,7 +40,7 @@ type ToastOptions = { readonly id: string; readonly duration: number; readonly a
 
 function mount(sendDurable: (command: unknown) => Promise<unknown>) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const store = createDraftStore({ storage: null });
+  const store = createDraftStore();
   const workspace = { ...workspaceForTestStore(store), sendDurable, dismissError: vi.fn() };
   let actions: ReturnType<typeof useQueueActions> | undefined;
   function Consumer() { actions = useQueueActions([{ id: 'p1', name: 'Player One' }]); return null; }
@@ -95,7 +94,7 @@ it('clears the generic save notice for a late failure after the timeout, without
   vi.useFakeTimers();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   let reject: ((error: Error) => void) | undefined;
-  const store = createDraftStore({ storage: null });
+  const store = createDraftStore();
   const sendDurable = vi.fn<(command: unknown) => Promise<unknown>>(() => new Promise((_resolve, fail) => { reject = fail; }));
   const dismissError = vi.fn();
   const workspace = { ...workspaceForTestStore(store), sendDurable, dismissError };

@@ -73,7 +73,7 @@ beforeEach(() => {
   data.playersLoading = false;
   data.readinessPending = false;
   cachedModel = model;
-  store = createDraftStore({ storage: null });
+  store = createDraftStore();
   store.getState().applyLeagueSettings(createQuickMockSettings());
   store.getState().setConfig({ totalTeams: 12, totalRounds: 15, myPickPosition: 1 });
   vi.mocked(useQuery).mockImplementation(((options: typeof queryOptions) => {

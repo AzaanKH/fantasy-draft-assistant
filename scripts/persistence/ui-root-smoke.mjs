@@ -60,7 +60,7 @@ export function evaluateRootSmoke(result) {
         if (rows.length !== count || rows.some((row, index) => !passesStep(kind, row) || (['pickConflict', 'moveConflict'].includes(kind) && row.sample !== index + 1))) failures.push(`${scenario.label}: ${kind} evidence incomplete or failed`);
       }
       if (scenario.control || scenario.bursts.mock || (scenario.label === 'tabs' && scenario.runs.length) || (scenario.label === 'extension-granted' && (scenario.bursts.reconcile || scenario.lifecycle))) failures.push('Unrequested workload observed');
-      if (!scenario.activation?.completed || !scenario.activation.readOnlyBeforeConfirm || !scenario.activation.importedAll || !scenario.activation.tombstoneAfter || scenario.activation.tombstoneBefore || !scenario.activation.buttonDisabledBeforeCheckbox || !scenario.activation.v1RetainedByteIdentical || !scenario.v1FinalSnapshot ||
+      if (!scenario.activation?.completed || !scenario.activation.importedAll || !scenario.activation.tombstoneAfter || scenario.activation.tombstoneBefore || !scenario.activation.v1RetainedByteIdentical || !scenario.v1FinalSnapshot ||
           JSON.stringify(scenario.v1AtActivation.filter(([key]) => key.startsWith('fantasy-draft-session'))) !== JSON.stringify(scenario.v1FinalSnapshot.filter(([key]) => key.startsWith('fantasy-draft-session')))) failures.push('Activation or final v1 byte proof missing');
     }
     const moves = new Map(result.scenarios.flatMap(s => s.moveConflicts.map(row => [`${s.label}/${row.session}`, row])));

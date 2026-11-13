@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView, useDraftViewReader } from '@/workspace/useDraftView';
@@ -39,7 +38,7 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       state.config.draftType
     );
     if (keeper) {
-      if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(['consumeKeeperAtCurrentPick', view.currentPick]).then(() => true);
+      if (workspace.sendDurable) return workspace.sendDurable(['consumeKeeperAtCurrentPick', view.currentPick]).then(() => true);
       sendWorkspaceCommand(workspace, 'consumeKeeperAtCurrentPick');
       return true;
     }
@@ -73,11 +72,11 @@ export function useSimulateNextCpuPick(players: readonly Player[]): () => boolea
       selection.player.position,
       teamIndex,
       `Team ${String(teamIndex + 1)}`,
-      STORAGE_ACTIVATION_ENABLED && workspace.sendDurable ? view.currentPick : undefined,
+      workspace.sendDurable ? view.currentPick : undefined,
       'cpu',
-      STORAGE_ACTIVATION_ENABLED && workspace.sendDurable ? { pickNumber: view.currentPick, actor: 'cpu' } : undefined
+      workspace.sendDurable ? { pickNumber: view.currentPick, actor: 'cpu' } : undefined
     ] satisfies import('@/workspace/commands').VoidWorkspaceCommand;
-    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(command).then(() => true);
+    if (workspace.sendDurable) return workspace.sendDurable(command).then(() => true);
     sendWorkspaceCommand(workspace, ...command);
     return true;
   }, [workspace, readDraftView, timingEvidence.model, players]);

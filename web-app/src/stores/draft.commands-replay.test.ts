@@ -92,30 +92,18 @@ it('removes synced queue intent before a provider later removes that pick', () =
   expect(deriveDraftState(store.getState()).shortlistedPlayerIds).toEqual(['first', 'last']);
 });
 
-it.each(['branch', 'provisional', 'hydrate'] as const)('prunes already-drafted queue intent on %s', (command) => {
-  const values = new Map<string, string>();
-  const storage = {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => { values.set(key, value); },
-    removeItem: (key: string) => { values.delete(key); },
-    key: (index: number) => [...values.keys()][index] ?? null,
-    get length() { return values.size; },
-  };
+it.each(['branch', 'provisional'] as const)('prunes already-drafted queue intent on %s', (command) => {
   const session = { provider: 'sleeper', draftId: '123' } as const;
-  const store = createDraftStore({ storage, session });
+  const store = createDraftStore({ session });
   store.getState().setSessionMode('live');
   store.getState().markPlayerDrafted('taken', 'Taken', 'WR', 0, 'Team 1', 1, 'manual');
   store.setState({ shortlistedPlayerIds: ['first', 'taken', 'last'] });
   if (command === 'branch') {
     store.getState().branchFromPick(2);
-  } else if (command === 'provisional') {
+  } else {
     expect(store.getState().recordProvisionalPick({
       playerId: 'observed', playerName: 'Observed', position: 'RB', teamIndex: 1, teamName: 'Team 2', pickNumber: 2,
     })).toBe(true);
-  } else {
-    const reloaded = createDraftStore({ storage, session });
-    expect(reloaded.getState().shortlistedPlayerIds).toEqual(['first', 'last']);
-    return;
   }
   expect(store.getState().shortlistedPlayerIds).toEqual(['first', 'last']);
 });

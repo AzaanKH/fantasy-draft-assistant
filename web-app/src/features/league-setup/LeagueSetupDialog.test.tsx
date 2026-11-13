@@ -10,7 +10,6 @@ import { LeagueSetupDialog } from './LeagueSetupDialog';
 
 const toast = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
-vi.mock('@fantasy-draft/shared/sync', async importOriginal => ({ ...await importOriginal<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 vi.mock('@/lib/demo-mode', async importOriginal => ({ ...await importOriginal<object>(), IS_DEMO: false }));
 
 beforeEach(() => {
@@ -24,7 +23,7 @@ it.each(['commit', 'abort'] as const)('waits for the durable settings save befor
   let abort: ((error: Error) => void) | undefined;
   const receipt = new Promise<void>((resolve, reject) => { complete = resolve; abort = reject; });
   const durable = vi.fn(() => receipt);
-  const owner = observeDurableWorkspace(createWorkspace({ draftStore: createDraftStore({ storage: null }),
+  const owner = observeDurableWorkspace(createWorkspace({ draftStore: createDraftStore(),
     initialConnection: { provider: 'sleeper', draftId: '123', draftPosition: 1 }, durable }));
   const close = vi.fn();
   const container = document.createElement('div'); document.body.append(container);

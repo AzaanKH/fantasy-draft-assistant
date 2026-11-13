@@ -1,5 +1,4 @@
 import { CircleHelp, ListChecks } from 'lucide-react';
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
@@ -183,7 +182,7 @@ export function App(): React.ReactElement {
         <DraftDecisionProvider readiness={readiness}>
           <RouteErrorBoundary>
             <React.Suspense fallback={<SidePanelSkeleton />}>
-              <SidePanelPage onOpenWorkspace={STORAGE_ACTIVATION_ENABLED ? () => { setRoute('draft'); } : undefined} />
+              <SidePanelPage onOpenWorkspace={() => { setRoute('draft'); }} />
             </React.Suspense>
           </RouteErrorBoundary>
         </DraftDecisionProvider>

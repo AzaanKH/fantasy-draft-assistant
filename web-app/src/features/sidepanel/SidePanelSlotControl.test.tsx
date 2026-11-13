@@ -12,7 +12,6 @@ import { resolveInitialConnection } from '@/workspace/connection-hints';
 import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { SidePanelSlotControl } from './SidePanelSlotControl';
 
-vi.mock('@fantasy-draft/shared/sync', async original => ({ ...await original<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 afterEach(() => { vi.unstubAllGlobals(); });
 
 it.each(['v1', 'idb'] as const)('a new sidepanel draft can confirm its slot through the %s owner after a foreign URL hint is ignored', async mode => {

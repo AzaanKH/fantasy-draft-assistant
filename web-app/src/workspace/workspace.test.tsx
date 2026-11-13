@@ -98,9 +98,8 @@ describe('workspace command ownership', () => {
   });
 
   it('routes every connection family and releases both subscriptions on disposal', () => {
-    let change: ((key: string | null, value: string | null) => void) | undefined;
-    const stop = vi.fn();
-    const draftStore = createDraftStore({ externalChanges: callback => { change = callback; return stop; } });
+    const draftStore = createDraftStore();
+    const stop = vi.spyOn(draftStore, 'dispose');
     const workspace = createWorkspace({ draftStore, initialConnection: { provider: 'sleeper', draftId: 'first', draftPosition: 2 } });
     expect(workspace.draft.getState().liveSession?.draftId).toBe('first');
     workspace.send('connection.confirmDraftPosition', 3);
@@ -110,7 +109,6 @@ describe('workspace command ownership', () => {
     expect(workspace.connection.getState().connection?.settingsProfile).toBe('quick-mock');
     workspace.send('connection.restoreConnection', { provider: 'espn', draftId: '123', draftPosition: 1 });
     expect(workspace.draft.getState().liveSession).toEqual({ provider: 'espn', draftId: '123' });
-    expect(change).toBeTypeOf('function');
     workspace.dispose();
     expect(stop).toHaveBeenCalledOnce();
     expect(workspace.draft.getState().liveSession?.provider).toBe('espn');

@@ -42,8 +42,6 @@ const offline = flag('plan') || flag('fixture-check') || prepareProduction;
 const UI = {
   activation: '[data-storage-activation="review"]',
   blocked: '[data-storage-blocked]',
-  closedBox: /I have closed other draft tabs and side panels/i,
-  activate: 'Activate IndexedDB',
   workspaceNav: 'Draft workspace',
   enterManual: 'Enter Manual Continuity',
   addProvisional: 'Add Provisional Pick',
@@ -404,28 +402,15 @@ async function seedV1(page, ids, { queues = {}, leaguePreferences } = {}) {
   return page.evaluate(entries => { for (const [key, value] of entries) localStorage.setItem(key, value); return entries.length; }, entries);
 }
 
-async function activateThroughPrompt(page, seededIds) {
+/** Seeded older-format drafts move into IndexedDB as the app opens; there is no setup screen to confirm. */
+async function activateOnLoad(page, seededIds) {
   const record = { completed: false };
   const started = Date.now();
-  await page.goto(`${origin}/draft`);
-  check(await appState(page, 60000) === 'activation', 'Activation prompt did not appear on a profile with v1 data');
-  await page.getByRole('heading', { name: 'Draft storage setup' }).waitFor();
-  record.readOnlyBeforeConfirm = await page.getByRole('region', { name: 'Saved drafts, read only' }).isVisible();
   const before = await localStorageV1(page);
   record.tombstoneBefore = before.some(([k]) => k === TOMBSTONE_KEY);
   record.seededSessionsVisible = sessionRows(before).length;
-  record.blockers = await page.locator('section[aria-label^="Reconcile"]').count();
-  const idb = await countSessions(page);
-  record.idbSessionsBefore = idb.sessions;
-  check(!record.tombstoneBefore, 'Tombstone existed before confirmation');
-  check(record.blockers === 0, `Unexpected reconciliation blockers: ${record.blockers}`);
-  check(!idb.sessions, `IndexedDB held ${idb.sessions} sessions before confirmation`);
-  const button = page.getByRole('button', { name: UI.activate });
-  record.buttonDisabledBeforeCheckbox = await button.isDisabled();
-  await page.getByLabel(UI.closedBox).check();
-  await waitFor(async () => !(await button.isDisabled()), 60000, 'Activation preflight did not enable confirmation');
-  check(!(await button.isDisabled()), 'Activate IndexedDB stayed disabled after the checkbox (preflight not ready)');
-  await button.click();
+  check(!record.tombstoneBefore, 'Tombstone existed before the app opened');
+  await page.goto(`${origin}/draft`);
   await header(page).waitFor({ timeout: 60000 });
   record.elapsedMs = Date.now() - started;
   const after = await localStorageV1(page);
@@ -811,7 +796,7 @@ async function reachabilityScenario(scenario, scenarioIndex) {
   scenario.runtime = ctxInfo.runtime; scenario.profile = ctxInfo.profile; scenario.launchOptions = ctxInfo.launchOptions;
   const appTab = await context.newPage();
   await seedV1(appTab, [...ids, '1699999999999'], { queues, leaguePreferences: FIXTURE_LEAGUE });
-  scenario.activation = await activateThroughPrompt(appTab, [...ids, '1699999999999']);
+  scenario.activation = await activateOnLoad(appTab, [...ids, '1699999999999']);
   scenario.v1AtActivation = scenario.activation.v1Snapshot; delete scenario.activation.v1Snapshot;
   const catalog = await loadCatalog(ctxInfo, 300);
   check(catalog.slice(0, 4).every((player, index) => player.id === fixtureCatalog[index].id), 'Imported preflight queue differs from the actual dialog catalog');
@@ -874,7 +859,7 @@ async function rootSmokeScenario(scenario, scenarioIndex) {
   scenario.runtime = ctxInfo.runtime; scenario.profile = ctxInfo.profile; scenario.launchOptions = ctxInfo.launchOptions; scenario.steps = [];
   const setup = await context.newPage();
   await seedV1(setup, [...ids, '1699999999999'], { leaguePreferences: FIXTURE_LEAGUE });
-  scenario.activation = await activateThroughPrompt(setup, [...ids, '1699999999999']);
+  scenario.activation = await activateOnLoad(setup, [...ids, '1699999999999']);
   scenario.v1AtActivation = scenario.activation.v1Snapshot; delete scenario.activation.v1Snapshot;
   const catalog = await loadCatalog(ctxInfo, 300); scenario.catalog = catalog;
   const nameToId = new Map(catalog.map(value => [value.name, value.id]));
@@ -912,7 +897,7 @@ async function focusedScenario(scenario) {
   const ctxInfo = await launch('focused-tabs');
   const setup = await ctxInfo.ctx.newPage();
   await seedV1(setup, [id]);
-  scenario.activation = await activateThroughPrompt(setup, [id]);
+  scenario.activation = await activateOnLoad(setup, [id]);
   await setup.close();
   const catalog = await loadCatalog(ctxInfo, 600);
   const nameToId = new Map(catalog.map(player => [player.name, player.id]));
@@ -936,7 +921,7 @@ async function focusedExtensionSetup() {
   check(proof.hostPermission, 'Installed extension lacks the actual canonical host permission');
   const setup = await ctxInfo.ctx.newPage();
   await seedV1(setup, [id]);
-  proof.activation = await activateThroughPrompt(setup, [id]);
+  proof.activation = await activateOnLoad(setup, [id]);
   proof.canonicalAppTab = setup.url();
   const panel = await openPanel(ctxInfo, id);
   proof.frameUrl = panel.ctx.url();
@@ -971,7 +956,7 @@ async function positiveScenario(scenario, scenarioIndex) {
   scenario.runtime = ctxInfo.runtime; scenario.launchOptions = ctxInfo.launchOptions; scenario.profile = ctxInfo.profile;
   const setup = await context.newPage();
   scenario.seeded = await seedV1(setup, seedIds);
-  scenario.activation = await activateThroughPrompt(setup, seedIds);
+  scenario.activation = await activateOnLoad(setup, seedIds);
   scenario.activationEntries = undefined;
   await save();
   const second = await context.newPage(); await second.goto(`${origin}/draft`);

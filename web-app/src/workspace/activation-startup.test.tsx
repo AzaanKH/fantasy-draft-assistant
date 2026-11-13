@@ -18,7 +18,6 @@ import { verifyStorageSharing } from './storage-sharing';
 import type { Workspace } from './workspace';
 import { WorkspaceProvider } from './WorkspaceProvider';
 
-vi.mock('@fantasy-draft/shared/sync', async original => ({ ...await original<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 vi.mock('@/hooks/usePlayerData', () => {
   const data = { players: [], isLoading: false, dataInfo: { readinessSources: [], readinessWarnings: [] } };
   return { usePlayerDataQuery: () => data };

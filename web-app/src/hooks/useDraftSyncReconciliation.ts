@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { dispatchWorkspace, requestWorkspace } from '@/workspace/ui-dispatch';
 import type { DraftReconciliationResult } from '@/stores/draft/types';
 import { useWorkspace, useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
@@ -106,8 +105,7 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       usePrimaryLeagueSettings,
       useQuickMockSettings ? { ...quickMockPreferences, totalRounds: snapshot.draft.settings.rounds } : undefined,
     ) };
-    if (STORAGE_ACTIVATION_ENABLED) dispatchWorkspace(workspace, 'connection.applyProviderSettings', hint);
-    else workspace.send('connection.applyProviderSettings', hint);
+    dispatchWorkspace(workspace, 'connection.applyProviderSettings', hint);
   }, [workspace, snapshot?.draft, provider, draftId, usePrimaryLeagueSettings, useQuickMockSettings, quickMockPreferences]);
 
   const pickHistory = snapshot?.picks;
@@ -158,17 +156,17 @@ export function useDraftSyncReconciliation(provider: DraftProvider, draftId: str
       !shouldImportPicks ||
       isPlayerDataLoading
     ) {
-      if (!(STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) || !shouldImportPicks || manualContinuityBaselineAt !== null) lastImported.current = null;
+      if (!(workspace.sendDurable) || !shouldImportPicks || manualContinuityBaselineAt !== null) lastImported.current = null;
       return;
     }
 
     const requestKey = JSON.stringify({ provider, draftId, picks: importResult.picks, rejected: importResult.rejectedPicks,
       nextOpenPickNumber });
     const previous = lastImported.current;
-    const alreadyImported = previous?.key === requestKey && ((STORAGE_ACTIVATION_ENABLED && workspace.sendDurable !== undefined) ||
+    const alreadyImported = previous?.key === requestKey && ((workspace.sendDurable !== undefined) ||
       (previous.picks === snapshot.picks && previous.importedPicks === importResult.picks && previous.rejectedPicks === importResult.rejectedPicks));
     if (alreadyImported) {
-      if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable && snapshot.lastSuccessfulSyncAt > (lastConfirmedSyncAt ?? -1)) {
+      if (workspace.sendDurable && snapshot.lastSuccessfulSyncAt > (lastConfirmedSyncAt ?? -1)) {
         const confirmedAt = snapshot.lastSuccessfulSyncAt;
         void workspace.sendDurable(['advanceSyncFreshness', confirmedAt]).then(() => {
           if (currentIdentity.current.provider === provider && currentIdentity.current.draftId === draftId) setLastReconciledSnapshotAt(confirmedAt);

@@ -80,7 +80,7 @@ function passingEvidence(full = false) {
   const move = { original: originalOrder, orders: [originalOrder, originalOrder], committedAfterReload: originalOrder, renderedAfterReload: [originalOrder, originalOrder], receipts: [{ outcome: 'ack' }, { outcome: 'ack' }], revisionBefore: 4, revisionAfter: 6 };
   const provider = [{ ...picked, source: 'sleeper-api' }];
   const reconcile = { issued: [issued[0]], committed: { picks: provider }, provider, flippedAt: 1 };
-  const activation = { completed: true, readOnlyBeforeConfirm: true, secondTabNoPrompt: true, v1RetainedByteIdentical: true, buttonDisabledBeforeCheckbox: true, tombstoneBefore: false, tombstoneAfter: true, importedAll: true };
+  const activation = { completed: true, secondTabNoPrompt: true, v1RetainedByteIdentical: true, tombstoneBefore: false, tombstoneAfter: true, importedAll: true };
   const positive = label => ({ label, activation, runs: Array.from({ length: full ? 15 : 1 }, (_, i) => ({ ...run, suite: Math.floor(i / 5) + 1, seed: i % 5 + 1 })), control: run,
     pickConflicts: Array.from({ length: 20 }, (_, i) => ({ ...conflict, sample: i + 1 })), moveConflicts: Array.from({ length: full ? 100 : 20 }, (_, i) => ({ ...move, sample: i + 1 })),
     bursts: { reconcile, mock: { steps: Array.from({ length: 4 }, (_, i) => ({ drafted: `user${i}`, receipt: { cmd: { id: `mock${i}` }, outcome: 'ack' } })), board: ['Pick 1.1, user0, My Team', 'Pick 2.1, user1, My Team', 'Pick 3.1, user2, My Team', 'Pick 4.1, user3, My Team', 'Pick 1.2, CPU, latest pick'], notSaved: false, v1Before: [], v1After: [] } }, v1AtActivation: [], v1FinalSnapshot: [],

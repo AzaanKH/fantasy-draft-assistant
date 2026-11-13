@@ -1,5 +1,7 @@
 # Characterize draft-session persistence
 
+> The localStorage writer this harness characterised was deleted on 2026-11-12, along with `old-modules.mjs`, `activation-off.mjs` and the rollback proofs named below. The default `pnpm test:persistence` run and its 11b loss bands describe that writer and no longer apply; only the IndexedDB harness mode (`PERSISTENCE_STORE=idb`) and the `ui-*` proofs still match the app. Retarget or remove the default mode before relying on it.
+
 This separate browser check calls the running app's live workspace on `/draft` and inside the installed unpacked extension's `/sidepanel` iframe. The React app stays mounted. The adapter obtains the composition root's instance through `/src/workspace/browser-workspace.ts`, reads `workspace.draft.getState()`, and writes through `workspace.send(...)`. Its slot helper is pure shared code. It creates no alternate store or workspace owner.
 
 Install dependencies and local demo data, then build the unpacked extension:

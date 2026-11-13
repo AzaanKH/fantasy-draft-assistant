@@ -19,7 +19,7 @@ vi.mock('./LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connectio
 
 let root: Root;
 let container: HTMLDivElement;
-const store = createDraftStore({ storage: null });
+const store = createDraftStore();
 
 const harness = vi.hoisted(() => ({ keepMounted: false }));
 

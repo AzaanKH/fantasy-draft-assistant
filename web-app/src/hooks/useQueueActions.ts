@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace } from '@/workspace/WorkspaceProvider';
 import { getDraftView } from '@/workspace/useDraftView';
@@ -127,7 +126,7 @@ export function useQueueActions(
     toast(`${playerName} ${wasQueued ? 'removed from' : 'added to'} queue`, {
       id,
       action: { label: 'Undo', onClick: lock.bindRetry(() => {
-        if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+        if (workspace.sendDurable) {
           saveQueued(playerId, wasQueued);
           return;
         }
@@ -143,7 +142,7 @@ export function useQueueActions(
 
   const togglePlayerQueued = React.useCallback((playerId: string) => {
     const wasQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
-    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+    if (workspace.sendDurable) {
       saveQueued(playerId, !wasQueued, () => {
         const isQueued = getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId);
         if (wasQueued !== isQueued) showQueueFeedback(playerId, wasQueued);
@@ -162,7 +161,7 @@ export function useQueueActions(
 
   const removePlayerFromQueue = React.useCallback((playerId: string) => {
     if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) return;
-    if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+    if (workspace.sendDurable) {
       saveQueued(playerId, false, () => {
         if (!getDraftView(workspace.draft).shortlistedPlayerIds.includes(playerId)) showQueueFeedback(playerId, true);
       });

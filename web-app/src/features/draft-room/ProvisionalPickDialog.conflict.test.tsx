@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Player } from '@fantasy-draft/shared/league';
 import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
 import { IDBFactory } from 'fake-indexeddb';
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { createWorkspace, type Workspace } from '@/workspace/workspace';
 import { createDurableWorkspace } from '@/workspace/durable-workspace';
 import { openDraftDatabase } from '@/workspace/indexed-db';
@@ -16,11 +15,6 @@ import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 import { ManualContinuityControl } from './ManualContinuityControl';
 import { useDraftState, WorkspaceProvider } from '@/workspace/WorkspaceProvider';
-
-const activation = vi.hoisted(() => ({ enabled: false }));
-vi.mock('@fantasy-draft/shared/sync', async original => ({
-  ...await original<object>(), get STORAGE_ACTIVATION_ENABLED() { return activation.enabled; },
-}));
 
 const [observed, elsewhere, replacement] = VISUAL_PLAYERS;
 if (!observed || !elsewhere || !replacement) throw new Error('Missing player fixtures');
@@ -76,10 +70,8 @@ function choosePick(value: string): void {
   act(() => { slotSelect().value = value; slotSelect().dispatchEvent(new Event('change', { bubbles: true })); });
 }
 
-describe.each([false, true])('storage activation=%s', enabled => {
+describe.each([false, true])('durable workspace=%s', enabled => {
   beforeEach(async () => {
-    activation.enabled = enabled;
-    expect(STORAGE_ACTIVATION_ENABLED).toBe(enabled);
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     // Refresh is explicit so cross-tab notification scheduling cannot race the assertions.
@@ -96,7 +88,7 @@ describe.each([false, true])('storage activation=%s', enabled => {
       other = createDurableWorkspace({ database: otherDatabase, search: '', initialConnection });
       await other.ready;
     } else {
-      v1Store = createDraftStore({ storage: null });
+      v1Store = createDraftStore();
       workspace = createWorkspace({ draftStore: v1Store });
       await commit(['setConfig', { totalTeams: 4, totalRounds: 3, myPickPosition: 1, draftType: 'linear' }]);
       await commit(['setSessionMode', 'live']);
@@ -121,7 +113,7 @@ describe.each([false, true])('storage activation=%s', enabled => {
     expect(slotSelect().value).toBe(String(selected));
     expect(saveButton(correcting).disabled).toBe(false);
 
-    // ON uses another durable writer; OFF supplies the equivalent store notification.
+    // The durable case uses another durable writer; the in-memory case supplies the equivalent store notification.
     await act(async () => { expect(await elsewhereCommit(['recordProvisionalPick', pick(selected, elsewhere)])).toBe(true); });
     await act(async () => { saveButton(correcting).click(); await commit(['setSearchQuery', 'save drain']); });
 

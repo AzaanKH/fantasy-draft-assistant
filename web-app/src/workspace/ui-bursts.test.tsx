@@ -19,7 +19,6 @@ import { useDraftState } from './WorkspaceProvider';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import type { DraftSyncSnapshot } from '@fantasy-draft/shared/sync';
 
-vi.mock('@fantasy-draft/shared/sync', async importOriginal => ({ ...await importOriginal<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
 vi.mock('@/hooks/useLeagueTimingEvidence', () => ({ useLeagueTimingEvidence: () => ({ model: null, isLoading: false }) }));
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); });
