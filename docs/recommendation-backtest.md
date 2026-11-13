@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-09-05T15:18:30.908Z
+Generated: 2026-11-13T07:55:02.198Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -52,6 +52,32 @@ backtest version.
 | Baseline roster-aware model | 49 | 1447.92 | 8412.06 | 133.49 | 0.61 |
 | Roster-aware model | 49 | 1300.26 | 8368.2 | 136.5 | 0.59 |
 
+## Best Pick Policy
+
+The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board. The prior-weights row replays the same rule with
+the starter window at 8 ranks and no doubled late bonus.
+Negative regret deltas are improvements.
+
+- Inputs: Expert rank, walk-forward projection and value over replacement. Live-feed inputs (news, bye weeks, contract and environment signals) take neutral values.
+
+| Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Roster-aware ECR | 49 | 2015.9 | 8774.3 | 105.91 | 0.69 |
+| Best Pick (shipped weights) | 49 | 1648.7 | 8715.44 | 109.3 | 0.67 |
+| Best Pick (prior starter weights) | 49 | 1909.16 | 8670.64 | 103.99 | 0.72 |
+
+| Comparison | Starter points | VOR captured | Average regret | Top-24 hit rate |
+| --- | ---: | ---: | ---: | ---: |
+| bestPickVsEcr | -58.86 | -367.2 | 3.39 | -0.02 |
+| bestPickVsPriorWeights | 44.8 | -260.46 | 5.31 | -0.05 |
+
+| Season | Roster-aware ECR | Best Pick | Best Pick, prior weights |
+| ---: | ---: | ---: | ---: |
+| 2022 | 2333.7 | 2333.7 | 2333.7 |
+| 2023 | 2284.7 | 2224.42 | 2224.42 |
+| 2024 | 1708.52 | 1885.14 | 1840.34 |
+| 2025 | 2447.38 | 2272.18 | 2272.18 |
+
 ## PickEV Architecture Comparison
 
 This comparison replays the legacy projection/VOR architecture and each PickEV
@@ -67,7 +93,7 @@ unavailable historical FantasyPros or observed ADP data.
 ### PickEV override gate
 
 - Candidate threshold: 4 PickEV points
-- Validated for live overrides: **false**
+- Historical override gate passed: **false**
 - ECR remains the champion whenever this gate fails.
 
 | Architecture | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |

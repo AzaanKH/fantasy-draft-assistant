@@ -63,9 +63,12 @@ open starting slot may sit a full round (12 ranks) behind the ECR leader rather
 than 8, and from the manager's sixth selection that slot is worth double. A
 candidate at a filled position that cannot play FLEX (a backup QB in a one-QB
 league) is set behind every other candidate until the offensive starters are
-filled. These weights are covered by unit tests and the recorded boards only;
-`pnpm model:backtest` replays a different selection rule and does not measure
-them.
+filled. `pnpm model:backtest` replays Best Pick through the same function the
+Assistant calls and reports it beside roster-aware ECR and beside the earlier
+starter weights, in the Best Pick Policy section of
+[recommendation-backtest.md](recommendation-backtest.md). The replay covers 49
+selections over four seasons, with neutral values for news, bye weeks, contract
+and environment inputs, so it shows direction and cannot prove a weight.
 
 Use [best-pick-policy.ts](../shared/src/draft/calculations/best-pick-policy.ts)
 for score bounds and selection rules, and

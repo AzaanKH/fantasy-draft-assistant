@@ -14,6 +14,15 @@ export const BEST_PICK_ECR_NEIGHBORHOOD = 8;
 const BEST_PICK_STARTER_ECR_NEIGHBORHOOD = 12;
 /** From the manager's sixth selection an open starting slot is worth double. */
 const BEST_PICK_LATE_STARTER_ROSTER_SIZE = 5;
+const BEST_PICK_LATE_STARTER_WEIGHT = 2;
+
+/** Overrides for the two starter weights, so a backtest can replay other settings. The app passes none. */
+export interface BestPickTuning {
+  /** How far behind the ECR champion a candidate who fills an open starting slot may sit. */
+  readonly starterEcrNeighborhood?: number;
+  /** Multiplier on the starting-slot bonus from the manager's sixth selection. */
+  readonly lateStarterWeight?: number;
+}
 /** League scoring and replacement value can add at most six policy points. */
 const BEST_PICK_LEAGUE_VALUE_MAX = 6;
 /** Roster construction can add at most fourteen policy points: a doubled fixed starter plus the urgency bonus. */
@@ -37,6 +46,7 @@ interface BestPickPolicyContext {
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
   readonly draftTimingAlternatives?: DraftTimingAlternatives;
+  readonly tuning?: BestPickTuning;
 }
 
 type DraftTimingAlternative = NonNullable<
@@ -380,14 +390,15 @@ function getRosterFitScore(
   before: RosterAnalysis,
   after: RosterAnalysis,
   selectionsRemaining: number,
-  surplusStarter: boolean
+  surplusStarter: boolean,
+  lateStarterWeight: number
 ): number {
   if (surplusStarter) return 0;
   const fixedStarterGain =
     before.fixedStartersOpenByPosition[player.position] -
     after.fixedStartersOpenByPosition[player.position];
   const flexGain = before.flexSlotsOpen - after.flexSlotsOpen;
-  const starterWeight = before.rosterSize >= BEST_PICK_LATE_STARTER_ROSTER_SIZE ? 2 : 1;
+  const starterWeight = before.rosterSize >= BEST_PICK_LATE_STARTER_ROSTER_SIZE ? lateStarterWeight : 1;
   let score = fixedStarterGain > 0 ? 6 * starterWeight : flexGain > 0 ? 4 * starterWeight : 1;
 
   if (
@@ -620,7 +631,9 @@ export function evaluateBestPickPolicy(
   }
 
   const ecrRankLimit = asRank(ecrChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD);
-  const starterRankLimit = ecrChampion.ecrRank + BEST_PICK_STARTER_ECR_NEIGHBORHOOD;
+  const starterRankLimit = ecrChampion.ecrRank +
+    (context.tuning?.starterEcrNeighborhood ?? BEST_PICK_STARTER_ECR_NEIGHBORHOOD);
+  const lateStarterWeight = context.tuning?.lateStarterWeight ?? BEST_PICK_LATE_STARTER_WEIGHT;
   const tierAvailability = calculateTierAvailability(candidatePlayers);
   const draftTimingAlternatives = context.draftTimingAlternatives ??
     prepareDraftTimingAlternatives(candidatePlayers);
@@ -646,7 +659,8 @@ export function evaluateBestPickPolicy(
       before,
       after,
       selectionsRemaining,
-      surplusStarter
+      surplusStarter,
+      lateStarterWeight
     );
     const depthValue = getDepthValueFactor(
       player,
