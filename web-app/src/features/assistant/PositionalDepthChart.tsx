@@ -56,7 +56,7 @@ function DepthPlayers({ players, allPlayers, timingPool, position, tier, onClose
       <div className="depth-detail-heading">
         <div>
           <h3>{position} · {tierLabel(tier)}</h3>
-          <p>{String(players.length)} available · {String(aboveReplacement)} above replacement</p>
+          <p>{String(players.length)} available · {String(aboveReplacement)} above a fill-in starter</p>
         </div>
         <Button variant="ghost" size="icon-sm" aria-label={`Close ${position} players`} onClick={onClose}><X className="size-4" /></Button>
       </div>

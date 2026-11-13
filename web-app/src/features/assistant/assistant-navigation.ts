@@ -31,7 +31,7 @@ export function getAssistantNavigationTarget(value: unknown): AssistantNavigatio
 }
 
 /** The player the analysis panel describes. A selection keeps its identity even when no recommendation exists for it. */
-type ViewedPlayer =
+export type ViewedPlayer =
   | { readonly kind: 'recommendation'; readonly recommendation: Recommendation }
   | {
       readonly kind: 'unavailable';
@@ -41,6 +41,21 @@ type ViewedPlayer =
       readonly reason: 'drafted' | 'unranked';
     }
   | { readonly kind: 'none' };
+
+/**
+ * A selection that names a player the catalog no longer has (an old link or history entry): the analysis falls back
+ * to the leader and says so, instead of silently showing someone else. Only once the catalog has loaded.
+ */
+export function isMissingSelection({ selectedPlayerId, recommendationById, playerById }: {
+  readonly selectedPlayerId: string | null;
+  readonly recommendationById: ReadonlyMap<string, Recommendation>;
+  readonly playerById: ReadonlyMap<string, Player>;
+}): boolean {
+  return selectedPlayerId !== null && playerById.size > 0 && !recommendationById.has(selectedPlayerId) && !playerById.has(selectedPlayerId);
+}
+
+/** Shown beside the leader when a navigation target is no longer in the catalog. */
+export const MISSING_SELECTION_NOTICE = 'That player isn\u2019t available any more.';
 
 export function resolveViewedPlayer({
   selectedPlayerId,

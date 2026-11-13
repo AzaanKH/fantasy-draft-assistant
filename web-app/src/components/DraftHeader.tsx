@@ -4,6 +4,7 @@ import { ThemeMenu } from '@/features/theme/ThemeMenu';
 import type { AppRoute } from '@/lib/app-route';
 import { cn } from '@/lib/utils';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
+import { DraftTurnBanner } from '@/features/draft-room/DraftTurnBanner';
 import { DraftSessionStatus } from './DraftSessionStatus';
 
 export function DraftHeader({
@@ -41,8 +42,8 @@ export function DraftHeader({
       <div className="draft-header-main w-full items-center gap-2 px-2 sm:gap-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-1 sm:gap-5">
           <div className="hidden items-center gap-2 text-sm font-bold sm:flex sm:text-base">
-            <ShieldCheck className="size-5 text-emerald-600 dark:text-emerald-300" />
-            <span className="hidden sm:inline">Fantasy Draft</span>
+            <ShieldCheck className="size-5 text-primary" />
+            <span className="draft-header-brand hidden sm:inline">Fantasy Draft</span>
           </div>
           <nav className="flex h-16 items-stretch" aria-label="Primary navigation">
             <button
@@ -52,7 +53,7 @@ export function DraftHeader({
               className={cn(
                 'relative flex items-center gap-2 px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4',
                 route === 'draft'
-                  ? 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-emerald-500'
+                  ? 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-[var(--color-primary)]'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -65,7 +66,7 @@ export function DraftHeader({
               className={cn(
                 'relative flex items-center gap-2 px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4',
                 route === 'assistant'
-                  ? 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-emerald-500'
+                  ? 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-[var(--color-primary)]'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -73,8 +74,9 @@ export function DraftHeader({
             </button>
           </nav>
         </div>
-        <div className="draft-header-context">
-          <DraftSessionStatus keeperStatus={keeperStatus} onManageLeagueSettings={onManageLeagueSettings} />
+        <div className="draft-header-context" data-route={route}>
+          <DraftSessionStatus keeperStatus={keeperStatus} onManageLeagueSettings={onManageLeagueSettings} compact={route === 'draft'} />
+          {route === 'draft' ? <DraftTurnBanner /> : null}
           {secondaryControls ? <div className="draft-header-mobile-controls">{secondaryControls}</div> : null}
         </div>
         <div className="draft-header-controls flex min-w-0 items-center gap-1 sm:gap-2">

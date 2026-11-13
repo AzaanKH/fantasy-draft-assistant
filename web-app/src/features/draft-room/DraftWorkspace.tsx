@@ -3,11 +3,13 @@ import type { AssistantNavigationTarget } from '@/features/assistant/assistant-n
 import { LoadingStatus } from '@/components/skeletons';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
+import { LAYOUT_TOKENS, useLayoutPx } from '@/lib/layout-tokens';
 import { DraftBoard } from './DraftBoard';
 import { DraftDecisionBar } from './DraftDecisionBar';
 import { DraftDock } from './DraftDock';
 import {
   clampBoardHeight,
+  clearStoredBoardHeight,
   DEFAULT_BOARD_HEIGHT,
   MIN_BOARD_HEIGHT,
   MIN_DOCK_HEIGHT,
@@ -92,7 +94,11 @@ export function DraftWorkspace({
 }): React.ReactElement {
   const fillsViewport = useMediaQuery(FILL_LAYOUT_QUERY);
   const { isLoading } = usePlayerDataQuery();
-  const [boardHeight, setBoardHeight] = React.useState(readStoredBoardHeight);
+  // Until the user drags the board, its height is the window's default and follows resizes (laptop heights
+  // show two or three whole rounds); a dragged height is theirs and is kept.
+  const defaultBoardHeight = useLayoutPx(LAYOUT_TOKENS.boardDefaultHeight, DEFAULT_BOARD_HEIGHT);
+  const [userBoardHeight, setUserBoardHeight] = React.useState<number | null>(readStoredBoardHeight);
+  const boardHeight = userBoardHeight ?? defaultBoardHeight;
   const [isDockExpanded, setIsDockExpanded] = React.useState(true);
   // Bumped when a drag ends, so the layout effect clears the inline drag sizes after the height commits.
   const [finishedDrags, setFinishedDrags] = React.useState(0);
@@ -106,13 +112,14 @@ export function DraftWorkspace({
     const stack = stackRef.current;
     if (!stack || !isDockExpanded) return undefined;
     const update = (): void => {
-      setMaxBoardHeight(measureResizeBounds(stack, fillsViewport, DEFAULT_BOARD_HEIGHT).max);
+      // Before the board measures, fall back to the window's token-derived default, not the fixed constant.
+      setMaxBoardHeight(measureResizeBounds(stack, fillsViewport, defaultBoardHeight).max);
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(stack);
     return () => { observer.disconnect(); };
-  }, [fillsViewport, isDockExpanded]);
+  }, [defaultBoardHeight, fillsViewport, isDockExpanded]);
 
   // Runs after the committed --draft-board-height reaches the DOM and before paint, so the board never jumps.
   React.useLayoutEffect(() => {
@@ -121,8 +128,12 @@ export function DraftWorkspace({
   }, [finishedDrags]);
 
   const commitHeight = (height: number): void => {
-    setBoardHeight(height);
+    setUserBoardHeight(height);
     storeBoardHeight(height);
+  };
+  const resetHeight = (): void => {
+    setUserBoardHeight(null);
+    clearStoredBoardHeight();
   };
 
   const dragTo = (drag: DragState, event: React.PointerEvent<HTMLDivElement>): void => {
@@ -136,7 +147,8 @@ export function DraftWorkspace({
     dragRef.current = null;
     stackRef.current?.removeAttribute('data-resizing');
     setFinishedDrags((count) => count + 1);
-    commitHeight(drag.latestHeight);
+    // A press without movement keeps following the window's default.
+    if (drag.latestHeight !== clampBoardHeight(drag.startHeight, drag.maxHeight) || userBoardHeight !== null) commitHeight(drag.latestHeight);
   };
 
   const endDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -157,6 +169,7 @@ export function DraftWorkspace({
 
   return (
     <main className="draft-workspace w-full px-3 py-4 sm:px-4" data-layout={fillsViewport ? 'fill' : 'scroll'} aria-busy={isLoading || undefined}>
+      <h1 className="sr-only">Draft room</h1>
       {isLoading ? <LoadingStatus label="Loading player data" /> : null}
       {notices}
       {/* data-resizing is toggled directly during a drag, so starting one does not re-render the board. */}
@@ -194,7 +207,7 @@ export function DraftWorkspace({
                 maxHeight: bounds.max,
                 latestHeight: startHeight,
               };
-              setBoardHeight(startHeight);
+              if (userBoardHeight !== null) setUserBoardHeight(startHeight);
               stackRef.current?.setAttribute('data-resizing', '');
             }}
             onPointerMove={(event) => {
@@ -204,7 +217,7 @@ export function DraftWorkspace({
             }}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
-            onDoubleClick={() => { commitHeight(clampBoardHeight(DEFAULT_BOARD_HEIGHT, getResizeBounds().max)); }}
+            onDoubleClick={resetHeight}
             onKeyDown={(event) => {
               const bounds = getResizeBounds();
               const next = {

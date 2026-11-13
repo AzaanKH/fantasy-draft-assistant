@@ -32,7 +32,7 @@ export function createDurableWorkspace({ database, search, initialConnection = r
   resumeConfirmedConnection?: boolean;
   onError?: (error: unknown) => void;
 }): Omit<Workspace, 'sendDurable'> & { readonly ready: Promise<void>; sendDurable: (command: WorkspaceCommand | DraftCommand) => Promise<DurableReceipt> } {
-  const draft = createDraftStore({ storage: null });
+  const draft = createDraftStore();
   const connection = createStore<ConnectionQuery>(() => ({ connection: getConnection(draft.getState()) }));
   const initial = resolveInitialConnection(search, initialConnection);
   let binding: Binding | null = null;

@@ -26,6 +26,20 @@ export function applyTheme(theme: ThemeMode): void {
   root.classList.toggle('light', resolvedTheme === 'light');
   root.dataset.theme = theme;
   root.style.colorScheme = resolvedTheme;
+  reportThemeToHost(resolvedTheme);
+}
+
+/**
+ * Inside the extension's side panel, the shell around this frame draws its own loading and error overlays; it is
+ * told the resolved theme so they match. Only the theme name is sent, so any embedding origin may receive it.
+ */
+function reportThemeToHost(resolvedTheme: 'light' | 'dark'): void {
+  if (window.parent === window) return;
+  try {
+    window.parent.postMessage({ type: 'fantasy-draft:theme', theme: resolvedTheme }, '*');
+  } catch {
+    // A detached or cross-origin-restricted parent cannot be told; the shell falls back to the OS setting.
+  }
 }
 
 export function persistTheme(theme: ThemeMode): void {

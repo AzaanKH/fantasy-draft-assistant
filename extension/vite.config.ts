@@ -52,6 +52,11 @@ function copyStaticFiles(): Plugin {
         resolve(__dirname, 'src/sidepanel/sidepanel.css'),
         resolve(distDir, 'sidepanel.css')
       );
+      // Generated from docs/design-system/tokens.json; sidepanel.css reads its custom properties.
+      copyFileSync(
+        resolve(__dirname, 'src/sidepanel/tokens.css'),
+        resolve(distDir, 'tokens.css')
+      );
 
       for (const file of ['options.html', 'options.css']) {
         copyFileSync(resolve(__dirname, 'src/options', file), resolve(distDir, file));

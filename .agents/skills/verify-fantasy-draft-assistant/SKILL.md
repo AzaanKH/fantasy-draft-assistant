@@ -50,7 +50,7 @@ agent-browser --session "$RUN_ID" snapshot -i
 
 Drive with accessible button names from a fresh snapshot. Resnapshot after navigation, dialogs, or tab changes. The board toolbar has `Start mock` (or `Pause`/`Resume` and `Settings` during a mock), `Current pick`, and `Full board`. The lower `Draft tools` region has `Roster`, `Queue`, and `Suggestions` tabs; below 80rem (1280px) it adds a `Players` tab, while wider windows show the player pool in its own column. The header has `Draft workspace` and `Assistant` buttons. `/assistant` and `/sidepanel` are also routes, but `/sidepanel` is a companion layout and is not an extension installation test.
 
-For the proven queue path, the player pool buttons use `Add <player name> to local shortlist`. The Best Pick bar uses `Add <player name> to the local queue`. After an add, open the `Queue` tab and check its own player row. See [queue and shortlist](features/queue-and-shortlist.md) for the exact commands and proof.
+For the proven queue path, the player pool buttons use `Add <player name> to queue`. The Best Pick bar uses `Add <player name> to queue`. After an add, open the `Queue` tab and check its own player row. See [queue and shortlist](features/queue-and-shortlist.md) for the exact commands and proof.
 
 ## Required browser coverage
 

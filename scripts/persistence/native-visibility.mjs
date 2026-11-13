@@ -43,7 +43,7 @@ async function pool(page, name) {
     const tab = page.getByRole('tab', { name: /^Players/ }); if (await tab.isVisible()) await tab.click();
   }
   await search.fill(name);
-  await page.getByRole('button', { name: `Add ${name} to local shortlist`, exact: true }).waitFor();
+  await page.getByRole('button', { name: `Add ${name} to queue`, exact: true }).waitFor();
 }
 function instrumentation() {
   const clock = () => performance.timeOrigin + performance.now();
@@ -175,7 +175,7 @@ async function run() {
       const player = catalog[n + 10]; row.player = player;
       for (const page of pages) { await page.bringToFront(); await page.getByRole('button', { name: 'Draft workspace', exact: true }).waitFor(); await pool(page, player.name); }
       const receiver = pages[receiverIndex], sender = pages[senderIndex], receiverCdp = sessions[receiverIndex], windowId = row.windows[receiverIndex].windowId;
-      const label = `Remove ${player.name} from local shortlist`;
+      const label = `Remove ${player.name} from queue`;
       await receiver.evaluate(label => { window.__nativeEvidence.label = label; window.__nativeEvidence.uiObservedAt = null; }, label);
       await receiver.bringToFront(); await sender.bringToFront();
       row.before = await state(receiver); row.idbBefore = await committed(sender, id);
@@ -183,7 +183,7 @@ async function run() {
       await receiver.waitForFunction(() => document.visibilityState === 'hidden', null, { polling: 50, timeout: 5000 });
       row.hidden = await state(receiver); row.minimizedBounds = await receiverCdp.send('Browser.getWindowBounds', { windowId });
       row.writeStartedAt = await sender.evaluate(() => performance.timeOrigin + performance.now());
-      await sender.getByRole('button', { name: `Add ${player.name} to local shortlist`, exact: true }).click();
+      await sender.getByRole('button', { name: `Add ${player.name} to queue`, exact: true }).click();
       await sender.getByRole('button', { name: label, exact: true }).waitFor(); await drained(sender);
       row.ackAt = await sender.evaluate(() => performance.timeOrigin + performance.now());
       row.idbAfterAck = await committed(sender, id);

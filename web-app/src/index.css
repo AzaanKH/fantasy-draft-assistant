@@ -15,6 +15,10 @@
   }
 }
 
+/* A tooltip is never a pointer target. The content ignores the pointer (TooltipContent), and so must the positioning
+   wrapper Radix puts around it, which otherwise sits over the neighbouring control and swallows its click (R8-2). */
+[data-radix-popper-content-wrapper]:has(> [data-slot="tooltip-content"]) { pointer-events: none; }
+
 /* The panel starts on its trigger's side, so it always moves away from the trigger. */
 .metric-help-overlay {
   --metric-help-enter-from: translateY(3px);
@@ -196,7 +200,7 @@ textarea {
   border-radius: inherit;
   content: "";
   pointer-events: none;
-  animation: draft-pick-highlight 250ms var(--motion-ease-out) both;
+  animation: draft-pick-highlight 200ms var(--motion-ease-out) both;
 }
 
 /* Reduced motion drops movement (translate, scale, rotate, layout) but keeps the fades and color changes that show what changed. */

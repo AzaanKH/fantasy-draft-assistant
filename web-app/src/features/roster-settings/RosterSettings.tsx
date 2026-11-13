@@ -1,8 +1,9 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { POSITIONS } from '@fantasy-draft/shared/league';
+import { ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { IconTooltip } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -34,15 +35,20 @@ export function RosterSettings(): React.ReactElement {
     const next = field === 'starters'
       ? { starters: value, max: Math.max(value, current.max) }
       : { starters: Math.min(current.starters, value), max: value };
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', { ...requirements, [position]: next }); } else { workspace.send('setRosterRequirements', { ...requirements, [position]: next }); }
+    sendWorkspaceCommand(workspace, 'setRosterRequirements', { ...requirements, [position]: next });
   };
 
   return (
     <Dialog>
+      <IconTooltip label="League roster">
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">League roster</Button>
+        <Button variant="outline" size="sm" aria-label="League roster">
+          <ListChecks aria-hidden="true" />
+          <span className="draft-header-label">League roster</span>
+        </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto">
+      </IconTooltip>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Roster requirements</DialogTitle>
           <DialogDescription>
@@ -94,19 +100,13 @@ export function RosterSettings(): React.ReactElement {
                 max={10}
                 value={requirements.FLEX.starters}
                 onChange={(event) => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', {
+                  sendWorkspaceCommand(workspace, 'setRosterRequirements', {
                     ...requirements,
                     FLEX: {
                       ...requirements.FLEX,
                       starters: numericValue(event.target.value, 10),
                     },
-                  }); } else { workspace.send('setRosterRequirements', {
-                    ...requirements,
-                    FLEX: {
-                      ...requirements.FLEX,
-                      starters: numericValue(event.target.value, 10),
-                    },
-                  }); }
+                  });
                 }}
               />
               <span className="block text-xs text-muted-foreground">RB / WR / TE</span>
@@ -120,13 +120,10 @@ export function RosterSettings(): React.ReactElement {
                 max={20}
                 value={requirements.BENCH.spots}
                 onChange={(event) => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', {
+                  sendWorkspaceCommand(workspace, 'setRosterRequirements', {
                     ...requirements,
                     BENCH: { spots: numericValue(event.target.value) },
-                  }); } else { workspace.send('setRosterRequirements', {
-                    ...requirements,
-                    BENCH: { spots: numericValue(event.target.value) },
-                  }); }
+                  });
                 }}
               />
             </label>
@@ -138,7 +135,7 @@ export function RosterSettings(): React.ReactElement {
               variant="outline"
               size="sm"
               onClick={() => {
-                if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setRosterRequirements', leagueRoster); } else { workspace.send('setRosterRequirements', leagueRoster); }
+                sendWorkspaceCommand(workspace, 'setRosterRequirements', leagueRoster);
               }}
             >
               Reset to league rules

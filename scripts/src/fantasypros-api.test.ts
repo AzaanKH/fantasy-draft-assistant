@@ -346,6 +346,18 @@ describe('fetchFantasyProsSnapshot', () => {
     expect(result._tag).toBe('Failure');
   });
 
+  it('accepts null numeric fields such as a free agent bye week', async () => {
+    const player = {
+      player_id: 123, player_name: 'Free Agent', player_team_id: 'FA', player_position_id: 'WR',
+      player_bye_week: null, rank_ecr: '231', rank_min: null, rank_max: null, rank_ave: null, pos_rank: 'WR90',
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ players: [player] }), {
+      headers: { 'content-type': 'application/json' },
+    })));
+    const result = await Effect.runPromise(Effect.result(fetchFantasyProsSnapshot({ apiKey: 'key', season: 2026 })));
+    expect(result._tag).toBe('Success');
+  });
+
   it('reports a malformed payload as an expected failure so callers can fall back', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"players": {}}', {
       status: 200, headers: { 'content-type': 'application/json' },

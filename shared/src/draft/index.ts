@@ -18,11 +18,27 @@ export {
   getRosterAnswer,
   getWaitAnswer,
   getWaitingCostSummary,
+  hasNearZeroValue,
   getWhyRows,
   type PoolSort,
   sortRecommendationsForPool,
   survivalPercent,
 } from './assistant/assistant-analysis.js';
+export {
+  decideTakeOrWait,
+  getComparisonPreference,
+  getNextPickSurvival,
+  getRecommendationDecision,
+  isTierEnding,
+  LIKELY_GONE_BELOW,
+  MATERIAL_WAIT_COST,
+  orderAnalysedRecommendations,
+  TAKE_NOW_BELOW,
+  TAKE_NOW_TIER_END_BELOW,
+  type TakeOrWaitBasis,
+  type TakeOrWaitDecision,
+  type TakeOrWaitKind,
+} from './assistant/take-or-wait.js';
 export {
   comparisonBar,
   type ComparisonMetric,

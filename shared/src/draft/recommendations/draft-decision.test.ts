@@ -140,7 +140,7 @@ describe('createDraftDecisionOutput', () => {
   it.each([
     {
       factor: 'league-value' as const,
-      expected: '45 points above replacement, 43 more than ECR Leader in this league',
+      expected: '45 pts over a fill-in starter, 43 more than ECR Leader in this league',
     },
     {
       factor: 'roster-fit' as const,
@@ -156,7 +156,7 @@ describe('createDraftDecisionOutput', () => {
     },
     {
       factor: 'draft-timing' as const,
-      expected: '5% Return Probability at pick 2.03, and waiting costs 18 expected points',
+      expected: 'a 5% chance of still being there at pick 2.03, and waiting costs 18 expected points',
     },
   ])('explains a $factor divergence from the factor that changed the order', ({
     factor,

@@ -10,7 +10,7 @@ interface SelectOption {
 }
 
 interface SelectProps extends Omit<
-  React.ComponentProps<'select'>,
+  React.ComponentPropsWithoutRef<'select'>,
   'children' | 'onChange' | 'value'
 > {
   readonly value: string;
@@ -22,18 +22,19 @@ interface SelectProps extends Omit<
  * A compact native select. Native controls keep keyboard and screen-reader
  * behavior while avoiding a floating-positioning runtime in the draft bundle.
  */
-function Select({
+const Select = React.forwardRef<HTMLSelectElement, SelectProps>(function Select({
   className,
   options,
   onValueChange,
   value,
   ...props
-}: SelectProps): React.ReactElement {
+}, ref): React.ReactElement {
   return (
     <span className={cn('relative inline-flex h-9 min-w-32 text-sm', className)}>
       <select
+        ref={ref}
         data-slot="select"
-        className="h-full w-full appearance-none rounded-md border border-input bg-transparent py-2 pl-3 pr-9 text-[inherit] shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+        className="h-full w-full appearance-none rounded-md border border-input bg-transparent py-2 pl-3 pr-9 text-[inherit] shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
         value={value}
         onChange={(event) => { onValueChange(event.target.value); }}
         {...props}
@@ -50,6 +51,6 @@ function Select({
       />
     </span>
   );
-}
+});
 
 export { Select };

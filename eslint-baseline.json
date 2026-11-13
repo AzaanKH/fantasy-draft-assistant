@@ -24,47 +24,6 @@
       ]
     }
   },
-  "web-app/src/components/ui/badge.tsx": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "occurrences": {
-      "@typescript-eslint/explicit-module-boundary-types": [
-        "c3d72650a1a13e2e2704fab0df5fa7792876091eadfa3fe20ad28a1c73ca64b4"
-      ]
-    }
-  },
-  "web-app/src/components/ui/dialog.tsx": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "occurrences": {
-      "@typescript-eslint/explicit-module-boundary-types": [
-        "415a21ff2a5b4edf991aac07c962f7cf6e666b89a1c0753da297224cffcf55b1",
-        "fd00fcc47aaf0dae8e1fd22d572eb06ce91c1295a3e38726e3bb5bf329ae39cf",
-        "fb031593d06f86bdfac666e776b8a55f882df042ac26bfc6d88bbf1cce28a0cc",
-        "55cfbfd2fa62ed74c3d16cd3ad6ace36ab32d404fc6c92bbde0cc48be1109d4c",
-        "4dd35c8f36b6cf265378a1446a293ed2018fd1f3523f25e709ba07752b5b2932",
-        "3490ad3c818a39e126acf5f2183c8a48bb5f9e368a2ca6a7cc63c000b9629674",
-        "9414eb5dd98bf5c2042e9bf3542f0882c1b5de8f1b7772e61f82ea9cdede92fe"
-      ]
-    }
-  },
-  "web-app/src/components/ui/input.tsx": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "occurrences": {
-      "@typescript-eslint/explicit-module-boundary-types": [
-        "af7d67450c98b71f54cb0100ee17bd31eab6271dfa85270ad22914434bd4d3a5"
-      ]
-    }
-  },
-  "web-app/src/components/ui/tabs.tsx": {
-    "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
-    "occurrences": {
-      "@typescript-eslint/explicit-module-boundary-types": [
-        "585e5dfe2290c4feaf5925733d5ce3f16285cea1df17e7bae67c1188755be524",
-        "f5f5427bf7c841c96eac671b8f423ef891d9d411bd2a0436c99df44439ab2c59",
-        "599755dbae6914a6bece5f20679a2652091322f5e6e77175bfaccff4493a38c9",
-        "2301cd260593b6ae2921a06bd4a576ecdb6a628a5be63793beafd0a6bfb72140"
-      ]
-    }
-  },
   "web-app/src/features/draft-room/DraftConnectionControl.tsx": {
     "reason": "Existing exports retain behavior during extraction; add explicit boundary annotations when the owning module changes.",
     "occurrences": {

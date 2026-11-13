@@ -78,7 +78,10 @@ test('the real Assistant queue supplies both enabled middle-player move selector
   const page = await readFile(new URL('../web-app/src/features/assistant/AssistantPage.tsx', import.meta.url), 'utf8');
   const callback = /onMove=\{((?:\(\.\.\.args\).*?))\}\n/.exec(page)[1];
   const sent = [], workspace = { sendDurable: async cmd => { sent.push(cmd); }, send: () => { throw Error('legacy move path'); } };
-  const onMove = runInNewContext(`(${callback})`, { STORAGE_ACTIVATION_ENABLED: true, dispatchWorkspace, workspace });
+  const commandSource = await readFile(new URL('../web-app/src/workspace/workspace-command.ts', import.meta.url), 'utf8');
+  const commandCode = commandSource.slice(commandSource.indexOf('export function sendWorkspaceCommand('), commandSource.indexOf('/**\n * Awaitable'));
+  const sendWorkspaceCommand = runInNewContext(`${ts.transpileModule(commandCode.replace('export function', 'function'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText}; sendWorkspaceCommand`, { STORAGE_ACTIVATION_ENABLED: true, dispatchWorkspace });
+  const onMove = runInNewContext(`(${callback})`, { STORAGE_ACTIVATION_ENABLED: true, dispatchWorkspace, sendWorkspaceCommand, workspace });
   const props = { queuedPlayerIds: four.map(row => row.id), playerById: new Map(four.map(row => [row.id, row])), recommendationById: new Map(), bestPick: null, mode: 'manual-continuity', provider: 'sleeper', onMove };
   const html = renderToStaticMarkup(React.createElement(Queue, props));
   const proof = await inspectAssistantMoves(ctx(new JSDOM(html).window.document), four[1].name);
@@ -158,11 +161,11 @@ async function preflightEvidence() {
       const control = name => ({ name, visible: true, enabled: true });
       if (kind === 'setup') return { kind, proof: { ...setup, openControl: control('Open local workspace') } };
       if (kind === 'move') return { kind, seedQueue: ['p0', 'p1', 'p2', 'p3'], controls: ['up', 'down', 'up', 'down'].map(dir => control(`Move Player ${dir} in queue`)) };
-      if (kind.startsWith('lifecycle')) return { kind, senderSession: '1800000000004', receiverSession: '1800000000005', controls: [control('Add Player to local shortlist'), control('Remove Player from local shortlist')] };
+      if (kind.startsWith('lifecycle')) return { kind, senderSession: '1800000000004', receiverSession: '1800000000005', controls: [control('Add Player to queue'), control('Remove Player from queue')] };
       const commands = pick.results.map(row => structuredClone(row.cmd)), barrier = structuredClone(pick.barrier);
       if (kind === 'slice') { commands[1].slot = 76; barrier[1].slot = '76'; }
       return { kind, commands, barrier, plannedSlice: kind === 'slice' ? { total: 300, perActor: 150 } : undefined,
-        controls: [...[0, 1].map(() => control('Record Provisional Pick')), ...(kind === 'slice' ? [control('Add Player0 to local shortlist'), control('Add Player1 to local shortlist')] : [])],
+        controls: [...[0, 1].map(() => control('Record Provisional Pick')), ...(kind === 'slice' ? [control('Add Player0 to queue'), control('Add Player1 to queue')] : [])],
         restoredWithoutDialog: kind === 'reconcile', recovery: { noOpenDialogs: true, manualControlsAbsent: true, committed: { manualContinuityBaselineAt: null, lastConfirmedSyncAt: 1 } } };
     });
   }
@@ -246,12 +249,12 @@ test.each([[0, false], [1, false], [0, true]])('the actual reachability orchestr
     process: { env: unit12 ? { UI_SLOT_OWNER: 'u12' } : {} }, PREFLIGHT_PLAN, FIXTURE_LEAGUE: { profile: 'quick-mock' }, fixtureCatalog: actualCatalog, results: result, assertNoPreflightWorkload, planSession,
     launch: async () => ({ ctx: { newPage: async () => appTab }, runtime: {} }),
     seedV1: async (_page, ids, options) => { queues = options.queues; seeded.push(...ids); },
-    activateThroughPrompt: async () => ({ completed: true, v1Snapshot: [] }), loadCatalog: async () => actualCatalog, fixtureRules: async () => {}, appReady: async () => {}, draftUrl: id => `http://localhost:3000/draft?draftId=${id}`,
+    activateOnLoad: async () => ({ completed: true, v1Snapshot: [] }), loadCatalog: async () => actualCatalog, fixtureRules: async () => {}, appReady: async () => {}, draftUrl: id => `http://localhost:3000/draft?draftId=${id}`,
     startSession: async (_ctx, id) => [0, 1].map(actor => ({ session: id, name: `actor${actor}`, ctx: { getByRole: () => ({ click: async () => {} }) } })),
     inspectAssistantMoves: async (_ctx, name) => ['up', 'down'].map(direction => control(`Move ${name} ${direction} in queue`)),
     readCommitted: async (_ctx, id) => ({ queue: queues[id] }),
     inspectPickControls: async (_actors, commands) => ({ commands, barrier: commands.map(cmd => ({ slot: String(cmd.slot), player: cmd.playerId, visible: true, disabled: false, clicks: [] })), controls: [control('Record Provisional Pick'), control('Record Provisional Pick')] }),
-    inspectPoolControl: async (actor, player, queued) => { pool.push({ session: actor.session, id: player.id, queued }); return control(`${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} local shortlist`); },
+    inspectPoolControl: async (actor, player, queued) => { pool.push({ session: actor.session, id: player.id, queued }); return control(`${queued ? 'Remove' : 'Add'} ${player.name} ${queued ? 'from' : 'to'} queue`); },
     openTab: async (_ctx, id) => ({ session: id, ctx: { getByRole: () => ({ session: id, click: async () => {} }) } }),
     inspectControl: async (locator, name) => { if (unit12 && locator.session !== seeded[2]) throw Error('Slot control requires the recovered provider session, not the outage session'); return control(name); }, closeActors: async () => {}, fixture: { healthy: () => {} }, waitForProviderRecovery: async () => ({ noOpenDialogs: true, manualControlsAbsent: true, committed: { manualContinuityBaselineAt: null, lastConfirmedSyncAt: 1 } }),
     installedPanelSetup: async () => ({ ...original.scenarios[1].panelSetup, openControl: control('Open local workspace') }),

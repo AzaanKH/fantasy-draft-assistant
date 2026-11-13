@@ -121,6 +121,11 @@ export interface RecommendationDecisionFactors {
     readonly benchSlotsOpen: number;
     readonly selectionsRemaining: number;
     readonly legalCompletionPossible: boolean;
+    /**
+     * The manager already starts this position, it cannot fill FLEX, and an offensive starter slot is still open:
+     * the candidate would sit on the bench while the lineup has a hole, so Best Pick sets it behind every other one.
+     */
+    readonly surplusStarter?: boolean;
     readonly materiallyChangedOrdering?: boolean;
   };
   readonly depthValue: {

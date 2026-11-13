@@ -129,38 +129,28 @@ describe('Sleeper sync ingress and reconciliation', () => {
     warning.mockRestore();
   });
 
-  it('keeps a restored journal through a stale snapshot and reconciles it when only the heartbeat time changes', () => {
-    const values = new Map<string, string>();
-    const storage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => { values.set(key, value); },
-      removeItem: (key: string) => { values.delete(key); },
-      key: (index: number) => [...values.keys()][index] ?? null,
-      get length() { return values.size; },
-    };
+  it('keeps a provisional journal through a stale snapshot and reconciles it when only the heartbeat time changes', () => {
     const session = { provider: 'sleeper' as const, draftId: 'Draft_1-abc' };
-    const original = createDraftStore({ storage, session });
-    original.getState().setSessionMode('live');
-    original.getState().reconcileSyncedPicks([], 1, [], 100);
-    original.getState().enterManualContinuity(100);
-    original.getState().recordProvisionalPick({ pickNumber: 1, playerId: 'mistaken', playerName: 'Mistaken', position: 'WR', teamIndex: 0, teamName: 'Team 1' });
-    const restarted = createDraftStore({ storage, session });
+    const draft = createDraftStore({ session });
+    draft.getState().setSessionMode('live');
+    draft.getState().reconcileSyncedPicks([], 1, [], 100);
+    draft.getState().enterManualContinuity(100);
+    draft.getState().recordProvisionalPick({ pickNumber: 1, playerId: 'mistaken', playerName: 'Mistaken', position: 'WR', teamIndex: 0, teamName: 'Team 1' });
     mocks.query.mockReturnValue({ data: { ...newerSnapshot, lastSuccessfulSyncAt: 100, lastPolledAt: 100 } });
-    const stale = renderDraft(session.draftId, restarted);
-    expect(restarted.getState().draftHistory[0]?.playerId).toBe('mistaken');
-    expect(restarted.getState().manualContinuityBaselineAt).toBe(100);
+    const stale = renderDraft(session.draftId, draft);
+    expect(draft.getState().draftHistory[0]?.playerId).toBe('mistaken');
+    expect(draft.getState().manualContinuityBaselineAt).toBe(100);
     stale.cleanup();
 
     mocks.query.mockReturnValue({ data: newerSnapshot });
-    const fresh = renderDraft(session.draftId, restarted);
-    expect(restarted.getState().draftHistory[0]).toMatchObject({ playerId: 'known', source: 'sync' });
-    expect(restarted.getState().manualContinuityBaselineAt).toBeNull();
+    const fresh = renderDraft(session.draftId, draft);
+    expect(draft.getState().draftHistory[0]).toMatchObject({ playerId: 'known', source: 'sync' });
+    expect(draft.getState().manualContinuityBaselineAt).toBeNull();
     fresh.cleanup();
-    const repeated = renderDraft(session.draftId, restarted);
+    const repeated = renderDraft(session.draftId, draft);
     expect(repeated.result.reconciliationSummary?.corrections).toHaveLength(1);
-    expect(restarted.getState().draftHistory).toHaveLength(1);
+    expect(draft.getState().draftHistory).toHaveLength(1);
     repeated.cleanup();
-    expect(createDraftStore({ storage, session }).getState().draftHistory[0]?.source).toBe('sync');
   });
 
   it('advances the reconciled timestamp for unchanged imports without reconciling them twice', () => {

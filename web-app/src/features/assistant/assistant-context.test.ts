@@ -8,6 +8,7 @@ import {
   getAssistantDraftMode,
   getSyncStatus,
   getPickWindow,
+  picksUntilTurn,
   getUpcomingTeamPicks,
 } from './assistant-context';
 
@@ -65,6 +66,13 @@ describe('getUpcomingTeamPicks', () => {
 describe('getAlertSignals', () => {
   const rosteredPlayers = [{ id: 'chase', name: "Ja'Marr Chase", position: 'WR' as const, byeWeek: 10 }];
 
+  it('leads with an injury designation and stays silent for healthy players', () => {
+    const base = { rosteredPlayers: [], recentPicks: [], currentPick: 1 };
+    expect(getAlertSignals({ ...base, player: { id: 'q', position: 'RB', byeWeek: 7, newsStatus: 'questionable' } })).toEqual(['Injury: Questionable']);
+    expect(getAlertSignals({ ...base, player: { id: 'o', position: 'RB', byeWeek: 7, newsStatus: 'out' } })).toEqual(['Injury: Out']);
+    expect(getAlertSignals({ ...base, player: { id: 'h', position: 'RB', byeWeek: 7, newsStatus: 'healthy' } })).toEqual([]);
+  });
+
   it('labels bye overlap at the same position, falling ADP and a position run', () => {
     expect(getAlertSignals({
       player: { id: 'tee', position: 'WR', byeWeek: 10, consensusAdp: 12.4 },
@@ -105,5 +113,18 @@ describe('draft mode and sync status', () => {
     expect(getSyncStatus({ ...base, mode: 'manual-continuity', synchronizationState: 'manual-continuity' }))
       .toEqual({ tone: 'lost', label: 'Sleeper sync unavailable · picks are provisional' });
     expect(getSyncStatus({ ...base, mode: 'mock', synchronizationState: 'disconnected' }).label).toBe('Local mock · no provider sync');
+  });
+});
+
+describe('picksUntilTurn', () => {
+  it('counts the same picks for the context bar and the Next turn strip, on the clock or not', () => {
+    // 12 teams, slot 12 on the clock at 1.12: the next turn is 2.01, one pick away (R9 said "0 picks in between"
+    // in one place and "Next turn in 1 pick" in the other).
+    const onClock = getPickWindow(12, 12, 15, 12, 'snake');
+    expect(onClock.onClock).toBe(true);
+    expect(picksUntilTurn(onClock)).toBe(1);
+    // Slot 1 at 1.03: the next turn is 2.12 (pick 24), 21 picks away.
+    expect(picksUntilTurn(getPickWindow(3, 12, 15, 1, 'snake'))).toBe(21);
+    expect(picksUntilTurn(getPickWindow(145, 10, 15, 5, 'snake'))).toBeNull();
   });
 });

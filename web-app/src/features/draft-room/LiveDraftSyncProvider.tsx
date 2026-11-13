@@ -1,5 +1,4 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import * as React from 'react';
 import { useConnectionNotifications } from '@/hooks/useConnectionNotifications';
@@ -171,27 +170,27 @@ export function LiveDraftSyncProvider({ children }: {
 
   const startConnection = React.useCallback((next: StartDraftConnectionInput) => {
     setReconciliationTargetAt(null);
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.startConnection', next.provider, next.draftId); } else { workspace.send('connection.startConnection', next.provider, next.draftId); }
+    sendWorkspaceCommand(workspace, 'connection.startConnection', next.provider, next.draftId);
   }, [workspace]);
 
   const confirmDraftPosition = React.useCallback((draftPosition: number) => {
     setReconciliationTargetAt(null);
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.confirmDraftPosition', draftPosition); } else { workspace.send('connection.confirmDraftPosition', draftPosition); }
+    sendWorkspaceCommand(workspace, 'connection.confirmDraftPosition', draftPosition);
   }, [workspace]);
 
   const enterManualContinuity = React.useCallback(() => {
     if (!canEnterManualContinuity) return;
     const baselineAt = sync.lastSuccessfulSyncAt ?? lastConfirmedSyncAt;
-    if (baselineAt !== null) if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'enterManualContinuity', baselineAt); } else { workspace.send('enterManualContinuity', baselineAt); }
+    if (baselineAt !== null) sendWorkspaceCommand(workspace, 'enterManualContinuity', baselineAt);
   }, [canEnterManualContinuity, sync.lastSuccessfulSyncAt, lastConfirmedSyncAt, workspace]);
 
   const disconnect = React.useCallback(() => {
     setReconciliationTargetAt(null);
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'connection.disconnect'); } else { workspace.send('connection.disconnect'); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', { draftType: 'snake' }); } else { workspace.send('setConfig', { draftType: 'snake' }); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'applyLeagueSettings', createDefaultLeagueSettings()); } else { workspace.send('applyLeagueSettings', createDefaultLeagueSettings()); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'resetDraft'); } else { workspace.send('resetDraft'); }
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'setup'); } else { workspace.send('setSessionMode', 'setup'); }
+    sendWorkspaceCommand(workspace, 'connection.disconnect');
+    sendWorkspaceCommand(workspace, 'setConfig', { draftType: 'snake' });
+    sendWorkspaceCommand(workspace, 'applyLeagueSettings', createDefaultLeagueSettings());
+    sendWorkspaceCommand(workspace, 'resetDraft');
+    sendWorkspaceCommand(workspace, 'setSessionMode', 'setup');
   }, [workspace]);
 
   const viewState = React.useMemo<DraftSyncViewState>(() => ({
@@ -239,6 +238,11 @@ export function LiveDraftSyncProvider({ children }: {
       {children}
     </LiveDraftSyncContext.Provider>
   );
+}
+
+/** The live sync state where a provider is mounted; null elsewhere (fixture routes render the header without one). */
+export function useOptionalLiveDraftSync(): LiveDraftSyncContextValue | null {
+  return React.useContext(LiveDraftSyncContext);
 }
 
 export function useLiveDraftSync(): LiveDraftSyncContextValue {

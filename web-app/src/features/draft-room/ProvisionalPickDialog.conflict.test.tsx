@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Player } from '@fantasy-draft/shared/league';
 import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
 import { IDBFactory } from 'fake-indexeddb';
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { createWorkspace, type Workspace } from '@/workspace/workspace';
 import { createDurableWorkspace } from '@/workspace/durable-workspace';
 import { openDraftDatabase } from '@/workspace/indexed-db';
@@ -17,13 +16,8 @@ import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 import { ManualContinuityControl } from './ManualContinuityControl';
 import { useDraftState, WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 
-const activation = vi.hoisted(() => ({ enabled: false }));
-vi.mock('@fantasy-draft/shared/sync', async original => ({
-  ...await original<object>(), get STORAGE_ACTIVATION_ENABLED() { return activation.enabled; },
-}));
-
-const [observed, elsewhere] = VISUAL_PLAYERS;
-if (!observed || !elsewhere) throw new Error('Missing player fixtures');
+const [observed, elsewhere, replacement] = VISUAL_PLAYERS;
+if (!observed || !elsewhere || !replacement) throw new Error('Missing player fixtures');
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
 vi.mock('./LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connection: { provider: 'sleeper' }, canEnterManualContinuity: true,
   synchronizationState: 'manual-continuity', lastConfirmedPickNumber: 0, provisionalPickCount: 0,
@@ -64,14 +58,20 @@ function saveButton(correcting: boolean): HTMLButtonElement {
   if (!button) throw new Error('Missing save button');
   return button;
 }
+function playerSelect(): HTMLSelectElement {
+  const select = document.querySelector<HTMLSelectElement>('select[aria-label="Observed player"]');
+  if (!select) throw new Error('Missing player selector');
+  return select;
+}
+function choosePlayer(value: string): void {
+  act(() => { playerSelect().value = value; playerSelect().dispatchEvent(new Event('change', { bubbles: true })); });
+}
 function choosePick(value: string): void {
   act(() => { slotSelect().value = value; slotSelect().dispatchEvent(new Event('change', { bubbles: true })); });
 }
 
-describe.each([false, true])('storage activation=%s', enabled => {
+describe.each([false, true])('durable workspace=%s', enabled => {
   beforeEach(async () => {
-    activation.enabled = enabled;
-    expect(STORAGE_ACTIVATION_ENABLED).toBe(enabled);
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     // Refresh is explicit so cross-tab notification scheduling cannot race the assertions.
@@ -88,7 +88,7 @@ describe.each([false, true])('storage activation=%s', enabled => {
       other = createDurableWorkspace({ database: otherDatabase, search: '', initialConnection });
       await other.ready;
     } else {
-      v1Store = createDraftStore({ storage: null });
+      v1Store = createDraftStore();
       workspace = createWorkspace({ draftStore: v1Store });
       await commit(['setConfig', { totalTeams: 4, totalRounds: 3, myPickPosition: 1, draftType: 'linear' }]);
       await commit(['setSessionMode', 'live']);
@@ -113,7 +113,7 @@ describe.each([false, true])('storage activation=%s', enabled => {
     expect(slotSelect().value).toBe(String(selected));
     expect(saveButton(correcting).disabled).toBe(false);
 
-    // ON uses another durable writer; OFF supplies the equivalent store notification.
+    // The durable case uses another durable writer; the in-memory case supplies the equivalent store notification.
     await act(async () => { expect(await elsewhereCommit(['recordProvisionalPick', pick(selected, elsewhere)])).toBe(true); });
     await act(async () => { saveButton(correcting).click(); await commit(['setSearchQuery', 'save drain']); });
 
@@ -132,6 +132,33 @@ describe.each([false, true])('storage activation=%s', enabled => {
     expect(document.querySelector('[role="alert"]')).toBeNull();
     await act(async () => { saveButton(correcting).click(); await commit(['setSearchQuery', 'save drain']); });
     expect(state().draftHistory.find(row => row.pickNumber === selected + 1)?.playerId).toBe(observed.id);
+    expect(close).toHaveBeenCalledWith(false);
+  });
+
+  it('requires an explicit new player when the selected player is recorded elsewhere', async () => {
+    const close = vi.fn();
+    act(() => { root.render(createElement(WorkspaceProvider, { workspace,
+      children: createElement(ProvisionalPickDialog, { open: true, onOpenChange: close, initialPlayerId: observed.id }) })); });
+    choosePick('1');
+    expect(playerSelect().value).toBe(observed.id);
+    expect(saveButton(false).disabled).toBe(false);
+
+    await act(async () => { expect(await elsewhereCommit(['recordProvisionalPick', pick(2, observed)])).toBe(true); });
+
+    expect(playerSelect().value).toBe('');
+    expect(playerSelect().getAttribute('aria-invalid')).toBe('true');
+    expect(saveButton(false).disabled).toBe(true);
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe(`${observed.name} was just recorded elsewhere. Choose a player.`);
+
+    // Unrelated updates cannot silently pick a substitute player.
+    await act(async () => { await commit(['setSearchQuery', 'another render']); });
+    expect(playerSelect().value).toBe('');
+
+    choosePlayer(replacement.id);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(saveButton(false).disabled).toBe(false);
+    await act(async () => { saveButton(false).click(); await commit(['setSearchQuery', 'save drain']); });
+    expect(state().draftHistory.find(row => row.pickNumber === 1)?.playerId).toBe(replacement.id);
     expect(close).toHaveBeenCalledWith(false);
   });
 

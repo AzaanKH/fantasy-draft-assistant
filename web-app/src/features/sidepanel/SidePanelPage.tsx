@@ -1,71 +1,39 @@
-import { toWholePercent, type Percent } from '@fantasy-draft/shared/units';
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY, RANKING_LABELS } from '@/lib/demo-mode';
-import {
-  POSITIONS,
-  type Player,
-  type Position,
-} from '@fantasy-draft/shared/league';
-import {
-  createSlotSequence,
-  type PositionNeed,
-  type Recommendation,
-} from '@fantasy-draft/shared/draft';
-import {
-  type DraftProvider,
-} from '@fantasy-draft/shared/sync';
+import { type Player } from '@fantasy-draft/shared/league';
+import { createSlotSequence, type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
+import { type DraftProvider } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
-import {
-  Check,
-  ChevronLeft,
-  ExternalLink,
-  GitCompareArrows,
-  Lightbulb,
-  Radio,
-  Shirt,
-  Target,
-} from 'lucide-react';
+import { Check, ChevronLeft, ExternalLink, Lightbulb, Radio, Target } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
-import { DecisionSwap, MotionIdentitySwap } from '@/components/motion';
+import { DecisionSwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { getPositionRecommendations } from '@/features/assistant/assistant-position-rankings';
-import { getPicksUntilMyTurn } from '@/features/draft-board/on-the-clock-utils';
+import { DraftTurnBanner } from '@/features/draft-room/DraftTurnBanner';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { ProviderIdentityBlockedNotice } from '@/features/draft-room/ProviderIdentityBlockedNotice';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import {
-  getPreferredRecommendation,
-  getRecommendationPolicyLabel,
-  type DraftDecisionView,
-  getRecommendationExplanation,
-  formatSignedNumber,
-} from '@fantasy-draft/shared/draft';
-import {
-  useDraftSync,
-  type DraftSyncViewState,
-} from '@/hooks/useDraftSync';
+import { getPreferredRecommendation, getRecommendationPolicyLabel, type DraftDecisionView, getRecommendationExplanation, formatSignedNumber } from '@fantasy-draft/shared/draft';
+import { useDraftSync, type DraftSyncViewState } from '@/hooks/useDraftSync';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
+import { receptionScoringLabel } from '@/lib/scoring-label';
 import { cn } from '@/lib/utils';
+import { getNextPickAvailability } from '@/lib/next-pick-availability';
 import { DraftSyncStatusIndicator } from '@/features/draft-room/DraftSyncStatusIndicator';
 import { SidePanelSlotControl } from './SidePanelSlotControl';
-import {
-  HERO_CARD,
-  PANEL_CARD,
-  PANEL_LABEL,
-  PositionFilters,
-  SidePanelFrame,
-  SidePanelHeader,
-  SidePanelNavigation,
-  SidePanelSkeleton,
-  STATUS_CARD,
-  type PositionFilter,
-  type SidePanelView,
-} from './SidePanelFrame';
-import { reconcileComparisonSelection } from './comparison-selection';
+import { HERO_CARD, PANEL_CARD, PANEL_LABEL, PositionFilters, SidePanelFrame, SidePanelHeader, SidePanelNavigation, SidePanelSkeleton, STATUS_CARD, STATUS_TURN_ROW, StatusCardAction, type PositionFilter, type SidePanelView } from './SidePanelFrame';
+import { reconcileComparisonSelection, resolveAssistantComparison } from './comparison-selection';
+import { getAvailabilityText, getSurvival, getMissingSurvivalText, getCompactDecisionExplanation, getAnswerHeadline, getNeedSlotSummary, getWaitAnswer } from './sidepanel-insights';
+import { getRecommendationVerdict } from '@/features/draft-room/suggestion-reasons';
+import { describeRosterFit } from '@/features/assistant/AssistantAnalysisPanel';
+import { getTurnStatus } from '@/features/draft-room/turn-status';
+import { RecommendationHero } from './SidePanelHero';
+import { ComparisonList } from './SidePanelComparisonList';
+import { RosterPressure, RosterPanel } from './SidePanelRoster';
 
 type AssistantLens = 'why' | 'compare' | 'wait' | 'roster';
 
@@ -81,69 +49,6 @@ function getProviderLabel(provider: DraftProvider): string {
   return 'ESPN';
 }
 
-function getSurvival(recommendation: Recommendation | undefined): Percent | null {
-  const probability = recommendation?.diagnostics?.nextPickSurvivalProbability;
-  return probability === undefined ? null : toWholePercent(probability);
-}
-
-function getCompactDecisionExplanation(
-  recommendation: Recommendation,
-  detailedExplanation: string
-): string {
-  const diagnostics = recommendation.diagnostics;
-  const timing = recommendation.decisionFactors?.draftTiming;
-  if (
-    diagnostics?.nextPickSurvivalProbability === undefined ||
-    timing?.nextPickNumber === undefined
-  ) {
-    return detailedExplanation;
-  }
-
-  const nextPick = timing.nextPickLabel ?? `#${String(timing.nextPickNumber)}`;
-  const fallback = timing.expectedAlternative
-    ? `${timing.expectedAlternative.playerName} is the expected ${recommendation.position} fallback.`
-    : `No same-position fallback is projected.`;
-  const changedBestPick = timing.materiallyChangedOrdering
-    ? ' That timing tradeoff changed Best Pick.'
-    : '';
-  return `${recommendation.playerName} is ${formatSignedNumber(diagnostics.valueOverReplacement, 0)} points above replacement with ${String(Math.round(diagnostics.nextPickSurvivalProbability * 100))}% Return Probability at pick ${nextPick}. ${fallback}${changedBestPick}`;
-}
-
-function getNeedLabel(need: PositionNeed): string {
-  if (need.priority === 'critical') return 'Critical';
-  if (need.priority === 'high') return 'High';
-  if (need.priority === 'medium') return 'Open';
-  return 'Later';
-}
-
-function getNeedDescription(need: PositionNeed): string {
-  if (need.priority === 'critical' || need.priority === 'high') return 'Need starter';
-  if (
-    need.priority === 'medium' &&
-    need.isFlexEligible &&
-    need.flexSlotsFilled < need.flexSlotsNeeded
-  ) return 'Open FLEX starter';
-  if (need.priority === 'medium') return 'Strong depth';
-  return 'Can wait';
-}
-
-function getNeedSlotSummary(need: PositionNeed): string {
-  const fixedSummary = `${String(need.startersFilled)} of ${String(need.startersNeeded)} fixed starter slots filled`;
-  if (!need.isFlexEligible || need.flexSlotsNeeded === 0) return fixedSummary;
-  return `${fixedSummary}; ${String(need.flexSlotsFilled)} of ${String(need.flexSlotsNeeded)} FLEX slots filled`;
-}
-
-function getPositionTextColor(position: Position): string {
-  return {
-    QB: 'text-red-500',
-    RB: 'text-emerald-600 dark:text-emerald-300',
-    WR: 'text-sky-600 dark:text-sky-300',
-    TE: 'text-amber-600 dark:text-amber-300',
-    K: 'text-violet-600 dark:text-violet-300',
-    DEF: 'text-slate-600 dark:text-slate-300',
-  }[position];
-}
-
 function useSidePanelSync(connection: SidePanelConnection) {
   const sync = useDraftSync(connection.provider, connection.draftId, true);
 
@@ -153,246 +58,29 @@ function useSidePanelSync(connection: SidePanelConnection) {
 function SidePanelStatus({
   connection,
   sync,
+  onOpenWorkspace,
 }: {
   readonly connection: SidePanelConnection;
   readonly sync: DraftSyncViewState;
+  /** A secondary action in the card's own footer, so it never floats above the header. */
+  readonly onOpenWorkspace?: (() => void) | undefined;
 }): React.ReactElement {
   const config = useDraftState((state) => state.config);
   const currentPick = useDraftView((view) => view.currentPick);
-  const picksUntilTurn = getPicksUntilMyTurn(
-    currentPick,
-    config.myPickPosition,
-    config.totalTeams,
-    config.totalRounds,
-    config.draftType
-  );
-
   return (
     <div className={STATUS_CARD}>
       <div className="flex h-14 min-w-0 flex-col justify-center gap-0.5 px-3">
         <span className="truncate font-semibold">{getProviderLabel(connection.provider)} draft</span>
-        <DraftSyncStatusIndicator sync={sync} compact className="text-[10px]" />
+        <DraftSyncStatusIndicator sync={sync} compact className="text-2xs" />
       </div>
-      <div className="flex h-14 items-center justify-center border-x border-border/70 px-2 font-mono text-muted-foreground">
+      <div className="flex h-14 items-center justify-center border-l border-border/70 px-4 font-mono text-muted-foreground" aria-label="Current pick">
         {createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(currentPick)}
       </div>
-      <div className="flex h-14 items-center justify-end px-3 text-right font-semibold text-emerald-700 dark:text-emerald-300">
-        {picksUntilTurn === 0
-          ? 'Your pick now'
-          : picksUntilTurn === null
-            ? 'Draft complete'
-            : `Your pick in ${String(picksUntilTurn)}`}
+      <div className={STATUS_TURN_ROW}>
+        <DraftTurnBanner variant="compact" className="w-full" />
       </div>
+      <StatusCardAction onOpenWorkspace={onOpenWorkspace} />
     </div>
-  );
-}
-
-function SignalValue({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}): React.ReactElement {
-  return (
-    <div className="min-w-0 px-2 text-center">
-      <div className="font-mono text-base font-bold text-emerald-700 dark:text-emerald-300">
-        {value}
-      </div>
-      <div className="mt-1 truncate text-[10px] text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
-function RecommendationHero({
-  decision,
-  player,
-  onCompare,
-  onAskWhy,
-}: {
-  readonly decision: DraftDecisionView;
-  readonly player?: Player;
-  readonly onCompare: () => void;
-  readonly onAskWhy: () => void;
-}): React.ReactElement {
-  const recommendation = decision.preferred ?? undefined;
-  if (!recommendation) {
-    return (
-      <section className="rounded-xl border border-border/80 bg-card p-5 text-center">
-        <h2 className="font-bold">No recommendation available</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Try another position or wait for the next synced pick.</p>
-      </section>
-    );
-  }
-
-  const diagnostics = recommendation.diagnostics;
-  const survival = getSurvival(recommendation);
-  const rank = decision.rankByPlayerId.get(recommendation.playerId);
-  const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
-  const explanation = getCompactDecisionExplanation(
-    recommendation,
-    detailedExplanation
-  );
-
-  return (
-    <section className={HERO_CARD}>
-      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-        Your best pick
-      </div>
-      <MotionIdentitySwap motionKey={recommendation.playerId}>
-        <div className="mt-3 flex items-center gap-3">
-          <PlayerHeadshot
-            playerId={recommendation.playerId}
-            name={recommendation.playerName}
-            position={recommendation.position}
-            className="size-20 rounded-xl border border-border/80"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xl font-bold">{recommendation.playerName}</div>
-            <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className={cn('font-mono font-bold', getPositionTextColor(recommendation.position))}>
-                {recommendation.position}
-              </span>
-              {player?.team ? <span>· {player.team}</span> : null}
-            </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              #{String(rank ?? 1)} {recommendation.position} option · {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)}
-            </div>
-          </div>
-        </div>
-      </MotionIdentitySwap>
-        <div className="mt-4 grid grid-cols-3 divide-x divide-border">
-          <SignalValue
-            label="VOR"
-            value={diagnostics ? formatSignedNumber(diagnostics.valueOverReplacement, 0) : '—'}
-          />
-          <SignalValue
-            label={diagnostics?.isLastInTier ? 'last in tier' : 'position tier'}
-            value={`Tier ${String(diagnostics?.tier ?? '—')}`}
-          />
-          <SignalValue
-            label={diagnostics?.nextPickLabel ? `at pick ${diagnostics.nextPickLabel}` : 'at next pick'}
-            value={survival === null ? '—' : `${String(survival)}%`}
-          />
-        </div>
-        <div className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-          <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-300" />
-          <div>{explanation}</div>
-        </div>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button onClick={onCompare}>
-          <GitCompareArrows className="size-4" /> Compare options
-        </Button>
-        <Button variant="outline" onClick={onAskWhy}>
-          <Lightbulb className="size-4" /> Ask why
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function ComparisonList({
-  decision,
-  playerById,
-  selectedIds,
-  onToggle,
-  onCompare,
-}: {
-  readonly decision: DraftDecisionView;
-  readonly playerById: ReadonlyMap<string, Player>;
-  readonly selectedIds: ReadonlySet<string>;
-  readonly onToggle: (playerId: string) => void;
-  readonly onCompare: () => void;
-}): React.ReactElement {
-  const recommendations = decision.recommendations;
-  const nextPickLabel = recommendations[0]?.diagnostics?.nextPickLabel;
-  return (
-    <section className={PANEL_CARD}>
-      <div className={PANEL_LABEL}>
-        Compare available
-      </div>
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_48px_40px_62px] px-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-        <span>Player</span><span>VOR</span><span>Tier</span><span>{nextPickLabel ? `Pick ${nextPickLabel}` : 'Next pick'}</span>
-      </div>
-      <div className="mt-1.5 space-y-1.5">
-        {recommendations.slice(0, 3).map((recommendation) => {
-          const player = playerById.get(recommendation.playerId);
-          const isSelected = selectedIds.has(recommendation.playerId);
-          const diagnostics = recommendation.diagnostics;
-          const survival = getSurvival(recommendation);
-          const rank = decision.rankByPlayerId.get(recommendation.playerId);
-          return (
-            <button
-              key={recommendation.playerId}
-              type="button"
-              aria-pressed={isSelected}
-              onClick={() => { onToggle(recommendation.playerId); }}
-              className={cn(
-                'grid w-full grid-cols-[minmax(0,1fr)_48px_40px_62px] items-center rounded-lg border px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                isSelected ? 'border-emerald-500/70 bg-emerald-500/[0.06]' : 'border-border/70 hover:bg-muted/35'
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <span className={cn(
-                  'flex size-4 shrink-0 items-center justify-center rounded-full border',
-                  isSelected ? 'border-emerald-500' : 'border-muted-foreground'
-                )}>
-                  {isSelected ? <span className="size-2 rounded-full bg-emerald-500" /> : null}
-                </span>
-                <PlayerHeadshot
-                  playerId={recommendation.playerId}
-                  name={recommendation.playerName}
-                  position={recommendation.position}
-                  className="size-9 rounded-lg"
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-[11px] font-bold">{recommendation.playerName}</span>
-                  <span className={cn('mt-0.5 block text-[9px] font-mono', getPositionTextColor(recommendation.position))}>
-                    #{String(rank ?? '—')} · {recommendation.position}{player?.team ? ` · ${player.team}` : ''}
-                  </span>
-                </span>
-              </span>
-              <span className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                {diagnostics ? formatSignedNumber(diagnostics.valueOverReplacement, 0) : '—'}
-              </span>
-              <span className="font-mono text-[11px]">T{String(diagnostics?.tier ?? '—')}</span>
-              <span className="text-right font-mono text-[11px]">{survival === null ? '—' : `${String(survival)}%`}</span>
-            </button>
-          );
-        })}
-      </div>
-      <Button className="mt-3 w-full" disabled={selectedIds.size !== 2} onClick={onCompare}>
-        Compare {String(selectedIds.size)} players
-      </Button>
-    </section>
-  );
-}
-
-function RosterPressure({ needs }: { readonly needs: readonly PositionNeed[] }): React.ReactElement {
-  const rankedNeeds = [...needs]
-    .sort((left, right) => {
-      const order = { critical: 0, high: 1, medium: 2, low: 3, defer: 4, filled: 5 } as const;
-      return order[left.priority] - order[right.priority];
-    })
-    .slice(0, 3);
-
-  return (
-    <section className={PANEL_CARD}>
-      <div className={PANEL_LABEL}>
-        Roster pressure
-      </div>
-      <div className="mt-3 grid grid-cols-3 divide-x divide-border">
-        {rankedNeeds.map((need) => (
-          <div key={need.position} className="px-2 text-center">
-            <div className={cn('text-xs font-bold', getPositionTextColor(need.position))}>
-              {need.position} {getNeedLabel(need)}
-            </div>
-            <div className="mt-1 text-[10px] text-muted-foreground">{getNeedDescription(need)}</div>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -405,7 +93,8 @@ function HeadToHead({
   readonly recommendations: readonly Recommendation[];
   readonly decision: DraftDecisionView;
   readonly playerById: ReadonlyMap<string, Player>;
-  readonly onAskWhy: () => void;
+  /** Receives the player with the edge and the player it was compared against. */
+  readonly onAskWhy: (preferred: Recommendation, other: Recommendation) => void;
 }): React.ReactElement {
   const [first, second] = recommendations;
   if (!first || !second) {
@@ -416,9 +105,9 @@ function HeadToHead({
   const secondDiagnostics = second.diagnostics;
   const rows = [
     ['Recommendation rank', `#${String(decision.rankByPlayerId.get(first.playerId) ?? '—')}`, `#${String(decision.rankByPlayerId.get(second.playerId) ?? '—')}`],
-    ['Value over replacement', firstDiagnostics ? formatSignedNumber(firstDiagnostics.valueOverReplacement, 0) : '—', secondDiagnostics ? formatSignedNumber(secondDiagnostics.valueOverReplacement, 0) : '—'],
+    ['Pts over a fill-in starter', firstDiagnostics ? formatSignedNumber(firstDiagnostics.valueOverReplacement, 0) : '—', secondDiagnostics ? formatSignedNumber(secondDiagnostics.valueOverReplacement, 0) : '—'],
     ['Position tier', `Tier ${String(firstDiagnostics?.tier ?? '—')}`, `Tier ${String(secondDiagnostics?.tier ?? '—')}`],
-    ['At your next pick', getSurvival(first) === null ? '—' : `${String(getSurvival(first))}%`, getSurvival(second) === null ? '—' : `${String(getSurvival(second))}%`],
+    ['At your next pick', getAvailabilityText(first), getAvailabilityText(second)],
     [`Overall ${RANKING_LABELS.short}`, `#${String(firstDiagnostics?.expertRank ?? '—')}`, `#${String(secondDiagnostics?.expertRank ?? '—')}`],
   ] as const;
   const firstPlayer = playerById.get(first.playerId);
@@ -431,7 +120,7 @@ function HeadToHead({
     <>
       <div key={`${first.playerId}:${second.playerId}`}>
         <section className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
-          <div className="border-b border-border/70 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          <div className="border-b border-border/70 px-4 py-3 text-2xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Head-to-head
           </div>
           <div className="grid grid-cols-[1.15fr_1fr_1fr] border-b border-border/70">
@@ -444,38 +133,38 @@ function HeadToHead({
                   position={recommendation.position}
                   className="mx-auto size-12 rounded-lg"
                 />
-                <div className="mt-2 truncate text-[11px] font-bold">{recommendation.playerName}</div>
-                <div className="mt-0.5 text-[9px] text-muted-foreground">{recommendation.position}{player?.team ? ` · ${player.team}` : ''}</div>
+                <div className="mt-2 truncate text-2xs font-bold">{recommendation.playerName}</div>
+                <div className="mt-0.5 text-2xs text-muted-foreground">{recommendation.position}{player?.team ? ` · ${player.team}` : ''}</div>
               </div>
             ))}
           </div>
           {rows.map(([label, firstValue, secondValue]) => (
-            <div key={label} className="grid grid-cols-[1.15fr_1fr_1fr] border-b border-border/70 text-[11px] last:border-b-0">
+            <div key={label} className="grid grid-cols-[1.15fr_1fr_1fr] border-b border-border/70 text-2xs last:border-b-0">
               <div className="px-3 py-2.5 text-muted-foreground">{label}</div>
               <div className={cn(
                 'border-l border-border/70 px-2 py-2.5 text-center font-mono',
-                preferred.playerId === first.playerId && 'font-bold text-emerald-700 dark:text-emerald-300'
+                preferred.playerId === first.playerId && 'font-bold text-success'
               )}>{firstValue}</div>
               <div className={cn(
                 'border-l border-border/70 px-2 py-2.5 text-center font-mono',
-                preferred.playerId === second.playerId && 'font-bold text-emerald-700 dark:text-emerald-300'
+                preferred.playerId === second.playerId && 'font-bold text-success'
               )}>{secondValue}</div>
             </div>
           ))}
         </section>
-        <section className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+        <section className="mt-3 rounded-xl border border-success/30 bg-success/[0.07] p-4">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-success">
             <Target className="size-4" /> Edge: {preferred.playerName}
           </div>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {preferredExplanation}
           </p>
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mt-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
             {getRecommendationPolicyLabel(decision.selection, DRAFT_DISPLAY)} policy · rank #{String(decision.rankByPlayerId.get(preferred.playerId) ?? '—')}
           </p>
         </section>
       </div>
-      <Button className="w-full" onClick={onAskWhy}>
+      <Button className="w-full" onClick={() => { onAskWhy(preferred, preferred.playerId === first.playerId ? second : first); }}>
         <Lightbulb className="size-4" /> Ask why
       </Button>
     </>
@@ -484,47 +173,55 @@ function HeadToHead({
 
 function AssistantPanel({
   decision,
+  focus,
   comparison,
   needs,
 }: {
   readonly decision: DraftDecisionView;
+  /** A specific player to explain, such as the winner of a head-to-head; defaults to the preferred pick. */
+  readonly focus?: Recommendation;
   readonly comparison?: Recommendation;
   readonly needs: readonly PositionNeed[];
 }): React.ReactElement {
   const [lens, setLens] = React.useState<AssistantLens>('why');
-  const recommendation = decision.preferred ?? undefined;
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const onClock = getTurnStatus({ currentPick, myPickPosition: config.myPickPosition, totalTeams: config.totalTeams, totalRounds: config.totalRounds, draftType: config.draftType }).kind === 'on-clock';
+  const recommendation = focus ?? decision.preferred ?? undefined;
+  const explainsComparison = focus !== undefined && focus.playerId !== decision.preferred?.playerId;
   if (!recommendation) {
     return <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No player is available to analyze.</div>;
   }
 
   const diagnostics = recommendation.diagnostics;
   const survival = getSurvival(recommendation);
+  // The one verdict the cards and the Assistant use, so the side panel never decides on its own thresholds.
+  const verdict = getRecommendationVerdict(recommendation);
+  const finalPick = getNextPickAvailability(diagnostics).kind === 'no-next-pick';
   const expectedAlternative = recommendation.decisionFactors?.draftTiming.expectedAlternative
     ?? diagnostics?.expectedNextPickAlternative;
   const need = needs.find((item) => item.position === recommendation.position);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
     ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
-  const explanation = getCompactDecisionExplanation(
-    recommendation,
-    detailedExplanation
-  );
+  const explanation = getCompactDecisionExplanation(recommendation) ?? detailedExplanation;
   const reasons = [
-    diagnostics ? `${formatSignedNumber(diagnostics.valueOverReplacement, 0)} points above replacement` : recommendation.reason,
+    // The raw reason's later parts are model terms; its first part is the plain label the decision bar also uses.
+    diagnostics ? `${formatSignedNumber(diagnostics.valueOverReplacement, 0)} pts over a fill-in starter` : recommendation.reason.split(' · ')[0] ?? recommendation.reason,
     diagnostics?.isLastInTier
       ? `Last remaining player in ${recommendation.position} Tier ${String(diagnostics.tier)}`
       : `${String(diagnostics?.tierRemaining ?? 'Several')} players remain in Tier ${String(diagnostics?.tier ?? '—')}`,
-    survival === null ? 'Availability is still calculating' : `Waiting risks a ${String(100 - survival)}% miss chance`,
+    verdict ? `${verdict.label}: ${verdict.reason}` : getMissingSurvivalText(recommendation, 'Availability is still calculating'),
   ];
 
   return (
     <>
       <DecisionSwap motionKey={recommendation.playerId}>
         <section className={HERO_CARD}>
-          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
+          <div className="text-2xs font-bold uppercase tracking-[0.12em] text-success">
             Assistant answer
           </div>
           <h2 className="mt-2 text-xl font-bold leading-tight">
-            {survival !== null && survival < 50 ? `Take ${recommendation.playerName} if available.` : `${recommendation.playerName} is the best current option.`}
+            {getAnswerHeadline({ name: recommendation.playerName, verdict, onClock, explainsComparison })}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {explanation}
@@ -544,8 +241,8 @@ function AssistantPanel({
             aria-pressed={lens === id}
             onClick={() => { setLens(id); }}
             className={cn(
-              'min-h-12 border-r border-border/70 px-1 text-[10px] font-semibold last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              lens === id ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground hover:bg-muted/40'
+              'min-h-12 border-r border-border/70 px-1 text-2xs font-semibold last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              lens === id ? 'bg-success/10 text-success' : 'text-muted-foreground hover:bg-muted/40'
             )}
           >
             {label}
@@ -556,11 +253,11 @@ function AssistantPanel({
         <div key={`${lens}:${recommendation.playerId}:${comparison?.playerId ?? 'none'}`}>
           {lens === 'why' ? (
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">Why this player?</h3>
+              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-success">Why this player?</h3>
               <div className="mt-3 space-y-3">
                 {reasons.map((reason) => (
                   <div key={reason} className="flex gap-2 border-b border-border/60 pb-3 text-sm last:border-b-0 last:pb-0">
-                    <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-300" />
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" />
                     <span>{reason}</span>
                   </div>
                 ))}
@@ -568,84 +265,42 @@ function AssistantPanel({
             </div>
           ) : lens === 'compare' ? (
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">Quick comparison</h3>
+              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-success">Quick comparison</h3>
               {comparison ? (
                 <div className="mt-3 overflow-hidden rounded-lg border border-border/70 text-xs">
                   <div className="grid grid-cols-3 bg-muted/30 px-3 py-2 font-bold"><span>Signal</span><span>{recommendation.playerName}</span><span>{comparison.playerName}</span></div>
-                  <div className="grid grid-cols-3 border-t px-3 py-2"><span className="text-muted-foreground">VOR</span><span className="font-mono text-emerald-700 dark:text-emerald-300">{diagnostics ? formatSignedNumber(diagnostics.valueOverReplacement, 0) : '—'}</span><span className="font-mono">{comparison.diagnostics ? formatSignedNumber(comparison.diagnostics.valueOverReplacement, 0) : '—'}</span></div>
+                  <div className="grid grid-cols-3 border-t px-3 py-2"><span className="text-muted-foreground">Over fill-in</span><span className="font-mono text-success">{diagnostics ? formatSignedNumber(diagnostics.valueOverReplacement, 0) : '—'}</span><span className="font-mono">{comparison.diagnostics ? formatSignedNumber(comparison.diagnostics.valueOverReplacement, 0) : '—'}</span></div>
                   <div className="grid grid-cols-3 border-t px-3 py-2"><span className="text-muted-foreground">Tier</span><span className="font-mono">{String(diagnostics?.tier ?? '—')}</span><span className="font-mono">{String(comparison.diagnostics?.tier ?? '—')}</span></div>
                 </div>
               ) : <p className="mt-3 text-sm text-muted-foreground">Select a second player in Compare.</p>}
             </div>
           ) : lens === 'wait' ? (
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">Can I wait?</h3>
-              <p className="mt-3 text-lg font-bold">{survival === null ? 'Still calculating' : `${String(survival)}% at pick ${diagnostics?.nextPickLabel ?? 'next'}`}</p>
+              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-success">Can I wait?</h3>
+              <p className="mt-3 text-lg font-bold">{survival === null ? getMissingSurvivalText(recommendation, 'Still calculating') : `${String(survival)}% at pick ${diagnostics?.nextPickLabel ?? 'next'}`}</p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {survival !== null && survival < 35 ? 'Waiting is high risk.' : 'The board carries meaningful uncertainty.'}
+                {getWaitAnswer(verdict, finalPick)}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {expectedAlternative
-                  ? `${expectedAlternative.playerName} is the expected ${recommendation.position} fallback at ${formatSignedNumber(expectedAlternative.expectedValue, 0)} expected points above replacement.`
+                  ? `${expectedAlternative.playerName} is the expected ${recommendation.position} fallback at ${formatSignedNumber(expectedAlternative.expectedValue, 0)} expected pts over a fill-in starter.`
                   : `No same-position fallback is projected for that selection.`}
               </p>
               {diagnostics?.survivalModelSource === 'league-history' ? (
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-2xs leading-relaxed text-muted-foreground">
                   Timing evidence: 70% Primary League history, 25% current consensus, 5% Sleeper search rank.
                 </p>
               ) : null}
             </div>
           ) : (
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">Roster need</h3>
-              <p className="mt-3 text-lg font-bold">{recommendation.position} is {need ? getNeedLabel(need).toLowerCase() : 'an open need'}.</p>
+              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-success">Roster need</h3>
+              <p className="mt-3 text-lg font-bold">{need ? `${describeRosterFit(need)}.` : `No roster data for ${recommendation.position} yet.`}</p>
               <p className="mt-2 text-sm text-muted-foreground">{need ? `${getNeedSlotSummary(need)}.` : 'Roster context is unavailable.'}</p>
             </div>
           )}
         </div>
       </section>
-    </>
-  );
-}
-
-function RosterPanel({
-  playerById,
-  needs,
-}: {
-  readonly playerById: ReadonlyMap<string, Player>;
-  readonly needs: readonly PositionNeed[];
-}): React.ReactElement {
-  const roster = useDraftView((view) => view.myRoster);
-  const config = useDraftState((state) => state.config);
-
-  return (
-    <>
-      <section className={HERO_CARD}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-bold">My roster</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Draft slot {String(config.myPickPosition)}</p>
-          </div>
-          <Shirt className="size-5 text-emerald-600 dark:text-emerald-300" />
-        </div>
-        <div className="mt-4 space-y-2">
-          {POSITIONS.map((position) => {
-            const playerIds = roster[position];
-            return (
-              <div key={position} className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border/70 px-3 py-2.5">
-                <span className={cn('font-mono text-xs font-bold', getPositionTextColor(position))}>{position}</span>
-                <span className="min-w-0 text-xs text-muted-foreground">
-                  {playerIds.length === 0
-                    ? 'Open'
-                    : playerIds.map((playerId) => playerById.get(playerId)?.name ?? 'Unknown').join(', ')}
-                </span>
-                <span className="font-mono text-[10px] text-muted-foreground">{String(playerIds.length)} / {String(config.rosterRequirements[position].max)}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      <RosterPressure needs={needs} />
     </>
   );
 }
@@ -657,9 +312,8 @@ export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: 
   const sync = useSidePanelSync(connection);
   return (
     <RouteErrorBoundary>
-        {STORAGE_ACTIVATION_ENABLED && onOpenWorkspace ? <Button className="m-3" onClick={onOpenWorkspace}>Open local workspace</Button> : null}
       <SidePanelSlotControl />
-      <SidePanelContent connection={connection} sync={sync} />
+      <SidePanelContent connection={connection} sync={sync} onOpenWorkspace={onOpenWorkspace} />
     </RouteErrorBoundary>
   );
 }
@@ -667,13 +321,20 @@ export function SidePanelPage({ onOpenWorkspace }: { readonly onOpenWorkspace?: 
 function SidePanelContent({
   connection,
   sync,
+  onOpenWorkspace,
 }: {
   readonly connection: SidePanelConnection;
   readonly sync: ReturnType<typeof useSidePanelSync>;
+  readonly onOpenWorkspace?: (() => void) | undefined;
 }): React.ReactElement {
   const [view, setView] = React.useState<SidePanelView>('draft');
   const [positionFilter, setPositionFilter] = React.useState<PositionFilter>('ALL');
   const [selectedPlayerIds, setSelectedPlayerIds] = React.useState<readonly string[] | null>(null);
+  // Set by Compare's "Ask why" so the Assistant explains the compared players, not the global top pick.
+  const [assistantFocus, setAssistantFocus] = React.useState<{ readonly playerId: string; readonly playerName: string; readonly comparisonId: string; readonly comparisonName: string } | null>(null);
+  // Why the Assistant stopped explaining the focused player, so the fallback to the top pick is never silent.
+  const [lostFocusNotice, setLostFocusNotice] = React.useState<string | null>(null);
+  const draftedPlayerIds = useDraftView((view) => view.draftedPlayerIds);
   const decision = useDraftDecision();
   const { players, isLoading, isError } = usePlayerDataQuery();
   const { needs } = useTeamNeeds();
@@ -714,9 +375,30 @@ function SidePanelContent({
     const recommendation = recommendations.find((item) => item.playerId === playerId);
     return recommendation ? [recommendation] : [];
   });
-  const comparisonRecommendation = selectedRecommendations.find(
-    (recommendation) => recommendation.playerId !== topRecommendation?.playerId
-  ) ?? recommendations.find((recommendation) => recommendation.playerId !== topRecommendation?.playerId);
+
+  const focusedRecommendation = assistantFocus
+    ? recommendations.find((recommendation) => recommendation.playerId === assistantFocus.playerId)
+    : undefined;
+  const assistantComparison = resolveAssistantComparison({
+    subject: focusedRecommendation ?? topRecommendation,
+    requested: focusedRecommendation && assistantFocus ? { playerId: assistantFocus.comparisonId, playerName: assistantFocus.comparisonName } : null,
+    selected: selectedRecommendations,
+    recommendations,
+    isDrafted: (playerId) => draftedPlayerIds.has(playerId),
+  });
+  React.useEffect(() => {
+    // Recommendations are empty while loading; only a loaded list that lacks the player means it left.
+    if (!assistantFocus || focusedRecommendation || recommendations.length === 0) return;
+    setLostFocusNotice(draftedPlayerIds.has(assistantFocus.playerId)
+      ? `${assistantFocus.playerName} was drafted. Showing the current top pick instead.`
+      : `${assistantFocus.playerName} is no longer in this list. Showing the current top pick instead.`);
+    setAssistantFocus(null);
+  }, [assistantFocus, draftedPlayerIds, focusedRecommendation, recommendations.length]);
+  const showView = React.useCallback((next: SidePanelView): void => {
+    setAssistantFocus(null);
+    setLostFocusNotice(null);
+    setView(next);
+  }, []);
 
   const toggleSelectedPlayer = React.useCallback((playerId: string): void => {
     setSelectedPlayerIds((selection) => {
@@ -734,12 +416,10 @@ function SidePanelContent({
   }, []);
 
   if (isLoading || decision.isLoading) {
-    return <SidePanelSkeleton />;
+    return <SidePanelSkeleton onOpenWorkspace={onOpenWorkspace} />;
   }
 
-  if (isError) {
-    return <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-center text-sm text-destructive">Unable to load player data.</main>;
-  }
+  if (isError) return <SidePanelDataError status={<SidePanelStatus connection={connection} sync={sync} onOpenWorkspace={onOpenWorkspace} />} />;
 
   return (
     <SidePanelFrame
@@ -749,7 +429,7 @@ function SidePanelContent({
             <button
               type="button"
               aria-label="Return to Draft"
-              onClick={() => { setView('draft'); }}
+              onClick={() => { showView('draft'); }}
               className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ChevronLeft className="size-5" />
@@ -757,19 +437,19 @@ function SidePanelContent({
           )}
           title={view === 'draft' ? 'Fantasy Draft' : view === 'compare' ? 'Compare players' : view === 'assistant' ? 'Assistant' : 'My roster'}
           subtitle={view === 'draft' && leagueSettings.source === 'espn' ? (
-            <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-              {String(leagueSettings.totalTeams)}-team PPR · {leagueSettings.keepersEnabled ? 'keepers' : 'no keepers'}
+            <div className="mt-0.5 truncate text-2xs text-muted-foreground">
+              {String(leagueSettings.totalTeams)}-team {receptionScoringLabel(leagueSettings.scoringRules.receiving.reception)} · {leagueSettings.keepersEnabled ? 'keepers' : 'no keepers'}
             </div>
           ) : view !== 'draft' ? (
-            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300">
+            <div className="mt-0.5 flex items-center gap-1 text-2xs text-success">
               <Radio className="size-2.5" /> Live decision state
             </div>
           ) : null}
         />
       )}
-      navigation={<SidePanelNavigation view={view} onChange={setView} />}
+      navigation={<SidePanelNavigation view={view} onChange={showView} />}
     >
-      <SidePanelStatus connection={connection} sync={sync} />
+      <SidePanelStatus connection={connection} sync={sync} onOpenWorkspace={onOpenWorkspace} />
       {(view === 'draft' || view === 'compare') && !showRecommendationBlock ? (
         <PositionFilters
           value={positionFilter}
@@ -801,15 +481,15 @@ function SidePanelContent({
             <RecommendationHero
               decision={activeDecision}
               player={topRecommendation ? playerById.get(topRecommendation.playerId) : undefined}
-              onCompare={() => { setView('compare'); }}
-              onAskWhy={() => { setView('assistant'); }}
+              onCompare={() => { showView('compare'); }}
+              onAskWhy={() => { showView('assistant'); }}
             />
             <ComparisonList
               decision={activeDecision}
               playerById={playerById}
               selectedIds={new Set(selectedPlayerIds)}
               onToggle={toggleSelectedPlayer}
-              onCompare={() => { setView('compare'); }}
+              onCompare={() => { showView('compare'); }}
             />
             <RosterPressure needs={needs} />
             <Button variant="outline" className="w-full" onClick={openFullDraftRoom}>
@@ -822,7 +502,11 @@ function SidePanelContent({
               recommendations={selectedRecommendations}
               decision={activeDecision}
               playerById={playerById}
-              onAskWhy={() => { setView('assistant'); }}
+              onAskWhy={(preferred, other) => {
+                setLostFocusNotice(null);
+                setAssistantFocus({ playerId: preferred.playerId, playerName: preferred.playerName, comparisonId: other.playerId, comparisonName: other.playerName });
+                setView('assistant');
+              }}
             />
             <div className={PANEL_CARD}>
               <div className={PANEL_LABEL}>
@@ -833,23 +517,53 @@ function SidePanelContent({
                 playerById={playerById}
                 selectedIds={new Set(selectedPlayerIds)}
                 onToggle={toggleSelectedPlayer}
-                onCompare={() => undefined}
               />
             </div>
-            <Button variant="outline" className="w-full" onClick={() => { setView('draft'); }}>
+            <Button variant="outline" className="w-full" onClick={() => { showView('draft'); }}>
               <ChevronLeft className="size-4" /> Return to Draft
             </Button>
           </>
         ) : view === 'assistant' ? (
-          <AssistantPanel
-            decision={activeDecision}
-            comparison={comparisonRecommendation}
-            needs={needs}
-          />
+          <>
+            {lostFocusNotice ?? assistantComparison.notice ? (
+              <p role="status" className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-xs font-semibold text-warning">{lostFocusNotice ?? assistantComparison.notice}</p>
+            ) : null}
+            <AssistantPanel
+              decision={activeDecision}
+              focus={focusedRecommendation}
+              comparison={assistantComparison.comparison}
+              needs={needs}
+            />
+          </>
         ) : (
           <RosterPanel playerById={playerById} needs={needs} />
         )}
       </div>
+    </SidePanelFrame>
+  );
+}
+
+/**
+ * Player data failed to load: the panel keeps its header and status card (with Open local workspace in its footer),
+ * and the error and Retry take the recommendation's place. Retry refetches the failed requests without a reload.
+ */
+function SidePanelDataError({ status }: { readonly status: React.ReactNode }): React.ReactElement {
+  const queryClient = useQueryClient();
+  const [retrying, setRetrying] = React.useState(false);
+  return (
+    <SidePanelFrame header={<SidePanelHeader title="Fantasy Draft" />} navigation={<SidePanelNavigation view="draft" />}>
+      {status}
+      <section className={PANEL_CARD} data-panel-error="">
+        <p role="alert" className="text-sm font-semibold text-danger">Unable to load player data.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Recommendations return once the data loads.</p>
+        <Button size="sm" variant="outline" className="mt-3" disabled={retrying} aria-busy={retrying || undefined}
+          onClick={() => {
+            setRetrying(true);
+            void queryClient.refetchQueries({ type: 'active' }).finally(() => { setRetrying(false); });
+          }}>
+          {retrying ? 'Retrying…' : 'Retry'}
+        </Button>
+      </section>
     </SidePanelFrame>
   );
 }

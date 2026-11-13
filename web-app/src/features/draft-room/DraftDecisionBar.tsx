@@ -1,5 +1,6 @@
 import { useDraftView } from '@/workspace/useDraftView';
 import * as React from 'react';
+import { PositionLabel } from '@/components/PositionLabel';
 import { ArrowRight, Check, ListPlus } from 'lucide-react';
 import { MotionFade } from '@/components/motion';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,34 @@ import { useDraftDecision } from '@/features/recommendations/DraftDecisionContex
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueueActions } from '@/hooks/useQueueActions';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
+import { ProvisionalPickDialog } from './ProvisionalPickDialog';
+import { useSuggestionActions } from './useSuggestionActions';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
+
+/**
+ * Draft on your turn in a mock, Record pick during Manual Continuity: the strip's one-step action for its own
+ * recommendation, with the cards' rules and pick lock. It renders no inline failure (the strip stays one line), so
+ * it registers no failure reporter and a failed save reaches the workspace notice with Retry.
+ */
+function BestPickAction({ bestPick }: { readonly bestPick: Recommendation }): React.ReactElement | null {
+  const picks = React.useMemo(() => [bestPick], [bestPick]);
+  const { actionById, draft, actOnSuggestion, recordPlayerId, setRecordPlayerId } = useSuggestionActions(picks, 'external');
+  const action = actionById.get(bestPick.playerId);
+  if (action !== 'draft' && action !== 'record') return null;
+  const pending = draft.draftStatus?.state === 'pending' && draft.draftStatus.playerId === bestPick.playerId;
+  return (
+    <>
+      <Button size="sm" className="draft-best-pick-draft" disabled={draft.pickInFlight} aria-busy={pending || undefined}
+        aria-label={action === 'draft' ? `Draft ${bestPick.playerName}` : `Record ${bestPick.playerName} as a provisional pick`}
+        onClick={() => { actOnSuggestion(0); }}>
+        {pending ? 'Saving…' : action === 'draft' ? 'Draft' : 'Record pick'}
+      </Button>
+      {recordPlayerId ? (
+        <ProvisionalPickDialog open initialPlayerId={recordPlayerId} onOpenChange={(open) => { if (!open) setRecordPlayerId(null); }} />
+      ) : null}
+    </>
+  );
+}
 
 export function DraftDecisionBar({
   onOpenAssistant,
@@ -61,14 +90,15 @@ export function DraftDecisionBar({
         <MotionFade motionKey={bestPick.playerId} className="draft-best-pick-recommendation">
           <div className="draft-best-pick-identity">
             <strong title={bestPick.playerName}>{bestPick.playerName}</strong>
-            <span>{bestPick.position}</span>
+            <PositionLabel position={bestPick.position} />
           </div>
           <p title={reason}>{reason}</p>
         </MotionFade>
       </div>
       <div className="draft-best-pick-actions">
+        <BestPickAction bestPick={bestPick} />
         <Button variant={isQueued ? 'secondary' : 'outline'} size="sm" className="draft-best-pick-queue" aria-pressed={isQueued}
-          aria-label={isQueued ? `Remove ${bestPick.playerName} from the local queue` : `Add ${bestPick.playerName} to the local queue`}
+          aria-label={isQueued ? `Remove ${bestPick.playerName} from queue` : `Add ${bestPick.playerName} to queue`}
           onClick={() => { togglePlayerQueued(bestPick.playerId); }}>
           {isQueued ? <Check className="size-4" /> : <ListPlus className="size-4" />}
           {isQueued ? 'Queued' : 'Queue'}

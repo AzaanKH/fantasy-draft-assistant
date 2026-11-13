@@ -23,8 +23,9 @@ vi.mock('@/workspace/WorkspaceProvider', async (importOriginal) => ({
   useConnectionState: (selector: (state: typeof setup) => unknown) => selector(setup),
 }));
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
+const data = vi.hoisted(() => ({ playersLoading: false, readinessPending: false }));
 vi.mock('./usePlayerData', () => ({
-  usePlayerDataQuery: () => ({ players: catalog, isLoading: false, dataInfo: {} }),
+  usePlayerDataQuery: () => ({ players: catalog, isLoading: data.playersLoading, isReadinessPending: data.readinessPending, dataInfo: {} }),
 }));
 vi.mock('./useTeamNeeds', () => ({
   useTeamNeeds: () => ({ needs: [], isLoading: false }),
@@ -69,8 +70,10 @@ beforeEach(() => {
   setup.connection = null;
   enabled = true;
   queryLoading = false;
+  data.playersLoading = false;
+  data.readinessPending = false;
   cachedModel = model;
-  store = createDraftStore({ storage: null });
+  store = createDraftStore();
   store.getState().applyLeagueSettings(createQuickMockSettings());
   store.getState().setConfig({ totalTeams: 12, totalRounds: 15, myPickPosition: 1 });
   vi.mocked(useQuery).mockImplementation(((options: typeof queryOptions) => {
@@ -140,6 +143,32 @@ describe('recommendation timing by league profile', () => {
     expect(queryOptions.enabled).toBe(false);
     expect(result.isLoading).toBe(false);
     expect(result.topPick).toBeNull();
+  });
+});
+
+describe('loading while recommendations are disabled', () => {
+  // Readiness reads pending sources as missing, which disables recommendations before any request settles (F3).
+  it('reports loading, not a settled block, while player or readiness data is still pending', () => {
+    enabled = false;
+    data.readinessPending = true;
+    render();
+    expect(result.isLoading).toBe(true);
+    data.readinessPending = false;
+    data.playersLoading = true;
+    render();
+    expect(result.isLoading).toBe(true);
+  });
+
+  it('stops loading once every request settles, so a real failure can show its notice', () => {
+    enabled = false;
+    render();
+    expect(result.isLoading).toBe(false);
+  });
+
+  it('ignores optional readiness requests once recommendations are enabled', () => {
+    data.readinessPending = true;
+    render();
+    expect(result.isLoading).toBe(false);
   });
 });
 

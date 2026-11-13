@@ -24,7 +24,7 @@ export async function rootSmokeEvidence() {
   };
   for (const label of Object.keys(ROOT_SMOKE_PLAN)) {
     const scenario = { label, steps: ROOT_SMOKE_PLAN[label].flatMap(([kind, count]) => Array.from({ length: count }, (_, i) => ({ kind, sample: i + 1 }))),
-      activation: { completed: true, readOnlyBeforeConfirm: true, importedAll: true, tombstoneBefore: false, tombstoneAfter: true, buttonDisabledBeforeCheckbox: true, v1RetainedByteIdentical: true },
+      activation: { completed: true, importedAll: true, tombstoneBefore: false, tombstoneAfter: true, v1RetainedByteIdentical: true },
       v1AtActivation: [], v1FinalSnapshot: [], runs: [], pickConflicts: [], moveConflicts: [], bursts: {} };
     for (let sample = 1; sample <= 20; sample++) {
       const session = `conflict-${sample}`;

@@ -15,12 +15,16 @@ import * as React from 'react';
 
 const PositionalDepthChart = React.lazy(() => import('./PositionalDepthChart'));
 
-export function CalculationDetails({ explanation }: { readonly explanation: string }): React.ReactElement {
+/**
+ * The model's own reasoning in plain words, collapsed under the answer. A card's "Full reasoning" opens the Why tab
+ * with it expanded, so the card itself never grows.
+ */
+export function CalculationDetails({ explanation, defaultOpen = false }: { readonly explanation: string; readonly defaultOpen?: boolean }): React.ReactElement {
   return (
-    <details className="rec-details group">
+    <details className="rec-details" open={defaultOpen || undefined} data-full-reasoning="">
       <summary>
-        Show calculation
-        <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+        Full reasoning
+        <ChevronDown className="size-4" aria-hidden="true" />
       </summary>
       <p className="motion-expandable">{explanation}</p>
     </details>
@@ -50,16 +54,18 @@ function AnswerRows({ rows }: { readonly rows: readonly AssistantAnswerRow[] }):
   );
 }
 
-export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredExplanation }: {
+export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredExplanation, expandReasoning = 0 }: {
   readonly recommendation: Recommendation;
   readonly isTopPick: boolean;
   readonly positionRank?: number;
   readonly preferredExplanation?: string;
+  /** A card's Full reasoning request (0 for none); each new request remounts the disclosure open. */
+  readonly expandReasoning?: number;
 }): React.ReactElement {
   return (
     <div>
       <AnswerRows rows={getWhyRows(recommendation, isTopPick, positionRank, DRAFT_DISPLAY)} />
-      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY)} />
+      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY)} key={expandReasoning} defaultOpen={expandReasoning > 0} />
     </div>
   );
 }

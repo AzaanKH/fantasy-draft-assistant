@@ -6,6 +6,12 @@ import { pathToFileURL } from 'node:url';
 import type { Position } from '@fantasy-draft/shared/league';
 import type { RosterRequirements } from '@fantasy-draft/shared/league';
 import {
+  applyPositionTiers,
+  getRecommendations,
+  type RecommendationContext,
+} from '@fantasy-draft/shared/draft';
+import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
+import {
   PICK_EV_MIN_OVERRIDE_ADVANTAGE,
   scorePickEvBoard,
   selectPickEvRecommendation,
@@ -339,6 +345,122 @@ function choosePickEv(
     PICK_EV_MIN_OVERRIDE_ADVANTAGE
   );
   return legal.find((candidate) => candidate.sleeper_player_id === selection.playerId);
+}
+
+type BoardPlayer = Parameters<typeof getRecommendations>[0][number];
+type BestPickTuning = NonNullable<RecommendationContext['bestPickTuning']>;
+
+/** The starter weights Best Pick used before the window widened and the late bonus doubled. */
+const PRIOR_BEST_PICK_TUNING: BestPickTuning = { starterEcrNeighborhood: 8, lateStarterWeight: 1 };
+
+function ceilingProxy(player: PlayerSeason): number {
+  return Math.min(10, 5 + Math.max(0, 2 - player.history_seasons) * 1.5);
+}
+
+function projectionProxy(player: PlayerSeason): number {
+  return player.baselineProjectedPoints ?? Math.max(0, player.baselineModelScore);
+}
+
+/**
+ * One season's board as the app's players. Only draft-day information goes in: the expert rank, the walk-forward
+ * projection and its value over replacement. Everything the app reads from live feeds takes a neutral value.
+ */
+function buildBestPickBoard(rows: readonly PlayerSeason[]): ReadonlyMap<string, BoardPlayer> {
+  const positionRanks = new Map<string, number>();
+  const players = [...rows]
+    .sort((a, b) => asNumber(a.predraft_ecr) - asNumber(b.predraft_ecr))
+    .map((row): BoardPlayer => {
+      const rank = asNumber(row.predraft_ecr);
+      const positionRank = (positionRanks.get(row.position) ?? 0) + 1;
+      positionRanks.set(row.position, positionRank);
+      const uncertainty = 3 + Math.max(0, 2 - row.history_seasons) * 0.8;
+      return {
+        id: row.sleeper_player_id,
+        name: row.player_name,
+        position: row.position,
+        // Best Pick never reads the team; the type only needs a valid code.
+        team: 'ARI',
+        byeWeek: 0,
+        ecrRank: asRank(rank),
+        positionalRank: asRank(positionRank),
+        sleeperAdp: rank,
+        valueScore: 0,
+        marketRank: rank,
+        marketAdp: rank,
+        marketAdpTrend: 0,
+        isContractYear: false,
+        offensiveEnvironmentScore: 5,
+        projectedPoints: projectionProxy(row),
+        valueOverReplacement: asVor(row.baselineModelScore),
+        tier: 1,
+        tierDropoffScore: 0,
+        nextPickSurvivalProbability: asProbability(0.5),
+        ceilingScore: ceilingProxy(row),
+        floorScore: 5,
+        upsideScore: 5,
+        uncertaintyScore: uncertainty,
+        injuryRiskScore: 2,
+        predictionSource: 'heuristic',
+        newsStatus: 'healthy',
+        stackPartnerTeam: 'ARI',
+        highlightLevel: 'neutral',
+      };
+    });
+  return new Map(applyPositionTiers(players).map((player) => [player.id, player]));
+}
+
+/** Replays the shipped Best Pick: the same call the Assistant makes, on the historical board. */
+function chooseBestPick(
+  available: readonly PlayerSeason[],
+  board: ReadonlyMap<string, BoardPlayer>,
+  roster: RecommendationRoster,
+  rules: RosterRules,
+  remainingPicks: number,
+  currentPick: number,
+  nextPick: number | null,
+  totalTeams: number,
+  totalPicks: number,
+  tuning?: BestPickTuning
+): PlayerSeason | undefined {
+  const legal = available.filter((candidate) =>
+    isLegalCandidate(candidate, roster, rules, remainingPicks)
+  );
+  const players = legal.flatMap((candidate) => {
+    const player = board.get(candidate.sleeper_player_id);
+    return player
+      ? [{
+          ...player,
+          nextPickSurvivalProbability: asProbability(nextPick === null
+            ? 0
+            : estimateConditionalSurvival(asNumber(candidate.predraft_ecr), currentPick, nextPick)),
+        }]
+      : [];
+  });
+  const result = getRecommendations(players, [], 1, {
+    currentPick,
+    totalPicks,
+    totalTeams,
+    isMyTurn: true,
+    requirements: pickEvRequirements(rules),
+    rosterPlayers: OFFENSIVE_POSITIONS.flatMap((position) =>
+      roster[position].map((player) => ({
+        id: player.sleeper_player_id,
+        position: player.position,
+        projectedPoints: projectionProxy(player),
+        ceilingScore: ceilingProxy(player),
+      }))
+    ),
+    rosterCounts: {
+      QB: roster.QB.length,
+      RB: roster.RB.length,
+      WR: roster.WR.length,
+      TE: roster.TE.length,
+    },
+    selectionsRemaining: remainingPicks,
+    ...(tuning ? { bestPickTuning: tuning } : {}),
+  });
+  const preferred = result.selection.preferredPlayerId;
+  return legal.find((candidate) => candidate.sleeper_player_id === preferred);
 }
 
 function getResidualFeatures(
@@ -807,6 +929,8 @@ async function main(): Promise<void> {
         pickEvWaiting: StrategyMetrics;
         pickEvOption: StrategyMetrics;
         pickEvFull: StrategyMetrics;
+        bestPick: StrategyMetrics;
+        bestPickPriorWeights: StrategyMetrics;
       };
       positionModelSelections: Readonly<Record<
         OffensivePosition,
@@ -863,6 +987,11 @@ async function main(): Promise<void> {
       const pickEvWaiting: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
       const pickEvOption: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
       const pickEvFull: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
+      const bestPickBoard = buildBestPickBoard(seasonRows);
+      const bestPickSelected = new Set<string>();
+      const bestPickPriorSelected = new Set<string>();
+      const bestPick: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
+      const bestPickPrior: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
 
       for (const keeper of keepers.filter((pick) => pick.isUserPick)) {
         const row = byPlayerId.get(keeper.playerId);
@@ -876,6 +1005,8 @@ async function main(): Promise<void> {
         addToRoster(pickEvWaiting.roster, row);
         addToRoster(pickEvOption.roster, row);
         addToRoster(pickEvFull.roster, row);
+        addToRoster(bestPick.roster, row);
+        addToRoster(bestPickPrior.roster, row);
       }
 
       const sortedPicks = [...season.picks].sort((a, b) => a.pickNo - b.pickNo);
@@ -1075,6 +1206,41 @@ async function main(): Promise<void> {
             pickEvFullPick,
             pickEvFullAvailable
           );
+          const bestPickAvailable = strategyAvailable(bestPickSelected);
+          const bestPickPriorAvailable = strategyAvailable(bestPickPriorSelected);
+          recordPickEv(
+            bestPick,
+            bestPickSelected,
+            chooseBestPick(
+              bestPickAvailable,
+              bestPickBoard,
+              bestPick.roster,
+              rules,
+              remainingPicks,
+              pick.pickNo,
+              nextUserPick,
+              totalTeams,
+              totalPicks
+            ),
+            bestPickAvailable
+          );
+          recordPickEv(
+            bestPickPrior,
+            bestPickPriorSelected,
+            chooseBestPick(
+              bestPickPriorAvailable,
+              bestPickBoard,
+              bestPickPrior.roster,
+              rules,
+              remainingPicks,
+              pick.pickNo,
+              nextUserPick,
+              totalTeams,
+              totalPicks,
+              PRIOR_BEST_PICK_TUNING
+            ),
+            bestPickPriorAvailable
+          );
           evaluations.push({
             season: season.season,
             trainingSeasons,
@@ -1138,6 +1304,8 @@ async function main(): Promise<void> {
           pickEvWaiting: summarizePickEv(pickEvWaiting),
           pickEvOption: summarizePickEv(pickEvOption),
           pickEvFull: summarizePickEv(pickEvFull),
+          bestPick: summarizePickEv(bestPick),
+          bestPickPriorWeights: summarizePickEv(bestPickPrior),
         },
         winner: modelMetrics.starterPoints > ecrMetrics.starterPoints
           ? 'model'
@@ -1217,6 +1385,33 @@ async function main(): Promise<void> {
         current.top24PositionHitRate - previous.top24PositionHitRate
       ),
     });
+    const bestPickStrategies = {
+      bestPick: aggregate(seasonReports.map((season) => season.strategies.bestPick)),
+      bestPickPriorWeights: aggregate(
+        seasonReports.map((season) => season.strategies.bestPickPriorWeights)
+      ),
+    };
+    const bestPickPolicy = {
+      description:
+        'The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board.',
+      inputs:
+        'Expert rank, walk-forward projection and value over replacement. Live-feed inputs (news, bye weeks, contract and environment signals) take neutral values.',
+      priorWeights: PRIOR_BEST_PICK_TUNING,
+      strategies: { rosterAwareEcr: strategies.rosterAwareEcr, ...bestPickStrategies },
+      deltas: {
+        bestPickVsEcr: metricDelta(bestPickStrategies.bestPick, strategies.rosterAwareEcr),
+        bestPickVsPriorWeights: metricDelta(
+          bestPickStrategies.bestPick,
+          bestPickStrategies.bestPickPriorWeights
+        ),
+      },
+      seasons: seasonReports.map((season) => ({
+        season: season.season,
+        rosterAwareEcr: season.strategies.rosterAwareEcr.starterPoints,
+        bestPick: season.strategies.bestPick.starterPoints,
+        bestPickPriorWeights: season.strategies.bestPickPriorWeights.starterPoints,
+      })),
+    };
     const architectureComparison = {
       dataStatus: {
         projections: 'Historical leakage-safe shared projection proxy; historical FantasyPros snapshots are not available.',
@@ -1395,6 +1590,7 @@ async function main(): Promise<void> {
             strategies.rosterAwareBaselineModel.top24PositionHitRate),
       },
       architectureComparison,
+      bestPickPolicy,
       pickEvOverrideValidation,
       strategies,
       seasons: seasonReports,
@@ -1472,6 +1668,27 @@ async function main(): Promise<void> {
         `${String(delta.averageRegret)} | ${String(delta.top24PositionHitRate)} |`
       )
       .join('\n');
+    const metricRow = (name: string, metrics: StrategyMetrics): string =>
+      `| ${name} | ${String(metrics.evaluatedPicks)} | ${String(metrics.vorCaptured)} | ` +
+      `${String(metrics.starterPoints)} | ${String(metrics.averageRegret)} | ` +
+      `${String(metrics.top24PositionHitRate)} |`;
+    const bestPickRows = [
+      metricRow('Roster-aware ECR', bestPickPolicy.strategies.rosterAwareEcr),
+      metricRow('Best Pick (shipped weights)', bestPickPolicy.strategies.bestPick),
+      metricRow('Best Pick (prior starter weights)', bestPickPolicy.strategies.bestPickPriorWeights),
+    ].join('\n');
+    const bestPickDeltaRows = Object.entries(bestPickPolicy.deltas)
+      .map(([name, delta]) =>
+        `| ${name} | ${String(delta.starterPoints)} | ${String(delta.vorCaptured)} | ` +
+        `${String(delta.averageRegret)} | ${String(delta.top24PositionHitRate)} |`
+      )
+      .join('\n');
+    const bestPickSeasonRows = bestPickPolicy.seasons
+      .map((season) =>
+        `| ${String(season.season)} | ${String(season.rosterAwareEcr)} | ` +
+        `${String(season.bestPick)} | ${String(season.bestPickPriorWeights)} |`
+      )
+      .join('\n');
     await writeFile(MARKDOWN_OUTPUT, `# Recommendation Backtest
 
 Generated: ${report.generatedAt}
@@ -1520,6 +1737,26 @@ ${releaseGateRows}
 | Roster-aware ECR | ${String(strategies.rosterAwareEcr.evaluatedPicks)} | ${String(strategies.rosterAwareEcr.vorCaptured)} | ${String(strategies.rosterAwareEcr.starterPoints)} | ${String(strategies.rosterAwareEcr.averageRegret)} | ${String(strategies.rosterAwareEcr.top24PositionHitRate)} |
 | Baseline roster-aware model | ${String(strategies.rosterAwareBaselineModel.evaluatedPicks)} | ${String(strategies.rosterAwareBaselineModel.vorCaptured)} | ${String(strategies.rosterAwareBaselineModel.starterPoints)} | ${String(strategies.rosterAwareBaselineModel.averageRegret)} | ${String(strategies.rosterAwareBaselineModel.top24PositionHitRate)} |
 | Roster-aware model | ${String(strategies.rosterAwareModel.evaluatedPicks)} | ${String(strategies.rosterAwareModel.vorCaptured)} | ${String(strategies.rosterAwareModel.starterPoints)} | ${String(strategies.rosterAwareModel.averageRegret)} | ${String(strategies.rosterAwareModel.top24PositionHitRate)} |
+
+## Best Pick Policy
+
+${bestPickPolicy.description} The prior-weights row replays the same rule with
+the starter window at ${String(PRIOR_BEST_PICK_TUNING.starterEcrNeighborhood)} ranks and no doubled late bonus.
+Negative regret deltas are improvements.
+
+- Inputs: ${bestPickPolicy.inputs}
+
+| Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+${bestPickRows}
+
+| Comparison | Starter points | VOR captured | Average regret | Top-24 hit rate |
+| --- | ---: | ---: | ---: | ---: |
+${bestPickDeltaRows}
+
+| Season | Roster-aware ECR | Best Pick | Best Pick, prior weights |
+| ---: | ---: | ---: | ---: |
+${bestPickSeasonRows}
 
 ## PickEV Architecture Comparison
 

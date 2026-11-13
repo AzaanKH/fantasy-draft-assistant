@@ -11,6 +11,8 @@ vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => ({ isLoading: false, recommendationsBlocked: true, overall: { recommendations: [] } }),
 }));
 
+vi.mock('./LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ synchronizationState: 'idle' }) }));
+
 describe('DraftSuggestions', () => {
   it('shows placeholder cards while player data loads, even though recommendations read as blocked', () => {
     const markup = renderToStaticMarkup(createElement(WorkspaceTestProvider, {
@@ -18,6 +20,6 @@ describe('DraftSuggestions', () => {
       children: createElement(DraftSuggestions, { onOpenAssistant: vi.fn() }),
     }));
     expect(markup).toContain('Loading suggestions');
-    expect(markup.match(/aria-hidden="true" class="flex min-w-0 flex-col/g)).toHaveLength(3);
+    expect(markup.match(/aria-hidden="true" class="flex min-w-0 flex-col/g)).toHaveLength(4);
   });
 });

@@ -28,22 +28,22 @@ A drafter can save an available player to a local queue, see the same player in 
 
 Preconditions: `control.py doctor "$RUN_ID"` passes, the page is `/draft`, recommendations have loaded, and the Queue tab starts empty for an isolated browser session. Save the first `snapshot -i` to `$EVIDENCE/shortlist-before.txt` and a screenshot to `$EVIDENCE/shortlist-before.png`.
 
-- `queue-pool`: Scroll until Players rows are visible. Choose one named player from the snapshot and click its exact `Add <player name> to local shortlist` button. Save a new snapshot. Require that button's accessible name to change to `Remove <same player> from local shortlist` and the Queue tab count to rise by one. This path was proven with Ja'Marr Chase.
-- `queue-best-pick`: Start with an empty queue. Run `agent-browser --session "$RUN_ID" click 'section[aria-label="Current Best Pick"] button[aria-label^="Add "][aria-label$=" to the local queue"]'`. Require `Remove <same player> from the local queue`, then confirm the Queue tab row. Do not count the pool path as proof of this entry point.
+- `queue-pool`: Scroll until Players rows are visible. Choose one named player from the snapshot and click its exact `Add <player name> to queue` button. Save a new snapshot. Require that button's accessible name to change to `Remove <same player> from queue` and the Queue tab count to rise by one. This path was proven with Ja'Marr Chase.
+- `queue-best-pick`: Start with an empty queue. Run `agent-browser --session "$RUN_ID" click 'section[aria-label="Current Best Pick"] button[aria-label^="Add "][aria-label$=" to queue"]'`. Require `Remove <same player> from queue`, then confirm the Queue tab row. Do not count the pool path as proof of this entry point.
 - `queue-suggestion`: Start with an empty queue. Scroll to Draft tools and click `'[role="tab"][aria-controls$="-content-suggestions"]'`. Take a snapshot, select the first visible `Queue` button in the Suggestions tabpanel, and click its fresh ref. Require that card's button to read `Queued`, then confirm the player in Queue. `Queue` is hidden in favor of `Draft` on the user's ordinary mock turn when that player can be drafted.
 - `queue-assistant`: Start with an empty queue. Open `/assistant` through the header and click the `Add to queue` button beside the selected recommendation. Require the button to read `In queue · #N`; return to Draft workspace and confirm the Queue tab row.
 - `queue-remove`: Scroll until the Queue tab strip is visible. Run `agent-browser --session "$RUN_ID" click '[role="tab"][aria-controls$="-content-queue"]'`, then `snapshot -i`. Require a selected `Queue 1` tab, a `Queue 1` tabpanel, and `Remove <same player> from queue`. Save `$EVIDENCE/shortlist-queue.txt`, `$EVIDENCE/shortlist-queue.png`, and the panel text. Click that remove button, then require `Your draft queue is empty` and a zero count.
 
 The baseline browser proof used `shortlist-before.txt/png`, `shortlist-action.txt/png`, `shortlist-queue.txt/png`, and `shortlist-queue-content.txt` in one evidence directory. For a new run, record the chosen player name and each entry point in a short text file alongside the captures.
 - `queue-assistant-pool`: On Assistant, find one named pool row or card, use its queue button, and confirm that player in the draft Queue tab. Test row and card layouts separately when affected. Sources: `AssistantPage.tsx`, `AssistantRecommendationCard.tsx`.
-- `queue-depth`: Open `What does my roster need?`, click a tier bar such as `WR Tier 1: 4 available players`, and use `Add <name> to queue`. Confirm the same player in Queue. Source: `PositionalDepthChart.tsx`.
+- `queue-depth`: Open `Roster needs`, click a tier bar such as `WR Tier 1: 4 available players`, and use `Add <name> to queue`. Confirm the same player in Queue. Source: `PositionalDepthChart.tsx`.
 - `queue-undo`: After one add, immediately click the toast `Undo` (toast text `<name> added to queue`) and require the prior queue state. Repeat after removing a queued player (`<name> removed from queue`). Source: `useQueueActions.ts`.
 - `queue-tiers`: On `/assistant`, click the `Position tiers` view tab and use a player's `Add <name> to queue` toggle. Require the `<name> added to queue` toast and the player in the queue. Source: `PositionTiersView.tsx`.
 - `queue-rail`: With two or more queued players on `/assistant`, click `Move <second> up in queue` and require it to become #1 (the rail then notes when the first queued player differs from the Best Pick). Click `Remove <name> from queue` in the rail and require the removal toast. Source: `AssistantRail.tsx`.
 
 ## Gotchas
 
-- `local shortlist` and `queue` label the same saved list. It is local to the current browser draft state and is not a provider pick.
+- Every control calls this saved list the `queue`. It is local to the current browser draft state and is not a provider pick.
 - Undo after a removal restores the player at the end of the queue, not at their earlier position.
 - Toasts last about six seconds and stack up to three. Target the `Undo` inside the toast whose text names the player.
 - A click can complete before the browser snapshot reflects a React update. Check the count and accessible label after the action, not the click exit code alone.

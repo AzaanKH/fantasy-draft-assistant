@@ -205,7 +205,7 @@ test('a failed mock burst stops the full scenario before any stress commands sta
   const positive = runInNewContext(`(${functionSource('positiveScenario', 'pickConflict')})`, {
     config: { perActor: 300, suites: 3, seeds: 5, bursts: true }, SCENARIOS: ['tabs'], draftIds: () => ['1700000000009'],
     launch: async () => ctxInfo, context: { newPage: async () => setup },
-    seedV1: async () => {}, activateThroughPrompt: async () => ({ completed: true, v1Snapshot: [] }),
+    seedV1: async () => {}, activateOnLoad: async () => ({ completed: true, v1Snapshot: [] }),
     origin: 'http://localhost', appState: async () => 'app', save: async () => {},
     mockBurst: async () => ({ checks: { good: false, message: 'mock player selection failed' } }),
     check: (condition, message) => { if (!condition) throw new Error(message); },
@@ -303,7 +303,7 @@ test.each([false, true])('setup-only retains an ordinary app tab, audits iframe 
   const results = { progress: [reset] };
   const run = runInNewContext(`(${functionSource('focusedExtensionSetup', 'positiveScenario')})`, {
     workerResetPasses, URL, origin: 'http://localhost:3000', currentLabel: '', outDir: '/unused', path, results,
-    launch: async () => ctxInfo, seedV1: async () => {}, activateThroughPrompt: async () => ({ completed: true }),
+    launch: async () => ctxInfo, seedV1: async () => {}, activateOnLoad: async () => ({ completed: true }),
     openPanel: async () => { expect(closed).toBe(false); return panel; },
     readCommitted: async target => { expect(target).toBe(ctx); return committed; },
     reloadActors: async () => { expect(closed).toBe(false); ctx.url = () => `http://localhost:3000/sidepanel?__storageNonce=${reused ? 'first' : 'second'}`; },

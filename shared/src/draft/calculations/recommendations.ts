@@ -18,6 +18,7 @@ import {
   evaluateBestPickPolicy,
   prepareDraftTimingAlternatives,
   type BestPickPolicyEvaluation,
+  type BestPickTuning,
   type DraftTimingAlternatives,
 } from './best-pick-policy.js';
 
@@ -34,6 +35,8 @@ export interface RecommendationContext {
   readonly rosterCounts?: Readonly<Partial<Record<Position, number>>>;
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
+  /** Backtest-only overrides for the Best Pick starter weights. The app leaves this unset. */
+  readonly bestPickTuning?: BestPickTuning;
 }
 
 export interface RecommendationResult {
@@ -524,6 +527,7 @@ function calculateRecommendations(
     rosterPlayers: context?.rosterPlayers,
     selectionsRemaining: context?.selectionsRemaining,
     draftTimingAlternatives,
+    tuning: context?.bestPickTuning,
   });
   const draftNow = bestPickPolicy.evaluations
     .map((evaluation) => buildBestPickPolicyRecommendation(
@@ -534,6 +538,9 @@ function calculateRecommendations(
     .sort((a, b) =>
       Number(b.playerId === bestPickPolicy.preferredPlayerId) -
         Number(a.playerId === bestPickPolicy.preferredPlayerId) ||
+      // A surplus starter (a backup QB while the lineup has a hole) lists after every candidate who can help.
+      Number(a.decisionFactors?.rosterFit.surplusStarter === true) -
+        Number(b.decisionFactors?.rosterFit.surplusStarter === true) ||
       b.score - a.score ||
       (a.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) -
         (b.diagnostics?.expertRank ?? Number.MAX_SAFE_INTEGER) ||

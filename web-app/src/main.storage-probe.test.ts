@@ -2,11 +2,11 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
 const calls = vi.hoisted(() => ({ probe: vi.fn(), verify: vi.fn(), appImported: vi.fn(),
-  createBrowserWorkspace: vi.fn((_search: string, factory?: () => unknown) => factory?.()),
-  createHarnessWorkspace: vi.fn(), render: vi.fn(), activation: vi.fn(), responder: vi.fn() }));
-vi.mock('./workspace/storage-sharing', () => ({ serveStorageProbe: calls.probe, verifyStorageSharing: calls.verify, installStorageSharingResponder: calls.responder }));
+  mountBrowserWorkspace: vi.fn((workspace: unknown) => workspace),
+  createHarnessWorkspace: vi.fn(), render: vi.fn(), activation: vi.fn(), responder: vi.fn(), hostedDemo: vi.fn() }));
+vi.mock('./workspace/storage-sharing', () => ({ serveStorageProbe: calls.probe, verifyStorageSharing: calls.verify, installStorageSharingResponder: calls.responder, verifyHostedDemoStorage: calls.hostedDemo }));
 vi.mock('./workspace/activation-entry', () => ({ showStorageActivation: calls.activation }));
-vi.mock('./workspace/browser-workspace', () => ({ createBrowserWorkspace: calls.createBrowserWorkspace }));
+vi.mock('./workspace/browser-workspace', () => ({ mountBrowserWorkspace: calls.mountBrowserWorkspace }));
 vi.mock('./workspace/harness-workspace', () => ({ createHarnessWorkspace: calls.createHarnessWorkspace }));
 vi.mock('./App', () => { calls.appImported(); return { App: () => null }; });
 vi.mock('react-dom/client', () => ({ createRoot: () => ({ render: calls.render }) }));
@@ -30,12 +30,11 @@ it.each([false, true])('keeps the helper route free of workspace construction wh
   expect(calls.render).toHaveBeenCalledTimes(fails ? 1 : 0);
   expect(calls.verify).not.toHaveBeenCalled();
   expect(calls.appImported).not.toHaveBeenCalled();
-  expect(calls.createBrowserWorkspace).not.toHaveBeenCalled();
+  expect(calls.mountBrowserWorkspace).not.toHaveBeenCalled();
   expect(calls.createHarnessWorkspace).not.toHaveBeenCalled();
 });
 
 it('constructs the normal harness through the verified factory as a control', async () => {
-  vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
   vi.stubEnv('VITE_PERSISTENCE_HARNESS', 'idb');
   vi.stubEnv('VITE_CANONICAL_WEB_ORIGIN', location.origin);
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
@@ -45,13 +44,12 @@ it('constructs the normal harness through the verified factory as a control', as
   await import('./main');
   await vi.dynamicImportSettled();
   expect(calls.verify).toHaveBeenCalledOnce();
-  expect(calls.createBrowserWorkspace).toHaveBeenCalledOnce();
+  expect(calls.mountBrowserWorkspace).toHaveBeenCalledOnce();
   expect(calls.createHarnessWorkspace).toHaveBeenCalledWith(verified);
   expect(calls.render).toHaveBeenCalledOnce();
 });
 
-it.each([undefined, 'idb'])('routes first-run startup through activation for setting %s', async setting => {
-  vi.stubEnv('VITE_STORAGE_ACTIVATION', setting);
+it('routes first-run startup through activation', async () => {
   vi.stubEnv('VITE_CANONICAL_WEB_ORIGIN', location.origin);
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
   const verified = { origin: location.origin, kind: 'origin-only' };
@@ -61,6 +59,21 @@ it.each([undefined, 'idb'])('routes first-run startup through activation for set
   await import('./main');
   await vi.dynamicImportSettled();
   expect(calls.activation).toHaveBeenCalledWith(expect.objectContaining({ verified }));
-  expect(calls.createBrowserWorkspace).not.toHaveBeenCalled();
+  expect(calls.mountBrowserWorkspace).not.toHaveBeenCalled();
   expect(calls.createHarnessWorkspace).not.toHaveBeenCalled();
+});
+
+it('gives a demo build on another origin its own storage, without the localhost sharing check', async () => {
+  vi.stubEnv('VITE_DEMO_MODE', 'true');
+  vi.stubEnv('VITE_CANONICAL_WEB_ORIGIN', 'http://localhost:3999');
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  const verified = { origin: location.origin, kind: 'origin-only' };
+  calls.hostedDemo.mockReturnValueOnce(verified);
+  document.body.innerHTML = '<div id="root"></div>';
+  await import('./main');
+  await vi.dynamicImportSettled();
+  expect(calls.activation).toHaveBeenCalledWith(expect.objectContaining({ verified }));
+  expect(calls.verify).not.toHaveBeenCalled();
+  expect(calls.responder).not.toHaveBeenCalled();
+  expect(calls.mountBrowserWorkspace).not.toHaveBeenCalled();
 });

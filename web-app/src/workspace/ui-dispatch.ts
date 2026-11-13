@@ -1,4 +1,3 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
 import { createStore } from 'zustand/vanilla';
 import type { DraftReconciliationResult } from '@/stores/draft/types';
 import type { Workspace } from './workspace';
@@ -22,7 +21,7 @@ export function observeDurableWorkspace(workspace: Workspace): Workspace {
 }
 
 export function dispatchWorkspace(workspace: Workspace, ...command: VoidWorkspaceCommand): void {
-  if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) {
+  if (workspace.sendDurable) {
     void workspace.sendDurable(command).catch(() => undefined);
   } else workspace.send(...command);
 }
@@ -32,7 +31,7 @@ type ResultCommand = 'recordProvisionalPick' | 'correctProvisionalPick' | 'remov
 export function requestWorkspace(workspace: Workspace, ...command: WorkspaceCommand<Exclude<ResultCommand, 'reconcileSyncedPicks'>>): boolean | Promise<boolean>;
 export function requestWorkspace(workspace: Workspace, ...command: WorkspaceCommand<'reconcileSyncedPicks'>): DraftReconciliationResult | Promise<DraftReconciliationResult>;
 export function requestWorkspace(workspace: Workspace, ...command: WorkspaceCommand<ResultCommand>): boolean | DraftReconciliationResult | Promise<boolean | DraftReconciliationResult> {
-  if (STORAGE_ACTIVATION_ENABLED && workspace.sendDurable) return workspace.sendDurable(command).then(receipt => {
+  if (workspace.sendDurable) return workspace.sendDurable(command).then(receipt => {
     if (receipt === null || typeof receipt !== 'object' || !('result' in receipt)) throw new Error('A durable command completed without a receipt');
     const result: unknown = receipt.result;
     if (command[0] !== 'reconcileSyncedPicks') {

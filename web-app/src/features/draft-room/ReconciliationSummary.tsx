@@ -56,8 +56,8 @@ export function ReconciliationSummary({
         hasUnresolved
           ? 'border-red-500/45 bg-red-500/[0.08]'
           : hasChangedProviderTruth
-            ? 'border-amber-500/45 bg-amber-500/[0.08]'
-            : 'border-emerald-500/45 bg-emerald-500/[0.08]'
+            ? 'border-warning/45 bg-warning/[0.08]'
+            : 'border-success/45 bg-success/[0.08]'
       )}
       role={hasUnresolved ? 'alert' : 'status'}
       aria-live={hasUnresolved ? 'assertive' : 'polite'}
@@ -70,16 +70,16 @@ export function ReconciliationSummary({
             hasUnresolved
               ? 'text-red-700 dark:text-red-300'
               : hasChangedProviderTruth
-                ? 'text-amber-700 dark:text-amber-300'
-                : 'text-emerald-700 dark:text-emerald-300'
+                ? 'text-warning'
+                : 'text-success'
           )}
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-bold">
             {hasUnresolved
-              ? 'Provider Truth needs identity repair'
-              : 'Provider Truth reconciled'}
+              ? 'Some synced picks need their players matched'
+              : 'Synced picks checked'}
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {hasUnresolved
@@ -89,7 +89,7 @@ export function ReconciliationSummary({
 
           {summary.confirmations.length > 0 ? (
             <div className="mt-3">
-              <h3 className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+              <h3 className="flex items-center gap-1.5 text-xs font-bold text-success">
                 <BadgeCheck className="size-3.5" aria-hidden="true" />
                 Confirmed · {String(summary.confirmations.length)}
               </h3>
@@ -117,7 +117,7 @@ export function ReconciliationSummary({
 
           {summary.corrections.length > 0 ? (
             <div className="mt-3">
-              <h3 className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+              <h3 className="flex items-center gap-1.5 text-xs font-bold text-warning">
                 <RefreshCw className="size-3.5" aria-hidden="true" />
                 Corrected · {String(summary.corrections.length)}
               </h3>
@@ -152,7 +152,7 @@ export function ReconciliationSummary({
 
           {summary.removals.length > 0 ? (
             <div className="mt-3">
-              <h3 className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+              <h3 className="flex items-center gap-1.5 text-xs font-bold text-warning">
                 <Trash2 className="size-3.5" aria-hidden="true" />
                 Removed · {String(summary.removals.length)}
               </h3>
@@ -176,7 +176,7 @@ export function ReconciliationSummary({
                           totalTeams={totalTeams}
                           draftType={draftType}
                         />
-                        {' '}· {sourceLabel} absent from Provider Truth
+                        {' '}· {sourceLabel} not in the provider's picks
                       </span>
                     </li>
                   );

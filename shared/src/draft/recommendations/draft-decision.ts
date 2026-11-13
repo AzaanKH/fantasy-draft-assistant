@@ -164,7 +164,7 @@ function getDivergenceTradeoff(
       ? null
       : preferredValue - bestPlayerValue;
     return valueAdvantage !== null && valueAdvantage > 0
-      ? `${bestPick.playerName} is ${formatSignedNumber(preferredValue)} points above replacement, ${formatNumber(valueAdvantage)} more than ${bestPlayer.playerName} in this league`
+      ? `${bestPick.playerName} is ${formatSignedNumber(preferredValue)} pts over a fill-in starter, ${formatNumber(valueAdvantage)} more than ${bestPlayer.playerName} in this league`
       : `${bestPick.playerName} has the stronger league-adjusted value`;
   }
 
@@ -197,7 +197,7 @@ function getDivergenceTradeoff(
     : toWholePercent(timing.returnProbability);
   return returnPercent === null
     ? `waiting until pick ${nextPick} costs ${formatNumber(timing.costOfWaiting)} expected points on ${bestPick.playerName}`
-    : `${bestPick.playerName} has only ${String(returnPercent)}% Return Probability at pick ${nextPick}, and waiting costs ${formatNumber(timing.costOfWaiting)} expected points`;
+    : `${bestPick.playerName} has only a ${String(returnPercent)}% chance of still being there at pick ${nextPick}, and waiting costs ${formatNumber(timing.costOfWaiting)} expected points`;
 }
 
 function getDecisionDivergence(

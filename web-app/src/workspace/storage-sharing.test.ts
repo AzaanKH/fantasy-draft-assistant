@@ -5,7 +5,6 @@ import { openDraftDatabase } from './indexed-db';
 import { assertCanonicalOrigin, serveStorageProbe, verifyStorageSharing, installStorageSharingResponder } from './storage-sharing';
 import { startStorageSharing } from '../../../extension/src/sidepanel/storage-sharing';
 
-vi.mock('@fantasy-draft/shared/sync', async original => ({ ...await original<object>(), STORAGE_ACTIVATION_ENABLED: false }));
 
 const canonicalOrigin = 'http://localhost:3000';
 const location = { origin: canonicalOrigin, pathname: '/draft', search: '' };
@@ -75,7 +74,6 @@ describe('workspace origin and IndexedDB sharing', () => {
   });
 
   it.each(['http://127.0.0.1:3000', 'http://localhost:3002', 'https://localhost:3000'])('blocks %s before opening a database', async origin => {
-    vi.stubEnv('VITE_STORAGE_ACTIVATION', 'v1');
     const factory = new IDBFactory();
     const open = vi.spyOn(factory, 'open');
     await expect(verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, origin }, nonce })).rejects.toThrow('Other origins');
@@ -204,7 +202,7 @@ async function bootstrapSidePanel({ harness = true, allowed = true, blockedFirst
   vi.stubEnv('VITE_PERSISTENCE_HARNESS', harness ? 'idb' : '');
   document.body.innerHTML = `
     <iframe id="sidepanel-frame"></iframe>
-    <div id="loading-state"></div><div id="error-state"></div><div id="pairing-state"></div>
+    <div id="loading-state"></div><div id="error-state"><strong id="error-title"></strong><span id="error-detail"></span></div><div id="pairing-state"></div>
     <button id="retry-frame"></button><button id="open-webapp"></button>
   `;
   const create = vi.fn().mockResolvedValue({ id: 789 });
@@ -212,7 +210,8 @@ async function bootstrapSidePanel({ harness = true, allowed = true, blockedFirst
   const remove = vi.fn().mockResolvedValue(undefined);
   const contains = vi.fn().mockResolvedValue(allowed);
   vi.stubGlobal('chrome', {
-    storage: { local: { get: vi.fn().mockResolvedValue({}) }, onChanged: { addListener: vi.fn() } },
+    // Paired (syncToken is STORAGE_KEYS.SYNC_TOKEN), so the frame's loading and error states are the visible overlay.
+    storage: { local: { get: vi.fn().mockResolvedValue({ syncToken: 'paired' }) }, onChanged: { addListener: vi.fn() } },
     runtime: {
       sendMessage: vi.fn().mockResolvedValue({ success: true, data: { status: { isInDraftRoom: false } } }),
       onMessage: { addListener: vi.fn() },
@@ -251,21 +250,10 @@ describe('side panel bootstrap activation gate', () => {
     expect(error.hidden).toBe(true);
     expect(remove).toHaveBeenCalledExactlyOnceWith(789);
   });
-
-  it('keeps normal startup on the existing URL path without permissions, helpers, or IndexedDB', async () => {
-    const factory = new IDBFactory();
-    const open = vi.spyOn(factory, 'open');
-    vi.stubGlobal('indexedDB', factory);
-    const { frame, contains, create } = await bootstrapSidePanel({ harness: false });
-    await vi.waitFor(() => { expect(frame.src).toBe(`${canonicalOrigin}/sidepanel?provider=espn`); });
-    expect(contains).not.toHaveBeenCalled();
-    expect(create).not.toHaveBeenCalled();
-    expect(open).not.toHaveBeenCalled();
-  });
 });
 
 
-it('disables the helper writer in production even when activation is enabled', async () => {
+it('disables the helper writer in production', async () => {
   vi.stubEnv('DEV', false);
   const factory = new IDBFactory(); const open = vi.spyOn(factory, 'open');
   await expect(serveStorageProbe(nonce, { factory, canonicalOrigin, location })).rejects.toThrow('development harness');
@@ -303,6 +291,26 @@ it('verifies production sharing against an ordinary app tab and removes the nonc
   expect(await readProbe(factory)).toBeNull();
 });
 
+it('keeps asking until an app tab that opens after the first request can answer', async () => {
+  vi.stubEnv('DEV', false);
+  const factory = new IDBFactory();
+  const channels = new Set<LateChannel>();
+  class LateChannel {
+    private listeners = new Set<(event: MessageEvent<unknown>) => void>();
+    constructor(readonly name: string) { channels.add(this); }
+    addEventListener(_type: string, receive: (event: MessageEvent<unknown>) => void) { this.listeners.add(receive); }
+    removeEventListener(_type: string, receive: (event: MessageEvent<unknown>) => void) { this.listeners.delete(receive); }
+    postMessage(data: unknown) { for (const channel of channels) if (channel !== this && channel.name === this.name) queueMicrotask(() => { for (const receive of channel.listeners) receive(new MessageEvent('message', { data })); }); }
+    close() { channels.delete(this); }
+  }
+  vi.stubGlobal('BroadcastChannel', LateChannel);
+  const verifying = verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, pathname: '/sidepanel' }, nonce, timeoutMs: 2_000 });
+  // The responder installs only after the panel's first request has gone unanswered.
+  await new Promise(resolve => { setTimeout(resolve, 100); });
+  disposers.push(installStorageSharingResponder({ factory, canonicalOrigin, location }));
+  expect((await verifying).kind).toBe('probed');
+});
+
 it('explains the production no-app-tab requirement without opening IndexedDB', async () => {
   vi.stubEnv('DEV', false);
   vi.stubGlobal('BroadcastChannel', class { addEventListener() {} postMessage() {} close() {} });
@@ -310,4 +318,18 @@ it('explains the production no-app-tab requirement without opening IndexedDB', a
   await expect(verifyStorageSharing({ factory, canonicalOrigin, location: { ...location, pathname: '/sidepanel' }, nonce, timeoutMs: 10 }))
     .rejects.toThrow('Keep the draft web app open in a normal tab');
   expect(open).not.toHaveBeenCalled();
+});
+
+describe('hosted demo storage', () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+  it('accepts the demo build\'s own origin without the localhost sharing check', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', 'true');
+    const { verifyHostedDemoStorage } = await import('./storage-sharing');
+    expect(verifyHostedDemoStorage({ origin: 'https://demo.example.test' })).toMatchObject({ origin: 'https://demo.example.test', kind: 'origin-only' });
+  });
+  it('refuses any build that is not the demo', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', '');
+    const { verifyHostedDemoStorage } = await import('./storage-sharing');
+    expect(() => verifyHostedDemoStorage({ origin: 'https://demo.example.test' })).toThrow('Only the static demo');
+  });
 });

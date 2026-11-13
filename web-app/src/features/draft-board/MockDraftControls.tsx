@@ -1,6 +1,5 @@
 import { asProbability } from '@fantasy-draft/shared/units';
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { type Player } from '@fantasy-draft/shared/league';
@@ -22,6 +21,11 @@ import { Input } from '@/components/ui/input';
 import { type DraftSessionMode, type MockCpuPickPace } from '@/stores/draftStore';
 import { estimateMockSurvivalProbabilities, getKeeperAtPick, type MockDraftEngineConfig } from '@fantasy-draft/shared/draft';
 import { useSimulateNextCpuPick } from './mock-auto-advance';
+
+/** Main-thread time one survival-estimate chunk may take before yielding (about half a 60 Hz frame). */
+const SURVIVAL_CHUNK_BUDGET_MS = 8;
+/** Iterations per estimate call inside a chunk; small enough that one batch rarely overruns the budget. */
+const SURVIVAL_BATCH_ITERATIONS = 5;
 
 const CPU_PICK_PACE_OPTIONS: readonly { value: MockCpuPickPace; label: string }[] = [
   { value: 'watch', label: 'Watch' },
@@ -89,10 +93,10 @@ export function MockDraftControls({
 
   // The settings dialog holds CPU picks; MockDraftAutoAdvance reads this from the store.
   React.useEffect(() => {
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSettingsOpen', isOpen); } else { workspace.send('setMockSettingsOpen', isOpen); }
+    sendWorkspaceCommand(workspace, 'setMockSettingsOpen', isOpen);
   }, [workspace, isOpen]);
   React.useEffect(() => () => {
-    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSettingsOpen', false); } else { workspace.send('setMockSettingsOpen', false); }
+    sendWorkspaceCommand(workspace, 'setMockSettingsOpen', false);
   }, [workspace]);
 
   React.useEffect(() => {
@@ -103,38 +107,43 @@ export function MockDraftControls({
     const survivalCounts: Record<string, number> = {};
     const totalIterations = mockSettings.survivalIterations;
     setIsEstimating(true);
+    const finish = (): void => {
+      const probabilities = Object.fromEntries(
+        Object.entries(survivalCounts).map(([playerId, count]) => [
+          playerId,
+          asProbability(count / totalIterations),
+        ])
+      );
+      if (!cancelled) {
+        sendWorkspaceCommand(workspace, 'setMockSurvivalProbabilities', probabilities);
+        setIsEstimating(false);
+      }
+    };
+    // Each chunk runs small batches until its time budget is spent, then yields to input and rendering,
+    // so slow devices do fewer iterations per frame and fast ones finish sooner.
     const runChunk = (): void => {
-      const remaining = totalIterations - completedIterations;
-      const chunkIterations = Math.min(50, remaining);
-      if (chunkIterations <= 0) {
-        const probabilities = Object.fromEntries(
-          Object.entries(survivalCounts).map(([playerId, count]) => [
-            playerId,
-            asProbability(count / totalIterations),
-          ])
-        );
-        if (!cancelled) {
-          if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSurvivalProbabilities', probabilities); } else { workspace.send('setMockSurvivalProbabilities', probabilities); }
-          setIsEstimating(false);
+      const started = performance.now();
+      do {
+        const batchIterations = Math.min(SURVIVAL_BATCH_ITERATIONS, totalIterations - completedIterations);
+        if (batchIterations <= 0) break;
+        const probabilities = estimateMockSurvivalProbabilities({
+          players,
+          draftedPlayerIds,
+          history: draftHistory,
+          keepers: effectiveKeepers,
+          currentPick,
+          config: engineConfig,
+          historyModel: timingEvidence.model,
+          iterations: batchIterations,
+          iterationOffset: completedIterations,
+        });
+        for (const [playerId, probability] of Object.entries(probabilities)) {
+          survivalCounts[playerId] = (survivalCounts[playerId] ?? 0) +
+            probability * batchIterations;
         }
-        return;
-      }
-      const probabilities = estimateMockSurvivalProbabilities({
-        players,
-        draftedPlayerIds,
-        history: draftHistory,
-        keepers: effectiveKeepers,
-        currentPick,
-        config: engineConfig,
-        historyModel: timingEvidence.model,
-        iterations: chunkIterations,
-        iterationOffset: completedIterations,
-      });
-      for (const [playerId, probability] of Object.entries(probabilities)) {
-        survivalCounts[playerId] = (survivalCounts[playerId] ?? 0) +
-          probability * chunkIterations;
-      }
-      completedIterations += chunkIterations;
+        completedIterations += batchIterations;
+      } while (performance.now() - started < SURVIVAL_CHUNK_BUDGET_MS);
+      if (completedIterations >= totalIterations) { finish(); return; }
       if (!cancelled) timer = window.setTimeout(runChunk, 0);
     };
     timer = window.setTimeout(runChunk, 0);
@@ -194,7 +203,7 @@ export function MockDraftControls({
             variant={isPaused ? 'default' : 'outline'}
             size="sm"
             className="text-xs"
-            onClick={() => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockAutoAdvancePaused', !isPaused); } else { workspace.send('setMockAutoAdvancePaused', !isPaused); } }}
+            onClick={() => { sendWorkspaceCommand(workspace, 'setMockAutoAdvancePaused', !isPaused); }}
             disabled={currentPick > totalPicks}
           >
             {isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
@@ -230,7 +239,7 @@ export function MockDraftControls({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[85vh] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {sessionMode === 'mock' ? 'Mock draft controls' : 'Start a mock draft'}
@@ -250,17 +259,12 @@ export function MockDraftControls({
                 value={config.totalTeams}
                 disabled={draftStarted}
                 onChange={(event) => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', {
+                  sendWorkspaceCommand(workspace, 'setConfig', {
                     totalTeams: Math.max(
                       minimumMockTeams,
                       numericValue(event.target.value, config.totalTeams)
                     ),
-                  }); } else { workspace.send('setConfig', {
-                    totalTeams: Math.max(
-                      minimumMockTeams,
-                      numericValue(event.target.value, config.totalTeams)
-                    ),
-                  }); }
+                  });
                 }}
                 className="h-9"
               />
@@ -274,11 +278,9 @@ export function MockDraftControls({
                 value={config.myPickPosition}
                 disabled={draftStarted}
                 onChange={(event) => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setConfig', {
+                  sendWorkspaceCommand(workspace, 'setConfig', {
                     myPickPosition: numericValue(event.target.value, config.myPickPosition),
-                  }); } else { workspace.send('setConfig', {
-                    myPickPosition: numericValue(event.target.value, config.myPickPosition),
-                  }); }
+                  });
                 }}
                 className="h-9"
               />
@@ -291,11 +293,9 @@ export function MockDraftControls({
                 max={100}
                 value={Math.round(mockSettings.randomness * 100)}
                 onChange={(event) => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSettings', {
+                  sendWorkspaceCommand(workspace, 'setMockSettings', {
                     randomness: Number(event.target.value) / 100,
-                  }); } else { workspace.send('setMockSettings', {
-                    randomness: Number(event.target.value) / 100,
-                  }); }
+                  });
                 }}
                 className="h-9 w-full accent-primary"
               />
@@ -307,11 +307,9 @@ export function MockDraftControls({
                 min={0}
                 value={mockSettings.seed}
                 onChange={(event) => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSettings', {
+                  sendWorkspaceCommand(workspace, 'setMockSettings', {
                     seed: numericValue(event.target.value, mockSettings.seed),
-                  }); } else { workspace.send('setMockSettings', {
-                    seed: numericValue(event.target.value, mockSettings.seed),
-                  }); }
+                  });
                 }}
                 className="h-9"
               />
@@ -323,11 +321,9 @@ export function MockDraftControls({
                 size="sm"
                 className="h-9 w-full text-xs"
                 onClick={() => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSettings', {
+                  sendWorkspaceCommand(workspace, 'setMockSettings', {
                     seed: Math.floor(Date.now() % 2147483647),
-                  }); } else { workspace.send('setMockSettings', {
-                    seed: Math.floor(Date.now() % 2147483647),
-                  }); }
+                  });
                 }}
               >
                 New seed
@@ -345,7 +341,7 @@ export function MockDraftControls({
                 className="h-8 text-xs"
                 aria-pressed={mockSettings.cpuPickPace === option.value}
                 onClick={() => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setMockSettings', { cpuPickPace: option.value }); } else { workspace.send('setMockSettings', { cpuPickPace: option.value }); }
+                  sendWorkspaceCommand(workspace, 'setMockSettings', { cpuPickPace: option.value });
                 }}
               >
                 {option.label}
@@ -366,7 +362,7 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'undoLastPick'); } else { workspace.send('undoLastPick'); }
+                    sendWorkspaceCommand(workspace, 'undoLastPick');
                   }}
                   disabled={draftHistory.length === 0}
                 >
@@ -376,7 +372,7 @@ export function MockDraftControls({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'resetDraft'); } else { workspace.send('resetDraft'); }
+                    sendWorkspaceCommand(workspace, 'resetDraft');
                   }}
                 >
                   <RotateCcw className="size-3.5" /> Restart
@@ -400,7 +396,7 @@ export function MockDraftControls({
                   size="sm"
                   onClick={() => {
                     const pick = clampBranchPick(currentPick, branchPick);
-                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'branchFromPick', pick); } else { workspace.send('branchFromPick', pick); }
+                    sendWorkspaceCommand(workspace, 'branchFromPick', pick);
                   }}
                 >
                   Create branch
@@ -445,8 +441,8 @@ export function MockDraftControls({
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'resetDraft'); } else { workspace.send('resetDraft'); }
-                    if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'setup'); } else { workspace.send('setSessionMode', 'setup'); }
+                    sendWorkspaceCommand(workspace, 'resetDraft');
+                    sendWorkspaceCommand(workspace, 'setSessionMode', 'setup');
                     setIsOpen(false);
                   }}
                 >
@@ -457,7 +453,7 @@ export function MockDraftControls({
             ) : (
               <Button
                 onClick={() => {
-                  if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setSessionMode', 'mock'); } else { workspace.send('setSessionMode', 'mock'); }
+                  sendWorkspaceCommand(workspace, 'setSessionMode', 'mock');
                   setIsOpen(false);
                 }}
                 disabled={!isMockReady}

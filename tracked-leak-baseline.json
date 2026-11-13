@@ -112,14 +112,6 @@
     "reason": "Public Chrome storage key name in STORAGE_KEYS, not the value of a pairing token. Preserve persisted keys unchanged."
   },
   {
-    "file": "scripts/persistence/run.mjs",
-    "detector": "credential-assignment",
-    "line": 102,
-    "column": 62,
-    "fingerprint": "0298c5a9ef403e470f3821f95c1c15843d236df5b68a6c7dbfd7493d9bb90e3d",
-    "reason": "Fixed synthetic browser-probe pairing token seeds isolated local extension storage without a live provider."
-  },
-  {
     "file": "scripts/persistence/ui-activation.mjs",
     "detector": "credential-assignment",
     "line": 317,

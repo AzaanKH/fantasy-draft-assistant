@@ -1,12 +1,14 @@
 import * as React from 'react';
 import { AnimatePresence, LazyMotion, MotionConfig, useIsPresent } from 'motion/react';
 import * as m from 'motion/react-m';
+import { ContentVisibility } from '@/lib/content-visibility';
 import { cn } from '@/lib/utils';
 
 /** Mirrors --motion-* in design-tokens.css (generated from docs/design-system/tokens.json). */
 const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
 export const MOTION_EASE_CSS = `cubic-bezier(${MOTION_EASE.join(', ')})`;
-export const MOTION_MS = { feedback: 150, content: 210, layout: 280, exit: 100 } as const;
+/** Every UI transition stays at or under 200ms; only the 600ms turn pulse is longer (useTurnStartPulse). */
+export const MOTION_MS = { feedback: 150, content: 180, layout: 200, exit: 100 } as const;
 
 const CONTENT_TRANSITION = { duration: MOTION_MS.content / 1000, ease: MOTION_EASE };
 const loadMotionFeatures = () => import('./motion-features').then((module) => module.default);
@@ -54,6 +56,26 @@ export function usePrefersReducedMotion(): boolean {
     getReducedMotionPreference,
     () => false
   );
+}
+
+/** The analysis subject crossfade: inside the 120-150ms band, shorter than a content transition. */
+export const SUBJECT_FADE_MS = 140;
+
+/**
+ * A short opacity fade when `subjectKey` changes, never on mount. Opacity only, on the element that is already
+ * there: no remount, so focus and the element's height are untouched. Skipped under reduced motion.
+ */
+export function useSubjectFade(ref: React.RefObject<HTMLElement | null>, subjectKey: string): void {
+  const reduced = usePrefersReducedMotion();
+  const previous = React.useRef(subjectKey);
+  React.useLayoutEffect(() => {
+    if (previous.current === subjectKey) return;
+    previous.current = subjectKey;
+    const element = ref.current;
+    if (reduced || !element || typeof element.animate !== 'function') return;
+    const animation = element.animate([{ opacity: 0.25 }, { opacity: 1 }], { duration: SUBJECT_FADE_MS, easing: MOTION_EASE_CSS });
+    return () => { animation.cancel(); };
+  }, [reduced, ref, subjectKey]);
 }
 
 function useChangeAnimation(
@@ -228,7 +250,8 @@ export function MotionExpandable({
       aria-hidden={!open}
     >
       <div className="motion-expandable-content">
-        {children}
+        {/* Collapsed content stays mounted but unseen; controls inside must not count as showing anything. */}
+        <ContentVisibility visible={open}>{children}</ContentVisibility>
       </div>
     </div>
   );

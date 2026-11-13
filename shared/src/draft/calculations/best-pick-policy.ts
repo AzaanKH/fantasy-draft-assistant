@@ -10,10 +10,23 @@ import {
 
 /** Normal Best Pick choices cannot move beyond this ECR neighborhood. */
 export const BEST_PICK_ECR_NEIGHBORHOOD = 8;
+/** A candidate who fills an open starting slot may sit a full round behind the ECR champion. */
+const BEST_PICK_STARTER_ECR_NEIGHBORHOOD = 12;
+/** From the manager's sixth selection an open starting slot is worth double. */
+const BEST_PICK_LATE_STARTER_ROSTER_SIZE = 5;
+const BEST_PICK_LATE_STARTER_WEIGHT = 2;
+
+/** Overrides for the two starter weights, so a backtest can replay other settings. The app passes none. */
+export interface BestPickTuning {
+  /** How far behind the ECR champion a candidate who fills an open starting slot may sit. */
+  readonly starterEcrNeighborhood?: number;
+  /** Multiplier on the starting-slot bonus from the manager's sixth selection. */
+  readonly lateStarterWeight?: number;
+}
 /** League scoring and replacement value can add at most six policy points. */
 const BEST_PICK_LEAGUE_VALUE_MAX = 6;
-/** Roster construction can add at most eight policy points. */
-const BEST_PICK_ROSTER_FIT_MAX = 8;
+/** Roster construction can add at most fourteen policy points: a doubled fixed starter plus the urgency bonus. */
+const BEST_PICK_ROSTER_FIT_MAX = 14;
 /** Bench protection can add at most four policy points. */
 const BEST_PICK_DEPTH_VALUE_MAX = 4;
 /** Tier supply can add at most four cost-of-waiting policy points. */
@@ -33,6 +46,7 @@ interface BestPickPolicyContext {
   /** Manager selections left, including the current selection. */
   readonly selectionsRemaining?: number;
   readonly draftTimingAlternatives?: DraftTimingAlternatives;
+  readonly tuning?: BestPickTuning;
 }
 
 type DraftTimingAlternative = NonNullable<
@@ -352,17 +366,40 @@ function canCompleteLegalRoster(
   return totalPositionCapacity >= futureSelections;
 }
 
+/**
+ * A second player at a position the manager already starts, that cannot play FLEX (a backup QB in a one-QB league),
+ * while an offensive starter slot is still open. Kickers and defenses have their own late-draft deferral.
+ */
+function isSurplusStarter(
+  position: Position,
+  counts: Readonly<Record<Position, number>>,
+  requirements: RosterRequirements,
+  before: RosterAnalysis
+): boolean {
+  return (
+    before.minimumOffensiveStarterPicks > 0 &&
+    position !== 'K' &&
+    position !== 'DEF' &&
+    !requirements.FLEX.eligiblePositions.includes(position) &&
+    counts[position] >= requirements[position].starters
+  );
+}
+
 function getRosterFitScore(
   player: Player,
   before: RosterAnalysis,
   after: RosterAnalysis,
-  selectionsRemaining: number
+  selectionsRemaining: number,
+  surplusStarter: boolean,
+  lateStarterWeight: number
 ): number {
+  if (surplusStarter) return 0;
   const fixedStarterGain =
     before.fixedStartersOpenByPosition[player.position] -
     after.fixedStartersOpenByPosition[player.position];
   const flexGain = before.flexSlotsOpen - after.flexSlotsOpen;
-  let score = fixedStarterGain > 0 ? 6 : flexGain > 0 ? 4 : 1;
+  const starterWeight = before.rosterSize >= BEST_PICK_LATE_STARTER_ROSTER_SIZE ? lateStarterWeight : 1;
+  let score = fixedStarterGain > 0 ? 6 * starterWeight : flexGain > 0 ? 4 * starterWeight : 1;
 
   if (
     fixedStarterGain + flexGain > 0 &&
@@ -513,6 +550,10 @@ function compareEvaluations(
       ? Number(right.factors.rosterFit.legalCompletionPossible) -
         Number(left.factors.rosterFit.legalCompletionPossible)
       : 0) ||
+    (enforceRosterFeasibility
+      ? Number(left.factors.rosterFit.surplusStarter === true) -
+        Number(right.factors.rosterFit.surplusStarter === true)
+      : 0) ||
     score(right) - score(left) ||
     left.player.ecrRank - right.player.ecrRank ||
     compareText(left.player.name, right.player.name) ||
@@ -523,14 +564,14 @@ function compareEvaluations(
 function selectEvaluation(
   evaluations: readonly BestPickPolicyEvaluation[],
   score: (evaluation: BestPickPolicyEvaluation) => number,
-  enforceRosterFeasibility: boolean = true
+  /** Given for the roster-blind comparison: the boundary an empty roster would have, around the plain ECR leader. */
+  rosterBlindBoundary?: (evaluation: BestPickPolicyEvaluation) => boolean
 ): BestPickPolicyEvaluation | undefined {
+  const enforceRosterFeasibility = rosterBlindBoundary === undefined;
   const sort = (left: BestPickPolicyEvaluation, right: BestPickPolicyEvaluation) =>
     compareEvaluations(left, right, score, enforceRosterFeasibility);
-  if (!enforceRosterFeasibility) {
-    const bounded = evaluations
-      .filter((evaluation) => evaluation.factors.conservativeBoundary.withinBoundary)
-      .sort(sort);
+  if (rosterBlindBoundary) {
+    const bounded = evaluations.filter(rosterBlindBoundary).sort(sort);
     return bounded[0] ?? [...evaluations].sort(sort)[0];
   }
   const boundedFeasible = evaluations
@@ -569,13 +610,19 @@ export function evaluateBestPickPolicy(
       context.selectionsRemaining ?? before.rosterCapacity - before.rosterSize
     )
   );
-  const ecrChampion = [...availablePlayers].sort((left, right) =>
+  const surplus = (player: Player): boolean =>
+    isSurplusStarter(player.position, counts, requirements, before);
+  // The neighborhood is anchored on the best player who can still help the lineup, so a surplus QB at the top of
+  // the board neither wins nor shrinks the field to the players ranked beside him.
+  const useful = availablePlayers.filter((player) => !surplus(player));
+  const byRank = (left: Player, right: Player): number =>
     left.ecrRank - right.ecrRank ||
     compareText(left.name, right.name) ||
-    compareText(left.id, right.id)
-  )[0];
+    compareText(left.id, right.id);
+  const rosterBlindChampion = [...availablePlayers].sort(byRank)[0];
+  const ecrChampion = useful.length > 0 ? [...useful].sort(byRank)[0] : rosterBlindChampion;
 
-  if (!ecrChampion || candidatePlayers.length === 0) {
+  if (!ecrChampion || !rosterBlindChampion || candidatePlayers.length === 0) {
     return {
       evaluations: [],
       preferredPlayerId: undefined,
@@ -584,6 +631,9 @@ export function evaluateBestPickPolicy(
   }
 
   const ecrRankLimit = asRank(ecrChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD);
+  const starterRankLimit = ecrChampion.ecrRank +
+    (context.tuning?.starterEcrNeighborhood ?? BEST_PICK_STARTER_ECR_NEIGHBORHOOD);
+  const lateStarterWeight = context.tuning?.lateStarterWeight ?? BEST_PICK_LATE_STARTER_WEIGHT;
   const tierAvailability = calculateTierAvailability(candidatePlayers);
   const draftTimingAlternatives = context.draftTimingAlternatives ??
     prepareDraftTimingAlternatives(candidatePlayers);
@@ -591,8 +641,13 @@ export function evaluateBestPickPolicy(
     const after = analyzeRoster(addCandidate(counts, player.position), requirements);
     const samePositionTier =
       player.position === ecrChampion.position && player.tier === ecrChampion.tier;
-    const withinBoundary =
-      player.ecrRank <= ecrRankLimit || samePositionTier;
+    const surplusStarter = useful.length > 0 && surplus(player);
+    const fillsStarter = !surplusStarter && after.minimumStarterPicks < before.minimumStarterPicks;
+    const withinBoundary = !surplusStarter && (
+      player.ecrRank <= ecrRankLimit ||
+      samePositionTier ||
+      (fillsStarter && player.ecrRank <= starterRankLimit)
+    );
     const leagueValueScore = round(clamp(
       Math.max(0, player.valueOverReplacement) /
         LEAGUE_VOR_POINTS_PER_POLICY_POINT,
@@ -603,7 +658,9 @@ export function evaluateBestPickPolicy(
       player,
       before,
       after,
-      selectionsRemaining
+      selectionsRemaining,
+      surplusStarter,
+      lateStarterWeight
     );
     const depthValue = getDepthValueFactor(
       player,
@@ -659,6 +716,7 @@ export function evaluateBestPickPolicy(
           benchSlotsOpen: before.benchSlotsOpen,
           selectionsRemaining,
           legalCompletionPossible,
+          ...(surplusStarter ? { surplusStarter } : {}),
           materiallyChangedOrdering: false,
         },
         depthValue,
@@ -682,7 +740,11 @@ export function evaluateBestPickPolicy(
   const selectedWithoutRosterFit = selectEvaluation(
     evaluations,
     (evaluation) => evaluation.score - evaluation.factors.rosterFit.score,
-    false
+    // Surplus starters and the starter window are roster effects, so this boundary ignores both.
+    (evaluation) =>
+      evaluation.player.ecrRank <= rosterBlindChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD ||
+      (evaluation.player.position === rosterBlindChampion.position &&
+        evaluation.player.tier === rosterBlindChampion.tier)
   );
   const selectedWithoutDepthValue = selectEvaluation(
     evaluations,

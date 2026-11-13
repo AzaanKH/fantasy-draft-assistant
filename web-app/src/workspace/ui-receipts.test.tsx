@@ -13,7 +13,6 @@ import { CommandNotice } from './CommandNotice';
 
 const [fixture, elsewhere] = VISUAL_PLAYERS;
 if (!fixture || !elsewhere) throw new Error('Missing player fixture');
-vi.mock('@fantasy-draft/shared/sync', async importOriginal => ({ ...await importOriginal<object>(), STORAGE_ACTIVATION_ENABLED: true }));
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: VISUAL_PLAYERS, isLoading: false }) }));
 vi.mock('@/features/draft-room/LiveDraftSyncProvider', () => ({ useLiveDraftSync: () => ({ connection: { provider: 'sleeper' } }) }));
 
@@ -75,7 +74,8 @@ it.each([false, true].flatMap(correcting => (['commit', 'abort'] as const).map(o
     else {
       expect(close).not.toHaveBeenCalled();
       expect(document.body.textContent).toContain('Quota exhausted');
-      expect(document.body.textContent).toContain('Draft change was not saved');
+      // The dialog is the one failure surface; the generic save notice is cleared, not left behind.
+      expect(document.body.textContent).not.toContain('Draft change was not saved');
     }
   } finally { act(() => { root.unmount(); }); owner.dispose(); container.remove(); }
 });

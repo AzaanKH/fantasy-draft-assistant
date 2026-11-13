@@ -92,7 +92,7 @@ test('actual static fixture endpoints provide decoded readiness inputs while unk
 test('the real runner seeds v1 bytes with an effective source condition in its child process', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'ui-runner-seed-'));
   const runner = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
-  const code = runner.slice(runner.indexOf('async function seedV1('), runner.indexOf('async function activateThroughPrompt('));
+  const code = runner.slice(runner.indexOf('async function seedV1('), runner.indexOf('async function activateOnLoad('));
   const values = new Map(); const navigations = []; const results = { progress: [] };
   const page = { goto: async url => navigations.push(url), evaluate: async (fn, entries) => runInNewContext(`(${fn.toString()})(entries)`, {
     entries, localStorage: { setItem: (key, value) => values.set(key, value) },

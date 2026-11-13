@@ -218,6 +218,7 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
   shadowPlayers: [],
   sportsbookSnapshot: undefined,
   isLoading: false,
+  isReadinessPending: false,
   isError: false,
   error: null,
   dataInfo: {
@@ -259,6 +260,7 @@ export const VISUAL_LOADING_PLAYER_DATA: PlayerDataQueryResult = {
   ...VISUAL_PLAYER_DATA,
   players: [],
   isLoading: true,
+  isReadinessPending: true,
 };
 
 function createFixtureHistory(): RecordedDraftPick[] {
@@ -333,6 +335,8 @@ export type VisualRoute =
   | { readonly screen: 'board'; readonly state: 'mid-draft' }
   | { readonly screen: 'assistant'; readonly state: AssistantLens }
   | { readonly screen: 'mobile-draft'; readonly state: 'draft' }
+  /** The desktop draft room with the setup checklist open above the player pool. */
+  | { readonly screen: 'draft'; readonly state: 'checklist' }
   | { readonly screen: 'mobile-assistant'; readonly state: AssistantLens }
   | { readonly screen: 'readiness'; readonly state: 'blocked' | 'ready'; readonly refresh: VisualRefreshState }
   | { readonly screen: 'loading'; readonly state: 'draft' | 'assistant' | 'sidepanel' }
@@ -351,6 +355,9 @@ export function getVisualRoute(pathname: string, search: string): VisualRoute {
       screen: 'assistant',
       state: state === 'compare' || state === 'roster' || state === 'why' ? state : 'wait',
     };
+  }
+  if (pathname === '/__visual/draft' && state === 'checklist') {
+    return { screen: 'draft', state: 'checklist' };
   }
   if (pathname === '/__visual/mobile/draft') {
     return { screen: 'mobile-draft', state: 'draft' };
@@ -427,6 +434,17 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
       return <AssistantFixture lens={route.state} />;
     case 'mobile-draft':
       return <DraftWorkspaceFixture />;
+    case 'draft':
+      return (
+        <DraftSetupActionsContext.Provider value={VISUAL_SETUP_ACTIONS}>
+          <Header route="draft" />
+          <DraftWorkspace
+            roundWindowSize={VISUAL_BOARD_ROUNDS}
+            onOpenAssistant={() => undefined}
+            setupChecklist={<DraftReadinessBlockedNotice readiness={VISUAL_BLOCKED_REPORT} />}
+          />
+        </DraftSetupActionsContext.Provider>
+      );
     case 'readiness': {
       const report = route.state === 'blocked'
         ? VISUAL_BLOCKED_REPORT
@@ -443,7 +461,7 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
       return route.state === 'draft'
         ? <DraftWorkspaceFixture />
         : route.state === 'assistant'
-          ? <><Header route="assistant" /><AssistantSkeleton analysisTab="wait" onReturnToDraft={() => undefined} /></>
+          ? <><Header route="assistant" /><AssistantSkeleton analysisTab="wait" /></>
           : <SidePanelSkeleton />;
     case 'not-found':
       return <main className="p-4">Visual fixture not found.</main>;

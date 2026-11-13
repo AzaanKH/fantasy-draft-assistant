@@ -55,12 +55,12 @@ export function getComparisonMetrics(
   };
 
   return [
-    { key: 'vor', label: 'Above replacement', description: 'Positional advantage, in points.', values: value, format: 'signed-points', scale: comparisonScale(value) },
+    { key: 'vor', label: 'Pts over a fill-in starter', description: 'Projected points over a fill-in starter at his position.', values: value, format: 'signed-points', scale: comparisonScale(value) },
     { key: 'projectedPoints', label: 'Projected points', description: 'Season total in your scoring format.', values: projected, format: 'points', scale: comparisonScale(projected) },
-    { key: 'returnProbability', label: 'At next pick', description: 'Availability estimate, not player quality.', values: [probability(first), probability(second)], format: 'percent', scale: { min: 0, max: 100 } },
+    { key: 'returnProbability', label: "Chance he's there", description: 'Chance he is still there at your next pick; not player quality.', values: [probability(first), probability(second)], format: 'percent', scale: { min: 0, max: 100 } },
     { key: 'waitingCost', label: 'Waiting cost', description: 'Expected points lost by waiting; lower is safer to wait on.', values: [getWaitingCostSummary(first).costOfWaiting, getWaitingCostSummary(second).costOfWaiting], format: 'points' },
     { key: 'tier', label: 'Position tier', description: first.position === second.position ? `Within ${first.position}; lower tiers are stronger.` : 'Tiers are relative to each position.', values: [finite(first.diagnostics?.tier), finite(second.diagnostics?.tier)], format: 'tier' },
-    { key: 'ecr', label: RANKING_LABELS.anchor, description: `${RANKING_LABELS.title}; lower is better.`, values: [finite(first.diagnostics?.expertRank), finite(second.diagnostics?.expertRank)], format: 'rank' },
-    { key: 'recommendationRank', label: 'Recommendation rank', description: 'Order in the current decision lens.', values: [finite(ranks.get(first.playerId)), finite(ranks.get(second.playerId))], format: 'rank' },
+    { key: 'ecr', label: 'Rankings', description: `${RANKING_LABELS.title} (${RANKING_LABELS.source}); lower is better.`, values: [finite(first.diagnostics?.expertRank), finite(second.diagnostics?.expertRank)], format: 'rank' },
+    { key: 'recommendationRank', label: 'Rank for this pick', description: 'Overall order for this pick in the current lens.', values: [finite(ranks.get(first.playerId)), finite(ranks.get(second.playerId))], format: 'rank' },
   ];
 }

@@ -11,6 +11,15 @@ type SignalTone = 'positive' | 'caution' | 'urgent' | 'neutral';
 function pluralize(value: number, singular: string, plural: string): string {
   return `${String(value)} ${value === 1 ? singular : plural}`;
 }
+/** Points over a fill-in starter below this read as "0 pts", which looks like a model error without its reason. */
+export const NEAR_ZERO_VALUE_POINTS = 1;
+
+/** True when the player projects about the same as a fill-in starter at his position (either side of zero). */
+export function hasNearZeroValue(recommendation: Pick<Recommendation, 'diagnostics'>): boolean {
+  const value = recommendation.diagnostics?.valueOverReplacement;
+  return typeof value === 'number' && Math.abs(value) < NEAR_ZERO_VALUE_POINTS;
+}
+
 export function survivalPercent(recommendation: Recommendation): Percent | null {
   const probability = recommendation.diagnostics?.nextPickSurvivalProbability;
   return typeof probability === 'number' ? toWholePercent(probability) : null;
@@ -76,25 +85,25 @@ function getRecommendationChangeAnswer(
   positionRank?: number,
   display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
 ): string {
-  const { RANKING_LABELS, LEAGUE_LABEL } = display;
+  const { LEAGUE_LABEL } = display;
   const factors = recommendation.decisionFactors;
   const unchanged = isTopPick
-    ? `No bounded adjustment changed the ${RANKING_LABELS.inline} order. The policy confirmed this player as Best Pick.`
-    : `The bounded adjustments did not move this player to Best Pick${positionRank === undefined
+    ? 'Follows the rankings; roster and timing did not move anyone ahead.'
+    : `Roster and timing did not lift this player above the Best Pick${positionRank === undefined
       ? '.'
-      : `; this player ranks #${String(positionRank)} at ${recommendation.position}.`}`;
+      : `; #${String(positionRank)} at ${recommendation.position}.`}`;
   if (!factors) return unchanged;
 
   if (factors.conservativeBoundary.feasibilityException) {
-    return `Roster feasibility changed the order because the normal ${RANKING_LABELS.inline} window could not complete a legal roster.`;
+    return 'Taken early so your roster can still be filled; the usual range of the rankings could not fill it.';
   }
 
   const changedFactors = [
-    { changed: factors.leagueValue.materiallyChangedOrdering === true, score: factors.leagueValue.score, answer: `${LEAGUE_LABEL} value changed the order.` },
-    { changed: factors.rosterFit.materiallyChangedOrdering === true, score: factors.rosterFit.score, answer: 'Roster fit changed the order.' },
-    { changed: factors.depthValue.materiallyChangedOrdering, score: factors.depthValue.score, answer: `Depth Value changed the order: ${String(factors.depthValue.reserveCount)} ${recommendation.position} reserves against a target of ${String(factors.depthValue.targetReserveCount)}.` },
-    { changed: factors.tierSupply.materiallyChangedOrdering, score: factors.tierSupply.score, answer: 'Tier supply changed the order.' },
-    { changed: factors.draftTiming.materiallyChangedOrdering, score: factors.draftTiming.score, answer: 'Draft timing changed the order. Can I wait? shows the cost.' },
+    { changed: factors.leagueValue.materiallyChangedOrdering === true, score: factors.leagueValue.score, answer: `${LEAGUE_LABEL} scoring moved this player up.` },
+    { changed: factors.rosterFit.materiallyChangedOrdering === true, score: factors.rosterFit.score, answer: 'Your open roster spots moved this player up.' },
+    { changed: factors.depthValue.materiallyChangedOrdering, score: factors.depthValue.score, answer: `Depth moved this player up: ${String(factors.depthValue.reserveCount)} of ${String(factors.depthValue.targetReserveCount)} backup ${recommendation.position}s.` },
+    { changed: factors.tierSupply.materiallyChangedOrdering, score: factors.tierSupply.score, answer: 'A thinning tier moved this player up.' },
+    { changed: factors.draftTiming.materiallyChangedOrdering, score: factors.draftTiming.score, answer: 'The cost of waiting moved this player up.' },
   ]
     .filter((factor) => factor.changed)
     .sort((first, second) => second.score - first.score);
@@ -109,14 +118,19 @@ export function getWhyRows(
   positionRank?: number,
   display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
 ): readonly AssistantAnswerRow[] {
-  const { RANKING_LABELS } = display;
   const diagnostics = recommendation.diagnostics;
   const factors = recommendation.decisionFactors;
   const positionPlace = positionRank === undefined
     ? ''
     : ` #${String(positionRank)} among available ${recommendation.position}s.`;
+  // Plain words on the primary line; the detailed figures stay in Full reasoning.
+  const vor = diagnostics ? Math.round(diagnostics.valueOverReplacement) : 0;
+  // "Projects 0 pts more than a fill-in DEF" reads as a model error: say it plainly and let the rows below give
+  // the reason (the open spot, the tier, or the order).
   const value = diagnostics
-    ? `VOR ${formatSignedNumber(diagnostics.valueOverReplacement, 0)}. ${RANKING_LABELS.short} #${String(diagnostics.expertRank)}.${positionPlace}`
+    ? `${hasNearZeroValue(recommendation)
+      ? `Projects about the same as a fill-in ${recommendation.position}, so the roster and tier below decide.`
+      : `Projects ${pluralize(Math.abs(vor), 'pt', 'pts')} ${vor >= 0 ? 'more' : 'fewer'} than a fill-in ${recommendation.position}.`} #${String(diagnostics.expertRank)} overall.${positionPlace}`
     : 'League value is not available for this player.';
   const rosterFit = factors
     ? `${pluralize(factors.rosterFit.fixedStartersOpen, 'starter spot', 'starter spots')} and ${pluralize(factors.rosterFit.flexSlotsOpen, 'FLEX spot', 'FLEX spots')} open, ${pluralize(factors.rosterFit.selectionsRemaining, 'selection', 'selections')} left.`
@@ -158,7 +172,7 @@ export function getWaitAnswer(recommendation: Recommendation): {
         label: 'At next pick',
         answer: timing.returnPercent === null
           ? 'Unavailable. Timing inputs are missing.'
-          : `${String(timing.returnPercent)}% Return Probability`,
+          : `${String(timing.returnPercent)}% chance he's still there`,
         tone: signal.tone,
       },
       {
@@ -171,7 +185,7 @@ export function getWaitAnswer(recommendation: Recommendation): {
       {
         label: 'Expected Next-Pick Alternative',
         answer: timing.fallback
-          ? `${timing.fallback.playerName}, ${formatSignedNumber(timing.fallback.expectedValue, 0)} expected points above replacement`
+          ? `${timing.fallback.playerName}, ${formatSignedNumber(timing.fallback.expectedValue, 0)} expected pts over a fill-in starter`
           : 'No same-position fallback is projected.',
         tone: timing.fallback ? 'neutral' : 'caution',
       },
@@ -249,9 +263,9 @@ export function getComparisonHighlights(
   first: Recommendation,
   second: Recommendation,
   decision: DraftDecisionView,
-  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
+  // Kept for callers: the highlights now say "the rankings" whatever the ranking source is called.
+  _display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
 ): readonly ComparisonHighlight[] {
-  const { RANKING_LABELS } = display;
   const highlights: ComparisonHighlight[] = [];
   const firstValue = first.diagnostics?.valueOverReplacement;
   const secondValue = second.diagnostics?.valueOverReplacement;
@@ -261,7 +275,7 @@ export function getComparisonHighlights(
       const leader = firstValue > secondValue ? first : second;
       highlights.push({
         label: 'League value',
-        detail: `${leader.playerName} has ${String(Number(difference.toFixed(1)))} more projected points above replacement.`,
+        detail: `${leader.playerName} projects ${String(Number(difference.toFixed(1)))} more pts over a fill-in starter.`,
       });
     }
   }
@@ -302,7 +316,7 @@ export function getComparisonHighlights(
     const difference = Math.abs(firstEcr - secondEcr);
     highlights.push({
       label: 'Player quality',
-      detail: `${leader.playerName} is ${RANKING_LABELS.inline} #${String(leaderRank)}, ${String(difference)} place${difference === 1 ? '' : 's'} ahead.`,
+      detail: `${leader.playerName} is #${String(leaderRank)} in the rankings, ${String(difference)} place${difference === 1 ? '' : 's'} ahead.`,
     });
   }
 

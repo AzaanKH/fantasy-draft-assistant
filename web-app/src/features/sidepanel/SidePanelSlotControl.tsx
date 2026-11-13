@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { Select } from '@/components/ui/select';
 import { useConnectionState, useDraftState, useWorkspace } from '@/workspace/WorkspaceProvider';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 
 export function SidePanelSlotControl(): ReactElement | null {
   const connection = useConnectionState(state => state.connection);
@@ -14,6 +14,6 @@ export function SidePanelSlotControl(): ReactElement | null {
     <Select aria-label="Your draft slot" value="" options={[
       { value: '', label: 'Choose a slot', disabled: true },
       ...Array.from({ length: totalTeams }, (_, index) => ({ value: String(index + 1), label: `Slot ${String(index + 1)}` })),
-    ]} onValueChange={value => { dispatchWorkspace(workspace, 'connection.confirmDraftPosition', Number(value)); }} />
+    ]} onValueChange={value => { sendWorkspaceCommand(workspace, 'connection.confirmDraftPosition', Number(value)); }} />
   </section>;
 }

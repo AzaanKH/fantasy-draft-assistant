@@ -4,22 +4,35 @@ import { type Player, type Position } from '@fantasy-draft/shared/league';
 import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3 } from 'lucide-react';
+import { useDraftSessionKey, useLandedPick } from './usePickLanded';
+import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3, Hourglass } from 'lucide-react';
 import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
-import { isMotionDisabled, MOTION_EASE_CSS, usePrefersReducedMotion } from '@/components/motion';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { getEffectiveKeeperAssignments, getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
 import { type RecordedDraftPick } from '@/stores/draftStore';
-import { getDraftBoardScrollTarget } from './draft-board-scroll';
+import { STICKY_ROUND_COLUMN_WIDTH } from './draft-board-scroll';
+import { boardPlayerName } from '@/lib/player-name';
+import { useBoardFollowLive } from './useBoardFollowLive';
 import { getDraftBoardCurrentView } from './draft-board-view';
+import { useTurnStartPulse } from './useTurnStartPulse';
 
-const STICKY_HEADER_HEIGHT = 76;
-const STICKY_ROUND_COLUMN_WIDTH = 56;
+/** Tailwind's sm breakpoint: below it the current-pick view shows only the teams around the live pick. */
+const WIDE_BOARD_QUERY = '(min-width: 40rem)';
+
 const MOBILE_ROUND_COLUMN_WIDTH = 44;
-const TEAM_COLUMN_MIN_WIDTH = 124;
-const TEAM_COLORS = ['#3FA7FF', '#49E8CC', '#9C7BFF', '#FF7A93', '#B57BFF', '#FFAF5B', '#5CE0B0', '#FF7A2E', '#4AD0EE', '#F07BF0'] as const;
+/**
+ * Narrow enough that 10 and 12 teams fit without sideways scrolling from 1280px; below 120px a cell switches to
+ * its narrow layout (draft-board.css). 14+ teams still scroll.
+ */
+const TEAM_COLUMN_MIN_WIDTH = 92;
+/** Team identity colors rotate through the `--board-team-*` design tokens (docs/design-system/tokens.json). */
+const TEAM_COLOR_COUNT = 10;
+function teamColor(teamIndex: number): string {
+  return `var(--board-team-${String((teamIndex % TEAM_COLOR_COUNT) + 1)})`;
+}
 
 interface BoardPick {
   readonly playerId: string;
@@ -81,6 +94,12 @@ function EmptyPick({
   );
 }
 
+/** The narrow-column name; a long one is set tighter so it still shows whole. */
+function BoardShortName({ name, position, team }: { readonly name: string; readonly position: Player['position']; readonly team: string | undefined }): React.ReactElement {
+  const short = boardPlayerName(name, position, team);
+  return <span className="board-name-short" data-long={short.length > 12 || undefined} aria-hidden="true">{short}</span>;
+}
+
 function FilledPick({
   pick,
   player,
@@ -106,13 +125,22 @@ function FilledPick({
     )}>
       <span className="board-pick-number">{slot.label}</span>
       <div data-pick-identity className="board-player-identity">
-        <div className="board-player-name" title={pick.playerName}>{pick.playerName}</div>
+        {/* Narrow columns show the short name; the full one stays for screen readers and the tooltip. */}
+        <div className="board-player-name" title={pick.playerName}>
+          <span className="board-name-full">{pick.playerName}</span>
+          <BoardShortName name={pick.playerName} position={pick.position} team={player?.team} />
+        </div>
         <div className="board-player-meta">
           {pick.position}{player?.team ? ` · ${player.team}` : ''}
-          {player?.byeWeek ? ` (${String(player.byeWeek)})` : ''}
+          {player?.byeWeek ? <span className="board-player-bye">{` (${String(player.byeWeek)})`}</span> : null}
           {pick.source === 'reserved' ? ' · Keeper' : ''}
         </div>
-        {pick.source === 'provisional' ? <span className="board-provisional-label">Provisional Pick</span> : null}
+        {/* An icon, not 8px text: the slot has no room for readable 11px copy. The name stays for screen readers and the tooltip. */}
+        {pick.source === 'provisional' ? (
+          <span className="board-provisional-label" title="Provisional Pick">
+            <Hourglass aria-hidden="true" size={11} /><span className="sr-only">Provisional Pick</span>
+          </span>
+        ) : null}
       </div>
       <Direction className="board-pick-direction" aria-hidden="true" size={13} />
       {!compact ? (
@@ -151,7 +179,6 @@ interface DraftGridProps {
   readonly totalPicks: number;
   readonly totalTeams: number;
   readonly upcomingMyPickNumber: number | null;
-  readonly wrapperClassName?: string;
 }
 
 function DraftGrid({
@@ -175,10 +202,10 @@ function DraftGrid({
   totalPicks,
   totalTeams,
   upcomingMyPickNumber,
-  wrapperClassName,
 }: DraftGridProps): React.ReactElement {
-  const order = React.useMemo(() => createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(totalPicks / totalTeams) }),
-    [draftType, totalTeams, totalPicks]);
+  const totalRounds = Math.ceil(totalPicks / totalTeams);
+  const order = React.useMemo(() => createSlotSequence({ type: draftType, teams: totalTeams, rounds: totalRounds }),
+    [draftType, totalTeams, totalRounds]);
   const roundColumnWidth = compact
     ? MOBILE_ROUND_COLUMN_WIDTH
     : STICKY_ROUND_COLUMN_WIDTH;
@@ -195,15 +222,20 @@ function DraftGrid({
     <div
       ref={boardRef}
       data-round-column-width={roundColumnWidth}
-      className={cn(
-        'board-scroll overflow-auto',
-        wrapperClassName
-      )}
+      className="board-scroll overflow-auto"
+      // A keyboard-reachable, named scroll region, so the board can be scrolled without a mouse (axe
+      // scrollable-region-focusable); arrow keys scroll it once focused.
+      tabIndex={0}
+      role="region"
+      aria-label="Draft board, scrollable"
       // Set on the scroller, not the section, so a height change restyles only the elements that read it.
       style={{ '--draft-board-height': `${String(boardHeight)}px` } as React.CSSProperties}
     >
-      <div className="board-grid grid w-full" style={gridStyle}>
-        <div className="board-corner sticky left-0 top-0 z-30">
+      {/* Table semantics for assistive tech: rows use display: contents, so cells stay direct grid items and the layout is unchanged. */}
+      <div className="board-grid grid w-full" style={gridStyle} role="table" aria-label="Draft board"
+        aria-rowcount={totalRounds + 1} aria-colcount={teamIndices.length + 1}>
+        <div role="row" aria-rowindex={1} className="contents">
+        <div role="columnheader" className="board-corner sticky left-0 top-0 z-30">
           Round
         </div>
         {teamIndices.map((teamIndex) => {
@@ -212,25 +244,30 @@ function DraftGrid({
           return (
             <div
               key={`team-${String(teamIndex)}`}
+              role="columnheader"
               className={cn(
                 'board-team-header sticky top-0 z-20',
                 isMyTeam && 'is-my-team',
                 isActiveTeam && 'is-active-team'
               )}
             >
-              <span className="board-team-avatar" style={{ '--team-color': TEAM_COLORS[teamIndex % TEAM_COLORS.length] } as React.CSSProperties} aria-hidden="true">
+              <span className="board-team-avatar" style={{ '--team-color': teamColor(teamIndex) } as React.CSSProperties} aria-hidden="true">
                 {String(teamIndex + 1).padStart(2, '0')}
               </span>
               <span className="board-team-name" title={teamNames[teamIndex]}>{teamNames[teamIndex]}</span>
+              {isMyTeam ? <span className="sr-only">, My Team</span> : null}
             </div>
           );
         })}
+        </div>
 
         {roundNumbers.map((roundNumber) => {
           const isActiveRound = activeRound === roundNumber;
           return (
-            <React.Fragment key={`round-${String(roundNumber)}`}>
+            <div key={`round-${String(roundNumber)}`} role="row" aria-rowindex={roundNumber + 1} className="contents">
               <div
+                role="rowheader"
+                aria-label={`Round ${String(roundNumber)}`}
                 className={cn(
                   'board-round sticky left-0 z-10',
                   isActiveRound && 'is-active-round'
@@ -239,7 +276,7 @@ function DraftGrid({
               >
                 <span>R{String(roundNumber)}</span>
                 {currentPickMode && isActiveRound ? (
-                  <span className="mt-1 font-sans text-[8px] font-bold uppercase tracking-[0.12em]">Now</span>
+                  <span className="board-round-now">Now</span>
                 ) : null}
               </div>
               {teamIndices.map((teamIndex) => {
@@ -255,6 +292,7 @@ function DraftGrid({
                 return (
                   <div
                     key={`pick-${String(pickNumber)}`}
+                    role="cell"
                     ref={isActive ? activeSlotRef : undefined}
                     className={cn(
                       'board-slot',
@@ -287,7 +325,7 @@ function DraftGrid({
                   </div>
                 );
               })}
-            </React.Fragment>
+            </div>
           );
         })}
       </div>
@@ -310,7 +348,7 @@ function BoardModeButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 items-center justify-center gap-1.5 rounded-xs px-3 text-xs font-semibold outline-none transition-[background-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/60',
+        'inline-flex h-8 items-center justify-center gap-1.5 rounded-xs px-3 text-xs font-semibold outline-none transition-[background-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring',
         active
           ? 'bg-foreground text-background'
           : 'text-muted-foreground hover:text-foreground'
@@ -364,12 +402,10 @@ export function DraftBoard({
   const preloadedKeepers = useDraftState((state) => state.preloadedKeepers);
   const [mode, setMode] = React.useState<BoardMode>('current');
   const turnIndicatorRef = React.useRef<HTMLSpanElement>(null);
-  const reduceMotion = usePrefersReducedMotion();
   const [settlingPickNumber, setSettlingPickNumber] = React.useState<number | null>(null);
-  const currentDesktopBoardRef = React.useRef<HTMLDivElement>(null);
-  const currentDesktopSlotRef = React.useRef<HTMLDivElement>(null);
-  const currentMobileBoardRef = React.useRef<HTMLDivElement>(null);
-  const currentMobileSlotRef = React.useRef<HTMLDivElement>(null);
+  const isWideBoard = useMediaQuery(WIDE_BOARD_QUERY);
+  const currentBoardRef = React.useRef<HTMLDivElement>(null);
+  const currentSlotRef = React.useRef<HTMLDivElement>(null);
   const fullBoardRef = React.useRef<HTMLDivElement>(null);
   const fullSlotRef = React.useRef<HTMLDivElement>(null);
   const myTeamIndex = config.myPickPosition - 1;
@@ -378,7 +414,9 @@ export function DraftBoard({
     (latest, pick) => Math.max(latest, pick.pickNumber),
     0
   );
-  const previousLatestPickNumber = React.useRef(latestPickNumber);
+  // Only a pick landing in this session flashes its cell: a history loaded from storage or a switch to another
+  // session raises the latest pick number too, and flashes nothing.
+  const landedPick = useLandedPick(draftHistory, useDraftSessionKey());
   const currentView = getDraftBoardCurrentView({
     currentPick,
     myPickPosition: config.myPickPosition,
@@ -436,73 +474,34 @@ export function DraftBoard({
   );
 
   React.useEffect(() => {
-    if (latestPickNumber <= previousLatestPickNumber.current) {
-      previousLatestPickNumber.current = latestPickNumber;
+    if (!landedPick) {
       setSettlingPickNumber(null);
       return;
     }
-
-    previousLatestPickNumber.current = latestPickNumber;
-    setSettlingPickNumber(latestPickNumber);
+    setSettlingPickNumber(landedPick.pickNumber);
+    // Just past the 200ms confirm highlight (index.css), so the class never cuts the animation short.
     const timeout = window.setTimeout(() => {
       setSettlingPickNumber(null);
-    }, 300);
+    }, 220);
     return () => { window.clearTimeout(timeout); };
-  }, [latestPickNumber]);
+  }, [landedPick]);
 
-  React.useEffect(() => {
-    const targetPairs = mode === 'current'
-      ? [
-          [currentDesktopBoardRef.current, currentDesktopSlotRef.current],
-          [currentMobileBoardRef.current, currentMobileSlotRef.current],
-        ] as const
-      : [[fullBoardRef.current, fullSlotRef.current]] as const;
-    const reduceMotion = isMotionDisabled() ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const { followLive, jumpToLive } = useBoardFollowLive({
+    mode,
+    current: { board: currentBoardRef, slot: currentSlotRef },
+    full: { board: fullBoardRef, slot: fullSlotRef },
+    livePick: currentPick,
+    layoutKey: `${String(currentPick)}:${String(boardHeight)}:${String(fillsSpace)}:${String(isWideBoard)}`,
+  });
 
-    for (const [container, activeSlot] of targetPairs) {
-      if (!container || !activeSlot || container.clientWidth === 0 || container.clientHeight === 0) {
-        continue;
-      }
-      const containerRect = container.getBoundingClientRect();
-      const activeSlotRect = activeSlot.getBoundingClientRect();
-      const roundColumnWidth = Number(container.dataset.roundColumnWidth) || STICKY_ROUND_COLUMN_WIDTH;
-      const target = getDraftBoardScrollTarget({
-        containerTop: containerRect.top,
-        containerLeft: containerRect.left,
-        containerScrollTop: container.scrollTop,
-        containerScrollLeft: container.scrollLeft,
-        containerHeight: container.clientHeight,
-        containerWidth: container.clientWidth,
-        slotTop: activeSlotRect.top,
-        slotLeft: activeSlotRect.left,
-        slotHeight: activeSlotRect.height,
-        slotWidth: activeSlotRect.width,
-        stickyHeaderHeight: STICKY_HEADER_HEIGHT,
-        stickyColumnWidth: roundColumnWidth,
-      });
-      container.scrollTo({
-        top: target.top,
-        left: target.left,
-        behavior: reduceMotion ? 'auto' : 'smooth',
-      });
-    }
-  }, [currentPick, mode, boardHeight, fillsSpace]);
-
+  const slotSequence = React.useMemo(
+    () => createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }),
+    [config.draftType, config.totalRounds, config.totalTeams]
+  );
   // A keeper slot is filled automatically, so it is never the user's selection.
   const isKeeperOnClock = picksByNumber.get(currentPick)?.source === 'reserved';
   const isYourTurn = !isKeeperOnClock && isMyTurn;
-  const previouslyYourTurn = React.useRef(isYourTurn);
-  React.useEffect(() => {
-    const justStarted = isYourTurn && !previouslyYourTurn.current;
-    previouslyYourTurn.current = isYourTurn;
-    if (!justStarted || reduceMotion || !turnIndicatorRef.current) return;
-    const animation = turnIndicatorRef.current.animate([
-      { opacity: 1, transform: 'scale(1)' },
-      { opacity: 0, transform: 'scale(1.25)' },
-    ], { duration: 600, easing: MOTION_EASE_CSS, pseudoElement: '::after' });
-    return () => { animation.cancel(); };
-  }, [isYourTurn, reduceMotion]);
+  useTurnStartPulse(turnIndicatorRef, isYourTurn ? currentPick : null);
 
   const gridProps = {
     activeRound: currentView.activeRound,
@@ -535,11 +534,17 @@ export function DraftBoard({
           {toolbarActions}
         </div>
         <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <span ref={turnIndicatorRef} role="status" className={cn("board-current-pick", isYourTurn && "is-your-turn", currentPick > totalPicks && "is-complete")}><Clock3 size={14} aria-hidden="true" />
+          {/* Not a live region: the header turn banner announces turn changes; this chip changes every pick. */}
+          <span ref={turnIndicatorRef} className={cn("board-current-pick", isYourTurn && "is-your-turn", currentPick > totalPicks && "is-complete")}><Clock3 size={14} aria-hidden="true" />
             {currentPick > totalPicks
               ? 'Complete'
-              : `${isYourTurn ? 'Your turn ·' : isKeeperOnClock ? 'Keeper ·' : 'Pick'} ${createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds }).label(currentPick)}`}
+              : `${isYourTurn ? 'Your turn ·' : isKeeperOnClock ? 'Keeper ·' : 'Pick'} ${slotSequence.label(currentPick)}`}
           </span>
+          {!followLive ? (
+            <button type="button" className="board-jump-live" onClick={jumpToLive}>
+              <ArrowDown className="size-3.5" aria-hidden="true" /> Jump to live pick
+            </button>
+          ) : null}
           <div className="board-view-toggle" role="group" aria-label="Draft board view">
             <BoardModeButton active={mode === 'current'} onClick={() => { setMode('current'); }}>
               <Focus className="size-3.5" />
@@ -555,26 +560,14 @@ export function DraftBoard({
       </div>
 
       {mode === 'current' ? (
-        <>
-          <DraftGrid
-            {...gridProps}
-            boardRef={currentDesktopBoardRef}
-            activeSlotRef={currentDesktopSlotRef}
-            teamIndices={allTeamIndices}
-            currentPickMode
-            compact={false}
-            wrapperClassName="hidden sm:block"
-          />
-          <DraftGrid
-            {...gridProps}
-            boardRef={currentMobileBoardRef}
-            activeSlotRef={currentMobileSlotRef}
-            teamIndices={currentView.mobileTeamIndices}
-            currentPickMode
-            compact
-            wrapperClassName="sm:hidden"
-          />
-        </>
+        <DraftGrid
+          {...gridProps}
+          boardRef={currentBoardRef}
+          activeSlotRef={currentSlotRef}
+          teamIndices={isWideBoard ? allTeamIndices : currentView.mobileTeamIndices}
+          currentPickMode
+          compact={!isWideBoard}
+        />
       ) : (
         <DraftGrid
           {...gridProps}

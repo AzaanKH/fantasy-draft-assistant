@@ -13,7 +13,7 @@ let binding: { bind(identity: DraftSessionIdentity): Promise<IndexedWorkspace>; 
 export function createHarnessWorkspace(verified: VerifiedStorageSharing): Workspace {
   if (verified.origin !== window.location.origin) throw new Error('Storage verification belongs to another origin');
   if (!import.meta.env.DEV || import.meta.env.VITE_PERSISTENCE_HARNESS !== 'idb') throw new Error('IndexedDB workspace is available only to the development persistence harness');
-  const draft = createDraftStore({ storage: null });
+  const draft = createDraftStore();
   const errors: StorageDiagnostic[] = [];
   let active: IndexedWorkspace | undefined;
   let stop: (() => void) | undefined;

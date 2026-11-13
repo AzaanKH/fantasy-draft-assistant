@@ -8,19 +8,32 @@ import { LivePlayerDataProvider, usePlayerDataQuery, type PlayerDataQueryResult 
 import type { PersistedDraftSyncConnection } from '@/workspace/connection-hints';
 import { SAFE_RECOMMENDATION_POLICY } from '@fantasy-draft/shared/catalog';
 
-vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
-const draftState = vi.hoisted(() => ({ connection: null as PersistedDraftSyncConnection | null, demo: false }));
+vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn(), keepPreviousData: (previous: unknown) => previous }));
+const failedMergeInputs = new Set<string>();
+const draftState = vi.hoisted(() => ({ connection: null as PersistedDraftSyncConnection | null, demo: false, totalTeams: null as number | null }));
 vi.mock('@/lib/demo-mode', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/demo-mode')>(),
   get IS_DEMO() { return draftState.demo; },
 }));
-vi.mock('@/workspace/WorkspaceProvider', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/workspace/WorkspaceProvider')>(),
-  useConnectionState: (selector: (state: typeof draftState) => unknown) => selector(draftState),
-}));
+vi.mock('@/workspace/WorkspaceProvider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/workspace/WorkspaceProvider')>();
+  const { createDraftStore: createStore } = await import('@/stores/draftStore');
+  const base = createStore().getState();
+  return {
+    ...actual,
+    useConnectionState: (selector: (state: typeof draftState) => unknown) => selector(draftState),
+    // Server rendering only reads a store's initial state, so a settings change is simulated here.
+    useDraftState: (selector: (state: typeof base) => unknown) => selector(draftState.totalTeams === null
+      ? base
+      : { ...base, config: { ...base.config, totalTeams: draftState.totalTeams } }),
+  };
+});
 
 let loadedData: Record<string, unknown> = {};
 let coreLoading = false;
+/** The optional sources the player merge reads; pending only when a test holds them. */
+let pendingMergeInputs: ReadonlySet<string> = new Set();
+const MERGE_INPUTS = new Set(['sleeper-adp', 'team-environment', 'fantasy-football-calculator-adp']);
 let shadowEnabled = false;
 let predictionEnabled: unknown;
 let result: PlayerDataQueryResult;
@@ -31,21 +44,25 @@ beforeEach(() => {
   vi.useFakeTimers({ now: Date.parse('2026-09-10T12:00:00Z') });
   loadedData = {};
   coreLoading = false;
+  pendingMergeInputs = new Set();
+  failedMergeInputs.clear();
   shadowEnabled = false;
   predictionEnabled = undefined;
   draftState.connection = null;
   draftState.demo = false;
+  draftState.totalTeams = null;
   vi.mocked(useQuery).mockImplementation(((options: { queryKey: string[]; enabled?: boolean }) => {
     const key = options.queryKey[0] ?? '';
     if (key === 'predictions') predictionEnabled = options.enabled;
     const core = key === 'fantasypros-snapshot' || key === 'player-identity';
     const policy = key === 'recommendation-policy';
+    const mergeInput = MERGE_INPUTS.has(key);
     return {
-      data: policy ? { ...SAFE_RECOMMENDATION_POLICY, shadowLogging: { ...SAFE_RECOMMENDATION_POLICY.shadowLogging, enabled: shadowEnabled } } : loadedData[key],
-      isLoading: core ? coreLoading : !policy,
+      data: policy ? { ...SAFE_RECOMMENDATION_POLICY, shadowLogging: { ...SAFE_RECOMMENDATION_POLICY.shadowLogging, enabled: shadowEnabled } } : mergeInput && pendingMergeInputs.has(key) ? undefined : loadedData[key],
+      isLoading: core ? coreLoading : mergeInput ? pendingMergeInputs.has(key) : !policy,
       isSuccess: core ? !coreLoading : policy,
-      isError: false,
-      error: null,
+      isError: failedMergeInputs.has(key),
+      error: failedMergeInputs.has(key) ? new Error(`${key} failed`) : null,
     };
   }) as typeof useQuery);
 });
@@ -85,6 +102,111 @@ describe('player data loading boundaries', () => {
     coreLoading = true;
     render();
     expect(result.isLoading).toBe(true);
+  });
+
+  it('neither merges nor warns about unmatched players until the Sleeper directory has settled (R9-1)', () => {
+    const timestamp = new Date().toISOString();
+    loadedData = {
+      'fantasypros-snapshot': {
+        metadata: { season: 2026, refreshedAt: timestamp, sourceType: 'api' },
+        rankings: [{ fantasyProsId: 'fp-1', rank: 1, name: 'Pending Sleeper Player', position: 'WR', team: 'DET', byeWeek: 8, positionalRank: 1 }],
+        projections: [], news: [],
+      },
+      'player-identity': {
+        season: 2026, generatedAt: timestamp,
+        players: [{ canonicalId: 'player-1', fantasyProsId: 'fp-1', name: 'Pending Sleeper Player', aliases: [], position: 'WR', team: 'DET' }],
+        coverage: { fantasyProsRankingMatchRate: 1, matchedDefenses: 32 },
+      },
+      'sleeper-adp': { fetchedAt: timestamp, playerCount: 1, players: [{ playerId: 'sl-1', name: 'Pending Sleeper Player', position: 'WR', team: 'DET', adp: 10, searchRank: 10 }] },
+    };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    pendingMergeInputs = new Set(['sleeper-adp']);
+    render();
+    expect(result.isLoading).toBe(true);
+    expect(result.players).toEqual([]);
+    expect(warn.mock.calls.filter(([message]) => String(message).includes('[mergePlayerData]'))).toEqual([]);
+
+    pendingMergeInputs = new Set();
+    render();
+    expect(result.isLoading).toBe(false);
+    expect(result.players).toHaveLength(1);
+    expect(warn.mock.calls.filter(([message]) => String(message).includes('[mergePlayerData]'))).toEqual([]);
+    warn.mockRestore();
+  });
+
+  function loadSinglePlayerCore(): void {
+    const timestamp = new Date().toISOString();
+    loadedData = {
+      'fantasypros-snapshot': {
+        metadata: { season: 2026, refreshedAt: timestamp, sourceType: 'api' },
+        rankings: [{ fantasyProsId: 'fp-1', rank: 1, name: 'Optional Input Player', position: 'WR', team: 'DET', byeWeek: 8, positionalRank: 1 }],
+        projections: [], news: [],
+      },
+      'player-identity': {
+        season: 2026, generatedAt: timestamp,
+        players: [{ canonicalId: 'player-1', fantasyProsId: 'fp-1', name: 'Optional Input Player', aliases: [], position: 'WR', team: 'DET' }],
+        coverage: { fantasyProsRankingMatchRate: 1, matchedDefenses: 32 },
+      },
+      'sleeper-adp': { fetchedAt: timestamp, playerCount: 1, players: [{ playerId: 'sl-1', name: 'Optional Input Player', position: 'WR', team: 'DET', adp: 10, searchRank: 10 }] },
+    };
+  }
+
+  it.each([
+    ['slow market ADP', () => { pendingMergeInputs = new Set(['fantasy-football-calculator-adp']); }],
+    ['slow team environment', () => { pendingMergeInputs = new Set(['team-environment']); }],
+    ['failed market ADP', () => { failedMergeInputs.add('fantasy-football-calculator-adp'); }],
+  ] as const)('paints players without waiting for %s', (_label, hold) => {
+    loadSinglePlayerCore();
+    hold();
+    render();
+    expect(result.isLoading).toBe(false);
+    expect(result.players).toHaveLength(1);
+  });
+
+  it.each([
+    ['market ADP', 'fantasy-football-calculator-adp'],
+    ['team environment', 'team-environment'],
+  ] as const)('never holds readiness for a slow optional %s, so the blocked-readiness screen can show', (_label, key) => {
+    loadSinglePlayerCore();
+    pendingMergeInputs = new Set([key]);
+    render();
+    expect(result.isReadinessPending).toBe(false);
+  });
+
+  it('keeps readiness pending while the Sleeper directory the merge needs is in flight', () => {
+    loadSinglePlayerCore();
+    pendingMergeInputs = new Set(['sleeper-adp']);
+    render();
+    expect(result.isReadinessPending).toBe(true);
+    expect(result.isLoading).toBe(true);
+  });
+
+  it('keeps players and the last market ADP while a settings change refetches it', () => {
+    loadSinglePlayerCore();
+    loadedData['fantasy-football-calculator-adp'] = { refreshedAt: new Date().toISOString(), source: 'ffc', players: [], warnings: [] };
+    draftState.totalTeams = 12;
+    render();
+    expect(result.players).toHaveLength(1);
+    const adpOptions = () => vi.mocked(useQuery).mock.calls.map(([options]) => options)
+      .filter((options) => options.queryKey[0] === 'fantasy-football-calculator-adp').at(-1);
+    expect(adpOptions()?.placeholderData).toBeTypeOf('function');
+    const firstKey = adpOptions()?.queryKey;
+
+    draftState.totalTeams = 10;
+    // A new key with no data of its own is what the old gate treated as "loading".
+    pendingMergeInputs = new Set(['fantasy-football-calculator-adp']);
+    render();
+    expect(adpOptions()?.queryKey).not.toEqual(firstKey);
+    expect(result.isLoading).toBe(false);
+    expect(result.players).toHaveLength(1);
+  });
+
+  it('does not start market ADP until the snapshot settles, so its season cannot re-key the request', () => {
+    coreLoading = true;
+    render();
+    const adp = vi.mocked(useQuery).mock.calls.map(([options]) => options)
+      .filter((options) => options.queryKey[0] === 'fantasy-football-calculator-adp').at(-1);
+    expect(adp?.enabled).toBe(false);
   });
 
   it.each([null, { provider: 'sleeper' as const, draftId: 'test', draftPosition: null }])(

@@ -139,3 +139,33 @@ it('finishes an active drag when the dock collapses, so reopening shows the drag
     expect(scroller.style.getPropertyValue('--draft-board-height')).toBe(`${String(dragged)}px`);
   }
 });
+
+it('follows the window default on resize until the user drags, then keeps the dragged height', () => {
+  const root = document.documentElement;
+  const resizeTo = (height: string): void => {
+    act(() => {
+      root.style.setProperty('--board-default-height', height);
+      window.dispatchEvent(new Event('resize'));
+    });
+  };
+  try {
+    // 1280x800 default, then a resize to a taller window whose CSS default is larger.
+    resizeTo('190px');
+    for (const scroller of scrollers()) expect(scroller.style.getPropertyValue('--draft-board-height')).toBe('190px');
+    resizeTo('320px');
+    for (const scroller of scrollers()) expect(scroller.style.getPropertyValue('--draft-board-height')).toBe('320px');
+
+    pointer('pointerdown', 100);
+    pointer('pointermove', 140);
+    pointer('pointerup', 140);
+    resizeTo('190px');
+    for (const scroller of scrollers()) expect(scroller.style.getPropertyValue('--draft-board-height')).toBe('360px');
+
+    // Double-click resets to following the window.
+    act(() => { separator().dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
+    expect(window.localStorage.getItem('draft-board-height')).toBeNull();
+    for (const scroller of scrollers()) expect(scroller.style.getPropertyValue('--draft-board-height')).toBe('190px');
+  } finally {
+    root.style.removeProperty('--board-default-height');
+  }
+});

@@ -102,6 +102,16 @@ async function runProbe(nonce: string, options: ProbeOptions, role: 'top' | 'fra
   }
 }
 
+/**
+ * The hosted static demo, on its own HTTPS origin: there is no localhost app or extension side panel to share storage
+ * with, so the page's own origin is its storage. Only a demo build, in a top-level tab, gets this.
+ */
+export function verifyHostedDemoStorage(location: Pick<Location, 'origin'> = window.location): VerifiedStorageSharing {
+  if (import.meta.env.VITE_DEMO_MODE !== 'true') throw new StorageSharingError('Only the static demo can use its own origin for draft storage.');
+  if (window.parent !== window) throw new StorageSharingError('Open the demo in its own tab to use draft storage.');
+  return { [verifiedSharing]: true, origin: location.origin, kind: 'origin-only' };
+}
+
 export async function verifyStorageSharing(options: ProbeOptions & { readonly canonicalOrigin: string; readonly nonce?: string }): Promise<VerifiedStorageSharing> {
   const location = options.location ?? window.location;
   const nonce = options.nonce ?? new URLSearchParams(location.search).get('__storageNonce');
@@ -135,11 +145,17 @@ export async function serveStorageProbe(nonce: string, options: ProbeOptions = {
 }
 
 
+const REQUEST_REPEAT_MS = 250;
+
 function requestAppTab(nonce: string, timeoutMs: number): Promise<void> {
   validateNonce(nonce);
   return new Promise((resolve, reject) => {
     const channel = new BroadcastChannel(SHARING_CHANNEL);
+    // Re-ask until an app tab offers, so a tab that is still starting (e.g. one the
+    // panel just opened) can answer before the timeout.
+    const repeat = setInterval(() => { channel.postMessage({ type: 'request', nonce }); }, REQUEST_REPEAT_MS);
     const timer = setTimeout(() => {
+      clearInterval(repeat);
       channel.close();
       reject(new StorageSharingError('Keep the draft web app open in a normal tab, then retry the side panel storage check.'));
     }, timeoutMs);
@@ -148,7 +164,7 @@ function requestAppTab(nonce: string, timeoutMs: number): Promise<void> {
       if (typeof value !== 'object' || value === null || !('type' in value) || value.type !== 'offer' ||
           !('nonce' in value) || value.nonce !== nonce || !('responder' in value) || typeof value.responder !== 'string') return;
       channel.postMessage({ type: 'begin', nonce, responder: value.responder });
-      clearTimeout(timer); channel.close(); resolve();
+      clearTimeout(timer); clearInterval(repeat); channel.close(); resolve();
     });
     channel.postMessage({ type: 'request', nonce });
   });

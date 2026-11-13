@@ -1,5 +1,4 @@
-import { STORAGE_ACTIVATION_ENABLED } from '@fantasy-draft/shared/sync';
-import { dispatchWorkspace } from '@/workspace/ui-dispatch';
+import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { DRAFT_DISPLAY } from '@/lib/demo-mode';
@@ -74,6 +73,7 @@ export function DraftDecisionProvider({
     selection,
     positionRecommendationStates,
     topPick,
+    nextPickAvailabilityById,
     isLoading,
   } = recommendationState;
   const currentPick = useDraftView((view) => view.currentPick);
@@ -128,9 +128,10 @@ export function DraftDecisionProvider({
     selection,
     positionRecommendationStates,
     topPick,
+    nextPickAvailabilityById,
     isLoading,
     output,
-    setSelectedLens: (lens) => { if (STORAGE_ACTIVATION_ENABLED) { dispatchWorkspace(workspace, 'setDecisionLens', lens); } else { workspace.send('setDecisionLens', lens); } },
+    setSelectedLens: (lens) => { sendWorkspaceCommand(workspace, 'setDecisionLens', lens); },
     overall: output.selectedView,
     byPosition,
     outputByPosition,
@@ -148,6 +149,7 @@ export function DraftDecisionProvider({
     draftNow,
     historyLength,
     isLoading,
+    nextPickAvailabilityById,
     marketStashes,
     marketValues,
     output,

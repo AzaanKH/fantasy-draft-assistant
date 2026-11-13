@@ -19,6 +19,8 @@ export const STORAGE_KEYS = {
   WEB_APP_URL: 'webAppUrl',
   SYNC_SERVER_URL: 'syncServerUrl',
   SYNC_TOKEN: 'syncToken',
+  /** The embedded app's last resolved theme, so the shell's loading and error overlays match it on the next open. */
+  PANEL_THEME: 'panelTheme',
 } as const;
 
 export const DEFAULT_WEB_APP_URL = LOCAL_PORTS.webOrigin;

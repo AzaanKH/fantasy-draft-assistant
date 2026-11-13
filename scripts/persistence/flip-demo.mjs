@@ -35,8 +35,17 @@ try {
   await page.goto(`${result.origin}/draft`);
   try { await page.locator('.draft-pool-footer').getByText(/players shown/).waitFor({ timeout: 15000 }); }
   finally { result.visibleText = await page.locator('body').innerText(); await page.screenshot({ path: path.join(out, 'hosted-demo.png') }); }
+  // The demo keeps its drafts in its own origin's IndexedDB: no setup screen, no v1 records, no other database.
   assert.equal(await page.locator('[data-storage-activation]').count(), 0);
-  assert.deepEqual(await page.evaluate(() => window.__demoIDBOpens), []);
+  const opens = await page.evaluate(() => window.__demoIDBOpens);
+  assert(opens.length > 0, 'Hosted demo never opened its draft database');
+  assert.deepEqual([...new Set(opens)], ['fantasy-draft-workspace-v2']);
+  assert.deepEqual(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('fantasy-draft-session'))), []);
+  assert.notEqual(await page.evaluate(() => localStorage.getItem('fantasy-draft-storage-migrated')), null);
+  // A reload resumes the same storage without asking again.
+  await page.reload();
+  await page.locator('.draft-pool-footer').getByText(/players shown/).waitFor({ timeout: 15000 });
+  assert.equal(await page.locator('[data-storage-activation], [data-storage-blocked]').count(), 0);
   assert.deepEqual(result.errors, []);
   result.passed = true;
 } catch (error) { result.failure = error.stack ?? String(error); process.exitCode = 1; }

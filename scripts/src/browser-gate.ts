@@ -1,278 +1,24 @@
 /**
  * Browser gate: renders every `/__visual/` fixture and walks a short draft flow in the
- * real app with the checked-in data. It starts its own Vite dev server and never
- * contacts a draft provider. Needs `playwright install chromium`.
+ * real app. It starts its own Vite dev server and never contacts a draft provider.
+ * Needs `playwright install chromium`.
+ *
+ * By default the app runs on the checked-in demo data with IndexedDB storage, so the tier, geometry and
+ * recommendation checks are never blocked by stale local data. `BROWSER_GATE_DATA=local` uses the local data
+ * instead. Any console error or warning (React's included) fails the check that saw it.
+ *
+ * The checks live in `browser-gate/` by area; this file only runs them. BROWSER_GATE_ONLY=<regex> runs only the
+ * checks whose label matches. BROWSER_GATE_MAX_MINUTES caps the whole run (default 240).
  */
-import { http, HttpError } from '@fantasy-draft/shared/http';
-import { Processes, type ProcessService } from '@fantasy-draft/shared/node';
-import { createConnection } from 'node:net';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Effect } from 'effect';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium } from 'playwright';
 import { io, runMain } from './effect-runtime.js';
+import { gateChecks } from './browser-gate/checks.js';
+import { GATE_MAX_RUN_MS, isConnectionFailure, isInfrastructureFailure, requireFreePorts, startGateServer } from './browser-gate/server.js';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const WEB_PORT = Number(process.env['BROWSER_GATE_PORT'] ?? 3100);
-const API_PORT = WEB_PORT + 1;
-const ORIGIN = `http://localhost:${String(WEB_PORT)}`;
-const SERVER_START_TIMEOUT_MS = 60_000;
-const MOCK_TIMEOUT_MS = 60_000;
-const ASSISTANT_STATES = ['wait', 'compare', 'roster', 'why'] as const;
-const DESKTOP = 1280;
-const PHONE = 390;
-/** Widths at which the readiness checklist must keep its copy readable. */
-const NARROW_WIDTHS = [360, 390, 400] as const;
+const formatDuration = (ms: number): string => `${String(Math.floor(ms / 60_000))}m${String(Math.round((ms % 60_000) / 1000)).padStart(2, '0')}s`;
 
-interface VisualCheck {
-  readonly url: string;
-  readonly widths: readonly number[];
-}
-
-const VISUAL_CHECKS: readonly VisualCheck[] = [
-  { url: '/__visual/header?state=draft', widths: [DESKTOP, PHONE] },
-  { url: '/__visual/header?state=assistant', widths: [DESKTOP, PHONE] },
-  { url: '/__visual/board', widths: [DESKTOP] },
-  ...ASSISTANT_STATES.map((state) => ({ url: `/__visual/assistant?state=${state}`, widths: [DESKTOP] })),
-  { url: '/__visual/mobile/draft', widths: [PHONE] },
-  ...ASSISTANT_STATES.map((state) => ({ url: `/__visual/mobile/assistant?state=${state}`, widths: [PHONE] })),
-  ...(['idle', 'running', 'failed'] as const).map((refresh) => ({
-    url: `/__visual/readiness?state=blocked&refresh=${refresh}`,
-    widths: [DESKTOP, ...NARROW_WIDTHS],
-  })),
-  { url: '/__visual/readiness?state=ready', widths: [DESKTOP, PHONE] },
-  ...(['draft', 'assistant', 'sidepanel'] as const).map((state) => ({ url: `/__visual/loading?state=${state}`, widths: [DESKTOP, PHONE] })),
-];
-
-class GateFailure extends Error {}
-
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new GateFailure(message);
-}
-
-/** Collects uncaught page errors and console errors while a check runs. */
-function watchErrors(page: Page): () => readonly string[] {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => { errors.push(error.message); });
-  page.on('console', (message) => {
-    // Requests the gate fails on purpose, and the absent API server, are not app errors.
-    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text());
-  });
-  return () => errors;
-}
-
-async function assertNoPageOverflow(page: Page, label: string): Promise<void> {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  assert(overflow <= 0, `${label}: page overflows horizontally by ${String(overflow)}px`);
-}
-
-/** Each checklist action sits on its own row below the copy, and the copy keeps the row's width. */
-async function assertReadableChecklist(page: Page, label: string): Promise<void> {
-  const items = await page.locator('.draft-setup-item').evaluateAll((elements) => elements.map((item) => {
-    const body = item.querySelector('.draft-setup-body')?.getBoundingClientRect();
-    const action = item.querySelector(':scope > .draft-setup-action, :scope > .draft-setup-actions')?.getBoundingClientRect();
-    return { item: item.getBoundingClientRect().width, body: body && { width: body.width, bottom: body.bottom }, actionTop: action?.top };
-  }));
-  assert(items.length > 0, `${label}: no checklist items rendered`);
-  for (const { item, body, actionTop } of items) {
-    assert(body, `${label}: checklist item has no copy`);
-    assert(body.width >= item * 0.8, `${label}: checklist copy is only ${String(Math.round(body.width))}px of a ${String(Math.round(item))}px row`);
-    if (actionTop !== undefined) assert(actionTop >= body.bottom - 1, `${label}: checklist action shares a row with its copy`);
-  }
-}
-
-async function checkVisualRoute(browser: Browser, check: VisualCheck, width: number): Promise<void> {
-  const label = `${check.url} @ ${String(width)}px`;
-  const page = await browser.newPage({ viewport: { width, height: 900 } });
-  try {
-    const errors = watchErrors(page);
-    await page.goto(`${ORIGIN}${check.url}`);
-    await page.waitForSelector('html[data-visual-ready]', { timeout: 20_000 });
-    const text = await page.locator('[data-visual-screen]').innerText();
-    assert(!text.includes('Visual fixture not found'), `${label}: unknown fixture`);
-    assert(text.trim().length > 0, `${label}: rendered an empty page`);
-    assert(errors().length === 0, `${label}: ${errors().join('; ')}`);
-    await assertNoPageOverflow(page, label);
-    if (check.url.includes('state=blocked') && width < DESKTOP) await assertReadableChecklist(page, label);
-  } finally {
-    await page.close();
-  }
-}
-
-async function activateStorage(page: Page): Promise<void> {
-  await page.getByRole('checkbox', { name: 'I have closed other draft tabs and side panels' }).check();
-  await page.getByRole('button', { name: 'Activate IndexedDB', exact: true }).click();
-  await page.locator('[data-storage-activation="review"]').waitFor({ state: 'detached' });
-}
-
-function footerCount(text: string): number {
-  return Number(/(\d+) players shown/.exec(text)?.[1] ?? NaN);
-}
-
-/**
- * Search, queue, mock picks and navigation in the real draft workspace. The checked-in
- * data is usually older than the live limit, which also covers browsing while advice is paused.
- */
-async function checkDraftFlow(browser: Browser): Promise<void> {
-  const page = await browser.newPage({ viewport: { width: DESKTOP, height: 900 } });
-  try {
-    const errors = watchErrors(page);
-    await page.goto(`${ORIGIN}/draft`);
-    await activateStorage(page);
-    const pool = page.locator('.draft-pool');
-    const footer = pool.locator('.draft-pool-footer');
-    await footer.getByText(/players shown/).waitFor({ timeout: 20_000 });
-    const paused = await pool.locator('.draft-pool-paused').count() > 0;
-    // A setup checklist at the top of the dock must leave the pool its heading and a row, inside the panel that clips it.
-    if (await page.locator('.draft-dock-checklist').count() > 0) {
-      const visible = await pool.locator('.draft-pool-scroll').evaluate((element) => {
-        const panel = element.closest('.draft-dock-panel')?.getBoundingClientRect();
-        const box = element.getBoundingClientRect();
-        return panel ? Math.min(box.bottom, panel.bottom) - Math.max(box.top, panel.top) : box.height;
-      });
-      assert(visible >= 105, `The setup checklist leaves ${String(Math.round(visible))}px of the player pool visible; it needs the heading and a row (105px)`);
-    }
-    const total = footerCount(await footer.innerText());
-    assert(total > 60, `Player pool shows ${String(total)} players; it should list the whole undrafted pool`);
-
-    // A defense ranks far outside the 60-player recommendation shortlist.
-    await pool.getByRole('button', { name: /^DEF/ }).click();
-    const target = (await pool.locator('.draft-pool-name').first().innerText()).trim();
-    await pool.getByRole('button', { name: /^All/ }).click();
-    await pool.getByRole('textbox').fill(target);
-    await pool.locator('.draft-pool-name', { hasText: target }).first().waitFor();
-    assert(footerCount(await footer.innerText()) >= 1, `Search for ${target} found nothing`);
-
-    const queue = pool.getByRole('button', { name: `Add ${target} to local shortlist` });
-    await queue.click();
-    const unqueue = pool.getByRole('button', { name: `Remove ${target} from local shortlist` });
-    await unqueue.waitFor();
-    assert(await unqueue.getAttribute('aria-pressed') === 'true', `Queueing ${target} did not mark it queued`);
-    await unqueue.click();
-    await queue.waitFor();
-
-    await page.getByRole('button', { name: 'Start mock', exact: true }).click();
-    // CPU teams pick automatically until the user's slot.
-    await page.getByRole('button', { name: 'Start mock draft' }).click();
-    const draft = pool.getByRole('button', { name: `Draft ${target}` });
-    await draft.and(page.locator(':enabled')).waitFor({ timeout: MOCK_TIMEOUT_MS });
-    await draft.click();
-    await pool.getByText('No available players match these filters.').waitFor();
-    await page.locator('.draft-board').getByText(target).first().waitFor();
-
-    await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
-    await page.waitForURL(/\/assistant/);
-    await page.locator('.rec-workspace:not([aria-busy])').waitFor({ timeout: 20_000 });
-    await page.goBack();
-    await page.waitForURL(/\/draft/);
-    await page.locator('.draft-board').getByText(target).first().waitFor();
-
-    assert(errors().length === 0, `Draft flow: ${errors().join('; ')}`);
-    console.log(`  draft flow: found, queued and drafted ${target} from ${String(total)} players${paused ? ' while advice was paused' : ''}`);
-  } finally {
-    await page.close();
-  }
-}
-
-/** The real workspace on a phone: the setup checklist stays readable and nothing overflows. */
-async function checkPhoneWorkspace(browser: Browser): Promise<void> {
-  const page = await browser.newPage({ viewport: { width: PHONE, height: 844 } });
-  try {
-    await page.goto(`${ORIGIN}/draft`);
-    await activateStorage(page);
-    await page.locator('.draft-pool-footer').getByText(/players shown/).waitFor({ timeout: 20_000 });
-    if (await page.locator('.draft-setup-item').count() > 0) await assertReadableChecklist(page, 'Draft workspace @ 390px');
-    await assertNoPageOverflow(page, 'Draft workspace @ 390px');
-  } finally {
-    await page.close();
-  }
-}
-
-/**
- * A page that fails to load offers a way back while the draft state stays mounted,
- * and "Reload app" loads it once the network recovers.
- */
-async function checkRouteFailure(browser: Browser): Promise<void> {
-  const page = await browser.newPage({ viewport: { width: DESKTOP, height: 900 } });
-  try {
-    const assistantModule = '**/src/features/assistant/AssistantPage.tsx*';
-    await page.route(assistantModule, (route) => route.abort());
-    await page.goto(`${ORIGIN}/draft`);
-    await activateStorage(page);
-    await page.getByRole('button', { name: 'Start mock', exact: true }).click();
-    await page.getByRole('button', { name: 'Start mock draft' }).click();
-    // Pause so CPU picks cannot move the current pick between the two reads.
-    await page.getByRole('button', { name: 'Pause' }).click();
-    const currentPick = await page.locator('.board-current-pick').first().innerText();
-    await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
-    await page.getByRole('alert').getByText('This page couldn’t load').waitFor({ timeout: 20_000 });
-    await page.getByRole('button', { name: 'Back to draft board' }).click();
-    await page.locator('.draft-board').waitFor();
-    const restoredPick = await page.locator('.board-current-pick').first().innerText();
-    assert(restoredPick === currentPick, `Route failure lost draft state: ${currentPick} became ${restoredPick}`);
-
-    await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
-    await page.getByRole('alert').getByText('This page couldn’t load').waitFor({ timeout: 20_000 });
-    // The browser keeps the failed module, so recovery is a reload that fetches it again.
-    await page.unroute(assistantModule);
-    await page.getByRole('button', { name: 'Reload app' }).click();
-    await page.locator('.rec-workspace:not([aria-busy])').waitFor({ timeout: 20_000 });
-  } finally {
-    await page.close();
-  }
-}
-
-const isListening = async (): Promise<boolean> => {
-  try {
-    await http.text(ORIGIN, { timeoutMs: 20_000, retries: 0, retryAfter: true });
-    return true;
-  } catch (error) {
-    return error instanceof HttpError && error.kind === 'status';
-  }
-};
-
-const acceptsConnections = (port: number): Promise<boolean> => new Promise((resolve) => {
-  const socket = createConnection({ host: 'localhost', port });
-  socket.once('connect', () => { socket.destroy(); resolve(true); });
-  socket.once('error', () => { resolve(false); });
-});
-
-/**
- * Fails if something already listens on the gate's web or API port, so checks never run
- * against another server and the app's API proxy never reaches a running sync server.
- */
-const requireFreePorts = io(async () => {
-  for (const port of [WEB_PORT, API_PORT]) {
-    if (await acceptsConnections(port)) throw new Error(`Port ${String(port)} is already in use; stop that server or set BROWSER_GATE_PORT`);
-  }
-});
-
-const waitForServer = (server: ProcessService): Effect.Effect<void, Error> => io(async () => {
-  const requireRunning = (): void => {
-    const exit = server.exit;
-    if (exit !== null) throw new Error(`Vite exited with code ${String(exit.code)}`);
-  };
-  const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    requireRunning();
-    if (await isListening()) {
-      requireRunning();
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Vite did not start on ${ORIGIN}`);
-});
-
-const webServer = Effect.acquireRelease(
-  Effect.sync(() => Processes.service('pnpm', ['--filter', 'web-app', 'exec', 'vite', '--port', String(WEB_PORT), '--strictPort'], {
-    cwd: REPO_ROOT,
-    // The API port points at nothing, so no request can reach a running sync server.
-    env: { ...process.env, DRAFT_WEB_PORT: String(WEB_PORT), DRAFT_API_PORT: String(API_PORT) },
-    output: 'ignore', timeoutMs: 30 * 60_000,
-  })),
-  server => Effect.promise(() => server.stop()),
-);
+const webServer = Effect.acquireRelease(io(startGateServer), (server) => Effect.promise(() => server.stop()));
 
 const browser = Effect.acquireRelease(
   io(() => chromium.launch({ headless: true })),
@@ -280,29 +26,48 @@ const browser = Effect.acquireRelease(
 );
 
 const program = Effect.scoped(Effect.gen(function* () {
-  yield* requireFreePorts;
+  const started = Date.now();
+  yield* io(requireFreePorts);
   const server = yield* webServer;
-  yield* waitForServer(server);
   const instance = yield* browser;
-  const failures: string[] = [];
-  const run = (label: string, check: () => Promise<void>) => io(check).pipe(
-    Effect.tap(() => Effect.sync(() => { console.log(`ok   ${label}`); })),
-    Effect.catch((error: Error) => Effect.sync(() => {
-      failures.push(`${label}: ${error.message}`);
-      console.error(`FAIL ${label}: ${error.message}`);
-    })),
-  );
+  const failures: { readonly label: string; readonly message: string; readonly infrastructure: boolean }[] = [];
+  const only = process.env['BROWSER_GATE_ONLY'] ? new RegExp(process.env['BROWSER_GATE_ONLY'], 'i') : null;
+  const checks = gateChecks().filter((check) => !only || only.test(check.label));
 
-  for (const check of VISUAL_CHECKS) {
-    for (const width of check.widths) {
-      yield* run(`${check.url} @ ${String(width)}px`, () => checkVisualRoute(instance, check, width));
-    }
+  for (const check of checks) {
+    const outcome = yield* io(async (): Promise<string | null> => {
+      if (Date.now() - started > GATE_MAX_RUN_MS) return `not run: the gate passed its ${formatDuration(GATE_MAX_RUN_MS)} cap`;
+      // A server that died between checks is restarted before the next one, so later checks are not all refused.
+      if (!await server.healthy() && !await server.restart(`before "${check.label}"`)) return 'not run: Vite is down and could not be restarted';
+      const attempt = async (): Promise<string | null> => {
+        try {
+          await check.run(instance);
+          return null;
+        } catch (error) {
+          return error instanceof Error ? error.message : String(error);
+        }
+      };
+      const checkStarted = Date.now();
+      let message = await attempt();
+      // Refused because the server died during this check: restart it once and run the check again.
+      if (message !== null && isConnectionFailure(message) && !await server.healthy() && await server.restart(`during "${check.label}"`)) {
+        console.error(`retry ${check.label} after the Vite restart`);
+        message = await attempt();
+      }
+      const status = message === null ? 'ok  ' : isInfrastructureFailure(message) ? 'INFRA' : 'FAIL';
+      console.log(`${status} ${check.label}${message === null ? '' : `: ${message}`} (${formatDuration(Date.now() - checkStarted)})`);
+      return message;
+    });
+    if (outcome !== null) failures.push({ label: check.label, message: outcome, infrastructure: isInfrastructureFailure(outcome) });
   }
-  yield* run('draft workspace @ 390px', () => checkPhoneWorkspace(instance));
-  yield* run('draft flow', () => checkDraftFlow(instance));
-  yield* run('route failure fallback', () => checkRouteFailure(instance));
 
-  if (failures.length > 0) return yield* Effect.fail(new Error(`${String(failures.length)} browser check(s) failed`));
+  console.log(`Ran ${String(checks.length)} check(s) in ${formatDuration(Date.now() - started)}; Vite restarts: ${String(server.restarts)}.`);
+  const infrastructure = failures.filter((failure) => failure.infrastructure);
+  const assertions = failures.filter((failure) => !failure.infrastructure);
+  // Environmental failures (server down, launch or navigation timeouts) are listed apart from real assertion failures.
+  if (assertions.length > 0) console.log(`Assertion failures (${String(assertions.length)}):\n${assertions.map((failure) => `  - ${failure.label}: ${failure.message.split('\n')[0] ?? ''}`).join('\n')}`);
+  if (infrastructure.length > 0) console.log(`Infrastructure failures (${String(infrastructure.length)}), not app defects; rerun them:\n${infrastructure.map((failure) => `  - ${failure.label}: ${failure.message.split('\n')[0] ?? ''}`).join('\n')}`);
+  if (failures.length > 0) return yield* Effect.fail(new Error(`${String(assertions.length)} assertion and ${String(infrastructure.length)} infrastructure failure(s)`));
   console.log('Browser gate passed.');
 }));
 

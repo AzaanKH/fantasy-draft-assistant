@@ -30,7 +30,8 @@ function openStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
 }
 const providerId = Schema.optional(Schema.NullOr(Schema.Union([Schema.Finite, Schema.String])));
 const optionalText = Schema.optional(Schema.String);
-const optionalNumericText = Schema.optional(Schema.Union([Schema.String, Schema.Finite]));
+// FantasyPros sends null for unknown numeric fields (e.g. a free agent's bye week).
+const optionalNumericText = Schema.optional(Schema.NullOr(Schema.Union([Schema.String, Schema.Finite])));
 const fantasyProsPlayerRecord = openStruct({
   player_id: providerId,
   player_name: optionalText,
@@ -130,7 +131,7 @@ interface FantasyProsPlayerIndexEntry {
   readonly team: NFLTeam;
 }
 
-function parseNumber(value: string | number | undefined, fallback: number = 0): number {
+function parseNumber(value: string | number | null | undefined, fallback: number = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }

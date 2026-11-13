@@ -27,6 +27,7 @@ export default defineConfig({
           environment,
           globals: testGlobals,
           include: ['src/**/*.test.{ts,tsx}', ...(directory === 'scripts' ? ['*.test.mjs'] : [])],
+          setupFiles: directory === 'web-app' ? ['src/test-setup.ts'] : [],
           exclude: [contractTest],
         },
       })),
