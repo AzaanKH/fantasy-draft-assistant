@@ -82,10 +82,12 @@ export interface PickLock {
  * session or mode) the failure is stale: retrying it would act on a different draft state, so it is dropped.
  */
 function pickContextChanged(previous: DraftState, next: DraftState): boolean {
-  return previous.draftHistory !== next.draftHistory
-    || previous.draftProgress !== next.draftProgress
+  // Compared by value: a durable save of anything (a queue edit, say) republishes equal objects for the same facts.
+  const changed = (before: unknown, after: unknown): boolean => before !== after && JSON.stringify(before) !== JSON.stringify(after);
+  return changed(previous.draftHistory, next.draftHistory)
+    || changed(previous.draftProgress, next.draftProgress)
     || previous.sessionMode !== next.sessionMode
-    || previous.liveSession !== next.liveSession;
+    || changed(previous.liveSession, next.liveSession);
 }
 
 /**

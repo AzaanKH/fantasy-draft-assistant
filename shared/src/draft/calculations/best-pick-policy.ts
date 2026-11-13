@@ -553,17 +553,14 @@ function compareEvaluations(
 function selectEvaluation(
   evaluations: readonly BestPickPolicyEvaluation[],
   score: (evaluation: BestPickPolicyEvaluation) => number,
-  enforceRosterFeasibility: boolean = true
+  /** Given for the roster-blind comparison: the boundary an empty roster would have, around the plain ECR leader. */
+  rosterBlindBoundary?: (evaluation: BestPickPolicyEvaluation) => boolean
 ): BestPickPolicyEvaluation | undefined {
+  const enforceRosterFeasibility = rosterBlindBoundary === undefined;
   const sort = (left: BestPickPolicyEvaluation, right: BestPickPolicyEvaluation) =>
     compareEvaluations(left, right, score, enforceRosterFeasibility);
-  if (!enforceRosterFeasibility) {
-    // The roster-blind comparison: every candidate counts by rank alone, as if the roster were empty.
-    const bounded = evaluations
-      .filter((evaluation) =>
-        evaluation.player.ecrRank <= evaluation.factors.conservativeBoundary.ecrRankLimit ||
-        evaluation.factors.conservativeBoundary.samePositionTier)
-      .sort(sort);
+  if (rosterBlindBoundary) {
+    const bounded = evaluations.filter(rosterBlindBoundary).sort(sort);
     return bounded[0] ?? [...evaluations].sort(sort)[0];
   }
   const boundedFeasible = evaluations
@@ -607,13 +604,14 @@ export function evaluateBestPickPolicy(
   // The neighborhood is anchored on the best player who can still help the lineup, so a surplus QB at the top of
   // the board neither wins nor shrinks the field to the players ranked beside him.
   const useful = availablePlayers.filter((player) => !surplus(player));
-  const ecrChampion = [...(useful.length > 0 ? useful : availablePlayers)].sort((left, right) =>
+  const byRank = (left: Player, right: Player): number =>
     left.ecrRank - right.ecrRank ||
     compareText(left.name, right.name) ||
-    compareText(left.id, right.id)
-  )[0];
+    compareText(left.id, right.id);
+  const rosterBlindChampion = [...availablePlayers].sort(byRank)[0];
+  const ecrChampion = useful.length > 0 ? [...useful].sort(byRank)[0] : rosterBlindChampion;
 
-  if (!ecrChampion || candidatePlayers.length === 0) {
+  if (!ecrChampion || !rosterBlindChampion || candidatePlayers.length === 0) {
     return {
       evaluations: [],
       preferredPlayerId: undefined,
@@ -728,7 +726,11 @@ export function evaluateBestPickPolicy(
   const selectedWithoutRosterFit = selectEvaluation(
     evaluations,
     (evaluation) => evaluation.score - evaluation.factors.rosterFit.score,
-    false
+    // Surplus starters and the starter window are roster effects, so this boundary ignores both.
+    (evaluation) =>
+      evaluation.player.ecrRank <= rosterBlindChampion.ecrRank + BEST_PICK_ECR_NEIGHBORHOOD ||
+      (evaluation.player.position === rosterBlindChampion.position &&
+        evaluation.player.tier === rosterBlindChampion.tier)
   );
   const selectedWithoutDepthValue = selectEvaluation(
     evaluations,

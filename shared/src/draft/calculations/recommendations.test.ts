@@ -222,6 +222,33 @@ describe('getRecommendations', () => {
         .toBe(64 + 8);
     });
 
+    it('reports that the roster changed the pick when a surplus QB re-anchors the field', () => {
+      const backupQuarterback = createPlayer('qb-a', 'QB', 60, 'Backup QB');
+      // Nine ranks behind the quarterback: outside the plain ECR window, inside the one anchored on useful players.
+      // League value and a tier cliff lift him past the quarterback on score, so only the boundary separates them.
+      const benchReceiver = {
+        ...createPlayer('wr-bench', 'WR', 69, 'Bench WR'),
+        projectedPoints: 300,
+        valueOverReplacement: asVor(500),
+        tier: 1,
+        tierDropoffScore: 1,
+      };
+      const nextTierReceiver = {
+        ...createPlayer('wr-next', 'WR', 90, 'Next Tier WR'),
+        projectedPoints: 200,
+        valueOverReplacement: asVor(0),
+        tier: 2,
+      };
+      const result = getRecommendations([backupQuarterback, benchReceiver, nextTierReceiver], [], 95, {
+        requirements: DEFAULT_ROSTER_REQUIREMENTS,
+        rosterCounts: { QB: 1, RB: 1, WR: 5, TE: 0, K: 0, DEF: 0 },
+        selectionsRemaining: 7,
+      });
+
+      expect(result.draftNow[0]?.playerId).toBe('wr-bench');
+      expect(result.draftNow[0]?.decisionFactors?.rosterFit.materiallyChangedOrdering).toBe(true);
+    });
+
     it('lets a player who fills an open starter reach a full round past the ECR leader', () => {
       const benchReceiver = createPlayer('wr-bench', 'WR', 64, 'Bench WR');
       const neededBack = createPlayer('rb-need', 'RB', 74, 'Needed RB');

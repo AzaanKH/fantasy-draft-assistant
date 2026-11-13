@@ -28,12 +28,23 @@ describe('pick failures go stale with the draft state', () => {
     fail(store);
     expect(lock.store.getState().failure?.message).toContain('Network down');
     // A pick lands (or undo/reset rewrites the history).
-    act(() => { store.setState({ draftHistory: [...store.getState().draftHistory] }); });
+    act(() => { store.setState({ draftHistory: [{ pickNumber: 1, playerId: 'p9', playerName: 'Nine', position: 'WR', teamIndex: 0, teamName: 'Team 1', timestamp: 0, source: 'manual' }] }); });
     expect(lock.store.getState().failure).toBeNull();
 
     fail(store);
     act(() => { store.setState({ sessionMode: store.getState().sessionMode === 'mock' ? 'setup' : 'mock' }); });
     expect(lock.store.getState().failure).toBeNull();
+  });
+
+  it('keeps the failure when a save of something else republishes the same pick facts as new objects', () => {
+    const store = createDraftStore();
+    act(() => { store.setState({ liveSession: { provider: 'sleeper', draftId: 'draft-a' } }); });
+    const lock = getPickLock(workspaceForTestStore(store));
+    fail(store);
+    // A durable queue save publishes equal history, progress and session objects rebuilt from storage.
+    act(() => { store.setState({ liveSession: { provider: 'sleeper', draftId: 'draft-a' }, draftHistory: [...store.getState().draftHistory],
+      draftProgress: { ...store.getState().draftProgress }, shortlistedPlayerIds: ['p2'] }); });
+    expect(lock.store.getState().failure?.message).toContain('Network down');
   });
 
   it('keeps the failure through unrelated changes such as the queue', () => {
