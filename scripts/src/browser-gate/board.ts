@@ -2,35 +2,38 @@
  * Browser gate: the draft board's height, live-pick following, dock hotkeys and the Appearance menu.
  */
 import { type Browser, type Page } from 'playwright';
-import { LATER_ROUND, MIN_BOARD_ROUNDS, MOCK_TIMEOUT_MS, ORIGIN } from './config.js';
+import { LATER_ROUND, LATER_ROUND_VIEWPORTS, MIN_BOARD_ROUNDS, MOCK_TIMEOUT_MS, ORIGIN } from './config.js';
 import { statusArrowOverlaps } from './draft-room.js';
-import { GateFailure, activateStorage, advanceMockToRound, assert, assertNoConsoleErrors, forEachTheme, gatePage, startMockUntilOnClock, visibleDensity, watchErrors } from './harness.js';
+import { GateFailure, activateStorage, assert, assertNoConsoleErrors, forEachTheme, gatePage, startMockUntilOnClock, visibleDensity, watchErrors } from './harness.js';
 
 /** Late in the draft the board still shows the live round and the next two whole at laptop heights. */
-export async function checkLaterRoundBoard(browser: Browser, viewport: { readonly width: number; readonly height: number }): Promise<void> {
-  const label = `Board at pick ${String(LATER_ROUND)}.05 @ ${String(viewport.width)}x${String(viewport.height)}`;
-  const page = await gatePage(browser, { viewport });
+export async function checkLaterRoundBoard(browser: Browser): Promise<void> {
+  const label = `Board at round ${String(LATER_ROUND)}`;
+  const page = await gatePage(browser, { viewport: LATER_ROUND_VIEWPORTS[0] });
   try {
     const errors = watchErrors(page);
-    await page.goto(`${ORIGIN}/draft`);
-    await activateStorage(page);
-    await startMockUntilOnClock(page);
-    await advanceMockToRound(page, LATER_ROUND);
-    await page.getByRole('button', { name: 'Pause' }).click();
+    await page.goto(`${ORIGIN}/__visual/board-late`);
+    await page.locator('html[data-visual-ready]').waitFor({ timeout: 20_000 });
+    assert((await page.locator('.board-current-pick').first().innerText()).includes('11.05'), `${label}: fixture is not at pick 11.05`);
+    assert(await page.locator('.board-team-header').count() === 12, `${label}: fixture is not a 12-team board`);
     // Let the follow-live smooth scroll settle.
     await page.waitForTimeout(800);
-    await forEachTheme(page, async (theme) => {
-      const themed = `${label} ${theme}`;
-      const density = await visibleDensity(page);
-      assert(density.boardRounds >= MIN_BOARD_ROUNDS, `${themed}: the board shows ${String(density.boardRounds)} full rounds; it needs ${String(MIN_BOARD_ROUNDS)}`);
-      const touching = await statusArrowOverlaps(page);
-      assert(touching.length === 0, `${themed}: board status text overlaps the direction arrow: ${touching.join(', ')}`);
-      // The default 12-team board fits without sideways scrolling from 1280px, and every cell stays readable.
-      const fit = await boardFit(page);
-      assert(fit.overflow <= 1, `${themed}: the 12-team board scrolls sideways by ${String(fit.overflow)}px (team columns ${String(fit.columnWidth)}px)`);
-      assert(fit.clipped.length === 0, `${themed}: board cells clip their text: ${fit.clipped.slice(0, 6).join(', ')}`);
-      console.log(`  ${themed}: ${String(density.boardRounds)} board rounds, ${String(fit.columnWidth)}px team columns, no sideways scroll`);
-    });
+    for (const viewport of LATER_ROUND_VIEWPORTS) {
+      await page.setViewportSize(viewport);
+      await page.waitForTimeout(800);
+      await forEachTheme(page, async (theme) => {
+        const themed = `${label} @ ${String(viewport.width)}x${String(viewport.height)} ${theme}`;
+        const density = await visibleDensity(page);
+        assert(density.boardRounds >= MIN_BOARD_ROUNDS, `${themed}: the board shows ${String(density.boardRounds)} full rounds; it needs ${String(MIN_BOARD_ROUNDS)}`);
+        const touching = await statusArrowOverlaps(page);
+        assert(touching.length === 0, `${themed}: board status text overlaps the direction arrow: ${touching.join(', ')}`);
+        // The default 12-team board fits without sideways scrolling from 1280px, and every cell stays readable.
+        const fit = await boardFit(page);
+        assert(fit.overflow <= 1, `${themed}: the 12-team board scrolls sideways by ${String(fit.overflow)}px (team columns ${String(fit.columnWidth)}px)`);
+        assert(fit.clipped.length === 0, `${themed}: board cells clip their text: ${fit.clipped.slice(0, 6).join(', ')}`);
+        console.log(`  ${themed}: ${String(density.boardRounds)} board rounds, ${String(fit.columnWidth)}px team columns, no sideways scroll`);
+      });
+    }
     assertNoConsoleErrors(errors, label);
   } finally {
     await page.close();
@@ -180,7 +183,7 @@ export async function checkBoardFollowsLiveOnResize(browser: Browser): Promise<v
  * Pressing 1 with nothing focused drafts the top suggestion: the turn moves on.
  */
 export async function checkDockRosterHotkeys(browser: Browser): Promise<void> {
-  const label = 'Keys 1-4 with the dock on Roster @ 1440x900';
+  const label = 'Key 1 with the dock on Roster @ 1440x900';
   const page = await gatePage(browser, { viewport: { width: 1440, height: 900 } });
   try {
     const errors = watchErrors(page);
@@ -191,24 +194,16 @@ export async function checkDockRosterHotkeys(browser: Browser): Promise<void> {
     const rosterTab = page.locator('.draft-dock-tabs [role="tab"]').filter({ hasText: 'Roster' });
     assert(await rosterTab.getAttribute('data-state') === 'active', `${label}: the dock did not open on Roster`);
     assert(await page.locator('.draft-dock [data-suggestion-list]').count() === 0, `${label}: the Suggestions list is mounted while Roster is open`);
-    // Each key on its own turn: press it with nothing focused, then let the CPU teams pick until the clock returns.
-    for (const key of ['1', '2', '3', '4']) {
-      if (key !== '1') {
-        // A pick of your own may already resume the mock; only a still-paused one needs Resume.
-        const resume = page.getByRole('button', { name: 'Resume' });
-        if (await resume.count() > 0) await resume.first().click();
-        await page.locator('.draft-turn-banner[data-state="on-clock"]').first().waitFor({ timeout: MOCK_TIMEOUT_MS });
-        await page.getByRole('button', { name: 'Pause' }).click();
-      }
-      const before = await page.locator('.board-current-pick').first().innerText();
-      const mine = await page.locator('.draft-dock .draft-roster-slot .draft-roster-name').count();
-      await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); });
-      await page.keyboard.press(key);
-      await page.waitForFunction((previous) => document.querySelector('.board-current-pick')?.textContent !== previous, before, { timeout: 10_000 })
-        .catch(() => { throw new GateFailure(`${label}: pressing ${key} did not draft (still ${before})`); });
-      const after = await page.locator('.draft-dock .draft-roster-slot .draft-roster-name').count();
-      assert(after === mine + 1, `${label}: pressing ${key} did not add a player to your roster (${String(mine)} → ${String(after)})`);
-    }
+    // jsdom owns all four key variants; one real press proves the page-wide binding.
+    const key = '1';
+    const before = await page.locator('.board-current-pick').first().innerText();
+    const mine = await page.locator('.draft-dock .draft-roster-slot .draft-roster-name').count();
+    await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); });
+    await page.keyboard.press(key);
+    await page.waitForFunction((previous) => document.querySelector('.board-current-pick')?.textContent !== previous, before, { timeout: 10_000 })
+      .catch(() => { throw new GateFailure(`${label}: pressing ${key} did not draft (still ${before})`); });
+    const after = await page.locator('.draft-dock .draft-roster-slot .draft-roster-name').count();
+    assert(after === mine + 1, `${label}: pressing ${key} did not add a player to your roster (${String(mine)} → ${String(after)})`);
     assertNoConsoleErrors(errors, label);
   } finally {
     await page.close();

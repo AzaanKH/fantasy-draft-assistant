@@ -1,3 +1,4 @@
+import { seedLateBoard } from './late-board';
 import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
 import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { createWorkspace } from '@/workspace/workspace';
@@ -333,6 +334,7 @@ function visualRefreshStatus(state: VisualRefreshState): DraftDataRefreshStatus 
 export type VisualRoute =
   | { readonly screen: 'header'; readonly state: 'draft' | 'assistant' }
   | { readonly screen: 'board'; readonly state: 'mid-draft' }
+  | { readonly screen: 'late-board'; readonly state: 'late-draft' }
   | { readonly screen: 'assistant'; readonly state: AssistantLens }
   | { readonly screen: 'mobile-draft'; readonly state: 'draft' }
   /** The desktop draft room with the setup checklist open above the player pool. */
@@ -347,6 +349,7 @@ export function getVisualRoute(pathname: string, search: string): VisualRoute {
   if (pathname === '/__visual/header') {
     return { screen: 'header', state: state === 'assistant' ? 'assistant' : 'draft' };
   }
+  if (pathname === '/__visual/board-late') return { screen: 'late-board', state: 'late-draft' };
   if (pathname === '/__visual/board') {
     return { screen: 'board', state: 'mid-draft' };
   }
@@ -429,6 +432,8 @@ function VisualRouteContent({ route }: { readonly route: VisualRoute }): React.R
           <DraftBoard roundWindowSize={VISUAL_BOARD_ROUNDS} />
         </main>
       );
+    case 'late-board':
+      return <><Header route="draft" /><DraftWorkspace onOpenAssistant={() => undefined} /></>;
     case 'assistant':
     case 'mobile-assistant':
       return <AssistantFixture lens={route.state} />;
@@ -497,7 +502,13 @@ function VisualReadySignal(): null {
 }
 
 export function VisualApp(): React.ReactElement {
-  const [draftStore] = React.useState(() => createVisualDraftStore(getVisualLeague(window.location.search)));
+  const [{ draftStore, playerData }] = React.useState(() => {
+    const draftStore = createVisualDraftStore(getVisualLeague(window.location.search));
+    const playerData = window.location.pathname === '/__visual/board-late'
+      ? { ...VISUAL_PLAYER_DATA, players: seedLateBoard(draftStore, VISUAL_PLAYERS, VISUAL_NOW) }
+      : VISUAL_PLAYER_DATA;
+    return { draftStore, playerData };
+  });
   const [workspace] = React.useState(() => createWorkspace({ draftStore }));
   const route = React.useMemo(
     () => getVisualRoute(window.location.pathname, window.location.search),
@@ -521,11 +532,11 @@ export function VisualApp(): React.ReactElement {
   });
 
   return (
-    <ThemeProvider initialTheme="light" persist={false}>
+    <ThemeProvider initialTheme={route.screen === 'late-board' ? 'system' : 'light'} persist={false}>
       <QueryClientProvider client={queryClient}>
         <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
           <WorkspaceProvider workspace={workspace}>
-            <PlayerDataFixtureProvider value={route.screen === 'loading' ? VISUAL_LOADING_PLAYER_DATA : VISUAL_PLAYER_DATA}>
+            <PlayerDataFixtureProvider value={route.screen === 'loading' ? VISUAL_LOADING_PLAYER_DATA : playerData}>
               <NotificationProvider>
                 <TooltipProvider><MotionProvider>
                   <LiveDraftSyncProvider>

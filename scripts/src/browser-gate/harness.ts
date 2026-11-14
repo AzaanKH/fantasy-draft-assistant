@@ -1,6 +1,7 @@
 /**
  * Browser gate helpers shared by every area: pages with the esbuild name shim, assertions, console watching and common app steps.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { type Browser, type BrowserContext, type Page } from 'playwright';
 import { MOCK_TIMEOUT_MS, ORIGIN, THEMES, type GateTheme } from './config.js';
 
@@ -11,13 +12,20 @@ import { MOCK_TIMEOUT_MS, ORIGIN, THEMES, type GateTheme } from './config.js';
 export const NAME_SHIM = 'globalThis.__name = globalThis.__name || ((target) => target);';
 
 export async function gatePage(browser: Browser, options: Parameters<Browser['newPage']>[0]): Promise<Page> {
-  const page = await browser.newPage(options);
+  const context = await gateContext(browser, options);
+  const page = await context.newPage();
   await page.addInitScript(NAME_SHIM);
   return page;
 }
 
 export async function gateContext(browser: Browser, options: Parameters<Browser['newContext']>[0]): Promise<BrowserContext> {
   const context = await browser.newContext(options);
+  const scope = checkContexts.getStore();
+  if (scope?.expired) {
+    await context.close();
+    throw new GateFailure('Check timed out before its context opened');
+  }
+  scope?.contexts.add(context);
   await context.addInitScript(NAME_SHIM);
   return context;
 }
@@ -245,4 +253,30 @@ export async function advanceMockToRound(page: Page, round: number): Promise<voi
     await page.waitForFunction((previous) => document.querySelector('.board-current-pick')?.textContent !== previous, label, { timeout: MOCK_TIMEOUT_MS });
   }
   throw new GateFailure(`The mock did not reach round ${String(round)}`);
+}
+
+
+const checkContexts = new AsyncLocalStorage<{ contexts: Set<BrowserContext>; expired: boolean }>();
+
+/** Each check owns its contexts. A timeout closes only those contexts and releases stuck Playwright actions. */
+export async function runWithDeadline(run: () => Promise<void>, timeoutMs: number): Promise<void> {
+  const scope = { contexts: new Set<BrowserContext>(), expired: false };
+  await checkContexts.run(scope, async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        Promise.resolve().then(run),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            scope.expired = true;
+            reject(new GateFailure(`Check exceeded its ${String(timeoutMs)}ms timeout`));
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      scope.expired = true;
+      await Promise.all([...scope.contexts].map((context) => context.close()));
+    }
+  });
 }
