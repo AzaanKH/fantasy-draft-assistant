@@ -63,8 +63,8 @@ function useSuggestionHotkeys(): void {
   React.useEffect(() => {
     if (!isMyTurn || scope !== 'anywhere' || !actOnSuggestion || !suggestions) return;
     const onKeyDown = (event: KeyboardEvent): void => {
-      // A held key repeats: one press is one action.
-      if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+      // A held 1-4 never reaches here: the held-key guard (main.tsx) stops its repeats first.
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
       if (!/^[1-4]$/.test(event.key)) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest(`[${SUGGESTION_LIST_ATTRIBUTE}]`)) return;

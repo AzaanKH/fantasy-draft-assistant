@@ -132,10 +132,10 @@ export function AssistantPool({
     if (event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) return;
     const rows = [...(listRef.current?.querySelectorAll<HTMLButtonElement>('[data-pool-select]') ?? [])];
     const current = rows.findIndex((row) => row.closest('[data-pool-player]') === (event.target as HTMLElement).closest('[data-pool-player]'));
-    if (event.key === 'Enter' && event.repeat) { event.preventDefault(); return; }
+    // Held Enter and Q never reach here: the held-key guard (main.tsx) stops their repeats first.
     if ((event.key === 'q' || event.key === 'Q') && current >= 0) {
       event.preventDefault();
-      if (!event.repeat) onQueue(shown[current]?.playerId ?? '');
+      onQueue(shown[current]?.playerId ?? '');
       return;
     }
     if (event.key === 'ArrowUp' && current === 0) { event.preventDefault(); searchRef.current?.focus(); return; }

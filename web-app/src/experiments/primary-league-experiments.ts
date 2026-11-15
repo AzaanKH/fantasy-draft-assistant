@@ -1211,8 +1211,3 @@ export function runPrimaryLeagueExperiments(
     ],
   };
 }
-
-export const __testables = {
-  summarizeMetric,
-  getAuditFactors,
-};

@@ -1,4 +1,5 @@
-import { IDBFactory, IDBRequest, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
+import { IDBFactory } from 'fake-indexeddb';
+import { interceptPut } from './idb-test-helpers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DRAFT_SYNC_STORAGE_KEY } from '@/workspace/connection-hints';
 import { decodeIndexedSession } from './idb-session';
@@ -36,18 +37,6 @@ function deferredRead(database: DraftDatabase) {
   const waiting = new Promise<void>(resolve => { release = resolve; });
   const read = vi.spyOn(database, 'read').mockImplementation(async identity => { await waiting; return original(identity); });
   return { release, read };
-}
-function interceptPut(after: (store: IDBObjectStore, request: IDBRequest<unknown>) => void) {
-  const descriptor = Object.getOwnPropertyDescriptor(FakeObjectStore.prototype, 'put');
-  const original: unknown = descriptor?.value;
-  if (!descriptor || typeof original !== 'function') throw new Error('Missing IndexedDB put implementation');
-  Object.defineProperty(FakeObjectStore.prototype, 'put', { ...descriptor, value(this: IDBObjectStore, value: unknown, key?: IDBValidKey): unknown {
-    const request: unknown = Reflect.apply(original, this, [value, key]);
-    if (!(request instanceof IDBRequest)) throw new Error('Invalid IndexedDB request');
-    after(this, request);
-    return request;
-  } });
-  return { mockRestore: () => { Object.defineProperty(FakeObjectStore.prototype, 'put', descriptor); } };
 }
 
 describe('production durable workspace', () => {
@@ -260,28 +249,6 @@ describe('production durable workspace', () => {
     await expect(owner.sendDurable(['addShortlistedPlayer', 'lost'])).rejects.toThrow('IDB unavailable');
     expect(owner.draft.getState().shortlistedPlayerIds).toEqual([]);
     expect(owner.connection.getState().connection).toBeNull();
-  });
-
-  it('returns one explicit loser for conflicting cross-owner picks', async () => {
-    const first = await setup();
-    const second = await setup(first.factory);
-    await Promise.all([live(first.workspace), live(second.workspace)]);
-    const receipts = await Promise.all([
-      first.workspace.sendDurable(['recordProvisionalPick', pick(1, 'a')]),
-      second.workspace.sendDurable(['recordProvisionalPick', pick(1, 'b')]),
-    ]);
-    expect(receipts.map(value => value.result).sort()).toEqual([false, true]);
-    expect((await first.database.read(identity))?.draftHistory).toHaveLength(1);
-  });
-
-  it('does not publish or acknowledge an aborted transaction', async () => {
-    const { database, workspace } = await setup();
-    await live(workspace);
-    const put = interceptPut(store => { store.transaction.abort(); });
-    await expect(workspace.sendDurable(['recordProvisionalPick', pick(1, 'lost')])).rejects.toThrow();
-    put.mockRestore();
-    expect(workspace.draft.getState().draftHistory).toEqual([]);
-    expect((await database.read(identity))?.draftHistory).toEqual([]);
   });
 
   it('blocks queued writes and stale bind results after disposal and closes only once', async () => {

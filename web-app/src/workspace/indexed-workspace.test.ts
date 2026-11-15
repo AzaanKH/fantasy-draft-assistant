@@ -1,5 +1,6 @@
 import { asProbability } from '@fantasy-draft/shared/units';
-import { IDBFactory, IDBRequest, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
+import { IDBFactory } from 'fake-indexeddb';
+import { interceptPut } from './idb-test-helpers';
 import { describe, expect, it, vi } from 'vitest';
 import { openDraftDatabase } from './indexed-db';
 import { createIndexedWorkspace } from './indexed-workspace';
@@ -14,19 +15,6 @@ async function setup(factory = new IDBFactory()) {
   const database = await openDraftDatabase({ factory, decode: value => structuredClone(value) as PersistedDraftSession, report });
   const workspace = createIndexedWorkspace({ database, identity, report });
   return { database, workspace, report, factory };
-}
-
-function interceptPut(after: (store: IDBObjectStore, request: IDBRequest<unknown>) => void) {
-  const descriptor = Object.getOwnPropertyDescriptor(FakeObjectStore.prototype, 'put');
-  const original: unknown = descriptor?.value;
-  if (!descriptor || typeof original !== 'function') throw new Error('Missing IndexedDB put implementation');
-  Object.defineProperty(FakeObjectStore.prototype, 'put', { ...descriptor, value(this: IDBObjectStore, value: unknown, key?: IDBValidKey): unknown {
-    const request: unknown = Reflect.apply(original, this, [value, key]);
-    if (!(request instanceof IDBRequest)) throw new Error('Invalid IndexedDB request');
-    after(this, request);
-    return request;
-  } });
-  return { mockRestore: () => { Object.defineProperty(FakeObjectStore.prototype, 'put', descriptor); } };
 }
 
 describe('transactional workspace', () => {

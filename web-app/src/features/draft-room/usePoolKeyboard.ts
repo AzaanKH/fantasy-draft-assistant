@@ -143,9 +143,8 @@ export function usePoolKeyboard({
       listRef.current?.focus();
     } else if (event.key === 'Enter' && rows.length > 0) {
       // Typing a name and pressing Enter only highlights the top result; a second, separate Enter acts on it. A held
-      // Enter's repeats are ignored, so one long press can never highlight and then draft.
+      // Enter never repeats here: the held-key guard (main.tsx) stops its repeats first.
       event.preventDefault();
-      if (event.repeat) return;
       if (activeRow) runEnterAction(activeRow.player);
       else highlight(0);
     }
@@ -167,8 +166,7 @@ export function usePoolKeyboard({
       return;
     }
     if (!activeRow) return;
-    // Arrows above repeat while held; actions never do.
-    if (event.repeat && (event.key === 'Enter' || event.key === 'q' || event.key === 'Q')) { event.preventDefault(); return; }
+    // Arrows above repeat while held; held Enter and Q never reach here (held-key guard).
     if (event.key === 'Enter') {
       event.preventDefault();
       runEnterAction(activeRow.player);

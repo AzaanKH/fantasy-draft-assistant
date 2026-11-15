@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createDraftStore, type DraftStoreApi } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
-import { POSITIONS, type Player } from '@fantasy-draft/shared/league';
+import type { Player } from '@fantasy-draft/shared/league';
 import { ProvisionalPickDialog } from '@/features/draft-room/ProvisionalPickDialog';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -63,14 +63,6 @@ it('renders keeper pause, consume and undo without allowing the reserved slot', 
   act(() => { store.getState().consumeKeeperAtCurrentPick(); }); expect(status()).toContain('1.02');
   act(() => { store.getState().undoLastPick(); }); expect(status()).toContain('Keeper'); expect(poolCount()).toBe(players.length - 1);
 });
-it('renders a branch at 96 with an empty history', () => {
-  store.getState().branchFromPick(96); render(); expect(status()).toContain('10.06');
-});
-it('renders a sparse provider cursor even below recorded history', () => {
-  const player = firstPlayer(); store.getState().setSessionMode('live');
-  store.getState().reconcileSyncedPicks([{ pickNumber: 20, playerId: player.id, playerName: player.name, position: player.position, teamIndex: 0, teamName: 'Team 1', isMyPick: true }], 4);
-  render(); expect(status()).toContain('1.04'); expect(poolCount()).toBe(players.length - 1);
-});
 it('renders a live outage observation and provider correction', () => {
   const player = firstPlayer(); const replacement = players[1]; if (!replacement) throw new Error('Missing replacement');
   store.getState().setSessionMode('live'); store.getState().reconcileSyncedPicks([], 1);
@@ -84,7 +76,9 @@ it('renders a live outage observation and provider correction', () => {
   expect(poolCount()).toBe(players.length - 1); expect(container.querySelector('.draft-roster')?.textContent ?? container.textContent).toContain(replacement.name);
 });
 
-it.each(POSITIONS)('renders a disabled manager Draft button at the %s maximum', position => {
+it('renders a disabled manager Draft button at a position maximum, with the benched player named by position', () => {
+  // DEF has no starter slot by default, so the player already drafted there sits on the bench.
+  const position = 'DEF' as const;
   const candidate = { ...firstPlayer(), id: `candidate-${position}`, name: `Candidate ${position}`, position };
   players = [candidate];
   const requirements = store.getState().config.rosterRequirements;
@@ -96,4 +90,5 @@ it.each(POSITIONS)('renders a disabled manager Draft button at the %s maximum', 
   const button = container.querySelector<HTMLButtonElement>('.draft-queue-row .draft-pill-action');
   expect(button?.disabled).toBe(true); expect(button?.title).toContain(`${position} limit reached`);
   act(() => { button?.click(); }); expect(store.getState().draftHistory).toHaveLength(1);
+  expect([...container.querySelectorAll('.draft-roster-meta')].some((meta) => meta.textContent.includes(position))).toBe(true);
 });

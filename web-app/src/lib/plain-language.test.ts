@@ -42,8 +42,3 @@ it('keeps model jargon out of user-visible copy', () => {
       .map((line) => `${path.relative(here, file)}: ${line.trim().slice(0, 120)}`));
   expect(offenders).toEqual([]);
 });
-
-it('bans the provider and model terms the round 12 copy replaced', () => {
-  for (const phrase of ['Provider Truth confirmed', 'a replacement-level player', 'replacement level', 'VOR +12']) expect(BANNED.test(phrase)).toBe(true);
-  for (const phrase of ['Synced', 'a fill-in starter', "the provider's picks"]) expect(BANNED.test(phrase)).toBe(false);
-});

@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VisualApp } from '@/visual/VisualApp';
 
 /**
- * Loading states render the real layout. Each test lists the layout elements of a loaded screen and its
- * loading state, in document order, and expects the same structure.
+ * The loading state machine: while player data loads, each screen reports busy and loading, never paused advice.
+ * The draft skeleton also keeps the loaded workspace's structure; the Assistant's skeleton geometry is measured by the
+ * browser gate's cold-load check.
  */
 
 let container: HTMLDivElement;
@@ -54,16 +55,8 @@ const DRAFT_LAYOUT = [
   'draft-pool-scroll', 'draft-pool-table', 'draft-pool-heading', 'draft-pool-footer',
 ] as const;
 
-const ASSISTANT_LAYOUT = [
-  'rec-workspace', 'rec-context', 'rec-context-pick', 'rec-context-status', 'rec-lens', 'rec-view-tabs',
-  'rec-layout', 'rec-main', 'rec-lead-heading', 'rec-search', 'suggestion-list', 'suggestion-row', 'suggestion-identity',
-  'suggestion-title', 'suggestion-name', 'suggestion-meta', 'suggestion-signals', 'suggestion-reason', 'suggestion-confidence', 'suggestion-actions',
-  'rec-side', 'rec-side-summary', 'rec-analysis', 'rec-analysis-identity', 'rec-decision', 'rec-decision-facts', 'rec-viewed-action',
-  'rec-answer', 'rec-rail', 'rec-rail-section',
-] as const;
-
-describe('loading states share the loaded layout', () => {
-  it('renders the draft workspace itself while player data loads', () => {
+describe('loading states', () => {
+  it('renders the draft workspace itself, busy and loading rather than paused, while player data loads', () => {
     const loaded = renderVisual('/__visual/mobile/draft');
     const loadedOutline = outline(loaded, DRAFT_LAYOUT);
     const loadedColumns = loaded.querySelector('.draft-pool-heading .draft-pool-columns')?.children.length;
@@ -75,8 +68,8 @@ describe('loading states share the loaded layout', () => {
     // Placeholder rows use the pool's own row grid, with one cell per column heading.
     const placeholderRows = [...loading.querySelectorAll('.draft-pool-row.draft-pool-columns')];
     expect(placeholderRows.length).toBeGreaterThan(0);
-    expect(loading.querySelectorAll('[data-player-row]')).toHaveLength(0);
     for (const row of placeholderRows) expect(row.children).toHaveLength(loadedColumns ?? -1);
+    expect(loading.querySelectorAll('[data-player-row]')).toHaveLength(0);
     expect(loading.querySelector('.draft-pool-footer')?.textContent).toContain('Loading players');
     // Readiness is blocked until data arrives; the workspace reports loading, not paused advice.
     expect(loading.querySelector('.draft-best-pick-inline')?.textContent).toContain('Finding your best pick');
@@ -86,16 +79,16 @@ describe('loading states share the loaded layout', () => {
     expect(loading.querySelector('[role=tabpanel][data-state=active]')?.textContent).toContain('Loading suggestions');
   });
 
-  it('builds the Assistant loading state from the page layout', () => {
-    const loaded = outline(renderVisual('/__visual/assistant?state=wait'), ASSISTANT_LAYOUT);
-    const loading = renderVisual('/__visual/loading?state=assistant');
-    expect(loading.querySelector('.rec-workspace')?.getAttribute('aria-busy')).toBe('true');
-    expect(outline(loading, ASSISTANT_LAYOUT)).toEqual(loaded);
-    for (const tab of loading.querySelectorAll('[role=tab][aria-selected=true]')) {
-      expect(loading.querySelector(`#${tab.getAttribute('aria-controls') ?? ''}`)).not.toBeNull();
+  it.each([
+    ['/__visual/loading?state=assistant', 'true'],
+    ['/__visual/assistant?state=wait', null],
+  ] as const)('marks the Assistant at %s busy only while loading, with each selected tab pointing at a rendered panel', (url, busy) => {
+    const screen = renderVisual(url);
+    expect(screen.querySelector('.rec-workspace')?.getAttribute('aria-busy') ?? null).toBe(busy);
+    const selected = [...screen.querySelectorAll('[role=tab][aria-selected=true]')];
+    expect(selected.length).toBeGreaterThan(0);
+    for (const tab of selected) {
+      expect(screen.querySelector(`#${tab.getAttribute('aria-controls') ?? ''}`)).not.toBeNull();
     }
-    expect([...loading.querySelectorAll('.rec-tabs [role=tab]')].map((tab) => tab.textContent)).toEqual([
-      'Suggestions', 'Position tiers', 'Why this player?', 'Compare', 'Roster needs',
-    ]);
   });
 });

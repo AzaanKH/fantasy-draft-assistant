@@ -2,19 +2,18 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { installHeldKeyGuard } from './held-key-guard';
 
-let uninstall: () => void;
+// test-setup.ts installs the guard on window for every DOM test, as main.tsx does for the app.
 let button: HTMLButtonElement;
 let input: HTMLInputElement;
 const seen = vi.fn();
 
 beforeEach(() => {
-  uninstall = installHeldKeyGuard(window);
   button = document.createElement('button');
   input = document.createElement('input');
   document.body.append(button, input);
   document.addEventListener('keydown', seen);
 });
-afterEach(() => { uninstall(); document.removeEventListener('keydown', seen); button.remove(); input.remove(); seen.mockReset(); });
+afterEach(() => { document.removeEventListener('keydown', seen); button.remove(); input.remove(); seen.mockReset(); });
 
 const press = (target: HTMLElement, key: string, repeat: boolean): KeyboardEvent => {
   const event = new KeyboardEvent('keydown', { key, repeat, bubbles: true, cancelable: true });
@@ -39,4 +38,15 @@ it('keeps typing repeats in a field, but never a repeated Enter', () => {
 
 it('leaves navigation keys repeating', () => {
   for (const key of ['ArrowDown', 'PageDown', 'Escape']) expect(press(button, key, true).defaultPrevented).toBe(false);
+});
+
+it('stops guarding a target once uninstalled', () => {
+  const target = new EventTarget();
+  const repeat = (): KeyboardEvent => new KeyboardEvent('keydown', { key: 'Enter', repeat: true, cancelable: true });
+  const uninstall = installHeldKeyGuard(target);
+  const guarded = repeat(); target.dispatchEvent(guarded);
+  expect(guarded.defaultPrevented).toBe(true);
+  uninstall();
+  const released = repeat(); target.dispatchEvent(released);
+  expect(released.defaultPrevented).toBe(false);
 });

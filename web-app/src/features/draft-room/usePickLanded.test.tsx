@@ -4,7 +4,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Player } from '@fantasy-draft/shared/league';
 import { useMemo } from 'react';
+import type { RecordedDraftPick } from '@/stores/draft/types';
+import { createDraftStore } from '@/stores/draftStore';
+import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
+import { DraftRosterPanel } from './DraftRosterPanel';
 import { getLandedPick, PICK_LANDED_MS, SLOT_FILLED_MS, useJustAdded, useLandedPick, useLeavingPoolRow } from './usePickLanded';
+
+vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ players: [], isLoading: false }) }));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -66,16 +72,17 @@ it('does not animate a row that left because of a filter, or anything under redu
   expect(seen).toMatchObject({ added: null, leaving: null });
 });
 
-it('flashes only a single pick landing in the same draft session, never a switch to another saved draft', () => {
-  render(['a'], []);
-  // Another saved draft: a different session, even though its roster adds exactly one player.
-  render(['a', 'b'], [], [], 'live:sleeper/other');
-  expect(seen.added).toBeNull();
+it('animates nothing on a switch to another saved draft, then flashes only a single pick landing in it', () => {
+  render([], ['a', 'b', 'c']);
+  render(['a'], ['b', 'c']);
+  // Another saved draft: a different session, even though it adds exactly one roster player and one pick.
+  render(['a', 'b'], ['a', 'c'], ['b'], 'live:sleeper/other');
+  expect(seen).toEqual({ added: null, leaving: null, landed: null });
   // Same session, a replaced roster (two new players, one removed): not a pick landing.
-  render(['c', 'd'], [], [], 'live:sleeper/other');
+  render(['c', 'd'], ['a', 'c'], ['b'], 'live:sleeper/other');
   expect(seen.added).toBeNull();
   // Same session, one pick lands.
-  render(['c', 'd', 'e'], [], [], 'live:sleeper/other');
+  render(['c', 'd', 'e'], ['a', 'c'], ['b'], 'live:sleeper/other');
   expect(seen.added).toBe('e');
 });
 
@@ -108,12 +115,6 @@ it('animates nothing when a saved history loads from storage, however many picks
   expect(seen.landed).toBe(3);
 });
 
-it('animates nothing on a switch to another session, even when it has exactly one more pick', () => {
-  render([], ['a', 'b', 'c'], [], 'mock:local');
-  render(['b'], ['a', 'c'], ['b'], 'live:sleeper/123');
-  expect(seen).toEqual({ added: null, leaving: null, landed: null });
-});
-
 it('getLandedPick: exactly one appended pick in the same session, never an undo, rewrite or load', () => {
   const pick = (pickNumber: number, playerId: string) => ({ pickNumber, playerId });
   const before = { sessionKey: 's', history: [pick(1, 'a')] };
@@ -122,4 +123,21 @@ it('getLandedPick: exactly one appended pick in the same session, never an undo,
   expect(getLandedPick(before, { sessionKey: 's', history: [pick(1, 'x'), pick(2, 'b')] })).toBeNull();
   expect(getLandedPick(before, { sessionKey: 's', history: [pick(1, 'a'), pick(2, 'b'), pick(3, 'c')] })).toBeNull();
   expect(getLandedPick(before, { sessionKey: 't', history: [pick(1, 'a'), pick(2, 'b')] })).toBeNull();
+});
+
+it.each([
+  ['exactly one pick, yours, lands', ['mine'], 1],
+  ['a sync adds several picks at once, one of them yours', ['theirs', 'mine', 'also-theirs'], 0],
+] as const)('the roster panel flashes a filled slot only when %s', (_, players, flashes) => {
+  const store = createDraftStore();
+  act(() => { store.setState({ sessionMode: 'mock' }); });
+  const mine = store.getState().config.myPickPosition - 1;
+  const other = mine === 0 ? 1 : 0;
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(DraftRosterPanel) })); });
+  const draftHistory: RecordedDraftPick[] = players.map((playerId, index) => ({
+    pickNumber: index + 1, playerId, playerName: playerId, teamIndex: playerId === 'mine' ? mine : other,
+    teamName: 'Team', position: 'RB', timestamp: index, source: 'sync',
+  }));
+  act(() => { store.setState({ draftHistory }); });
+  expect(container.querySelectorAll('[data-just-filled]')).toHaveLength(flashes);
 });

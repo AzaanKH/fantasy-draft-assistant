@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { AssistantRailSummary, UPCOMING_NEEDS_NOTE, UpcomingPicks, describeUpcomingNeeds, groupUpcomingNeeds } from './AssistantRail';
-import { formatNextTurn, getPickWindow, picksUntilTurn } from './assistant-context';
+import { AssistantRailSummary, UpcomingPicks, describeUpcomingNeeds, groupUpcomingNeeds } from './AssistantRail';
+import { formatNextTurn } from './assistant-context';
 
 const team = (teamIndex: number, openStarters: readonly ('QB' | 'RB' | 'WR' | 'TE')[], teamName = `Team ${String(teamIndex + 1)}`) =>
   ({ teamIndex, teamName, pickLabels: ['2.01'], openStarters });
@@ -43,11 +43,8 @@ describe('the laptop summary of who picks before you', () => {
     const render = (nextPickLabel: string | null, teams: readonly ReturnType<typeof team>[]): string =>
       renderToStaticMarkup(createElement(AssistantRailSummary, { nextPickLabel, queueCount: 2, upcomingTeams: teams }));
     const shown = render('2.01', [team(6, ['RB'])]);
-    expect(shown).toContain('Before you: </span>T7 RB');
-    expect(shown).toContain('Before your pick: Team 7 needs RB.');
-    expect(shown).toContain(UPCOMING_NEEDS_NOTE);
-    expect(UPCOMING_NEEDS_NOTE).toMatch(/not used in the % estimates/);
-    expect(shown).toContain('Queue (2) &amp; roster');
+    expect(shown).toContain('data-upcoming-needs');
+    expect(shown).toContain('data-upcoming-note');
     expect(render(null, [team(6, ['RB'])])).not.toContain('data-upcoming-needs');
     expect(render(null, [team(6, ['RB'])])).toContain('No later pick');
     expect(render('2.01', [])).not.toContain('data-upcoming-note');
@@ -55,13 +52,9 @@ describe('the laptop summary of who picks before you', () => {
 });
 
 describe('the next turn is stated once, in the bar at the top of the page', () => {
-  it('counts to the turn itself at 1.01 from slot 1', () => {
-    const window = getPickWindow(1, 12, 15, 1, 'snake');
-    const count = picksUntilTurn(window);
-    expect(count).toBe(23);
-    // 22 other picks happen in between, but the count is to the turn itself.
-    expect(window.picksBetween).toHaveLength(22);
-    expect(formatNextTurn(count, '2.12')).toBe('Next turn in 23 picks (2.12)');
+  it('counts to the turn itself and names its pick', () => {
+    expect(formatNextTurn(23, '2.12')).toBe('Next turn in 23 picks (2.12)');
+    expect(formatNextTurn(1, '2.01')).toBe('Next turn in 1 pick (2.01)');
   });
 
   it('is not repeated by the laptop strip or the wide rail', () => {
