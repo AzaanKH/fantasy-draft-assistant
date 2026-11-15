@@ -98,7 +98,8 @@ it('drafts the matching suggestion for keys 1-4 while the dock shows Roster, wit
 it('keeps the guards: not a held key, not while typing, not with a dialog open, and not with focused-only shortcuts', () => {
   const held = new KeyboardEvent('keydown', { key: '1', repeat: true, bubbles: true, cancelable: true });
   act(() => { document.body.dispatchEvent(held); });
-  expect(held.defaultPrevented).toBe(false);
+  // The held-key guard swallows it before the page-wide keys see it.
+  expect(held.defaultPrevented).toBe(true);
 
   const input = document.createElement('input');
   document.body.append(input);

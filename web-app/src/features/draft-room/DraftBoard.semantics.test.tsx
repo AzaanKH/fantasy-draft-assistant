@@ -105,3 +105,15 @@ it('ignores its own smooth scroll until scrollend, then follows the user again',
   expect(jump()).toBeDefined();
   vi.restoreAllMocks();
 });
+
+it('points a filled round-ending slot down to the next round, and the others along the snake', () => {
+  const store = createDraftStore();
+  store.getState().setConfig({ totalTeams: 4, totalRounds: 3, myPickPosition: 2, draftType: 'snake' });
+  store.getState().setSessionMode('mock');
+  for (const teamIndex of [0, 1, 2, 3]) store.getState().markPlayerDrafted(`p${String(teamIndex)}`, `Player ${String(teamIndex)}`, 'WR', teamIndex, `Team ${String(teamIndex + 1)}`);
+  act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(DraftBoard) })); });
+  const direction = (label: string): string | undefined =>
+    container.querySelector(`[aria-label^="Pick ${label},"] .board-pick-direction`)?.getAttribute('class') ?? undefined;
+  expect(direction('1.04')).toContain('arrow-down');
+  expect(direction('1.01')).toContain('arrow-right');
+});

@@ -1,4 +1,9 @@
 import { afterEach, beforeEach } from 'vitest';
+import { installHeldKeyGuard } from './features/draft-room/held-key-guard';
+
+// Every DOM test runs under the held-key guard, exactly as main.tsx (the app's only entry) installs it before render:
+// component key handlers never see a repeated action key, so they do not re-check event.repeat.
+if (typeof window !== 'undefined') installHeldKeyGuard(window);
 
 // React reports render crashes and jsdom reports uncaught errors through console.error; a test that passes over
 // one is hiding a broken tree. React's dev-only "Warning:" messages (act, SSR layout effects) are not crashes and

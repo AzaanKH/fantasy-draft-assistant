@@ -8,11 +8,17 @@ describe('the header sync state', () => {
     expect(getHeaderSyncState('setup', null).label).toBe('Not connected');
   });
 
-  it('gives every live state its own label, and Connecting before the first state', () => {
-    const states = ['confirmed', 'complete', 'reconciling', 'delayed', 'manual-continuity', 'disconnected'] as const;
-    const labels = states.map((state) => getHeaderSyncState('live', state).label);
-    expect(new Set(labels).size).toBe(states.length);
-    expect(getHeaderSyncState('live', 'confirmed').label).toBe('Synced');
-    expect(getHeaderSyncState('live', null).label).toBe('Connecting');
+  it.each([
+    ['confirmed', /^Synced$/, 'ok'],
+    ['complete', /complete/i, 'ok'],
+    ['reconciling', /^Syncing$/, 'pending'],
+    ['delayed', /delayed/i, 'warn'],
+    ['manual-continuity', /lost.*locally/i, 'lost'],
+    ['disconnected', /^Disconnected$/, 'lost'],
+    [null, /^Connecting$/, 'pending'],
+  ] as const)('shows the live %s state as its own meaning', (state, label, tone) => {
+    const shown = getHeaderSyncState('live', state);
+    expect(shown.label).toMatch(label);
+    expect(shown.tone).toBe(tone);
   });
 });

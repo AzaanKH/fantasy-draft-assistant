@@ -29,13 +29,17 @@ function render(): string {
 
 describe('ManualContinuityControl', () => {
   it.each([
-    ['espn', 'disconnected', 'error', 'ESPN'],
-    ['yahoo', 'disconnected', 'connected', 'Yahoo'],
-    ['sleeper', 'manual-continuity', 'connected', 'Sleeper'],
-    [null, 'manual-continuity', 'connected', 'the provider'],
-  ] as const)('names the connected provider (%s) in its %s guidance', (provider, synchronizationState, connectionState, name) => {
+    // A lost connection and a slow one are different states, each naming the provider.
+    ['espn', 'disconnected', 'error', /ESPN is disconnected/],
+    ['yahoo', 'disconnected', 'connected', /Yahoo updates are delayed/],
+    // Provisional Picks stay on this device: never sent to the provider, named or not.
+    ['sleeper', 'manual-continuity', 'connected', /local only and will never be submitted or queued with Sleeper/],
+    [null, 'manual-continuity', 'connected', /local only and will never be submitted or queued with the provider/],
+  ] as const)('with %s %s (%s), states %s in its status', (provider, synchronizationState, connectionState, meaning) => {
     Object.assign(sync, { provider, synchronizationState, connectionState });
-    expect(render()).toContain(name);
+    const markup = render();
+    expect(markup).toContain('role="status"');
+    expect(markup).toMatch(meaning);
   });
 });
 
