@@ -26,20 +26,21 @@ describe('catalog file decoders on the demo data', () => {
   it.each([
     ['identity', null], ['sleeper', []], ['snapshot', 'invalid'],
     ['identity', { ...identity, season: Infinity }],
-    ...[{}, { ...row, canonicalId: '' }, { ...row, aliases: [null] }, { ...row, position: 'INVALID' }, { ...row, sleeperId: 123 }, { ...row, name: '   ' }]
+    ...[{}, { ...row, canonicalId: '' }, { ...row, aliases: [null] }, { ...row, position: 'INVALID' }, { ...row, sleeperId: 123 }, { ...row, fantasyProsId: 123 }, { ...row, fantasyProsId: '' }, { ...row, team: 'INVALID' }, { ...row, name: '   ' }]
       .map(invalid => ['identity', { ...identity, players: [row, invalid] }] as const),
     ['sleeper', { ...sleeper, players: {} }],
     ['sleeper', { ...sleeper, playerCount: sleeper.playerCount + 1 }],
     ['snapshot', { ...snapshot, metadata: {} }],
     ['snapshot', { ...snapshot, metadata: { ...snapshot.metadata, sourceType: 'untrusted' } }],
     ['snapshot', { ...snapshot, rankings: [{ ...snapshot.rankings[0], fantasyProsTier: 'one' }] }],
+    ['snapshot', { ...snapshot, rankings: [{ ...snapshot.rankings[0], fantasyProsId: 123 }] }],
     ['snapshot', { ...snapshot, news: [{ name: 'Fixture', position: 'WR', team: 'DAL', status: 'healthy' }] }],
     ['snapshot', { ...snapshot, projections: [{ ...snapshot.projections[0], projectedUnrecognized: 'invalid' }] }],
   ] as const)('rejects an invalid %s file', (shape, value) => {
     expect(() => decoders[shape](value)).toThrow();
   });
 
-  it.each(Object.entries({ playerId: 123, name: null, position: 'INVALID', sleeperAdp: NaN, age: '25' }))(
+  it.each(Object.entries({ playerId: 123, name: null, position: 'INVALID', team: 'INVALID', sleeperAdp: NaN, age: '25', yearsExp: false, status: null }))(
     'drops a Sleeper row with an invalid %s and warns', (field, value) => {
       const warnings: string[] = [];
       expect(decodeSleeperDataFile({ ...sleeper, playerCount: 1, players: [{ ...sleeper.players[0], [field]: value }] },

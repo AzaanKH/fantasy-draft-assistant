@@ -13,16 +13,16 @@ describe('resource limits', () => {
   });
 
   it.each([
-    ['below the minimum', 0],
-    ['above the maximum', 11],
-    ['fractional', 1.5],
-    ['NaN', Number.NaN],
-    ['infinite', Number.POSITIVE_INFINITY],
-    ['unsafe', Number.MAX_SAFE_INTEGER + 1],
-    ['a numeric string', '5'],
-    ['null', null],
-  ])('rejects values that are %s', (_label, value) => {
-    expect(isBoundedInteger(value, 1, 10)).toBe(false);
+    ['below the minimum', 0, 1, 10],
+    ['above the maximum', 11, 1, 10],
+    ['fractional', 1.5, 1, 10],
+    ['NaN', Number.NaN, 1, 10],
+    ['infinite', Number.POSITIVE_INFINITY, 1, 10],
+    ['unsafe, even within the bounds', Number.MAX_SAFE_INTEGER + 1, 0, Number.MAX_VALUE],
+    ['a numeric string', '5', 1, 10],
+    ['null', null, 1, 10],
+  ])('rejects values that are %s', (_label, value, minimum, maximum) => {
+    expect(isBoundedInteger(value, minimum, maximum)).toBe(false);
   });
 
   it('bounds draft sizes before client state is allocated', () => {

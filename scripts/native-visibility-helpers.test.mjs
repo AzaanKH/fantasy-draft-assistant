@@ -76,6 +76,29 @@ test('production fixture handles sync-refresh POST while static assets remain re
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
+test.each([
+  ['a duplicate FantasyPros identity', (identities) => { identities.players[1] = { ...identities.players[1], fantasyProsId: identities.players[0].fantasyProsId }; }, /unique real canonical/],
+  ['a missing Sleeper identity', (identities) => { identities.players[0] = { ...identities.players[0], sleeperId: undefined }; }, /unique real canonical/],
+  ['a ranking with an unknown identity', (_identities, snapshot) => { snapshot.rankings[0] = { ...snapshot.rankings[0], fantasyProsId: 'unknown' }; }, /duplicate or unknown/],
+  ['a duplicate ranking', (_identities, snapshot) => { snapshot.rankings[1] = { ...snapshot.rankings[0] }; }, /duplicate or unknown/],
+])('rejects a catalog fixture with %s', async (_label, mutate, message) => {
+  const [snapshot, identities, predictions] = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
+  mutate(identities, snapshot);
+  expect(() => buildCatalogFixture(snapshot, identities, predictions)).toThrow(message);
+});
+
+test('appends unranked identities from position rank 1 with zero points when no prediction exists', async () => {
+  const [snapshot, identities, predictions] = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
+  const kickers = new Set(identities.players.filter(player => player.position === 'K').map(player => player.fantasyProsId));
+  snapshot.rankings = snapshot.rankings.filter(row => !kickers.has(row.fantasyProsId));
+  snapshot.projections = snapshot.projections.filter(row => !kickers.has(row.fantasyProsId));
+  const kicker = identities.players.find(player => player.position === 'K');
+  predictions.players = predictions.players.filter(row => row.playerId !== kicker.canonicalId);
+  const { snapshot: fixture } = buildCatalogFixture(snapshot, identities, predictions);
+  expect(fixture.rankings.filter(row => row.position === 'K')[0]).toMatchObject({ fantasyProsId: kicker.fantasyProsId, positionalRank: 1 });
+  expect(fixture.projections.find(row => row.fantasyProsId === kicker.fantasyProsId)?.projectedPoints).toBe(0);
+});
+
 test('serves decoded readiness fixtures built from the demo catalog', async () => {
   const data = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions', 'sleeper-adp'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
   const { snapshot, catalog } = buildCatalogFixture(...data.slice(0, 3));

@@ -973,6 +973,16 @@ describe('getRecommendations', () => {
     });
   });
 
+  it.each([
+    ['the league-adjusted market price when one is available', 24, 4],
+    ['the Sleeper market price otherwise', undefined, 10],
+  ])('measures RB reach cost from %s', (_label, leagueAdjustedMarketRank, cost) => {
+    const rb = { ...createPlayer('league-rb', 'RB', 12), marketRank: 30, marketAdp: 30, leagueAdjustedMarketRank };
+    const { rbIntentionalReaches } = getRecommendations([rb], createNeeds([{ position: 'RB', priority: 'critical' }]), 5,
+      { currentPick: 20, totalPicks: 150, totalTeams: 10 });
+    expect(rbIntentionalReaches[0]?.diagnostics?.marketReachCost).toBe(cost);
+  });
+
   describe('byNeed', () => {
     it('filters to critical and high priority positions', () => {
       const players = [
