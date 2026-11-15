@@ -66,6 +66,48 @@ it('opens a tier or a whole position from the depth chart, toggles the wider vie
   expect(store.getState().shortlistedPlayerIds).toHaveLength(1);
   expect(queue.getAttribute('aria-pressed')).toBe('true');
 });
+describe('the depth chart player detail', () => {
+  const receivers = Array.from({ length: 12 }, (_, index) => ({ ...drafted, id: `wr-${String(index)}`, name: `Receiver ${String(index)}` }));
+  function openWideReceivers(): HTMLButtonElement {
+    players = receivers;
+    act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(TooltipProvider, null, createElement(PositionalDepthChart, { needs: [] })) })); });
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Show available WR players"]');
+    if (!trigger) throw new Error('Missing WR trigger');
+    act(() => { trigger.focus(); trigger.click(); });
+    return trigger;
+  }
+  const names = (): string[] => [...container.querySelectorAll('.depth-player-table tbody .depth-player-name')].map((cell) => cell.textContent);
+  const chances = (): string[] => [...container.querySelectorAll('.depth-player-table tbody td:nth-child(3)')].map((cell) => cell.textContent);
+
+  it.each([
+    ['a later pick', { totalTeams: 2, totalRounds: 2, myPickPosition: 1 }, /^\d+%$/],
+    ['no later pick', { totalTeams: 2, totalRounds: 1, myPickPosition: 1 }, /^—$/],
+  ] as const)('estimates the next-pick chance only when the manager has %s', (_, config, chance) => {
+    store.getState().setConfig(config);
+    openWideReceivers();
+    expect(chances().length).toBeGreaterThan(0);
+    for (const value of chances()) expect(value).toMatch(chance);
+  });
+
+  it('shows eight players, then the next page on request', () => {
+    openWideReceivers();
+    expect(names()).toHaveLength(8);
+    const more = container.querySelector<HTMLButtonElement>('.depth-show-more');
+    expect(more?.textContent).toMatch(/4 more/);
+    act(() => { more?.click(); });
+    expect(names()).toHaveLength(12);
+    expect(container.querySelector('.depth-show-more')).toBeNull();
+  });
+
+  it('closes the detail and returns focus to the control that opened it', () => {
+    const trigger = openWideReceivers();
+    const close = container.querySelector<HTMLButtonElement>('button[aria-label="Close WR players"]');
+    act(() => { close?.focus(); close?.click(); });
+    expect(container.querySelector('.depth-player-detail')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+});
+
 it('preserves ID-only observation choices and the edit-player exception', () => {
   const editingPick = store.getState().draftHistory[0]; if (!editingPick) throw new Error('Missing observation');
   act(() => { root.render(createElement(WorkspaceTestProvider, { store, children: createElement(ProvisionalPickDialog, { open: true, onOpenChange: vi.fn(), editingPick }) })); });
