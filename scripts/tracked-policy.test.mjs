@@ -91,11 +91,6 @@ describe('tracked-tree leak policy', () => {
     ];
     expect(leakFindings('provider.ts', urls.join('\n'))).toEqual([]);
   });
-  it('describes the proxy-security numeric allowance as the synthetic TOKEN suffix', async () => {
-    const baseline = JSON.parse(await readFile(new URL('../tracked-leak-baseline.json', import.meta.url), 'utf8'));
-    const allowance = baseline.find(entry => entry.file === 'server/src/proxy-security.test.ts' && entry.detector === 'private-id');
-    expect(allowance.reason).toBe('Numeric suffix of the fixed synthetic TOKEN used by the isolated local proxy-security test server.');
-  });
   it('allows exact reasoned occurrences and fails adjacent additions in the same file', () => {
     const existing = leakFindings('import.ts', `const id = '${privateId}';`);
     const allowances = existing.map(finding => ({ ...finding, reason: 'Historical import must retain its input identifiers in this gate-only wave.' }));
@@ -137,7 +132,7 @@ describe('tracked-tree leak policy', () => {
 
 describe('catalog-owned tracked data and bounded assets', () => {
   it.each(['data/contracts.json', 'demo-data/predictions.json', 'data/model/.gitkeep',
-    'scripts/persistence/fixtures/worker-stop-without-close.json', 'docs/design-system/tokens.json',
+    'docs/design-system/tokens.json',
     'web-app/package.json', 'cli/src/client.ts', 'web-app/src/lib/calculations/__snapshots__/recommendations-snake-pick-1.jsonl'])('allows classified data or exact config/fixtures: %s', file => {
     expect(trackedDataFailure(file, 100)).toBeNull();
   });

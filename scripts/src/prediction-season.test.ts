@@ -7,13 +7,13 @@ vi.mock('node:fs/promises', async importOriginal => ({
 beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.useRealTimers(); });
 
+// The season boundary table lives in shared/src/units/clock.test.ts; these rows prove the
+// Sleeper timestamp is read (2026 differs from the clock's 2025) and the clock fallback.
 it.each([
-  ['2026-02-28T23:59:59.999Z', 2025],
   ['2026-03-01T00:00:00.000Z', 2026],
-  ['2026-12-31T16:00:00.000-08:00', 2026],
   ['invalid', 2025],
   ['', 2025],
-])('preserves the prediction NFL season from Sleeper timestamp %s', async (timestamp, season) => {
+])('reads the prediction NFL season from Sleeper timestamp %s', async (timestamp, season) => {
   vi.stubEnv('MODEL_SOURCE_PROFILE', 'fantasypros-free');
   vi.useFakeTimers({ now: Date.parse('2026-02-28T23:59:59.999Z'), toFake: ['Date'] });
   vi.mocked(readFile).mockResolvedValue(JSON.stringify({ fetchedAt: timestamp, source: 'fixture', playerCount: 0, players: [] }));

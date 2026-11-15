@@ -21,7 +21,7 @@ describe('contract source provenance', () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it.each(['{invalid', JSON.stringify({ assets: 'invalid' })])('warns and omits invalid provenance %s', async body => {
+  it.each(['{invalid', JSON.stringify({ assets: 'invalid' }), JSON.stringify({ updated_at: 123 })])('warns and omits invalid provenance %s', async body => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(body)));
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await expect(getSourceUpdatedAt()).resolves.toBeNull();

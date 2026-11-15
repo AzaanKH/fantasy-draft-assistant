@@ -3,433 +3,124 @@ import { describe, expect, it } from 'vitest';
 import type { Recommendation } from '../../draft.js';
 import { getRecommendationExplanation } from './recommendation-explanation.js';
 
+type Factors = NonNullable<Recommendation['decisionFactors']>;
+
+/** Neutral policy factors: every group scores 0 and changes nothing, so each case overrides only what it explains. */
+function factors(ecrRank: number, points: number, overrides: Partial<Factors> = {}): Factors {
+  return {
+    playerQuality: { ecrRank: asRank(ecrRank), score: -ecrRank },
+    leagueValue: { score: 0, minScore: 0, maxScore: 6, projectedPoints: points, replacementPoints: points, valueOverReplacement: asVor(0) },
+    rosterFit: {
+      score: 6, minScore: 0, maxScore: 8, fixedStartersOpen: 7, flexSlotsOpen: 2, benchSlotsOpen: 5,
+      selectionsRemaining: 14, legalCompletionPossible: true,
+    },
+    depthValue: {
+      score: 0, minScore: 0, maxScore: 4, positionCount: 0, startersAtPosition: 0, reserveCount: 0,
+      targetReserveCount: 0, reserveDeficit: 0, contingencyPoints: 0, materiallyChangedOrdering: false,
+    },
+    tierSupply: {
+      score: 0, minScore: 0, maxScore: 4, currentTier: 1, remainingInTier: 2, dropoffPoints: 0,
+      meaningfulCliff: false, costOfWaiting: 0, materiallyChangedOrdering: false,
+    },
+    draftTiming: { score: 0, minScore: 0, maxScore: 4, candidateValue: 0, costOfWaiting: 0, materiallyChangedOrdering: false },
+    conservativeBoundary: { ecrRankLimit: asRank(ecrRank + 6), samePositionTier: false, withinBoundary: true, feasibilityException: false },
+    ...overrides,
+  };
+}
+
+function recommendation(
+  position: Recommendation['position'],
+  ecrRank: number,
+  points: number,
+  overrides: Partial<Factors> | undefined,
+  diagnostics: Partial<NonNullable<Recommendation['diagnostics']>> = {},
+): Recommendation {
+  return {
+    playerId: 'player',
+    playerName: 'Test Player',
+    position,
+    reason: 'test',
+    score: 1,
+    diagnostics: {
+      expertRank: asRank(ecrRank), marketRank: ecrRank, projectedPoints: points,
+      valueOverReplacement: asVor(0), marketDelta: 0, tier: 1, ...diagnostics,
+    },
+    ...(overrides ? { decisionFactors: factors(ecrRank, points, overrides) } : {}),
+  };
+}
+
 describe('getRecommendationExplanation', () => {
   it('explains when thin positional coverage adds Depth Value', () => {
-    const recommendation: Recommendation = {
-      playerId: 'depth-rb',
-      playerName: 'Useful RB',
-      position: 'RB',
-      reason: 'Depth Value',
-      score: 4,
-      diagnostics: {
-        expertRank: asRank(102),
-        marketRank: 102,
-        projectedPoints: 200,
-        valueOverReplacement: asVor(0),
-        marketDelta: 0,
-        tier: 6,
+    const explanation = getRecommendationExplanation(recommendation('RB', 102, 200, {
+      depthValue: {
+        score: 4, minScore: 0, maxScore: 4, positionCount: 2, startersAtPosition: 2, reserveCount: 0,
+        targetReserveCount: 2, reserveDeficit: 2, contingencyPoints: 50, materiallyChangedOrdering: true,
       },
-      decisionFactors: {
-        playerQuality: { ecrRank: asRank(102), score: -102 },
-        leagueValue: {
-          score: 0,
-          minScore: 0,
-          maxScore: 6,
-          projectedPoints: 200,
-          replacementPoints: 200,
-          valueOverReplacement: asVor(0),
-        },
-        rosterFit: {
-          score: 1,
-          minScore: 0,
-          maxScore: 8,
-          fixedStartersOpen: 0,
-          flexSlotsOpen: 0,
-          benchSlotsOpen: 4,
-          selectionsRemaining: 4,
-          legalCompletionPossible: true,
-        },
-        depthValue: {
-          score: 4,
-          minScore: 0,
-          maxScore: 4,
-          positionCount: 2,
-          startersAtPosition: 2,
-          reserveCount: 0,
-          targetReserveCount: 2,
-          reserveDeficit: 2,
-          contingencyPoints: 50,
-          materiallyChangedOrdering: true,
-        },
-        tierSupply: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          currentTier: 6,
-          remainingInTier: 1,
-          dropoffPoints: 0,
-          meaningfulCliff: false,
-          costOfWaiting: 0,
-          materiallyChangedOrdering: false,
-        },
-        draftTiming: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          candidateValue: 0,
-          costOfWaiting: 0,
-          materiallyChangedOrdering: false,
-        },
-        conservativeBoundary: {
-          ecrRankLimit: asRank(108),
-          samePositionTier: false,
-          withinBoundary: true,
-          feasibilityException: false,
-        },
-      },
-    };
+    }));
 
-    const explanation = getRecommendationExplanation(recommendation);
-
-    expect(explanation).toContain('Depth adds 4.0 because');
-    expect(explanation).toContain('0 RB reserves against a target of 2');
-    expect(explanation).toContain('That bench protection changed Best Pick.');
+    expect(explanation).toMatch(/Depth adds 4\.0/);
+    expect(explanation).toMatch(/0 RB reserves against a target of 2/);
+    expect(explanation).toMatch(/changed Best Pick/);
   });
 
   it('names the policy factors and the legal-roster exception from the decision output', () => {
-    const recommendation: Recommendation = {
-      playerId: 'player-k',
-      playerName: 'Required Kicker',
-      position: 'K',
-      reason: 'Legal-roster requirement',
-      score: -20,
-      diagnostics: {
-        expertRank: asRank(30),
-        marketRank: 30,
-        projectedPoints: 130,
-        valueOverReplacement: asVor(12),
-        marketDelta: 0,
-        tier: 2,
+    const explanation = getRecommendationExplanation(recommendation('K', 30, 130, {
+      leagueValue: { score: 0.5, minScore: 0, maxScore: 6, projectedPoints: 130, replacementPoints: 118, valueOverReplacement: asVor(12) },
+      rosterFit: {
+        score: 8, minScore: 0, maxScore: 8, fixedStartersOpen: 1, flexSlotsOpen: 0, benchSlotsOpen: 0,
+        selectionsRemaining: 1, legalCompletionPossible: true,
       },
-      decisionFactors: {
-        playerQuality: { ecrRank: asRank(30), score: -30 },
-        leagueValue: {
-          score: 0.5,
-          minScore: 0,
-          maxScore: 6,
-          projectedPoints: 130,
-          replacementPoints: 118,
-          valueOverReplacement: asVor(12),
-        },
-        rosterFit: {
-          score: 8,
-          minScore: 0,
-          maxScore: 8,
-          fixedStartersOpen: 1,
-          flexSlotsOpen: 0,
-          benchSlotsOpen: 0,
-          selectionsRemaining: 1,
-          legalCompletionPossible: true,
-        },
-        depthValue: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          positionCount: 0,
-          startersAtPosition: 0,
-          reserveCount: 0,
-          targetReserveCount: 0,
-          reserveDeficit: 0,
-          contingencyPoints: 0,
-          materiallyChangedOrdering: false,
-        },
-        tierSupply: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          currentTier: 2,
-          remainingInTier: 1,
-          dropoffPoints: 0,
-          meaningfulCliff: false,
-          costOfWaiting: 0,
-          materiallyChangedOrdering: false,
-        },
-        draftTiming: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          candidateValue: 12,
-          costOfWaiting: 0,
-          materiallyChangedOrdering: false,
-        },
-        conservativeBoundary: {
-          ecrRankLimit: asRank(9),
-          samePositionTier: false,
-          withinBoundary: false,
-          feasibilityException: true,
-        },
-      },
-    };
+      conservativeBoundary: { ecrRankLimit: asRank(9), samePositionTier: false, withinBoundary: false, feasibilityException: true },
+    }, { valueOverReplacement: asVor(12) }));
 
-    const explanation = getRecommendationExplanation(recommendation);
-
-    expect(explanation).toContain('is #30 in the rankings');
-    expect(explanation).toContain('Primary League value adds 0.5 to his score');
-    expect(explanation).toContain('Roster fit adds 8.0 with');
-    expect(explanation).toContain('taken early to keep the roster fillable');
+    expect(explanation).toMatch(/#30/);
+    expect(explanation).toMatch(/value adds 0\.5/);
+    expect(explanation).toMatch(/Roster fit adds 8\.0/);
+    expect(explanation).toMatch(/roster fillable/);
     // Plain words only: no model jargon in the full reasoning.
     expect(explanation).not.toMatch(/policy point|replacement|Return Probability|anchored/i);
   });
 
   it('explains the tier supply factor when it changes Best Pick', () => {
-    const recommendation: Recommendation = {
-      playerId: 'last-rb',
-      playerName: 'Last Tier RB',
-      position: 'RB',
-      reason: 'Tier wait cost',
-      score: 7,
-      diagnostics: {
-        expertRank: asRank(3),
-        marketRank: 3,
-        projectedPoints: 220,
-        valueOverReplacement: asVor(0),
-        marketDelta: 0,
-        tier: 1,
-        tierRemaining: 1,
-        tierDropoffPoints: 40,
-        costOfWaiting: 4,
+    const explanation = getRecommendationExplanation(recommendation('RB', 3, 220, {
+      tierSupply: {
+        score: 4, minScore: 0, maxScore: 4, currentTier: 1, remainingInTier: 1, nextTier: 2, nextTierProjectedPoints: 180,
+        dropoffPoints: 40, meaningfulCliff: true, costOfWaiting: 4, materiallyChangedOrdering: true,
       },
-      decisionFactors: {
-        playerQuality: { ecrRank: asRank(3), score: -3 },
-        leagueValue: {
-          score: 0,
-          minScore: 0,
-          maxScore: 6,
-          projectedPoints: 220,
-          replacementPoints: 220,
-          valueOverReplacement: asVor(0),
-        },
-        rosterFit: {
-          score: 6,
-          minScore: 0,
-          maxScore: 8,
-          fixedStartersOpen: 7,
-          flexSlotsOpen: 2,
-          benchSlotsOpen: 5,
-          selectionsRemaining: 14,
-          legalCompletionPossible: true,
-        },
-        depthValue: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          positionCount: 0,
-          startersAtPosition: 0,
-          reserveCount: 0,
-          targetReserveCount: 0,
-          reserveDeficit: 0,
-          contingencyPoints: 0,
-          materiallyChangedOrdering: false,
-        },
-        tierSupply: {
-          score: 4,
-          minScore: 0,
-          maxScore: 4,
-          currentTier: 1,
-          remainingInTier: 1,
-          nextTier: 2,
-          nextTierProjectedPoints: 180,
-          dropoffPoints: 40,
-          meaningfulCliff: true,
-          costOfWaiting: 4,
-          materiallyChangedOrdering: true,
-        },
-        draftTiming: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          candidateValue: 0,
-          costOfWaiting: 0,
-          materiallyChangedOrdering: false,
-        },
-        conservativeBoundary: {
-          ecrRankLimit: asRank(9),
-          samePositionTier: false,
-          withinBoundary: true,
-          feasibilityException: false,
-        },
-      },
-    };
+    }, { tierRemaining: 1, tierDropoffPoints: 40, costOfWaiting: 4 }));
 
-    const explanation = getRecommendationExplanation(recommendation);
-
-    expect(explanation).toContain(
-      'A thinning tier adds 4.0 with 1 left in RB Tier 1'
-    );
-    expect(explanation).toContain('a 40.0 point drop to the next tier');
-    expect(explanation).toContain('That tier cliff changed Best Pick.');
+    expect(explanation).toMatch(/adds 4\.0 with 1 left in RB Tier 1/);
+    expect(explanation).toMatch(/40\.0 point drop/);
+    expect(explanation).toMatch(/changed Best Pick/);
   });
 
   it('names the next-pick window, expected fallback, and timing override', () => {
-    const recommendation: Recommendation = {
-      playerId: 'urgent-rb',
-      playerName: 'Urgent RB',
-      position: 'RB',
-      reason: 'Next-pick timing',
-      score: 6.1,
-      diagnostics: {
-        expertRank: asRank(3),
-        marketRank: 4,
-        projectedPoints: 240,
-        valueOverReplacement: asVor(24),
-        marketDelta: 1,
-        tier: 1,
-        nextPickSurvivalProbability: asProbability(0.05),
-        nextPickNumber: 13,
-        nextPickLabel: '2.03',
+    const explanation = getRecommendationExplanation(recommendation('RB', 3, 240, {
+      draftTiming: {
+        score: 2.1, minScore: 0, maxScore: 4, nextPickNumber: 13, nextPickLabel: '2.03', picksUntilNextPick: 5,
+        returnProbability: asProbability(0.05), candidateValue: 24,
+        expectedAlternative: {
+          playerId: 'fallback-rb', playerName: 'Fallback RB', position: 'RB', ecrRank: asRank(20),
+          valueOverReplacement: asVor(8), returnProbability: asProbability(0.8), expectedValue: 6.4,
+        },
+        costOfWaiting: 16.7, source: 'league-history', materiallyChangedOrdering: true,
       },
-      decisionFactors: {
-        playerQuality: { ecrRank: asRank(3), score: -3 },
-        leagueValue: {
-          score: 1,
-          minScore: 0,
-          maxScore: 6,
-          projectedPoints: 240,
-          replacementPoints: 216,
-          valueOverReplacement: asVor(24),
-        },
-        rosterFit: {
-          score: 6,
-          minScore: 0,
-          maxScore: 8,
-          fixedStartersOpen: 7,
-          flexSlotsOpen: 2,
-          benchSlotsOpen: 5,
-          selectionsRemaining: 14,
-          legalCompletionPossible: true,
-        },
-        depthValue: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          positionCount: 0,
-          startersAtPosition: 0,
-          reserveCount: 0,
-          targetReserveCount: 0,
-          reserveDeficit: 0,
-          contingencyPoints: 0,
-          materiallyChangedOrdering: false,
-        },
-        tierSupply: {
-          score: 0,
-          minScore: 0,
-          maxScore: 4,
-          currentTier: 1,
-          remainingInTier: 2,
-          dropoffPoints: 0,
-          meaningfulCliff: false,
-          costOfWaiting: 0,
-          materiallyChangedOrdering: false,
-        },
-        draftTiming: {
-          score: 2.1,
-          minScore: 0,
-          maxScore: 4,
-          nextPickNumber: 13,
-          nextPickLabel: '2.03',
-          picksUntilNextPick: 5,
-          returnProbability: asProbability(0.05),
-          candidateValue: 24,
-          expectedAlternative: {
-            playerId: 'fallback-rb',
-            playerName: 'Fallback RB',
-            position: 'RB',
-            ecrRank: asRank(20),
-            valueOverReplacement: asVor(8),
-            returnProbability: asProbability(0.8),
-            expectedValue: 6.4,
-          },
-          costOfWaiting: 16.7,
-          source: 'league-history',
-          materiallyChangedOrdering: true,
-        },
-        conservativeBoundary: {
-          ecrRankLimit: asRank(9),
-          samePositionTier: false,
-          withinBoundary: true,
-          feasibilityException: false,
-        },
-      },
-    };
+    }, { nextPickSurvivalProbability: asProbability(0.05), nextPickNumber: 13, nextPickLabel: '2.03' }));
 
-    const explanation = getRecommendationExplanation(recommendation);
-
-    expect(explanation).toContain("5% chance he's still there at pick 2.03");
-    expect(explanation).toContain('If you wait, Fallback RB is the best estimated RB option');
-    expect(explanation).toContain('That next-pick tradeoff changed Best Pick.');
+    expect(explanation).toMatch(/5%.*2\.03/);
+    expect(explanation).toMatch(/Fallback RB/);
+    expect(explanation).toMatch(/changed Best Pick/);
   });
 
-  it('turns recommendation diagnostics into a plain-language decision', () => {
-    const recommendation: Recommendation = {
-      playerId: 'player-1',
-      playerName: 'Ja\'Marr Chase',
-      position: 'WR',
-      reason: 'ECR champion',
-      score: 100,
-      diagnostics: {
-        expertRank: asRank(1),
-        marketRank: 3,
-        projectedPoints: 319,
-        valueOverReplacement: asVor(127),
-        marketDelta: 2,
-        nextPickSurvivalProbability: asProbability(0.14),
-        tier: 1,
-        tierRemaining: 1,
-        isLastInTier: true,
-      },
-    };
-
-    expect(getRecommendationExplanation(recommendation)).toBe(
-      "Ja'Marr Chase is last available player in WR Tier 1 and +127 pts over a fill-in starter. The chance this player reaches your next pick is only 14%, making waiting risky."
-    );
-  });
-
-  it('explains when waiting is reasonable without contradicting the recommendation', () => {
-    const recommendation: Recommendation = {
-      playerId: 'player-1',
-      playerName: 'Ja\'Marr Chase',
-      position: 'WR',
-      reason: 'ECR champion',
-      score: 100,
-      diagnostics: {
-        expertRank: asRank(1),
-        marketRank: 3,
-        projectedPoints: 337,
-        valueOverReplacement: asVor(133),
-        marketDelta: 2,
-        nextPickSurvivalProbability: asProbability(0.75),
-        tier: 1,
-        tierRemaining: 1,
-        isLastInTier: true,
-      },
-    };
-
-    expect(getRecommendationExplanation(recommendation)).toBe(
-      "Ja'Marr Chase is last available player in WR Tier 1 and +133 pts over a fill-in starter. The chance this player reaches your next pick is 75%, so waiting may be reasonable."
-    );
-  });
-
-  it('describes a multi-player tier as a grammatical player attribute', () => {
-    const recommendation: Recommendation = {
-      playerId: 'player-2',
-      playerName: 'Jahmyr Gibbs',
-      position: 'RB',
-      reason: 'ECR champion',
-      score: 95,
-      diagnostics: {
-        expertRank: asRank(3),
-        marketRank: 4,
-        projectedPoints: 310,
-        valueOverReplacement: asVor(120),
-        marketDelta: 1,
-        nextPickSurvivalProbability: asProbability(0.85),
-        tier: 1,
-        tierRemaining: 2,
-      },
-    };
-
-    expect(getRecommendationExplanation(recommendation)).toContain(
-      'Jahmyr Gibbs is one of 2 players remaining in RB Tier 1'
-    );
+  it.each([
+    ['the last player in a tier, with risky waiting', 'WR', { tierRemaining: 1, isLastInTier: true, valueOverReplacement: asVor(127),
+      nextPickSurvivalProbability: asProbability(0.14) }, [/last available player in WR Tier 1/, /\+127 pts/, /14%.*risky/]],
+    ['the last player in a tier, with reasonable waiting', 'WR', { tierRemaining: 1, isLastInTier: true, valueOverReplacement: asVor(133),
+      nextPickSurvivalProbability: asProbability(0.75) }, [/\+133 pts/, /75%.*reasonable/]],
+    ['one of several players left in a tier', 'RB', { tierRemaining: 2, nextPickSurvivalProbability: asProbability(0.85) },
+      [/one of 2 players remaining in RB Tier 1/]],
+  ] as const)('explains diagnostics alone for %s', (_label, position, diagnostics, patterns) => {
+    const explanation = getRecommendationExplanation(recommendation(position, 1, 300, undefined, diagnostics));
+    for (const pattern of patterns) expect(explanation).toMatch(pattern);
   });
 });

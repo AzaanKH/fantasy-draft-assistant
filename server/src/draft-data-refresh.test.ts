@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { Effect, Fiber, Layer, ManagedRuntime } from 'effect';
 import { DraftDataRefreshJob, refreshProcessInternals, type RunRefreshScript } from './draft-data-refresh.js';
@@ -102,6 +101,7 @@ describe('DraftDataRefreshJob timeouts', () => {
   });
 });
 
+// Process-tree signalling is owned by shared/src/node/processes.test.ts; these cases cover runCommand's wiring.
 describe('refresh script processes', () => {
   const isAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   // A killed orphan stays visible as a zombie until init reaps it, which takes a moment.
@@ -128,16 +128,6 @@ describe('refresh script processes', () => {
     }
   };
 
-  it('escalates to SIGKILL and waits for exit when a script ignores SIGTERM', async () => {
-    await withScript(['-e', "process.on('SIGTERM', () => {}); console.log(process.pid); setInterval(() => {}, 1000);"], /\d+/,
-      async ([pid], fiber) => {
-        const started = Date.now();
-        await Effect.runPromise(Fiber.interrupt(fiber));
-        expect(isAlive(Number(pid))).toBe(false);
-        expect(Date.now() - started).toBeGreaterThanOrEqual(100);
-      }, { termGraceMs: 100, killGraceMs: 2000 });
-  });
-
   it('collects all output before reporting a failed script', async () => {
     const mirror = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     try {
@@ -146,17 +136,9 @@ describe('refresh script processes', () => {
         // The script exits first; a process it started still holds stderr and writes the last line.
         ['-e', "require('child_process').spawn(process.execPath, ['-e', \"setTimeout(() => console.error('last line'), 200)\"], { stdio: 'inherit' }); process.exit(1);"],
         (text) => { output += text; }));
-      expect(exit._tag).toBe('Failure');
+      expect(exit).toMatchObject({ _tag: 'Failure', cause: { reasons: [{ error: new Error('exit code 1') }] } });
       expect(output.endsWith('last line\n')).toBe(true);
     } finally { mirror.mockRestore(); }
-  });
-
-  it.skipIf(process.platform === 'win32')('starts each script in its own process group', async () => {
-    const pgid = (pid: number) => execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim();
-    await withScript(['-e', 'console.log(process.pid); setInterval(() => {}, 1000);'], /\d+/, async ([pid]) => {
-      expect(pgid(Number(pid))).toBe(pid);
-      expect(pgid(Number(pid))).not.toBe(pgid(process.pid));
-    });
   });
 
   it.skipIf(process.platform === 'win32')('stops descendants that outlive the child, as a script under pnpm would', async () => {

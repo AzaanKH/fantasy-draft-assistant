@@ -1,4 +1,3 @@
-export { isNeedPriority } from '../draft.js';
 export type {
   DraftPick,
   NeedPriority,

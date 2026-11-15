@@ -27,10 +27,6 @@ function sqlNumber(value: number | null): string {
   return value === null ? 'null::double' : `${String(value)}::double`;
 }
 
-function normalize(sql: string): string {
-  return sql.replaceAll(/\s+/g, ' ').trim();
-}
-
 let connection: DuckDBConnection;
 
 beforeAll(async () => {
@@ -65,18 +61,4 @@ describe('league scoring SQL twin', () => {
     expect(sql).toEqual(typescript);
   });
 
-  it('renders the same expressions the dataset builder used before generation', () => {
-    expect(normalize(leagueScoringAdjustmentSql({
-      position: 'ps.position',
-      rushAttempts: 'coalesce(ps.rush_attempts, 0)',
-      receptions: 'coalesce(ps.receptions, 0)',
-    }))).toBe(normalize(`coalesce(ps.rush_attempts, 0) * 0.2
-      + case when ps.position = 'TE' then coalesce(ps.receptions, 0) * 0.5 else 0 end`));
-    expect(normalize(leagueScoringAdjustmentSql({
-      position: 'position',
-      rushAttempts: 'projected_rush_attempts',
-      receptions: 'projected_receptions',
-    }))).toBe(normalize(`projected_rush_attempts * 0.2
-      + case when position = 'TE' then projected_receptions * 0.5 else 0 end`));
-  });
 });

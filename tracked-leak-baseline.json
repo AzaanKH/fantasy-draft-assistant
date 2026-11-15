@@ -112,14 +112,6 @@
     "reason": "Public Chrome storage key name in STORAGE_KEYS, not the value of a pairing token. Preserve persisted keys unchanged."
   },
   {
-    "file": "scripts/persistence/ui-activation.mjs",
-    "detector": "credential-assignment",
-    "line": 317,
-    "column": 58,
-    "fingerprint": "c0ff062f77d85ca936e9426a1d937851b6a61bdbf211f17ce5d5309cceff094d",
-    "reason": "Fixed synthetic browser-probe pairing token seeds isolated local extension storage for activation tests."
-  },
-  {
     "file": "scripts/src/demo-data-core.test.ts",
     "detector": "league-name",
     "line": 176,
@@ -286,30 +278,6 @@
     "column": 40,
     "fingerprint": "baf1ebcec305e04bf24696c3f9c2f24ad15d1452af97dcd7db580ec1bdaf7015",
     "reason": "Offline league-history fixture label exercises the file decoder."
-  },
-  {
-    "file": "scripts/ui-production.test.mjs",
-    "detector": "named-private-id",
-    "line": 49,
-    "column": 59,
-    "fingerprint": "bc76e2f5104215865059fe1733f029498cce81138353aff61f35c130c6d2545f",
-    "reason": "Deterministic storage-identity fixture used by the local persistence production probe."
-  },
-  {
-    "file": "scripts/ui-reachability.test.mjs",
-    "detector": "league-name",
-    "line": 46,
-    "column": 40,
-    "fingerprint": "626bb0f3795e3902d5032ef87187c168928f72fdd8fda51afb6eabfec6c5ffff",
-    "reason": "Offline league-survival fixture label exercises readiness prerequisites."
-  },
-  {
-    "file": "scripts/ui-runner.test.mjs",
-    "detector": "named-private-id",
-    "line": 292,
-    "column": 35,
-    "fingerprint": "ba2a560449dd26a6a0a870ecb66c24a256d65ac6f3fff2ab6ec9729c8c5d4bd3",
-    "reason": "Deterministic storage-identity fixture tests canonical app-tab reuse."
   },
   {
     "file": "server/src/proxy-security.test.ts",
@@ -670,5 +638,13 @@
     "column": 8,
     "fingerprint": "624a9487924e2240fc705fb62c2a5503ea8ed5d808637f6089b7427ffc082614",
     "reason": "Synthetic provider draft URL verifies pure route parsing without live requests."
+  },
+  {
+    "file": "scripts/native-visibility-helpers.test.mjs",
+    "detector": "named-private-id",
+    "line": 55,
+    "column": 59,
+    "fingerprint": "bc76e2f5104215865059fe1733f029498cce81138353aff61f35c130c6d2545f",
+    "reason": "Deterministic storage-identity fixture used by the native-visibility proof's seed helper test."
   }
 ]

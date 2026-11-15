@@ -40,11 +40,9 @@ async function runCaptured(): Promise<void> {
   await Effect.runPromise(program);
 }
 
-const boundaries = [
-  ['2027-02-28T23:59:59.999Z', 2026],
-  ['2027-03-01T00:00:00.000Z', 2027],
-  ['2026-12-31T16:00:00.000-08:00', 2026],
-] as const;
+// The season boundary table lives in shared/src/units/clock.test.ts. One timestamp just before
+// the March 1 boundary proves each consumer reads the NFL season, not the calendar year.
+const boundaries = [['2027-02-28T23:59:59.999Z', 2026]] as const;
 
 it.each(boundaries)('requests FantasyPros API data for the NFL season at %s', async (timestamp, season) => {
   vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });

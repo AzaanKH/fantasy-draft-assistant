@@ -58,11 +58,8 @@ it('keeps strict prediction checks failing when a malformed row is dropped', asy
 });
 
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
-it.each([
-  ['2027-02-28T23:59:59.999Z', 2026],
-  ['2027-03-01T00:00:00.000Z', 2027],
-])('labels the quality report with the NFL season at %s', async (timestamp, season) => {
-  vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });
+it('labels the quality report with the NFL season, not the calendar year', async () => {
+  vi.useFakeTimers({ now: Date.parse('2027-02-28T23:59:59.999Z'), toFake: ['Date'] });
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
@@ -71,6 +68,6 @@ it.each([
     await vi.waitFor(() => { expect(writeFile).toHaveBeenCalled(); });
     const output = vi.mocked(writeFile).mock.calls[0]?.[1];
     if (typeof output !== 'string') throw new Error('Expected a JSON report');
-    expect(JSON.parse(output)).toMatchObject({ season });
+    expect(JSON.parse(output)).toMatchObject({ season: 2026 });
   } finally { vi.useRealTimers(); }
 });

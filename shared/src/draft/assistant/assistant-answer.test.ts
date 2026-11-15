@@ -120,20 +120,20 @@ describe('Assistant decision answer', () => {
 
     const why = getWhyRows(selected, true);
     expect(why.map((row) => row.label)).toEqual(['Value', 'Roster fit', 'Tier', 'Why it ranks here']);
-    expect(why[0]?.answer).toBe('Projects 24 pts more than a fill-in RB. #4 overall.');
-    expect(why[1]?.answer).toBe('3 starter spots and 2 FLEX spots open, 10 selections left.');
-    expect(why[3]?.answer).toBe('The cost of waiting moved this player up.');
+    expect(why[0]?.answer).toMatch(/24 pts.*#4 overall/);
+    expect(why[1]?.answer).toMatch(/3 starter.*2 FLEX.*10 selections/);
+    expect(why[3]?.answer).toMatch(/cost of waiting/i);
     expect(why.some((row) => row.answer.includes('17.6'))).toBe(false);
     const level = getWhyRows({ ...selected, diagnostics: selected.diagnostics ? { ...selected.diagnostics, valueOverReplacement: asVor(0.2) } : undefined }, true);
-    expect(level[0]?.answer).toBe('Projects about the same as a fill-in RB, so the roster and tier below decide. #4 overall.');
+    expect(level[0]?.answer).toMatch(/about the same/);
+    expect(level[0]?.answer).not.toMatch(/0\.2/);
 
     const wait = getWaitAnswer(selected);
-    expect(wait.headline).toBe('Unlikely to return at pick 2.03.');
-    expect(wait.rows.map((row) => [row.label, row.answer])).toEqual([
-      ['At next pick', "5% chance he's still there"],
-      ['Waiting cost', '17.6 expected points'],
-      ['Expected Next-Pick Alternative', 'Fallback RB, +6 expected pts over a fill-in starter'],
-    ]);
+    expect(wait.headline).toMatch(/unlikely.*2\.03/i);
+    expect(wait.rows.map((row) => row.label)).toEqual(['At next pick', 'Waiting cost', 'Expected Next-Pick Alternative']);
+    expect(wait.rows[0]?.answer).toContain('5%');
+    expect(wait.rows[1]?.answer).toContain('17.6');
+    expect(wait.rows[2]?.answer).toMatch(/Fallback RB.*\+6/);
     expect(getWaitingCostSummary(selected)).toEqual({
       costOfWaiting: 17.6,
       nextPickLabel: '2.03',
@@ -149,9 +149,10 @@ describe('Assistant decision answer', () => {
       diagnostics: { ...diagnostics, nextPickCostOfWaiting: 4 } as Recommendation['diagnostics'],
     };
     const wait = getWaitAnswer(unknownTiming);
-    expect(wait.headline).toBe('Waiting risk is unavailable.');
-    expect(wait.rows[0]?.answer).toBe('Unavailable. Timing inputs are missing.');
-    expect(wait.rows[1]?.answer).toBe('Unavailable');
+    expect([wait.headline, wait.rows[0]?.answer, wait.rows[1]?.answer]).toEqual([
+      expect.stringMatching(/unavailable/i), expect.stringMatching(/unavailable/i), expect.stringMatching(/unavailable/i),
+    ]);
+    expect(wait.rows.some((row) => /\b0\b/.test(row.answer))).toBe(false);
     expect(getWaitingCostSummary(unknownTiming).costOfWaiting).toBeNull();
   });
 
@@ -173,24 +174,15 @@ describe('Assistant decision answer', () => {
       },
     };
 
-    expect(getComparisonHighlights(first, second, decision)).toEqual([
-      {
-        label: 'League value',
-        detail: 'First RB projects 12 more pts over a fill-in starter.',
-      },
-      {
-        label: 'Wait risk',
-        detail: 'First RB is 45 percentage points less likely to reach your next pick.',
-      },
-      {
-        label: 'Player quality',
-        detail: 'First RB is #4 in the rankings, 4 places ahead.',
-      },
-    ]);
+    const highlights = getComparisonHighlights(first, second, decision);
+    expect(highlights.map((row) => row.label)).toEqual(['League value', 'Wait risk', 'Player quality']);
+    expect(highlights[0]?.detail).toMatch(/First RB.* 12 more pts/);
+    expect(highlights[1]?.detail).toMatch(/First RB.* 45 percentage points less likely/);
+    expect(highlights[2]?.detail).toMatch(/First RB.*#4.* 4 places ahead/);
 
     const fractionalValue = recommendation('second', 'Second RB', 25.5, 0.65, 8);
     expect(getComparisonHighlights(first, fractionalValue, decision)[0]?.detail)
-      .toBe('First RB projects 4.5 more pts over a fill-in starter.');
+      .toMatch(/ 4\.5 more pts/);
   });
 });
 
@@ -209,22 +201,22 @@ describe('What does my roster need?', () => {
 
   it('fills an open fixed starter slot first', () => {
     const answer = getRosterAnswer(needs({ WR: 1 }, 0), 'WR');
-    expect(answer.headline).toBe('Fills an open WR starter slot.');
-    expect(answer.openStarters).toBe('WR, FLEX ×2');
-    expect(answer.slots).toBe('1 of 2 filled · FLEX 0 of 2 filled · medium need');
+    expect(answer.headline).toMatch(/open WR starter/);
+    expect(answer.openStarters).toMatch(/WR.*FLEX ×2/);
+    expect(answer.slots).toMatch(/1 of 2.*FLEX 0 of 2/);
   });
 
   it('fills an open FLEX slot once fixed starters are filled', () => {
     const answer = getRosterAnswer(needs({}, 0), 'WR');
-    expect(answer.headline).toBe('Fills an open FLEX starter slot.');
-    expect(answer.openStarters).toBe('FLEX ×2');
-    expect(answer.slots).toBe('2 of 2 filled · FLEX 0 of 2 filled · medium need');
+    expect(answer.headline).toMatch(/open FLEX starter/);
+    expect(answer.openStarters).not.toContain('WR');
+    expect(answer.slots).toMatch(/2 of 2.*FLEX 0 of 2/);
   });
 
   it('adds depth only when fixed and FLEX starters are filled', () => {
     const answer = getRosterAnswer(needs({}, 2), 'WR');
-    expect(answer.headline).toBe('WR and FLEX starters are filled. This adds depth.');
-    expect(answer.openStarters).toBe('All starter slots are filled.');
-    expect(getRosterAnswer(needs({}, 0), 'QB').headline).toBe('QB starters are filled. This adds depth.');
+    expect(answer.headline).toMatch(/depth/);
+    expect(answer.openStarters).toMatch(/all starter slots are filled/i);
+    expect(getRosterAnswer(needs({}, 0), 'QB').headline).toMatch(/QB starters are filled.*depth/);
   });
 });

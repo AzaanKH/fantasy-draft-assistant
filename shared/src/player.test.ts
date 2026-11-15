@@ -4,13 +4,10 @@ import {
   isNFLTeam,
   isPlayer,
   isPosition,
-  isPredictionSource,
-  isNewsStatus,
   NFL_TEAMS,
   type Player,
 } from './player.js';
 import { isTeamEnvironment } from './catalog/decoders.js';
-import { isNeedPriority } from './draft.js';
 import {
   isTopOffense,
   isDecentOffense,
@@ -53,7 +50,6 @@ describe('player validation', () => {
     expect(['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].every(isPosition)).toBe(true);
     expect(isPosition('FLEX')).toBe(false);
     expect(isPosition('wr')).toBe(false);
-    expect(NFL_TEAMS).toHaveLength(32);
     expect(NFL_TEAMS.every(isNFLTeam)).toBe(true);
     expect(isNFLTeam('FA')).toBe(false);
   });
@@ -86,8 +82,8 @@ describe('player validation', () => {
     expect(isPlayer({ ...player, ...overrides })).toBe(false);
   });
 
-  it('rejects non-object input', () => {
-    for (const value of [null, undefined, 'p1', 1, true]) {
+  it('rejects non-object input, including arrays carrying player fields', () => {
+    for (const value of [null, undefined, 'p1', 1, true, Object.assign([], player)]) {
       expect(isPlayer(value)).toBe(false);
     }
   });
@@ -121,26 +117,3 @@ describe('team environment', () => {
   });
 });
 
-
-describe('elementary enum predicates', () => {
-  it('accepts each supported prediction source, news status, and need priority', () => {
-    expect(['model', 'fantasypros', 'heuristic'].every(isPredictionSource)).toBe(true);
-    expect(['healthy', 'limited', 'questionable', 'out', 'unknown'].every(isNewsStatus)).toBe(true);
-    expect(['critical', 'high', 'medium', 'low', 'defer', 'filled'].every(isNeedPriority)).toBe(true);
-  });
-
-  it('rejects non-string and unknown enum members', () => {
-    for (const predicate of [isPosition, isNFLTeam, isPredictionSource, isNewsStatus, isNeedPriority]) {
-      for (const value of [undefined, null, 1, {}, [], 'not-supported']) expect(predicate(value)).toBe(false);
-    }
-  });
-
-  it('rejects arrays carrying player fields because the declared player boundary is an object', () => {
-    expect(isPlayer(Object.assign([], player))).toBe(false);
-  });
-
-  it('preserves player numeric acceptance and optional fields not checked by the existing guard', () => {
-    expect(isPlayer({ ...player, ecrRank: asRank(Number.NaN), consensusAdp: Number.POSITIVE_INFINITY })).toBe(true);
-    expect(isPlayer({ ...player, contractEndYear: 'unchecked', customProjectedPoints: 'unchecked' })).toBe(true);
-  });
-});

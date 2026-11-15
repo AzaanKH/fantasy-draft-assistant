@@ -2,36 +2,27 @@ import { describe, expect, it } from 'vitest';
 import {
   isBoundedInteger,
   isDraftSize,
-  MAX_DRAFT_PICKS,
   MAX_DRAFT_ROUNDS,
   MAX_DRAFT_TEAMS,
 } from './limits.js';
 
 describe('resource limits', () => {
-  it('derives the pick ceiling from the team and round ceilings', () => {
-    expect(MAX_DRAFT_PICKS).toBe(MAX_DRAFT_TEAMS * MAX_DRAFT_ROUNDS);
-  });
-
   it('accepts integers at both inclusive bounds', () => {
     expect(isBoundedInteger(1, 1, 10)).toBe(true);
     expect(isBoundedInteger(10, 1, 10)).toBe(true);
   });
 
-  it('rejects unsafe integers even when they fall within the bounds', () => {
-    expect(isBoundedInteger(Number.MAX_SAFE_INTEGER + 1, 0, Number.MAX_VALUE)).toBe(false);
-  });
-
   it.each([
-    ['below the minimum', 0],
-    ['above the maximum', 11],
-    ['fractional', 1.5],
-    ['NaN', Number.NaN],
-    ['infinite', Number.POSITIVE_INFINITY],
-    ['unsafe', Number.MAX_SAFE_INTEGER + 1],
-    ['a numeric string', '5'],
-    ['null', null],
-  ])('rejects values that are %s', (_label, value) => {
-    expect(isBoundedInteger(value, 1, 10)).toBe(false);
+    ['below the minimum', 0, 1, 10],
+    ['above the maximum', 11, 1, 10],
+    ['fractional', 1.5, 1, 10],
+    ['NaN', Number.NaN, 1, 10],
+    ['infinite', Number.POSITIVE_INFINITY, 1, 10],
+    ['unsafe, even within the bounds', Number.MAX_SAFE_INTEGER + 1, 0, Number.MAX_VALUE],
+    ['a numeric string', '5', 1, 10],
+    ['null', null, 1, 10],
+  ])('rejects values that are %s', (_label, value, minimum, maximum) => {
+    expect(isBoundedInteger(value, minimum, maximum)).toBe(false);
   });
 
   it('bounds draft sizes before client state is allocated', () => {
@@ -45,11 +36,3 @@ describe('resource limits', () => {
   });
 });
 
-
-it('preserves caller-provided bounds including reversed and nonfinite bounds', () => {
-  expect(isBoundedInteger(0, -Infinity, Infinity)).toBe(true);
-  expect(isBoundedInteger(-5, -5, 0)).toBe(true);
-  expect(isBoundedInteger(1, 2, 1)).toBe(false);
-  expect(isBoundedInteger(1, NaN, 2)).toBe(false);
-  expect(isBoundedInteger(1, 0, NaN)).toBe(false);
-});

@@ -3,15 +3,6 @@ import { fixedClock } from '@fantasy-draft/shared/units';
 import { decodeFantasyProsSnapshot, decodePlayerIdentityFile, decodeKeeperFile, decodeSleeperDataFile, decodeDraftDataRefreshStatus } from '@fantasy-draft/shared/catalog';
 
 export const FIXTURE_LEAGUE = { profile: 'quick-mock', quickMock: { totalTeams: 20, totalRounds: 20, reception: 1, passingTouchdown: 4 } };
-export const READINESS_PATHS = ['/data/fantasypros-snapshot.json', '/data/player-identity.json', '/data/sleeper-adp.json',
-  '/api/draft-data/current-keepers', '/data/league-history/current-keepers.json', '/api/draft-data/refresh', '/api/health'];
-
-export function hasReadinessProof(meta) {
-  const fixture = meta.readinessFixture;
-  return JSON.stringify(fixture?.leaguePreferences) === JSON.stringify(FIXTURE_LEAGUE) && READINESS_PATHS.every(url =>
-    /^[a-f0-9]{64}$/.test(fixture?.files?.[url] ?? '') && meta.productionHttp?.readinessFiles?.[url] === fixture.files[url]);
-}
-
 export function buildReadinessFixture({ snapshot, identities, sleeper, catalog }, now = Date.now()) {
   const timestamp = new Date(now - 1000).toISOString(), season = currentSeason(fixedClock(now));
   const ranks = decodeFantasyProsSnapshot({ ...snapshot, metadata: { ...snapshot.metadata, season,

@@ -6,19 +6,21 @@ import { createServer } from 'node:http';
 import { Processes } from '@fantasy-draft/shared/node';
 import { http } from '@fantasy-draft/shared/http';
 import { createRequire } from 'node:module';
-import { runInNewContext } from 'node:vm';
 import { assertProductionEnvironment, inspectProductionBuild, createStaticHandler, verifyProductionHttp, verifyFixtureHttp } from './persistence/ui-production.mjs';
 import { buildReadinessFixture } from './persistence/ui-readiness.mjs';
 import { buildCatalogFixture } from './persistence/ui-adapter.mjs';
 
+// Helpers of the opt-in native-visibility proof (scripts/persistence/native-visibility.mjs), kept from the removed UI activation tests.
 const env = { MODE: 'production', DEV: false, PROD: true, VITE_STORAGE_ACTIVATION: 'idb' };
 test('production proof accepts the default activation build', () => {
   expect(() => assertProductionEnvironment({ ...env, VITE_STORAGE_ACTIVATION: undefined })).not.toThrow();
 });
+
 test('production proof rejects dev mode, the harness and static demo mode', () => {
   expect(() => assertProductionEnvironment(env)).not.toThrow();
   for (const overrides of [{ DEV: true }, { MODE: 'development' }, { PROD: false }, { VITE_STORAGE_ACTIVATION: 'v1' }, { VITE_PERSISTENCE_HARNESS: 'idb' }, { VITE_DEMO_MODE: 'true' }]) expect(() => assertProductionEnvironment({ ...env, ...overrides })).toThrow();
 });
+
 test('production static HTTP serves exact built bytes and rejects every dev runtime route', async () => {
   const dist = await mkdtemp(path.join(tmpdir(), 'ui-production-'));
   await mkdir(path.join(dist, 'assets'));
@@ -37,6 +39,7 @@ test('production static HTTP serves exact built bytes and rejects every dev runt
     await expect(inspectProductionBuild(dist, env)).rejects.toThrow('Development runtime');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
 test('Node creates decodable v1 setup bytes through the real store without serving source to the browser', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'ui-seed-'));
   const input = path.join(directory, 'input.json'); const output = path.join(directory, 'output.json');
@@ -54,61 +57,6 @@ test('Node creates decodable v1 setup bytes through the real store without servi
   expect(rows.some(([key]) => key === 'fantasy-draft-storage-migrated')).toBe(false);
 });
 
-test('preflight imports legitimate queue fixtures through v1 before activation with no tombstone or counted browser commands', async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), 'ui-preflight-seed-'));
-  const input = path.join(directory, 'input.json'), output = path.join(directory, 'output.json');
-  const leaguePreferences = { profile: 'quick-mock', quickMock: { totalTeams: 20, totalRounds: 20, reception: 1, passingTouchdown: 4 } };
-  await writeFile(input, JSON.stringify({ ids: ['1800000000001', '1800000000002'], teams: 20, rounds: 20, output,
-    queues: { '1800000000002': ['9221', '9509', '4034', '9493'] }, leaguePreferences }));
-  const require = createRequire(import.meta.url);
-  await Processes.run(process.execPath, [require.resolve('tsx/cli'), '--conditions=@fantasy-draft/source', new URL('./persistence/ui-seed.mjs', import.meta.url).pathname, input], { timeoutMs: 15000 });
-  const rows = new Map(JSON.parse(await readFile(output, 'utf8')));
-  expect(JSON.parse(rows.get('fantasy-draft-session-v1:sleeper:1800000000001')).shortlistedPlayerIds).toEqual([]);
-  expect(JSON.parse(rows.get('fantasy-draft-session-v1:sleeper:1800000000002')).shortlistedPlayerIds).toEqual(['9221', '9509', '4034', '9493']);
-  expect(JSON.parse(rows.get('fantasy-draft-league-setup-v1'))).toEqual(leaguePreferences);
-  expect(rows.has('fantasy-draft-storage-migrated')).toBe(false);
-});
-
-test('actual static fixture endpoints provide decoded readiness inputs while unknown APIs and refresh writes stay unavailable', async () => {
-  const data = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions', 'sleeper-adp'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
-  const { snapshot, catalog } = buildCatalogFixture(...data.slice(0, 3));
-  const ready = buildReadinessFixture({ snapshot, identities: data[1], sleeper: data[3], catalog });
-  const source = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
-  const code = source.slice(source.indexOf('function createFixture()'), source.indexOf('\nlet server;'));
-  const fixture = runInNewContext(`(${code})()`, { URL, TEAMS: 20, ROUNDS: 20, setInterval, clearInterval });
-  fixture.readiness(ready.files);
-  const dist = await mkdtemp(path.join(tmpdir(), 'ui-ready-http-'));
-  await writeFile(path.join(dist, 'index.html'), '<main>ordinary production app</main>');
-  const server = createServer(createStaticHandler({ dist, fixture: fixture.handler }));
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  const origin = `http://127.0.0.1:${server.address().port}`;
-  try {
-    expect(Object.keys(await verifyFixtureHttp(origin, ready.files))).toHaveLength(7);
-    await expect(http.text(`${origin}/api/draft-data/refresh`, { timeoutMs: 5000, retries: 0, retryAfter: false }, { init: { method: 'POST' } })).rejects.toMatchObject({ status: 405 });
-    await expect(http.text(`${origin}/api/unimplemented`, { timeoutMs: 5000, retries: 0, retryAfter: false })).rejects.toMatchObject({ status: 503 });
-  } finally { fixture.stop(); await new Promise(resolve => server.close(resolve)); }
-});
-
-test('the real runner seeds v1 bytes with an effective source condition in its child process', async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), 'ui-runner-seed-'));
-  const runner = await readFile(new URL('./persistence/ui-activation.mjs', import.meta.url), 'utf8');
-  const code = runner.slice(runner.indexOf('async function seedV1('), runner.indexOf('async function activateOnLoad('));
-  const values = new Map(); const navigations = []; const results = { progress: [] };
-  const page = { goto: async url => navigations.push(url), evaluate: async (fn, entries) => runInNewContext(`(${fn.toString()})(entries)`, {
-    entries, localStorage: { setItem: (key, value) => values.set(key, value) },
-  }) };
-  const seed = runInNewContext(`(${code})`, { seedSequence: 0, process, path, outDir: directory, writeFile, readFile, Processes,
-    requireScripts: createRequire(import.meta.url), here: new URL('./persistence/', import.meta.url).pathname,
-    root: new URL('..', import.meta.url).pathname, TEAMS: 20, ROUNDS: 20, results, origin: 'http://localhost:3000',
-    check: (condition, message) => { if (!condition) throw new Error(message); },
-  });
-  expect(await seed(page, ['1700000000009'])).toBeGreaterThan(0);
-  expect(navigations).toEqual(['http://localhost:3000/__ui-fixture/blank']);
-  expect(results.progress[0].execArgv).toContain('--conditions=@fantasy-draft/source');
-  expect(JSON.parse(values.get('fantasy-draft-session-v1:sleeper:1700000000009')).config).toMatchObject({ totalTeams: 20, totalRounds: 20, draftType: 'linear' });
-});
-
-
 test('production fixture handles sync-refresh POST while static assets remain read-only', async () => {
   const dist = await mkdtemp(path.join(tmpdir(), 'ui-production-post-'));
   await writeFile(path.join(dist, 'index.html'), '<main>production</main>');
@@ -125,5 +73,47 @@ test('production fixture handles sync-refresh POST while static assets remain re
     await expect(http.json(`${origin}/api/sync/sleeper/drafts/123/refresh`, value => value, policy, options)).resolves.toEqual({ method: 'POST', refreshed: true });
     await expect(http.text(`${origin}/index.html`, policy, options)).rejects.toMatchObject({ status: 405 });
     await expect(http.text(`${origin}/src/main.tsx`, policy, options)).rejects.toMatchObject({ status: 404 });
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test.each([
+  ['a duplicate FantasyPros identity', (identities) => { identities.players[1] = { ...identities.players[1], fantasyProsId: identities.players[0].fantasyProsId }; }, /unique real canonical/],
+  ['a missing Sleeper identity', (identities) => { identities.players[0] = { ...identities.players[0], sleeperId: undefined }; }, /unique real canonical/],
+  ['a ranking with an unknown identity', (_identities, snapshot) => { snapshot.rankings[0] = { ...snapshot.rankings[0], fantasyProsId: 'unknown' }; }, /duplicate or unknown/],
+  ['a duplicate ranking', (_identities, snapshot) => { snapshot.rankings[1] = { ...snapshot.rankings[0] }; }, /duplicate or unknown/],
+])('rejects a catalog fixture with %s', async (_label, mutate, message) => {
+  const [snapshot, identities, predictions] = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
+  mutate(identities, snapshot);
+  expect(() => buildCatalogFixture(snapshot, identities, predictions)).toThrow(message);
+});
+
+test('appends unranked identities from position rank 1 with zero points when no prediction exists', async () => {
+  const [snapshot, identities, predictions] = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
+  const kickers = new Set(identities.players.filter(player => player.position === 'K').map(player => player.fantasyProsId));
+  snapshot.rankings = snapshot.rankings.filter(row => !kickers.has(row.fantasyProsId));
+  snapshot.projections = snapshot.projections.filter(row => !kickers.has(row.fantasyProsId));
+  const kicker = identities.players.find(player => player.position === 'K');
+  predictions.players = predictions.players.filter(row => row.playerId !== kicker.canonicalId);
+  const { snapshot: fixture } = buildCatalogFixture(snapshot, identities, predictions);
+  expect(fixture.rankings.filter(row => row.position === 'K')[0]).toMatchObject({ fantasyProsId: kicker.fantasyProsId, positionalRank: 1 });
+  expect(fixture.projections.find(row => row.fantasyProsId === kicker.fantasyProsId)?.projectedPoints).toBe(0);
+});
+
+test('serves decoded readiness fixtures built from the demo catalog', async () => {
+  const data = await Promise.all(['fantasypros-snapshot', 'player-identity', 'predictions', 'sleeper-adp'].map(async name => JSON.parse(await readFile(new URL(`../demo-data/${name}.json`, import.meta.url), 'utf8'))));
+  const { snapshot, catalog } = buildCatalogFixture(...data.slice(0, 3));
+  expect(catalog.length).toBe(snapshot.rankings.length);
+  const ready = buildReadinessFixture({ snapshot, identities: data[1], sleeper: data[3], catalog });
+  const dist = await mkdtemp(path.join(tmpdir(), 'ui-ready-http-'));
+  await writeFile(path.join(dist, 'index.html'), '<main>ordinary production app</main>');
+  const server = createServer(createStaticHandler({ dist, fixture: (request, response, next) => {
+    const value = ready.files[new URL(request.url, 'http://fixture.local').pathname];
+    if (value === undefined) { next(); return; }
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify(value));
+  } }));
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    expect(Object.keys(await verifyFixtureHttp(`http://127.0.0.1:${server.address().port}`, ready.files))).toHaveLength(7);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
