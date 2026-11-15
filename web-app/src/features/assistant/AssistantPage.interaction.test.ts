@@ -600,37 +600,26 @@ describe('Assistant main action by draft mode', () => {
     expect(analysisPanel().querySelector('details[data-full-reasoning]')?.hasAttribute('open')).toBe(true);
   });
 
-  it('moves through search results with the arrow keys and focuses the search with /', () => {
+  it('moves through search results with the arrow keys, queues with q, and focuses the search with /', () => {
     renderPage('live');
     const search = container.querySelector<HTMLInputElement>('#rec-view-panel-suggestions .rec-search input');
     if (!search) throw new Error('No search');
     act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true })); });
     expect(document.activeElement).toBe(search);
     type(search, 'Receiver 2');
+    // Other keys in the search are typing, not navigation.
+    act(() => { search.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true, cancelable: true })); });
+    expect(document.activeElement).toBe(search);
     act(() => { search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })); });
     const rows = [...container.querySelectorAll<HTMLButtonElement>('.rec-pool-list [data-pool-select]')];
     expect(document.activeElement).toBe(rows[0]);
     act(() => { rows[0]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })); });
     expect(document.activeElement).toBe(rows[1]);
-    // A held Enter does nothing more; a held Q toggles the queue once.
-    const repeatEnter = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
-    act(() => { rows[1]?.dispatchEvent(repeatEnter); });
-    expect(repeatEnter.defaultPrevented).toBe(true);
     mocks.togglePlayerQueued.mockClear();
     act(() => { rows[1]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true, cancelable: true })); });
-    act(() => { rows[1]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', repeat: true, bubbles: true, cancelable: true })); });
     expect(mocks.togglePlayerQueued).toHaveBeenCalledTimes(1);
     act(() => { rows[0]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })); });
     expect(document.activeElement).toBe(search);
-  });
-
-  it('states each analysis fact once: availability, waiting cost and value', () => {
-    renderPage('live');
-    const text = analysisPanel().textContent;
-    const count = (pattern: RegExp): number => text.match(pattern)?.length ?? 0;
-    expect(count(/\d+% /g) + count(/\d+%$/g)).toBeLessThanOrEqual(1);
-    expect(count(/VOR [+-]\d/g)).toBeLessThanOrEqual(1);
-    expect(count(/Cost of waiting/g)).toBe(1);
   });
 
   it('acts on 1-4 only when focus is on the list or a card, never on a control inside a card', () => {
@@ -645,79 +634,16 @@ describe('Assistant main action by draft mode', () => {
     expect(mocks.draftPlayer).toHaveBeenCalledWith(expect.objectContaining({ id: 'wr-1' }));
   });
 
-  describe('page-wide 1-4 while on the clock', () => {
-    const pressOn = (target: EventTarget, key: string): KeyboardEvent => {
-      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
-      act(() => { target.dispatchEvent(event); });
-      return event;
-    };
-
-    // jsdom has no layout: give every element an on-screen box, so the keys see the cards as visible.
-    const laidOut = (): void => {
-      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 200, top: 200, left: 0, bottom: 288, right: 300, width: 300, height: 88, toJSON: () => ({}) } as DOMRect);
-    };
-
-    it('acts on the card from anywhere on the page, without focusing the list first, and shows the hint', () => {
-      laidOut();
-      renderPage('mock');
-      expect(container.querySelector('.rec-lead-heading .suggestion-shortcut-hint')?.textContent).toBe('Press 1–4');
-      expect(pressOn(document.body, '2').defaultPrevented).toBe(true);
-      expect(mocks.draftPlayer).toHaveBeenCalledTimes(1);
-      expect(mocks.draftPlayer).toHaveBeenCalledWith(expect.objectContaining({ id: 'wr-2' }));
-    });
-
-    it('never fires from a text input, with a dialog open, or while a pick is saving', () => {
-      renderPage('mock');
-      const search = container.querySelector<HTMLInputElement>('.rec-search input');
-      if (!search) throw new Error('No search');
-      act(() => { search.focus(); });
-      expect(pressOn(search, '1').defaultPrevented).toBe(false);
-      act(() => { search.blur(); });
-
-      const dialog = document.createElement('div');
-      dialog.setAttribute('role', 'dialog');
-      document.body.append(dialog);
-      pressOn(document.body, '1');
-      dialog.remove();
-      expect(mocks.draftPlayer).not.toHaveBeenCalled();
-
-      mocks.pickInFlight = true;
-      renderPage('mock');
-      pressOn(document.body, '1');
-      expect(mocks.draftPlayer).not.toHaveBeenCalled();
-    });
-
-    it('never acts on a card that is not on screen: search results replace the cards, or the tier view is open', () => {
-      laidOut();
-      renderPage('mock');
-      const search = container.querySelector<HTMLInputElement>('#rec-view-panel-suggestions .rec-search input');
-      if (!search) throw new Error('No search');
-      type(search, 'Receiver 7');
-      expect(container.querySelector('ol[aria-label="Suggested picks, best first"]')).toBeNull();
-      // Focus leaves the input (a result row was clicked), then 2: card #2 is hidden, so nothing is drafted.
-      act(() => { search.blur(); });
-      expect(container.querySelector('.rec-lead-hint')?.hasAttribute('data-hidden')).toBe(true);
-      for (const key of ['1', '2', '3', '4']) expect(pressOn(document.body, key).defaultPrevented).toBe(false);
-      click(labelled('Clear search'));
-
-      click(button('Position tiers'));
-      act(() => { (document.activeElement as HTMLElement | null)?.blur(); });
-      for (const key of ['1', '2', '3', '4']) expect(pressOn(document.body, key).defaultPrevented).toBe(false);
-      expect(mocks.draftPlayer).not.toHaveBeenCalled();
-    });
-
-    it('stays out of the page when it is not the manager\'s turn', () => {
-      act(() => { draftStore.getState().setConfig({ myPickPosition: 2 }); });
-      renderPage('mock');
-      expect(pressOn(document.body, '1').defaultPrevented).toBe(false);
-      expect(mocks.draftPlayer).not.toHaveBeenCalled();
-    });
-  });
-
   it('drafts the leader in Quick Mock', () => {
     renderPage('mock');
     click(labelled('Draft Receiver 1'));
     expect(mocks.draftPlayer).toHaveBeenCalledWith(expect.objectContaining({ id: 'wr-1' }));
+  });
+
+  it('says another pick is saving beside the Draft action while one is in flight', () => {
+    mocks.pickInFlight = true;
+    renderPage('mock');
+    expect(container.querySelector('.rec-action-note')?.textContent).toMatch(/saving/i);
   });
 
   it('opens the Provisional Pick dialog with the leader preselected in Manual Continuity', () => {

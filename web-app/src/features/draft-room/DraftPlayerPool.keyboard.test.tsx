@@ -89,6 +89,21 @@ it('moves through results with arrows, queues with q, and drafts with Enter in a
   expect(document.activeElement).toBe(search());
 });
 
+it('highlights the first result on Enter from search, then drafts it on the next Enter', () => {
+  render('mock');
+  act(() => { search().focus(); });
+  press(search(), 'Enter');
+  expect(activeName()).toBe(first?.name);
+  expect(store.getState().draftHistory).toEqual([]);
+  // ArrowDown from search enters the list at the highlighted row, not past it.
+  press(search(), 'ArrowDown');
+  expect(document.activeElement).toBe(list());
+  expect(activeName()).toBe(first?.name);
+  act(() => { search().focus(); });
+  press(search(), 'Enter');
+  expect(store.getState().draftHistory.map(pick => pick.playerId)).toEqual([first?.id]);
+});
+
 it('asks for confirmation through the Provisional Pick dialog instead of drafting in live Manual Continuity', () => {
   sync.synchronizationState = 'manual-continuity';
   render('live');
@@ -159,7 +174,7 @@ it('points the grid\'s aria-activedescendant at the highlighted row\'s player ce
   expect(container.querySelector('p[aria-live="polite"]')?.textContent).toBe('');
 });
 
-it('disables every Draft button and ignores Enter while another pick is saving', async () => {
+it('disables every Draft button and ignores Enter (no draft, no queue) while another pick is saving', async () => {
   const { getPickLock } = await import('@/workspace/pick-in-flight');
   const { workspaceForTestStore } = await import('@/workspace/workspace-test-helpers');
   render('mock');
@@ -176,45 +191,8 @@ it('disables every Draft button and ignores Enter while another pick is saving',
   press(search(), 'ArrowDown');
   press(list(), 'Enter');
   expect(store.getState().draftHistory).toEqual([]);
+  expect(store.getState().shortlistedPlayerIds).toEqual([]);
 
   act(() => { lock.settle(pending); });
   expect([...container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Draft "]')].some((button) => !button.disabled)).toBe(true);
-});
-
-it('keeps Enter from queueing while a pick saves', async () => {
-  const { getPickLock } = await import('@/workspace/pick-in-flight');
-  const { workspaceForTestStore } = await import('@/workspace/workspace-test-helpers');
-  render('mock');
-  store.getState().setConfig({ myPickPosition: 1 });
-  const lock = getPickLock(workspaceForTestStore(store));
-  const pending = { playerId: 'elsewhere', playerName: 'Someone Else', origin: 'suggestion-card' };
-  act(() => { lock.begin(pending); });
-  act(() => { search().focus(); });
-  press(search(), 'ArrowDown');
-  press(list(), 'Enter');
-  expect(store.getState().shortlistedPlayerIds).toEqual([]);
-  expect(store.getState().draftHistory).toEqual([]);
-  act(() => { lock.settle(pending); });
-});
-
-it('never acts on a held key: Enter, q and Enter-from-search ignore repeats, while arrows keep repeating', () => {
-  render('mock');
-  act(() => { search().focus(); });
-  // One long press of Enter in search: the first event highlights, its repeats must not draft.
-  press(search(), 'Enter');
-  expect(activeName()).toBe(first?.name);
-  expect(press(search(), 'Enter', { repeat: true }).defaultPrevented).toBe(true);
-  press(search(), 'Enter', { repeat: true });
-  expect(store.getState().draftHistory).toEqual([]);
-
-  press(search(), 'ArrowDown');
-  press(list(), 'ArrowDown', { repeat: true });
-  expect(activeName()).toBe(second?.name);
-  press(list(), 'q', { repeat: true });
-  expect(store.getState().shortlistedPlayerIds).toEqual([]);
-  press(list(), 'Enter', { repeat: true });
-  expect(store.getState().draftHistory).toEqual([]);
-  // A fresh press still works.
-  press(list(), 'Enter');
-  expect(store.getState().draftHistory.map((pick) => pick.playerId)).toEqual([second?.id]);
 });

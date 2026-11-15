@@ -58,6 +58,14 @@ vi.mock('./DraftQueuePanel', () => ({ DraftQueuePanel: () => createElement('div'
 
 let container: HTMLDivElement;
 let root: Root;
+let store: ReturnType<typeof createDraftStore>;
+function render(): void {
+  act(() => {
+    root.render(createElement(WorkspaceTestProvider, { store, children: createElement(TooltipProvider, null, createElement(SuggestionActionsProvider, null,
+      createElement(DraftDock, { expanded: true, onExpandedChange: vi.fn(), onOpenAssistant: vi.fn() }),
+      createElement(SuggestionHotkeys))) }));
+  });
+}
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
@@ -66,15 +74,11 @@ beforeEach(() => {
   storeSuggestionShortcutScope('anywhere');
   mocks.draftPlayer.mockClear();
   mocks.pickInFlight = false;
-  const store = createDraftStore();
+  store = createDraftStore();
   store.getState().setConfig({ totalTeams: 12, totalRounds: 15, myPickPosition: 1, draftType: 'snake' });
   store.getState().setSessionMode('mock');
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
-  act(() => {
-    root.render(createElement(WorkspaceTestProvider, { store, children: createElement(TooltipProvider, null, createElement(SuggestionActionsProvider, null,
-      createElement(DraftDock, { expanded: true, onExpandedChange: vi.fn(), onOpenAssistant: vi.fn() }),
-      createElement(SuggestionHotkeys))) }));
-  });
+  render();
 });
 afterEach(() => { act(() => { root.unmount(); }); container.remove(); vi.unstubAllGlobals(); window.localStorage.removeItem(SUGGESTION_SHORTCUT_STORAGE_KEY); });
 
@@ -91,7 +95,11 @@ it('drafts the matching suggestion for keys 1-4 while the dock shows Roster, wit
   expect(mocks.draftPlayer.mock.calls.map((call) => (call[0] as Player).id)).toEqual(['wr-1', 'wr-2', 'wr-3', 'wr-4']);
 });
 
-it('keeps the guards: not while typing, not with a dialog open, and not with focused-only shortcuts', () => {
+it('keeps the guards: not a held key, not while typing, not with a dialog open, and not with focused-only shortcuts', () => {
+  const held = new KeyboardEvent('keydown', { key: '1', repeat: true, bubbles: true, cancelable: true });
+  act(() => { document.body.dispatchEvent(held); });
+  expect(held.defaultPrevented).toBe(false);
+
   const input = document.createElement('input');
   document.body.append(input);
   act(() => { input.focus(); });
@@ -110,10 +118,13 @@ it('keeps the guards: not while typing, not with a dialog open, and not with foc
   expect(window.localStorage.getItem(SUGGESTION_SHORTCUT_STORAGE_KEY)).toBe('focused');
 });
 
-it('ignores a held key: its repeats never act again', () => {
-  const event = new KeyboardEvent('keydown', { key: '1', repeat: true, bubbles: true, cancelable: true });
-  act(() => { document.body.dispatchEvent(event); });
-  expect(event.defaultPrevented).toBe(false);
+it.each([
+  ['while a pick is saving', () => { mocks.pickInFlight = true; }],
+  ['when it is not the manager\'s turn', () => { store.getState().setConfig({ myPickPosition: 2 }); }],
+])('stays out of the page %s', (_, arrange) => {
+  act(arrange);
+  render();
+  press(document.body, '1');
   expect(mocks.draftPlayer).not.toHaveBeenCalled();
 });
 
@@ -150,7 +161,7 @@ describe('on the Assistant, where the cards are the keys\' only targets', () => 
     main.remove();
   });
 
-  it('does nothing while the hint is hidden or the cards are scrolled out of view', () => {
+  it('does nothing while the hint is hidden, or the card is scrolled out of view, not laid out or not rendered', () => {
     const noHint = assistantPage({ cards: ['wr-1', 'wr-2', 'wr-3', 'wr-4'], hint: false });
     for (const key of ['1', '2', '3', '4']) expect(press(document.body, key).defaultPrevented).toBe(false);
     noHint.remove();
@@ -158,6 +169,11 @@ describe('on the Assistant, where the cards are the keys\' only targets', () => 
     const scrolled = assistantPage({ cards: ['wr-1'], hint: true });
     const card = scrolled.querySelector('li');
     if (card) card.getBoundingClientRect = () => ({ ...box(88), top: -400, bottom: -312, y: -400 });
+    expect(press(document.body, '1').defaultPrevented).toBe(false);
+    // Not laid out (a collapsed or display:none card), then no card list at all (search results replaced it).
+    if (card) card.getBoundingClientRect = () => box(0);
+    expect(press(document.body, '1').defaultPrevented).toBe(false);
+    scrolled.querySelector('ol')?.remove();
     expect(press(document.body, '1').defaultPrevented).toBe(false);
     expect(mocks.draftPlayer).not.toHaveBeenCalled();
     scrolled.remove();
