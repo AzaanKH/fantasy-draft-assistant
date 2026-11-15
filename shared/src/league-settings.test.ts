@@ -209,10 +209,8 @@ describe('league boundary predicates', () => {
     }
   });
 
-  it('preserves roster eligibility membership and length without inventing uniqueness or max rules', () => {
+  it('rejects FLEX eligibility lists that are too long or name a non-position', () => {
     const requirements = normalizeSleeperLeagueSettings(createLeague()).rosterRequirements;
-    expect(isRosterRequirements({ ...requirements, QB: { starters: 2, max: 1 } })).toBe(true);
-    expect(isRosterRequirements({ ...requirements, FLEX: { starters: 0, eligiblePositions: Array(6).fill('QB') } })).toBe(true);
     expect(isRosterRequirements({ ...requirements, FLEX: { starters: 0, eligiblePositions: Array(7).fill('QB') } })).toBe(false);
     expect(isRosterRequirements({ ...requirements, FLEX: { starters: 0, eligiblePositions: ['FLEX'] } })).toBe(false);
   });

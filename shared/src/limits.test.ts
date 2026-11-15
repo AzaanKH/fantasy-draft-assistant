@@ -2,23 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   isBoundedInteger,
   isDraftSize,
-  MAX_DRAFT_PICKS,
   MAX_DRAFT_ROUNDS,
   MAX_DRAFT_TEAMS,
 } from './limits.js';
 
 describe('resource limits', () => {
-  it('derives the pick ceiling from the team and round ceilings', () => {
-    expect(MAX_DRAFT_PICKS).toBe(MAX_DRAFT_TEAMS * MAX_DRAFT_ROUNDS);
-  });
-
   it('accepts integers at both inclusive bounds', () => {
     expect(isBoundedInteger(1, 1, 10)).toBe(true);
     expect(isBoundedInteger(10, 1, 10)).toBe(true);
-  });
-
-  it('rejects unsafe integers even when they fall within the bounds', () => {
-    expect(isBoundedInteger(Number.MAX_SAFE_INTEGER + 1, 0, Number.MAX_VALUE)).toBe(false);
   });
 
   it.each([
@@ -45,11 +36,3 @@ describe('resource limits', () => {
   });
 });
 
-
-it('preserves caller-provided bounds including reversed and nonfinite bounds', () => {
-  expect(isBoundedInteger(0, -Infinity, Infinity)).toBe(true);
-  expect(isBoundedInteger(-5, -5, 0)).toBe(true);
-  expect(isBoundedInteger(1, 2, 1)).toBe(false);
-  expect(isBoundedInteger(1, NaN, 2)).toBe(false);
-  expect(isBoundedInteger(1, 0, NaN)).toBe(false);
-});

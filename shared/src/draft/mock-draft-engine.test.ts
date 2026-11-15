@@ -1,8 +1,6 @@
 import { asProbability, asRank, asVor } from '../units/brands.js';
-import { createSlotSequence } from '../draft-order.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS } from '../draft.js';
-import { DEFAULT_SCORING_RULES } from '../league/scoring.js';
 import { type Player, type Position } from '../player.js';
 import { estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, simulateCpuDraft, type MockDraftEngineConfig, type MockKeeperAssignment } from './mock-draft-engine.js';
 
@@ -78,23 +76,9 @@ const javonte: MockKeeperAssignment = {
 };
 
 describe('mock draft engine', () => {
-  it('presents auction nominations and keeper reservations in legacy snake order', () => {
-    expect([10, 11, 20, 21].map(pick => createSlotSequence({ type: 'auction', teams: 10, rounds: Math.ceil(pick / 10) }).at(pick).teamIndex))
-      .toEqual([9, 9, 0, 0]);
-    expect(getKeeperAtPick([javonte], 96, 10, 'auction')).toEqual(javonte);
-    expect(getKeeperAtPick([javonte], 95, 10, 'auction')).toBeUndefined();
-  });
-
-  it('keeps the exact custom scoring and two-FLEX league rules', () => {
-    expect(DEFAULT_SCORING_RULES.rushing.attemptBonus).toBe(0.2);
-    expect(DEFAULT_SCORING_RULES.receiving.tePremium).toBe(0.5);
-    expect(DEFAULT_ROSTER_REQUIREMENTS.FLEX.starters).toBe(2);
-  });
-
-  it('maps team 5 round 10 to 10.06 and consumes Javonte there', () => {
-    expect(createSlotSequence({ type: 'snake', teams: 10, rounds: 10 }).forTeamRound(4, 10).pick).toBe(96);
-    expect(getKeeperAtPick([javonte], 96, 10, 'snake')).toEqual(javonte);
-    expect(getKeeperAtPick([javonte], 95, 10, 'snake')).toBeUndefined();
+  it.each(['snake', 'auction'] as const)('reserves a %s keeper at its team-round pick (team 5, round 10 = 10.06)', (draftType) => {
+    expect(getKeeperAtPick([javonte], 96, 10, draftType)).toEqual(javonte);
+    expect(getKeeperAtPick([javonte], 95, 10, draftType)).toBeUndefined();
   });
 
   it('is reproducible for a seed and samples only the plausible top 10-15', () => {

@@ -65,9 +65,7 @@ export interface DraftPick {
   readonly timestamp: number;
 }
 
-const NEED_PRIORITIES = ['critical', 'high', 'medium', 'low', 'defer', 'filled'] as const;
-
-export type NeedPriority = (typeof NEED_PRIORITIES)[number];
+export type NeedPriority = 'critical' | 'high' | 'medium' | 'low' | 'defer' | 'filled';
 
 export interface PositionNeed {
   readonly position: Position;
@@ -263,6 +261,3 @@ export interface DecisionOutput {
   readonly decisionDivergenceExplanation: string | null;
 }
 
-export function isNeedPriority(value: unknown): value is NeedPriority {
-  return NEED_PRIORITIES.some(priority => priority === value);
-}

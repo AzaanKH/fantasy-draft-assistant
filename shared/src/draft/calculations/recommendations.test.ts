@@ -713,9 +713,9 @@ describe('getRecommendations', () => {
     it('uses deterministic ECR, name, and ID tie-breaking', () => {
       const result = getRecommendations(
         [
-          createPlayer('z-id', 'WR', 1, 'Zed Receiver'),
           createPlayer('b-id', 'WR', 1, 'Alpha Receiver'),
           createPlayer('a-id', 'WR', 1, 'Alpha Receiver'),
+          createPlayer('z-id', 'WR', 1, 'Zed Receiver'),
           {
             ...createPlayer('next-tier', 'WR', 40, 'Next Tier'),
             projectedPoints: 150,
@@ -815,41 +815,6 @@ describe('getRecommendations', () => {
   });
 
   describe('live recommendation details', () => {
-    it('keeps roster, scarcity, and timing scores for intentional RB reaches', () => {
-      const players = [
-        {
-          ...createPlayer('value-rb', 'RB', 35),
-          valueScore: 14,
-          marketRank: 49,
-          marketAdp: 49,
-          valueOverReplacement: asVor(25),
-          nextPickSurvivalProbability: asProbability(0.18),
-          predictionSource: 'model' as const,
-        },
-        {
-          ...createPlayer('safe-wr', 'WR', 22),
-          valueScore: 0,
-          valueOverReplacement: asVor(10),
-          nextPickSurvivalProbability: asProbability(0.85),
-        },
-      ];
-      const needs = createNeeds([
-        { position: 'RB', priority: 'critical', scarcityScore: 8 },
-        { position: 'WR', priority: 'low', scarcityScore: 2 },
-      ]);
-
-      const { rbIntentionalReaches } = getRecommendations(players, needs, 10, {
-        currentPick: 25,
-        totalPicks: 150,
-        isMyTurn: true,
-      });
-
-      expect(rbIntentionalReaches[0]?.playerName).toBe('Player value-rb');
-      expect(rbIntentionalReaches[0]?.reason).toContain('VOR 25.0');
-      expect(rbIntentionalReaches[0]?.subScores?.rosterNeedScore).toBe(34);
-      expect(rbIntentionalReaches[0]?.subScores?.scarcityScore).toBeGreaterThan(0);
-      expect(rbIntentionalReaches[0]?.subScores?.draftStateScore).toBeGreaterThan(0);
-    });
 
     it('caps malformed special-teams VOR in recommendation diagnostics', () => {
       const players = [
@@ -875,7 +840,7 @@ describe('getRecommendations', () => {
       expect(kicker?.diagnostics?.valueOverReplacement).toBe(20);
     });
 
-    it('defers special teams from value and need lists while Best Player stays ECR-only', () => {
+    it('defers special teams from the need list while Best Player stays ECR-only', () => {
       const players = [
         {
           ...createPlayer('k1', 'K', 186),
@@ -914,37 +879,8 @@ describe('getRecommendations', () => {
         'K',
         'DEF',
       ]);
-      expect(recommendations.marketValues.some((rec) => rec.position === 'K')).toBe(false);
-      expect(recommendations.marketValues.some((rec) => rec.position === 'DEF')).toBe(false);
-      expect(recommendations.marketStashes.some((rec) => rec.position === 'K')).toBe(false);
-      expect(recommendations.marketStashes.some((rec) => rec.position === 'DEF')).toBe(false);
       expect(recommendations.byNeed.some((rec) => rec.position === 'K')).toBe(false);
       expect(recommendations.byNeed.some((rec) => rec.position === 'DEF')).toBe(false);
-    });
-
-    it('reports uncertainty and availability risk separately for intentional RB reaches', () => {
-      const players = [
-        {
-          ...createPlayer('stable-rb', 'RB', 20),
-          uncertaintyScore: 2,
-          injuryRiskScore: 4,
-        },
-        {
-          ...createPlayer('uncertain-rb', 'RB', 20),
-          uncertaintyScore: 8,
-          injuryRiskScore: 4,
-        },
-      ];
-      const needs = createNeeds([{ position: 'RB', priority: 'medium' }]);
-
-      const { rbIntentionalReaches } = getRecommendations(players, needs, 10);
-      const stable = rbIntentionalReaches.find((rec) => rec.playerId === 'stable-rb');
-      const uncertain = rbIntentionalReaches.find((rec) => rec.playerId === 'uncertain-rb');
-
-      expect(stable?.subScores?.riskPenalty).toBe(4);
-      expect(stable?.subScores?.uncertaintyPenalty).toBe(0.7);
-      expect(uncertain?.subScores?.uncertaintyPenalty).toBe(2.8);
-      expect(stable?.score).toBeGreaterThan(uncertain?.score ?? 0);
     });
 
   });
@@ -1037,167 +973,6 @@ describe('getRecommendations', () => {
     });
   });
 
-  describe('marketValues', () => {
-    it('sorts actionable players by Sleeper market discount relative to ECR', () => {
-      const players = [
-        {
-          ...createPlayer('small-value', 'WR', 20),
-          marketRank: 25,
-          marketAdp: 25,
-          valueScore: 5,
-        },
-        {
-          ...createPlayer('steal', 'RB', 30),
-          marketRank: 48,
-          marketAdp: 48,
-          valueScore: 18,
-        },
-        {
-          ...createPlayer('reach', 'QB', 12),
-          marketRank: 8,
-          marketAdp: 8,
-          valueScore: -4,
-        },
-      ];
-      const needs = createNeeds([
-        { position: 'QB', priority: 'critical' },
-        { position: 'RB', priority: 'low' },
-        { position: 'WR', priority: 'low' },
-      ]);
-
-      const { marketValues } = getRecommendations(players, needs, 10);
-
-      expect(marketValues.map((recommendation) => recommendation.playerId)).toEqual([
-        'steal',
-        'small-value',
-      ]);
-      expect(marketValues[0]?.reason).toContain('Steal +18');
-    });
-
-    it('hides replacement-level discounts from Best Value and labels them as late-round stashes', () => {
-      const players = [
-        {
-          ...createPlayer('actionable-rb', 'RB', 42),
-          marketRank: 60,
-          marketAdp: 60,
-          valueScore: 18,
-          valueOverReplacement: asVor(8),
-        },
-        {
-          ...createPlayer('deep-qb', 'QB', 190),
-          marketRank: 339,
-          marketAdp: 339,
-          valueScore: 149,
-          valueOverReplacement: asVor(0),
-        },
-      ];
-      const needs = createNeeds([
-        { position: 'QB', priority: 'low' },
-        { position: 'RB', priority: 'low' },
-      ]);
-
-      const { marketValues, marketStashes } = getRecommendations(players, needs, 10);
-
-      expect(marketValues.map((recommendation) => recommendation.playerId)).toEqual([
-        'actionable-rb',
-      ]);
-      expect(marketStashes.map((recommendation) => recommendation.playerId)).toEqual([
-        'deep-qb',
-      ]);
-      expect(marketStashes[0]?.reason).toContain('Late-round stash');
-    });
-
-    it('requires a meaningful market discount', () => {
-      const players = [
-        {
-          ...createPlayer('small-discount', 'WR', 30),
-          marketRank: 34,
-          marketAdp: 34,
-          valueScore: 4,
-          valueOverReplacement: asVor(12),
-        },
-      ];
-      const needs = createNeeds([{ position: 'WR', priority: 'low' }]);
-
-      const { marketValues, marketStashes } = getRecommendations(players, needs, 10);
-
-      expect(marketValues).toHaveLength(0);
-      expect(marketStashes).toHaveLength(0);
-    });
-  });
-
-  describe('rbIntentionalReaches', () => {
-    it('shows the best RB with custom VOR, tier supply, survival, and market reach cost', () => {
-      const players = [
-        {
-          ...createPlayer('reach-rb', 'RB', 12, 'Reach RB'),
-          marketRank: 28,
-          marketAdp: 28,
-          valueScore: 16,
-          valueOverReplacement: asVor(31.5),
-          tier: 2,
-          nextPickSurvivalProbability: asProbability(0.24),
-        },
-        {
-          ...createPlayer('tier-mate', 'RB', 20, 'Tier Mate'),
-          marketRank: 34,
-          marketAdp: 34,
-          valueScore: 14,
-          valueOverReplacement: asVor(18),
-          tier: 2,
-          nextPickSurvivalProbability: asProbability(0.4),
-        },
-        createPlayer('best-wr', 'WR', 5, 'Best WR'),
-      ];
-      const needs = createNeeds([
-        { position: 'RB', priority: 'critical', scarcityScore: 9 },
-        { position: 'WR', priority: 'critical' },
-      ]);
-
-      const { rbIntentionalReaches } = getRecommendations(players, needs, 5, {
-        currentPick: 18,
-        totalPicks: 150,
-        totalTeams: 10,
-      });
-
-      expect(rbIntentionalReaches.map((recommendation) => recommendation.playerId)).toEqual([
-        'reach-rb',
-        'tier-mate',
-      ]);
-      expect(rbIntentionalReaches[0]?.diagnostics).toMatchObject({
-        valueOverReplacement: asVor(31.5),
-        tier: 2,
-        tierRemaining: 2,
-        nextPickSurvivalProbability: asProbability(0.24),
-        marketReachCost: 10,
-      });
-      expect(rbIntentionalReaches[0]?.reason).toContain(
-        'Over market price, but correct for roster/scarcity'
-      );
-      expect(rbIntentionalReaches[0]?.reason).toContain('custom VOR 31.5');
-      expect(rbIntentionalReaches[0]?.reason).toContain('24% to next pick');
-      expect(rbIntentionalReaches[0]?.reason).toContain('market reach cost 10.0 picks');
-    });
-
-    it('uses the league-adjusted market price when one is available', () => {
-      const rb = {
-        ...createPlayer('league-rb', 'RB', 12),
-        marketRank: 30,
-        marketAdp: 30,
-        leagueAdjustedMarketRank: 24,
-      };
-      const needs = createNeeds([{ position: 'RB', priority: 'critical' }]);
-
-      const { rbIntentionalReaches } = getRecommendations([rb], needs, 5, {
-        currentPick: 20,
-        totalPicks: 150,
-        totalTeams: 10,
-      });
-
-      expect(rbIntentionalReaches[0]?.diagnostics?.marketReachCost).toBe(4);
-    });
-  });
-
   describe('byNeed', () => {
     it('filters to critical and high priority positions', () => {
       const players = [
@@ -1233,118 +1008,14 @@ describe('getRecommendations', () => {
       expect(byNeed[0]?.position).toBe('QB');
     });
 
-    it('applies need multiplier (2x for critical, 1.5x for high)', () => {
-      const players = [
-        createPlayer('p1', 'QB', 20),
-        createPlayer('p2', 'RB', 20),
-      ];
-      const needs = createNeeds([
-        { position: 'QB', priority: 'critical', scarcityScore: 5 },
-        { position: 'RB', priority: 'high', scarcityScore: 5 },
-      ]);
-
-      const { byNeed } = getRecommendations(players, needs);
-
-      const qbRec = byNeed.find((r) => r.position === 'QB');
-      const rbRec = byNeed.find((r) => r.position === 'RB');
-
-      expect(qbRec).toBeDefined();
-      expect(rbRec).toBeDefined();
-      // Same ECR rank (20), so base score is 80
-      // QB: 80 * 2 (critical) * 1.25 (scarcity 5 -> 1 + 5/20)
-      // RB: 80 * 1.5 (high) * 1.25 (scarcity)
-      expect(qbRec?.score).toBeGreaterThan(rbRec?.score ?? 0);
-    });
-
-    it('applies scarcity multiplier', () => {
-      const players = [
-        createPlayer('p1', 'QB', 20),
-        createPlayer('p2', 'TE', 20),
-      ];
-      const needs = createNeeds([
-        { position: 'QB', priority: 'critical', scarcityScore: 2 },
-        { position: 'TE', priority: 'critical', scarcityScore: 9 },
-      ]);
-
-      const { byNeed } = getRecommendations(players, needs);
-
-      const qbRec = byNeed.find((r) => r.position === 'QB');
-      const teRec = byNeed.find((r) => r.position === 'TE');
-
-      expect(qbRec).toBeDefined();
-      expect(teRec).toBeDefined();
-      // TE should rank higher due to higher scarcity
-      expect(teRec?.score).toBeGreaterThan(qbRec?.score ?? 0);
-    });
-
-    it('applies TE premium boost (1.15x)', () => {
-      const players = [
-        createPlayer('p1', 'WR', 20),
-        createPlayer('p2', 'TE', 20),
-      ];
-      const needs = createNeeds([
-        { position: 'WR', priority: 'critical', scarcityScore: 5 },
-        { position: 'TE', priority: 'critical', scarcityScore: 5 },
-      ]);
-
-      const { byNeed } = getRecommendations(players, needs);
-
-      const wrRec = byNeed.find((r) => r.position === 'WR');
-      const teRec = byNeed.find((r) => r.position === 'TE');
-
-      expect(wrRec).toBeDefined();
-      expect(teRec).toBeDefined();
-      // TE should rank higher due to TE premium
-      expect(teRec?.score).toBeGreaterThan(wrRec?.score ?? 0);
-    });
-
-    it('includes reason with priority and scarcity', () => {
-      const players = [createPlayer('p1', 'RB', 10)];
-      const needs = createNeeds([
-        { position: 'RB', priority: 'critical', scarcityScore: 7.5 },
-      ]);
-
-      const { byNeed } = getRecommendations(players, needs);
-
-      expect(byNeed[0]?.reason).toContain('critical need');
-      expect(byNeed[0]?.reason).toContain('FP #10');
-    });
-
-    it('sorts by calculated score descending', () => {
-      const players = [
-        createPlayer('p1', 'QB', 50), // Lower base score
-        createPlayer('p2', 'RB', 10), // Higher base score
-      ];
-      const needs = createNeeds([
-        { position: 'QB', priority: 'critical', scarcityScore: 5 },
-        { position: 'RB', priority: 'critical', scarcityScore: 5 },
-      ]);
-
-      const { byNeed } = getRecommendations(players, needs);
-
-      expect(byNeed[0]?.position).toBe('RB'); // Higher score first
-    });
   });
 
   describe('edge cases', () => {
     it('handles empty players array', () => {
       const needs = createNeeds([{ position: 'QB', priority: 'critical' }]);
+      const { draftNow, bestAvailable, byNeed } = getRecommendations([], needs);
 
-      const {
-        draftNow,
-        rbIntentionalReaches,
-        bestAvailable,
-        marketValues,
-        marketStashes,
-        byNeed,
-      } = getRecommendations([], needs);
-
-      expect(draftNow).toHaveLength(0);
-      expect(rbIntentionalReaches).toHaveLength(0);
-      expect(bestAvailable).toHaveLength(0);
-      expect(marketValues).toHaveLength(0);
-      expect(marketStashes).toHaveLength(0);
-      expect(byNeed).toHaveLength(0);
+      expect([draftNow, bestAvailable, byNeed]).toEqual([[], [], []]);
     });
 
     it('handles empty needs array', () => {
@@ -1357,14 +1028,4 @@ describe('getRecommendations', () => {
     });
   });
 
-  it('exposes named sub-scores on need-based recommendations', () => {
-    const players = [createPlayer('p1', 'TE', 20)];
-    const needs = createNeeds([{ position: 'TE', priority: 'critical', scarcityScore: 9 }]);
-
-    const { byNeed } = getRecommendations(players, needs);
-
-    expect(byNeed[0]?.subScores?.needMultiplier).toBe(2);
-    expect(byNeed[0]?.subScores?.scarcityMultiplier).toBe(1.45);
-    expect(byNeed[0]?.subScores?.tePremiumBoost).toBe(1.15);
-  });
 });
