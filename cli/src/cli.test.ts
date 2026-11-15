@@ -650,9 +650,9 @@ describe('draft CLI against a local fixture server', () => {
   });
 });
 
+// One timestamp before the March 1 boundary proves the NFL-season wiring; shared/src/units/clock.test.ts owns the table.
 it.each([
   ['2027-02-28T23:59:59.999Z', 2026],
-  ['2027-03-01T00:00:00.000Z', 2027],
 ])('uses the NFL season for CLI market data and keeper reservations at %s', async (timestamp, season) => {
   const now = Date.parse(timestamp);
   const path = join(root, 'data/league-history/current-keepers.json');

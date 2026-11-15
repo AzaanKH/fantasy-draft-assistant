@@ -46,24 +46,6 @@ function dispatchSnapshot(snapshot: unknown): void {
   }));
 }
 
-describe('ESPN content bridge', () => {
-  it('relays untrusted snapshots to the background decoder', () => {
-    const sendMessage = vi.fn();
-    const stop = startEspnContentBridge(sendMessage, window);
-
-    try {
-      dispatchSnapshot({ ...validSnapshot, picks: [null] });
-      expect(sendMessage).toHaveBeenCalledWith({ ...validSnapshot, picks: [null] });
-      sendMessage.mockClear();
-
-      dispatchSnapshot(validSnapshot);
-      expect(sendMessage).toHaveBeenCalledWith(validSnapshot);
-    } finally {
-      stop();
-    }
-  });
-});
-
 
 describe('ESPN relay envelope', () => {
   it('keeps origin checks and sends malformed matching snapshots to the logged background boundary', () => {

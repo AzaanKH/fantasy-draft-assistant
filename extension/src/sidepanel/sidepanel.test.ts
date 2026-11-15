@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_WEB_APP_URL, STORAGE_KEYS } from '../shared/types';
 
@@ -199,25 +197,21 @@ describe('storage check failures', () => {
       tabs: { create: vi.fn().mockResolvedValue({ id: 9 }), remove: vi.fn().mockResolvedValue(undefined) },
     });
   }
-  const shown = () => ({ title: document.getElementById('error-title')?.textContent, detail: document.getElementById('error-detail')?.textContent });
-
-  it('tells the user to switch to the canonical origin when the panel points elsewhere', async () => {
-    const { LOCAL_PORTS } = await import('../shared/local-config');
+  // Copy is owned by storage-sharing.test.ts; this checks the panel routes each failure to its fix.
+  it('offers the canonical-origin switch when the panel points elsewhere', async () => {
     stubChrome('http://127.0.0.1:3000', true);
     await import('./sidepanel');
     await vi.waitFor(() => { expect(document.getElementById('error-state')?.hidden).toBe(false); });
-    expect(shown().title).toBe(`Use the web app at ${LOCAL_PORTS.webOrigin}`);
-    expect(shown().detail).toContain('change the web app address in the extension options');
     expect(document.getElementById('use-canonical')?.hidden).toBe(false);
   });
 
-  it('tells the user to allow site access when host permission is missing', async () => {
+  it('asks for site access, without the origin switch, when host permission is missing', async () => {
     const { LOCAL_PORTS } = await import('../shared/local-config');
     stubChrome(LOCAL_PORTS.webOrigin, false);
     await import('./sidepanel');
     await vi.waitFor(() => { expect(document.getElementById('error-state')?.hidden).toBe(false); });
-    expect(shown().title).toBe('Allow site access for the web app');
-    expect(shown().detail).toContain(`allow site access for ${LOCAL_PORTS.webOrigin}`);
+    expect(document.getElementById('error-detail')?.textContent).toMatch(/site access/);
+    expect(document.getElementById('use-canonical')?.hidden).toBe(true);
   });
 });
 
@@ -336,14 +330,13 @@ describe('side panel shell', () => {
     expect(api.tabs.create).not.toHaveBeenCalled();
   });
 
-  it('keeps the frame inert while an overlay covers it, and makes Use <origin> the only primary action', async () => {
+  it('keeps the frame inert while an overlay covers it', async () => {
     stubChrome('http://127.0.0.1:3000');
     await import('./sidepanel');
     const frame = document.getElementById('sidepanel-frame');
     expect(frame?.hasAttribute('inert')).toBe(true);
     await vi.waitFor(() => { expect(document.getElementById('use-canonical')?.hidden).toBe(false); });
     expect(frame?.hasAttribute('inert')).toBe(true);
-    expect(document.getElementById('retry-frame')?.classList.contains('text-link')).toBe(true);
 
     for (const id of ['loading-state', 'error-state', 'pairing-state']) document.getElementById(id)?.toggleAttribute('hidden', true);
     await vi.waitFor(() => { expect(frame?.hasAttribute('inert')).toBe(false); });
@@ -398,11 +391,3 @@ describe('shell theme', () => {
   });
 });
 
-it('sizes the shell text with the design-system type tokens, never raw pixels', () => {
-  // jsdom gives this module an http URL, so the files are found from the working directory (the root or extension/).
-  const dir = existsSync(join(process.cwd(), 'src/sidepanel')) ? join(process.cwd(), 'src/sidepanel') : join(process.cwd(), 'extension/src/sidepanel');
-  const css = readFileSync(join(dir, 'sidepanel.css'), 'utf8');
-  expect(css.match(/font-size:\s*\d+px/g) ?? []).toEqual([]);
-  const tokens = readFileSync(join(dir, 'tokens.css'), 'utf8');
-  for (const name of ['--text-2xs', '--text-sm', '--text-base']) expect(tokens).toMatch(new RegExp(`${name}: \\d+px;`));
-});

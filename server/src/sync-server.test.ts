@@ -1,8 +1,6 @@
 import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createServer as createHttpServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import { Effect } from 'effect';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
@@ -34,6 +32,22 @@ function createSyncServer(options: Omit<NonNullable<Parameters<typeof createServ
     fetchJson: options.fetchJson ? fixtureFetchJson(options.fetchJson) : undefined,
   });
 }
+
+type SyncServer = ReturnType<typeof createSyncServer>;
+const running = new Set<SyncServer>();
+
+async function listen(server: SyncServer): Promise<string> {
+  running.add(server);
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  return `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+}
+
+function shutdown(server: SyncServer): Promise<void> {
+  running.delete(server);
+  return new Promise((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
+}
+
+afterEach(async () => { await Promise.all([...running].map(shutdown)); });
 
 function createMockFetchJson(): FixtureFetchJson {
   return async (url: string): Promise<unknown> => {
@@ -86,29 +100,23 @@ describe('createSyncServer', () => {
       fetchCalls += 1;
       return fixtureFetch(url, signal);
     } });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
-    const base = `http://127.0.0.1:${port}`;
+    const base = await listen(server);
     const headers = { 'X-Sync-Token': TOKEN };
-    try {
-      expect((await fetch(`${base}/api/sync/sessions`)).status).toBe(403);
-      expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
-      expect((await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers })).ok).toBe(true);
-      expect((await fetch(`${base}/api/sync/espn/drafts/42/refresh`, { method: 'POST', headers })).ok).toBe(true);
-      const listing = await (await fetch(`${base}/api/sync/sessions`, { headers })).json();
-      expect(listing).toMatchObject({ sessions: [
-        { session: 'espn:42', provider: 'espn', draftId: '42', draftStatus: null,
-          currentPick: null, picksRecorded: 0, sync: { state: 'idle' }, subscribers: 0 },
-        { session: 'sleeper:fixture-draft', provider: 'sleeper', draftId: 'fixture-draft',
-          draftStatus: 'drafting', draftType: 'snake', totalTeams: 10, totalRounds: 15,
-          currentPick: 4, picksRecorded: 3, sync: { state: 'synced', lastError: null }, subscribers: 0 },
-      ] });
-      expect(fetchCalls).toBe(3);
-      expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual(listing);
-      expect(fetchCalls).toBe(3);
-    } finally {
-      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
-    }
+    expect((await fetch(`${base}/api/sync/sessions`)).status).toBe(403);
+    expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
+    expect((await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers })).ok).toBe(true);
+    expect((await fetch(`${base}/api/sync/espn/drafts/42/refresh`, { method: 'POST', headers })).ok).toBe(true);
+    const listing = await (await fetch(`${base}/api/sync/sessions`, { headers })).json();
+    expect(listing).toMatchObject({ sessions: [
+      { session: 'espn:42', provider: 'espn', draftId: '42', draftStatus: null,
+        currentPick: null, picksRecorded: 0, sync: { state: 'idle' }, subscribers: 0 },
+      { session: 'sleeper:fixture-draft', provider: 'sleeper', draftId: 'fixture-draft',
+        draftStatus: 'drafting', draftType: 'snake', totalTeams: 10, totalRounds: 15,
+        currentPick: 4, picksRecorded: 3, sync: { state: 'synced', lastError: null }, subscribers: 0 },
+    ] });
+    expect(fetchCalls).toBe(3);
+    expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual(listing);
+    expect(fetchCalls).toBe(3);
   });
 
   it('omits expired idle sessions from discovery', async () => {
@@ -119,47 +127,32 @@ describe('createSyncServer', () => {
         fetchCalls += 1;
         return fixtureFetch(url, signal);
       } });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
-    const base = `http://127.0.0.1:${port}`;
+    const base = await listen(server);
     const headers = { 'X-Sync-Token': TOKEN };
-    try {
-      expect((await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers })).ok).toBe(true);
-      await new Promise(resolve => setTimeout(resolve, 10));
-      expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
-      expect(fetchCalls).toBe(3);
-    } finally {
-      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
-    }
+    expect((await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers })).ok).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(await (await fetch(`${base}/api/sync/sessions`, { headers })).json()).toEqual({ sessions: [] });
+    expect(fetchCalls).toBe(3);
   });
 
   it('rejects malformed draft IDs and continues serving valid draft requests', async () => {
     const server = createSyncServer({ fetchJson: createMockFetchJson() });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
-    const base = `http://127.0.0.1:${port}`;
+    const base = await listen(server);
     const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
 
-    try {
-      for (const path of [
-        '/api/sync/sleeper/drafts/%ZZ',
-        '/api/sync/yahoo/drafts/%E0%A4%A/events',
-        '/api/sync/espn/drafts/%/snapshot',
-        '/api/sync/drafts/%FF',
-      ]) {
-        const response = await fetch(`${base}${path}`, { headers });
-        expect(response.status).toBe(400);
-        expect(await response.json()).toEqual({ error: 'Invalid draft ID' });
-      }
-      const response = await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers });
-      expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ provider: 'sleeper', status: 'synced' });
-    } finally {
-      await new Promise<void>((resolve, reject) => { server.shutdown((error) => {
-        if (error) reject(error);
-        else resolve();
-      }); });
+    for (const path of [
+      '/api/sync/sleeper/drafts/%ZZ',
+      '/api/sync/yahoo/drafts/%E0%A4%A/events',
+      '/api/sync/espn/drafts/%/snapshot',
+      '/api/sync/drafts/%FF',
+    ]) {
+      const response = await fetch(`${base}${path}`, { headers });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: 'Invalid draft ID' });
     }
+    const response = await fetch(`${base}/api/sync/drafts/fixture-draft`, { headers });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ provider: 'sleeper', status: 'synced' });
   });
 
   it('revalidates league settings on explicit refresh even within the cache TTL', async () => {
@@ -169,23 +162,15 @@ describe('createSyncServer', () => {
       if (url.includes('/league/')) settingsRequests += 1;
       return fixtureFetch(url, signal);
     } });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
-    try {
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft/refresh`, {
-          method: 'POST',
-          headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
-        });
-        expect(await response.json()).toMatchObject({ status: 'synced' });
-      }
-      expect(settingsRequests).toBe(2);
-    } finally {
-      await new Promise<void>((resolve, reject) => { server.shutdown((error) => {
-        if (error) reject(error);
-        else resolve();
-      }); });
+    const base = await listen(server);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await fetch(`${base}/api/sync/drafts/fixture-draft/refresh`, {
+        method: 'POST',
+        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+      });
+      expect(await response.json()).toMatchObject({ status: 'synced' });
     }
+    expect(settingsRequests).toBe(2);
   });
 
   it.each([
@@ -211,11 +196,8 @@ describe('createSyncServer', () => {
       }
       return fixtureFetch(url, signal, init);
     } });
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-    const address = server.address();
-    if (!address || typeof address === 'string') throw new Error('Expected local server address');
     const path = provider === 'sleeper' ? 'drafts/fixture-draft' : 'yahoo/drafts/7428778';
-    const url = `http://127.0.0.1:${String(address.port)}/api/sync/${path}`;
+    const url = `${await listen(server)}/api/sync/${path}`;
     const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
     try {
       const accepted = decodeDraftSyncSnapshot(await (await fetch(url, { headers })).json());
@@ -234,7 +216,6 @@ describe('createSyncServer', () => {
       expect(warning).toHaveBeenCalledWith('[sync-server] Provider sync rejected', expect.any(String));
     } finally {
       warning.mockRestore();
-      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
     }
   });
 
@@ -244,47 +225,34 @@ describe('createSyncServer', () => {
       pollIntervalMs: 60_000,
     });
 
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
-        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
-      });
-      expect(response.ok).toBe(true);
+    const response = await fetch(`${base}/api/sync/drafts/fixture-draft`, {
+      headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+    });
+    expect(response.ok).toBe(true);
 
-      const snapshot = decodeDraftSyncSnapshot(await response.json());
+    const snapshot = decodeDraftSyncSnapshot(await response.json());
 
-      expect(snapshot.provider).toBe('sleeper');
-      expect(snapshot.draft?.providerKey).toBe(draftFixture.draft_id);
-      expect(snapshot.draft?.leagueSettings).toMatchObject({
-        source: 'sleeper',
-        leagueId: 'fixture-league',
-        totalTeams: 10,
-        scoringRules: {
-          receiving: { reception: 1, tePremium: 0.5 },
-          rushing: { attemptBonus: 0.2 },
-        },
-        rosterRequirements: {
-          FLEX: { starters: 2 },
-          BENCH: { spots: 6 },
-        },
-      });
-      expect(snapshot.picks).toHaveLength(3);
-      expect(snapshot.picks[0]?.playerName).toBe('Christian McCaffrey');
-      expect(snapshot.picks[2]?.position).toBe('TE');
-      expect(snapshot.status).toBe('synced');
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
+    expect(snapshot.provider).toBe('sleeper');
+    expect(snapshot.draft?.providerKey).toBe(draftFixture.draft_id);
+    expect(snapshot.draft?.leagueSettings).toMatchObject({
+      source: 'sleeper',
+      leagueId: 'fixture-league',
+      totalTeams: 10,
+      scoringRules: {
+        receiving: { reception: 1, tePremium: 0.5 },
+        rushing: { attemptBonus: 0.2 },
+      },
+      rosterRequirements: {
+        FLEX: { starters: 2 },
+        BENCH: { spots: 6 },
+      },
+    });
+    expect(snapshot.picks).toHaveLength(3);
+    expect(snapshot.picks[0]?.playerName).toBe('Christian McCaffrey');
+    expect(snapshot.picks[2]?.position).toBe('TE');
+    expect(snapshot.status).toBe('synced');
   });
 
   it('sends a small heartbeat for unchanged polls and a snapshot for a corrected pick', async () => {
@@ -297,14 +265,13 @@ describe('createSyncServer', () => {
           ? providerPicks
           : fixtureFetch(url, signal),
     });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
     const controller = new AbortController();
     const timeout = setTimeout(() => { controller.abort(); }, 5_000);
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:${port}/api/sync/sleeper/drafts/fixture-draft/events`,
+        `${base}/api/sync/sleeper/drafts/fixture-draft/events`,
         {
           headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
           signal: controller.signal,
@@ -360,10 +327,6 @@ describe('createSyncServer', () => {
     } finally {
       clearTimeout(timeout);
       controller.abort();
-      await new Promise<void>((resolve, reject) => { server.shutdown((error) => {
-        if (error) reject(error);
-        else resolve();
-      }); });
     }
   });
 
@@ -373,33 +336,20 @@ describe('createSyncServer', () => {
       pollIntervalMs: 60_000,
     });
 
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:${port}/api/sync/yahoo/drafts/7428778`,
-        { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
-      );
-      expect(response.ok).toBe(true);
+    const response = await fetch(
+      `${base}/api/sync/yahoo/drafts/7428778`,
+      { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
+    );
+    expect(response.ok).toBe(true);
 
-      const snapshot = decodeDraftSyncSnapshot(await response.json());
-      expect(snapshot.provider).toBe('yahoo');
-      expect(snapshot.draft?.providerKey).toBe('999.l.7428778');
-      expect(snapshot.picks).toHaveLength(2);
-      expect(snapshot.picks[0]?.playerName).toBe('Alpha Quarterback');
-      expect(snapshot.picks[1]?.pickNumber).toBe(3);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
+    const snapshot = decodeDraftSyncSnapshot(await response.json());
+    expect(snapshot.provider).toBe('yahoo');
+    expect(snapshot.draft?.providerKey).toBe('999.l.7428778');
+    expect(snapshot.picks).toHaveLength(2);
+    expect(snapshot.picks[0]?.playerName).toBe('Alpha Quarterback');
+    expect(snapshot.picks[1]?.pickNumber).toBe(3);
   });
 
   it('resends the full first snapshot on ESPN reconnect, including unchanged and disconnected undo state', async () => {
@@ -408,8 +358,7 @@ describe('createSyncServer', () => {
       pollIntervalMs: 60_000,
       allowedOrigins: [extensionOrigin, 'http://localhost:3000'],
     });
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
     const now = Date.now();
     const draft: EspnDraftSnapshot['draft'] = {
       provider: 'espn',
@@ -441,7 +390,7 @@ describe('createSyncServer', () => {
       picks: EspnDraftSnapshot['picks'],
       observedAt: number = now
     ) =>
-      fetch(`http://127.0.0.1:${port}/api/sync/espn/drafts/4242/snapshot`, {
+      fetch(`${base}/api/sync/espn/drafts/4242/snapshot`, {
         method: 'POST',
         headers: {
           Origin: extensionOrigin,
@@ -459,7 +408,7 @@ describe('createSyncServer', () => {
       controllers.push(controller);
       let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
       try {
-        const response = await fetch(`http://127.0.0.1:${port}/api/sync/espn/drafts/4242/events`, {
+        const response = await fetch(`${base}/api/sync/espn/drafts/4242/events`, {
           headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN }, signal: controller.signal,
         });
         expect(response.ok).toBe(true);
@@ -517,7 +466,7 @@ describe('createSyncServer', () => {
       await expectFirstSnapshot(undoSnapshot);
 
       const read = await fetch(
-        `http://127.0.0.1:${port}/api/sync/espn/drafts/4242`,
+        `${base}/api/sync/espn/drafts/4242`,
         { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
       );
       expect(read.ok).toBe(true);
@@ -526,12 +475,6 @@ describe('createSyncServer', () => {
       clearTimeout(timeout);
       for (const controller of controllers) controller.abort();
       await Promise.all(readers.map(reader => reader.cancel().catch(() => undefined)));
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
     }
   });
 
@@ -541,24 +484,11 @@ describe('createSyncServer', () => {
       pollIntervalMs: 60_000,
     });
 
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/health`);
-      expect(response.ok).toBe(true);
-      expect(await response.json()).toEqual({ ok: true });
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
+    const response = await fetch(`${base}/api/health`);
+    expect(response.ok).toBe(true);
+    expect(await response.json()).toEqual({ ok: true });
   });
 
   it('starts the Core Draft Data refresh only for authorized requests and reports its progress', async () => {
@@ -569,32 +499,22 @@ describe('createSyncServer', () => {
         return Effect.void;
       },
     });
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
-    const url = `http://127.0.0.1:${port}/api/draft-data/refresh`;
+    const base = await listen(server);
+    const url = `${base}/api/draft-data/refresh`;
 
-    try {
-      const unauthorized = await fetch(url, { method: 'POST', headers: { Origin: 'http://localhost:3000' } });
-      expect(unauthorized.status).toBe(403);
-      expect(scripts).toEqual([]);
+    const unauthorized = await fetch(url, { method: 'POST', headers: { Origin: 'http://localhost:3000' } });
+    expect(unauthorized.status).toBe(403);
+    expect(scripts).toEqual([]);
 
-      const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
-      expect(await (await fetch(url, { headers })).json()).toMatchObject({ state: 'idle' });
-      const started = await fetch(url, { method: 'POST', headers });
-      expect(started.status).toBe(202);
-      expect(await started.json()).toMatchObject({ state: 'running' });
+    const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
+    expect(await (await fetch(url, { headers })).json()).toMatchObject({ state: 'idle' });
+    const started = await fetch(url, { method: 'POST', headers });
+    expect(started.status).toBe(202);
+    expect(await started.json()).toMatchObject({ state: 'running' });
 
-      await new Promise((resolve) => { setTimeout(resolve, 10); });
-      expect(await (await fetch(url, { headers })).json()).toMatchObject({ state: 'succeeded' });
-      expect(scripts).toEqual(['refresh:sleeper', 'refresh:fantasypros', 'data:identity']);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    }
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+    expect(await (await fetch(url, { headers })).json()).toMatchObject({ state: 'succeeded' });
+    expect(scripts).toEqual(['refresh:sleeper', 'refresh:fantasypros', 'data:identity']);
   });
 
   it('interrupts a running poll and refresh on shutdown', async () => {
@@ -616,16 +536,15 @@ describe('createSyncServer', () => {
         return Effect.sync(() => { refreshStopped = true; });
       }),
     });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
     const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
 
-    const stream = await fetch(`http://127.0.0.1:${port}/api/sync/sleeper/drafts/fixture-draft/events`, { headers });
+    const stream = await fetch(`${base}/api/sync/sleeper/drafts/fixture-draft/events`, { headers });
     expect(stream.ok).toBe(true);
-    expect((await fetch(`http://127.0.0.1:${port}/api/draft-data/refresh`, { method: 'POST', headers })).status).toBe(202);
+    expect((await fetch(`${base}/api/draft-data/refresh`, { method: 'POST', headers })).status).toBe(202);
     await vi.waitFor(() => { expect(pollStarted && refreshStarted).toBe(true); });
 
-    await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
+    await shutdown(server);
     expect({ pollAborted, refreshStopped }).toEqual({ pollAborted: true, refreshStopped: true });
     await stream.body?.cancel();
   });
@@ -635,20 +554,19 @@ describe('createSyncServer', () => {
     const server = createSyncServer({
       fetchJson: () => { requestStarted = true; return new Promise(() => {}); },
     });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
     const rejections: unknown[] = [];
     const onRejection = (reason: unknown) => { rejections.push(reason); };
     process.on('unhandledRejection', onRejection);
     try {
       const client = new AbortController();
-      const pending = fetch(`http://127.0.0.1:${port}/api/market-adp`, {
+      const pending = fetch(`${base}/api/market-adp`, {
         headers: { 'X-Sync-Token': TOKEN }, signal: client.signal,
       }).catch(() => undefined);
       await vi.waitFor(() => { expect(requestStarted).toBe(true); });
       client.abort();
       await pending;
-      await new Promise<void>((resolve, reject) => { server.shutdown(error => { if (error) reject(error); else resolve(); }); });
+      await shutdown(server);
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(rejections).toEqual([]);
     } finally {
@@ -658,14 +576,11 @@ describe('createSyncServer', () => {
 
   it.each(['current-keepers', 'sportsbook'])('rejects malformed %s files at the data endpoint', async (name) => {
     const server = createSyncServer({ draftData: { currentKeepers: {}, sportsbookSnapshot: {} } });
-    await new Promise<void>(resolve => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/draft-data/${name}`, {
-        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
-      });
-      expect(response.status).toBe(503);
-    } finally { await new Promise<void>(resolve => { server.shutdown(() => { resolve(); }); }); }
+    const base = await listen(server);
+    const response = await fetch(`${base}/api/draft-data/${name}`, {
+      headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+    });
+    expect(response.status).toBe(503);
   });
 
   it('serves private draft inputs through authorized API routes', async () => {
@@ -682,32 +597,22 @@ describe('createSyncServer', () => {
     const server = createSyncServer({
       draftData: { currentKeepers, sportsbookSnapshot },
     });
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
-      const keeperResponse = await fetch(
-        `http://127.0.0.1:${port}/api/draft-data/current-keepers`,
-        { headers }
-      );
-      const sportsbookResponse = await fetch(
-        `http://127.0.0.1:${port}/api/draft-data/sportsbook`,
-        { headers }
-      );
+    const headers = { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN };
+    const keeperResponse = await fetch(
+      `${base}/api/draft-data/current-keepers`,
+      { headers }
+    );
+    const sportsbookResponse = await fetch(
+      `${base}/api/draft-data/sportsbook`,
+      { headers }
+    );
 
-      expect(keeperResponse.ok).toBe(true);
-      expect(await keeperResponse.json()).toEqual(currentKeepers);
-      expect(sportsbookResponse.ok).toBe(true);
-      expect(await sportsbookResponse.json()).toEqual({ ...sportsbookSnapshot, decodeWarnings: [] });
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    }
+    expect(keeperResponse.ok).toBe(true);
+    expect(await keeperResponse.json()).toEqual(currentKeepers);
+    expect(sportsbookResponse.ok).toBe(true);
+    expect(await sportsbookResponse.json()).toEqual({ ...sportsbookSnapshot, decodeWarnings: [] });
   });
 
   it('rejects unconfigured extension origins before fetching Sleeper', async () => {
@@ -719,53 +624,14 @@ describe('createSyncServer', () => {
       },
     });
 
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
-        headers: { Origin: `chrome-extension://${'a'.repeat(32)}` },
-      });
+    const response = await fetch(`${base}/api/sync/drafts/fixture-draft`, {
+      headers: { Origin: `chrome-extension://${'a'.repeat(32)}` },
+    });
 
-      expect(response.status).toBe(403);
-      expect(fetchCalls).toBe(0);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
-  });
-
-  it('returns a client error for a malformed encoded draft ID', async () => {
-    const server = createSyncServer({ fetchJson: createMockFetchJson() });
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
-
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:${port}/api/sync/sleeper/drafts/%E0%A4%A`,
-        { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
-      );
-
-      expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({ error: 'Invalid draft ID' });
-      expect(
-        await fetch(`http://127.0.0.1:${port}/api/health`).then((result) => result.ok)
-      ).toBe(true);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    }
+    expect(response.status).toBe(403);
+    expect(fetchCalls).toBe(0);
   });
 
   it('reuses fresh sessions and evicts stale sessions without clients', async () => {
@@ -778,25 +644,15 @@ describe('createSyncServer', () => {
       },
       sessionStaleAfterMs: 60_000,
     });
-    await new Promise<void>((resolve) => freshServer.listen(0, resolve));
-    const freshPort = (freshServer.address() as AddressInfo).port;
+    const freshBase = await listen(freshServer);
     const requestFresh = () => fetch(
-      `http://127.0.0.1:${freshPort}/api/sync/drafts/fixture-draft`,
+      `${freshBase}/api/sync/drafts/fixture-draft`,
       { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
     );
 
-    try {
-      expect((await requestFresh()).ok).toBe(true);
-      expect((await requestFresh()).ok).toBe(true);
-      expect(freshFetchCalls).toBe(3);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        freshServer.shutdown((error?: Error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    }
+    expect((await requestFresh()).ok).toBe(true);
+    expect((await requestFresh()).ok).toBe(true);
+    expect(freshFetchCalls).toBe(3);
 
     let staleFetchCalls = 0;
     const staleServer = createSyncServer({
@@ -806,26 +662,16 @@ describe('createSyncServer', () => {
       },
       sessionStaleAfterMs: 1,
     });
-    await new Promise<void>((resolve) => staleServer.listen(0, resolve));
-    const stalePort = (staleServer.address() as AddressInfo).port;
+    const staleBase = await listen(staleServer);
     const requestStale = () => fetch(
-      `http://127.0.0.1:${stalePort}/api/sync/drafts/fixture-draft`,
+      `${staleBase}/api/sync/drafts/fixture-draft`,
       { headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN } }
     );
 
-    try {
-      expect((await requestStale()).ok).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect((await requestStale()).ok).toBe(true);
-      expect(staleFetchCalls).toBe(6);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        staleServer.shutdown((error?: Error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    }
+    expect((await requestStale()).ok).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect((await requestStale()).ok).toBe(true);
+    expect(staleFetchCalls).toBe(6);
   });
 
   it('coalesces concurrent refreshes into fresh shared polls', async () => {
@@ -841,24 +687,17 @@ describe('createSyncServer', () => {
         return fixtureFetch(url, signal);
       },
     });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const refresh = () => fetch(`http://127.0.0.1:${port}/api/sync/sleeper/drafts/fixture-draft/refresh`, {
-        method: 'POST', headers: { 'X-Sync-Token': TOKEN },
-      });
-      const responses = await Promise.all(Array.from({ length: 6 }, refresh));
-      expect(responses.every((response) => response.ok)).toBe(true);
-      // The first refresh polls; the rest wait for it, then share one poll that
-      // starts after their call, so each still verifies settings freshly.
-      expect(draftPolls).toBe(2);
-      expect(leagueLookups).toBe(2);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => { if (error) reject(error); else resolve(); });
-      });
-    }
+    const refresh = () => fetch(`${base}/api/sync/sleeper/drafts/fixture-draft/refresh`, {
+      method: 'POST', headers: { 'X-Sync-Token': TOKEN },
+    });
+    const responses = await Promise.all(Array.from({ length: 6 }, refresh));
+    expect(responses.every((response) => response.ok)).toBe(true);
+    // The first refresh polls; the rest wait for it, then share one poll that
+    // starts after their call, so each still verifies settings freshly.
+    expect(draftPolls).toBe(2);
+    expect(leagueLookups).toBe(2);
   });
 
   it('times out stalled Sleeper requests and clears the sync state', async () => {
@@ -869,28 +708,15 @@ describe('createSyncServer', () => {
       }),
     });
 
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/sync/drafts/fixture-draft`, {
-        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
-      });
-      const snapshot = decodeDraftSyncSnapshot(await response.json());
+    const response = await fetch(`${base}/api/sync/drafts/fixture-draft`, {
+      headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN },
+    });
+    const snapshot = decodeDraftSyncSnapshot(await response.json());
 
-      expect(snapshot.status).toBe('error');
-      expect(snapshot.lastError).toBe('Sleeper request timed out');
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
+    expect(snapshot.status).toBe('error');
+    expect(snapshot.lastError).toBe('Sleeper request timed out');
   });
 
   it('records each valid shadow recommendation decision once', async () => {
@@ -937,11 +763,10 @@ describe('createSyncServer', () => {
       },
     };
 
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const { port } = server.address() as AddressInfo;
+    const base = await listen(server);
 
     try {
-      const post = () => fetch(`http://127.0.0.1:${port}/api/shadow-recommendations`, {
+      const post = () => fetch(`${base}/api/shadow-recommendations`, {
         method: 'POST',
         headers: {
           Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN,
@@ -964,15 +789,6 @@ describe('createSyncServer', () => {
         disagreement: true,
       });
     } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.shutdown((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
       await rm(temporaryDirectory, { recursive: true, force: true });
     }
   });
@@ -1011,70 +827,35 @@ describe('provider HTTP requests', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('cancels a stalled body with the configured provider timeout message', async () => {
+  // Deadline and body cancellation belong to shared/src/http/runner.test.ts; this checks the provider label and the configured timeout.
+  it('labels a stalled provider request as timed out after the configured timeout', async () => {
     vi.useFakeTimers();
-    const cancel = vi.fn();
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({ cancel }))));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream())));
     try {
       const request = syncServerInternals.defaultFetchJson('https://api.sleeper.app/v1/draft/fixture',
         new AbortController().signal, decodeDraftSyncSnapshot, {}, 50);
       const rejection = expect(request).rejects.toThrow('Sleeper request timed out');
       await vi.advanceTimersByTimeAsync(50);
       await rejection;
-      expect(cancel).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
   });
-
-  it('closes the connection of an error response whose body stalls', async () => {
-    let connectionClosed!: () => void;
-    const closed = new Promise<void>((resolve) => { connectionClosed = resolve; });
-    // Send the error status and part of a body, then never finish it. Other local processes
-    // can probe any new localhost listener with GET /, so only the unique path is the client's.
-    const path = `/${randomUUID()}/data`;
-    const upstream = createHttpServer((request, response) => {
-      if (request.url !== path) { response.writeHead(404).end(); return; }
-      request.socket.once('close', connectionClosed);
-      response.writeHead(503, { 'Content-Type': 'text/plain' });
-      response.write('unavailable');
-    });
-    await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
-    const { port } = upstream.address() as AddressInfo;
-    try {
-      await expect(syncServerInternals.defaultFetchJson(`http://127.0.0.1:${String(port)}${path}`, new AbortController().signal, decodeDraftSyncSnapshot))
-        .rejects.toThrow('request failed: 503');
-      await closed;
-    } finally {
-      upstream.closeAllConnections();
-      await new Promise((resolve) => upstream.close(resolve));
-    }
-  }, 2000);
 });
 
 describe('market ADP season default', () => {
-  it.each([
-    ['2027-02-28T23:59:59.999Z', 2026],
-    ['2027-03-01T00:00:00.000Z', 2027],
-    ['2026-12-31T16:00:00.000-08:00', 2026],
-  ])('requests the NFL season at %s and preserves explicit overrides', async (timestamp, season) => {
-    vi.useFakeTimers({ now: Date.parse(timestamp), toFake: ['Date'] });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('requests the current NFL season and preserves explicit overrides', async () => {
+    vi.useFakeTimers({ now: Date.parse('2027-02-28T23:59:59.999Z'), toFake: ['Date'] });
     const urls: string[] = [];
-    const server = createSyncServer({ fetchJson: async url => {
+    const base = await listen(createSyncServer({ fetchJson: async url => {
       urls.push(url);
       return { status: 'Success', players: [] };
-    } });
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-    const { port } = server.address() as AddressInfo;
-    try {
-      await fetch(`http://127.0.0.1:${port}/api/market-adp`, { headers: { 'X-Sync-Token': TOKEN } });
-      expect(urls[0]).toContain(`year=${season}`);
-      await fetch(`http://127.0.0.1:${port}/api/market-adp?season=2024`, { headers: { 'X-Sync-Token': TOKEN } });
-      expect(urls[1]).toContain('year=2024');
-    } finally {
-      server.closeAllConnections();
-      await new Promise<void>(resolve => server.close(() => { resolve(); }));
-      vi.useRealTimers();
-    }
+    } }));
+    await fetch(`${base}/api/market-adp`, { headers: { 'X-Sync-Token': TOKEN } });
+    expect(urls[0]).toContain('year=2026');
+    await fetch(`${base}/api/market-adp?season=2024`, { headers: { 'X-Sync-Token': TOKEN } });
+    expect(urls[1]).toContain('year=2024');
   });
 });

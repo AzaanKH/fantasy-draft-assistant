@@ -63,7 +63,6 @@ describe('draft room lifecycle', () => {
 
   it('starts idempotently and does not create duplicate Sleeper polling', () => {
     const harness = createHarness('https://sleeper.com/draft/nfl/123');
-    const intervalSpy = vi.spyOn(window, 'setInterval');
 
     harness.lifecycle.start();
     harness.lifecycle.start();
@@ -71,7 +70,7 @@ describe('draft room lifecycle', () => {
     expect(
       harness.messages.filter((message) => message.type === 'DRAFT_ROOM_STATUS')
     ).toHaveLength(1);
-    expect(intervalSpy).toHaveBeenCalledTimes(1);
+    expect(harness.intervalCallbacks).toHaveLength(1);
     expect(harness.observers).toHaveLength(2);
   });
 
@@ -132,9 +131,8 @@ describe('draft room lifecycle', () => {
     ]);
   });
 
-  it('keeps a scheduled scan cancellable when interval polling runs', () => {
+  it('cancels a pending scan on stop, even after interval polling ran', () => {
     const harness = createHarness('https://sleeper.com/draft/nfl/123');
-    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
     harness.lifecycle.start();
     const pickObserver = harness.observers[0];
     const addedNode = document.createElement('div');
@@ -143,11 +141,12 @@ describe('draft room lifecycle', () => {
       [{ addedNodes: [addedNode] } as unknown as MutationRecord],
       pickObserver as unknown as MutationObserver
     );
-    const callsBeforePoll = clearTimeoutSpy.mock.calls.length;
 
     harness.intervalCallbacks[0]?.();
     harness.lifecycle.stop();
+    document.body.innerHTML = '<div class="player-row">CeeDee Lamb 1.4 WR - DAL</div>';
+    vi.advanceTimersByTime(10_000);
 
-    expect(clearTimeoutSpy).toHaveBeenCalledTimes(callsBeforePoll + 1);
+    expect(harness.messages.filter((message) => message.type === 'PICK_DETECTED')).toEqual([]);
   });
 });

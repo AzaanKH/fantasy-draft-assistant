@@ -1,31 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { describeStorageSharingFailure, StorageSharingFailure } from './storage-sharing';
+import { DEVELOPER_START_HINT, describeStorageSharingFailure, StorageSharingFailure } from './storage-sharing';
 
 const origin = 'http://localhost:5173';
 
 describe('describeStorageSharingFailure', () => {
-  it('passes on the web app refusal with the step that fixes it', () => {
-    const copy = describeStorageSharingFailure(new StorageSharingFailure('refused', 'Workspace storage is unavailable.'), origin);
-    expect(copy.title).toBe('Draft storage is not shared yet');
-    expect(copy.detail).toBe('Workspace storage is unavailable. Open the full draft room in a normal tab so it can share storage with the panel, then retry.');
+  it.each([
+    ['refused', new StorageSharingFailure('refused', 'Workspace storage is unavailable.'), 'refused', /Workspace storage is unavailable\..*full draft room/],
+    ['timeout', new StorageSharingFailure('timeout', 'timed out'), 'timeout', new RegExp(`Nothing replied from ${origin}`)],
+    ['origin', new StorageSharingFailure('origin', 'Points elsewhere.'), 'origin', new RegExp(`Points elsewhere\\..*Switch to ${origin} below`)],
+    ['an unclassified error', new Error('boom'), 'helper', /^boom .*web app is running/],
+  ] as const)('keeps the reason and names the fix for %s', (_label, error, kind, detail) => {
+    const copy = describeStorageSharingFailure(error, origin);
+    expect(copy.kind).toBe(kind);
+    expect(copy.detail).toMatch(detail);
   });
 
-  it('names the origin that did not answer on timeout', () => {
-    expect(describeStorageSharingFailure(new StorageSharingFailure('timeout', 'timed out'), origin).detail).toContain(`Nothing replied from ${origin}`);
-  });
-
-  it('falls back to the generic copy for unclassified errors', () => {
-    expect(describeStorageSharingFailure(new Error('boom'), origin)).toEqual({
-      kind: 'helper', title: 'Web app unavailable',
-      detail: 'boom Make sure the Fantasy Draft web app is running on this computer, then retry.',
-      hint: 'Running from source? Start it with pnpm dev:live.',
-    });
-  });
-
-  it('keeps developer commands out of the main copy and offers the canonical switch for origin errors', () => {
+  it('keeps developer commands out of the main copy and in the hint when the app may not be running', () => {
     for (const kind of ['permission', 'origin', 'refused', 'timeout', 'helper'] as const) {
-      expect(describeStorageSharingFailure(new StorageSharingFailure(kind, 'Reason.'), origin).detail).not.toContain('pnpm');
+      const copy = describeStorageSharingFailure(new StorageSharingFailure(kind, 'Reason.'), origin);
+      expect(copy.detail).not.toContain('pnpm');
+      expect(copy.hint).toBe(kind === 'timeout' || kind === 'helper' ? DEVELOPER_START_HINT : undefined);
     }
-    expect(describeStorageSharingFailure(new StorageSharingFailure('origin', 'Points elsewhere.'), origin).detail).toContain(`Switch to ${origin} below`);
   });
 });
