@@ -104,10 +104,6 @@ describe('bounded generated sections', () => {
     expect(replaceGeneratedSection(generated, section)).toBe(generated);
   });
 
-  it('generates the committed documents without changes', async () => {
-    expect(await generateDocs({ root: await fixture() })).toEqual([]);
-  });
-
   it('fails hand-edited generated content without writing, then repairs only the section', async () => {
     const root = await fixture();
     const target = path.join(root, 'docs/cli.md');

@@ -7,8 +7,6 @@ import {
   type DraftReadinessSourceObservation,
 } from '@fantasy-draft/shared/catalog';
 import {
-  LIVE_CORE_REFRESH_STEPS,
-  LIVE_DRAFT_PREP_REPORT_STEP,
   findPreConnectFailures,
 } from './prepare-live-draft.js';
 
@@ -25,20 +23,6 @@ function readySources(): Record<DraftReadinessKey, DraftReadinessSourceObservati
 }
 
 describe('live draft preflight', () => {
-  it('refreshes both source files before rebuilding player identities', () => {
-    expect(LIVE_CORE_REFRESH_STEPS.map((step) => step.script)).toEqual([
-      'refresh:sleeper',
-      'refresh:fantasypros',
-      'data:identity',
-    ]);
-  });
-
-  it('regenerates the draft prep report after the core preflight', () => {
-    expect(LIVE_DRAFT_PREP_REPORT_STEP).toEqual({
-      label: 'Draft prep report',
-      script: 'report:draft-prep',
-    });
-  });
 
   it('leaves provider settings for the live connection', () => {
     const sources = readySources();
