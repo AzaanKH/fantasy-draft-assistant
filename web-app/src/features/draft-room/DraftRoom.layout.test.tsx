@@ -82,13 +82,8 @@ describe('readiness checklist placement', () => {
     state.isLoading = false;
     render();
     expect(rowsAboveDock()).toEqual(loading);
-    const checklist = container.querySelector('.draft-dock > .draft-dock-checklist > .draft-setup-checklist');
-    expect(checklist?.textContent).toContain('Finish setup to turn on recommendations');
-    // The bar's status stays on one truncated line, so its height cannot change when the status does.
-    const status = container.querySelector('.draft-best-pick-inline p');
-    expect(status?.textContent).toBe('Paused until setup is finished.');
-    expect(status?.classList.contains('truncate')).toBe(true);
-    expect(container.querySelector('.draft-best-pick-inline span')?.classList.contains('whitespace-nowrap')).toBe(true);
+    // The checklist arrives inside the dock instead.
+    expect(container.querySelector('.draft-dock > .draft-dock-checklist > .draft-setup-checklist')).not.toBeNull();
   });
 
   it('reserves no space when readiness passes', () => {

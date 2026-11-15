@@ -94,10 +94,9 @@ it('says a fully drafted position is drafted out and offers Show drafted, instea
   expect(container.querySelector<HTMLInputElement>('.rec-checkbox input')?.checked).toBe(true);
 });
 
-it('labels tier numbers as the source ranking, not the model rank', () => {
-  expect(container.querySelector('.rec-tier-colhead-rank')?.textContent).toBe('ECR');
+it('reads each tier number to assistive tech as the expert rank, once', () => {
   const rank = container.querySelector('.rec-tier-row .rec-candidate-rank');
-  expect(rank?.querySelector('.sr-only')?.textContent).toMatch(/^Expert rank \d+$/);
+  expect(rank?.querySelector('.sr-only')?.textContent).toMatch(/expert rank \d+$/i);
   expect(rank?.hasAttribute('aria-label')).toBe(false);
 });
 

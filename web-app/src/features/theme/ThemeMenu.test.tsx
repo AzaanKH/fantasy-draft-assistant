@@ -34,24 +34,15 @@ function key(target: Element, name: string): void {
   act(() => { vi.runOnlyPendingTimers(); });
 }
 
-// One open per test: Radix popper content is CPU-heavy to tear down under jsdom (~6s per open).
-it('opens from the keyboard, moves with arrows, selects with Enter, and returns focus to the trigger', () => {
+// One open per test: Radix popper content is CPU-heavy to tear down under jsdom (~6s per open). Radix owns the menu's
+// keyboard model; this checks only what the app adds: the checked current theme, the trigger's name and focus return.
+it('checks the current theme, names the chosen one on the trigger, and returns focus to it', () => {
   act(() => { trigger().focus(); });
   key(trigger(), 'Enter');
-  const menu = document.querySelector('[role="menu"]');
-  expect(menu?.getAttribute('aria-label')).toBe('Choose appearance');
   const items = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
-  expect(items.map(item => item.textContent)).toEqual(['Light', 'Dark', 'System']);
   expect(items.map(item => item.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false']);
 
-  // Enter opens with the first item focused; arrows rove.
-  expect(document.activeElement).toBe(items[0]);
   key(items[0] as HTMLElement, 'ArrowDown');
-  expect(document.activeElement).toBe(items[1]);
-  key(items[1] as HTMLElement, 'ArrowUp');
-  expect(document.activeElement).toBe(items[0]);
-  key(items[0] as HTMLElement, 'ArrowDown');
-
   key(items[1] as HTMLElement, 'Enter');
   expect(document.querySelector('[role="menu"]')).toBeNull();
   expect(trigger().getAttribute('aria-label')).toBe('Appearance: dark');

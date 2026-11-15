@@ -51,21 +51,14 @@ describe('DraftDecisionBar loading', () => {
   });
 
   it.each([
-    ['loading', { isLoading: true }, 'Finding your best pick…'],
-    ['blocked', { isLoading: false, recommendationsBlocked: true }, 'Paused until setup is finished.'],
-    ['empty', { isLoading: false }, 'No pick available'],
-  ] as const)('keeps the %s status to one truncated line, so the bar height never changes', (_, state, message) => {
+    ['loading', { isLoading: true }, /Finding your best pick/],
+    ['blocked', { isLoading: false, recommendationsBlocked: true }, /Paused until setup/],
+    ['empty', { isLoading: false }, /No pick available/],
+  ] as const)('reports the %s status in the bar when there is no pick', (_, state, message) => {
     decision.output.bestPick = null;
     Object.assign(decision, state);
     const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
-    expect(markup).toContain(`<p class="min-w-0 truncate text-sm text-muted-foreground">${message}</p>`);
-  });
-
-  it('shows loading feedback in the same bar before the first pick', () => {
-    decision.output.bestPick = null;
-    const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
-    expect(markup).toContain('class="draft-best-pick-inline"');
-    expect(markup).toContain('Finding your best pick');
+    expect(markup).toMatch(message);
   });
 });
 

@@ -247,18 +247,17 @@ describe('Sleeper sync ingress and reconciliation', () => {
     }
   });
 
-  it.each(['../draft', 'draft/events', 'draft?refresh', ' ', 'a'.repeat(129)])(
-    'does not start requests or refresh for invalid ID %j', async (draftId) => {
-      mocks.query.mockReturnValue({ data: undefined });
-      const { result, cleanup } = renderDraft(draftId);
-      const options = mocks.query.mock.calls[0]?.[0] as { enabled: boolean };
-      expect(options.enabled).toBe(false);
-      await result.refresh();
-      expect(eventSource).not.toHaveBeenCalled();
-      expect(fetcher).not.toHaveBeenCalled();
-      cleanup();
-    }
-  );
+  // The full list of invalid IDs is owned by connection-hints.test.ts; one shows the hook never requests with one.
+  it('does not start requests or refresh for an invalid ID', async () => {
+    mocks.query.mockReturnValue({ data: undefined });
+    const { result, cleanup } = renderDraft('../draft');
+    const options = mocks.query.mock.calls[0]?.[0] as { enabled: boolean };
+    expect(options.enabled).toBe(false);
+    await result.refresh();
+    expect(eventSource).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+    cleanup();
+  });
 
   it('uses the valid identifier for snapshot, stream, and refresh requests', async () => {
     const { result, cleanup } = renderDraft('Draft_1-abc');

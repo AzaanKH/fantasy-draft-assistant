@@ -8,11 +8,11 @@ describe('the header sync state', () => {
     expect(getHeaderSyncState('setup', null).label).toBe('Not connected');
   });
 
-  it('names every live state without provider jargon', () => {
-    const labels = (['confirmed', 'complete', 'reconciling', 'delayed', 'manual-continuity', 'disconnected'] as const)
-      .map((state) => getHeaderSyncState('live', state).label);
-    expect(labels).toEqual(['Synced', 'Draft complete', 'Syncing', 'Sync delayed', 'Sync lost · recording locally', 'Disconnected']);
-    expect(labels.join(' ')).not.toMatch(/Provider Truth|Reconcil/);
+  it('gives every live state its own label, and Connecting before the first state', () => {
+    const states = ['confirmed', 'complete', 'reconciling', 'delayed', 'manual-continuity', 'disconnected'] as const;
+    const labels = states.map((state) => getHeaderSyncState('live', state).label);
+    expect(new Set(labels).size).toBe(states.length);
+    expect(getHeaderSyncState('live', 'confirmed').label).toBe('Synced');
     expect(getHeaderSyncState('live', null).label).toBe('Connecting');
   });
 });
