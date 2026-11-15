@@ -94,7 +94,7 @@ function EmptyPick({
   );
 }
 
-/** The narrow-column name; a long one is set tighter so it still shows whole. */
+/** The narrow-column name; a long one is set tighter and may wrap at its hyphen so it still shows whole. */
 function BoardShortName({ name, position, team }: { readonly name: string; readonly position: Player['position']; readonly team: string | undefined }): React.ReactElement {
   const short = boardPlayerName(name, position, team);
   return <span className="board-name-short" data-long={short.length > 12 || undefined} aria-hidden="true">{short}</span>;
