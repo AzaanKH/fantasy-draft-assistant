@@ -34,6 +34,8 @@
     "tokens:check": "node scripts/design-tokens.mjs",
     "tokens:write": "node scripts/design-tokens.mjs --write",
     "browser:gate": "pnpm --filter scripts browser:gate",
+    "browser:gate:smoke": "pnpm --filter scripts browser:gate:smoke",
+    "browser:gate:tiered": "pnpm --filter scripts browser:gate:tiered",
     "draft:preflight": "pnpm --filter scripts prepare:live-draft",
     "draft:readiness": "pnpm --filter scripts check:draft-readiness",
     "draft:rehearsal": "pnpm --filter web-app rehearse:primary-league",

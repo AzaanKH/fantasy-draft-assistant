@@ -2,6 +2,7 @@ name: Verify
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -48,10 +49,61 @@ jobs:
         run: pnpm data:demo:check web-app/dist
       - name: Assert web static-output policy
         run: pnpm --filter scripts measure:web-bundle
+
+  browser-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      BROWSER_DATA_SOURCE: demo
+      BROWSER_GATE_MAX_MINUTES: 20
+      BROWSER_GATE_CHECK_TIMEOUT_MS: 240000
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm data:demo:install
+      - name: Select the browser gate tier
+        id: tier
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          FULL_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'full-gate') }}
+        shell: bash
+        run: |
+          tier=tiered
+          if [[ "$EVENT_NAME" == push || "$FULL_LABEL" == true ]]; then
+            tier=full
+          else
+            changed_paths="$(git diff --name-only "$PR_BASE" "$PR_HEAD" -- scripts/src/browser-gate/ scripts/src/browser-gate.ts)"
+            if [[ -n "$changed_paths" ]]; then tier=full; fi
+          fi
+          echo "tier=$tier" >> "$GITHUB_OUTPUT"
       - name: Install Chromium for the browser gate
         run: pnpm --filter scripts exec playwright install --with-deps chromium
-      - name: Browser gate (visual fixtures, narrow readiness, draft flow)
-        run: pnpm browser:gate
+      - name: Browser gate
+        env:
+          GATE_TIER: ${{ steps.tier.outputs.tier }}
+        shell: bash
+        run: |
+          log="${RUNNER_TEMP}/browser-gate.log"
+          status=0
+          if [[ "$GATE_TIER" == full ]]; then
+            pnpm browser:gate > "$log" 2>&1 || status=$?
+          else
+            pnpm browser:gate:tiered > "$log" 2>&1 || status=$?
+          fi
+          cat "$log"
+          exit "$status"
       - name: Hosted static demo opens on IndexedDB without the setup screen
         run: |
           pnpm build:web:demo

@@ -2,6 +2,7 @@
  * Browser gate settings: ports, data source, and the layout thresholds the checks assert.
  */
 import path from 'node:path';
+import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -94,3 +95,14 @@ export const ROW_MAX_HEIGHT = 44;
 export const MIN_POOL_ROWS_ABOVE_FOLD: Readonly<Record<number, number>> = { 900: 1, 1080: 3 };
 /** Whole tier columns visible beside the analysis at 1920x1080. */
 export const MIN_TIER_COLUMNS_AT_1920 = 5;
+
+/** Reject malformed limits at the environment boundary rather than disabling a deadline with NaN. */
+export function positiveSetting(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const value = raw === undefined ? fallback : Number(raw);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a finite positive number; received ${JSON.stringify(raw)}`);
+  return value;
+}
+
+export const GATE_WORKERS = Math.max(1, Math.floor(positiveSetting('BROWSER_GATE_WORKERS', Math.min(4, Math.max(1, Math.floor(availableParallelism() / 2))))));
+export const CHECK_TIMEOUT_MS = positiveSetting('BROWSER_GATE_CHECK_TIMEOUT_MS', 240_000);

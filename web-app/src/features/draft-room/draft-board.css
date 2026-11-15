@@ -93,7 +93,10 @@
 @container board-slot (max-width: 119px) {
   .board-name-full { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .board-name-short { display: inline; white-space: nowrap; }
-  .board-name-short[data-long] { font-size: var(--text-2xs); letter-spacing: -0.04em; }
+  /* A long name that still doesn't fit wraps at its hyphen (or, unhyphenated, anywhere) onto a second line,
+     so it never depends on font metrics to show whole. Two 12px lines plus the meta line fit a 44px round. */
+  .board-name-short[data-long] { font-size: var(--text-2xs); letter-spacing: -0.04em; white-space: normal; overflow-wrap: anywhere; }
+  .board-filled-pick .board-player-name:has(> [data-long]) { -webkit-line-clamp: 2; font-size: var(--text-2xs); line-height: 12px; }
   .board-slot > .board-empty-pick, .board-slot > .board-filled-pick { padding-inline: 6px; }
   .board-slot > .board-filled-pick .board-pick-number { right: 6px; }
   .board-filled-pick .board-player-identity { padding-right: 0; }

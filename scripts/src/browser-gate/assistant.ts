@@ -2,51 +2,8 @@
  * Browser gate: the Assistant's suggestions, analysis geometry, cold load and failure recovery.
  */
 import { type Browser, type Page } from 'playwright';
-import { ANALYSIS_MAX_HEIGHT, ANALYSIS_MIN_HEIGHT, ASSISTANT_RAIL_BREAKPOINT, CARD_CHIP_SELECTOR, CARD_HEIGHT, LEAD_CARD_HEIGHT, MAX_CARD_CHIPS, MAX_COLD_LOAD_CLS, MIN_ANSWER_HEIGHT, MIN_POOL_ROWS_ABOVE_FOLD, MOCK_TIMEOUT_MS, ORIGIN, RAIL_SUMMARY_HEIGHT, ROW_MAX_HEIGHT, ROW_MIN_HEIGHT, SIDE_GAP, SUGGESTION_CARDS, TIER_CLOSE_HEIGHT } from './config.js';
+import { ANALYSIS_MAX_HEIGHT, ANALYSIS_MIN_HEIGHT, ASSISTANT_RAIL_BREAKPOINT, CARD_CHIP_SELECTOR, CARD_HEIGHT, LEAD_CARD_HEIGHT, MAX_CARD_CHIPS, MAX_COLD_LOAD_CLS, MIN_ANSWER_HEIGHT, MIN_POOL_ROWS_ABOVE_FOLD, MOCK_TIMEOUT_MS, ORIGIN, RAIL_SUMMARY_HEIGHT, ROW_MAX_HEIGHT, ROW_MIN_HEIGHT, SIDE_GAP, SUGGESTION_CARDS, TIER_CLOSE_HEIGHT, type GateTheme } from './config.js';
 import { GateFailure, activateStorage, assert, assertNoConsoleErrors, clippedText, forEachTheme, gateContext, gatePage, openPausedMockAssistant, watchErrors } from './harness.js';
-import { THEMES } from './config.js';
-
-/**
- * On the Assistant the page-wide keys act only on a card that is on screen (item 1): with search results in place of
- * the cards (focus moved off the search to a result) or with the tier view open, 1-4 draft nothing. Back on the
- * cards, 1 drafts, so the check cannot pass with keys that never work.
- */
-export async function checkAssistantHiddenCardKeys(browser: Browser): Promise<void> {
-  const label = 'Assistant keys 1-4 with the cards hidden @ 1280x800';
-  const page = await gatePage(browser, { viewport: { width: 1280, height: 800 } });
-  try {
-    const errors = watchErrors(page);
-    await openPausedMockAssistant(page);
-    await page.locator('.suggestion-list .suggestion-row').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
-    const pick = page.locator('.draft-session-pick').first();
-    const before = await pick.innerText();
-    const unchanged = async (situation: string): Promise<void> => {
-      for (const key of ['1', '2', '3', '4']) await page.keyboard.press(key);
-      await page.waitForTimeout(1_000);
-      assert(await pick.innerText() === before, `${label}: ${situation}, a number key drafted a hidden card (${before} → ${await pick.innerText()})`);
-    };
-    await page.locator('#rec-view-panel-suggestions .rec-search input').fill('a');
-    await page.locator('.rec-pool-list .rec-candidate-identity').first().click();
-    assert(await page.locator('.suggestion-list').count() === 0, `${label}: the cards stayed beside the search results`);
-    await unchanged('with search results replacing the cards');
-    await page.locator('#rec-view-panel-suggestions .rec-search input').press('Escape');
-
-    await page.getByRole('tab', { name: 'Position tiers' }).click();
-    await page.locator('.rec-tier-row:not([data-drafted="true"]) .rec-tier-identity').first().click();
-    await page.locator('.rec-tiers-analysis').waitFor();
-    await unchanged('in Position tiers with the tier analysis focused');
-
-    await page.getByRole('tab', { name: 'Suggestions', exact: true }).click();
-    await page.locator('.suggestion-list .suggestion-row').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
-    await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); });
-    await page.keyboard.press('1');
-    await page.waitForFunction((previous) => document.querySelector('.draft-session-pick')?.textContent !== previous, before, { timeout: 10_000 })
-      .catch(() => { throw new GateFailure(`${label}: with the cards on screen, 1 did not draft (control)`); });
-    assertNoConsoleErrors(errors, label);
-  } finally {
-    await page.close();
-  }
-}
 
 /** How often the page states the analysis subject's timing facts, and whether the analysis follows the selected card. */
 export async function decisionFacts(page: Page): Promise<{
@@ -256,42 +213,6 @@ export async function assistantGeometry(page: Page): Promise<{ readonly cards: r
   }));
 }
 
-/** At every desktop size the loading Assistant's cards are exactly as tall as the loaded ones, so nothing moves (F3). */
-export async function checkAssistantSkeletonParity(browser: Browser, viewport: { readonly width: number; readonly height: number }): Promise<void> {
-  for (const theme of THEMES) await checkSkeletonParityInTheme(browser, viewport, theme);
-}
-
-async function checkSkeletonParityInTheme(browser: Browser, viewport: { readonly width: number; readonly height: number }, theme: (typeof THEMES)[number]): Promise<void> {
-  const label = `Assistant skeleton @ ${String(viewport.width)}x${String(viewport.height)} ${theme}`;
-  const measure = async (url: string) => {
-    const page = await gatePage(browser, { viewport, colorScheme: theme });
-    try {
-      const errors = watchErrors(page);
-      await page.goto(`${ORIGIN}${url}`);
-      await page.waitForSelector('html[data-visual-ready]', { timeout: 20_000 });
-      await page.locator('.suggestion-list > li').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
-      assertNoConsoleErrors(errors, `${label} (${url})`);
-      return { ...await assistantGeometry(page), intended: (await intendedAnalysisHeights(page)).analysis };
-    } finally {
-      await page.close();
-    }
-  };
-  const skeleton = await measure('/__visual/loading?state=assistant');
-  const loaded = await measure('/__visual/assistant?state=why');
-  // Equal is not enough: both must be the intended sizes, so a loading and loaded state that grew together still fail.
-  const wrongCards = loaded.cards.filter((height, index) => Math.abs(height - (index === 0 ? LEAD_CARD_HEIGHT : CARD_HEIGHT)) > 0.5);
-  assert(wrongCards.length === 0, `${label}: loaded cards are ${loaded.cards.join('/')}px; the leader must be ${String(LEAD_CARD_HEIGHT)}px and the rest ${String(CARD_HEIGHT)}px`);
-  assert(Math.abs(loaded.analysis - loaded.intended) <= 1, `${label}: the loaded analysis is ${String(loaded.analysis)}px; this window intends ${String(loaded.intended)}px`);
-  assert(skeleton.cards.length === SUGGESTION_CARDS && loaded.cards.length === SUGGESTION_CARDS, `${label}: ${String(skeleton.cards.length)} loading and ${String(loaded.cards.length)} loaded cards`);
-  const mismatched = skeleton.cards.flatMap((height, index) => {
-    const actual = loaded.cards[index] ?? 0;
-    return Math.abs(height - actual) > 1 ? [`card ${String(index + 1)} ${String(height)}px loading vs ${String(actual)}px loaded`] : [];
-  });
-  assert(mismatched.length === 0, `${label}: ${mismatched.join(', ')}`);
-  assert(Math.abs(skeleton.analysis - loaded.analysis) <= 1, `${label}: analysis is ${String(skeleton.analysis)}px loading vs ${String(loaded.analysis)}px loaded`);
-  console.log(`  ${label}: cards ${loaded.cards.join('/')}px, analysis ${String(loaded.analysis)}px`);
-}
-
 /** Data JSON the app fetches at startup; the cold-load check holds these until it has measured the skeleton. */
 export const isDataUrl = ({ pathname }: URL): boolean => pathname.includes('/data/') && pathname.endsWith('.json');
 
@@ -332,25 +253,38 @@ export async function checkAssistantColdLoad(browser: Browser, viewport: { reado
     assert(held.length > 0, `${label}: no data request was held`);
     assert(await page.locator('.rec-workspace[aria-busy="true"]').count() === 1, `${label}: the skeleton left while data was pending`);
     assert(await page.getByText('did not load').count() === 0 && await page.locator('.draft-setup-item').count() === 0, `${label}: pending data shows a failure notice`);
-    const skeleton = await assistantGeometry(page);
+    const skeletons = new Map<GateTheme, Awaited<ReturnType<typeof assistantGeometry>>>();
+    await forEachTheme(page, async (theme) => {
+      assert(await page.locator('.rec-workspace[aria-busy="true"]').count() === 1, `${label} ${theme}: the skeleton left while data was pending`);
+      skeletons.set(theme, await assistantGeometry(page));
+    });
     released = true;
     for (const resolve of held.splice(0)) resolve();
     await page.locator('.rec-workspace:not([aria-busy]) .suggestion-list > li').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
-    const loaded = await assistantGeometry(page);
-    assert(skeleton.cards.length === SUGGESTION_CARDS && loaded.cards.length === SUGGESTION_CARDS, `${label}: ${String(skeleton.cards.length)} loading and ${String(loaded.cards.length)} loaded cards`);
-    const mismatched = skeleton.cards.flatMap((height, index) => {
-      const actual = loaded.cards[index] ?? 0;
-      return Math.abs(height - actual) > 1 ? [`card ${String(index + 1)} ${String(height)}px loading vs ${String(actual)}px loaded`] : [];
+    await forEachTheme(page, async (theme) => {
+      const themed = `${label} ${theme}`;
+      const skeleton = skeletons.get(theme);
+      assert(skeleton, `${themed}: no skeleton geometry was measured`);
+      const loaded = await assistantGeometry(page);
+      await assertCardsKeepHeight(page, themed);
+      const intended = await intendedAnalysisHeights(page);
+      assert(Math.abs(loaded.analysis - intended.analysis) <= 1, `${themed}: loaded analysis is ${String(loaded.analysis)}px; this window intends ${String(intended.analysis)}px`);
+      assert(skeleton.cards.length === SUGGESTION_CARDS && loaded.cards.length === SUGGESTION_CARDS, `${themed}: ${String(skeleton.cards.length)} loading and ${String(loaded.cards.length)} loaded cards`);
+      const mismatched = skeleton.cards.flatMap((height, index) => {
+        const actual = loaded.cards[index] ?? 0;
+        return Math.abs(height - actual) > 1 ? [`card ${String(index + 1)} ${String(height)}px loading vs ${String(actual)}px loaded`] : [];
+      });
+      assert(mismatched.length === 0, `${themed}: ${mismatched.join(', ')}`);
+      assert(Math.abs(skeleton.analysis - loaded.analysis) <= 1, `${themed}: analysis is ${String(skeleton.analysis)}px loading vs ${String(loaded.analysis)}px loaded`);
+      console.log(`  ${themed}: cards ${loaded.cards.join('/')}px, analysis ${String(loaded.analysis)}px; skeleton parity passed`);
     });
-    assert(mismatched.length === 0, `${label}: ${mismatched.join(', ')}`);
-    assert(Math.abs(skeleton.analysis - loaded.analysis) <= 1, `${label}: analysis is ${String(skeleton.analysis)}px loading vs ${String(loaded.analysis)}px loaded`);
     await page.waitForTimeout(500);
     const shifts = await page.evaluate(() => (window as unknown as { __layoutShifts?: { value: number; sources: string[] }[] }).__layoutShifts ?? null);
     assert(shifts !== null, `${label}: the layout-shift observer did not run`);
     const cls = shifts.reduce((sum, shift) => sum + shift.value, 0);
     assert(cls < MAX_COLD_LOAD_CLS, `${label}: cold-load CLS is ${cls.toFixed(5)} (limit ${String(MAX_COLD_LOAD_CLS)}): ${shifts.map((shift) => `${shift.value.toFixed(5)} ${shift.sources.join(' + ')}`).join('; ')}`);
     assertNoConsoleErrors(errors, label);
-    console.log(`  ${label}: cards ${loaded.cards.join('/')}px, analysis ${String(loaded.analysis)}px, CLS ${cls.toFixed(5)}`);
+    console.log(`  ${label}: light/dark skeleton parity, CLS ${cls.toFixed(5)}`);
   } finally {
     await page.close();
   }

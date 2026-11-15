@@ -5,10 +5,10 @@
 import { http, HttpError } from '@fantasy-draft/shared/http';
 import { Processes, type ProcessService } from '@fantasy-draft/shared/node';
 import { createConnection } from 'node:net';
-import { API_PORT, DATA_ENV, ORIGIN, REPO_ROOT, SERVER_START_TIMEOUT_MS, WEB_PORT } from './config.js';
+import { API_PORT, DATA_ENV, ORIGIN, REPO_ROOT, SERVER_START_TIMEOUT_MS, WEB_PORT, positiveSetting } from './config.js';
 
 /** The whole run may take this long (BROWSER_GATE_MAX_MINUTES); the server outlives it slightly so cleanup can finish. */
-export const GATE_MAX_RUN_MS = Math.max(1, Number(process.env['BROWSER_GATE_MAX_MINUTES'] ?? 240)) * 60_000;
+export const GATE_MAX_RUN_MS = positiveSetting('BROWSER_GATE_MAX_MINUTES', 240) * 60_000;
 const SERVER_LIFETIME_MS = GATE_MAX_RUN_MS + 5 * 60_000;
 /** Restarts allowed after the first start. */
 const MAX_RESTARTS = 1;
@@ -82,24 +82,29 @@ export async function startGateServer(): Promise<GateServer> {
     throw error;
   }
   let restarts = 0;
+  let restarting: Promise<boolean> | null = null;
   return {
     get restarts() { return restarts; },
     async healthy() {
       return current.exit === null && await isListening();
     },
-    async restart(reason) {
-      if (restarts >= MAX_RESTARTS) return false;
-      restarts += 1;
-      console.error(`Vite is not answering (${reason}); restarting it (${String(restarts)} of ${String(MAX_RESTARTS)}).`);
-      await current.stop();
-      current = startVite();
-      try {
-        await waitForServer(current);
-        return true;
-      } catch (error) {
-        console.error(`Vite restart failed: ${error instanceof Error ? error.message : String(error)}`);
-        return false;
-      }
+    restart(reason) {
+      // Workers that observe the same outage share the one restart and wait for it to finish.
+      restarting ??= (async () => {
+        if (restarts >= MAX_RESTARTS) return false;
+        restarts += 1;
+        console.error(`Vite is not answering (${reason}); restarting it (${String(restarts)} of ${String(MAX_RESTARTS)}).`);
+        await current.stop();
+        current = startVite();
+        try {
+          await waitForServer(current);
+          return true;
+        } catch (error) {
+          console.error(`Vite restart failed: ${error instanceof Error ? error.message : String(error)}`);
+          return false;
+        }
+      })().finally(() => { restarting = null; });
+      return restarting;
     },
     stop: () => current.stop(),
   };

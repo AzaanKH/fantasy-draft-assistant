@@ -1,73 +1,111 @@
-/**
- * Browser gate: renders every `/__visual/` fixture and walks a short draft flow in the
- * real app. It starts its own Vite dev server and never contacts a draft provider.
- * Needs `playwright install chromium`.
- *
- * By default the app runs on the checked-in demo data with IndexedDB storage, so the tier, geometry and
- * recommendation checks are never blocked by stale local data. `BROWSER_GATE_DATA=local` uses the local data
- * instead. Any console error or warning (React's included) fails the check that saw it.
- *
- * The checks live in `browser-gate/` by area; this file only runs them. BROWSER_GATE_ONLY=<regex> runs only the
- * checks whose label matches. BROWSER_GATE_MAX_MINUTES caps the whole run (default 240).
- */
+/** Browser gate entry point. Every check uses isolated storage against one pre-warmed Vite and Chromium session. */
 import { Effect } from 'effect';
-import { chromium } from 'playwright';
+import { chromium, type Browser } from 'playwright';
 import { io, runMain } from './effect-runtime.js';
-import { gateChecks } from './browser-gate/checks.js';
-import { GATE_MAX_RUN_MS, isConnectionFailure, isInfrastructureFailure, requireFreePorts, startGateServer } from './browser-gate/server.js';
+import { gateChecks, type GateCheck, type GateTier } from './browser-gate/checks.js';
+import { CHECK_TIMEOUT_MS, GATE_WORKERS, ORIGIN } from './browser-gate/config.js';
+import { gatePage, openPausedMockAssistant, runWithDeadline } from './browser-gate/harness.js';
+import { GATE_MAX_RUN_MS, isConnectionFailure, isInfrastructureFailure, requireFreePorts, startGateServer, type GateServer } from './browser-gate/server.js';
 
-const formatDuration = (ms: number): string => `${String(Math.floor(ms / 60_000))}m${String(Math.round((ms % 60_000) / 1000)).padStart(2, '0')}s`;
-
+const formatDuration = (ms: number): string => `${(ms / 1000).toFixed(2)}s`;
 const webServer = Effect.acquireRelease(io(startGateServer), (server) => Effect.promise(() => server.stop()));
+const browser = Effect.acquireRelease(io(() => chromium.launch({ headless: true })), (instance) => Effect.promise(() => instance.close()));
 
-const browser = Effect.acquireRelease(
-  io(() => chromium.launch({ headless: true })),
-  (instance) => Effect.promise(() => instance.close()),
-);
+type Failure = { readonly label: string; readonly message: string; readonly infrastructure: boolean };
 
-const program = Effect.scoped(Effect.gen(function* () {
-  const started = Date.now();
-  yield* io(requireFreePorts);
-  const server = yield* webServer;
-  const instance = yield* browser;
-  const failures: { readonly label: string; readonly message: string; readonly infrastructure: boolean }[] = [];
-  const only = process.env['BROWSER_GATE_ONLY'] ? new RegExp(process.env['BROWSER_GATE_ONLY'], 'i') : null;
-  const checks = gateChecks().filter((check) => !only || only.test(check.label));
+/** Load the lazy routes before workers start, letting Vite finish dependency discovery and optimization once. */
+async function prewarm(instance: Browser): Promise<void> {
+  await runWithDeadline(async () => {
+    const page = await gatePage(instance, { viewport: { width: 1280, height: 800 } });
+    try {
+      await page.goto(`${ORIGIN}/__visual/assistant?state=why`);
+      await page.locator('html[data-visual-ready]').waitFor();
+      await openPausedMockAssistant(page);
+      await page.getByRole('tab', { name: 'Position tiers' }).click();
+      await page.locator('.rec-tier-columns').waitFor();
+      await page.evaluate(() => {
+        window.history.pushState(null, '', '/sidepanel');
+        window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      });
+      await page.getByRole('navigation', { name: 'Side panel navigation' }).waitFor();
+    } finally {
+      await page.close();
+    }
+  }, CHECK_TIMEOUT_MS);
+}
 
-  for (const check of checks) {
-    const outcome = yield* io(async (): Promise<string | null> => {
-      if (Date.now() - started > GATE_MAX_RUN_MS) return `not run: the gate passed its ${formatDuration(GATE_MAX_RUN_MS)} cap`;
-      // A server that died between checks is restarted before the next one, so later checks are not all refused.
-      if (!await server.healthy() && !await server.restart(`before "${check.label}"`)) return 'not run: Vite is down and could not be restarted';
-      const attempt = async (): Promise<string | null> => {
-        try {
-          await check.run(instance);
-          return null;
-        } catch (error) {
-          return error instanceof Error ? error.message : String(error);
-        }
-      };
-      const checkStarted = Date.now();
-      let message = await attempt();
-      // Refused because the server died during this check: restart it once and run the check again.
+async function runTier({ tier, checks, instance, server, started }: {
+  tier: GateTier; checks: readonly GateCheck[]; instance: Browser; server: GateServer; started: number;
+}): Promise<readonly Failure[]> {
+  const tierStarted = Date.now();
+  const failures: Failure[] = [];
+  const selected = checks.filter((check) => tier === 'full' || check.tier === 'smoke');
+  console.log(`Starting ${tier}: ${String(selected.length)} checks, ${String(GATE_WORKERS)} workers.`);
+  const run = async (check: GateCheck): Promise<void> => {
+    const checkStarted = Date.now();
+    const attempt = async (): Promise<string | null> => {
+      try {
+        await runWithDeadline(() => check.run(instance), CHECK_TIMEOUT_MS);
+        return null;
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+    };
+    let message: string | null;
+    if (Date.now() - started >= GATE_MAX_RUN_MS) message = `not run: the gate passed its ${formatDuration(GATE_MAX_RUN_MS)} cap`;
+    else if (!await server.healthy() && !await server.restart(`before "${check.label}"`)) message = 'not run: Vite is down and could not be restarted';
+    else {
+      message = await attempt();
       if (message !== null && isConnectionFailure(message) && !await server.healthy() && await server.restart(`during "${check.label}"`)) {
         console.error(`retry ${check.label} after the Vite restart`);
         message = await attempt();
       }
-      const status = message === null ? 'ok  ' : isInfrastructureFailure(message) ? 'INFRA' : 'FAIL';
-      console.log(`${status} ${check.label}${message === null ? '' : `: ${message}`} (${formatDuration(Date.now() - checkStarted)})`);
-      return message;
-    });
-    if (outcome !== null) failures.push({ label: check.label, message: outcome, infrastructure: isInfrastructureFailure(outcome) });
-  }
-
-  console.log(`Ran ${String(checks.length)} check(s) in ${formatDuration(Date.now() - started)}; Vite restarts: ${String(server.restarts)}.`);
-  const infrastructure = failures.filter((failure) => failure.infrastructure);
+    }
+    const infrastructure = message !== null && isInfrastructureFailure(message);
+    console.log(`${message === null ? 'ok  ' : infrastructure ? 'INFRA' : 'FAIL'} [${tier}] ${check.label}${message === null ? '' : `: ${message}`} (${formatDuration(Date.now() - checkStarted)})`);
+    if (message !== null) failures.push({ label: check.label, message, infrastructure });
+  };
+  // Only the built extension checks share filesystem state. Keep those outside the parallel browser checks.
+  const pending = selected.filter((check) => !check.serial).values();
+  await Promise.all(Array.from({ length: Math.min(GATE_WORKERS, selected.length) }, async () => {
+    for (const check of pending) await run(check);
+  }));
+  for (const check of selected.filter((check) => check.serial)) await run(check);
   const assertions = failures.filter((failure) => !failure.infrastructure);
-  // Environmental failures (server down, launch or navigation timeouts) are listed apart from real assertion failures.
-  if (assertions.length > 0) console.log(`Assertion failures (${String(assertions.length)}):\n${assertions.map((failure) => `  - ${failure.label}: ${failure.message.split('\n')[0] ?? ''}`).join('\n')}`);
-  if (infrastructure.length > 0) console.log(`Infrastructure failures (${String(infrastructure.length)}), not app defects; rerun them:\n${infrastructure.map((failure) => `  - ${failure.label}: ${failure.message.split('\n')[0] ?? ''}`).join('\n')}`);
-  if (failures.length > 0) return yield* Effect.fail(new Error(`${String(assertions.length)} assertion and ${String(infrastructure.length)} infrastructure failure(s)`));
+  const infrastructure = failures.filter((failure) => failure.infrastructure);
+  console.log(`[${tier}] Ran ${String(selected.length)} check(s) in ${formatDuration(Date.now() - tierStarted)}; Vite restarts: ${String(server.restarts)}.`);
+  for (const [name, group] of [['Assertion', assertions], ['Infrastructure', infrastructure]] as const) {
+    if (group.length) console.log(`[${tier}] ${name} failures (${String(group.length)}):\n${group.map((failure) => `  - ${failure.label}: ${failure.message.split('\n')[0] ?? ''}`).join('\n')}`);
+  }
+  return failures;
+}
+
+const program = Effect.scoped(Effect.gen(function* () {
+  const started = Date.now();
+  const mode = process.env['BROWSER_GATE_TIER'] ?? 'full';
+  if (mode !== 'full' && mode !== 'smoke' && mode !== 'tiered') return yield* Effect.fail(new Error('BROWSER_GATE_TIER must be smoke, full, or tiered'));
+  const only = process.env['BROWSER_GATE_ONLY'] ? new RegExp(process.env['BROWSER_GATE_ONLY'], 'i') : null;
+  const checks = gateChecks().filter((check) => !only || only.test(check.label));
+  if (checks.length === 0 || (mode !== 'full' && !checks.some((check) => check.tier === 'smoke'))) return yield* Effect.fail(new Error('No checks selected for this tier'));
+  yield* io(requireFreePorts);
+  const server = yield* webServer;
+  const instance = yield* browser;
+  yield* io(async () => {
+    try {
+      await prewarm(instance);
+      console.log(`Vite and dependency pre-warm finished in ${formatDuration(Date.now() - started)}.`);
+    } catch (error) {
+      // Warmup is an optimization. Isolated checks still run and own the tier's failure summary and exit status.
+      console.error(`INFRA pre-warm: ${error instanceof Error ? error.message : String(error)}; continuing into checks.`);
+    }
+  });
+  let failures = yield* io(() => runTier({ tier: mode === 'full' ? 'full' : 'smoke', checks, instance, server, started }));
+  if (mode === 'tiered' && failures.length > 0) {
+    console.log('Smoke failed; escalating to full in the same Vite/browser session. The full result determines the exit status.');
+    failures = yield* io(() => runTier({ tier: 'full', checks, instance, server, started }));
+  }
+  console.log(`Total browser gate wall time: ${formatDuration(Date.now() - started)}.`);
+  if (failures.length) return yield* Effect.fail(new Error(`${String(failures.filter((failure) => !failure.infrastructure).length)} assertion and ${String(failures.filter((failure) => failure.infrastructure).length)} infrastructure failure(s)`));
   console.log('Browser gate passed.');
 }));
 

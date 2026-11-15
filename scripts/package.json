@@ -37,6 +37,8 @@
     "lint": "node ../scripts/lint.mjs scripts",
     "clean": "rm -rf dist",
     "browser:gate": "tsx --conditions=@fantasy-draft/source src/browser-gate.ts",
+    "browser:gate:smoke": "BROWSER_GATE_TIER=smoke tsx --conditions=@fantasy-draft/source src/browser-gate.ts",
+    "browser:gate:tiered": "BROWSER_GATE_TIER=tiered tsx --conditions=@fantasy-draft/source src/browser-gate.ts",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {

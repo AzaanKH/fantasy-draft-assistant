@@ -51,6 +51,14 @@ The local Vitest suites use fixtures, local data (or `demo-data/` in CI), mocked
 - See [workspace gates](docs/workspace-gates.md) for root configs, source resolution, lint baselines, and the built-package contract check.
 - Code checks do not require starting the app or refreshing live data. For documentation-only changes, check the edited guidance, command names, and links; run code checks only if the change affects executable behavior.
 
+## Browser gate
+
+- `pnpm browser:gate:smoke` covers the main browser flows; `pnpm browser:gate` runs all checks. `pnpm browser:gate:tiered` escalates smoke failures to full within one Vite/browser session and exits with the full result.
+- Every registered check declares `tier: 'smoke' | 'full'`. Full includes smoke. Keep browser contexts isolated; mark checks that share external state `serial`.
+- `BROWSER_GATE_WORKERS` controls concurrency. `BROWSER_GATE_CHECK_TIMEOUT_MS` bounds each check, and `BROWSER_GATE_MAX_MINUTES` caps the session. All limits must be finite and positive. `BROWSER_GATE_PORT` reserves that port and the next one for the gate.
+- The gate uses demo data and never starts the provider sync server. Fresh clones need `pnpm data:demo:install` and `pnpm --filter scripts exec playwright install chromium`. Never install demo data into the user's real-data checkout.
+- CI runs the gate once on Node 24 in its own job. PRs use tiered; main pushes, the `full-gate` label, and gate source changes use full. See [process runner](docs/process-runner.md#browser-gate-tiers) for isolation, timeouts and escalation.
+
 ## Starting the app
 
 - When the task requires launching the app for use or browser verification, run `pnpm dev:live` from the repository root. The startup request authorizes its live Sleeper and FantasyPros refreshes and local data/report writes without a separate approval step. Invalid or stale Core Draft Data blocks startup; draft prep report failure only produces a warning.
