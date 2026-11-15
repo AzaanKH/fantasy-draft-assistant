@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_ROSTER_REQUIREMENTS } from '@fantasy-draft/shared/league';
 import { createDraftStore } from './draftStore';
 import { draftSource, deriveDraftState } from './draft/source';
 import { draftPlayers } from './draft/draft-catalog';
@@ -138,4 +139,42 @@ it('denies drafting at a keeper slot and at each position limit', () => {
   expect(view.canDraft).toBe(true);
   expect(view.canDraftByPosition.QB).toBe(false);
   expect(view.canDraftByPosition.WR).toBe(true);
+});
+
+describe('draft permissions', () => {
+  type Store = ReturnType<typeof createDraftStore>;
+  const managerStore = (): Store => {
+    const store = createDraftStore();
+    store.getState().setConfig({ myPickPosition: 1 });
+    store.getState().setSessionMode('mock');
+    return store;
+  };
+  const kickers = Array.from({ length: DEFAULT_ROSTER_REQUIREMENTS.K.max }, (_, index) => ({
+    playerId: `k-${String(index)}`, playerName: `Kicker ${String(index)}`, position: 'K' as const,
+    teamIndex: 0, round: index + 2, isMyKeeper: true,
+  }));
+
+  it.each<[string, (store: Store) => void, boolean]>([
+    ['a manager mock turn', () => undefined, true],
+    ['another team\'s mock turn', (store) => { store.setState({ draftProgress: { anchor: { kind: 'carry', pickNumber: 2 }, historyLength: 0 } }); }, false],
+    ['a setup workspace', (store) => { store.getState().setSessionMode('setup'); }, false],
+  ])('allows a local pick only during %s', (_, arrange, canDraft) => {
+    const store = managerStore();
+    arrange(store);
+    expect(deriveDraftState(store.getState()).canDraft).toBe(canDraft);
+  });
+
+  it.each<[string, (store: Store) => void, 'K' | 'TE']>([
+    ['keeper supply fills its maximum', (store) => { store.getState().preloadKeepers(kickers); }, 'K'],
+    ['the league does not roster it', (store) => {
+      store.getState().setRosterRequirements({ ...DEFAULT_ROSTER_REQUIREMENTS, TE: { starters: 0, max: 0 } });
+    }, 'TE'],
+  ])('blocks one position once %s', (_, arrange, position) => {
+    const store = managerStore();
+    expect(deriveDraftState(store.getState()).canDraftByPosition[position]).toBe(true);
+    arrange(store);
+    const view = deriveDraftState(store.getState());
+    expect(view.canDraft).toBe(true);
+    expect(view.canDraftByPosition[position]).toBe(false);
+  });
 });

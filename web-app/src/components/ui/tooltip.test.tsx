@@ -2,7 +2,7 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
+import { IconTooltip, TooltipProvider } from './tooltip';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -11,31 +11,41 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
 });
-afterEach(() => { act(() => { root.unmount(); }); container.remove(); });
+afterEach(() => { act(() => { root.unmount(); }); container.remove(); vi.unstubAllGlobals(); });
 
-const content = (): Element | null => document.querySelector('[data-slot="tooltip-content"]');
+const tooltip = (): Element | null => document.querySelector('[data-slot="tooltip-content"]');
 
-it('does not reopen when focus returns from the menu its trigger opened, and never takes pointer events', () => {
+/** Each way a menu trigger hands focus to its menu; the menu then returns focus to the trigger. */
+const opensMenu: Record<string, (trigger: HTMLButtonElement) => void> = {
+  pointer: (trigger) => {
+    // Radix menus open on pointerdown without focusing the trigger.
+    trigger.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    document.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }));
+  },
+  keyboard: (trigger) => {
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    trigger.blur();
+  },
+  'focus leaving while expanded': (trigger) => {
+    trigger.focus();
+    trigger.setAttribute('aria-expanded', 'true');
+    trigger.blur();
+    trigger.setAttribute('aria-expanded', 'false');
+  },
+};
+
+it.each(Object.keys(opensMenu))('does not reopen when a menu opened by %s returns focus, then shows on a later focus', (how) => {
   act(() => {
-    root.render(createElement(TooltipProvider, { delayDuration: 0, children: createElement(Tooltip, { children: [
-      createElement(TooltipTrigger, { key: 'trigger', asChild: true, children: createElement('button', { type: 'button', 'aria-expanded': 'false' }, 'Appearance') }),
-      createElement(TooltipContent, { key: 'content' }, 'Appearance'),
-    ] }) }));
+    root.render(createElement(TooltipProvider, { delayDuration: 0, children: createElement(IconTooltip, { label: 'Appearance', children: createElement('button', { type: 'button', 'aria-haspopup': 'menu' }, 'Theme') }) }));
   });
-  const button = container.querySelector('button');
-  if (!button) throw new Error('No trigger');
-  act(() => { button.focus(); });
-  expect(content()?.className).toContain('pointer-events-none');
+  const trigger = container.querySelector('button');
+  if (!trigger) throw new Error('No trigger');
+  act(() => { opensMenu[how]?.(trigger); });
+  act(() => { trigger.focus(); });
+  expect(tooltip()).toBeNull();
 
-  // The menu opens and takes focus, then closes and hands it back.
-  button.setAttribute('aria-expanded', 'true');
-  act(() => { button.blur(); });
-  button.setAttribute('aria-expanded', 'false');
-  act(() => { button.focus(); });
-  expect(content()).toBeNull();
-
-  // An ordinary later focus still shows the tooltip.
-  act(() => { button.blur(); });
-  act(() => { button.focus(); });
-  expect(content()).not.toBeNull();
+  act(() => { trigger.blur(); });
+  act(() => { trigger.focus(); });
+  expect(tooltip()?.textContent).toContain('Appearance');
 });
