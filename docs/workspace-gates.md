@@ -101,7 +101,6 @@ Tracked files have a 1048576-byte limit, including catalog data and source files
 | `extension/public/manifest.json` | Chrome extension manifest source. |
 | `docs/design-system/tokens.json` | Reviewed design-system tokens and public reference metadata. |
 | `docs/design-system/pending-paper-import.json` | Reviewed design-system source metadata. |
-| `scripts/persistence/fixtures/worker-stop-without-close.json` | Deterministic persistence regression commands, not a provider export. |
 | `docs/images/assistant.png` | Public assistant reference artwork. |
 | `docs/images/draft-workspace.png` | Public draft workspace reference artwork. |
 | `web-app/src/lib/calculations/__snapshots__/recommendations-linear-pick-50.jsonl` | Existing deterministic recommendation golden output, not a provider or model export; bounded by the ordinary file-size cap. |

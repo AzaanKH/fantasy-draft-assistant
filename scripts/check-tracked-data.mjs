@@ -25,7 +25,6 @@ export const jsonAllowances = new Map([
   ['extension/public/manifest.json', 'Chrome extension manifest source.'],
   ['docs/design-system/tokens.json', 'Reviewed design-system tokens and public reference metadata.'],
   ['docs/design-system/pending-paper-import.json', 'Reviewed design-system source metadata.'],
-  ['scripts/persistence/fixtures/worker-stop-without-close.json', 'Deterministic persistence regression commands, not a provider export.'],
 ]);
 export const goldenSnapshots = new Map([
   'recommendations-linear-pick-50', 'recommendations-snake-pick-1', 'recommendations-snake-pick-100',
