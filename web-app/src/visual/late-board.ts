@@ -3,8 +3,8 @@ import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import type { Player } from '@fantasy-draft/shared/league';
 import type { DraftStoreApi, RecordedDraftPick } from '@/stores/draftStore';
 
-// Include initials, a suffix and compound surnames. All widths exercise the same content on every run.
-const NAMES = ['Christian McCaffrey', 'Jaxon Smith-Njigba', 'Marvin Harrison Jr.', 'A.J. Brown', 'Jonathan Taylor', 'Justin Jefferson'];
+// Include long surnames with and without a hyphen, plus initials and a suffix. All widths exercise the same content on every run.
+const NAMES = ['Jacory Croskey-Merritt', 'Alex Constantinidis', 'Marvin Harrison Jr.', 'A.J. Brown', 'Jonathan Taylor', 'Justin Jefferson'];
 
 export function seedLateBoard(store: DraftStoreApi, templates: readonly Player[], now: number): Player[] {
   const order = createSlotSequence({ type: 'snake', teams: 12, rounds: 16 });

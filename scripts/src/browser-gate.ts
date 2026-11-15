@@ -90,8 +90,15 @@ const program = Effect.scoped(Effect.gen(function* () {
   yield* io(requireFreePorts);
   const server = yield* webServer;
   const instance = yield* browser;
-  yield* io(() => prewarm(instance));
-  console.log(`Vite and dependency pre-warm finished in ${formatDuration(Date.now() - started)}.`);
+  yield* io(async () => {
+    try {
+      await prewarm(instance);
+      console.log(`Vite and dependency pre-warm finished in ${formatDuration(Date.now() - started)}.`);
+    } catch (error) {
+      // Warmup is an optimization. Isolated checks still run and own the tier's failure summary and exit status.
+      console.error(`INFRA pre-warm: ${error instanceof Error ? error.message : String(error)}; continuing into checks.`);
+    }
+  });
   let failures = yield* io(() => runTier({ tier: mode === 'full' ? 'full' : 'smoke', checks, instance, server, started }));
   if (mode === 'tiered' && failures.length > 0) {
     console.log('Smoke failed; escalating to full in the same Vite/browser session. The full result determines the exit status.');

@@ -2,7 +2,7 @@
  * Browser gate: the Assistant's suggestions, analysis geometry, cold load and failure recovery.
  */
 import { type Browser, type Page } from 'playwright';
-import { ANALYSIS_MAX_HEIGHT, ANALYSIS_MIN_HEIGHT, ASSISTANT_RAIL_BREAKPOINT, CARD_CHIP_SELECTOR, CARD_HEIGHT, LEAD_CARD_HEIGHT, MAX_CARD_CHIPS, MAX_COLD_LOAD_CLS, MIN_ANSWER_HEIGHT, MIN_POOL_ROWS_ABOVE_FOLD, MOCK_TIMEOUT_MS, ORIGIN, RAIL_SUMMARY_HEIGHT, ROW_MAX_HEIGHT, ROW_MIN_HEIGHT, SIDE_GAP, SUGGESTION_CARDS, TIER_CLOSE_HEIGHT } from './config.js';
+import { ANALYSIS_MAX_HEIGHT, ANALYSIS_MIN_HEIGHT, ASSISTANT_RAIL_BREAKPOINT, CARD_CHIP_SELECTOR, CARD_HEIGHT, LEAD_CARD_HEIGHT, MAX_CARD_CHIPS, MAX_COLD_LOAD_CLS, MIN_ANSWER_HEIGHT, MIN_POOL_ROWS_ABOVE_FOLD, MOCK_TIMEOUT_MS, ORIGIN, RAIL_SUMMARY_HEIGHT, ROW_MAX_HEIGHT, ROW_MIN_HEIGHT, SIDE_GAP, SUGGESTION_CARDS, TIER_CLOSE_HEIGHT, type GateTheme } from './config.js';
 import { GateFailure, activateStorage, assert, assertNoConsoleErrors, clippedText, forEachTheme, gateContext, gatePage, openPausedMockAssistant, watchErrors } from './harness.js';
 
 /** How often the page states the analysis subject's timing facts, and whether the analysis follows the selected card. */
@@ -253,28 +253,38 @@ export async function checkAssistantColdLoad(browser: Browser, viewport: { reado
     assert(held.length > 0, `${label}: no data request was held`);
     assert(await page.locator('.rec-workspace[aria-busy="true"]').count() === 1, `${label}: the skeleton left while data was pending`);
     assert(await page.getByText('did not load').count() === 0 && await page.locator('.draft-setup-item').count() === 0, `${label}: pending data shows a failure notice`);
-    const skeleton = await assistantGeometry(page);
+    const skeletons = new Map<GateTheme, Awaited<ReturnType<typeof assistantGeometry>>>();
+    await forEachTheme(page, async (theme) => {
+      assert(await page.locator('.rec-workspace[aria-busy="true"]').count() === 1, `${label} ${theme}: the skeleton left while data was pending`);
+      skeletons.set(theme, await assistantGeometry(page));
+    });
     released = true;
     for (const resolve of held.splice(0)) resolve();
     await page.locator('.rec-workspace:not([aria-busy]) .suggestion-list > li').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
-    const loaded = await assistantGeometry(page);
-    await assertCardsKeepHeight(page, label);
-    const intended = await intendedAnalysisHeights(page);
-    assert(Math.abs(loaded.analysis - intended.analysis) <= 1, `${label}: loaded analysis is ${String(loaded.analysis)}px; this window intends ${String(intended.analysis)}px`);
-    assert(skeleton.cards.length === SUGGESTION_CARDS && loaded.cards.length === SUGGESTION_CARDS, `${label}: ${String(skeleton.cards.length)} loading and ${String(loaded.cards.length)} loaded cards`);
-    const mismatched = skeleton.cards.flatMap((height, index) => {
-      const actual = loaded.cards[index] ?? 0;
-      return Math.abs(height - actual) > 1 ? [`card ${String(index + 1)} ${String(height)}px loading vs ${String(actual)}px loaded`] : [];
+    await forEachTheme(page, async (theme) => {
+      const themed = `${label} ${theme}`;
+      const skeleton = skeletons.get(theme);
+      assert(skeleton, `${themed}: no skeleton geometry was measured`);
+      const loaded = await assistantGeometry(page);
+      await assertCardsKeepHeight(page, themed);
+      const intended = await intendedAnalysisHeights(page);
+      assert(Math.abs(loaded.analysis - intended.analysis) <= 1, `${themed}: loaded analysis is ${String(loaded.analysis)}px; this window intends ${String(intended.analysis)}px`);
+      assert(skeleton.cards.length === SUGGESTION_CARDS && loaded.cards.length === SUGGESTION_CARDS, `${themed}: ${String(skeleton.cards.length)} loading and ${String(loaded.cards.length)} loaded cards`);
+      const mismatched = skeleton.cards.flatMap((height, index) => {
+        const actual = loaded.cards[index] ?? 0;
+        return Math.abs(height - actual) > 1 ? [`card ${String(index + 1)} ${String(height)}px loading vs ${String(actual)}px loaded`] : [];
+      });
+      assert(mismatched.length === 0, `${themed}: ${mismatched.join(', ')}`);
+      assert(Math.abs(skeleton.analysis - loaded.analysis) <= 1, `${themed}: analysis is ${String(skeleton.analysis)}px loading vs ${String(loaded.analysis)}px loaded`);
+      console.log(`  ${themed}: cards ${loaded.cards.join('/')}px, analysis ${String(loaded.analysis)}px; skeleton parity passed`);
     });
-    assert(mismatched.length === 0, `${label}: ${mismatched.join(', ')}`);
-    assert(Math.abs(skeleton.analysis - loaded.analysis) <= 1, `${label}: analysis is ${String(skeleton.analysis)}px loading vs ${String(loaded.analysis)}px loaded`);
     await page.waitForTimeout(500);
     const shifts = await page.evaluate(() => (window as unknown as { __layoutShifts?: { value: number; sources: string[] }[] }).__layoutShifts ?? null);
     assert(shifts !== null, `${label}: the layout-shift observer did not run`);
     const cls = shifts.reduce((sum, shift) => sum + shift.value, 0);
     assert(cls < MAX_COLD_LOAD_CLS, `${label}: cold-load CLS is ${cls.toFixed(5)} (limit ${String(MAX_COLD_LOAD_CLS)}): ${shifts.map((shift) => `${shift.value.toFixed(5)} ${shift.sources.join(' + ')}`).join('; ')}`);
     assertNoConsoleErrors(errors, label);
-    console.log(`  ${label}: cards ${loaded.cards.join('/')}px, analysis ${String(loaded.analysis)}px, CLS ${cls.toFixed(5)}`);
+    console.log(`  ${label}: light/dark skeleton parity, CLS ${cls.toFixed(5)}`);
   } finally {
     await page.close();
   }

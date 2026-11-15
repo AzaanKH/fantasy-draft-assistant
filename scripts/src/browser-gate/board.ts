@@ -25,13 +25,22 @@ export async function checkLaterRoundBoard(browser: Browser): Promise<void> {
         const themed = `${label} @ ${String(viewport.width)}x${String(viewport.height)} ${theme}`;
         const density = await visibleDensity(page);
         assert(density.boardRounds >= MIN_BOARD_ROUNDS, `${themed}: the board shows ${String(density.boardRounds)} full rounds; it needs ${String(MIN_BOARD_ROUNDS)}`);
+        const longNames = await page.locator('.board-name-short[data-long]').evaluateAll((names) => names.filter((name) => {
+          const board = name.closest('.board-scroll');
+          const edge = board?.getBoundingClientRect();
+          const header = board?.querySelector('.board-team-header')?.getBoundingClientRect();
+          const box = name.getBoundingClientRect();
+          return edge && header && box.width > 0 && box.left >= edge.left - 1 && box.right <= Math.min(edge.right, window.innerWidth) + 1 && box.top >= header.bottom - 1 && box.bottom <= Math.min(edge.bottom, window.innerHeight) + 1;
+        }).map((name) => name.textContent?.trim() ?? ''));
+        assert(longNames.some((name) => name.length > 12 && name.includes('-')), `${themed}: no long hyphenated surname is visible`);
+        assert(longNames.some((name) => name.length > 12 && !name.includes('-')), `${themed}: no long unhyphenated surname is visible`);
         const touching = await statusArrowOverlaps(page);
         assert(touching.length === 0, `${themed}: board status text overlaps the direction arrow: ${touching.join(', ')}`);
         // The default 12-team board fits without sideways scrolling from 1280px, and every cell stays readable.
         const fit = await boardFit(page);
         assert(fit.overflow <= 1, `${themed}: the 12-team board scrolls sideways by ${String(fit.overflow)}px (team columns ${String(fit.columnWidth)}px)`);
         assert(fit.clipped.length === 0, `${themed}: board cells clip their text: ${fit.clipped.slice(0, 6).join(', ')}`);
-        console.log(`  ${themed}: ${String(density.boardRounds)} board rounds, ${String(fit.columnWidth)}px team columns, no sideways scroll`);
+        console.log(`  ${themed}: ${String(density.boardRounds)} board rounds, ${String(fit.columnWidth)}px team columns, no sideways scroll; long names: ${[...new Set(longNames)].join(', ')}`);
       });
     }
     assertNoConsoleErrors(errors, label);
