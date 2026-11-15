@@ -34,8 +34,7 @@ function key(target: Element, name: string): void {
   act(() => { vi.runOnlyPendingTimers(); });
 }
 
-// One open per test: Radix popper content is CPU-heavy to tear down under jsdom (~6s per open). Radix owns the menu's
-// keyboard model; this checks only what the app adds: the checked current theme, the trigger's name and focus return.
+// Radix owns the menu's keyboard model; this checks only what the app adds: the checked current theme, the trigger's name and focus return.
 it('checks the current theme, names the chosen one on the trigger, and returns focus to it', () => {
   act(() => { trigger().focus(); });
   key(trigger(), 'Enter');
