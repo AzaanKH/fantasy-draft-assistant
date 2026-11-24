@@ -184,6 +184,21 @@ All position models terminate at the same output boundary:
 - percentile within position; and
 - value over the current projected replacement player at that position.
 
+### Status: frozen as Shadow Recommendation (2026-11-24)
+
+The `2026-predeclared-v1` model failed the ECR release gate: it won 1 of the 4
+outer seasons (3 required) and failed every release check, and the feature gate
+failed as well (see [recommendation-backtest.md](recommendation-backtest.md)).
+Decisions:
+
+- Feature-family work is frozen. Do not add features, architectures, or
+  thresholds to chase the 2022–2025 folds; that would overfit four seasons.
+- The model stays as Shadow Recommendation logging only and never orders live
+  recommendations. Its code and pipeline stay in place.
+- It may be reopened only if the unchanged declaration passes the release gate
+  on the 2026 prospective fold, the first season scored after the declaration
+  was frozen, once the 2026 regular season is complete.
+
 ## Prediction outputs and live use
 
 `data/predictions.json` feeds a separate Shadow Recommendation player pool when

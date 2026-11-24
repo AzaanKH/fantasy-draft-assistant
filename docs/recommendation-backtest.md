@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-13T07:55:02.198Z
+Generated: 2026-11-24T23:48:00.865Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -14,6 +14,10 @@ declaration before the 2022–2025 outer folds. Changing it requires a new
 backtest version.
 
 ## Promotion Gates
+
+Decision (2026-11-24): the prediction model failed this gate, so its feature-family work is frozen and it stays
+as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration passes the release
+gate on the 2026 prospective fold. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
 
 - Promoted: **false**
 - Decision: At least one promotion gate fails; keep the model in Shadow Recommendation and out of live ordering.
@@ -54,29 +58,69 @@ backtest version.
 
 ## Best Pick Policy
 
-The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board. The prior-weights row replays the same rule with
-the starter window at 8 ranks and no doubled late bonus.
-Negative regret deltas are improvements.
+The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board. The rejected-weights row replays the same rule with
+the starter window at 12 ranks and the late starter bonus
+multiplied by 2, the tuning 09781a5 shipped and this report
+rejected. Negative regret deltas are improvements.
 
 - Inputs: Expert rank, walk-forward projection and value over replacement. Live-feed inputs (news, bye weeks, contract and environment signals) take neutral values.
 
 | Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Roster-aware ECR | 49 | 2015.9 | 8774.3 | 105.91 | 0.69 |
-| Best Pick (shipped weights) | 49 | 1648.7 | 8715.44 | 109.3 | 0.67 |
-| Best Pick (prior starter weights) | 49 | 1909.16 | 8670.64 | 103.99 | 0.72 |
+| Best Pick (shipped weights) | 49 | 1909.16 | 8670.64 | 103.99 | 0.72 |
+| Best Pick (rejected 12/2 weights) | 49 | 1648.7 | 8715.44 | 109.3 | 0.67 |
 
 | Comparison | Starter points | VOR captured | Average regret | Top-24 hit rate |
 | --- | ---: | ---: | ---: | ---: |
-| bestPickVsEcr | -58.86 | -367.2 | 3.39 | -0.02 |
-| bestPickVsPriorWeights | 44.8 | -260.46 | 5.31 | -0.05 |
+| bestPickVsEcr | -103.66 | -106.74 | -1.92 | 0.03 |
+| bestPickVsRejectedWeights | -44.8 | 260.46 | -5.31 | 0.05 |
 
-| Season | Roster-aware ECR | Best Pick | Best Pick, prior weights |
+| Season | Roster-aware ECR | Best Pick | Best Pick, rejected weights |
 | ---: | ---: | ---: | ---: |
 | 2022 | 2333.7 | 2333.7 | 2333.7 |
 | 2023 | 2284.7 | 2224.42 | 2224.42 |
-| 2024 | 1708.52 | 1885.14 | 1840.34 |
+| 2024 | 1708.52 | 1840.34 | 1885.14 |
 | 2025 | 2447.38 | 2272.18 | 2272.18 |
+
+### Best Pick regression gate
+
+`pnpm verify` checks this record without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
+when `shared/src/draft/calculations/best-pick-policy.ts` no longer hashes to
+`policySourceHash`, or when Best Pick's margin over roster-aware ECR is more than
+25 VOR or 1 average regret
+worse than the baseline: the margin recorded for the previous policy. Regenerating an unchanged policy keeps its
+baseline.
+
+- Gate: **pass**
+
+<!-- best-pick-gate:start -->
+```json
+{
+  "version": 1,
+  "policySourceHash": "sha256:5595d79bd805870c4ceedbf0a1acf5ca9f66b65fdaeb7b49e843597b8e292266",
+  "bestPickVsEcr": {
+    "starterPoints": -103.66,
+    "vorCaptured": -106.74,
+    "averageRegret": -1.92,
+    "top24PositionHitRate": 0.03
+  },
+  "baseline": {
+    "policySourceHash": "sha256:9079cef62a0efa83f0167555959562dbb1ccbc2e0ef81608aa7a313d160b797d",
+    "bestPickVsEcr": {
+      "starterPoints": -58.86,
+      "vorCaptured": -367.2,
+      "averageRegret": 3.39,
+      "top24PositionHitRate": -0.02
+    }
+  },
+  "tolerance": {
+    "vorCaptured": 25,
+    "averageRegret": 1
+  }
+}
+```
+<!-- best-pick-gate:end -->
 
 ## PickEV Architecture Comparison
 

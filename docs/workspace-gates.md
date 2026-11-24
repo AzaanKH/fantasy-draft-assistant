@@ -80,6 +80,19 @@ Import shared contracts through exact subpaths: `/league` for players, positions
 
 The runner retries 429 and 503 by default when the explicit retry count permits it. The default backoff is 1,500 ms times the retry number. Retry-After accepts seconds and HTTP dates, keeps the existing 500 ms minimum, and stops rather than retrying early when the requested delay exceeds the default 10,000 ms limit. Retries add positive jitter below 10% of the delay, capped at 250 ms. Options allow injected fetch, time and randomness for tests. Caller abort cancels body reads and retry waits. `HttpError` distinguishes timeout, abort, network, status, invalid JSON and invalid stream failures, and strips credentials, query and fragment from its URL.
 
+## Best Pick regression gate
+
+The recommendation backtest needs private league data, so CI checks its
+committed result instead. `scripts/src/best-pick-backtest-gate.test.ts` runs in
+`pnpm test` (and so `pnpm verify`) and fails when
+`shared/src/draft/calculations/best-pick-policy.ts` no longer matches the hash
+recorded in [recommendation-backtest.md](recommendation-backtest.md), or when
+the recorded Best Pick margin over roster-aware ECR is more than 25 VOR or 1
+average regret worse than the previous policy's. After a policy change, run
+`pnpm model:backtest` in the real-data checkout and commit the regenerated
+report. The tolerance lives in `scripts/src/best-pick-backtest-gate.ts`; editing
+it in the report has no effect.
+
 ## Repository content and emitted bundles
 
 <!-- generated:repository-policy:start -->

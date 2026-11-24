@@ -10,11 +10,15 @@ import {
 
 /** Normal Best Pick choices cannot move beyond this ECR neighborhood. */
 export const BEST_PICK_ECR_NEIGHBORHOOD = 8;
-/** A candidate who fills an open starting slot may sit a full round behind the ECR champion. */
-const BEST_PICK_STARTER_ECR_NEIGHBORHOOD = 12;
-/** From the manager's sixth selection an open starting slot is worth double. */
+/**
+ * How far behind the ECR champion a candidate who fills an open starting slot may sit. Shipped equal to the normal
+ * neighborhood: the 12-rank window from 09781a5 lost to roster-aware ECR in docs/recommendation-backtest.md.
+ */
+const BEST_PICK_STARTER_ECR_NEIGHBORHOOD = 8;
+/** From the manager's sixth selection the starting-slot bonus is multiplied by the late starter weight. */
 const BEST_PICK_LATE_STARTER_ROSTER_SIZE = 5;
-const BEST_PICK_LATE_STARTER_WEIGHT = 2;
+/** Shipped at 1 (no late bonus); the doubled bonus from 09781a5 lost to roster-aware ECR in the backtest. */
+const BEST_PICK_LATE_STARTER_WEIGHT = 1;
 
 /** Overrides for the two starter weights, so a backtest can replay other settings. The app passes none. */
 export interface BestPickTuning {
@@ -25,8 +29,10 @@ export interface BestPickTuning {
 }
 /** League scoring and replacement value can add at most six policy points. */
 const BEST_PICK_LEAGUE_VALUE_MAX = 6;
-/** Roster construction can add at most fourteen policy points: a doubled fixed starter plus the urgency bonus. */
-const BEST_PICK_ROSTER_FIT_MAX = 14;
+/** Roster construction can add at most a weighted fixed starter plus the urgency bonus: eight policy points as shipped. */
+function rosterFitMax(lateStarterWeight: number): number {
+  return 6 * Math.max(1, lateStarterWeight) + 2;
+}
 /** Bench protection can add at most four policy points. */
 const BEST_PICK_DEPTH_VALUE_MAX = 4;
 /** Tier supply can add at most four cost-of-waiting policy points. */
@@ -408,7 +414,7 @@ function getRosterFitScore(
     score += 2;
   }
 
-  return round(clamp(score, 0, BEST_PICK_ROSTER_FIT_MAX));
+  return round(clamp(score, 0, rosterFitMax(lateStarterWeight)));
 }
 
 function getTierSupplyFactor(
@@ -710,7 +716,7 @@ export function evaluateBestPickPolicy(
         rosterFit: {
           score: rosterFitScore,
           minScore: 0,
-          maxScore: BEST_PICK_ROSTER_FIT_MAX,
+          maxScore: rosterFitMax(lateStarterWeight),
           fixedStartersOpen: before.fixedStartersOpen,
           flexSlotsOpen: before.flexSlotsOpen,
           benchSlotsOpen: before.benchSlotsOpen,
