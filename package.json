@@ -40,7 +40,7 @@
     "draft:readiness": "pnpm --filter scripts check:draft-readiness",
     "draft:rehearsal": "pnpm --filter web-app rehearse:primary-league",
     "draft:release-gate": "pnpm --filter scripts primary-league:release-gate",
-    "experiment:primary-league": "pnpm --filter web-app experiment:primary-league",
+    "experiment:primary-league": "pnpm --filter scripts experiment:primary-league",
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:sleeper": "pnpm --filter scripts fetch:sleeper",
     "import:sportsbook": "pnpm --filter scripts import:sportsbook",
