@@ -1,7 +1,9 @@
 import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Effect } from 'effect';
+import { Effect, Layer, ManagedRuntime } from 'effect';
+import type { ServerResponse } from 'node:http';
+import { Writable } from 'node:stream';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -21,6 +23,7 @@ import {
   yahooPlayersFixture,
   yahooSettingsFixture,
 } from './__fixtures__/yahoo-fixtures.js';
+import { SleeperSyncAdapter } from './sleeper-adapter.js';
 import {
   YAHOO_PUBLIC_API_BASE,
   YAHOO_PUBLIC_READ_API_BASE,
@@ -790,6 +793,49 @@ describe('createSyncServer', () => {
       });
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('draft session polling', () => {
+  it('stops polling once the provider reports the draft complete', async () => {
+    const fixtureFetch = createMockFetchJson();
+    let draftStatus: 'drafting' | 'complete' = 'complete';
+    let draftPolls = 0;
+    const adapter = new SleeperSyncAdapter('fixture-draft', fixtureFetchJson(async (url: string, signal: AbortSignal): Promise<unknown> => {
+      if (url.endsWith('/draft/fixture-draft')) {
+        draftPolls += 1;
+        return { ...draftFixture, status: draftStatus };
+      }
+      return fixtureFetch(url, signal);
+    }));
+    const runtime = ManagedRuntime.make(Layer.empty);
+    // A 1 ms interval: a draft still in progress polls dozens of times while each check settles.
+    const session = new syncServerInternals.DraftSession('sleeper', 'fixture-draft', adapter, 1, 1_000, 1 << 20, runtime);
+    const frames: string[] = [];
+    const client = new Writable({ write(chunk: Buffer, _encoding, callback) { frames.push(chunk.toString()); callback(); } });
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+
+    try {
+      session.addClient(client as unknown as ServerResponse);
+      await vi.waitFor(() => { expect(session.getSnapshot().draft?.status).toBe('complete'); });
+      await settle();
+      expect(draftPolls).toBe(1);
+      // Clients received the final snapshot before the loop stopped.
+      expect(frames.some((frame) => frame.includes('"status":"complete"'))).toBe(true);
+
+      // A manual refresh still reaches the provider, but does not restart the loop.
+      await runtime.runPromise(session.refresh());
+      await settle();
+      expect(draftPolls).toBe(2);
+
+      // A provider that reopens the draft resumes polling for connected clients.
+      draftStatus = 'drafting';
+      await runtime.runPromise(session.refresh());
+      await vi.waitFor(() => { expect(draftPolls).toBeGreaterThan(5); });
+    } finally {
+      session.dispose();
+      await runtime.dispose();
     }
   });
 });

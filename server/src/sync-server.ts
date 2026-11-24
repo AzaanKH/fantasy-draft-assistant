@@ -134,6 +134,8 @@ class DraftSession {
     this.lastActivityAt = Date.now();
     const snapshot = this.engine.getSnapshot();
     this.broadcast({ type: 'snapshot', snapshot });
+    // A completed draft stops the loop; a reset clears that, so connected clients resume polling.
+    if (this.clients.size > 0) this.ensurePolling();
     return snapshot;
   }
 
@@ -179,6 +181,7 @@ class DraftSession {
     return Effect.gen({ self: this }, function* () {
       const adapter = this.adapter;
       if (adapter) yield* this.poll.joinFresh(Effect.sync(() => adapter.invalidateSettings?.()));
+      if (this.clients.size > 0 && !this.draftComplete) this.ensurePolling();
       return this.engine.getSnapshot();
     });
   }
@@ -220,11 +223,17 @@ class DraftSession {
     }
   }
 
+  /** A completed draft cannot change, so polling it again only spends provider requests. */
+  private get draftComplete(): boolean {
+    return this.engine.getSnapshot().draft?.status === 'complete';
+  }
+
+  /** Poll until no clients remain or the provider reports the draft complete. A new client, refresh or reset polls again. */
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
       for (;;) {
         yield* this.poll.join();
-        if (this.clients.size === 0) return;
+        if (this.clients.size === 0 || this.draftComplete) return;
         this.pollSleeping = true;
         yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
           Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),
@@ -454,7 +463,7 @@ async function defaultFetchJson<A>(
 }
 
 /** Exposed for tests of provider request cleanup. */
-export const syncServerInternals = { defaultFetchJson };
+export const syncServerInternals = { defaultFetchJson, DraftSession };
 
 export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const requestToken = options.requestToken ?? randomBytes(32).toString('base64url');
