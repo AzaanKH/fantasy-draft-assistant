@@ -64,11 +64,14 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings, compa
     <Popover open={open} onOpenChange={setOpen}>
       <IconTooltip label="Draft session details">
       <PopoverTrigger asChild>
-        <Button ref={triggerRef} variant="ghost" size="sm" className="draft-session-status" data-compact={compact ? '' : undefined} aria-label={`Draft status: ${pick}, ${mode}, ${sync.label}.${needsAttention ? ' Setup needs attention.' : ''} View details`}>
+        <Button ref={triggerRef} variant="ghost" size="sm" className="draft-session-status" data-compact={compact ? '' : undefined}>
+          {/* The name comes from the visible text (WCAG 2.5.3); the sr-only spans only add context around it. */}
+          <span className="sr-only">Draft status:</span>
           <span className="draft-session-pick">{pick}</span>
           {!complete ? <span className="draft-session-overall text-muted-foreground">#{String(decision.currentPick)}</span> : null}
           <span className="draft-session-mode">{mode}</span>
           <span className="draft-session-sync" data-sync={sync.tone}>{sync.label}</span>
+          <span className="sr-only">{needsAttention ? '. Setup needs attention.' : '.'} View details</span>
           {needsAttention
             ? <CircleExclamationPoint className="size-3 text-warning" aria-hidden="true" />
             : <Info className="size-3 text-muted-foreground" aria-hidden="true" />}

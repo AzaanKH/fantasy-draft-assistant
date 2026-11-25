@@ -171,7 +171,7 @@ export async function checkDialogFocusReturn(browser: Browser): Promise<void> {
     await page.waitForTimeout(100);
     const focused = await page.evaluate(() => {
       const active = document.activeElement;
-      return { onStatus: active?.classList.contains('draft-session-status') === true, name: active?.tagName ?? 'none', label: active?.getAttribute('aria-label')?.slice(0, 40) ?? '' };
+      return { onStatus: active?.classList.contains('draft-session-status') === true, name: active?.tagName ?? 'none', label: (active?.getAttribute('aria-label') ?? active?.textContent ?? '').slice(0, 40) };
     });
     assert(focused.onStatus, `${label}: focus went to ${focused.name} "${focused.label}" instead of the header status button that opened League setup`);
     assertNoConsoleErrors(errors, label);

@@ -21,7 +21,7 @@ button,input,select {
 .draft-header-controls { justify-self:end; flex-shrink:0; }
 .draft-header-mobile-controls { display:none; }
 .draft-header-desktop-controls { display:flex; }
-.draft-session-status { font-size:var(--text-xs); gap:8px; flex-shrink:1; min-width:0; }
+.draft-session-status { position:relative; font-size:var(--text-xs); gap:8px; flex-shrink:1; min-width:0; }
 .draft-session-pick { color:var(--color-primary); font-weight:600; }
 .draft-session-mode { border-left:1px solid var(--color-border); padding-left:8px; }
 .draft-session-sync { border-left:1px solid var(--color-border); padding-left:8px; color:var(--color-muted-foreground); font-weight:500; white-space:nowrap; }
@@ -333,7 +333,7 @@ button,input,select {
 .draft-search-input { height: 40px; border-radius: var(--radius-md); background: var(--color-surface-inset); font-size: var(--text-sm); }
 /* Inset padding gives focus outlines room inside the horizontal scroller, which would otherwise clip them. */
 .draft-position-filters { display: flex; gap: 6px; overflow-x: auto; padding: 4px; margin: -4px; }
-.draft-position-filter { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; min-width: 48px; height: 44px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-foreground); font-size: var(--text-xs); font-weight: 700; line-height: 14px; cursor: pointer; transition: background-color var(--motion-duration-feedback) ease, color var(--motion-duration-feedback) ease; }
+.draft-position-filter { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; min-width: 48px; height: 44px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-foreground); font-size: var(--text-xs); font-weight: 700; line-height: 14px; cursor: pointer; transition: background-color var(--motion-duration-feedback) ease, color var(--motion-duration-feedback) ease; }
 .draft-position-filter > span, .draft-position-filter > small { display: block; line-height: 16px; }
 .draft-position-filter small { color: var(--color-muted-foreground); font-size: var(--text-2xs); font-weight: 500; font-variant-numeric: tabular-nums; }
 @media (hover: hover) and (pointer: fine) { .draft-position-filter:hover { background: color-mix(in srgb, var(--color-surface-raised) 70%, var(--color-foreground)); } }
