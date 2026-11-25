@@ -116,6 +116,24 @@ describe('HTTP streaming ownership', () => {
     expect(await result).toMatchObject({ kind: 'timeout' });
   });
 
+  it('treats SSE comment keepalives as stream activity', async () => {
+    vi.useFakeTimers();
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const body = new ReadableStream<Uint8Array>({ start(c) { controller = c; } });
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 30, maxEventBytes: 1000 }, {
+      fetch: async () => new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    try {
+      const next = iterator.next();
+      for (let i = 0; i < 4; i += 1) {
+        await vi.advanceTimersByTimeAsync(20);
+        controller?.enqueue(new TextEncoder().encode(': keepalive\n\n'));
+      }
+      controller?.enqueue(new TextEncoder().encode('data: {"ok":true}\n\n'));
+      expect(await next).toEqual({ done: false, value: { ok: true } });
+    } finally { await iterator.return(undefined); }
+  });
+
   it.each([
     ['buffered', 'error'], ['buffered', 'end'], ['delayed', 'error'], ['delayed', 'end'],
     ['same chunk', 'error'], ['same chunk', 'end'],

@@ -51,6 +51,8 @@ const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
   new URL(`../../${catalogPath(CATALOG.sportsbook)}`, import.meta.url)
 );
 const MAX_JSON_BODY_BYTES = 256 * 1024;
+/** Under the CLI's 30 s stream idle window. */
+const SSE_KEEPALIVE_MS = 15_000;
 
 interface ClientConnection {
   readonly id: number;
@@ -99,6 +101,7 @@ class DraftSession {
   private nextClientId = 1;
   private pollFiber: Fiber.Fiber<void> | null = null;
   private pollSleeping = false;
+  private keepalive: NodeJS.Timeout | null = null;
   private readonly poll: SharedPoll<boolean>;
   private consecutiveFailures = 0;
   private espnOrder = new ObservationOrder();
@@ -134,8 +137,6 @@ class DraftSession {
     this.lastActivityAt = Date.now();
     const snapshot = this.engine.getSnapshot();
     this.broadcast({ type: 'snapshot', snapshot });
-    // A completed draft stops the loop; a reset clears that, so connected clients resume polling.
-    if (this.clients.size > 0) this.ensurePolling();
     return snapshot;
   }
 
@@ -144,6 +145,10 @@ class DraftSession {
     const id = this.nextClientId++;
     this.clients.set(id, { id, response });
     if (this.adapter) this.ensurePolling();
+    // A stopped loop sends no heartbeats; comments keep idle readers from reconnecting.
+    this.keepalive ??= setInterval(() => {
+      for (const client of this.clients.values()) writeBoundedEvent(client.response, ': keepalive\n\n', this.maxBufferedBytes);
+    }, SSE_KEEPALIVE_MS);
     this.send(
       {
         type: 'snapshot',
@@ -159,12 +164,14 @@ class DraftSession {
     this.lastActivityAt = Date.now();
     if (this.clients.size === 0) {
       this.stopPolling();
+      this.stopKeepalive();
     }
   }
 
   public dispose(): void {
     if (this.pollFiber) this.runtime.runFork(Fiber.interrupt(this.pollFiber));
     this.pollFiber = null;
+    this.stopKeepalive();
     for (const { response } of this.clients.values()) {
       if (!response.writableEnded) {
         try {
@@ -223,17 +230,27 @@ class DraftSession {
     }
   }
 
+  private stopKeepalive(): void {
+    if (this.keepalive) clearInterval(this.keepalive);
+    this.keepalive = null;
+  }
+
   /** A completed draft cannot change, so polling it again only spends provider requests. */
   private get draftComplete(): boolean {
     return this.engine.getSnapshot().draft?.status === 'complete';
   }
 
-  /** Poll until no clients remain or the provider reports the draft complete. A new client, refresh or reset polls again. */
+  /**
+   * Poll until no clients remain or a poll that began after completion was seen confirms it: a provider may read
+   * status and picks separately, so the poll that first reports completion can miss the final pick.
+   */
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
+      let completionSeen = this.draftComplete;
       for (;;) {
         yield* this.poll.join();
-        if (this.clients.size === 0 || this.draftComplete) return;
+        if (this.clients.size === 0 || (completionSeen && this.draftComplete)) return;
+        completionSeen = this.draftComplete;
         this.pollSleeping = true;
         yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
           Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),

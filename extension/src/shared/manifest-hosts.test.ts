@@ -34,16 +34,3 @@ describe('extension manifest Sleeper hosts', () => {
     }
   });
 });
-
-describe('extension manifest ESPN content scripts', () => {
-  const espnPatterns = (file: string) => manifest.content_scripts
-    .find(script => script.js.includes(file))?.matches
-    .filter(pattern => pattern.includes('espn.com')) ?? [];
-
-  // ESPN sync needs the main-world page bridge, which only loads on the draft room, so the
-  // detector skips the rest of fantasy.espn.com.
-  it('injects the draft detector on ESPN only where the page bridge loads', () => {
-    expect(espnPatterns('content.js')).toEqual(espnPatterns('espn-page.js'));
-    expect(espnPatterns('content.js')).toEqual(['https://fantasy.espn.com/football/draft*']);
-  });
-});

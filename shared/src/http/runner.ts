@@ -184,6 +184,7 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
   let buffer = '';
   let data: string[] = [];
   let frameBytes = 0;
+  let comment = false;
   deadline.reset(policy.idleMs);
   try {
     for (;;) {
@@ -206,8 +207,13 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
             deadline.pause();
             yield event;
             deadline.reset(policy.idleMs);
+          } else if (comment) {
+            // A complete comment frame is a server keepalive; partial lines still time out.
+            deadline.reset(policy.idleMs);
           }
-          data = []; frameBytes = 0;
+          data = []; frameBytes = 0; comment = false;
+        } else if (line.startsWith(':')) {
+          comment = true;
         } else if (line.startsWith('data:')) {
           const content = line.slice(5).replace(/^ /, '');
           frameBytes += new TextEncoder().encode(content).length;

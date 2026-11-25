@@ -798,7 +798,10 @@ describe('createSyncServer', () => {
 });
 
 describe('draft session polling', () => {
-  it('stops polling once the provider reports the draft complete', async () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('stops polling once a second poll confirms the draft complete', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const fixtureFetch = createMockFetchJson();
     let draftStatus: 'drafting' | 'complete' = 'complete';
     let draftPolls = 0;
@@ -807,6 +810,8 @@ describe('draft session polling', () => {
         draftPolls += 1;
         return { ...draftFixture, status: draftStatus };
       }
+      // The first poll reads picks just before the final one lands, as Sleeper's parallel requests can.
+      if (url.endsWith('/picks') && draftPolls <= 1) return picksFixture.slice(0, -1);
       return fixtureFetch(url, signal);
     }));
     const runtime = ManagedRuntime.make(Layer.empty);
@@ -820,14 +825,20 @@ describe('draft session polling', () => {
       session.addClient(client as unknown as ServerResponse);
       await vi.waitFor(() => { expect(session.getSnapshot().draft?.status).toBe('complete'); });
       await settle();
-      expect(draftPolls).toBe(1);
-      // Clients received the final snapshot before the loop stopped.
-      expect(frames.some((frame) => frame.includes('"status":"complete"'))).toBe(true);
+      expect(draftPolls).toBe(2);
+      // Clients received the final pick before the loop stopped.
+      expect(session.getSnapshot().picks).toHaveLength(picksFixture.length);
+      expect(frames.some((frame) => frame.includes('"type":"pick"'))).toBe(true);
+
+      // An idle stream on the stopped loop gets keepalive comments without provider requests.
+      vi.advanceTimersByTime(15_000);
+      expect(frames.at(-1)).toBe(': keepalive\n\n');
+      expect(draftPolls).toBe(2);
 
       // A manual refresh still reaches the provider, but does not restart the loop.
       await runtime.runPromise(session.refresh());
       await settle();
-      expect(draftPolls).toBe(2);
+      expect(draftPolls).toBe(3);
 
       // A provider that reopens the draft resumes polling for connected clients.
       draftStatus = 'drafting';
