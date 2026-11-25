@@ -134,6 +134,14 @@ describe('HTTP streaming ownership', () => {
     } finally { await iterator.return(undefined); }
   });
 
+  it('rejects a multiline comment frame larger than the frame limit', async () => {
+    const line = `: ${'x'.repeat(20)}\n`;
+    const iterator = http.events('https://test.invalid/events', decode, { ...policy, idleMs: 1000, maxEventBytes: 50 }, {
+      fetch: async () => new Response(`${line.repeat(5)}\n`, { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    await expect(iterator.next()).rejects.toMatchObject({ kind: 'invalid-stream' });
+  });
+
   it.each([
     ['buffered', 'error'], ['buffered', 'end'], ['delayed', 'error'], ['delayed', 'end'],
     ['same chunk', 'error'], ['same chunk', 'end'],

@@ -102,7 +102,8 @@ class DraftSession {
   private pollFiber: Fiber.Fiber<void> | null = null;
   private pollSleeping = false;
   private keepalive: NodeJS.Timeout | null = null;
-  private readonly poll: SharedPoll<boolean>;
+  private readonly poll: SharedPoll<number | null>;
+  private pollsStarted = 0;
   private consecutiveFailures = 0;
   private espnOrder = new ObservationOrder();
 
@@ -241,16 +242,22 @@ class DraftSession {
   }
 
   /**
-   * Poll until no clients remain or a poll that began after completion was seen confirms it: a provider may read
-   * status and picks separately, so the poll that first reports completion can miss the final pick.
+   * Poll until no clients remain or a successful poll that began after completion was seen confirms it: a provider may
+   * read status and picks separately, so the poll that first reports completion can miss the final pick. A failed poll
+   * leaves the cached status as it was, so it neither confirms nor resets completion.
    */
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
-      let completionSeen = this.draftComplete;
+      // Polls that start after this number can confirm; a draft complete before the loop needs one successful poll.
+      let confirmAfter: number | null = this.draftComplete ? 0 : null;
       for (;;) {
-        yield* this.poll.join();
-        if (this.clients.size === 0 || (completionSeen && this.draftComplete)) return;
-        completionSeen = this.draftComplete;
+        const started = yield* this.poll.join();
+        if (this.clients.size === 0) return;
+        if (started !== null) {
+          if (!this.draftComplete) confirmAfter = null;
+          else if (confirmAfter !== null && started > confirmAfter) return;
+          else confirmAfter ??= started;
+        }
         this.pollSleeping = true;
         yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
           Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),
@@ -259,10 +266,12 @@ class DraftSession {
     });
   }
 
-  private performPoll(): Effect.Effect<boolean> {
+  /** Returns the poll's start number when it succeeds, or null when it fails. */
+  private performPoll(): Effect.Effect<number | null> {
     return Effect.gen({ self: this }, function* () {
       const adapter = this.adapter;
-      if (!adapter) return false;
+      if (!adapter) return null;
+      const started = ++this.pollsStarted;
 
       const wasSynced = this.engine.getSnapshot().status === 'synced';
       const syncingSnapshot = this.engine.beginSync();
@@ -295,7 +304,7 @@ class DraftSession {
           snapshot: this.engine.failSync(polled.failure.message),
         });
         this.consecutiveFailures += 1;
-        return false;
+        return null;
       }
 
       const { snapshot, newPicks, changed, polledAt } = polled.success;
@@ -319,7 +328,7 @@ class DraftSession {
         });
       }
       this.consecutiveFailures = 0;
-      return true;
+      return started;
     });
   }
 

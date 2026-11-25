@@ -849,6 +849,35 @@ describe('draft session polling', () => {
       await runtime.dispose();
     }
   });
+
+  it('does not count a failed poll as confirming completion', async () => {
+    const fixtureFetch = createMockFetchJson();
+    let draftPolls = 0;
+    const adapter = new SleeperSyncAdapter('fixture-draft', fixtureFetchJson(async (url: string, signal: AbortSignal): Promise<unknown> => {
+      if (url.endsWith('/draft/fixture-draft')) {
+        draftPolls += 1;
+        // The poll after completion was first seen fails, as a transient provider error can.
+        if (draftPolls === 2) throw new Error('transient provider error');
+        return { ...draftFixture, status: 'complete' };
+      }
+      if (url.endsWith('/picks') && draftPolls <= 1) return picksFixture.slice(0, -1);
+      return fixtureFetch(url, signal);
+    }));
+    const runtime = ManagedRuntime.make(Layer.empty);
+    const session = new syncServerInternals.DraftSession('sleeper', 'fixture-draft', adapter, 1, 1_000, 1 << 20, runtime);
+    const client = new Writable({ write(_chunk: Buffer, _encoding, callback) { callback(); } });
+
+    try {
+      session.addClient(client as unknown as ServerResponse);
+      await vi.waitFor(() => { expect(draftPolls).toBeGreaterThanOrEqual(3); });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(draftPolls).toBe(3);
+      expect(session.getSnapshot().picks).toHaveLength(picksFixture.length);
+    } finally {
+      session.dispose();
+      await runtime.dispose();
+    }
+  });
 });
 
 describe('provider HTTP requests', () => {
