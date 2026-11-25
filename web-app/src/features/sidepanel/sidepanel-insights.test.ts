@@ -68,4 +68,28 @@ describe('the compact decision explanation, per Decision Lens', () => {
   it('keeps the timing flag in Best Pick, whose order it set', () => {
     expect(getCompactDecisionExplanation(timedPick, 'best-pick')).toBe('If you wait, Fallback Back is the likely RB at 2.03. Timing moved this pick up.');
   });
+
+  // The survival model ran but there is no later pick: the final pick of the draft.
+  const finalPick = {
+    ...timedPick,
+    diagnostics: { ...timedPick.diagnostics, survivalModelSource: 'league-history', nextPickNumber: undefined, nextPickLabel: undefined, nextPickSurvivalProbability: undefined },
+  } as unknown as Recommendation;
+
+  it('leads a Ranked Fit final pick with the Ranked Fit rule and says timing does not apply', () => {
+    const explanation = getCompactDecisionExplanation(finalPick, 'ranked-fit');
+    expect(explanation).toBe(
+      'Ranked Fit orders the players who keep a legal roster possible by the rankings alone. This is your last pick, so there is no later pick and timing does not apply.'
+    );
+    expect(explanation).not.toMatch(/most value|If you wait|moved this pick/);
+  });
+
+  it('leads a Best Player final pick with the Best Player rule and says timing does not apply', () => {
+    const explanation = getCompactDecisionExplanation(finalPick, 'best-player');
+    expect(explanation).toBe('Best Player follows the rankings alone. This is your last pick, so there is no later pick and timing does not apply.');
+    expect(explanation).not.toMatch(/most value|If you wait|moved this pick/);
+  });
+
+  it('keeps Best Pick\'s value wording on the final pick', () => {
+    expect(getCompactDecisionExplanation(finalPick, 'best-pick')).toBe('Your last pick: take the most value left.');
+  });
 });

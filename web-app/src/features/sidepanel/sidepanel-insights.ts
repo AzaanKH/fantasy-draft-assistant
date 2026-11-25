@@ -22,10 +22,14 @@ export function getMissingSurvivalText(recommendation: Recommendation | undefine
  * The hero's one sentence: what the stat line beside it does not already say (VOR, tier and availability are
  * shown as figures). Null when there is nothing to add. The timing factor is Best Pick's: outside Best Pick the
  * sentence leads with the active lens's ordering rule, labels the timing as Best Pick analysis and never says
- * timing moved the pick, since it did not set that lens's order.
+ * timing moved the pick, since it did not set that lens's order. On the final pick there is no timing to weigh.
  */
 export function getCompactDecisionExplanation(recommendation: Recommendation, lens: DecisionLens = 'best-pick'): string | null {
-  if (getNextPickAvailability(recommendation.diagnostics).kind === 'no-next-pick') return 'Your last pick: take the most value left.';
+  if (getNextPickAvailability(recommendation.diagnostics).kind === 'no-next-pick') {
+    // Only Best Pick orders by value; other lenses lead with their own rule, and timing has no later pick to weigh.
+    if (lens === 'best-pick') return 'Your last pick: take the most value left.';
+    return `${getDecisionLensOrderSentence(lens)} This is your last pick, so there is no later pick and timing does not apply.`;
+  }
   const timing = recommendation.decisionFactors?.draftTiming;
   if (!timing || timing.nextPickNumber === undefined) return null;
   const at = timing.nextPickLabel ?? `#${String(timing.nextPickNumber)}`;
