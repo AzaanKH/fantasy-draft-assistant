@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  BEST_PICK_POLICY_SOURCES,
+  assertBestPickGateRecorded,
   bestPickGateFailures,
+  bestPickPolicySources,
   bestPickReplayProblems,
   hashBestPickPolicySources,
   nextBestPickGate,
@@ -12,9 +13,10 @@ import {
   type BestPickGateMeasurement,
 } from './best-pick-backtest-gate.js';
 
+const PICKS = [3, 22, 27, 46, 51, 70, 75, 94, 99, 118, 123, 142];
 const FOLDS: readonly BestPickFoldCoverage[] = [2022, 2023, 2024, 2025]
-  .map((season) => ({ season, evaluatedPicks: 12 }));
-const COMPLETE = FOLDS.map(({ season }) => ({ season, bestPickPicks: 12, ecrPicks: 12 }));
+  .map((season) => ({ season, pickNumbers: PICKS }));
+const COMPLETE = FOLDS.map(({ season }) => ({ season, bestPickPicks: PICKS, ecrPicks: PICKS }));
 
 const measurement = (
   policySourceHash: string,
@@ -22,7 +24,7 @@ const measurement = (
   averageRegret: number,
   folds: readonly BestPickFoldCoverage[] = FOLDS
 ): BestPickGateMeasurement => ({
-  version: 2,
+  version: 3,
   policySourceHash,
   folds,
   bestPickVsEcr: { starterPoints: 0, vorCaptured, averageRegret, top24PositionHitRate: 0 },
@@ -34,17 +36,39 @@ describe('Best Pick backtest gate', () => {
     expect(bestPickGateFailures(parseBestPickGateBlocks(report), hashBestPickPolicySources())).toEqual([]);
   });
 
-  it('hashes the recommendation entry point and its selection modules, not only the policy', () => {
-    expect(BEST_PICK_POLICY_SOURCES).toEqual(expect.arrayContaining([
+  it('hashes the runtime import graph of the policy, including transitive shared modules', () => {
+    expect(bestPickPolicySources()).toEqual(expect.arrayContaining([
       'shared/src/draft/calculations/best-pick-policy.ts',
       'shared/src/draft/calculations/recommendations.ts',
       'shared/src/draft/calculations/tiers.ts',
+      'shared/src/league/positions.ts',
     ]));
-    const base = hashBestPickPolicySources((path) => path);
-    const edited = hashBestPickPolicySources((path) =>
-      path.endsWith('recommendations.ts') ? `${path}// edit` : path
-    );
-    expect(edited).not.toBe(base);
+
+    const files: Record<string, string> = {
+      'shared/src/draft/calculations/best-pick-policy.ts':
+        "import type { Only } from './types.js';\nimport { helper } from '../helper.js';",
+      'shared/src/draft/calculations/recommendations.ts': "export { policy } from './best-pick-policy.js';",
+      'shared/src/draft/helper.ts': "import { deep } from '../league/deep.js';",
+      'shared/src/league/deep.ts': 'export const deep = 1;',
+      'shared/src/draft/calculations/types.ts': 'export type Only = 1;',
+    };
+    const read = (overrides: Record<string, string> = {}) => (path: string): string => {
+      const text = overrides[path] ?? files[path];
+      if (text === undefined) throw new Error(`missing ${path}`);
+      return text;
+    };
+    expect(bestPickPolicySources(read())).toEqual([
+      'shared/src/draft/calculations/best-pick-policy.ts',
+      'shared/src/draft/calculations/recommendations.ts',
+      'shared/src/draft/helper.ts',
+      'shared/src/league/deep.ts',
+    ]);
+    const base = hashBestPickPolicySources(read());
+    expect(hashBestPickPolicySources(read({ 'shared/src/league/deep.ts': 'export const deep = 2;' }))).not.toBe(base);
+    expect(hashBestPickPolicySources(read({ 'shared/src/draft/calculations/types.ts': 'export type Only = 2;' })))
+      .toBe(base);
+    expect(() => bestPickPolicySources(read({ 'shared/src/draft/helper.ts': "import { gone } from './gone.js';" })))
+      .toThrow(/cannot resolve/);
   });
 
   it('fails when the policy source changes without a regenerated report', () => {
@@ -98,17 +122,26 @@ describe('Best Pick backtest gate', () => {
     const previous = { candidate: accepted, baseline: accepted };
     const partial = bestPickReplayProblems(COMPLETE.slice(1));
     expect(partial).toEqual([expect.stringContaining('2023, 2024, 2025')]);
-    expect(nextBestPickGate(previous, measurement('sha256:b', 0, 0), partial, false))
-      .toMatchObject({ candidate: accepted, baseline: accepted, recorded: false });
+    const partialGate = nextBestPickGate(previous, measurement('sha256:b', 0, 0), partial, false);
+    expect(partialGate).toMatchObject({ candidate: accepted, baseline: accepted, recorded: false });
+    // The previous blocks still pass, so the run must fail itself rather than write a report beside them.
+    expect(bestPickGateFailures(partialGate, 'sha256:a')).toEqual([]);
+    expect(() => { assertBestPickGateRecorded(partialGate); }).toThrow(/no report was written/);
+    const complete = nextBestPickGate(previous, measurement('sha256:a', -100, 2), [], false);
+    expect(() => { assertBestPickGateRecorded(complete); }).not.toThrow();
 
-    expect(bestPickReplayProblems([...COMPLETE.slice(0, 3), { season: 2025, bestPickPicks: 11, ecrPicks: 12 }]))
-      .toEqual([expect.stringContaining('11 picks in 2025')]);
+    // Equal counts are not enough: Best Pick and ECR skipped different turns.
+    const skippedOther = [...PICKS.slice(0, 11), 150];
+    expect(bestPickReplayProblems([
+      ...COMPLETE.slice(0, 3),
+      { season: 2025, bestPickPicks: PICKS, ecrPicks: skippedOther },
+    ])).toEqual([expect.stringContaining('in 2025 against')]);
 
-    const fewerPicks = FOLDS.map((fold) => ({ ...fold, evaluatedPicks: fold.evaluatedPicks - 1 }));
-    expect(nextBestPickGate(previous, measurement('sha256:b', 0, 0, fewerPicks), [], false))
+    const otherPicks = FOLDS.map((fold) => ({ ...fold, pickNumbers: skippedOther }));
+    expect(nextBestPickGate(previous, measurement('sha256:b', 0, 0, otherPicks), [], false))
       .toMatchObject({ candidate: accepted, recorded: false });
-    expect(bestPickGateFailures({ candidate: measurement('sha256:a', -100, 2, fewerPicks), baseline: accepted }, 'sha256:a'))
-      .toEqual([expect.stringContaining('different picks per fold')]);
+    expect(bestPickGateFailures({ candidate: measurement('sha256:a', -100, 2, otherPicks), baseline: accepted }, 'sha256:a'))
+      .toEqual([expect.stringContaining('different draft picks per fold')]);
   });
 
   it('round-trips both blocks through the report', () => {

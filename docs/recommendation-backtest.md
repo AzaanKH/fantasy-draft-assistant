@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-25T03:00:55.146Z
+Generated: 2026-11-25T08:01:10.114Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -86,37 +86,38 @@ rejected. Negative regret deltas are improvements.
 ### Best Pick regression gate
 
 `pnpm verify` checks these records without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
-when either block is missing, when `shared/src/draft/calculations/best-pick-policy.ts`, `shared/src/draft/calculations/recommendations.ts`, `shared/src/draft/calculations/tiers.ts`, `shared/src/draft/calculations/scarcity.ts`, `shared/src/draft/calculations/draft-stage.ts`, `shared/src/lineup-utility.ts` no longer
-hash to the gate block's `policySourceHash`, when the gate block does not cover the 2022–2025 folds with the
-baseline's pick counts, or when Best Pick's margin over roster-aware ECR is more than
+when either block is missing, when `shared/src/draft/calculations/best-pick-policy.ts`, `shared/src/draft/calculations/recommendations.ts` and the
+shared/src modules they reach through runtime imports no longer hash to the gate block's `policySourceHash`, when
+the gate block does not cover the 2022–2025 folds with the baseline's draft picks, or when Best Pick's margin over roster-aware ECR is more than
 25 VOR or 1 average
 regret worse than the accepted baseline. Regenerating copies the baseline block unchanged; only
 `pnpm model:backtest:accept-best-pick` replaces it with the current replay, so a baseline change is always a
-reviewed diff. A partial replay is never recorded.
+reviewed diff. A partial replay, or one whose Best Pick and ECR picks differ, stops the run before any report is
+written.
 
 - Gate: **pass**
 
 <!-- best-pick-gate:start -->
 ```json
 {
-  "version": 2,
-  "policySourceHash": "sha256:a3af5fdfbf949ece32def2750324aaeb7a70d3eef00bf89ee8ed7f16d97c3c16",
+  "version": 3,
+  "policySourceHash": "sha256:832ddf42dfa6d3ea2e7bc001467be68d1b9986cf074ea4158b819b4ec97ce1de",
   "folds": [
     {
       "season": 2022,
-      "evaluatedPicks": 13
+      "pickNumbers": [7, 14, 27, 34, 47, 54, 67, 74, 87, 94, 107, 114, 127]
     },
     {
       "season": 2023,
-      "evaluatedPicks": 12
+      "pickNumbers": [6, 15, 26, 35, 46, 55, 66, 75, 86, 95, 115, 126]
     },
     {
       "season": 2024,
-      "evaluatedPicks": 12
+      "pickNumbers": [8, 17, 24, 48, 53, 57, 68, 73, 88, 93, 108, 128]
     },
     {
       "season": 2025,
-      "evaluatedPicks": 12
+      "pickNumbers": [8, 13, 28, 33, 48, 53, 68, 88, 93, 108, 128, 133]
     }
   ],
   "bestPickVsEcr": {
@@ -132,24 +133,24 @@ reviewed diff. A partial replay is never recorded.
 <!-- best-pick-baseline:start -->
 ```json
 {
-  "version": 2,
-  "policySourceHash": "sha256:a3af5fdfbf949ece32def2750324aaeb7a70d3eef00bf89ee8ed7f16d97c3c16",
+  "version": 3,
+  "policySourceHash": "sha256:832ddf42dfa6d3ea2e7bc001467be68d1b9986cf074ea4158b819b4ec97ce1de",
   "folds": [
     {
       "season": 2022,
-      "evaluatedPicks": 13
+      "pickNumbers": [7, 14, 27, 34, 47, 54, 67, 74, 87, 94, 107, 114, 127]
     },
     {
       "season": 2023,
-      "evaluatedPicks": 12
+      "pickNumbers": [6, 15, 26, 35, 46, 55, 66, 75, 86, 95, 115, 126]
     },
     {
       "season": 2024,
-      "evaluatedPicks": 12
+      "pickNumbers": [8, 17, 24, 48, 53, 57, 68, 73, 88, 93, 108, 128]
     },
     {
       "season": 2025,
-      "evaluatedPicks": 12
+      "pickNumbers": [8, 13, 28, 33, 48, 53, 68, 88, 93, 108, 128, 133]
     }
   ],
   "bestPickVsEcr": {

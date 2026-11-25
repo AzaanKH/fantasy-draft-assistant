@@ -88,12 +88,15 @@ committed result instead. `scripts/src/best-pick-backtest-gate.test.ts` runs in
 [recommendation-backtest.md](recommendation-backtest.md): the gate block that
 `pnpm model:backtest` writes and the accepted baseline block. It fails when
 either block is missing, when the recommendation entry point, Best Pick policy
-or their selection modules no longer match the gate block's hash, when the gate
-block does not cover the 2022–2025 folds with the baseline's pick counts, or
+or any shared/src module they reach through runtime imports no longer match the
+gate block's hash, when the gate block does not cover the 2022–2025 folds with
+the baseline's draft pick numbers, or
 when Best Pick's margin over roster-aware ECR is more than 25 VOR or 1 average
 regret worse than the baseline's. After a policy change, run
 `pnpm model:backtest` in the real-data checkout and commit the regenerated
-report. Regeneration never moves the baseline; accepting a new one is an
+report. A replay that cannot be recorded (a missing fold, Best Pick and ECR
+scored on different picks, or picks that differ from the baseline's) exits
+non-zero without writing the report. Regeneration never moves the baseline; accepting a new one is an
 explicit `pnpm model:backtest:accept-best-pick` whose diff is reviewed with the
 change. The tolerance lives in `scripts/src/best-pick-backtest-gate.ts`.
 

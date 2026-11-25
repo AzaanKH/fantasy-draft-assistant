@@ -61,8 +61,9 @@ import {
   type RosterRules,
 } from './offensive-roster.js';
 import {
+  assertBestPickGateRecorded,
   BEST_PICK_GATE_TOLERANCE,
-  BEST_PICK_POLICY_SOURCES,
+  BEST_PICK_POLICY_ROOTS,
   bestPickGateFailures,
   bestPickReplayProblems,
   hashBestPickPolicySources,
@@ -942,6 +943,8 @@ async function main(): Promise<void> {
         bestPick: StrategyMetrics;
         bestPickRejectedWeights: StrategyMetrics;
       };
+      /** Draft pick numbers Best Pick and roster-aware ECR were scored on, for the regression gate. */
+      bestPickGatePicks: { readonly bestPick: readonly number[]; readonly rosterAwareEcr: readonly number[] };
       positionModelSelections: Readonly<Record<
         OffensivePosition,
         PositionModelSelectionSummary
@@ -1002,6 +1005,8 @@ async function main(): Promise<void> {
       const bestPickRejectedSelected = new Set<string>();
       const bestPick: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
       const bestPickRejected: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
+      const bestPickPickNumbers: number[] = [];
+      const ecrPickNumbers: number[] = [];
 
       for (const keeper of keepers.filter((pick) => pick.isUserPick)) {
         const row = byPlayerId.get(keeper.playerId);
@@ -1152,6 +1157,7 @@ async function main(): Promise<void> {
           addToRoster(actual.roster, chosenRow);
           actual.regrets.push(Math.max(0, (bestActual?.leagueActualVor ?? 0) - chosenRow.leagueActualVor));
           if (ecrPick) {
+            ecrPickNumbers.push(pick.pickNo);
             ecr.rows.push(ecrPick);
             ecrSelected.add(ecrPick.sleeper_player_id);
             addToRoster(ecr.roster, ecrPick);
@@ -1218,22 +1224,19 @@ async function main(): Promise<void> {
           );
           const bestPickAvailable = strategyAvailable(bestPickSelected);
           const bestPickRejectedAvailable = strategyAvailable(bestPickRejectedSelected);
-          recordPickEv(
-            bestPick,
-            bestPickSelected,
-            chooseBestPick(
-              bestPickAvailable,
-              bestPickBoard,
-              bestPick.roster,
-              rules,
-              remainingPicks,
-              pick.pickNo,
-              nextUserPick,
-              totalTeams,
-              totalPicks
-            ),
-            bestPickAvailable
+          const bestPickChoice = chooseBestPick(
+            bestPickAvailable,
+            bestPickBoard,
+            bestPick.roster,
+            rules,
+            remainingPicks,
+            pick.pickNo,
+            nextUserPick,
+            totalTeams,
+            totalPicks
           );
+          if (bestPickChoice) bestPickPickNumbers.push(pick.pickNo);
+          recordPickEv(bestPick, bestPickSelected, bestPickChoice, bestPickAvailable);
           recordPickEv(
             bestPickRejected,
             bestPickRejectedSelected,
@@ -1317,6 +1320,7 @@ async function main(): Promise<void> {
           bestPick: summarizePickEv(bestPick),
           bestPickRejectedWeights: summarizePickEv(bestPickRejected),
         },
+        bestPickGatePicks: { bestPick: bestPickPickNumbers, rosterAwareEcr: ecrPickNumbers },
         winner: modelMetrics.starterPoints > ecrMetrics.starterPoints
           ? 'model'
           : modelMetrics.starterPoints < ecrMetrics.starterPoints ? 'ecr' : 'tie',
@@ -1430,25 +1434,23 @@ async function main(): Promise<void> {
         ? { candidate: undefined, baseline: undefined }
         : parseBestPickGateBlocks(previousReport),
       {
-        version: 2,
+        version: 3,
         policySourceHash,
         folds: seasonReports.map((season) => ({
           season: season.season,
-          evaluatedPicks: season.strategies.bestPick.evaluatedPicks,
+          pickNumbers: season.bestPickGatePicks.bestPick,
         })),
         bestPickVsEcr: bestPickPolicy.deltas.bestPickVsEcr,
       },
       bestPickReplayProblems(seasonReports.map((season) => ({
         season: season.season,
-        bestPickPicks: season.strategies.bestPick.evaluatedPicks,
-        ecrPicks: season.strategies.rosterAwareEcr.evaluatedPicks,
+        bestPickPicks: season.bestPickGatePicks.bestPick,
+        ecrPicks: season.bestPickGatePicks.rosterAwareEcr,
       }))),
       acceptBestPickBaseline
     );
-    const bestPickGateProblems = [
-      ...bestPickGate.notes,
-      ...bestPickGateFailures(bestPickGate, policySourceHash),
-    ];
+    assertBestPickGateRecorded(bestPickGate);
+    const bestPickGateProblems = bestPickGateFailures(bestPickGate, policySourceHash);
     const architectureComparison = {
       dataStatus: {
         projections: 'Historical leakage-safe shared projection proxy; historical FantasyPros snapshots are not available.',
@@ -1804,13 +1806,14 @@ ${bestPickSeasonRows}
 ### Best Pick regression gate
 
 \`pnpm verify\` checks these records without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
-when either block is missing, when ${BEST_PICK_POLICY_SOURCES.map((path) => `\`${path}\``).join(', ')} no longer
-hash to the gate block's \`policySourceHash\`, when the gate block does not cover the 2022–2025 folds with the
-baseline's pick counts, or when Best Pick's margin over roster-aware ECR is more than
+when either block is missing, when ${BEST_PICK_POLICY_ROOTS.map((path) => `\`${path}\``).join(', ')} and the
+shared/src modules they reach through runtime imports no longer hash to the gate block's \`policySourceHash\`, when
+the gate block does not cover the 2022–2025 folds with the baseline's draft picks, or when Best Pick's margin over roster-aware ECR is more than
 ${String(BEST_PICK_GATE_TOLERANCE.vorCaptured)} VOR or ${String(BEST_PICK_GATE_TOLERANCE.averageRegret)} average
 regret worse than the accepted baseline. Regenerating copies the baseline block unchanged; only
 \`pnpm model:backtest:accept-best-pick\` replaces it with the current replay, so a baseline change is always a
-reviewed diff. A partial replay is never recorded.
+reviewed diff. A partial replay, or one whose Best Pick and ECR picks differ, stops the run before any report is
+written.
 
 ${[
   `- Gate: **${bestPickGateProblems.length === 0 ? 'pass' : 'fail'}**`,
