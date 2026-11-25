@@ -51,8 +51,11 @@ const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
   new URL(`../../${catalogPath(CATALOG.sportsbook)}`, import.meta.url)
 );
 const MAX_JSON_BODY_BYTES = 256 * 1024;
-/** Under the CLI's 30 s stream idle window. */
-const SSE_KEEPALIVE_MS = 15_000;
+/**
+ * Poll interval once the provider reports the draft complete. It stays under the CLI `draft watch` 30 s idle timeout
+ * (cli/src/client.ts idleMs), so each poll's heartbeat keeps idle streams connected without a separate keepalive.
+ */
+const COMPLETED_DRAFT_POLL_INTERVAL_MS = 20_000;
 
 interface ClientConnection {
   readonly id: number;
@@ -101,9 +104,7 @@ class DraftSession {
   private nextClientId = 1;
   private pollFiber: Fiber.Fiber<void> | null = null;
   private pollSleeping = false;
-  private keepalive: NodeJS.Timeout | null = null;
-  private readonly poll: SharedPoll<number | null>;
-  private pollsStarted = 0;
+  private readonly poll: SharedPoll<boolean>;
   private consecutiveFailures = 0;
   private espnOrder = new ObservationOrder();
 
@@ -115,6 +116,7 @@ class DraftSession {
     requestTimeoutMs: number,
     private readonly maxBufferedBytes: number,
     private readonly runtime: ManagedRuntime.ManagedRuntime<never, never>,
+    private readonly completedPollIntervalMs = COMPLETED_DRAFT_POLL_INTERVAL_MS,
   ) {
     this.adapter = adapter;
     this.poll = new SharedPoll(() => this.performPoll(), runtime);
@@ -146,10 +148,6 @@ class DraftSession {
     const id = this.nextClientId++;
     this.clients.set(id, { id, response });
     if (this.adapter) this.ensurePolling();
-    // A stopped loop sends no heartbeats; comments keep idle readers from reconnecting.
-    this.keepalive ??= setInterval(() => {
-      for (const client of this.clients.values()) writeBoundedEvent(client.response, ': keepalive\n\n', this.maxBufferedBytes);
-    }, SSE_KEEPALIVE_MS);
     this.send(
       {
         type: 'snapshot',
@@ -165,14 +163,12 @@ class DraftSession {
     this.lastActivityAt = Date.now();
     if (this.clients.size === 0) {
       this.stopPolling();
-      this.stopKeepalive();
     }
   }
 
   public dispose(): void {
     if (this.pollFiber) this.runtime.runFork(Fiber.interrupt(this.pollFiber));
     this.pollFiber = null;
-    this.stopKeepalive();
     for (const { response } of this.clients.values()) {
       if (!response.writableEnded) {
         try {
@@ -189,7 +185,6 @@ class DraftSession {
     return Effect.gen({ self: this }, function* () {
       const adapter = this.adapter;
       if (adapter) yield* this.poll.joinFresh(Effect.sync(() => adapter.invalidateSettings?.()));
-      if (this.clients.size > 0 && !this.draftComplete) this.ensurePolling();
       return this.engine.getSnapshot();
     });
   }
@@ -231,47 +226,29 @@ class DraftSession {
     }
   }
 
-  private stopKeepalive(): void {
-    if (this.keepalive) clearInterval(this.keepalive);
-    this.keepalive = null;
-  }
-
-  /** A completed draft cannot change, so polling it again only spends provider requests. */
-  private get draftComplete(): boolean {
-    return this.engine.getSnapshot().draft?.status === 'complete';
-  }
-
   /**
-   * Poll until no clients remain or a successful poll that began after completion was seen confirms it: a provider may
-   * read status and picks separately, so the poll that first reports completion can miss the final pick. A failed poll
-   * leaves the cached status as it was, so it neither confirms nor resets completion.
+   * A completed draft rarely changes, so it is polled slowly rather than not at all: a late final pick or a reopened
+   * draft still arrives, and failed polls keep the last successful status.
    */
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
-      // Polls that start after this number can confirm; a draft complete before the loop needs one successful poll.
-      let confirmAfter: number | null = this.draftComplete ? 0 : null;
       for (;;) {
-        const started = yield* this.poll.join();
+        yield* this.poll.join();
         if (this.clients.size === 0) return;
-        if (started !== null) {
-          if (!this.draftComplete) confirmAfter = null;
-          else if (confirmAfter !== null && started > confirmAfter) return;
-          else confirmAfter ??= started;
-        }
+        const backoffMs = Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000);
+        const complete = this.engine.getSnapshot().draft?.status === 'complete';
         this.pollSleeping = true;
-        yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
+        yield* Effect.sleep(complete ? Math.max(this.completedPollIntervalMs, backoffMs) : backoffMs).pipe(
           Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),
         );
       }
     });
   }
 
-  /** Returns the poll's start number when it succeeds, or null when it fails. */
-  private performPoll(): Effect.Effect<number | null> {
+  private performPoll(): Effect.Effect<boolean> {
     return Effect.gen({ self: this }, function* () {
       const adapter = this.adapter;
-      if (!adapter) return null;
-      const started = ++this.pollsStarted;
+      if (!adapter) return false;
 
       const wasSynced = this.engine.getSnapshot().status === 'synced';
       const syncingSnapshot = this.engine.beginSync();
@@ -304,7 +281,7 @@ class DraftSession {
           snapshot: this.engine.failSync(polled.failure.message),
         });
         this.consecutiveFailures += 1;
-        return null;
+        return false;
       }
 
       const { snapshot, newPicks, changed, polledAt } = polled.success;
@@ -328,7 +305,7 @@ class DraftSession {
         });
       }
       this.consecutiveFailures = 0;
-      return started;
+      return true;
     });
   }
 

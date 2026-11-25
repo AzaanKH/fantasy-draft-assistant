@@ -184,7 +184,6 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
   let buffer = '';
   let data: string[] = [];
   let frameBytes = 0;
-  let comment = false;
   deadline.reset(policy.idleMs);
   try {
     for (;;) {
@@ -207,15 +206,8 @@ async function* events<T>(url: string | URL, decode: (value: unknown) => T, poli
             deadline.pause();
             yield event;
             deadline.reset(policy.idleMs);
-          } else if (comment) {
-            // A complete comment frame within maxEventBytes is a server keepalive; partial or oversized frames do not reset the deadline.
-            deadline.reset(policy.idleMs);
           }
-          data = []; frameBytes = 0; comment = false;
-        } else if (line.startsWith(':')) {
-          // Comment lines count toward the frame limit, so a long multiline comment fails like an oversized event.
-          frameBytes += new TextEncoder().encode(line).length;
-          comment = true;
+          data = []; frameBytes = 0;
         } else if (line.startsWith('data:')) {
           const content = line.slice(5).replace(/^ /, '');
           frameBytes += new TextEncoder().encode(content).length;
