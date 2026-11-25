@@ -81,7 +81,7 @@ it('shows, drafts, queues and explains the active lens pick, not Best Pick', () 
   expect(labelled('Add Ranked Fit Player to queue')).not.toBeNull();
   act(() => { labelled('Draft Ranked Fit Player')?.click(); });
   expect(state.draftPlayer).toHaveBeenCalledWith(expect.objectContaining({ id: 'ranked-fit' }));
-  const why = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Why this pick'));
+  const why = [...container.querySelectorAll('button')].find((button) => button.textContent.includes('Why this pick'));
   act(() => { why?.click(); });
   expect(state.onOpenAssistant).toHaveBeenCalledWith({ lens: 'why', selectedPlayerId: 'ranked-fit' });
 });
