@@ -16,7 +16,8 @@ function playerWeekUrl(season: number): string {
 
 /**
  * Loads nflverse regular-season weekly player stats and the schedule for the prospective seasons, then materializes
- * season-to-date player outcomes with each player's team games played and scheduled, and one status row per season.
+ * season-to-date player outcomes with the team games played and scheduled across each player's team stints, and one
+ * status row per season.
  */
 export function prospectiveOutcomeStatements(seasons: readonly number[]): string[] {
   if (seasons.length === 0) return [];
@@ -37,7 +38,7 @@ export function prospectiveOutcomeStatements(seasons: readonly number[]): string
   ];
 }
 
-/** Derives match status, team games and player outcomes from the loaded prospective schedule and weekly stats. */
+/** Derives match status and player outcomes with stint team games from the loaded schedule and weekly stats. */
 export function prospectiveDerivedStatements(): string[] {
   return [
     // A scored game counts only once its weekly player stats have arrived: schedule results can land first.
@@ -63,41 +64,71 @@ export function prospectiveDerivedStatements(): string[] {
       from source.nflverse_schedules_prospective schedules
       left join model.prospective_matched_games matched on matched.game_id = schedules.game_id
       group by 1`,
-    `create or replace table model.prospective_team_games as
-      with scheduled as (
-        select season, game_id, home_team as team from source.nflverse_schedules_prospective
-        union
-        select season, game_id, away_team as team from source.nflverse_schedules_prospective
-      ), matched as (
-        select game_id, home_team as team from model.prospective_matched_games
-        union
-        select game_id, away_team as team from model.prospective_matched_games
-      )
-      select scheduled.season::integer as season, scheduled.team::varchar as team,
-        count(distinct scheduled.game_id)::integer as scheduled,
-        count(distinct matched.game_id)::integer as played
-      from scheduled
-      left join matched on matched.game_id = scheduled.game_id and matched.team = scheduled.team
-      group by 1, 2`,
+    // A traded player's pace counts each team's games only while he was on it: a stint runs from his first week
+    // with the team (the season start for his first team) to the week before his next team, and covers the games
+    // he missed during it. Scaling by one team's games would misstate a player whose teams had different byes.
     `create or replace table model.prospective_player_outcomes as
-      with players as (
+      with player_weeks as (
         select
           weeks.season::integer as season,
           weeks.player_id::varchar as gsis_id,
-          arg_max(weeks.team, weeks.week)::varchar as team,
-          count(distinct weeks.game_id)::double as games,
-          sum(coalesce(weeks.fantasy_points_ppr, 0))::double as ppr_points,
-          sum(coalesce(weeks.carries, 0))::double as rush_attempts,
-          sum(coalesce(weeks.receptions, 0))::double as receptions
+          weeks.week::integer as week,
+          weeks.team::varchar as team,
+          weeks.game_id::varchar as game_id,
+          weeks.fantasy_points_ppr,
+          weeks.carries,
+          weeks.receptions
         from source.nflverse_player_week_prospective weeks
         join model.prospective_matched_games matched on matched.game_id = weeks.game_id
         where weeks.player_id is not null
+      ), players as (
+        select
+          season,
+          gsis_id,
+          arg_max(team, week)::varchar as team,
+          count(distinct game_id)::double as games,
+          sum(coalesce(fantasy_points_ppr, 0))::double as ppr_points,
+          sum(coalesce(carries, 0))::double as rush_attempts,
+          sum(coalesce(receptions, 0))::double as receptions
+        from player_weeks
+        group by 1, 2
+      ), stint_starts as (
+        select season, gsis_id, team, week as first_week
+        from (
+          select season, gsis_id, team, week,
+            lag(team) over (partition by season, gsis_id order by week) as previous_team
+          from (select distinct season, gsis_id, team, week from player_weeks)
+        )
+        where previous_team is distinct from team
+      ), stints as (
+        select season, gsis_id, team,
+          case when row_number() over stint_order = 1 then 0 else first_week end as from_week,
+          coalesce(lead(first_week) over stint_order - 1, 99) as to_week
+        from stint_starts
+        window stint_order as (partition by season, gsis_id order by first_week)
+      ), team_weeks as (
+        select schedules.season::integer as season, schedules.week::integer as week,
+          schedules.home_team::varchar as team, schedules.game_id::varchar as game_id
+        from source.nflverse_schedules_prospective schedules
+        union all
+        select schedules.season::integer, schedules.week::integer,
+          schedules.away_team::varchar, schedules.game_id::varchar
+        from source.nflverse_schedules_prospective schedules
+      ), stint_games as (
+        select stints.season, stints.gsis_id,
+          count(distinct team_weeks.game_id)::integer as scheduled,
+          count(distinct matched.game_id)::integer as played
+        from stints
+        join team_weeks
+          on team_weeks.season = stints.season
+          and team_weeks.team = stints.team
+          and team_weeks.week between stints.from_week and stints.to_week
+        left join model.prospective_matched_games matched on matched.game_id = team_weeks.game_id
         group by 1, 2
       )
-      select players.*, teams.played as team_games_played, teams.scheduled as team_games_scheduled
+      select players.*, stint_games.played as team_games_played, stint_games.scheduled as team_games_scheduled
       from players
-      left join model.prospective_team_games teams
-        on teams.season = players.season and teams.team = players.team`,
+      left join stint_games on stint_games.season = players.season and stint_games.gsis_id = players.gsis_id`,
   ];
 }
 

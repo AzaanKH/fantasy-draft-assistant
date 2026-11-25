@@ -211,11 +211,15 @@ reports it and writes the historical seasons without 2026. The board's player
 pool and positions come from the last DynastyProcess ranking snapshot scraped
 before the draft started (the cutoff is applied before the latest rank is
 chosen), plus every offensive player the room drafted, so off-board picks and
-keepers still score. The trailing features in
-`model.current_prediction_features`, the inputs the shadow fit used, are
-left-joined by player id. Outcomes are nflverse regular-season weekly stats
-from scored games whose player stats have arrived (matched by `game_id`),
-scaled to a full-season pace by each player's matched team games. Until all
+keepers still score; off-board players are scored against the board's
+replacement level but never offered to a strategy. Trailing features are
+rebuilt from the three training seasons before the draft, keyed by gsis_id,
+with the same SQL as `model.current_prediction_features` and the workload
+input chosen by the draft-day position, so they do not depend on today's
+player pool. Outcomes are nflverse regular-season weekly stats from scored
+games whose player stats have arrived (matched by `game_id`), scaled to a
+full-season pace by the matched team games across each player's team stints,
+missed games included. Until all
 272 regular-season games are scheduled, scored and matched, the fold is
 labelled provisional and stays out of every gate, aggregate and historical
 coverage count; afterwards it counts on its own single-season release check

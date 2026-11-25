@@ -280,17 +280,73 @@ describe('roster-aware backtest helpers', () => {
   });
 });
 
+describe('draft replay', () => {
+  it('scores off-board picks and keepers and gives specialist picks no turn', () => {
+    const board = [player('wr1', 'WR', 200), player('wr2', 'WR', 150), player('rb1', 'RB', 180)];
+    const offBoardKeeper = { ...player('keep', 'WR', 120), predraft_ecr: null };
+    const offBoardPick = { ...player('late', 'RB', 90), predraft_ecr: 280 };
+    const undrafted = { ...player('nobody', 'TE', 50), predraft_ecr: null };
+    const { playerSeasons, scoringRows } = backtestInternals.addDerivedValues(
+      [...board, offBoardKeeper, offBoardPick, undrafted],
+      new Set(['keep', 'late', 'wr1', 'wr2'].map((id) => backtestInternals.playerSeasonKey(2025, id)))
+    );
+    // Off-board players never join the board the strategies choose from.
+    expect(playerSeasons.map((row) => row.sleeper_player_id).sort()).toEqual(['rb1', 'wr1', 'wr2']);
+    const scoring = new Map(scoringRows.map((row) => [row.sleeper_player_id, row]));
+    expect([...scoring.keys()].sort()).toEqual(['keep', 'late', 'rb1', 'wr1', 'wr2']);
+    expect(scoring.get('keep')).toMatchObject({ leagueActualPoints: 120, customPositionRank: 3 });
+
+    const plan = backtestInternals.planUserTurns([
+      { pickNo: 1, playerId: 'keep', position: 'WR', isUserPick: true, isKeeper: true },
+      { pickNo: 2, playerId: 'wr1', position: 'WR', isUserPick: false, isKeeper: false },
+      { pickNo: 3, playerId: 'k1', position: 'K', isUserPick: true, isKeeper: false },
+      { pickNo: 4, playerId: 'late', position: 'RB', isUserPick: true, isKeeper: false },
+      { pickNo: 5, playerId: 'def1', position: 'DEF', isUserPick: true, isKeeper: false },
+      { pickNo: 6, playerId: 'wr2', position: 'WR', isUserPick: true, isKeeper: false },
+    ], scoring);
+
+    expect(plan.keeperRows.map((row) => row.sleeper_player_id)).toEqual(['keep']);
+    expect([...plan.turns.entries()].map(([index, turn]) =>
+      [index, turn.pickNo, turn.remainingPicks, turn.chosenRow?.sleeper_player_id]
+    )).toEqual([[3, 4, 2, 'late'], [5, 6, 1, 'wr2']]);
+    const scored = [...plan.turns.values()].flatMap((turn) => turn.chosenRow ?? []);
+    expect(backtestInternals.summarize(scored, [0, 0], 0)).toMatchObject({
+      evaluatedPicks: 2,
+      vorCaptured: (scoring.get('late')?.leagueActualVor ?? 0) + (scoring.get('wr2')?.leagueActualVor ?? 0),
+    });
+    expect(scoring.get('late')?.leagueActualVor).toBeGreaterThan(0);
+  });
+});
+
 describe('prospective board', () => {
   it('builds the pool from the pre-draft ranking snapshot, falls back past post-draft scrapes, and keeps drafted players', async () => {
     const { DuckDBInstance } = await import('@duckdb/node-api');
     const instance = await DuckDBInstance.create(':memory:');
     const connection = await instance.connect();
-    const features = backtestInternals.PROSPECTIVE_FEATURE_COLUMNS.map((column) => `1.0 as ${column}`).join(', ');
+    // Every training column the trailing history reads; unlisted ones stay null.
+    const historyColumns = [
+      'actual_points_per_game', 'expected_points_per_game', 'actual_value_over_replacement', 'pass_attempts',
+      'rush_attempts', 'targets', 'games', 'dropback_participation', 'receptions', 'target_share', 'air_yards_share',
+      'wopr', 'offense_snap_share', 'offense_snaps', 'pressure_rate', 'pressure_time_to_throw',
+      'number_of_pass_rushers', 'charted_route_targets', 'deep_route_target_share', 'screen_route_target_share',
+      'goal_line_carries', 'goal_line_targets', 'completion_percentage_above_expectation', 'avg_time_to_throw',
+      'avg_intended_air_yards', 'avg_separation', 'avg_yac_above_expectation', 'intended_air_yards_share',
+      'rush_yards_over_expected_per_attempt', 'rush_pct_over_expected', 'expected_pass_points',
+      'expected_rec_points', 'expected_rush_points', 'expected_total_tds', 'availability_eligible_missed_games',
+    ];
+    const trainingRow = (season: number, gsisId: string, values: Record<string, number>) =>
+      `select ${String(season)} as season, '${gsisId}' as gsis_id, ` +
+      historyColumns.map((column) => `${String(values[column] ?? 'null')}::double as ${column}`).join(', ');
     try {
       for (const sql of [
         'create schema source',
         'create schema model',
-        `create table model.prediction_training_dataset as select 2025 as season, 'g-a' as gsis_id`,
+        // a was an RB in his three prior seasons (2022 falls outside the window) and is a WR on draft day.
+        `create table model.prediction_training_dataset as
+          ${trainingRow(2022, 'g-a', { games: 10, actual_points_per_game: 30, rush_attempts: 100, targets: 50 })}
+          union all ${trainingRow(2023, 'g-a', { games: 10, actual_points_per_game: 10, rush_attempts: 100, targets: 50 })}
+          union all ${trainingRow(2024, 'g-a', { games: 10, actual_points_per_game: 12, rush_attempts: 100, targets: 50 })}
+          union all ${trainingRow(2025, 'g-a', { games: 10, actual_points_per_game: 14, rush_attempts: 100, targets: 50 })}`,
         `create table model.prospective_player_outcomes as
           select 2026 as season, 'g-a' as gsis_id, 8.0 as games, 100.0 as ppr_points, 0.0 as rush_attempts,
             0.0 as receptions, 8 as team_games_played, 17 as team_games_scheduled`,
@@ -299,15 +355,12 @@ describe('prospective board', () => {
         `create table model.dynastyprocess_player_ids as select * from (values
           ('fp-a', 'g-a', 's-a'), ('fp-c', 'g-c', 's-c'), ('fp-d', 'g-d', 's-d')
         ) as t(fantasypros_id, gsis_id, sleeper_player_id)`,
-        // a: ranked, absent from the current feature pool. c: re-ranked after the draft. d: drafted, never ranked.
+        // a: ranked, absent from today's player pool. c: re-ranked after the draft. d: drafted, never ranked.
         `create table source.dynastyprocess_rankings as select * from (values
           ('fp-a', 'Player A', 'WR', 'redraft-overall', 20.0, '2026-08-20'),
           ('fp-c', 'Player C', 'RB', 'redraft-overall', 10.0, '2026-08-20'),
           ('fp-c', 'Player C', 'RB', 'redraft-overall', 5.0, '2026-09-08')
         ) as t(id, player, pos, page_type, ecr, scrape_date)`,
-        // b: in the current feature pool only, not ranked on draft day.
-        `create table model.current_prediction_features as
-          select 's-b' as sleeper_player_id, 'g-b' as gsis_id, 'Player B' as player_name, 'TE' as position, ${features}`,
       ]) await connection.run(sql);
 
       const load = await backtestInternals.loadProspectiveRows(connection, [{
@@ -320,6 +373,13 @@ describe('prospective board', () => {
       const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
       expect(Object.keys(board).sort()).toEqual(['s-a', 's-c', 's-d']);
       expect(board['s-a']).toMatchObject({ position: 'WR', predraft_ecr: 20, actual_points: 212.5 });
+      // Trailing features come from his own prior seasons, and the workload input follows the draft-day position.
+      expect(board['s-a']).toMatchObject({
+        trailing_points_per_game_3yr: 12,
+        trailing_rush_attempts_per_game_3yr: 10,
+        trailing_player_volume_3yr: 150,
+      });
+      expect(board['s-c']).toMatchObject({ trailing_points_per_game_3yr: null, trailing_player_volume_3yr: 0 });
       expect(board['s-c']?.predraft_ecr).toBe(10);
       expect(board['s-d']).toMatchObject({ position: 'QB', predraft_ecr: null });
       expect(load.folds[0]).toMatchObject({ rankingsAfterDraft: 1, unrankedDrafted: 1, complete: false });
