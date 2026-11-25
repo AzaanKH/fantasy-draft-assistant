@@ -101,6 +101,8 @@ describe('prospective fold', () => {
     expect(fullSeasonPace(0, 10)).toBe(0);
     // A traded player whose stints scheduled 18 games still paces to 17: 100.3 over 11 played is 155.01, not 164.13.
     expect(fullSeasonPace(100.3, 11)).toBeCloseTo(155.01, 2);
+    // Eighteen matched team games while another game's stats are still missing: 180 paces down to 170.
+    expect(fullSeasonPace(180, 18)).toBe(170);
   });
 
   it('reads only regular-season weeks for the requested seasons', () => {

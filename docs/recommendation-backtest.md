@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-25T08:31:22.063Z
+Generated: 2026-11-25T08:39:01.410Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -68,7 +68,7 @@ regular-season games are scored and matched to weekly player stats; completeness
 
 ### 2026: **PROVISIONAL**
 
-- Regular season: 163 of 272 scheduled games scored (272 in a full season); 163 matched to weekly player stats, through week 11 (outcomes fetched 2026-11-25T00:27:54Z).
+- Regular season: 163 of 272 scheduled games scored (272 in a full season); 163 matched to weekly player stats, through week 11 (outcomes fetched 2026-11-25T00:37:35Z).
 - Excluded from the release gate until all 272 regular-season games are scored and matched to player stats; the numbers move each week.
 - Outcomes: Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a 17-game pace by each player's matched team games.
 - Coverage: 12 of 13 user picks scored.

@@ -409,6 +409,39 @@ describe('prospective board', () => {
     expect(load.folds[0]).toMatchObject({ rankingsAfterDraft: 1, unrankedDrafted: 2, complete: false });
   });
 
+  it('takes the newest pre-draft scrape even when it ranks a player with no Sleeper ID', async () => {
+    // The newest pre-draft scrape ranks only f, who has no Sleeper ID; it is still the draft-day snapshot.
+    const load = await loadBoard({
+      extraSql: [`insert into source.dynastyprocess_rankings values
+        ('fp-unmapped', 'Player F', 'WR', 'redraft-overall', 1.0, '2026-08-27')`],
+    });
+    const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
+    // f is not on the board and a, c are not carried in from the older scrape; the drafted d and e still score.
+    expect(Object.keys(board).sort()).toEqual(['s-d', 's-e']);
+    expect(load.rows.every((row) => row.predraft_ecr === null)).toBe(true);
+  });
+
+  it('replays only the draft-day board for a fold season, scoring each overlapping player once', () => {
+    const ordinary = (id: string, points: number, ecr: number) => ({ ...player(id, 'WR', points), season: 2026, predraft_ecr: ecr });
+    const history = [player('h1', 'WR', 120)];
+    const rebuilt = [ordinary('absent', 300, 2), ordinary('a', 999, 1)];
+    const prospective = [ordinary('a', 150, 1), ordinary('b', 90, 3)];
+    const rows = backtestInternals.withProspectiveFolds([...history, ...rebuilt], prospective, [2026]);
+    const { playerSeasons, scoringRows } = backtestInternals.addDerivedValues(
+      rows,
+      new Set(['absent', 'a'].map((id) => backtestInternals.playerSeasonKey(2026, id)))
+    );
+    const ids = (list: readonly { season: number; sleeper_player_id: string | null }[]) =>
+      list.filter((row) => row.season === 2026).map((row) => row.sleeper_player_id).sort();
+    // A rebuilt 2026 row for a player absent from the draft-day snapshot never reaches the board or the scoring.
+    expect(ids(playerSeasons)).toEqual(['a', 'b']);
+    expect(ids(scoringRows)).toEqual(['a', 'b']);
+    // The overlapping player scores once, from the prospective row.
+    expect(scoringRows.filter((row) => row.season === 2026 && row.sleeper_player_id === 'a')
+      .map((row) => row.leagueActualPoints)).toEqual([150]);
+    expect(playerSeasons.filter((row) => row.season === 2025).map((row) => row.sleeper_player_id)).toEqual(['h1']);
+  });
+
   it('scores a complete season on raw totals', async () => {
     const load = await loadBoard({ gamesPlayed: 272 });
     expect(load.folds[0]?.complete).toBe(true);

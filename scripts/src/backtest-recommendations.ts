@@ -1001,6 +1001,16 @@ async function loadProspectiveRows(
         from model.dynastyprocess_player_ids
         where sleeper_player_id is not null
         group by 1
+      ), source_dates as (
+        -- The draft-day snapshot is picked from the raw scrapes, before the ID join: an unmapped player in the newest
+        -- scrape only keeps that player off the board, never pushes the board back to an older scrape.
+        select max(cast(r.scrape_date as date)) as scrape_date
+        from source.dynastyprocess_rankings r
+        where r.page_type in ('redraft-overall', 'best-overall')
+          and r.pos in ${sqlPositionList(OFFENSIVE_POSITIONS)}
+          and cast(r.scrape_date as date)
+            between make_date(${String(season)}, 5, 1) and make_date(${String(season)}, 9, 10)
+          and (cast(r.scrape_date as date) + interval 1 day)::timestamptz <= ${cutoff}
       ), snapshots as (
         select
           ids.sleeper_player_id::varchar as sleeper_player_id,
@@ -1022,7 +1032,7 @@ async function loadProspectiveRows(
         -- One snapshot only: the latest scrape date before the draft. A player missing from it is not carried in
         -- with a stale rank from an older scrape; if drafted, he joins below as an unranked scoring row.
         select * from snapshots
-        where scrape_date = (select max(scrape_date) from snapshots where before_draft)
+        where scrape_date = (select scrape_date from source_dates)
         qualify row_number() over (
           partition by sleeper_player_id
           order by case when ranking_type = 'redraft-overall' then 0 else 1 end
@@ -1060,6 +1070,8 @@ async function loadProspectiveRows(
       left join trained on trained.gsis_id = pool.gsis_id
       left join model.prospective_player_outcomes outcomes
         on outcomes.season = ${String(season)} and outcomes.gsis_id = pool.gsis_id
+      -- Replay sorts break ties by input order, so the board comes back in a fixed order.
+      order by pool.sleeper_player_id
     `);
     const objects = reader.getRowObjects();
     const decoded = decodeBacktestTrainingRows(objects);
@@ -1086,6 +1098,16 @@ async function loadProspectiveRows(
     });
   }
   return { rows, folds, skipped };
+}
+
+/** A fold season replays only its draft-day board: training rows a later rebuild adds for it stay out. */
+function withProspectiveFolds(
+  rawRows: readonly TrainingRow[],
+  prospectiveRows: readonly TrainingRow[],
+  foldSeasons: readonly number[]
+): TrainingRow[] {
+  const folds = new Set(foldSeasons);
+  return [...rawRows.filter((row) => !folds.has(row.season)), ...prospectiveRows];
 }
 
 function sqlString(value: string): string {
@@ -1172,6 +1194,7 @@ async function main(): Promise<void> {
           ) as row_number
         from model.prediction_training_dataset
       ) where row_number = 1
+      order by season, sleeper_player_id, position
     `);
     const rawRows = decodeBacktestTrainingRows(reader.getRowObjects()).map((row) => ({
       ...row,
@@ -1257,10 +1280,9 @@ async function main(): Promise<void> {
     const draftedKeys = new Set(history.seasons.flatMap((season) =>
       season.picks.map((pick) => playerSeasonKey(season.season, pick.playerId))
     ));
-    // A fold season replays only its draft-day board: training rows a later rebuild adds for it stay out.
     const prospectiveFoldSeasons = new Set(prospective.folds.map((fold) => fold.season));
     const { playerSeasons, scoringRows, modelCache } = addDerivedValues(
-      [...rawRows.filter((row) => !prospectiveFoldSeasons.has(row.season)), ...prospective.rows],
+      withProspectiveFolds(rawRows, prospective.rows, [...prospectiveFoldSeasons]),
       draftedKeys
     );
     const evaluations: PickEvaluation[] = [];
@@ -2408,6 +2430,7 @@ export const backtestInternals = {
   playerSeasonKey,
   summarize,
   loadProspectiveRows,
+  withProspectiveFolds,
   PROSPECTIVE_FEATURE_COLUMNS,
 };
 
