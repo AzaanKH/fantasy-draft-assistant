@@ -5,9 +5,9 @@
  * totals, joins them with the pre-draft FantasyPros snapshot and local league context, and writes JSON and markdown
  * to a gitignored directory (league data is private). See docs/season-review.md.
  */
-import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { constants, existsSync } from 'node:fs';
+import { lstat, mkdir, open, readFile, readdir, realpath, stat } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { Clock, Data, Effect } from 'effect';
@@ -168,7 +168,8 @@ export function lastFinalScheduleWeek(csv: string, season: number): number {
  * Two cutoffs. Standings, points for/against and max PF are Sleeper's live roster totals, which count only the
  * regular season: the last scored week, capped at `last_scored_leg` and the week before `playoff_week_start`. Player stats, transactions and
  * pickups may run later, through the last completed NFL week, but never earlier than standings: that would mix
- * week-N player data with later standings.
+ * week-N player data with later standings. Live standings ahead of the last final NFL week (a week Sleeper has
+ * partly scored) cannot be wound back, so that is an error until the week is final.
  */
 export function resolveCutoffs(
   requested: number | null,
@@ -179,16 +180,20 @@ export function resolveCutoffs(
 ): { readonly stats: number; readonly standings: number } {
   const standings = Math.min(lastScored, lastScoredLeg ?? lastScored, playoffWeekStart === null ? lastScored : playoffWeekStart - 1);
   if (standings < 1) throw new SeasonReviewError({ message: 'No scored weeks yet.' });
-  const latest = Math.max(standings, nflCompleted);
+  if (standings > nflCompleted) {
+    throw new SeasonReviewError({
+      message: `Sleeper standings include week ${String(standings)}, but week ${String(nflCompleted)} is the last NFL week with every game final. Rerun once week ${String(standings)} is final.`,
+    });
+  }
   if (requested !== null && requested < standings) {
     throw new SeasonReviewError({
       message: `--through-week ${String(requested)} is not supported: standings are live season totals through week ${String(standings)}, so player stats cannot stop earlier.`,
     });
   }
-  if (requested !== null && requested > latest) {
-    throw new SeasonReviewError({ message: `--through-week ${String(requested)} is not supported: week ${String(latest)} is the last completed NFL week.` });
+  if (requested !== null && requested > nflCompleted) {
+    throw new SeasonReviewError({ message: `--through-week ${String(requested)} is not supported: week ${String(nflCompleted)} is the last completed NFL week.` });
   }
-  return { stats: requested ?? latest, standings };
+  return { stats: requested ?? nflCompleted, standings };
 }
 
 /** Why a FantasyPros snapshot cannot stand in for pre-draft rankings, or null when it can. */
@@ -220,7 +225,9 @@ const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: 
   return null;
 });
 
-/** Real path of `path`, resolving symlinks and firmlinks through its nearest existing ancestor. */
+const exists = (path: string) => lstat(path).then(() => true, () => false);
+
+/** Real path of `path`, resolving symlinks through its nearest existing ancestor; a dangling symlink on the way is refused. */
 async function realDestination(path: string): Promise<string> {
   const missing: string[] = [];
   for (let current = resolve(path); ; current = dirname(current)) {
@@ -229,19 +236,43 @@ async function realDestination(path: string): Promise<string> {
     } catch (cause) {
       const code = (cause as NodeJS.ErrnoException).code;
       if ((code !== 'ENOENT' && code !== 'ENOTDIR') || dirname(current) === current) throw cause;
+      if (await exists(current)) throw new SeasonReviewError({ message: `${current} is a dangling symlink; refusing to write through it.` });
       missing.push(basename(current));
     }
   }
 }
 
-/** League data is private: refuse to write any output file inside this checkout that git would let someone stage. */
+/**
+ * `destination` relative to the checkout, or null when it is outside. The checkout is matched by device and inode,
+ * not path text: macOS firmlinks give one directory two real paths (`/System/Volumes/Data/...` and `/...`).
+ */
+async function checkoutRelative(destination: string, root: { readonly dev: number; readonly ino: number }): Promise<string | null> {
+  for (let current = destination; ; current = dirname(current)) {
+    const found = await stat(current).catch(() => null);
+    if (found?.dev === root.dev && found.ino === root.ino) return relative(current, destination);
+    if (dirname(current) === current) return null;
+  }
+}
+
+/** League data is private: refuse symlinked output files, and any output inside this checkout that git would let someone stage. */
 export const assertPrivateOutputs = (paths: readonly string[], repoRoot: string = REPO_ROOT): Effect.Effect<void, Error> => io(async () => {
-  const root = await realpath(repoRoot);
+  const root = await stat(repoRoot);
   for (const path of paths) {
-    const inside = relative(root, await realDestination(path));
-    if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) continue;
-    const ignored = await git(['-C', root, 'check-ignore', '-q', '--', inside]).then(() => true, () => false);
+    if ((await lstat(path).catch(() => null))?.isSymbolicLink()) throw new SeasonReviewError({ message: `${path} is a symlink; refusing to write through it.` });
+    const inside = await checkoutRelative(await realDestination(path), root);
+    if (inside === null) continue;
+    const ignored = await git(['-C', repoRoot, 'check-ignore', '-q', '--', inside]).then(() => true, () => false);
     if (!ignored) throw new SeasonReviewError({ message: `${path} is inside the checkout but not git-ignored; private league data could be committed. Use a git-ignored --out such as data/season-review/.` });
+  }
+});
+
+/** Writes `contents` to `path` without following a symlink there (O_NOFOLLOW where the platform has it). */
+export const writePrivateFile = (path: string, contents: string): Effect.Effect<void, Error> => io(async () => {
+  const handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0), 0o644);
+  try {
+    await handle.writeFile(contents);
+  } finally {
+    await handle.close();
   }
 });
 
@@ -461,7 +492,7 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   ]);
   yield* assertPrivateOutputs([...outputs.keys()]);
   yield* io(() => mkdir(rawDir, { recursive: true }));
-  for (const [path, contents] of outputs) yield* io(() => writeFile(path, contents));
+  for (const [path, contents] of outputs) yield* writePrivateFile(path, contents);
   yield* Effect.sync(() => {
     console.log(`Season review ${review.meta.label}`);
     console.log(`  Pre-draft rankings: ${predraft.source}`);

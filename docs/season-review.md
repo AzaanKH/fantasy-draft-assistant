@@ -40,10 +40,13 @@ transactions and pickups run through `--through-week`, which defaults to the
 last completed NFL week (Sleeper's week, confirmed against the nflverse
 schedule: every game of that week and earlier must be final, and Sleeper must
 have its player stats) and may be any week from the standings week up to it, so
-`--through-week 18` reruns the full regular season. Output paths are checked by
-their real path, so a symlink or alternate spelling into the checkout gets the
-same check.
-Earlier cutoffs are rejected rather than mixing weeks. `--out` defaults to
+`--through-week 18` reruns the full regular season. If Sleeper has already
+scored a week that is not yet final in nflverse, the script stops until it is.
+Earlier cutoffs are rejected rather than mixing weeks. Output paths are checked
+by their real path, and the checkout is recognised by device and inode, so a
+symlink, firmlink or alternate spelling into the checkout gets the same check.
+A symlink at an output file, dangling or not, is refused, and files are opened
+without following one. `--out` defaults to
 `data/season-review/<year>/`, which is gitignored and classified private in the
 data catalog. Every output file is checked with `git check-ignore` before
 anything is written, and one inside the checkout that git does not ignore is

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -34,6 +35,7 @@ import {
   predraftSnapshotProblem,
   resolveManagerSlot,
   resolveCutoffs,
+  writePrivateFile,
 } from '../generate-season-review.js';
 
 const scoring = { pass_yd: 0.04, pass_td: 4, rush_yd: 0.1, rush_td: 6, rush_att: 0.2, rec: 1, rec_yd: 0.1, rec_td: 6, bonus_rec_te: 0.5 };
@@ -218,6 +220,9 @@ describe('season review entry decisions', () => {
     expect(() => resolveCutoffs(13, 18, 17, 17, 15)).toThrow('standings are live');
     expect(() => resolveCutoffs(12, 11, 11, 17, 15)).toThrow('last completed NFL week');
     expect(() => resolveCutoffs(null, 0, 0, null, null)).toThrow('No scored weeks');
+    // Sleeper has partly scored week 12 but nflverse has week 11 as the last final week: stop instead of using week 12.
+    expect(() => resolveCutoffs(null, 11, 12, 17, 15)).toThrow('Rerun once week 12 is final');
+    expect(() => resolveCutoffs(12, 11, 12, 17, 15)).toThrow('Rerun once week 12 is final');
   });
 
   it('refuses any output file inside the checkout that git does not ignore', async () => {
@@ -253,6 +258,48 @@ describe('season review entry decisions', () => {
       expect((await run(join(base, 'link', 'leak', 'report.md')))._tag).toBe('Failure');
       expect((await run(join(base, 'link', 'ignored', 'new', 'report.md')))._tag).toBe('Success');
       expect((await run(join(base, 'elsewhere', 'report.md')))._tag).toBe('Success');
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it.skipIf(!existsSync('/System/Volumes/Data'))('matches the checkout by device and inode, so a macOS firmlink spelling is still git-ignore checked', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-firmlink-')));
+    try {
+      const repo = join(base, 'repo');
+      await mkdir(join(repo, 'ignored'), { recursive: true });
+      execFileSync('git', ['init', '-q', repo]);
+      await writeFile(join(repo, '.gitignore'), 'ignored/\n');
+      const firmlinked = join('/System/Volumes/Data', repo);
+      for (const [root, path] of [[repo, join(firmlinked, 'leak', 'report.md')], [firmlinked, join(repo, 'leak', 'report.md')]] as const) {
+        expect((await Effect.runPromiseExit(assertPrivateOutputs([path], root)))._tag).toBe('Failure');
+      }
+      expect((await Effect.runPromiseExit(assertPrivateOutputs([join(firmlinked, 'ignored', 'report.md')], repo)))._tag).toBe('Success');
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to write through a symlink at an output path, dangling or not', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-symlink-')));
+    try {
+      const repo = join(base, 'repo');
+      const out = join(base, 'out');
+      await mkdir(out, { recursive: true });
+      execFileSync('git', ['init', '-q', repo]);
+      await symlink(join(repo, 'leak.md'), join(out, 'dangling.md'));
+      await writeFile(join(base, 'target.md'), 'kept\n');
+      await symlink(join(base, 'target.md'), join(out, 'live.md'));
+      await symlink(join(repo, 'leakdir'), join(out, 'raw'));
+      const run = (path: string) => Effect.runPromiseExit(assertPrivateOutputs([path], repo));
+      expect((await run(join(out, 'dangling.md')))._tag).toBe('Failure');
+      expect((await run(join(out, 'live.md')))._tag).toBe('Failure');
+      expect((await run(join(out, 'raw', 'state_nfl.json')))._tag).toBe('Failure');
+      expect((await Effect.runPromiseExit(writePrivateFile(join(out, 'dangling.md'), 'private\n')))._tag).toBe('Failure');
+      expect((await Effect.runPromiseExit(writePrivateFile(join(out, 'live.md'), 'private\n')))._tag).toBe('Failure');
+      expect(existsSync(join(repo, 'leak.md'))).toBe(false);
+      expect(await readFile(join(base, 'target.md'), 'utf8')).toBe('kept\n');
+      expect((await Effect.runPromiseExit(writePrivateFile(join(out, 'report.md'), 'private\n')))._tag).toBe('Success');
     } finally {
       await rm(base, { recursive: true, force: true });
     }
