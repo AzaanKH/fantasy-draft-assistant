@@ -155,7 +155,7 @@ export function renderSeasonReviewMarkdown(review: SeasonReview): string {
     'Pick cost vs ADP: positive = taken later than FantasyPros ADP (value), negative = reach. Return vs slot = (order the position was drafted) − (season-to-date position rank); positive beat the slot.', '',
     table(['Pick', 'Player', 'Pos', 'Keeper', 'Pre ECR', 'Pre pos', 'ADP', 'Cost vs ADP', 'Pts', 'PPG', 'G', 'Pos rank (pts)', 'Pos rank (PPG)', 'Drafted as', 'Return vs slot', 'Value over cost'],
       myDraft.picks.map((pick) => [
-        pickLabel(pick), pick.name, pick.position, pick.isKeeper ? 'yes' : '', fmt(pick.ecrRank, 0), rankLabel(pick.position, pick.ecrPositionRank), fmt(pick.adpRank, 0),
+        pickLabel(pick), pick.name, pick.position, pick.isKeeper ? 'yes' : '', fmt(pick.ecrRank, 0), rankLabel(pick.position, pick.ecrPositionRank), fmt(pick.adpPick, 1),
         signed(pick.adpDelta, 0), fmt(pick.points), fmt(pick.pointsPerGame), pick.games, rankLabel(pick.position, pick.positionRank),
         rankLabel(pick.position, pick.ppgPositionRank), rankLabel(pick.position, pick.positionDraftOrder), signed(pick.returnVsSlot, 0), signed(pick.valueOverCost),
       ])),

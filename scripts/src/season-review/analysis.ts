@@ -3,8 +3,10 @@
  */
 import {
   FLEX_GROUPS,
+  KICKER_DEFENSE_POSITIONS,
   OFFENSIVE_POSITIONS,
   isNFLTeam,
+  normalizeSleeperLeagueSettings,
   type OffensivePosition,
   type RosterRequirements,
 } from '@fantasy-draft/shared/league';
@@ -19,6 +21,7 @@ import {
   type OffensiveRoster,
   type RosterRules,
 } from '../offensive-roster.js';
+import { pseudonymizeUserId } from '../import-league-draft-history.js';
 import {
   RISK_CATEGORIES,
   acquisitionSource,
@@ -33,8 +36,8 @@ import {
   letterGrade,
   mean,
   meanAbsoluteRankError,
-  nextSnakePick,
   normalizeName,
+  pickupStints,
   quantile,
   rankWithinGroups,
   replacementLevels,
@@ -42,6 +45,7 @@ import {
   sportsbookProjectionGap,
   starterSlotsFromRoster,
   type AcquisitionSource,
+  type StarterSlots,
   type PlayerSeasonLine,
   type RiskCategory,
   type RosterAdd,
@@ -54,7 +58,6 @@ import type { SeasonReviewInputs } from './inputs.js';
 export const EXPECTED_VALUE_WINDOW = 7;
 /** Pre-draft positional ranks treated as "draftable" when scoring expert accuracy. */
 export const RELEVANT_POSITION_DEPTH: Readonly<Record<OffensivePosition, number>> = { QB: 24, RB: 48, WR: 60, TE: 24 };
-const SKILL_KICKER = 'K';
 const ROOM_AVERAGE = 'room-average';
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
@@ -73,6 +76,8 @@ export interface PredraftPlayer {
   readonly worstRank: number | null;
   readonly avgRank: number | null;
   readonly adpRank: number | null;
+  /** FantasyPros average draft position as a pick number; the ordinal `adpRank` only orders players. */
+  readonly adpPick: number | null;
   readonly projection: number | null;
   readonly projectionStats: StatProjection;
 }
@@ -92,6 +97,7 @@ export interface DraftedPick {
   readonly ecrRank: number | null;
   readonly ecrPositionRank: number | null;
   readonly adpRank: number | null;
+  readonly adpPick: number | null;
   readonly adpDelta: number | null;
   readonly currentEcrRank: number | null;
   readonly points: number;
@@ -327,8 +333,8 @@ function buildFantasyProsMap(inputs: SeasonReviewInputs, info: ReadonlyMap<strin
 
 function buildPredraft(inputs: SeasonReviewInputs, fpMap: ReadonlyMap<string, string>): Map<string, PredraftPlayer> {
   const snapshot = inputs.predraftFantasyPros;
-  const scoring = inputs.league.scoring_settings;
-  const adp = new Map(snapshot.adp.map((row) => [row.fantasyProsId, row.rank]));
+  const scoringRules = normalizeSleeperLeagueSettings(inputs.league).scoringRules;
+  const adp = new Map(snapshot.adp.map((row) => [row.fantasyProsId, row]));
   const projections = new Map(snapshot.projections.map((row) => [row.fantasyProsId, row]));
   const players = new Map<string, PredraftPlayer>();
   for (const row of snapshot.rankings) {
@@ -347,11 +353,9 @@ function buildPredraft(inputs: SeasonReviewInputs, fpMap: ReadonlyMap<string, st
       bestRank: row.bestRank ?? null,
       worstRank: row.worstRank ?? null,
       avgRank: row.avgRank ?? null,
-      adpRank: adp.get(row.fantasyProsId) ?? null,
-      projection: projection
-        ? leagueProjection(projection.projectedPoints, position, projection.projectedRushAttempts ?? undefined,
-          projection.projectedReceptions ?? undefined, scoring)
-        : null,
+      adpRank: adp.get(row.fantasyProsId)?.rank ?? null,
+      adpPick: adp.get(row.fantasyProsId)?.averageRank ?? adp.get(row.fantasyProsId)?.rank ?? null,
+      projection: projection ? leagueProjection(projection, position, scoringRules) : null,
       projectionStats: {
         passingYards: projection?.projectedPassingYards ?? undefined,
         passingTouchdowns: projection?.projectedPassingTouchdowns ?? undefined,
@@ -486,23 +490,30 @@ function strategyTotals(
   info: ReadonlyMap<string, PlayerInfo>,
   lines: ReadonlyMap<string, PlayerSeasonLine>,
   vorOf: (playerId: string) => number,
-  rules: RosterRules
+  rules: RosterRules,
+  slots: StarterSlots
 ): StrategyTotals {
   const roster = createOffensiveRoster<CandidatePlayer>();
+  const special = new Map<string, number[]>();
   let totalPoints = 0;
   let totalVor = 0;
   for (const id of ids) {
     if (!id) continue;
-    totalPoints += lines.get(id)?.points ?? 0;
+    const points = lines.get(id)?.points ?? 0;
+    totalPoints += points;
     totalVor += vorOf(id);
     const position = info.get(id)?.position ?? '';
     if (isOffensive(position)) roster[position].push({ playerId: id, position });
+    else special.set(position, [...(special.get(position) ?? []), points]);
   }
+  // A legal lineup also starts every configured K and DEF slot.
+  const specialStarters = KICKER_DEFENSE_POSITIONS.reduce((sum, position) => sum + [...(special.get(position) ?? [])]
+    .sort((a, b) => b - a).slice(0, slots.fixed[position] ?? 0).reduce((total, points) => total + points, 0), 0);
   return {
     totalPoints: round2(totalPoints),
     totalVor: round2(totalVor),
     seasonLineupPoints: round2(calculateStarterPoints(roster, rules, (player) => player.playerId,
-      (player) => lines.get(player.playerId)?.points ?? 0)),
+      (player) => lines.get(player.playerId)?.points ?? 0) + specialStarters),
   };
 }
 
@@ -534,11 +545,17 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
 
   const lines = aggregateSeason(inputs.weeklyStats, scoring);
   const lineOf = (playerId: string) => lines.get(playerId);
-  const scoredPositions = new Set<string>([...OFFENSIVE_POSITIONS, SKILL_KICKER]);
+  const scoredPositions = new Set<string>([...OFFENSIVE_POSITIONS, ...KICKER_DEFENSE_POSITIONS]);
   const universe = [...lines.values()].flatMap((line) => {
     const position = info.get(line.playerId)?.position ?? '';
     return scoredPositions.has(position) ? [{ ...line, position }] : [];
   });
+  // Drafted players with no stat line yet still hold a rank: last at their position on zero points.
+  for (const playerId of new Set(inputs.picks.map((pick) => pick.player_id))) {
+    const position = info.get(playerId)?.position ?? '';
+    if (lines.has(playerId) || !scoredPositions.has(position)) continue;
+    universe.push({ playerId, points: 0, games: 0, pointsPerGame: 0, weeklyPoints: [], position });
+  }
   const slots = starterSlotsFromRoster(inputs.league.roster_positions, FLEX_GROUPS.standard);
   const replacement = replacementLevels(universe, slots, teams);
   // Floored at zero: a player below replacement is a free waiver swap, so a late bust costs the pick, not more.
@@ -603,7 +620,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     const positionRank = positionRanks.get(pick.player_id) ?? null;
     const vor = vorOf(pick.player_id);
     const expectedVor = expected.get(pick.pick_no) ?? 0;
-    const delta = adpDelta(pick.pick_no, pre?.adpRank ?? null);
+    const delta = adpDelta(pick.pick_no, pre?.adpPick ?? null);
     const gsis = player?.gsisId ?? null;
     const prior = gsis ? priorByGsis.get(gsis) : undefined;
     const draftTeam = metadataTeam ?? pre?.team ?? player?.team ?? null;
@@ -628,6 +645,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       ecrRank: pre?.ecrRank ?? null,
       ecrPositionRank: pre?.ecrPositionRank ?? null,
       adpRank: pre?.adpRank ?? null,
+      adpPick: pre?.adpPick ?? null,
       adpDelta: delta,
       currentEcrRank: currentEcr.get(pick.player_id) ?? null,
       points: line?.points ?? 0,
@@ -672,16 +690,24 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const summary = (playerId: string | null) => playerId
     ? { name: info.get(playerId)?.name ?? playerId, position: info.get(playerId)?.position ?? '', points: lineOf(playerId)?.points ?? 0 }
     : null;
+  // Keepers are known before pick 1: both replays start with them rostered and count them once.
+  const managerPicks = picks.filter((pick) => pick.rosterId === managerRosterId);
+  for (const keeper of managerPicks.filter((pick) => pick.isKeeper)) {
+    for (const state of [ecrState, bestPickState]) {
+      if (isOffensive(keeper.position)) addToStrategy(state, { playerId: keeper.playerId, position: keeper.position });
+      else state.picks.push(keeper.playerId);
+    }
+  }
+  // Only the manager's own non-keeper offensive picks are replayed; selections left and the next pick come from them.
+  const replayable = managerPicks.filter((pick) => !pick.isKeeper && isOffensive(pick.position)).map((pick) => pick.pickNo);
   for (const pick of picks) {
     if (pick.rosterId !== managerRosterId) {
       takenByOthers.add(pick.playerId);
       continue;
     }
     actualIds.push(pick.playerId);
-    const candidate = isOffensive(pick.position) ? { playerId: pick.playerId, position: pick.position } : null;
-    if (pick.isKeeper || !candidate) {
-      if (candidate) { addToStrategy(ecrState, candidate); addToStrategy(bestPickState, candidate); }
-      else { ecrState.picks.push(pick.playerId); bestPickState.picks.push(pick.playerId); }
+    if (pick.isKeeper || !isOffensive(pick.position)) {
+      if (!pick.isKeeper) { ecrState.picks.push(pick.playerId); bestPickState.picks.push(pick.playerId); }
       counterfactualPicks.push({ pickNo: pick.pickNo, actual: { name: pick.name, position: pick.position, points: pick.points }, ecr: summary(pick.playerId), bestPick: summary(pick.playerId) });
       continue;
     }
@@ -690,7 +716,10 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       if (!isOffensive(position) || takenByOthers.has(player.playerId) || keeperIds.has(player.playerId) || state.selected.has(player.playerId)) return [];
       return [{ playerId: player.playerId, position, ecrRank: player.ecrRank, adpRank: player.adpRank }];
     });
-    const remaining = (state: StrategyState) => rules.totalOffensiveSlots - OFFENSIVE_POSITIONS.reduce((sum, position) => sum + state.roster[position].length, 0);
+    const replayIndex = replayable.indexOf(pick.pickNo);
+    const selectionsLeft = replayable.length - replayIndex;
+    const remaining = (state: StrategyState) => Math.min(selectionsLeft,
+      rules.totalOffensiveSlots - OFFENSIVE_POSITIONS.reduce((sum, position) => sum + state.roster[position].length, 0));
 
     const ecrChoice = available(ecrState)
       .filter((player) => isLegalCandidate(player, ecrState.roster, rules, remaining(ecrState)))
@@ -698,7 +727,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     if (ecrChoice) addToStrategy(ecrState, ecrChoice); else ecrState.picks.push(null);
 
     const legal = available(bestPickState).filter((player) => isLegalCandidate(player, bestPickState.roster, rules, remaining(bestPickState)));
-    const nextPick = nextSnakePick(pick.pickNo, teams, rounds);
+    const nextPick = replayable[replayIndex + 1] ?? null;
     const boardPlayers = legal.flatMap((player) => {
       const boardPlayer = board.get(player.playerId);
       return boardPlayer ? [{
@@ -740,7 +769,6 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const rosterSettings = new Map(inputs.rosters.map((roster) => [roster.roster_id, roster.settings]));
   const addsByRosterPlayer = new Map<string, RosterAdd[]>();
   const transactionCounts = new Map<number, { waiver: number; freeAgent: number; trade: number; faabSpent: number }>();
-  const addBids = new Map<string, number>();
   for (const { week, rows } of inputs.transactions) {
     if (week > inputs.throughWeek) continue;
     for (const transaction of rows) {
@@ -759,15 +787,16 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       for (const [playerId, rosterId] of Object.entries(transaction.adds ?? {})) {
         const addType = type === 'waiver' || type === 'free_agent' || type === 'trade' ? type : 'commissioner';
         const key = `${String(rosterId)}:${playerId}`;
-        addsByRosterPlayer.set(key, [...(addsByRosterPlayer.get(key) ?? []), { week, created: transaction.created ?? 0, rosterId, playerId, type: addType }]);
         const bid = transaction.settings?.['waiver_bid'];
-        if (type === 'waiver' && typeof bid === 'number') addBids.set(key, bid);
+        addsByRosterPlayer.set(key, [...(addsByRosterPlayer.get(key) ?? []), {
+          week, created: transaction.created ?? 0, rosterId, playerId, type: addType,
+          transactionId: transaction.transaction_id, faabBid: typeof bid === 'number' ? bid : null,
+        }]);
       }
     }
   }
 
   const sourceTotals = new Map<number, Record<AcquisitionSource, number>>();
-  const pickupTotals = new Map<string, { rosterId: number; playerId: string; firstWeek: number; source: 'waiver' | 'free_agent'; rostered: number; started: number }>();
   for (const { week, rows } of inputs.matchups) {
     if (week > inputs.throughWeek) continue;
     for (const row of rows) {
@@ -779,16 +808,6 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
         totals[source] = round2(totals[source] + (row.starters_points?.[index] ?? 0));
       });
       sourceTotals.set(row.roster_id, totals);
-      for (const playerId of row.players ?? []) {
-        const source = acquisitionSource(row.roster_id, playerId, week, addsByRosterPlayer, draftedBy);
-        if (source !== 'waiver' && source !== 'free_agent') continue;
-        const key = `${String(row.roster_id)}:${playerId}`;
-        const entry = pickupTotals.get(key) ?? { rosterId: row.roster_id, playerId, firstWeek: week, source, rostered: 0, started: 0 };
-        const points = row.players_points?.[playerId] ?? 0;
-        entry.rostered = round2(entry.rostered + points);
-        if (starters.includes(playerId)) entry.started = round2(entry.started + points);
-        pickupTotals.set(key, entry);
-      }
     }
   }
 
@@ -883,14 +902,17 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       round: pick.round, ecrDelta: adpDelta(pick.pickNo, pick.ecrRank), isKeeper: pick.isKeeper,
     });
   }
+  // The history importer stores pseudonymized user ids; map them back to this league's live ids to join.
+  const liveUserId = new Map(inputs.users.map((user) => [pseudonymizeUserId(user.user_id), user.user_id]));
   for (const history of inputs.history) {
     const historyNames = new Map(history.users.map((user) => [user.user_id, user.display_name ?? user.user_id]));
     for (const pick of history.picks) {
-      const userId = pick.picked_by ?? '';
+      const recordedId = pick.picked_by ?? '';
+      const userId = liveUserId.get(recordedId) ?? recordedId;
       const ecr = inputs.historyEcr.get(`${String(history.season)}:${pick.player_id}`);
       const position = normalizePosition(typeof pick.metadata?.['position'] === 'string' ? pick.metadata['position'] : '');
       tendencyRows.push({
-        season: history.season, userId, originalUserId: userId, manager: names.get(userId)?.name ?? historyNames.get(userId) ?? userId, position,
+        season: history.season, userId, originalUserId: userId, manager: names.get(userId)?.name ?? historyNames.get(recordedId) ?? userId, position,
         round: pick.round, ecrDelta: adpDelta(pick.pick_no, ecr ?? null), isKeeper: pick.is_keeper === true,
       });
     }
@@ -928,7 +950,8 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     }).sort((a, b) => Number(a.userId === ROOM_AVERAGE) - Number(b.userId === ROOM_AVERAGE) || a.manager.localeCompare(b.manager));
   };
   const currentUsers = new Set(inputs.users.map((user) => user.user_id));
-  const historySeasons = [...new Set(inputs.history.map((history) => history.season))].sort();
+  const historyRows = tendencyRows.filter((row) => currentUsers.has(row.userId));
+  const historySeasons = [...new Set(historyRows.map((row) => row.season).filter((season) => season !== inputs.season))].sort();
 
   // Rankings accuracy and movement.
   const relevant = [...predraft.values()].filter((player) => {
@@ -1018,11 +1041,11 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       category,
       n: members.length,
       hits: hits.length,
-      hitRate: scored.length ? round2(hits.length / scored.length) : null,
+      hitRate: members.length ? round2(hits.length / members.length) : null,
       meanValueOverCost: mean(members.map((pick) => pick.valueOverCost)),
       meanReturnVsSlot: mean(scored.map((pick) => pick.returnVsSlot ?? 0)),
       paidOff: hits.sort((a, b) => b.valueOverCost - a.valueOverCost).map((pick) => pick.name),
-      didNot: scored.filter((pick) => (pick.returnVsSlot ?? 0) < 0).sort((a, b) => a.valueOverCost - b.valueOverCost).map((pick) => pick.name),
+      didNot: members.filter((pick) => !hits.includes(pick)).sort((a, b) => a.valueOverCost - b.valueOverCost).map((pick) => pick.name),
     };
   };
   const riskSummary = [
@@ -1037,7 +1060,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     const worst = inRound[inRound.length - 1];
     return best && worst ? [{ round: roundNo, best, worst }] : [];
   });
-  const waiverPickups: WaiverPickup[] = [...pickupTotals.values()]
+  const waiverPickups: WaiverPickup[] = pickupStints(inputs.matchups, addsByRosterPlayer, inputs.throughWeek)
     .sort((a, b) => b.started - a.started || b.rostered - a.rostered)
     .slice(0, 15)
     .map((entry) => ({
@@ -1046,7 +1069,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       manager: managerOf(entry.rosterId),
       firstWeek: entry.firstWeek,
       source: entry.source,
-      faabBid: addBids.get(`${String(entry.rosterId)}:${entry.playerId}`) ?? null,
+      faabBid: entry.faabBid,
       rosteredPoints: entry.rostered,
       startedPoints: entry.started,
     }));
@@ -1086,9 +1109,9 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       waits: myPicks.filter((pick) => !pick.isKeeper && (pick.adpDelta ?? 0) >= 6).sort((a, b) => (b.adpDelta ?? 0) - (a.adpDelta ?? 0)),
       counterfactual: {
         picks: counterfactualPicks,
-        actual: strategyTotals(actualIds, info, lines, vorOf, rules),
-        ecr: strategyTotals(ecrState.picks, info, lines, vorOf, rules),
-        bestPick: strategyTotals(bestPickState.picks, info, lines, vorOf, rules),
+        actual: strategyTotals(actualIds, info, lines, vorOf, rules, slots),
+        ecr: strategyTotals(ecrState.picks, info, lines, vorOf, rules, slots),
+        bestPick: strategyTotals(bestPickState.picks, info, lines, vorOf, rules, slots),
         bestPickMethod: 'Current shipped Best Pick rule (shared getRecommendations, best-pick-policy) replayed on the Aug 30 FantasyPros board with league-scored projections, VOR, FantasyPros ADP as market cost and the backtest survival curve; live-only inputs (news, bye weeks, contracts, environment, league-history survival) are neutral. The draft-day app (commit a7cc935) also used live Fantasy Football Calculator ADP and the league survival model, which cannot be replayed exactly.',
       },
     },
@@ -1106,7 +1129,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     strategyCorrelations,
     tendencies: {
       current: tendencies(tendencyRows.filter((row) => row.season === inputs.season)),
-      withHistory: tendencies(tendencyRows.filter((row) => currentUsers.has(row.userId))),
+      withHistory: tendencies(historyRows),
       historySeasons,
     },
     rankings: { ecrByPosition, ecrPpgByPosition, adpVsEcr, modelVsFantasyPros, risers, fallers, unrankedBreakouts, fantasyProsMovement },

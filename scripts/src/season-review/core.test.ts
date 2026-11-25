@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLEX_GROUPS } from '@fantasy-draft/shared/league';
+import { DEFAULT_SCORING_RULES, FLEX_GROUPS } from '@fantasy-draft/shared/league';
 import {
   acquisitionSource,
   adpDelta,
@@ -11,6 +11,7 @@ import {
   nextSnakePick,
   normalizeName,
   parseCsv,
+  pickupStints,
   replacementLevels,
   scoreStats,
   spearman,
@@ -18,7 +19,13 @@ import {
   starterSlotsFromRoster,
   type RiskInput,
 } from './core.js';
-import { lastScoredWeek, parseSeasonReviewArgs, resolveManagerSlot } from '../generate-season-review.js';
+import {
+  lastScoredWeek,
+  parseSeasonReviewArgs,
+  predraftSnapshotProblem,
+  resolveManagerSlot,
+  resolveThroughWeek,
+} from '../generate-season-review.js';
 
 const scoring = { pass_yd: 0.04, pass_td: 4, rush_yd: 0.1, rush_td: 6, rush_att: 0.2, rec: 1, rec_yd: 0.1, rec_td: 6, bonus_rec_te: 0.5 };
 
@@ -38,9 +45,14 @@ describe('season review scoring', () => {
     expect(lines.has('b')).toBe(false);
   });
 
-  it('adds rush-attempt and TE reception bonuses to base PPR projections', () => {
-    expect(leagueProjection(200, 'TE', undefined, 80, scoring)).toBe(240);
-    expect(leagueProjection(200, 'RB', 250, 40, scoring)).toBe(250);
+  it('re-scores base PPR projections for league rules through the shared calculator', () => {
+    const rules = { ...DEFAULT_SCORING_RULES, rushing: { ...DEFAULT_SCORING_RULES.rushing, attemptBonus: 0.2 } };
+    expect(leagueProjection({ projectedPoints: 200, projectedReceptions: 80 }, 'TE', rules)).toBe(240);
+    expect(leagueProjection({ projectedPoints: 200, projectedRushAttempts: 250, projectedReceptions: 40 }, 'RB', rules)).toBe(250);
+    // Half PPR: an 80-catch receiver loses 40 of the full-PPR base, and the base wins over an adjusted total.
+    const halfPpr = { ...rules, receiving: { ...rules.receiving, reception: 0.5 } };
+    expect(leagueProjection({ projectedPoints: 999, baseProjectedPoints: 200, projectedReceptions: 80 }, 'WR', halfPpr)).toBe(160);
+    expect(leagueProjection({ projectedPoints: 5 }, 'DST', rules)).toBeNull();
   });
 });
 
@@ -127,14 +139,29 @@ describe('risk categories', () => {
 describe('acquisitions', () => {
   it('attributes a started player to the latest add on or before that week, else the draft', () => {
     const adds = new Map([['4:p1', [
-      { week: 3, created: 30, rosterId: 4, playerId: 'p1', type: 'waiver' as const },
-      { week: 6, created: 60, rosterId: 4, playerId: 'p1', type: 'trade' as const },
+      { week: 3, created: 30, rosterId: 4, playerId: 'p1', type: 'waiver' as const, transactionId: 't1', faabBid: 5 },
+      { week: 6, created: 60, rosterId: 4, playerId: 'p1', type: 'trade' as const, transactionId: 't2', faabBid: null },
     ]]]);
     const drafted = new Map([['p2', 4], ['p1', 7]]);
     expect(acquisitionSource(4, 'p1', 2, adds, drafted)).toBe('other');
     expect(acquisitionSource(4, 'p1', 4, adds, drafted)).toBe('waiver');
     expect(acquisitionSource(4, 'p1', 6, adds, drafted)).toBe('trade');
     expect(acquisitionSource(4, 'p2', 6, adds, drafted)).toBe('draft');
+  });
+
+  it('keeps separate pickups of the same player by the same roster as separate stints', () => {
+    const adds = new Map([['4:p1', [
+      { week: 2, created: 20, rosterId: 4, playerId: 'p1', type: 'waiver' as const, transactionId: 'w1', faabBid: 12 },
+      { week: 5, created: 50, rosterId: 4, playerId: 'p1', type: 'free_agent' as const, transactionId: 'f1', faabBid: null },
+    ]]]);
+    const row = (points: number, started: boolean) => ({ roster_id: 4, players: ['p1'], starters: started ? ['p1'] : [], players_points: { p1: points } });
+    const stints = pickupStints([
+      { week: 2, rows: [row(10, true)] }, { week: 3, rows: [row(4, false)] }, { week: 5, rows: [row(20, true)] }, { week: 6, rows: [row(7, true)] },
+    ], adds, 6);
+    expect(stints).toEqual([
+      { transactionId: 'w1', rosterId: 4, playerId: 'p1', firstWeek: 2, source: 'waiver', faabBid: 12, rostered: 14, started: 10 },
+      { transactionId: 'f1', rosterId: 4, playerId: 'p1', firstWeek: 5, source: 'free_agent', faabBid: null, rostered: 27, started: 27 },
+    ]);
   });
 });
 
@@ -167,5 +194,20 @@ describe('season review entry decisions', () => {
     const points = new Map([[10, 1400], [11, 1259], [12, 35]]);
     expect(lastScoredWeek(12, 2026, 2026, points)).toBe(11);
     expect(lastScoredWeek(3, 2027, 2026, new Map([[17, 1300], [18, 0]]))).toBe(17);
+  });
+
+  it('runs only through the last completed week, bounded by the league last_scored_leg', () => {
+    expect(resolveThroughWeek(null, 12, 11)).toBe(11);
+    expect(resolveThroughWeek(11, 11, null)).toBe(11);
+    expect(() => resolveThroughWeek(12, 12, 11)).toThrow('last completed week');
+    expect(() => resolveThroughWeek(9, 11, 11)).toThrow('standings are live');
+    expect(() => resolveThroughWeek(null, 0, null)).toThrow('No scored weeks');
+  });
+
+  it('accepts only a same-season FantasyPros snapshot refreshed before the draft', () => {
+    const draftStart = Date.parse('2026-09-05T20:00:00Z');
+    expect(predraftSnapshotProblem({ season: 2026, refreshedAt: '2026-08-30T21:16:15Z' }, 2026, draftStart)).toBeNull();
+    expect(predraftSnapshotProblem({ season: 2025, refreshedAt: '2025-08-30T21:16:15Z' }, 2026, draftStart)).toContain('season 2025');
+    expect(predraftSnapshotProblem({ season: 2026, refreshedAt: '2026-10-01T00:00:00Z' }, 2026, draftStart)).toContain('not before the draft');
   });
 });

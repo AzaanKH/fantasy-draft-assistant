@@ -2,7 +2,13 @@
  * Pure calculations for the in-season draft retrospective. Nothing here reads files, the network or the clock,
  * so every number in the report can be reproduced from the raw inputs and unit-tested.
  */
-import { OFFENSIVE_POSITIONS, isPosition, type OffensivePosition } from '@fantasy-draft/shared/league';
+import {
+  OFFENSIVE_POSITIONS,
+  calculateLeagueProjection,
+  isPosition,
+  type OffensivePosition,
+  type ScoringRules,
+} from '@fantasy-draft/shared/league';
 
 export type StatLine = Readonly<Record<string, number>>;
 
@@ -353,17 +359,38 @@ export function sportsbookProjectionGap(
   return { gap: Math.round(((books - projected) / projected) * 1000) / 1000, markets: byMarket.size };
 }
 
-/** League-scored projection from a base-PPR FantasyPros projection: adds rush-attempt and TE reception bonuses. */
-export function leagueProjection(
-  basePoints: number,
-  position: string,
-  rushAttempts: number | undefined,
-  receptions: number | undefined,
-  scoring: StatLine
-): number {
-  const rushBonus = (rushAttempts ?? 0) * (scoring['rush_att'] ?? 0);
-  const tePremium = position === 'TE' ? (receptions ?? 0) * (scoring['bonus_rec_te'] ?? 0) : 0;
-  return round2(basePoints + rushBonus + tePremium);
+/** A FantasyPros snapshot projection row: base PPR points plus the stat components league scoring re-weights. */
+export interface SnapshotProjection {
+  readonly projectedPoints: number;
+  readonly baseProjectedPoints?: number | null | undefined;
+  readonly projectedRushAttempts?: number | null | undefined;
+  readonly projectedReceptions?: number | null | undefined;
+  readonly projectedPassingYards?: number | null | undefined;
+  readonly projectedPassingTouchdowns?: number | null | undefined;
+  readonly projectedRushingYards?: number | null | undefined;
+  readonly projectedRushingTouchdowns?: number | null | undefined;
+  readonly projectedReceivingYards?: number | null | undefined;
+  readonly projectedReceivingTouchdowns?: number | null | undefined;
+}
+
+/**
+ * League-scored projection through the shared calculator the live board uses: the snapshot's base PPR points,
+ * re-weighted per stat component for this league's rules (reception rate, yardage, TDs) plus its bonuses.
+ */
+export function leagueProjection(projection: SnapshotProjection, position: string, rules: ScoringRules): number | null {
+  if (!isPosition(position)) return null;
+  return calculateLeagueProjection({
+    projectedPoints: projection.projectedPoints,
+    baseProjectedPoints: projection.baseProjectedPoints ?? undefined,
+    projectedRushAttempts: projection.projectedRushAttempts ?? undefined,
+    projectedReceptions: projection.projectedReceptions ?? undefined,
+    projectedPassingYards: projection.projectedPassingYards ?? undefined,
+    projectedPassingTouchdowns: projection.projectedPassingTouchdowns ?? undefined,
+    projectedRushingYards: projection.projectedRushingYards ?? undefined,
+    projectedRushingTouchdowns: projection.projectedRushingTouchdowns ?? undefined,
+    projectedReceivingYards: projection.projectedReceivingYards ?? undefined,
+    projectedReceivingTouchdowns: projection.projectedReceivingTouchdowns ?? undefined,
+  }, position, rules).projectedPoints;
 }
 
 export type RiskCategory =
@@ -431,6 +458,20 @@ export interface RosterAdd {
   readonly rosterId: number;
   readonly playerId: string;
   readonly type: 'waiver' | 'free_agent' | 'trade' | 'commissioner';
+  readonly transactionId: string;
+  readonly faabBid: number | null;
+}
+
+/** The add that put a player on a roster for a given week: the latest one on or before that week. */
+export function latestAdd(
+  rosterId: number,
+  playerId: string,
+  week: number,
+  addsByRosterPlayer: ReadonlyMap<string, readonly RosterAdd[]>
+): RosterAdd | undefined {
+  return (addsByRosterPlayer.get(`${String(rosterId)}:${playerId}`) ?? [])
+    .filter((add) => add.week <= week)
+    .sort((a, b) => b.week - a.week || b.created - a.created)[0];
 }
 
 /**
@@ -444,10 +485,57 @@ export function acquisitionSource(
   addsByRosterPlayer: ReadonlyMap<string, readonly RosterAdd[]>,
   draftedBy: ReadonlyMap<string, number>
 ): AcquisitionSource {
-  const adds = (addsByRosterPlayer.get(`${String(rosterId)}:${playerId}`) ?? [])
-    .filter((add) => add.week <= week)
-    .sort((a, b) => b.week - a.week || b.created - a.created);
-  const latest = adds[0];
+  const latest = latestAdd(rosterId, playerId, week, addsByRosterPlayer);
   if (latest) return latest.type === 'commissioner' ? 'other' : latest.type;
   return draftedBy.get(playerId) === rosterId ? 'draft' : 'other';
+}
+
+export interface PickupStint {
+  readonly transactionId: string;
+  readonly rosterId: number;
+  readonly playerId: string;
+  readonly firstWeek: number;
+  readonly source: 'waiver' | 'free_agent';
+  readonly faabBid: number | null;
+  readonly rostered: number;
+  readonly started: number;
+}
+
+/**
+ * Waiver and free-agent pickups, one row per acquiring transaction: a player dropped and re-added by the same roster
+ * is two stints, each with its own source, FAAB bid and points.
+ */
+export function pickupStints(
+  matchups: readonly { readonly week: number; readonly rows: readonly {
+    readonly roster_id: number;
+    readonly starters?: readonly string[] | null | undefined;
+    readonly players?: readonly string[] | null | undefined;
+    readonly players_points?: Readonly<Record<string, number>> | null | undefined;
+  }[] }[],
+  addsByRosterPlayer: ReadonlyMap<string, readonly RosterAdd[]>,
+  throughWeek: number
+): PickupStint[] {
+  const stints = new Map<string, PickupStint>();
+  for (const { week, rows } of [...matchups].sort((a, b) => a.week - b.week)) {
+    if (week > throughWeek) continue;
+    for (const row of rows) {
+      const starters = row.starters ?? [];
+      for (const playerId of row.players ?? []) {
+        const add = latestAdd(row.roster_id, playerId, week, addsByRosterPlayer);
+        if (!add || (add.type !== 'waiver' && add.type !== 'free_agent')) continue;
+        const points = row.players_points?.[playerId] ?? 0;
+        const key = `${add.transactionId}:${playerId}`;
+        const entry = stints.get(key) ?? {
+          transactionId: add.transactionId, rosterId: row.roster_id, playerId, firstWeek: week, source: add.type,
+          faabBid: add.type === 'waiver' ? add.faabBid : null, rostered: 0, started: 0,
+        };
+        stints.set(key, {
+          ...entry,
+          rostered: round2(entry.rostered + points),
+          started: starters.includes(playerId) ? round2(entry.started + points) : entry.started,
+        });
+      }
+    }
+  }
+  return [...stints.values()];
 }

@@ -97,7 +97,7 @@ const fpAdp = Schema.Struct({
 });
 const fpProjection = Schema.Struct({
   fantasyProsId: Schema.String, name: Schema.String, position: Schema.String, team: optStr,
-  projectedPoints: num,
+  projectedPoints: num, baseProjectedPoints: optNum,
   projectedRushAttempts: optNum, projectedPassingYards: optNum, projectedPassingTouchdowns: optNum,
   projectedRushingYards: optNum, projectedRushingTouchdowns: optNum, projectedReceptions: optNum,
   projectedReceivingYards: optNum, projectedReceivingTouchdowns: optNum,

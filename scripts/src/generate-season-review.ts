@@ -7,11 +7,12 @@
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { Clock, Data, Effect } from 'effect';
 import { http } from '@fantasy-draft/shared/http';
+import { Processes } from '@fantasy-draft/shared/node';
 import { currentSeason } from '@fantasy-draft/shared/league';
 import { fetchJson, io, isEntryPoint, runMain, type HttpRequestError } from './effect-runtime.js';
 import { buildSeasonReview } from './season-review/analysis.js';
@@ -37,6 +38,7 @@ import {
   decodeSleeperTransactions,
   decodeSleeperUsers,
   decodeSportsbook,
+  type FantasyProsSnapshot,
   type HistorySeason,
   type PriorSeasonRow,
   type SeasonReviewInputs,
@@ -131,6 +133,61 @@ export function lastScoredWeek(stateWeek: number, stateSeason: number, season: n
   for (let week = limit; week >= 1; week -= 1) if ((weekPoints.get(week) ?? 0) > 0) return week;
   return 0;
 }
+
+/**
+ * The only cutoff the report supports: Sleeper's last completed week, bounded by the league's `last_scored_leg`.
+ * Standings, points for/against and max PF come from live roster totals, so an earlier cutoff would mix week-N player
+ * and transaction data with current standings; a later one would read unscored weeks.
+ */
+export function resolveThroughWeek(requested: number | null, lastScored: number, lastScoredLeg: number | null): number {
+  const completed = lastScoredLeg === null ? lastScored : Math.min(lastScored, lastScoredLeg);
+  if (completed < 1) throw new SeasonReviewError({ message: 'No scored weeks yet.' });
+  if (requested !== null && requested !== completed) {
+    throw new SeasonReviewError({
+      message: `--through-week ${String(requested)} is not supported: week ${String(completed)} is the last completed week, and standings are live season totals, so the report runs only through week ${String(completed)}.`,
+    });
+  }
+  return completed;
+}
+
+/** Why a FantasyPros snapshot cannot stand in for pre-draft rankings, or null when it can. */
+export function predraftSnapshotProblem(metadata: { readonly season: number; readonly refreshedAt: string }, season: number, draftStartMs: number): string | null {
+  if (metadata.season !== season) return `is for season ${String(metadata.season)}, not ${String(season)}`;
+  const refreshed = Date.parse(metadata.refreshedAt);
+  if (!Number.isFinite(refreshed)) return `has an unreadable refreshedAt (${metadata.refreshedAt})`;
+  if (refreshed >= draftStartMs) return `was refreshed at ${metadata.refreshedAt}, not before the draft started at ${new Date(draftStartMs).toISOString()}`;
+  return null;
+}
+
+const git = (args: readonly string[], maxOutputBytes?: number) =>
+  Processes.run('git', args, { timeoutMs: 60_000, ...(maxOutputBytes ? { maxOutputBytes } : {}) });
+
+/** Latest committed `fantasypros-snapshot.json` in the data directory's git history that predates the draft. */
+const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: number) => io(async () => {
+  const path = './fantasypros-snapshot.json';
+  const { stdout } = await git(['-C', dataDir, 'log', '--format=%H', '--', path]);
+  for (const commit of stdout.split('\n').filter(Boolean)) {
+    let snapshot: FantasyProsSnapshot;
+    try {
+      const shown = await git(['-C', dataDir, 'show', `${commit}:${path}`], 512 * 1024 * 1024);
+      snapshot = decodeFantasyProsSnapshot(JSON.parse(shown.stdout));
+    } catch {
+      continue;
+    }
+    if (predraftSnapshotProblem(snapshot.metadata, season, draftStartMs) === null) return { snapshot, source: `git ${commit.slice(0, 7)}:${join(dataDir, 'fantasypros-snapshot.json')}` };
+  }
+  return null;
+});
+
+/** League data is private: refuse an output directory inside this checkout that git would let someone stage. */
+const assertPrivateOutDir = (outDir: string) => io(async () => {
+  const inside = relative(REPO_ROOT, outDir);
+  if (inside.startsWith('..') || isAbsolute(inside)) return;
+  for (const probe of ['season-review.md', join('raw', 'season-review.json')]) {
+    const ignored = await git(['-C', REPO_ROOT, 'check-ignore', '-q', join(outDir, probe)]).then(() => true, () => false);
+    if (!ignored) throw new SeasonReviewError({ message: `--out ${outDir} is inside the checkout but not git-ignored; private league data could be committed. Use a git-ignored path such as data/season-review/.` });
+  }
+});
 
 const toError = (cause: unknown) => cause instanceof Error ? cause : new Error(String(cause));
 
@@ -243,11 +300,11 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     return yield* new SeasonReviewError({ message: `primary-league-settings.json is for ${String(settings.season)}, not ${String(season)}` });
   }
   const outDir = options.outDir ?? join(REPO_ROOT, 'data', 'season-review', String(season));
+  yield* assertPrivateOutDir(outDir);
   const rawDir = join(outDir, 'raw');
   yield* io(() => mkdir(rawDir, { recursive: true }));
-  const predraftPath = options.predraftFantasyPros ?? join(outDir, 'inputs', 'predraft-fantasypros-snapshot.json');
-  if (!existsSync(predraftPath)) {
-    return yield* new SeasonReviewError({ message: `Pre-draft FantasyPros snapshot not found at ${predraftPath}. Pass --predraft-fantasypros (see docs/season-review.md).` });
+  if (options.predraftFantasyPros && !existsSync(options.predraftFantasyPros)) {
+    return yield* new SeasonReviewError({ message: `Pre-draft FantasyPros snapshot not found at ${options.predraftFantasyPros}.` });
   }
 
   const leagueId = settings.leagueId;
@@ -264,8 +321,23 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   const matchups = yield* Effect.forEach(weeks, (week) =>
     fetchSleeper(rawDir, `/league/${leagueId}/matchups/${String(week)}`, decodeSleeperMatchups).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 });
   const weekPoints = new Map(matchups.map(({ week, rows }) => [week, rows.reduce((sum, row) => sum + (row.points ?? 0), 0)]));
-  const throughWeek = options.throughWeek ?? lastScoredWeek(state.week, Number(state.season), season, weekPoints);
-  if (throughWeek < 1) return yield* new SeasonReviewError({ message: 'No scored weeks yet.' });
+  const lastScoredLeg = league.settings['last_scored_leg'];
+  const throughWeek = yield* Effect.try({
+    try: () => resolveThroughWeek(options.throughWeek, lastScoredWeek(state.week, Number(state.season), season, weekPoints),
+      typeof lastScoredLeg === 'number' ? lastScoredLeg : null),
+    catch: (cause) => cause instanceof SeasonReviewError ? cause : new SeasonReviewError({ message: toError(cause).message }),
+  });
+
+  const draftStart = draft.start_time;
+  if (draftStart === null || draftStart === undefined) return yield* new SeasonReviewError({ message: 'The Sleeper draft has no start_time to date the pre-draft snapshot against.' });
+  const predraft = options.predraftFantasyPros
+    ? { snapshot: yield* readJson(options.predraftFantasyPros, decodeFantasyProsSnapshot), source: options.predraftFantasyPros }
+    : yield* predraftSnapshotFromGit(options.dataDir, season, draftStart);
+  if (!predraft) {
+    return yield* new SeasonReviewError({ message: `No committed ${join(options.dataDir, 'fantasypros-snapshot.json')} for ${String(season)} predates the draft. Pass --predraft-fantasypros (see docs/season-review.md).` });
+  }
+  const predraftProblem = predraftSnapshotProblem(predraft.snapshot.metadata, season, draftStart);
+  if (predraftProblem) return yield* new SeasonReviewError({ message: `Pre-draft FantasyPros snapshot ${predraft.source} ${predraftProblem}.` });
   const scoredWeeks = weeks.filter((week) => week <= throughWeek);
   const [transactions, weeklyStats, players, priorSleeper, priorCsv] = yield* Effect.all([
     Effect.forEach(scoredWeeks, (week) =>
@@ -296,7 +368,7 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     league, users, rosters, draft, picks, weeklyStats, matchups, transactions, players,
     priorSeasonSleeperGames,
     priorSeasonRows: priorSeasonRows(priorCsv),
-    predraftFantasyPros: yield* readJson(predraftPath, decodeFantasyProsSnapshot),
+    predraftFantasyPros: predraft.snapshot,
     currentFantasyPros: yield* readOptionalJson(options.currentFantasyPros ?? join(options.dataDir, 'fantasypros-snapshot.json'), decodeFantasyProsSnapshot),
     identity: yield* readOptionalJson(join(options.dataDir, 'player-identity.json'), decodePlayerIdentity),
     predraftSleeper: yield* readOptionalJson(options.predraftSleeper, decodeSleeperAdpFile),
@@ -314,6 +386,7 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   yield* io(() => writeFile(markdownPath, `${renderSeasonReviewMarkdown(review)}\n_Generated ${generatedAt}._\n`));
   yield* Effect.sync(() => {
     console.log(`Season review ${review.meta.label}`);
+    console.log(`  Pre-draft rankings: ${predraft.source}`);
     console.log(`  JSON:     ${jsonPath}`);
     console.log(`  Markdown: ${markdownPath}`);
   });

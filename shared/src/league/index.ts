@@ -2,11 +2,12 @@ export { DEFAULT_ROSTER_REQUIREMENTS, createEmptyRoster } from '../draft.js';
 export type { Roster, RosterRequirements } from '../draft.js';
 export {
   DEFAULT_SCORING_RULES,
+  calculateLeagueProjection,
   calculateLeagueScoringAdjustment,
   getHistoricalLeagueScoringAdjustments,
   leagueScoringAdjustmentSql,
 } from './scoring.js';
-export type { ScoringRules } from './scoring.js';
+export type { LeagueProjectionInput, ScoringRules } from './scoring.js';
 export {
   FLEX_GROUPS,
   KICKER_DEFENSE_POSITIONS,
