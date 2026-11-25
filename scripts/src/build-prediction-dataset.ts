@@ -1626,6 +1626,7 @@ const program = Effect.gen(function* () {
         {
           generatedAt: new Date().toISOString(),
           modelVersion,
+          season: currentSeason,
           sources: MODEL_SOURCES,
           players: predictionRows.map((row) => ({
             playerId: String(row.player_id),

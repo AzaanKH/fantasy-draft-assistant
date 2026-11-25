@@ -23,6 +23,8 @@ const shadowRecommendationEvent = /* @__PURE__ */ openStruct({
   draftId: /* @__PURE__ */ boundedString(128), pickNumber: /* @__PURE__ */ integer(1, Number.MAX_VALUE), observedAt: timestamp,
   experiment: /* @__PURE__ */ openStruct({
     sourceLabel: /* @__PURE__ */ Schema.Literal('Experimental prediction artifact'), modelVersion: /* @__PURE__ */ boundedString(128), generatedAt: timestamp,
+    /** The season the prediction artifact was built for. Absent on rows logged before it was recorded; the server requires it on new events. */
+    targetSeason: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ integer(1900, 2200)),
     /** Readiness of the predictions when logged. Rows written before degraded logging existed are always `ready`. */
     freshness: /* @__PURE__ */ Schema.Literals(['ready', 'older-than-dependency', 'stale']),
     /** The dependency timestamps the predictions were compared against; absent on older rows. */

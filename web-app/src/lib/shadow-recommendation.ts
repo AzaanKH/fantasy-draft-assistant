@@ -31,6 +31,8 @@ interface BuildShadowRecommendationEventInput {
   readonly observedAt: string;
   readonly modelVersion: string;
   readonly predictionGeneratedAt: string;
+  /** The season the prediction artifact was built for; the server rejects events where it differs from `season`. */
+  readonly predictionTargetSeason: number;
   /** Readiness of the predictions; a degraded artifact is still logged so the season's evidence is kept. */
   readonly predictionFreshness: ShadowPredictionFreshness;
   readonly predictionDependencies: ShadowPredictionDependencies;
@@ -64,6 +66,7 @@ export function buildShadowRecommendationEvent(
       sourceLabel: 'Experimental prediction artifact',
       modelVersion: input.modelVersion,
       generatedAt: input.predictionGeneratedAt,
+      targetSeason: input.predictionTargetSeason,
       freshness: input.predictionFreshness,
       dependencies: input.predictionDependencies,
     },

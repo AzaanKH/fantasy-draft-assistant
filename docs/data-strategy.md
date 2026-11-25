@@ -97,8 +97,14 @@ the live decision for later evaluation. Predictions older than rankings,
 identities, or team environment, or past the seven-day limit, are still logged:
 each row records the prediction freshness (`ready`, `older-than-dependency`, or
 `stale`) and the dependency timestamps it was compared against, so evaluation
-can filter them. Readiness still shows such predictions as degraded. A shadow
-result cannot change the displayed Best Pick or Best Player.
+can filter them. Readiness still shows such predictions as degraded. A row is
+logged only when the workspace season, the artifact's recorded target `season`
+(its rankings snapshot's season, written by `pnpm model:dataset`), and the
+policy season agree; the sync server applies the same check before
+deduplication. An artifact built before `season` was recorded is not logged
+until `pnpm data:predictions:season` recovers it from the matching model report
+or the model is rebuilt. A shadow result cannot change the displayed Best Pick or
+Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
 records validation evidence in

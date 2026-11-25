@@ -51,6 +51,7 @@ export function useShadowRecommendationLogging(
   const currentPick = useDraftView((view) => view.currentPick);
   const isMyTurn = useDraftView((view) => view.isMyTurn);
   const attemptedEventIds = useRef(new Set<string>());
+  const reportedBlockedReason = useRef<string | null>(null);
   const timingEvidence = useLeagueTimingEvidence(dataInfo.shadowLoggingEnabled && draftReady);
   const context = useMemo(() => ({
     currentPick,
@@ -60,6 +61,14 @@ export function useShadowRecommendationLogging(
     draftType: config.draftType,
   }), [config.myPickPosition, config.totalRounds, config.totalTeams, config.draftType, currentPick]);
 
+  // A season mismatch or an artifact without a target season logs no rows; say why once instead of failing silently.
+  useEffect(() => {
+    const reason = dataInfo.shadowLoggingBlockedReason;
+    if (!reason || reportedBlockedReason.current === reason) return;
+    reportedBlockedReason.current = reason;
+    console.warn(`[shadow-recommendations] Not logging Shadow Recommendations: ${reason}`);
+  }, [dataInfo.shadowLoggingBlockedReason]);
+
   useEffect(() => {
     const attemptedIds = attemptedEventIds.current;
     const endpoint = dataInfo.shadowLoggingEndpoint;
@@ -68,6 +77,7 @@ export function useShadowRecommendationLogging(
     const predictionGeneratedAt = dataInfo.predictionGeneratedAt;
     const predictionFreshness = dataInfo.predictionFreshness;
     const predictionDependencies = dataInfo.predictionDependencies;
+    const predictionTargetSeason = dataInfo.predictionTargetSeason;
     if (
       !draftReady ||
       !draftId ||
@@ -75,6 +85,7 @@ export function useShadowRecommendationLogging(
       !isMyTurn ||
       !dataInfo.shadowLoggingEnabled ||
       season !== 2026 ||
+      predictionTargetSeason !== season ||
       !endpoint ||
       !modelVersion ||
       !predictionGeneratedAt ||
@@ -155,6 +166,7 @@ export function useShadowRecommendationLogging(
           observedAt: new Date().toISOString(),
           modelVersion,
           predictionGeneratedAt,
+          predictionTargetSeason,
           predictionFreshness,
           predictionDependencies,
           corePolicy,
@@ -185,5 +197,5 @@ export function useShadowRecommendationLogging(
         attemptedIds.delete(eventId);
       }
     };
-  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionDependencies, dataInfo.predictionFreshness, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
+  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionDependencies, dataInfo.predictionFreshness, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.predictionTargetSeason, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
 }

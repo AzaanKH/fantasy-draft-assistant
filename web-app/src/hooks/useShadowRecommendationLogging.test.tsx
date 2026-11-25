@@ -9,6 +9,7 @@ import { VISUAL_PLAYER_DATA, VISUAL_PLAYERS } from '@/visual/VisualApp';
 import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { workspaceForTestStore } from '@/workspace/workspace-test-helpers';
 import { useShadowRecommendationLogging } from './useShadowRecommendationLogging';
+import type { PlayerDataQueryResult } from './usePlayerData';
 
 const DEPENDENCIES = {
   rankingsRefreshedAt: '2026-09-05T15:53:00.000Z',
@@ -29,7 +30,7 @@ function recommendation(index: number): Recommendation {
   return { playerId: player.id, playerName: player.name, position: player.position, reason: 'Core policy', score: 10 - index };
 }
 
-it('posts exactly one Shadow Recommendation for an on-clock turn when predictions are older than their dependencies', async () => {
+async function postedEvents(dataInfo: Partial<PlayerDataQueryResult['dataInfo']> = {}): Promise<unknown[]> {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   playerData.value = {
     ...VISUAL_PLAYER_DATA,
@@ -44,6 +45,7 @@ it('posts exactly one Shadow Recommendation for an on-clock turn when prediction
       shadowLoggingEndpoint: '/api/shadow-recommendations',
       predictionFreshness: 'older-than-dependency',
       predictionDependencies: DEPENDENCIES,
+      ...dataInfo,
     },
   };
   const bodies: unknown[] = [];
@@ -76,7 +78,11 @@ it('posts exactly one Shadow Recommendation for an on-clock turn when prediction
   // A re-render on the same pick must not log the turn again.
   await act(async () => { render(); await new Promise(resolve => setTimeout(resolve, 0)); });
   act(() => { root.unmount(); });
+  return bodies;
+}
 
+it('posts exactly one Shadow Recommendation for an on-clock turn when predictions are older than their dependencies', async () => {
+  const bodies = await postedEvents();
   expect(bodies).toHaveLength(1);
   const event = decodeShadowRecommendationEvent(bodies[0]);
   expect(event.eventId).toBe('2026:sleeper:draft-day:1');
@@ -84,7 +90,12 @@ it('posts exactly one Shadow Recommendation for an on-clock turn when prediction
     sourceLabel: 'Experimental prediction artifact',
     modelVersion: 'position-ridge-v4',
     generatedAt: '2026-09-05T15:17:00.000Z',
+    targetSeason: 2026,
     freshness: 'older-than-dependency',
     dependencies: DEPENDENCIES,
   });
+});
+
+it('posts nothing when the artifact was built for a different season than the one being logged', async () => {
+  expect(await postedEvents({ predictionTargetSeason: 2025 })).toEqual([]);
 });

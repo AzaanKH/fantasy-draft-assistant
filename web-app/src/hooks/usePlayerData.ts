@@ -1,6 +1,5 @@
 import { currentSeason } from '@fantasy-draft/shared/league';
-import { fixedClock } from '@fantasy-draft/shared/units';
-import type { ShadowPredictionDependencies, ShadowPredictionFreshness } from '@fantasy-draft/shared/draft';
+import { shadowSeasonEligibility, type ShadowPredictionDependencies, type ShadowPredictionFreshness } from '@fantasy-draft/shared/draft';
 import { useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
@@ -287,10 +286,18 @@ function useLivePlayerDataQuery() {
   // Shadow Recommendations never control live ordering, so a prediction artifact that is only older than its
   // dependencies or past the live age limit is still logged, with that freshness on the row. Keeping the season's
   // evaluation evidence is worth more than requiring a rebuild the draft-day preflight does not do.
+  // The artifact's recorded target season decides eligibility; its build time cannot, because the season rolls over
+  // on March 1 while a model is often built before or rebuilt after that.
+  const shadowSeason = predictionQuery.data
+    ? shadowSeasonEligibility({
+        workspace: season,
+        artifact: predictionQuery.data.season,
+        policy: effectiveRecommendationPolicy.shadowLogging.season,
+      })
+    : null;
   const predictionFreshness = ((): ShadowPredictionFreshness | null => {
     const problem = predictionsReadiness?.problem;
-    const generatedAt = Date.parse(predictionQuery.data?.generatedAt ?? '');
-    if (problem === undefined || Number.isNaN(generatedAt) || currentSeason(fixedClock(generatedAt)) !== season) return null;
+    if (problem === undefined || !shadowSeason?.eligible) return null;
     if (problem === null) return 'ready';
     return problem === 'older-than-dependency' || problem === 'stale' ? problem : null;
   })();
@@ -466,7 +473,10 @@ function useLivePlayerDataQuery() {
         predictionsLoggable,
       predictionFreshness,
       predictionDependencies,
-      shadowLoggingSeason: effectiveRecommendationPolicy.shadowLogging.season,
+      // Events are stamped with the season the workspace, artifact, and policy agree on; null when they do not.
+      shadowLoggingSeason: shadowSeason?.eligible ? shadowSeason.season : null,
+      predictionTargetSeason: predictionQuery.data?.season ?? null,
+      shadowLoggingBlockedReason: shadowSeason && !shadowSeason.eligible ? shadowSeason.reason : null,
       shadowLoggingEndpoint: effectiveRecommendationPolicy.shadowLogging.endpoint,
       predictionsError: predictionQuery.error ?? null,
       dataFreshness,

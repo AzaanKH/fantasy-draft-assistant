@@ -250,6 +250,8 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
     predictionFreshness: 'ready',
     predictionDependencies: { rankingsRefreshedAt: VISUAL_SOURCE_TIMESTAMP, identitiesGeneratedAt: VISUAL_SOURCE_TIMESTAMP, teamEnvironmentGeneratedAt: VISUAL_SOURCE_TIMESTAMP },
     shadowLoggingSeason: 2026,
+    predictionTargetSeason: 2026,
+    shadowLoggingBlockedReason: null,
     shadowLoggingEndpoint: '',
     predictionsError: null,
     dataFreshness: VISUAL_DATA_FRESHNESS,

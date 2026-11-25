@@ -20,6 +20,7 @@
     "measure:effect-adoption": "tsx --conditions=@fantasy-draft/source src/measure-effect-adoption.ts",
     "import:league-history": "tsx --conditions=@fantasy-draft/source src/import-league-draft-history.ts",
     "build:league-survival": "tsx --conditions=@fantasy-draft/source src/build-league-survival-model.ts",
+    "stamp:prediction-season": "tsx --conditions=@fantasy-draft/source src/stamp-prediction-season.ts",
     "build:demo-data": "tsx --conditions=@fantasy-draft/source src/build-demo-data.ts",
     "install:demo-data": "tsx --conditions=@fantasy-draft/source src/install-demo-data.ts",
     "check:demo-data": "tsx --conditions=@fantasy-draft/source src/check-demo-data.ts",

@@ -125,6 +125,8 @@ export type { MockDraftPickLike, MockKeeperAssignment, MockLeagueHistoryModel, M
 export type { KeeperPreloadStatus } from './keeper-preload-status.js';
 
 export type { ShadowPredictionDependencies, ShadowPredictionFreshness, ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.js';
+export { isShadowEventSeasonEligible, shadowSeasonEligibility } from '../shadow.js';
+export type { ShadowSeasonEligibility, ShadowSeasons } from '../shadow.js';
 export { optimizeLineupUtility } from '../lineup-utility.js';
 export type { LineupPlayer } from '../lineup-utility.js';
 export { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';
