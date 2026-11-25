@@ -124,12 +124,25 @@ describe('getRecommendationExplanation', () => {
     });
     const explanation = getRecommendationExplanation(withFactors, undefined, 'ranked-fit');
 
-    expect(explanation).toMatch(/^Test Player is #3 in the rankings\. Ranked Fit orders the players who keep a legal roster possible by the rankings alone\. Best Pick analysis, which does not change this order:/);
+    expect(explanation).toMatch(/^Ranked Fit orders the players who keep a legal roster possible by the rankings alone\. Test Player is #3 in the rankings\. Best Pick analysis, which does not change this order:/);
     expect(explanation).toMatch(/value adds 2\.5 to his Best Pick score/);
     expect(explanation).toMatch(/adds 2\.1 to his Best Pick score/);
     expect(explanation).not.toMatch(/to his score|taking him now|roster fillable/);
     // Best Pick keeps its own wording.
     expect(getRecommendationExplanation(withFactors)).toMatch(/value adds 2\.5 to his score/);
+  });
+
+  it('leads a Best Player explanation with its rule when only diagnostics exist', () => {
+    const explanation = getRecommendationExplanation(
+      recommendation('WR', 1, 300, undefined, { tierRemaining: 2, nextPickSurvivalProbability: asProbability(0.4) }),
+      undefined,
+      'best-player',
+    );
+
+    expect(explanation).toMatch(/^Best Player follows the rankings alone\. Test Player is one of 2 players remaining in WR Tier 1/);
+    expect(explanation).not.toMatch(/changed Best Pick|moved/);
+    // Best Pick's diagnostics-only wording is unchanged.
+    expect(getRecommendationExplanation(recommendation('WR', 1, 300, undefined, {}))).toMatch(/^Test Player is /);
   });
 
   it.each([

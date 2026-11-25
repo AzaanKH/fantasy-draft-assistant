@@ -120,6 +120,7 @@ export {
   getRecommendationPolicyLabel,
 } from './recommendations/draft-decision.js';
 export {
+  getDecisionLensOrderSentence,
   getRecommendationExplanation,
 } from './recommendations/recommendation-explanation.js';
 export {

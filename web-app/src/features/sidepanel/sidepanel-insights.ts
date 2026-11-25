@@ -1,7 +1,7 @@
 /** Pure helpers shared by the side panel views: availability, compact decision text and roster-need labels. */
 import { toWholePercent, type Percent } from '@fantasy-draft/shared/units';
 import { availabilityProbability, describeMissingAvailability, formatAvailabilityPercent, getNextPickAvailability } from '@/lib/next-pick-availability';
-import { type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
+import { getDecisionLensOrderSentence, type DecisionLens, type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
 import type { TakeOrWaitVerdict } from '@/features/draft-room/suggestion-reasons';
 
 /** The shared next-pick availability, as a whole percent; null when there is no estimate or no later pick. */
@@ -20,9 +20,11 @@ export function getMissingSurvivalText(recommendation: Recommendation | undefine
 }
 /**
  * The hero's one sentence: what the stat line beside it does not already say (VOR, tier and availability are
- * shown as figures). Null when there is nothing to add.
+ * shown as figures). Null when there is nothing to add. The timing factor is Best Pick's: outside Best Pick the
+ * sentence leads with the active lens's ordering rule, labels the timing as Best Pick analysis and never says
+ * timing moved the pick, since it did not set that lens's order.
  */
-export function getCompactDecisionExplanation(recommendation: Recommendation): string | null {
+export function getCompactDecisionExplanation(recommendation: Recommendation, lens: DecisionLens = 'best-pick'): string | null {
   if (getNextPickAvailability(recommendation.diagnostics).kind === 'no-next-pick') return 'Your last pick: take the most value left.';
   const timing = recommendation.decisionFactors?.draftTiming;
   if (!timing || timing.nextPickNumber === undefined) return null;
@@ -30,6 +32,7 @@ export function getCompactDecisionExplanation(recommendation: Recommendation): s
   const fallback = timing.expectedAlternative
     ? `If you wait, ${timing.expectedAlternative.playerName} is the likely ${recommendation.position} at ${at}.`
     : `No other ${recommendation.position} is projected for ${at}.`;
+  if (lens !== 'best-pick') return `${getDecisionLensOrderSentence(lens)} Best Pick analysis: ${fallback}`;
   return timing.materiallyChangedOrdering ? `${fallback} Timing moved this pick up.` : fallback;
 }
 /**

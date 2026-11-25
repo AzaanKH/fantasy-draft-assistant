@@ -9,6 +9,14 @@ const LENS_ORDER_SENTENCES: Readonly<Record<Exclude<DecisionLens, 'best-pick'>, 
 };
 
 /**
+ * The active lens's ordering rule, which leads every explanation in a lens other than Best Pick so attached Best
+ * Pick factors never read as the reason for that order. Empty for Best Pick, whose factors are the reason.
+ */
+export function getDecisionLensOrderSentence(lens: DecisionLens): string {
+  return lens === 'best-pick' ? '' : LENS_ORDER_SENTENCES[lens];
+}
+
+/**
  * The full reasoning for a player in a Decision Lens. Best Pick's factors set Best Pick's order; in Ranked Fit
  * and Best Player they are only Best Pick's analysis of the same player, so they are labelled that way.
  */
@@ -22,8 +30,10 @@ export function getRecommendationExplanation(
   const score = isBestPick ? 'his score' : 'his Best Pick score';
   const diagnostics = recommendation.diagnostics;
   const factors = recommendation.decisionFactors;
+  const lensRule = getDecisionLensOrderSentence(lens);
+  const withLensRule = (text: string): string => (lensRule ? `${lensRule} ${text}` : text);
   if (!diagnostics) {
-    return `Consider ${recommendation.playerName} now: ${recommendation.reason}.`;
+    return withLensRule(`Consider ${recommendation.playerName} now: ${recommendation.reason}.`);
   }
 
   if (factors) {
@@ -63,10 +73,8 @@ export function getRecommendationExplanation(
       ? `No player in the usual range of the rankings could still complete a legal roster, so he is taken early to keep the roster fillable. `
       : '';
 
-    const orderSentence = isBestPick
-      ? ''
-      : `${LENS_ORDER_SENTENCES[lens]} Best Pick analysis, which does not change this order:`;
-    return `${recommendation.playerName} is #${String(factors.playerQuality.ecrRank)} in the rankings. ${orderSentence} ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
+    const analysisLabel = isBestPick ? '' : 'Best Pick analysis, which does not change this order:';
+    return `${lensRule} ${recommendation.playerName} is #${String(factors.playerQuality.ecrRank)} in the rankings. ${analysisLabel} ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -99,8 +107,8 @@ export function getRecommendationExplanation(
       : probability < 70
         ? `The chance this player reaches your next pick is ${String(probability)}%, so waiting carries some risk.`
         : `The chance this player reaches your next pick is ${String(probability)}%, so waiting may be reasonable.`;
-    return `${recommendation.playerName} is ${playerDescription}. ${timing}`;
+    return withLensRule(`${recommendation.playerName} is ${playerDescription}. ${timing}`);
   }
 
-  return `${recommendation.playerName} is ${playerDescription}.`;
+  return withLensRule(`${recommendation.playerName} is ${playerDescription}.`);
 }

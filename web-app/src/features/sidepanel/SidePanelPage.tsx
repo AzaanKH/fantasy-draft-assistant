@@ -201,9 +201,10 @@ function AssistantPanel({
   const expectedAlternative = recommendation.decisionFactors?.draftTiming.expectedAlternative
     ?? diagnostics?.expectedNextPickAlternative;
   const need = needs.find((item) => item.position === recommendation.position);
+  const activeLens = getDecisionLensForPolicy(decision.selection.policy);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY, getDecisionLensForPolicy(decision.selection.policy));
-  const explanation = getCompactDecisionExplanation(recommendation) ?? detailedExplanation;
+    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY, activeLens);
+  const explanation = getCompactDecisionExplanation(recommendation, activeLens) ?? detailedExplanation;
   const reasons = [
     // The raw reason's later parts are model terms; its first part is the plain label the decision bar also uses.
     diagnostics ? `${formatSignedNumber(diagnostics.valueOverReplacement, 0)} pts over a fill-in starter` : recommendation.reason.split(' · ')[0] ?? recommendation.reason,
