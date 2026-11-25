@@ -76,6 +76,7 @@ import {
 } from './best-pick-backtest-gate.js';
 import {
   PROSPECTIVE_FIRST_SEASON,
+  REGULAR_SEASON_GAMES,
   fullSeasonPace,
   isRegularSeasonComplete,
   type ProspectiveSeasonStatus,
@@ -816,6 +817,8 @@ interface ProspectiveFoldInput {
   readonly complete: boolean;
   readonly boardPlayers: number;
   readonly rankingsAfterDraft: number;
+  /** Drafted offensive players with no draft-day rank, added so their picks and keepers still score. */
+  readonly unrankedDrafted: number;
 }
 
 interface ProspectiveLoad {
@@ -830,13 +833,19 @@ function finiteOrNull(value: unknown): number | null {
 }
 
 /**
- * Board rows for each prospective season: draft-day expert rank (scraped before the draft started), the trailing
- * features the shadow model used, and season-to-date nflverse outcomes scaled to a full-season pace by team games.
- * Only the season after the last training season can be built, because the feature table holds one season.
+ * Board rows for each prospective season. The pool and positions come from the draft-day ranking snapshot: the
+ * latest DynastyProcess scrape made before the draft started, selected after that cutoff is applied, plus every
+ * offensive player the room drafted. Trailing features the shadow model used are left-joined by player id, and
+ * season-to-date nflverse outcomes are scaled to a full-season pace by team games. Only the season after the last
+ * training season can be built, because the feature table holds one season.
  */
 async function loadProspectiveRows(
   connection: ModelConnection,
-  seasons: ReadonlyArray<{ readonly season: number; readonly draftStartTimestamp?: string | undefined }>
+  seasons: ReadonlyArray<{
+    readonly season: number;
+    readonly draftStartTimestamp?: string | undefined;
+    readonly picks: ReadonlyArray<{ readonly playerId: string; readonly playerName: string; readonly position: Position }>;
+  }>
 ): Promise<ProspectiveLoad> {
   const skipped: string[] = [];
   if (seasons.length === 0) return { rows: [], folds: [], skipped };
@@ -855,7 +864,7 @@ async function loadProspectiveRows(
   )).getRowObjects()[0]?.season);
   const rows: TrainingRow[] = [];
   const folds: ProspectiveFoldInput[] = [];
-  for (const { season, draftStartTimestamp } of seasons) {
+  for (const { season, draftStartTimestamp, picks } of seasons) {
     if (lastTrainingSeason === null || season !== lastTrainingSeason + 1) {
       skipped.push(
         `${String(season)}: the current feature table describes ${String((lastTrainingSeason ?? 0) + 1)}, ` +
@@ -878,56 +887,90 @@ async function loadProspectiveRows(
       season,
       regGamesScheduled: finiteOrNull(statusRow.reg_games_scheduled) ?? 0,
       regGamesPlayed: finiteOrNull(statusRow.reg_games_played) ?? 0,
+      regGamesWithStats: finiteOrNull(statusRow.reg_games_with_stats) ?? 0,
       lastWeekPlayed: finiteOrNull(statusRow.last_week_played),
       fetchedAt: String(statusRow.fetched_at),
     };
+    const cutoff = sqlTimestamp(draftStartTimestamp);
+    const drafted = picks.filter((pick) => isOffensivePosition(pick.position));
+    const draftedValues = drafted.length === 0
+      ? `select null::varchar as sleeper_player_id, null::varchar as player_name, null::varchar as position
+          where false`
+      : `select * from (values ${drafted.map((pick) =>
+        `(${sqlString(pick.playerId)}, ${sqlString(pick.playerName)}, ${sqlString(pick.position)})`
+      ).join(', ')}) as drafted(sleeper_player_id, player_name, position)`;
     const reader = await connection.runAndReadAll(`
       with trained as (
         select gsis_id, min(season) as first_season
         from model.prediction_training_dataset
         where gsis_id is not null
         group by 1
-      ), rankings as (
+      ), ids as (
+        select sleeper_player_id, any_value(gsis_id) as gsis_id
+        from model.dynastyprocess_player_ids
+        where sleeper_player_id is not null
+        group by 1
+      ), snapshots as (
         select
-          sleeper_player_id,
-          predraft_ecr,
-          ranking_information_timestamp_upper_bound <= ${sqlTimestamp(draftStartTimestamp)} as before_draft
-        from model.dynastyprocess_predraft_rankings
-        where season = ${String(season)} and sleeper_player_id is not null
+          ids.sleeper_player_id::varchar as sleeper_player_id,
+          ids.gsis_id::varchar as gsis_id,
+          r.player::varchar as player_name,
+          r.pos::varchar as position,
+          r.page_type::varchar as ranking_type,
+          r.ecr::double as predraft_ecr,
+          cast(r.scrape_date as date) as scrape_date,
+          (cast(r.scrape_date as date) + interval 1 day)::timestamptz <= ${cutoff} as before_draft
+        from source.dynastyprocess_rankings r
+        join model.dynastyprocess_player_ids ids on r.id::varchar = ids.fantasypros_id
+        where r.page_type in ('redraft-overall', 'best-overall')
+          and r.pos in ${sqlPositionList(OFFENSIVE_POSITIONS)}
+          and ids.sleeper_player_id is not null
+          and cast(r.scrape_date as date)
+            between make_date(${String(season)}, 5, 1) and make_date(${String(season)}, 9, 10)
+      ), rankings as (
+        select * from snapshots
+        where before_draft
         qualify row_number() over (
           partition by sleeper_player_id
-          order by case when ranking_type = 'redraft-overall' then 0 else 1 end, predraft_ecr asc
+          order by case when ranking_type = 'redraft-overall' then 0 else 1 end, scrape_date desc
         ) = 1
+      ), drafted as (
+        ${draftedValues}
+      ), pool as (
+        select sleeper_player_id, gsis_id, player_name, position, predraft_ecr from rankings
+        union all
+        select drafted.sleeper_player_id, ids.gsis_id, drafted.player_name, drafted.position, null::double
+        from drafted
+        left join ids on ids.sleeper_player_id = drafted.sleeper_player_id
+        where drafted.sleeper_player_id not in (select sleeper_player_id from rankings)
       )
       select
         ${String(season)}::integer as season,
-        features.sleeper_player_id::varchar as sleeper_player_id,
-        features.gsis_id::varchar as gsis_id,
-        features.player_name::varchar as player_name,
-        features.position::varchar as position,
+        pool.sleeper_player_id::varchar as sleeper_player_id,
+        coalesce(pool.gsis_id, features.gsis_id)::varchar as gsis_id,
+        pool.player_name::varchar as player_name,
+        pool.position::varchar as position,
         coalesce(outcomes.games, 0)::double as games,
         coalesce(outcomes.ppr_points, 0)::double as actual_points,
         coalesce(outcomes.rush_attempts, 0)::double as rush_attempts,
         coalesce(outcomes.receptions, 0)::double as receptions,
         outcomes.team_games_played::double as team_games_played,
         outcomes.team_games_scheduled::double as team_games_scheduled,
-        rankings.predraft_ecr::double as predraft_ecr,
-        rankings.before_draft,
+        pool.predraft_ecr::double as predraft_ecr,
         ${PROSPECTIVE_FEATURE_COLUMNS.map((column) => `features.${column}::double as ${column}`).join(',\n        ')},
         least(3, greatest(0, ${String(season)} - coalesce(trained.first_season, ${String(season)})))::integer
-          as history_seasons
-      from model.current_prediction_features features
-      join rankings on rankings.sleeper_player_id = features.sleeper_player_id
-      left join trained on trained.gsis_id = features.gsis_id
+          as history_seasons,
+        (select count(*) from snapshots where not before_draft)::integer as rankings_after_draft
+      from pool
+      left join model.current_prediction_features features on features.sleeper_player_id = pool.sleeper_player_id
+      left join trained on trained.gsis_id = coalesce(pool.gsis_id, features.gsis_id)
       left join model.prospective_player_outcomes outcomes
-        on outcomes.season = ${String(season)} and outcomes.gsis_id = features.gsis_id
-      where features.position in ${sqlPositionList(OFFENSIVE_POSITIONS)}
+        on outcomes.season = ${String(season)} and outcomes.gsis_id = coalesce(pool.gsis_id, features.gsis_id)
     `);
     const objects = reader.getRowObjects();
-    const beforeDraft = objects.filter((row) => row.before_draft === true);
-    const decoded = decodeBacktestTrainingRows(beforeDraft);
+    const decoded = decodeBacktestTrainingRows(objects);
     decoded.forEach((row, index) => {
-      const source = beforeDraft[index];
+      const source = objects[index];
       const played = finiteOrNull(source?.team_games_played);
       const scheduled = finiteOrNull(source?.team_games_scheduled);
       const pace = (value: number) => fullSeasonPace(value, played, scheduled);
@@ -944,10 +987,15 @@ async function loadProspectiveRows(
       status,
       complete: isRegularSeasonComplete(status),
       boardPlayers: decoded.filter((row) => (row.predraft_ecr ?? Infinity) <= 250).length,
-      rankingsAfterDraft: objects.length - beforeDraft.length,
+      rankingsAfterDraft: finiteOrNull(objects[0]?.rankings_after_draft) ?? 0,
+      unrankedDrafted: decoded.filter((row) => row.predraft_ecr === null).length,
     });
   }
   return { rows, folds, skipped };
+}
+
+function sqlString(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 function sqlTimestamp(iso: string): string {
@@ -1221,9 +1269,10 @@ async function main(): Promise<void> {
         if (!pick || pick.isKeeper) continue;
         const chosenRow = byPlayerId.get(pick.playerId);
 
-        if (pick.isUserPick && chosenRow && isOffensivePosition(pick.position)) {
+        // Turns and remaining picks follow the user's offensive draft slots, not whether the pick was on the board.
+        if (pick.isUserPick && isOffensivePosition(pick.position)) {
           const remainingPicks = sortedPicks.slice(index).filter((candidate) =>
-            candidate.isUserPick && !candidate.isKeeper && byPlayerId.has(candidate.playerId)
+            candidate.isUserPick && !candidate.isKeeper && isOffensivePosition(candidate.position)
           ).length;
           const actualAvailable = seasonRows.filter((row) => !actualDrafted.has(row.sleeper_player_id));
           const strategyAvailable = (selected: ReadonlySet<string>): PlayerSeason[] =>
@@ -1344,9 +1393,11 @@ async function main(): Promise<void> {
             .sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
           const bestModelBoard = [...modelAvailable].sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
 
-          actual.rows.push(chosenRow);
-          addToRoster(actual.roster, chosenRow);
-          actual.regrets.push(Math.max(0, (bestActual?.leagueActualVor ?? 0) - chosenRow.leagueActualVor));
+          if (chosenRow) {
+            actual.rows.push(chosenRow);
+            addToRoster(actual.roster, chosenRow);
+            actual.regrets.push(Math.max(0, (bestActual?.leagueActualVor ?? 0) - chosenRow.leagueActualVor));
+          }
           if (ecrPick) {
             ecrPickNumbers.push(pick.pickNo);
             ecr.rows.push(ecrPick);
@@ -1694,6 +1745,7 @@ async function main(): Promise<void> {
         fullVsEcr.top24PositionHitRate >= -0.02,
     };
     const promotion = evaluatePromotionGates(seasonReports, strategies);
+    const historicalEvaluations = evaluations.filter((evaluation) => !prospectiveFoldSeasons.has(evaluation.season));
     const prospectiveFolds = await Promise.all(prospective.folds.flatMap((fold) => {
       const seasonReport = prospectiveSeasonReports.find((season) => season.season === fold.season);
       return seasonReport ? [{ fold, seasonReport }] : [];
@@ -1702,6 +1754,10 @@ async function main(): Promise<void> {
         seasonsExpected: 1,
         seasonsRequired: 1,
       });
+      // Seasons won has no meaning for one season; every other release check must pass on its own.
+      const { seasonsWon: _seasonsWon, ...singleSeasonChecks } = gate.releaseGateChecks;
+      const foldEvaluations = evaluations.filter((evaluation) => evaluation.season === fold.season);
+      const foldPicks = prospectiveHistory.find((season) => season.season === fold.season)?.picks ?? [];
       const shadowLogPath = join('data', 'shadow-logs', `${String(fold.season)}-recommendations.ndjson`);
       const shadowLogPresent = await access(join(REPO_ROOT, shadowLogPath)).then(() => true, () => false);
       return {
@@ -1711,14 +1767,20 @@ async function main(): Promise<void> {
         regularSeason: {
           gamesScheduled: fold.status.regGamesScheduled,
           gamesPlayed: fold.status.regGamesPlayed,
+          gamesWithPlayerStats: fold.status.regGamesWithStats,
           lastWeekPlayed: fold.status.lastWeekPlayed,
           outcomesFetchedAt: fold.status.fetchedAt,
         },
         outcomeBasis: fold.complete
           ? 'Complete regular-season nflverse totals.'
-          : 'Season-to-date nflverse regular-season totals scaled to a full-season pace by each player\'s team games played.',
+          : 'Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a full-season pace by each player\'s matched team games.',
         boardPlayers: fold.boardPlayers,
         rankingsScrapedAfterDraftExcluded: fold.rankingsAfterDraft,
+        unrankedDraftedPlayers: fold.unrankedDrafted,
+        coverage: {
+          evaluatedUserPicks: foldEvaluations.length,
+          totalUserPicks: foldPicks.filter((pick) => pick.isUserPick && !pick.isKeeper).length,
+        },
         strategies: {
           actualUserDraft: seasonReport.strategies.actualUserDraft,
           rosterAwareEcr: seasonReport.strategies.rosterAwareEcr,
@@ -1727,14 +1789,15 @@ async function main(): Promise<void> {
           bestPick: seasonReport.strategies.bestPick,
         },
         releaseGate: {
-          passed: gate.releaseGatePassed,
-          checks: gate.releaseGateChecks,
+          passed: Object.values(singleSeasonChecks).every(Boolean),
+          checks: singleSeasonChecks,
         },
         shadowLog: {
           path: shadowLogPath,
           present: shadowLogPresent,
           scored: false,
         },
+        evaluations: foldEvaluations,
       };
     }));
     const prospectiveReopenEligible = prospectiveFolds.some(
@@ -1818,7 +1881,7 @@ async function main(): Promise<void> {
         ),
       },
       coverage: {
-        evaluatedUserPicks: evaluations.length,
+        evaluatedUserPicks: historicalEvaluations.length,
         totalHistoricalUserPicks: evaluationHistory.reduce(
           (count, season) => count + season.picks.filter((pick) => pick.isUserPick && !pick.isKeeper).length,
           0
@@ -1886,7 +1949,7 @@ async function main(): Promise<void> {
         'PickEV architecture ablations use historical projection, ADP, and risk proxies; they compare scoring architecture now but cannot establish the incremental value of true historical FantasyPros and observed ADP inputs.',
         'The sample contains only four outer seasons and should be treated as a product gate, not statistical proof of superiority.',
       ],
-      evaluations,
+      evaluations: historicalEvaluations,
     };
 
     assertBestPickPolicyUnchanged(policySourceHash, hashBestPickPolicySources());
@@ -1968,12 +2031,13 @@ async function main(): Promise<void> {
       fold.status === 'complete' ? 'complete' : '**PROVISIONAL**'
     }
 
-- Regular season: ${String(fold.regularSeason.gamesPlayed)} of ${String(fold.regularSeason.gamesScheduled)} games scored, through week ${String(fold.regularSeason.lastWeekPlayed)} (outcomes fetched ${fold.regularSeason.outcomesFetchedAt}).
+- Regular season: ${String(fold.regularSeason.gamesPlayed)} of ${String(fold.regularSeason.gamesScheduled)} scheduled games scored (${String(REGULAR_SEASON_GAMES)} in a full season); ${String(fold.regularSeason.gamesWithPlayerStats)} matched to weekly player stats, through week ${String(fold.regularSeason.lastWeekPlayed)} (outcomes fetched ${fold.regularSeason.outcomesFetchedAt}).
 - ${fold.countsTowardReleaseGate
-    ? 'Counts toward the release gate: every regular-season game has a result.'
-    : 'Excluded from the release gate until every regular-season game has a result; the numbers move each week.'}
+    ? `Counts toward the release gate: all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats.`
+    : `Excluded from the release gate until all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats; the numbers move each week.`}
 - Outcomes: ${fold.outcomeBasis}
-- Board: ${String(fold.boardPlayers)} offensive players ranked inside the top 250 on draft day; ${String(fold.rankingsScrapedAfterDraftExcluded)} rankings scraped after the draft started were excluded.
+- Coverage: ${String(fold.coverage.evaluatedUserPicks)} of ${String(fold.coverage.totalUserPicks)} user picks evaluated.
+- Board: ${String(fold.boardPlayers)} offensive players ranked inside the top 250 in the last snapshot before the draft; ${String(fold.rankingsScrapedAfterDraftExcluded)} player rankings scraped after the draft started were excluded before that selection; ${String(fold.unrankedDraftedPlayers)} drafted players without a draft-day rank were added so their picks and keepers score.
 - Shadow Recommendation log: ${fold.shadowLog.present
     ? `\`${fold.shadowLog.path}\` is present but this report does not score it yet.`
     : `absent (no \`${fold.shadowLog.path}\`), so only the replayed model is scored.`}
@@ -1982,7 +2046,7 @@ async function main(): Promise<void> {
 | --- | ---: | ---: | ---: | ---: | ---: |
 ${prospectiveMetricRows(fold)}
 
-Single-season release gate (model must beat ECR this season): **${fold.releaseGate.passed ? 'pass' : 'fail'}**${
+Single-season release gate (model must beat roster-aware ECR on every release check this season; seasons won does not apply): **${fold.releaseGate.passed ? 'pass' : 'fail'}**${
   fold.countsTowardReleaseGate ? '' : ' (provisional, not counted)'}
 
 | Check | Result |
@@ -1994,8 +2058,8 @@ ${Object.entries(fold.releaseGate.checks).map(([check, passed]) => `| ${check} |
 Seasons drafted after the ${POSITION_MODEL_CANDIDATE_SET_VERSION} declaration was frozen. Their outcomes could not
 shape the declaration, so a complete prospective season that passes the release gate is the only evidence that
 reopens the model (see [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24)).
-A fold stays provisional, and outside every gate and aggregate above, until each of its regular-season games has a
-result; completeness comes from the nflverse schedule, not a flag. Refresh outcomes with \`pnpm model:prospective\`.
+A fold stays provisional, and outside every gate and aggregate above, until all ${String(REGULAR_SEASON_GAMES)} of its
+regular-season games are scored and matched to weekly player stats; completeness comes from nflverse, not a flag. Refresh outcomes with \`pnpm model:prospective\`.
 
 ${[
   `- Reopen eligible: **${String(prospectiveReopenEligible)}**`,
@@ -2242,6 +2306,8 @@ export const backtestInternals = {
   rosterAdjustedModelScore,
   calculateStarterPoints,
   evaluatePromotionGates,
+  loadProspectiveRows,
+  PROSPECTIVE_FEATURE_COLUMNS,
 };
 
 const entryPoint = process.argv[1];

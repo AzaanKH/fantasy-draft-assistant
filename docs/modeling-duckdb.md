@@ -204,16 +204,24 @@ Decisions:
 The prospective fold replays the 2026 Primary League draft. `pnpm --filter
 scripts import:league-history` adds it after the configured seasons from the
 confirmed league in the private `data/primary-league-settings.json`, so its
-IDs stay out of source, and finds the manager's roster and draft slot by last
-season's owner. Its board
-uses draft-day DynastyProcess ECR scraped before the draft started and the
-trailing features in `model.current_prediction_features`, the same inputs the
-shadow fit used. Outcomes are nflverse regular-season weekly stats, scaled to a
-full-season pace by each player's team games until the schedule shows every
-regular-season game scored. Until then the fold is labelled provisional and
-stays out of every gate and aggregate; afterwards it counts on its own,
-single-season release gate with no flag to flip. Run `pnpm model:prospective`
-then `pnpm model:backtest` to refresh it.
+IDs stay out of source. The manager is whoever held the configured slot in last
+season's draft order; the confirmed draft's own order and slot-to-roster map
+give this season's slot and roster. If that cannot be resolved the import
+reports it and writes the historical seasons without 2026. The board's player
+pool and positions come from the last DynastyProcess ranking snapshot scraped
+before the draft started (the cutoff is applied before the latest rank is
+chosen), plus every offensive player the room drafted, so off-board picks and
+keepers still score. The trailing features in
+`model.current_prediction_features`, the inputs the shadow fit used, are
+left-joined by player id. Outcomes are nflverse regular-season weekly stats
+from scored games whose player stats have arrived (matched by `game_id`),
+scaled to a full-season pace by each player's matched team games. Until all
+272 regular-season games are scheduled, scored and matched, the fold is
+labelled provisional and stays out of every gate, aggregate and historical
+coverage count; afterwards it counts on its own single-season release check
+list with no flag to flip. `pnpm model:prospective` is an explicit command,
+not part of `pnpm prepare:draft`: run it, then `pnpm model:backtest`, to
+refresh the fold.
 
 ## Prediction outputs and live use
 

@@ -25,7 +25,8 @@ const program = Effect.gen(function* () {
     for (const row of status.getRowObjects()) {
       console.log(
         `Season ${String(row.season)}: ${String(row.reg_games_played)}/${String(row.reg_games_scheduled)} ` +
-        `regular-season games scored through week ${String(row.last_week_played)}.`
+        `regular-season games scored, ${String(row.reg_games_with_stats)} matched to player stats, ` +
+        `through week ${String(row.last_week_played)}.`
       );
     }
   }));

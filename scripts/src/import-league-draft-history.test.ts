@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decodeLeagueHistoryDraft, decodeLeagueHistoryPicks, decodeLeagueHistoryRosters, decodeLeagueHistoryUsers, pseudonymizeUserId, sanitizeRawValue } from './import-league-draft-history.js';
+import { decodeLeagueHistoryDraft, decodeLeagueHistoryPicks, decodeLeagueHistoryRosters, decodeLeagueHistoryUsers, pseudonymizeUserId, resolveConfirmedManager, sanitizeRawValue } from './import-league-draft-history.js';
 
 describe('league draft history sanitization', () => {
   it('redacts roster nicknames and pseudonymizes user identifiers', () => {
@@ -68,5 +68,27 @@ describe('league draft history boundaries', () => {
       .toEqual([{ ...roster, players: null, metadata: null }]);
     expect(decodeLeagueHistoryUsers([{ ...user, metadata: null, settings: null }]))
       .toEqual([{ ...user, metadata: null, settings: null }]);
+  });
+});
+
+describe('confirmed prospective season manager', () => {
+  const previous = { userSlot: 8, draftOrder: { manager: 8, other: 3 } };
+
+  it('follows last season\'s slot owner through the confirmed draft order and slot-to-roster map', () => {
+    expect(resolveConfirmedManager(previous, {
+      draftOrder: { manager: 2, other: 8 },
+      slotToRosterId: { '2': 9, '8': 4 },
+    })).toEqual({ userSlot: 2, userRosterId: 9 });
+  });
+
+  it('reports, rather than guesses, when a draft lacks the mapping', () => {
+    expect(resolveConfirmedManager(previous, { draftOrder: { other: 8 }, slotToRosterId: { '8': 4 } }))
+      .toEqual(expect.stringContaining('not in the confirmed draft order'));
+    expect(resolveConfirmedManager(previous, { draftOrder: { manager: 2 }, slotToRosterId: null }))
+      .toEqual(expect.stringContaining('no roster for slot 2'));
+    expect(resolveConfirmedManager({ userSlot: 5, draftOrder: previous.draftOrder }, {
+      draftOrder: { manager: 2 },
+      slotToRosterId: { '2': 9 },
+    })).toEqual(expect.stringContaining('no single owner for slot 5'));
   });
 });

@@ -54,6 +54,7 @@ const sleeperDraftSchema = openStruct({
   type: Schema.String, start_time: Schema.Finite, settings: numberRecord,
   metadata: Schema.NullOr(openStruct({ name: Schema.optional(Schema.String), scoring_type: Schema.optional(Schema.String) })),
   draft_order: Schema.NullOr(numberRecord),
+  slot_to_roster_id: Schema.optional(Schema.NullOr(numberRecord)),
 });
 const sleeperLeagueSchema = openStruct({
   league_id: Schema.String, name: Schema.String, season: Schema.String,
@@ -538,8 +539,31 @@ const confirmedLeagueSchema = openStruct({
 });
 
 /**
- * The confirmed Primary League season, when it is newer than the configured history. The manager is the owner of
- * last season's user roster; their roster and draft slot are looked up in the new league rather than configured.
+ * The manager's slot and roster in the confirmed draft. Rosters change hands, so the manager is the user who held
+ * the configured slot in last season's draft order; the confirmed draft's own order and slot-to-roster map then give
+ * this season's slot and roster. Returns why it failed instead when either draft lacks the mapping.
+ */
+export function resolveConfirmedManager(
+  previous: { readonly userSlot: number; readonly draftOrder: Readonly<Record<string, number>> | null },
+  confirmed: {
+    readonly draftOrder: Readonly<Record<string, number>> | null;
+    readonly slotToRosterId: Readonly<Record<string, number>> | null | undefined;
+  }
+): { readonly userSlot: number; readonly userRosterId: number } | string {
+  const owners = Object.entries(previous.draftOrder ?? {}).filter(([, slot]) => slot === previous.userSlot);
+  if (owners.length !== 1 || !owners[0]) {
+    return `last season's draft order has no single owner for slot ${String(previous.userSlot)}`;
+  }
+  const userSlot = confirmed.draftOrder?.[owners[0][0]];
+  if (userSlot === undefined) return "last season's manager is not in the confirmed draft order";
+  const userRosterId = confirmed.slotToRosterId?.[String(userSlot)];
+  if (userRosterId === undefined) return `the confirmed draft has no roster for slot ${String(userSlot)}`;
+  return { userSlot, userRosterId };
+}
+
+/**
+ * The confirmed Primary League season, when it is newer than the configured history. An unresolved manager is
+ * reported and the season left out, so the historical import still completes.
  */
 const readConfirmedSeason = Effect.fn('readConfirmedSeason')(function* (previous: LeagueDraftConfig) {
   const text = yield* io(() => readFile(PRIMARY_LEAGUE_SETTINGS_FILE, 'utf8').catch(() => null));
@@ -547,26 +571,22 @@ const readConfirmedSeason = Effect.fn('readConfirmedSeason')(function* (previous
   const settings = Schema.decodeUnknownSync(confirmedLeagueSchema)(JSON.parse(text));
   const { leagueId, draftId } = settings;
   if (settings.season <= previous.season || !leagueId || !draftId) return null;
-  const [previousRosters, rosters, draft] = yield* Effect.all([
-    sleeperRequest(`/league/${previous.leagueId}/rosters`, decodeLeagueHistoryRosters),
-    sleeperRequest(`/league/${leagueId}/rosters`, decodeLeagueHistoryRosters),
+  const [previousDraft, draft] = yield* Effect.all([
+    sleeperRequest(`/draft/${previous.draftId}`, decodeLeagueHistoryDraft),
     sleeperRequest(`/draft/${draftId}`, decodeLeagueHistoryDraft),
   ], { concurrency: 'unbounded' });
-  const ownerId = previousRosters.find((roster) => roster.roster_id === previous.userRosterId)?.owner_id;
-  const roster = ownerId ? rosters.find((candidate) => candidate.owner_id === ownerId) : undefined;
-  const userSlot = ownerId ? draft.draft_order?.[ownerId] : undefined;
-  if (!roster || userSlot === undefined) {
-    return yield* Effect.fail(new Error(
-      `Could not find last season's manager in the confirmed ${String(settings.season)} league and draft.`
-    ));
+  const manager = resolveConfirmedManager(
+    { userSlot: previous.userSlot, draftOrder: previousDraft.draft_order },
+    { draftOrder: draft.draft_order, slotToRosterId: draft.slot_to_roster_id }
+  );
+  if (typeof manager === 'string') {
+    console.warn(
+      `Skipping the confirmed ${String(settings.season)} prospective season: ${manager}. ` +
+      'Historical seasons are imported without it.'
+    );
+    return null;
   }
-  const config: LeagueDraftConfig = {
-    season: settings.season,
-    draftId,
-    leagueId,
-    userSlot,
-    userRosterId: roster.roster_id,
-  };
+  const config: LeagueDraftConfig = { season: settings.season, draftId, leagueId, ...manager };
   return config;
 });
 

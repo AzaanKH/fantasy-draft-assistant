@@ -279,3 +279,52 @@ describe('roster-aware backtest helpers', () => {
     expect(checkFailures).toEqual([false, false, false, false, false, false]);
   });
 });
+
+describe('prospective board', () => {
+  it('builds the pool from the pre-draft ranking snapshot, falls back past post-draft scrapes, and keeps drafted players', async () => {
+    const { DuckDBInstance } = await import('@duckdb/node-api');
+    const instance = await DuckDBInstance.create(':memory:');
+    const connection = await instance.connect();
+    const features = backtestInternals.PROSPECTIVE_FEATURE_COLUMNS.map((column) => `1.0 as ${column}`).join(', ');
+    try {
+      for (const sql of [
+        'create schema source',
+        'create schema model',
+        `create table model.prediction_training_dataset as select 2025 as season, 'g-a' as gsis_id`,
+        `create table model.prospective_player_outcomes as
+          select 2026 as season, 'g-a' as gsis_id, 8.0 as games, 100.0 as ppr_points, 0.0 as rush_attempts,
+            0.0 as receptions, 8 as team_games_played, 17 as team_games_scheduled`,
+        `create table model.prospective_season_status as select 2026 as season, 272 as reg_games_scheduled,
+          136 as reg_games_played, 136 as reg_games_with_stats, 9 as last_week_played, 'now' as fetched_at`,
+        `create table model.dynastyprocess_player_ids as select * from (values
+          ('fp-a', 'g-a', 's-a'), ('fp-c', 'g-c', 's-c'), ('fp-d', 'g-d', 's-d')
+        ) as t(fantasypros_id, gsis_id, sleeper_player_id)`,
+        // a: ranked, absent from the current feature pool. c: re-ranked after the draft. d: drafted, never ranked.
+        `create table source.dynastyprocess_rankings as select * from (values
+          ('fp-a', 'Player A', 'WR', 'redraft-overall', 20.0, '2026-08-20'),
+          ('fp-c', 'Player C', 'RB', 'redraft-overall', 10.0, '2026-08-20'),
+          ('fp-c', 'Player C', 'RB', 'redraft-overall', 5.0, '2026-09-08')
+        ) as t(id, player, pos, page_type, ecr, scrape_date)`,
+        // b: in the current feature pool only, not ranked on draft day.
+        `create table model.current_prediction_features as
+          select 's-b' as sleeper_player_id, 'g-b' as gsis_id, 'Player B' as player_name, 'TE' as position, ${features}`,
+      ]) await connection.run(sql);
+
+      const load = await backtestInternals.loadProspectiveRows(connection, [{
+        season: 2026,
+        draftStartTimestamp: '2026-09-05T18:00:00.000Z',
+        picks: [{ playerId: 's-d', playerName: 'Player D', position: 'QB' }],
+      }]);
+
+      expect(load.skipped).toEqual([]);
+      const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
+      expect(Object.keys(board).sort()).toEqual(['s-a', 's-c', 's-d']);
+      expect(board['s-a']).toMatchObject({ position: 'WR', predraft_ecr: 20, actual_points: 212.5 });
+      expect(board['s-c']?.predraft_ecr).toBe(10);
+      expect(board['s-d']).toMatchObject({ position: 'QB', predraft_ecr: null });
+      expect(load.folds[0]).toMatchObject({ rankingsAfterDraft: 1, unrankedDrafted: 1, complete: false });
+    } finally {
+      connection.closeSync();
+    }
+  });
+});
