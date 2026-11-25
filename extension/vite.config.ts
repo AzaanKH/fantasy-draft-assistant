@@ -10,7 +10,8 @@ import { noNodeInBrowserBundle } from '../scripts/no-node-in-browser-bundle';
 const ports = localDevPorts(process.env);
 const distDir = resolve(__dirname, 'dist');
 const define = { __DRAFT_LOCAL_PORTS__: JSON.stringify(ports) };
-const output = { entryFileNames: '[name].js', chunkFileNames: '[name].js', assetFileNames: '[name].[ext]' };
+// Maps keep line mappings only: embedded sources would ship local league data compiled into the bundle.
+const output = { entryFileNames: '[name].js', chunkFileNames: '[name].js', assetFileNames: '[name].[ext]', sourcemapExcludeSources: true };
 const classicContentScripts = {
   content: resolve(__dirname, 'src/content/sleeper-detector.ts'),
   'espn-page': resolve(__dirname, 'src/content/espn-page-bridge.ts'),

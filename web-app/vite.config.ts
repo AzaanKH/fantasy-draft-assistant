@@ -107,5 +107,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     sourcemap: true,
+    // Rolldown embeds source text that includes the bundled browser data; maps keep line mappings only.
+    rolldownOptions: { output: { sourcemapExcludeSources: true } },
   },
 });
