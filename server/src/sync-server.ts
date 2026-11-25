@@ -447,7 +447,7 @@ async function defaultFetchJson<A>(
           : 'Sleeper';
       throw new Error(error.kind === 'timeout'
         ? `${provider} request timed out`
-        : `${provider} request failed: ${error.status}`);
+        : `${provider} request failed: ${error.status}`, { cause: error });
     }
     throw error;
   }

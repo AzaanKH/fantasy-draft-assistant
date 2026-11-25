@@ -58,8 +58,8 @@ export function createSyncSnapshotClient(
         });
       } catch (cause) {
         if (cause instanceof HttpError) {
-          if (cause.kind === 'status') throw new Error(`Snapshot request failed: ${String(cause.status)}`);
-          if (cause.kind === 'timeout') throw new Error('Snapshot request timed out');
+          if (cause.kind === 'status') throw new Error(`Snapshot request failed: ${String(cause.status)}`, { cause });
+          if (cause.kind === 'timeout') throw new Error('Snapshot request timed out', { cause });
         }
         throw cause;
       }

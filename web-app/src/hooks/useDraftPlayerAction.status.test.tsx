@@ -8,7 +8,7 @@ import { WorkspaceProvider } from '@/workspace/WorkspaceProvider';
 import { workspaceForTestStore } from '@/workspace/workspace-test-helpers';
 import { useDraftPlayerAction } from './useDraftPlayerAction';
 
-const save = vi.hoisted(() => ({ result: Promise.resolve() as Promise<unknown> }));
+const save = vi.hoisted(() => ({ result: Promise.resolve() }));
 // Both writers (durable and v1) report through the same promise here, whichever the build selects.
 vi.mock('@/workspace/workspace-command', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/workspace/workspace-command')>(),

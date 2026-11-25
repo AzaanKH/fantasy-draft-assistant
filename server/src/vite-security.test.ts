@@ -9,7 +9,7 @@ afterEach(async () => { await server?.close(); });
 it('accepts canonical port-80 origins only for the exact loopback hosts', () => {
   const request = (host: string, origin: string): IncomingMessage => ({
     headers: { host, origin, 'sec-fetch-site': 'same-origin' },
-  }) as IncomingMessage;
+  }) as unknown as IncomingMessage;
   for (const host of ['localhost', '127.0.0.1', '[::1]']) {
     expect(isSameOriginApiRequest(request(host, `http://${host}`), 80)).toBe(true);
     expect(isSameOriginApiRequest(request(`${host}:80`, `http://${host}`), 80)).toBe(true);

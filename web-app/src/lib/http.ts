@@ -12,7 +12,7 @@ export async function requestJson<T>(
     return await http.json(url, decode, BROWSER_HTTP_POLICY, options);
   } catch (error) {
     if (error instanceof HttpError && error.kind === 'status') {
-      throw new Error(`${statusMessage}: ${String(error.status)}`);
+      throw new Error(`${statusMessage}: ${String(error.status)}`, { cause: error });
     }
     throw error;
   }

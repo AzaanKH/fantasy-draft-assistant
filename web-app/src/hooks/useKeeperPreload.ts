@@ -14,7 +14,7 @@ export type { KeeperPreloadStatus } from '@fantasy-draft/shared/draft';
 async function fetchCurrentKeepers(): Promise<KeeperFile> {
   return requestJson('/api/draft-data/current-keepers', parsed => {
     try { return decodeKeeperFile(parsed); }
-    catch (error) { throw new Error('Invalid current keeper data format: ' + String(error)); }
+    catch (error) { throw new Error('Invalid current keeper data format: ' + String(error), { cause: error }); }
   }, 'Failed to load current keepers');
 }
 

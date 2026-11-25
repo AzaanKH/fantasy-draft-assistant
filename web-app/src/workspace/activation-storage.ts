@@ -195,7 +195,6 @@ async function plan({ source, snapshot, decisions, tombstone }: {
   const kept: string[] = [];
   const unchanged: string[] = [];
   let phase: Review['phase'] = 'fresh';
-  let imported = full;
 
   if (record?.state === 'imported') {
     phase = record.acceptedSourceDigest === sourceDigest && tombstone === 'present' ? 'complete' : 'resume';
@@ -251,7 +250,7 @@ async function plan({ source, snapshot, decisions, tombstone }: {
       const decision = decided.get(item.id);
       return decision?.action === 'discard-entry' && decision.digest === item.digest ? item.entries.map(entry => entry.key) : [];
     }));
-    imported = discarded.size ? importV1(source.filter(entry => !discarded.has(entry.key))) : full;
+    const imported = discarded.size ? importV1(source.filter(entry => !discarded.has(entry.key))) : full;
     await entryBlockers(imported);
     const exported = record?.state === 'rolled-back' ? record.rollback?.sessions ?? {} : {};
     for (const session of imported.sessions) {

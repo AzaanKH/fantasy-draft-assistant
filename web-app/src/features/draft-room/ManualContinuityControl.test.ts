@@ -3,11 +3,10 @@ import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { ManualContinuityControl } from './ManualContinuityControl';
 
 const sync = vi.hoisted(() => ({
-  provider: 'espn' as DraftProvider | null,
+  provider: 'espn',
   synchronizationState: 'disconnected',
   connectionState: 'error',
 }));

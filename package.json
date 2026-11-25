@@ -74,15 +74,15 @@
     "check:draft-effect": "node scripts/check-draft-effect.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
-    "@eslint/js": "^9.16.0",
-    "eslint": "^9.16.0",
-    "globals": "^15.13.0",
-    "typescript-eslint": "^8.18.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
-    "vitest": "^5.1.1",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "jsdom": "^26.0.0",
     "tinyglobby": "^0.2.15",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^5.1.1",
     "yaml": "^2.8.1"
   },
   "pnpm": {

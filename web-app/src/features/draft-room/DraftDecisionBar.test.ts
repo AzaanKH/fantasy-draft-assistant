@@ -20,7 +20,7 @@ const decision = vi.hoisted(() => ({
   isLoading: true,
   recommendationsBlocked: false,
   playersLoading: false,
-  readiness: null as unknown,
+  readiness: null,
 }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => decision,
