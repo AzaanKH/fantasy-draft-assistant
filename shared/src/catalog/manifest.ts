@@ -130,7 +130,7 @@ const trackedModelPlaceholders = new Set(['data/model/.gitkeep', 'data/model/bac
 const demoFiles = new Set(['README.md', 'fantasypros-snapshot.json', 'league-history/current-keepers.json', 'league-history/survival-model.json',
   'player-identity.json', 'predictions.json', 'primary-league-settings.json', 'recommendation-policy.json', 'sleeper-adp.json', 'team-environment.json']);
 
-const privateDataPrefixes = ['data/model/', 'data/league-history/raw/', 'data/shadow-logs/', 'data/rehearsal-evidence/'];
+const privateDataPrefixes = ['data/model/', 'data/league-history/raw/', 'data/shadow-logs/', 'data/rehearsal-evidence/', 'data/season-review/'];
 
 export function catalogRetentionMetadata(): { readonly trackedPaths: readonly string[]; readonly privatePrefixes: readonly string[] } {
   return {
