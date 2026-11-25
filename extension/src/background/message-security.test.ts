@@ -58,6 +58,17 @@ describe('extension sender boundary', () => {
     }
     expect(acceptsAuthorizedMessage(snapshot, at('https://fantasy.espn.com/football/draft/?leagueId=4242'), id)).toBe(true);
   });
+
+  it('requires the ESPN snapshot document itself to have loaded in the draft room', () => {
+    const draftRoom = String(sender.url);
+    expect(acceptsAuthorizedMessage(snapshot, at(draftRoom, draftRoom), id)).toBe(true);
+    for (const frameUrl of ['https://fantasy.espn.com/football/team?leagueId=4242',
+      draftRoom.replace('4242', '9999')]) {
+      expect(acceptsAuthorizedMessage(snapshot, at(draftRoom, frameUrl), id)).toBe(false);
+    }
+    const { url: _url, ...frameless } = at(draftRoom);
+    expect(acceptsAuthorizedMessage(snapshot, frameless, id)).toBe(false);
+  });
 });
 
 describe('single-page navigation in a provider tab', () => {

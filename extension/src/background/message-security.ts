@@ -26,11 +26,16 @@ export function decodeAuthorizedExtensionMessage(
   }
   const route = parseDraftRoomUrl(tabUrl.href);
   switch (message.type) {
-    case 'ESPN_DRAFT_SNAPSHOT':
+    case 'ESPN_DRAFT_SNAPSHOT': {
       if (message.data.draft.leagueSettings !== undefined) throw new Error('Page snapshots cannot supply league settings');
-      if (route.provider === 'espn' && message.data.draft.draftId === route.draftId &&
+      // ESPN's draft room always takes a full page load, so the document itself must
+      // have loaded there too; a same-origin URL change cannot lend it the route.
+      const frameRoute = parseDraftRoomUrl(sender.url ?? '');
+      if (route.provider === 'espn' && frameRoute.provider === 'espn' && frameRoute.draftId === route.draftId &&
+          message.data.draft.draftId === route.draftId &&
           (message.data.draft.leagueId === undefined || message.data.draft.leagueId === route.draftId)) return message;
       break;
+    }
     case 'DRAFT_ROOM_STATUS':
       if (!message.data.isInDraftRoom && !route.isInDraftRoom) return message;
       if (message.data.isInDraftRoom && route.isInDraftRoom &&
