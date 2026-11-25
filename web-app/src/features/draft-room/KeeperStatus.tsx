@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleAlert } from 'lucide-react';
+import { CircleCheck, CircleExclamationPoint } from 'lucide-react';
 import type { KeeperPreloadStatus } from '@/hooks/useKeeperPreload';
 import { cn } from '@/lib/utils';
 
@@ -31,9 +31,9 @@ export function KeeperStatus({ status }: { readonly status: KeeperPreloadStatus 
       role="status"
     >
       {isReady ? (
-        <CheckCircle2 className="size-4 shrink-0 text-success" />
+        <CircleCheck className="size-4 shrink-0 text-success" />
       ) : (
-        <CircleAlert className="size-4 shrink-0 text-warning" />
+        <CircleExclamationPoint className="size-4 shrink-0 text-warning" />
       )}
       <div className="min-w-0 leading-tight">
         <div

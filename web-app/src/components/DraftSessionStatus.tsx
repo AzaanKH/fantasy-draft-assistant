@@ -2,7 +2,7 @@ import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider
 import { DRAFT_DISPLAY, IS_DEMO } from '@/lib/demo-mode';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
-import { CircleAlert, Info, Settings2, X } from 'lucide-react';
+import { CircleExclamationPoint, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { IconTooltip } from '@/components/ui/tooltip';
@@ -70,7 +70,7 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings, compa
           <span className="draft-session-mode">{mode}</span>
           <span className="draft-session-sync" data-sync={sync.tone}>{sync.label}</span>
           {needsAttention
-            ? <CircleAlert className="size-3 text-warning" aria-hidden="true" />
+            ? <CircleExclamationPoint className="size-3 text-warning" aria-hidden="true" />
             : <Info className="size-3 text-muted-foreground" aria-hidden="true" />}
         </Button>
       </PopoverTrigger>
