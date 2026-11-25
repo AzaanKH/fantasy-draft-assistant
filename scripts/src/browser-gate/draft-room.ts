@@ -245,6 +245,8 @@ export async function checkPhoneMock(browser: Browser, width: number): Promise<v
     await activateStorage(page);
     await startMockUntilOnClock(page);
     await page.getByRole('button', { name: 'Pause' }).click();
+    // The pool selector also shows in a running mock, so wait for the paused state itself.
+    await page.getByRole('button', { name: 'Resume' }).waitFor();
     await page.locator('.draft-pool-table.has-draft-action').waitFor();
     await assertNoPageOverflow(page, label);
     const banner = await page.locator('.draft-app-header .draft-turn-banner').first().evaluate((element) => {
@@ -253,8 +255,9 @@ export async function checkPhoneMock(browser: Browser, width: number): Promise<v
     });
     assert(banner.right <= width && banner.textRight <= banner.right + 0.5,
       `${label}: the turn banner (to ${banner.right.toFixed(1)}px, text to ${banner.textRight.toFixed(1)}px) does not fit the viewport`);
-    // Hold the ring at the pulse's final scale (useTurnStartPulse) so the check does not depend on animation timing.
-    await page.addStyleTag({ content: '.draft-turn-banner::after { transform: scale(1.25); opacity: 1; }' });
+    // Hold the ring at the pulse's final scale (useTurnStartPulse) so the check does not depend on animation timing;
+    // !important outranks a still-running pulse animation in the cascade.
+    await page.addStyleTag({ content: '.draft-turn-banner::after { transform: scale(1.25) !important; opacity: 1 !important; }' });
     await assertNoPageOverflow(page, `${label} with the turn-start ring at full scale`);
     const spilling = await page.locator('.draft-pool-heading [role=columnheader]').evaluateAll((cells) => cells.flatMap((cell) => {
       const box = cell.getBoundingClientRect();
