@@ -61,7 +61,7 @@ function render(element: React.ReactElement): void {
 it('shows the side panel loading state while player data loads', () => {
   state.isLoading = true;
   // Radix trigger ids come from useId and differ between separate renders.
-  const markup = () => container.innerHTML.replace(/radix-:r\w+:/g, 'radix-id');
+  const markup = () => container.innerHTML.replace(/radix-_r_\w+_/g, 'radix-id');
   render(createElement(SidePanelPage));
   const page = markup();
   render(createElement(SidePanelSkeleton));

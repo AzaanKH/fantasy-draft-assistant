@@ -161,9 +161,9 @@ function FilledPick({
 interface DraftGridProps {
   readonly activeRound: number | null;
   readonly activeTeamIndex: number;
-  readonly activeSlotRef: React.RefObject<HTMLDivElement>;
+  readonly activeSlotRef: React.RefObject<HTMLDivElement | null>;
   readonly boardHeight: number;
-  readonly boardRef: React.RefObject<HTMLDivElement>;
+  readonly boardRef: React.RefObject<HTMLDivElement | null>;
   readonly compact: boolean;
   readonly currentPick: number;
   readonly currentPickMode: boolean;

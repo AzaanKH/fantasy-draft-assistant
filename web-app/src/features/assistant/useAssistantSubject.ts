@@ -58,7 +58,7 @@ export interface AssistantSubjectState {
   readonly setComparisonPlayerId: (playerId: string) => void;
   readonly highlightedPlayerIds: ReadonlySet<string>;
   readonly selectionLabel: 'Viewing' | 'Comparing';
-  readonly analysisRef: React.RefObject<HTMLElement>;
+  readonly analysisRef: React.RefObject<HTMLElement | null>;
 }
 
 const UNESTIMATED: NextPickAvailability = { kind: 'unestimated' };

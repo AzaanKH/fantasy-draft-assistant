@@ -41,8 +41,8 @@ interface PoolKeyboardOptions {
 }
 
 export interface PoolKeyboard {
-  readonly searchRef: React.RefObject<HTMLInputElement>;
-  readonly listRef: React.MutableRefObject<HTMLDivElement | null>;
+  readonly searchRef: React.RefObject<HTMLInputElement | null>;
+  readonly listRef: React.RefObject<HTMLDivElement | null>;
   readonly activePlayerId: string | null;
   /** Player-cell id for the grid's aria-activedescendant. */
   readonly activeDescendantId: string | undefined;

@@ -52,7 +52,7 @@ export const AssistantSearch = React.forwardRef<HTMLInputElement, {
 
 export interface AssistantPoolProps {
   /** The raw query (for the heading), its deferred, trimmed, lower-cased form (for matching) and the search box. */
-  readonly search: { readonly query: string; readonly deferredQuery: string; readonly ref: React.RefObject<HTMLInputElement> };
+  readonly search: { readonly query: string; readonly deferredQuery: string; readonly ref: React.RefObject<HTMLInputElement | null> };
   readonly positionFilter: PositionFilter;
   readonly onPositionFilterChange: (filter: PositionFilter) => void;
   readonly sort: PoolSort;
