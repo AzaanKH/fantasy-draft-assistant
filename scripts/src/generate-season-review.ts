@@ -6,8 +6,8 @@
  * to a gitignored directory (league data is private). See docs/season-review.md.
  */
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { Clock, Data, Effect } from 'effect';
@@ -49,6 +49,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SLEEPER = 'https://api.sleeper.app/v1';
 const NFLVERSE_PLAYER_STATS = (season: number) =>
   `https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_reg_${String(season)}.csv`;
+const NFLVERSE_SCHEDULE = 'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv';
 const REGULAR_SEASON_WEEKS = 18;
 
 export class SeasonReviewError extends Data.TaggedError('SeasonReviewError')<{ readonly message: string }> {}
@@ -140,9 +141,32 @@ export function completedNflWeek(stateWeek: number, stateSeason: number, seasonT
   return Math.min(REGULAR_SEASON_WEEKS, stateWeek - 1);
 }
 
+/** Last regular-season week whose games, and every earlier week's, are all final in the nflverse schedule CSV. */
+export function lastFinalScheduleWeek(csv: string, season: number): number {
+  const [header, ...rows] = parseCsv(csv);
+  const column = (name: string) => header?.indexOf(name) ?? -1;
+  const [seasonAt, typeAt, weekAt, awayAt, homeAt] = ['season', 'game_type', 'week', 'away_score', 'home_score'].map(column);
+  if ([seasonAt, typeAt, weekAt, awayAt, homeAt].some((index) => index === undefined || index < 0)) {
+    throw new SeasonReviewError({ message: 'nflverse schedule CSV is missing expected columns' });
+  }
+  const at = (cells: readonly string[], index: number | undefined) => cells[index ?? -1] ?? '';
+  const open = new Map<number, boolean>();
+  for (const cells of rows) {
+    if (Number(at(cells, seasonAt)) !== season || at(cells, typeAt) !== 'REG') continue;
+    const week = Number(at(cells, weekAt));
+    open.set(week, (open.get(week) ?? false) || at(cells, awayAt) === '' || at(cells, homeAt) === '');
+  }
+  let completed = 0;
+  for (const [week, hasOpenGame] of [...open].sort(([left], [right]) => left - right)) {
+    if (hasOpenGame) break;
+    completed = week;
+  }
+  return completed;
+}
+
 /**
- * Two cutoffs. Standings, points for/against and max PF are Sleeper's live roster totals, so they reflect the league's
- * last scored week (bounded by `last_scored_leg`, which ends before NFL week 18). Player stats, transactions and
+ * Two cutoffs. Standings, points for/against and max PF are Sleeper's live roster totals, which count only the
+ * regular season: the last scored week, capped at `last_scored_leg` and the week before `playoff_week_start`. Player stats, transactions and
  * pickups may run later, through the last completed NFL week, but never earlier than standings: that would mix
  * week-N player data with later standings.
  */
@@ -150,9 +174,10 @@ export function resolveCutoffs(
   requested: number | null,
   nflCompleted: number,
   lastScored: number,
-  lastScoredLeg: number | null
+  lastScoredLeg: number | null,
+  playoffWeekStart: number | null
 ): { readonly stats: number; readonly standings: number } {
-  const standings = lastScoredLeg === null ? lastScored : Math.min(lastScored, lastScoredLeg);
+  const standings = Math.min(lastScored, lastScoredLeg ?? lastScored, playoffWeekStart === null ? lastScored : playoffWeekStart - 1);
   if (standings < 1) throw new SeasonReviewError({ message: 'No scored weeks yet.' });
   const latest = Math.max(standings, nflCompleted);
   if (requested !== null && requested < standings) {
@@ -195,12 +220,27 @@ const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: 
   return null;
 });
 
+/** Real path of `path`, resolving symlinks and firmlinks through its nearest existing ancestor. */
+async function realDestination(path: string): Promise<string> {
+  const missing: string[] = [];
+  for (let current = resolve(path); ; current = dirname(current)) {
+    try {
+      return join(await realpath(current), ...missing.reverse());
+    } catch (cause) {
+      const code = (cause as NodeJS.ErrnoException).code;
+      if ((code !== 'ENOENT' && code !== 'ENOTDIR') || dirname(current) === current) throw cause;
+      missing.push(basename(current));
+    }
+  }
+}
+
 /** League data is private: refuse to write any output file inside this checkout that git would let someone stage. */
-export const assertPrivateOutputs = (paths: readonly string[]): Effect.Effect<void, Error> => io(async () => {
+export const assertPrivateOutputs = (paths: readonly string[], repoRoot: string = REPO_ROOT): Effect.Effect<void, Error> => io(async () => {
+  const root = await realpath(repoRoot);
   for (const path of paths) {
-    const inside = relative(REPO_ROOT, path);
+    const inside = relative(root, await realDestination(path));
     if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) continue;
-    const ignored = await git(['-C', REPO_ROOT, 'check-ignore', '-q', '--', path]).then(() => true, () => false);
+    const ignored = await git(['-C', root, 'check-ignore', '-q', '--', inside]).then(() => true, () => false);
     if (!ignored) throw new SeasonReviewError({ message: `${path} is inside the checkout but not git-ignored; private league data could be committed. Use a git-ignored --out such as data/season-review/.` });
   }
 });
@@ -340,9 +380,17 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     fetchSleeper(raw, `/league/${leagueId}/matchups/${String(week)}`, decodeSleeperMatchups).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 });
   const weekPoints = new Map(matchups.map(({ week, rows }) => [week, rows.reduce((sum, row) => sum + (row.points ?? 0), 0)]));
   const lastScoredLeg = league.settings['last_scored_leg'];
+  const playoffWeekStart = league.settings['playoff_week_start'];
+  const schedule = yield* Effect.tryPromise({
+    try: (signal) => http.text(NFLVERSE_SCHEDULE, { timeoutMs: 60_000, retries: 2, retryAfter: true }, { init: { signal } }),
+    catch: (cause) => new SeasonReviewError({ message: `nflverse schedule download failed: ${toError(cause).message}` }),
+  });
+  // Sleeper rolls its week before Monday night ends; the schedule confirms every game of the week is final.
+  const nflCompleted = Math.min(completedNflWeek(state.week, Number(state.season), state.season_type, season), lastFinalScheduleWeek(schedule, season));
   const cutoffs = yield* Effect.try({
-    try: () => resolveCutoffs(options.throughWeek, completedNflWeek(state.week, Number(state.season), state.season_type, season),
-      lastScoredWeek(state.week, Number(state.season), season, weekPoints), typeof lastScoredLeg === 'number' ? lastScoredLeg : null),
+    try: () => resolveCutoffs(options.throughWeek, nflCompleted,
+      lastScoredWeek(state.week, Number(state.season), season, weekPoints), typeof lastScoredLeg === 'number' ? lastScoredLeg : null,
+      typeof playoffWeekStart === 'number' ? playoffWeekStart : null),
     catch: (cause) => cause instanceof SeasonReviewError ? cause : new SeasonReviewError({ message: toError(cause).message }),
   });
   const throughWeek = cutoffs.stats;
@@ -371,6 +419,10 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     }),
   ], { concurrency: 3 });
   raw.set(`nflverse_stats_player_reg_${String(season - 1)}.csv`, priorCsv);
+  const lastWeekStats = weeklyStats.find(({ week }) => week === throughWeek)?.stats ?? {};
+  if (!Object.values(lastWeekStats).some((line) => (line['gp'] ?? 0) > 0)) {
+    return yield* new SeasonReviewError({ message: `Sleeper has no week ${String(throughWeek)} player stats yet. Pass an earlier --through-week.` });
+  }
 
   const evidence = yield* slotEvidence(options.dataDir, settings.draftId);
   const manager = resolveManagerSlot(options.managerSlot, evidence);

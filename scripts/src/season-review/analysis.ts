@@ -432,6 +432,21 @@ export function nextPickSurvival(player: { readonly adpPick: number | null; read
   return nextPick === null ? 0 : conditionalSurvival(marketPick(player), pickNo, nextPick);
 }
 
+/** Live next-pick inputs for one replay pick; the Best Pick draft-timing factor scores zero without `nextPickNumber`. */
+export function replayTiming(
+  player: { readonly adpPick: number | null; readonly ecrRank: number }, pickNo: number, nextPick: number | null, teams: number
+): Pick<BoardPlayer, 'nextPickSurvivalProbability' | 'nextPickNumber' | 'nextPickLabel' | 'picksUntilNextPick'> {
+  const nextPickSurvivalProbability = asProbability(nextPickSurvival(player, pickNo, nextPick));
+  if (nextPick === null) return { nextPickSurvivalProbability };
+  const pickInRound = ((nextPick - 1) % teams) + 1;
+  return {
+    nextPickSurvivalProbability,
+    nextPickNumber: nextPick,
+    nextPickLabel: `${String(Math.ceil(nextPick / teams))}.${String(pickInRound).padStart(2, '0')}`,
+    picksUntilNextPick: nextPick - pickNo,
+  };
+}
+
 /**
  * The shipped Best Pick rule on the pre-draft board, built the way the recommendation backtest builds historical
  * boards: expert rank, league-scored projection and its VOR, FantasyPros ADP as market cost, and neutral live inputs.
@@ -741,7 +756,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       const boardPlayer = board.get(player.playerId);
       return boardPlayer ? [{
         ...boardPlayer,
-        nextPickSurvivalProbability: asProbability(nextPickSurvival(player, pick.pickNo, nextPick)),
+        ...replayTiming(player, pick.pickNo, nextPick, teams),
       }] : [];
     });
     const result = getRecommendations(boardPlayers, [], 1, {

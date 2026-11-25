@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pseudonymizeUserId } from '../import-league-draft-history.js';
-import { buildBestPickBoard, buildSeasonReview, nextPickSurvival, type PredraftPlayer } from './analysis.js';
+import { getRecommendations } from '@fantasy-draft/shared/draft';
+import { buildBestPickBoard, buildSeasonReview, nextPickSurvival, replayTiming, type PredraftPlayer } from './analysis.js';
 import { conditionalSurvival } from './core.js';
 import type { SeasonReviewInputs } from './inputs.js';
 
@@ -124,6 +125,23 @@ describe('season review assembly', () => {
     expect(boardPlayer?.marketRank).toBe(130);
     expect(nextPickSurvival(player, 125, 140)).toBe(conditionalSurvival(136.4, 125, 140));
     expect(nextPickSurvival(player, 125, 140)).not.toBe(conditionalSurvival(130, 125, 140));
+  });
+
+  it('gives the replayed Best Pick its next pick so draft timing is scored', () => {
+    const predraft = (playerId: string, ecrRank: number, adpPick: number, projection: number): PredraftPlayer => ({
+      playerId, fantasyProsId: `fp-${playerId}`, name: playerId, position: 'WR', team, ecrRank, ecrPositionRank: ecrRank,
+      bestRank: null, worstRank: null, avgRank: null, adpRank: ecrRank, adpPick, projection, projectionStats: {},
+    });
+    const players = [predraft('WRstar', 10, 11, 300), predraft('WRlate', 40, 60, 60)];
+    const board = buildBestPickBoard(new Map(players.map((player) => [player.playerId, player])), new Map([['WR', 50]]));
+    const timing = replayTiming(players[0]!, 10, 31, 12);
+    expect(timing).toMatchObject({ nextPickNumber: 31, nextPickLabel: '3.07', picksUntilNextPick: 21 });
+    const result = getRecommendations(players.map((player) => ({ ...board.get(player.playerId)!, ...replayTiming(player, 10, 31, 12) })), [], 1, {
+      currentPick: 10, totalPicks: 120, totalTeams: 12, isMyTurn: true,
+    });
+    const draftTiming = result.draftNow[0]?.decisionFactors?.draftTiming;
+    expect(draftTiming?.nextPickNumber).toBe(31);
+    expect(draftTiming?.score).toBeGreaterThan(0);
   });
 
   it('ranks drafted players without a stat line and counts them in the hit-rate denominator', () => {

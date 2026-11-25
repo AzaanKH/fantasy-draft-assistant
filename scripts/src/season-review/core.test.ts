@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Effect } from 'effect';
 import { DEFAULT_SCORING_RULES, FLEX_GROUPS } from '@fantasy-draft/shared/league';
@@ -25,6 +28,7 @@ import {
 import {
   assertPrivateOutputs,
   completedNflWeek,
+  lastFinalScheduleWeek,
   lastScoredWeek,
   parseSeasonReviewArgs,
   predraftSnapshotProblem,
@@ -205,14 +209,15 @@ describe('season review entry decisions', () => {
     expect(completedNflWeek(12, 2026, 'regular', 2026)).toBe(11);
     expect(completedNflWeek(18, 2026, 'post', 2026)).toBe(18);
     expect(completedNflWeek(1, 2027, 'pre', 2026)).toBe(18);
-    expect(resolveCutoffs(null, 11, 11, 17)).toEqual({ stats: 11, standings: 11 });
-    // Full-season rerun: the league's playoffs end at last_scored_leg 17, NFL stats run through week 18.
-    expect(resolveCutoffs(18, 18, 17, 17)).toEqual({ stats: 18, standings: 17 });
-    expect(resolveCutoffs(null, 18, 17, 17)).toEqual({ stats: 18, standings: 17 });
-    expect(resolveCutoffs(17, 18, 17, 17)).toEqual({ stats: 17, standings: 17 });
-    expect(() => resolveCutoffs(16, 18, 17, 17)).toThrow('standings are live');
-    expect(() => resolveCutoffs(12, 11, 11, 17)).toThrow('last completed NFL week');
-    expect(() => resolveCutoffs(null, 0, 0, null)).toThrow('No scored weeks');
+    expect(resolveCutoffs(null, 11, 11, 17, 15)).toEqual({ stats: 11, standings: 11 });
+    // Full-season rerun: Sleeper scores through last_scored_leg 17, but W-L and PF are regular season (playoffs start week 15).
+    expect(resolveCutoffs(18, 18, 17, 17, 15)).toEqual({ stats: 18, standings: 14 });
+    expect(resolveCutoffs(null, 18, 17, 17, 15)).toEqual({ stats: 18, standings: 14 });
+    expect(resolveCutoffs(14, 18, 17, 17, 15)).toEqual({ stats: 14, standings: 14 });
+    expect(resolveCutoffs(null, 18, 17, 17, null)).toEqual({ stats: 18, standings: 17 });
+    expect(() => resolveCutoffs(13, 18, 17, 17, 15)).toThrow('standings are live');
+    expect(() => resolveCutoffs(12, 11, 11, 17, 15)).toThrow('last completed NFL week');
+    expect(() => resolveCutoffs(null, 0, 0, null, null)).toThrow('No scored weeks');
   });
 
   it('refuses any output file inside the checkout that git does not ignore', async () => {
@@ -224,6 +229,33 @@ describe('season review entry decisions', () => {
     const ignored = await run([join(root, 'data', 'season-review', '2026', 'season-review-week-11.md'), join(root, 'data', 'season-review', '2026', 'raw', 'state_nfl.json')]);
     expect(ignored._tag).toBe('Success');
     expect((await run([join(root, '..', 'outside-checkout', 'season-review-week-11.md')]))._tag).toBe('Success');
+  });
+
+  it('counts a week as completed only when every regular-season game in it is final', () => {
+    const csv = [
+      'game_id,season,game_type,week,away_score,home_score',
+      'a,2026,REG,10,20,17', 'b,2026,REG,11,24,21', 'c,2026,REG,11,,', 'd,2026,REG,12,,',
+      'e,2025,REG,11,10,13', 'f,2026,POST,19,,',
+    ].join('\n');
+    expect(lastFinalScheduleWeek(csv, 2026)).toBe(10);
+    expect(lastFinalScheduleWeek(csv.replace('c,2026,REG,11,,', 'c,2026,REG,11,3,7'), 2026)).toBe(11);
+  });
+
+  it('checks outputs by real path, so a symlink or alternate spelling into the checkout is still git-ignore checked', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-guard-')));
+    try {
+      const repo = join(base, 'repo');
+      await mkdir(join(repo, 'ignored'), { recursive: true });
+      execFileSync('git', ['init', '-q', repo]);
+      await writeFile(join(repo, '.gitignore'), 'ignored/\n');
+      await symlink(repo, join(base, 'link'));
+      const run = (path: string) => Effect.runPromiseExit(assertPrivateOutputs([path], repo));
+      expect((await run(join(base, 'link', 'leak', 'report.md')))._tag).toBe('Failure');
+      expect((await run(join(base, 'link', 'ignored', 'new', 'report.md')))._tag).toBe('Success');
+      expect((await run(join(base, 'elsewhere', 'report.md')))._tag).toBe('Success');
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 
   it('accepts only a same-season FantasyPros snapshot refreshed before the draft', () => {
