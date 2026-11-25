@@ -57,12 +57,14 @@ describe('the compact decision explanation, per Decision Lens', () => {
     },
   } as unknown as Recommendation;
 
-  it('leads a Ranked Fit pick with the Ranked Fit rule and labels the timing as Best Pick analysis', () => {
+  it('gives a Ranked Fit pick the one-line Ranked Fit rule, leaving Best Pick timing to Can I wait?', () => {
     const explanation = getCompactDecisionExplanation(timedPick, 'ranked-fit');
-    expect(explanation).toBe(
-      'Ranked Fit orders the players who keep a legal roster possible by the rankings alone. Best Pick analysis: If you wait, Fallback Back is the likely RB at 2.03.'
-    );
-    expect(explanation).not.toMatch(/moved this pick/);
+    expect(explanation).toBe('Ranked Fit: the rankings, keeping a legal roster.');
+    expect(explanation).not.toMatch(/If you wait|moved this pick/);
+  });
+
+  it('gives a Best Player pick the one-line Best Player rule', () => {
+    expect(getCompactDecisionExplanation(timedPick, 'best-player')).toBe('Best Player: the rankings alone.');
   });
 
   it('keeps the timing flag in Best Pick, whose order it set', () => {
@@ -77,15 +79,13 @@ describe('the compact decision explanation, per Decision Lens', () => {
 
   it('leads a Ranked Fit final pick with the Ranked Fit rule and says timing does not apply', () => {
     const explanation = getCompactDecisionExplanation(finalPick, 'ranked-fit');
-    expect(explanation).toBe(
-      'Ranked Fit orders the players who keep a legal roster possible by the rankings alone. This is your last pick, so there is no later pick and timing does not apply.'
-    );
+    expect(explanation).toBe('Ranked Fit: the rankings, keeping a legal roster. This is your last pick, so timing does not apply.');
     expect(explanation).not.toMatch(/most value|If you wait|moved this pick/);
   });
 
   it('leads a Best Player final pick with the Best Player rule and says timing does not apply', () => {
     const explanation = getCompactDecisionExplanation(finalPick, 'best-player');
-    expect(explanation).toBe('Best Player follows the rankings alone. This is your last pick, so there is no later pick and timing does not apply.');
+    expect(explanation).toBe('Best Player: the rankings alone. This is your last pick, so timing does not apply.');
     expect(explanation).not.toMatch(/most value|If you wait|moved this pick/);
   });
 
