@@ -32,10 +32,14 @@ button,input,select {
 @media (max-width:1599px) {
   .draft-header-brand, .draft-header-controls .draft-header-label { display:none; }
   .draft-header-controls [data-slot=button]:has(> .draft-header-label) { width:36px; padding-inline:0; }
-  /* The draft room's turn banner already shows the pick, so the compact status keeps only the mode and sync state. */
-  .draft-session-status[data-compact] > .draft-session-pick, .draft-session-status[data-compact] > .draft-session-overall { display:none; }
-  .draft-session-status[data-compact] > .draft-session-mode { border-left:0; padding-left:0; }
   .draft-header-context { gap:8px; }
+}
+/* The draft room's turn banner already shows the pick, so at laptop widths the compact status shows only the mode and
+   sync state. The pick stays in the button's name, visually hidden rather than display:none, for screen readers (a
+   preview has no turn banner to announce it). Below 1280 the context row wraps and the pick shows again. */
+@media (min-width:1280px) and (max-width:1599px) {
+  .draft-session-status[data-compact] > :is(.draft-session-pick, .draft-session-overall) { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+  .draft-session-status[data-compact] > .draft-session-mode { border-left:0; padding-left:0; }
 }
 /* Below laptop widths the context row wraps beneath navigation. */
 @media (max-width:1279px) {
@@ -43,8 +47,6 @@ button,input,select {
   .draft-header-context { grid-column:1 / -1; grid-row:2; justify-content:space-between; flex-wrap:wrap; gap:6px; padding-block:6px; border-top:1px solid var(--color-border); }
   .draft-header-mobile-controls { display:flex; gap:8px; }
   .draft-header-desktop-controls { display:none; }
-  .draft-session-status[data-compact] > span { display:inline; }
-  .draft-session-status[data-compact] > .draft-session-mode { border-left:1px solid var(--color-border); padding-left:8px; }
   .draft-turn-banner { flex-shrink:1; }
 }
 .draft-app-header nav button[aria-current=page] {

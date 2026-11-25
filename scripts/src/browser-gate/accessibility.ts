@@ -66,6 +66,12 @@ export async function checkDraftAxe(browser: Browser, theme: GateTheme): Promise
     await startMockUntilOnClock(page);
     await page.getByRole('button', { name: 'Pause' }).click();
     await page.waitForTimeout(500);
+    // At 1280 the compact status hides its pick visually, but the pick must stay in the button's accessible name.
+    const status = page.locator('.draft-app-header .draft-session-status');
+    const statusName = await status.evaluate((element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+    const pickBox = await status.locator('.draft-session-pick').boundingBox();
+    assert(await page.getByRole('button', { name: /^Draft status: Pick \d+\.\d+/ }).count() === 1, `${label}: the compact header status button's name "${statusName}" lost the current pick`);
+    assert(pickBox !== null && pickBox.width <= 1 && pickBox.height <= 1, `${label}: the compact header status should hide its pick visually at 1280 (box ${JSON.stringify(pickBox)})`);
     const draft = await blockingViolations(page);
     assert(draft.blocking.length === 0, `${label}: serious or critical violations: ${draft.blocking.join('; ')}`);
     assertNoConsoleErrors(errors, label);

@@ -35,7 +35,7 @@ export function getHeaderSyncState(sessionMode: 'setup' | 'mock' | 'live', synch
 
 /**
  * Pick, mode and setup health behind one popover. `compact` (the draft room, where the turn banner already
- * shows the pick) lets it shrink to its status icon at laptop widths so the header stays on one row.
+ * shows the pick) visually hides the pick at laptop widths so the header stays on one row; it stays in the name.
  */
 export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings, compact = false }: {
   readonly compact?: boolean;
