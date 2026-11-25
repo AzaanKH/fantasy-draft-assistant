@@ -1,4 +1,6 @@
 import { currentSeason } from '@fantasy-draft/shared/league';
+import { fixedClock } from '@fantasy-draft/shared/units';
+import type { ShadowPredictionDependencies, ShadowPredictionFreshness } from '@fantasy-draft/shared/draft';
 import { useConnectionState, useDraftState } from '@/workspace/WorkspaceProvider';
 import { mergeCoreSources, type CorePlayerDataSources } from '@fantasy-draft/shared/draft';
 import { createDataFreshnessItem, type DataFreshnessItem } from '@/lib/data-freshness';
@@ -26,6 +28,11 @@ import {
 } from '@/lib/player-data/queries';
 
 const SAFE_RECOMMENDATION_POLICY = createSafeRecommendationPolicy(DRAFT_DISPLAY);
+
+function normalizeTimestamp(value: string | null | undefined): string | null {
+  const parsed = Date.parse(value ?? '');
+  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
+}
 
 function useLivePlayerDataQuery() {
   const leagueSettings = useDraftState((state) => state.leagueSettings);
@@ -273,9 +280,26 @@ function useLivePlayerDataQuery() {
     },
     enforceMaxAge: !IS_DEMO,
   });
-  const predictionsReady = optionalReadiness.optionalSignals.find(
+  const predictionsReadiness = optionalReadiness.optionalSignals.find(
     (item) => item.key === 'experimental-predictions'
-  )?.status === 'ready';
+  );
+  const predictionsReady = predictionsReadiness?.status === 'ready';
+  // Shadow Recommendations never control live ordering, so a prediction artifact that is only older than its
+  // dependencies or past the live age limit is still logged, with that freshness on the row. Keeping the season's
+  // evaluation evidence is worth more than requiring a rebuild the draft-day preflight does not do.
+  const predictionFreshness = ((): ShadowPredictionFreshness | null => {
+    const problem = predictionsReadiness?.problem;
+    const generatedAt = Date.parse(predictionQuery.data?.generatedAt ?? '');
+    if (problem === undefined || Number.isNaN(generatedAt) || currentSeason(fixedClock(generatedAt)) !== season) return null;
+    if (problem === null) return 'ready';
+    return problem === 'older-than-dependency' || problem === 'stale' ? problem : null;
+  })();
+  const predictionsLoggable = predictionFreshness !== null;
+  const predictionDependencies = useMemo<ShadowPredictionDependencies>(() => ({
+    rankingsRefreshedAt: normalizeTimestamp(rankingsTimestamp),
+    identitiesGeneratedAt: normalizeTimestamp(identityTimestamp),
+    teamEnvironmentGeneratedAt: normalizeTimestamp(teamEnvironmentTimestamp),
+  }), [rankingsTimestamp, identityTimestamp, teamEnvironmentTimestamp]);
   const sportsbookReady = optionalReadiness.optionalSignals.find(
     (item) => item.key === 'sportsbook-context'
   )?.status === 'ready';
@@ -399,10 +423,10 @@ function useLivePlayerDataQuery() {
     marketAdpQuery.data?.players, leagueSettings.scoringRules, totalTeams, rosterRequirements]);
   const players = useMemo(() => coreSources ? mergeCoreSources(coreSources, []) : [], [coreSources]);
   const shadowPlayers = useMemo(() =>
-    coreSources && connection?.draftPosition != null && predictionsReady && effectiveRecommendationPolicy.shadowLogging.enabled
+    coreSources && connection?.draftPosition != null && predictionsLoggable && effectiveRecommendationPolicy.shadowLogging.enabled
       ? mergeCoreSources(coreSources, predictionQuery.data?.players ?? [])
       : [],
-  [coreSources, connection?.draftPosition, predictionsReady, effectiveRecommendationPolicy.shadowLogging.enabled, predictionQuery.data?.players]);
+  [coreSources, connection?.draftPosition, predictionsLoggable, effectiveRecommendationPolicy.shadowLogging.enabled, predictionQuery.data?.players]);
 
   return {
     players,
@@ -439,7 +463,9 @@ function useLivePlayerDataQuery() {
       recommendationPolicyReason: effectiveRecommendationPolicy.reason,
       shadowLoggingEnabled:
         effectiveRecommendationPolicy.shadowLogging.enabled &&
-        predictionsReady,
+        predictionsLoggable,
+      predictionFreshness,
+      predictionDependencies,
       shadowLoggingSeason: effectiveRecommendationPolicy.shadowLogging.season,
       shadowLoggingEndpoint: effectiveRecommendationPolicy.shadowLogging.endpoint,
       predictionsError: predictionQuery.error ?? null,

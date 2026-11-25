@@ -124,7 +124,7 @@ export { getKeeperAtPick, selectCpuPlayer, estimateMockSurvivalProbabilities, si
 export type { MockDraftPickLike, MockKeeperAssignment, MockLeagueHistoryModel, MockDraftEngineConfig, SelectCpuPlayerInput, CpuSelection, SimulatedMockPick } from './mock-draft-engine.js';
 export type { KeeperPreloadStatus } from './keeper-preload-status.js';
 
-export type { ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.js';
+export type { ShadowPredictionDependencies, ShadowPredictionFreshness, ShadowRecommendation, ShadowRecommendationEvent } from '../shadow.js';
 export { optimizeLineupUtility } from '../lineup-utility.js';
 export type { LineupPlayer } from '../lineup-utility.js';
 export { LIVE_RECOMMENDATION_ARCHITECTURE } from '../recommendation-policy.js';

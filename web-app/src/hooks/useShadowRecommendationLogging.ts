@@ -66,6 +66,8 @@ export function useShadowRecommendationLogging(
     const season = dataInfo.shadowLoggingSeason;
     const modelVersion = dataInfo.predictionModelVersion;
     const predictionGeneratedAt = dataInfo.predictionGeneratedAt;
+    const predictionFreshness = dataInfo.predictionFreshness;
+    const predictionDependencies = dataInfo.predictionDependencies;
     if (
       !draftReady ||
       !draftId ||
@@ -76,6 +78,7 @@ export function useShadowRecommendationLogging(
       !endpoint ||
       !modelVersion ||
       !predictionGeneratedAt ||
+      !predictionFreshness ||
       !coreBestPick ||
       !coreBestPlayer ||
       coreRecommendations.length === 0 ||
@@ -152,6 +155,8 @@ export function useShadowRecommendationLogging(
           observedAt: new Date().toISOString(),
           modelVersion,
           predictionGeneratedAt,
+          predictionFreshness,
+          predictionDependencies,
           corePolicy,
           coreBestPick,
           coreBestPlayer,
@@ -180,5 +185,5 @@ export function useShadowRecommendationLogging(
         attemptedIds.delete(eventId);
       }
     };
-  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
+  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionDependencies, dataInfo.predictionFreshness, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
 }

@@ -247,6 +247,8 @@ export const VISUAL_PLAYER_DATA: PlayerDataQueryResult = {
     recommendationFallback: 'fantasypros-ecr-market',
     recommendationPolicyReason: 'Fixed visual fixture.',
     shadowLoggingEnabled: false,
+    predictionFreshness: 'ready',
+    predictionDependencies: { rankingsRefreshedAt: VISUAL_SOURCE_TIMESTAMP, identitiesGeneratedAt: VISUAL_SOURCE_TIMESTAMP, teamEnvironmentGeneratedAt: VISUAL_SOURCE_TIMESTAMP },
     shadowLoggingSeason: 2026,
     shadowLoggingEndpoint: '',
     predictionsError: null,

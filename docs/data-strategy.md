@@ -91,9 +91,14 @@ opportunity, availability, and role features. Roster need belongs in the
 recommendation step, where the manager's current draft state is known.
 
 Experimental predictions enter a separate Shadow Recommendation player pool
-when prediction data is ready and shadow logging is enabled. The app logs the
-shadow result beside the live decision for later evaluation. A shadow result
-cannot change the displayed Best Pick or Best Player.
+when shadow logging is enabled and a current-season prediction artifact with a
+model version and enough rows has loaded. The app logs the shadow result beside
+the live decision for later evaluation. Predictions older than rankings,
+identities, or team environment, or past the seven-day limit, are still logged:
+each row records the prediction freshness (`ready`, `older-than-dependency`, or
+`stale`) and the dependency timestamps it was compared against, so evaluation
+can filter them. Readiness still shows such predictions as degraded. A shadow
+result cannot change the displayed Best Pick or Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
 records validation evidence in

@@ -3,6 +3,8 @@ import { BROWSER_HTTP_POLICY } from '@/lib/http';
 import type {
   PositionNeed,
   Recommendation,
+  ShadowPredictionDependencies,
+  ShadowPredictionFreshness,
   ShadowRecommendation,
   ShadowRecommendationEvent,
 } from '@fantasy-draft/shared/draft';
@@ -29,6 +31,9 @@ interface BuildShadowRecommendationEventInput {
   readonly observedAt: string;
   readonly modelVersion: string;
   readonly predictionGeneratedAt: string;
+  /** Readiness of the predictions; a degraded artifact is still logged so the season's evidence is kept. */
+  readonly predictionFreshness: ShadowPredictionFreshness;
+  readonly predictionDependencies: ShadowPredictionDependencies;
   readonly corePolicy: string;
   readonly coreBestPick: Recommendation;
   readonly coreBestPlayer: Recommendation;
@@ -59,7 +64,8 @@ export function buildShadowRecommendationEvent(
       sourceLabel: 'Experimental prediction artifact',
       modelVersion: input.modelVersion,
       generatedAt: input.predictionGeneratedAt,
-      freshness: 'ready',
+      freshness: input.predictionFreshness,
+      dependencies: input.predictionDependencies,
     },
     coreDecision: {
       ecrAnchor: 'FantasyPros ECR',

@@ -1,4 +1,4 @@
-import { isShadowRecommendationEvent } from '@fantasy-draft/shared/catalog';
+import { decodeShadowRecommendationEvent, isShadowRecommendationEvent } from '@fantasy-draft/shared/catalog';
 import { describe, expect, it, vi } from 'vitest';
 import {
   type PositionNeed,
@@ -44,7 +44,16 @@ const NEEDS: readonly PositionNeed[] = [{
   scarcityScore: 8,
 }];
 
-function buildEvent(shadowRecommendations: readonly Recommendation[] = [SHADOW_PICK]) {
+const DEPENDENCIES = {
+  rankingsRefreshedAt: '2026-08-24T16:00:00.000Z',
+  identitiesGeneratedAt: '2026-08-24T16:00:00.000Z',
+  teamEnvironmentGeneratedAt: null,
+};
+
+function buildEvent(
+  shadowRecommendations: readonly Recommendation[] = [SHADOW_PICK],
+  predictionFreshness: 'ready' | 'older-than-dependency' | 'stale' = 'ready'
+) {
   return buildShadowRecommendationEvent({
     season: 2026,
     draftId: 'primary-draft',
@@ -53,6 +62,8 @@ function buildEvent(shadowRecommendations: readonly Recommendation[] = [SHADOW_P
     observedAt: '2026-08-24T18:00:00.000Z',
     modelVersion: 'position-ridge-v4',
     predictionGeneratedAt: '2026-08-24T17:00:00.000Z',
+    predictionFreshness,
+    predictionDependencies: DEPENDENCIES,
     corePolicy: 'primary-league-policy',
     coreBestPick: BEST_PICK,
     coreBestPlayer: BEST_PLAYER,
@@ -80,6 +91,7 @@ describe('Shadow Recommendation telemetry', () => {
         modelVersion: 'position-ridge-v4',
         generatedAt: '2026-08-24T17:00:00.000Z',
         freshness: 'ready',
+        dependencies: DEPENDENCIES,
       },
       coreDecision: {
         ecrAnchor: 'FantasyPros ECR',
@@ -97,6 +109,17 @@ describe('Shadow Recommendation telemetry', () => {
         positionNeeds: [{ position: 'RB', priority: 'critical' }],
       },
     });
+  });
+
+  it('records degraded prediction freshness and still reads rows written before it existed', () => {
+    const event = buildEvent([SHADOW_PICK], 'older-than-dependency');
+    expect(isShadowRecommendationEvent(event)).toBe(true);
+    expect(event.experiment).toMatchObject({ freshness: 'older-than-dependency', dependencies: DEPENDENCIES });
+
+    const { dependencies: _dependencies, ...legacyExperiment } = buildEvent().experiment;
+    const legacy = { ...buildEvent(), experiment: legacyExperiment };
+    expect(decodeShadowRecommendationEvent(legacy).experiment.freshness).toBe('ready');
+    expect(isShadowRecommendationEvent({ ...legacy, experiment: { ...legacyExperiment, freshness: 'missing' } })).toBe(false);
   });
 
   it('does not report disagreement without a shadow candidate or when the picks match', () => {

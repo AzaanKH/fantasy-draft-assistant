@@ -246,6 +246,72 @@ describe('player data loading boundaries', () => {
     }
   );
 
+  describe('shadow logging gate for degraded predictions', () => {
+    function loadShadowSources(predictionGeneratedAt: string | null) {
+      const coreTimestamp = '2026-09-05T15:53:00.000Z';
+      shadowEnabled = true;
+      draftState.connection = { provider: 'sleeper', draftId: 'test', draftPosition: 5 };
+      loadedData = {
+        'fantasypros-snapshot': {
+          metadata: { season: 2026, refreshedAt: coreTimestamp, sourceType: 'api' },
+          rankings: [{ fantasyProsId: 'fp-1', rank: 1, name: 'Test Player', position: 'WR', team: 'DET', byeWeek: 8, positionalRank: 1 }],
+          projections: [], news: [],
+        },
+        'player-identity': {
+          season: 2026, generatedAt: coreTimestamp,
+          players: [{ canonicalId: 'player-1', fantasyProsId: 'fp-1', name: 'Test Player', aliases: [], position: 'WR', team: 'DET' }],
+          coverage: { fantasyProsRankingMatchRate: 1, matchedDefenses: 32 },
+        },
+        ...(predictionGeneratedAt === null ? {} : {
+          predictions: {
+            generatedAt: predictionGeneratedAt, modelVersion: 'test',
+            players: Array.from({ length: 800 }, () => ({ playerId: 'player-1', name: 'Test Player', team: 'DET', position: 'WR', projectedPoints: 280, valueOverReplacement: 80, ceilingScore: 8, floorScore: 7, upsideScore: 8, uncertaintyScore: 2, injuryRiskScore: 2, predictionSource: 'model' })),
+          },
+        }),
+      };
+    }
+
+    it('logs draft-day predictions built before the preflight refreshed rankings, with their freshness', () => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      loadShadowSources('2026-09-05T15:17:00.000Z');
+      render();
+
+      expect(result.dataInfo.shadowRecommendationAvailable).toBe(false);
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(true);
+      expect(result.shadowPlayers).toHaveLength(1);
+      expect(result.players[0]?.projectedPoints).not.toBe(280);
+      expect(result.dataInfo.predictionFreshness).toBe('older-than-dependency');
+      expect(result.dataInfo.predictionDependencies).toEqual({
+        rankingsRefreshedAt: '2026-09-05T15:53:00.000Z',
+        identitiesGeneratedAt: '2026-09-05T15:53:00.000Z',
+        teamEnvironmentGeneratedAt: null,
+      });
+    });
+
+    it('logs predictions past the seven-day live limit as stale', () => {
+      vi.setSystemTime(Date.parse('2026-09-20T12:00:00Z'));
+      loadShadowSources('2026-09-06T12:00:00.000Z');
+      render();
+
+      expect(result.dataInfo.shadowRecommendationAvailable).toBe(false);
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(true);
+      expect(result.dataInfo.predictionFreshness).toBe('stale');
+    });
+
+    it.each([
+      ['missing', null],
+      ['from another season', '2025-09-01T12:00:00.000Z'],
+    ] as const)('does not log predictions that are %s', (_label, generatedAt) => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      loadShadowSources(generatedAt);
+      render();
+
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(false);
+      expect(result.dataInfo.predictionFreshness).toBeNull();
+      expect(result.shadowPlayers).toEqual([]);
+    });
+  });
+
   it('loads predictions only for enabled shadow logging with confirmed connection and loaded core queries', () => {
     shadowEnabled = true;
     render();
