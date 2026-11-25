@@ -11,7 +11,9 @@ button,input,select {
 }
 .draft-app-header {
   backdrop-filter:none;
-  background:var(--color-background)
+  background:var(--color-background);
+  /* The turn banner's turn-start ring scales past the viewport edge on phones; clip it there, not widen the page. */
+  overflow-x:clip
 }
 .draft-app-header nav {
   height:56px
@@ -45,7 +47,6 @@ button,input,select {
   .draft-header-desktop-controls { display:none; }
   .draft-session-status[data-compact] > span { display:inline; }
   .draft-session-status[data-compact] > .draft-session-mode { border-left:1px solid var(--color-border); padding-left:8px; }
-  .draft-turn-banner { flex-shrink:1; }
 }
 .draft-app-header nav button[aria-current=page] {
   color:var(--color-primary)
@@ -591,6 +592,13 @@ button,input,select {
 .draft-turn-banner[data-variant=compact] strong, .draft-turn-banner[data-state=on-clock][data-variant=compact] strong { font-family: var(--font-sans); font-size: var(--text-sm); text-transform: none; letter-spacing: 0; }
 .draft-turn-banner[data-variant=compact] .draft-turn-banner-text span { font-size: var(--text-xs); }
 .draft-turn-banner[data-variant=compact] .draft-turn-banner-icon { width: 16px; height: 16px; }
+/* Below laptop widths the header row can be narrower than the on-clock copy (365px at pick 1.05; a 360px phone's
+   row is 344px), so the banner shrinks to the row and wraps its pick beneath the headline. */
+@media (max-width:1279px) {
+  .draft-header-context .draft-turn-banner { flex-shrink: 1; height: auto; min-height: 36px; padding-block: 4px; white-space: normal; }
+  .draft-header-context .draft-turn-banner[data-state=on-clock] { min-height: 40px; }
+  .draft-header-context .draft-turn-banner-text { flex-wrap: wrap; row-gap: 0; }
+}
 
 /* Suggestion cards (dock grid and Assistant list). The availability percentage is the card's one big number. */
 .suggestion-reason { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin-top: 4px; color: var(--color-muted-foreground); font-size: var(--text-xs); line-height: 18px; }
