@@ -3,7 +3,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Effect, Schema } from 'effect';
@@ -14,6 +14,8 @@ const DATA_DIR = join(__dirname, '../../data');
 const LEAGUE_HISTORY_DIR = join(DATA_DIR, 'league-history');
 const RAW_DIR = join(LEAGUE_HISTORY_DIR, 'raw');
 const OUTPUT_FILE = join(LEAGUE_HISTORY_DIR, 'leagueDraftHistory.json');
+/** The confirmed Primary League, kept in local private data so its league and draft IDs never enter source. */
+const PRIMARY_LEAGUE_SETTINGS_FILE = join(DATA_DIR, 'primary-league-settings.json');
 
 const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
 const FETCH_TIMEOUT_MS = 10_000;
@@ -529,12 +531,55 @@ const importSeason = Effect.fn('importSeason')(function* (config: LeagueDraftCon
   return history;
 });
 
+const confirmedLeagueSchema = openStruct({
+  season: Schema.Finite,
+  leagueId: Schema.optional(Schema.String),
+  draftId: Schema.optional(Schema.String),
+});
+
+/**
+ * The confirmed Primary League season, when it is newer than the configured history. The manager is the owner of
+ * last season's user roster; their roster and draft slot are looked up in the new league rather than configured.
+ */
+const readConfirmedSeason = Effect.fn('readConfirmedSeason')(function* (previous: LeagueDraftConfig) {
+  const text = yield* io(() => readFile(PRIMARY_LEAGUE_SETTINGS_FILE, 'utf8').catch(() => null));
+  if (text === null) return null;
+  const settings = Schema.decodeUnknownSync(confirmedLeagueSchema)(JSON.parse(text));
+  const { leagueId, draftId } = settings;
+  if (settings.season <= previous.season || !leagueId || !draftId) return null;
+  const [previousRosters, rosters, draft] = yield* Effect.all([
+    sleeperRequest(`/league/${previous.leagueId}/rosters`, decodeLeagueHistoryRosters),
+    sleeperRequest(`/league/${leagueId}/rosters`, decodeLeagueHistoryRosters),
+    sleeperRequest(`/draft/${draftId}`, decodeLeagueHistoryDraft),
+  ], { concurrency: 'unbounded' });
+  const ownerId = previousRosters.find((roster) => roster.roster_id === previous.userRosterId)?.owner_id;
+  const roster = ownerId ? rosters.find((candidate) => candidate.owner_id === ownerId) : undefined;
+  const userSlot = ownerId ? draft.draft_order?.[ownerId] : undefined;
+  if (!roster || userSlot === undefined) {
+    return yield* Effect.fail(new Error(
+      `Could not find last season's manager in the confirmed ${String(settings.season)} league and draft.`
+    ));
+  }
+  const config: LeagueDraftConfig = {
+    season: settings.season,
+    draftId,
+    leagueId,
+    userSlot,
+    userRosterId: roster.roster_id,
+  };
+  return config;
+});
+
 const program = Effect.gen(function* () {
   yield* io(() => mkdir(RAW_DIR, { recursive: true }));
 
   console.log('Importing historical Sleeper drafts...');
+  const lastConfigured = LEAGUE_DRAFTS[LEAGUE_DRAFTS.length - 1];
+  const confirmed = lastConfigured ? yield* readConfirmedSeason(lastConfigured) : null;
+  if (confirmed) console.log(`Including the confirmed Primary League ${String(confirmed.season)} draft.`);
+  const drafts = confirmed ? [...LEAGUE_DRAFTS, confirmed] : LEAGUE_DRAFTS;
   // Five requests per season; two seasons at a time keeps bursts small for Sleeper.
-  const seasons = yield* Effect.forEach(LEAGUE_DRAFTS, importSeason, { concurrency: 2 });
+  const seasons = yield* Effect.forEach(drafts, importSeason, { concurrency: 2 });
   const sortedSeasons = [...seasons].sort((a, b) => a.season - b.season);
   const totalPicks = sortedSeasons.reduce((sum, season) => sum + season.picks.length, 0);
   const userPicks = sortedSeasons.reduce((sum, season) => sum + season.userPicks.length, 0);

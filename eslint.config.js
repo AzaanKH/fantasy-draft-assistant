@@ -28,7 +28,7 @@ const effectOwners = [
   'extension/src/shared/boundary-decoders.ts',
   'extension/config/manifest-decoder.ts',
   'server/src/{draft-data-refresh,fantasy-football-calculator,http-security,shadow-logger,shared-poll,sleeper-adapter,sync-adapter,sync-server,yahoo-adapter}.ts',
-  'scripts/src/{browser-gate,build-demo-data,build-historical-snapshots,build-prediction-dataset,check-data-quality,check-demo-data,effect-runtime,fantasypros-api,fetch-sleeper-adp,generate-team-env,import-league-draft-history,install-demo-data,measure-effect-adoption,primary-league-release-gate,refresh-contracts,refresh-fantasypros-snapshot,recommendation-evaluation}.ts',
+  'scripts/src/{browser-gate,build-demo-data,build-historical-snapshots,build-prediction-dataset,build-prospective-outcomes,check-data-quality,check-demo-data,effect-runtime,fantasypros-api,fetch-sleeper-adp,generate-team-env,import-league-draft-history,install-demo-data,measure-effect-adoption,primary-league-release-gate,refresh-contracts,refresh-fantasypros-snapshot,recommendation-evaluation}.ts',
   'scripts/src/model/{duckdb,init-duckdb,profile-model-sources}.ts',
 ];
 

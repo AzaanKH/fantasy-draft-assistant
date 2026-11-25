@@ -38,6 +38,7 @@ build output is missing.
 | Inspect source coverage | `pnpm model:profile` | Reads initialized tables; writes `data/model/profile-report.json`. |
 | Rebuild the prediction dataset | `pnpm model:dataset` | Initializes current joins, downloads historical sources, and writes training data, snapshots, predictions, and reports. |
 | Rebuild historical snapshots only | `pnpm model:snapshots` | Reads stored draft dates and remote historical sources; writes snapshot tables, Parquet, and the coverage report. |
+| Fetch prospective outcomes | `pnpm model:prospective` | Reads league history; downloads nflverse weekly stats and the schedule for seasons from 2026 on; writes `model.prospective_*` tables. |
 | Evaluate recommendations | `pnpm model:backtest` | Reads the built model dataset; rewrites backtest reports and historical recommendation evaluation. |
 | Evaluate the contract feature | `pnpm model:backtest:contracts` | Reads historical data; rewrites contract evaluation reports and historical validation evidence. |
 
@@ -199,6 +200,20 @@ Decisions:
   unchanged declaration beats roster-aware ECR on every release check applied
   to the 2026 prospective fold alone, the first season scored after the
   declaration was frozen. Seasons won does not apply to a single season.
+
+The prospective fold replays the 2026 Primary League draft. `pnpm --filter
+scripts import:league-history` adds it after the configured seasons from the
+confirmed league in the private `data/primary-league-settings.json`, so its
+IDs stay out of source, and finds the manager's roster and draft slot by last
+season's owner. Its board
+uses draft-day DynastyProcess ECR scraped before the draft started and the
+trailing features in `model.current_prediction_features`, the same inputs the
+shadow fit used. Outcomes are nflverse regular-season weekly stats, scaled to a
+full-season pace by each player's team games until the schedule shows every
+regular-season game scored. Until then the fold is labelled provisional and
+stays out of every gate and aggregate; afterwards it counts on its own,
+single-season release gate with no flag to flip. Run `pnpm model:prospective`
+then `pnpm model:backtest` to refresh it.
 
 ## Prediction outputs and live use
 
