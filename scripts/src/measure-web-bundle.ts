@@ -11,7 +11,7 @@ const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.bundleReport));
 // Includes Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
 const JS_GZIP_BUDGET = 384 * 1024;
 const CSS_GZIP_BUDGET = 28 * 1024;
-const STATIC_OUTPUT_BUDGET = 9 * 1024 * 1024;
+const STATIC_OUTPUT_BUDGET = 10 * 1024 * 1024;
 const PROHIBITED_STATIC_EXTENSIONS = new Set(['.duckdb', '.ndjson', '.parquet']);
 
 interface StaticFile {

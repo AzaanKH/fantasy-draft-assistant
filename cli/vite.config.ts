@@ -7,6 +7,6 @@ export default defineConfig({
     target: 'node22',
     minify: false,
     lib: { entry: 'src/main.ts', formats: ['es'], fileName: () => 'draft.js' },
-    rollupOptions: { external: /^node:/ },
+    rolldownOptions: { external: /^node:/ },
   },
 });

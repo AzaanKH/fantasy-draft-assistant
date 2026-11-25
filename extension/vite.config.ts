@@ -123,7 +123,7 @@ function buildClassicContentScripts(): Plugin {
             minify: false,
             sourcemap: true,
             watch,
-            rollupOptions: { input: { [name]: entry }, output: { ...output, inlineDynamicImports: true } },
+            rolldownOptions: { input: { [name]: entry }, output: { ...output, codeSplitting: false } },
           },
         });
       }
@@ -141,7 +141,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: false,
-    rollupOptions: {
+    rolldownOptions: {
       input: {
         background: resolve(__dirname, 'src/background/service-worker.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.ts'),
