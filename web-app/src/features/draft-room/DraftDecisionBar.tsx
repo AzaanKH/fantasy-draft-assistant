@@ -12,7 +12,7 @@ import { useQueueActions } from '@/hooks/useQueueActions';
 import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 import { ProvisionalPickDialog } from './ProvisionalPickDialog';
 import { useSuggestionActions } from './useSuggestionActions';
-import type { Recommendation } from '@fantasy-draft/shared/draft';
+import { DECISION_LENS_LABELS, type DecisionLens, type Recommendation } from '@fantasy-draft/shared/draft';
 
 /**
  * Draft on your turn in a mock, Record pick during Manual Continuity: the strip's one-step action for its own
@@ -39,6 +39,12 @@ function BestPickAction({ bestPick }: { readonly bestPick: Recommendation }): Re
   );
 }
 
+const LENS_HELP_METRIC = {
+  'ranked-fit': 'rankedFit',
+  'best-pick': 'bestPick',
+  'best-player': 'bestPlayer',
+} as const satisfies Record<DecisionLens, string>;
+
 export function DraftDecisionBar({
   onOpenAssistant,
 }: {
@@ -48,7 +54,9 @@ export function DraftDecisionBar({
   const { isLoading: playersLoading } = usePlayerDataQuery();
   // Readiness reads as blocked until player data arrives, so loading wins over the paused message.
   const isLoading = decisionLoading || playersLoading;
-  const bestPick = output.bestPick;
+  // The bar follows the active Decision Lens, so its pick and actions match the ordered player pool.
+  const bestPick = output.selected;
+  const lensLabel = DECISION_LENS_LABELS[output.selectedLens];
   const isQueued = useDraftView((view) =>
     bestPick ? view.shortlistedPlayerIds.includes(bestPick.playerId) : false
   );
@@ -60,9 +68,9 @@ export function DraftDecisionBar({
 
   if (!bestPick) {
     return (
-      <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite" aria-busy={isLoading}>
+      <section className="draft-best-pick-inline" aria-label="Current recommendation" aria-live="polite" aria-busy={isLoading}>
         <div className="draft-best-pick-content">
-          <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-primary">Best Pick</span>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-primary">{lensLabel}</span>
           {/* One line in every state, so a status change never resizes the bar; the setup checklist sits directly below. */}
           <p className="min-w-0 truncate text-sm text-muted-foreground">
             {isLoading
@@ -78,14 +86,15 @@ export function DraftDecisionBar({
 
   const reason = getDraftDecisionBarReason(
     bestPick,
+    output.selectedLens,
     output.decisionDivergenceFactor
   );
 
   return (
-    <section className="draft-best-pick-inline" aria-label="Current Best Pick" aria-live="polite">
+    <section className="draft-best-pick-inline" aria-label="Current recommendation" aria-live="polite">
       <div className="draft-best-pick-content">
         <span className="draft-best-pick-label">
-          <MetricHelp metric="bestPick" context={<p><strong>{bestPick.playerName}.</strong> {reason}</p>} />
+          <MetricHelp metric={LENS_HELP_METRIC[output.selectedLens]} context={<p><strong>{bestPick.playerName}.</strong> {reason}</p>} />
         </span>
         <MotionFade motionKey={bestPick.playerId} className="draft-best-pick-recommendation">
           <div className="draft-best-pick-identity">
