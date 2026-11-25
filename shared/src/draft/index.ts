@@ -113,6 +113,7 @@ export type {
 export {
   createDraftDecisionOutput,
   createDraftDecisionView,
+  getDecisionLensForPolicy,
   type DraftDecisionOutput,
   type DraftDecisionView,
   getPreferredRecommendation,

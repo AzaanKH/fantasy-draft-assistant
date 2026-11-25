@@ -112,6 +112,26 @@ describe('getRecommendationExplanation', () => {
     expect(explanation).toMatch(/changed Best Pick/);
   });
 
+  it('explains a Ranked Fit rank by the rankings and labels attached factors as Best Pick analysis', () => {
+    const withFactors = recommendation('RB', 3, 240, {
+      leagueValue: { score: 2.5, minScore: 0, maxScore: 6, projectedPoints: 240, replacementPoints: 200, valueOverReplacement: asVor(40) },
+      draftTiming: {
+        score: 2.1, minScore: 0, maxScore: 4, nextPickNumber: 13, nextPickLabel: '2.03', picksUntilNextPick: 5,
+        returnProbability: asProbability(0.05), candidateValue: 24, costOfWaiting: 16.7, source: 'league-history',
+        materiallyChangedOrdering: true,
+      },
+      conservativeBoundary: { ecrRankLimit: asRank(9), samePositionTier: false, withinBoundary: false, feasibilityException: true },
+    });
+    const explanation = getRecommendationExplanation(withFactors, undefined, 'ranked-fit');
+
+    expect(explanation).toMatch(/^Test Player is #3 in the rankings\. Ranked Fit orders the players who keep a legal roster possible by the rankings alone\. Best Pick analysis, which does not change this order:/);
+    expect(explanation).toMatch(/value adds 2\.5 to his Best Pick score/);
+    expect(explanation).toMatch(/adds 2\.1 to his Best Pick score/);
+    expect(explanation).not.toMatch(/to his score|taking him now|roster fillable/);
+    // Best Pick keeps its own wording.
+    expect(getRecommendationExplanation(withFactors)).toMatch(/value adds 2\.5 to his score/);
+  });
+
   it.each([
     ['the last player in a tier, with risky waiting', 'WR', { tierRemaining: 1, isLastInTier: true, valueOverReplacement: asVor(127),
       nextPickSurvivalProbability: asProbability(0.14) }, [/last available player in WR Tier 1/, /\+127 pts/, /14%.*risky/]],

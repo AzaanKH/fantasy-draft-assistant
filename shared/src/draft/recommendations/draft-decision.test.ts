@@ -238,4 +238,20 @@ describe('createDraftDecisionOutput', () => {
     expect(output.bestPlayer).toBe(bestPlayer);
     expect(output.decisionDivergence).toBe(false);
   });
+
+  it('explains each view in its own lens, so Ranked Fit never claims Best Pick factors set its order', () => {
+    const player = policyRecommendation('fit', 'Fit Player', 3, 'league-value', true);
+    const output = createDraftDecisionOutput(
+      {
+        draftNow: [player],
+        selection: { preferredPlayerId: player.playerId, policy: 'primary-league-policy' },
+        bestAvailable: [player],
+        rankedFit: [player],
+      },
+      'ranked-fit'
+    );
+
+    expect(output.selectedView.explanationByPlayerId.get('fit')).toMatch(/Ranked Fit orders .* Best Pick analysis, which does not change this order: .*to his Best Pick score/);
+    expect(output.bestPickView.explanationByPlayerId.get('fit')).toMatch(/value adds 2\.0 to his score/);
+  });
 });

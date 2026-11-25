@@ -247,6 +247,13 @@ function getDecisionDivergence(
   };
 }
 
+/** The Decision Lens whose order a view's selection policy produces. */
+export function getDecisionLensForPolicy(policy: RecommendationSelection['policy'] | undefined): DecisionLens {
+  if (policy === 'ranked-fit') return 'ranked-fit';
+  if (policy === 'ecr-anchor') return 'best-player';
+  return 'best-pick';
+}
+
 export function createDraftDecisionView(
   recommendations: readonly Recommendation[],
   selection: RecommendationSelection,
@@ -272,7 +279,7 @@ export function createDraftDecisionView(
     explanationByPlayerId: new Map(
       visibleRecommendations.map((recommendation) => [
         recommendation.playerId,
-        getRecommendationExplanation(recommendation, display),
+        getRecommendationExplanation(recommendation, display, getDecisionLensForPolicy(selection.policy)),
       ])
     ),
     selection: {

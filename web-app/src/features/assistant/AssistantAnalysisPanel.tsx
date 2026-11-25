@@ -287,7 +287,7 @@ export const AssistantAnalysisPanel = React.forwardRef<HTMLElement, AssistantAna
           <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${tab}`} className="rec-answer" tabIndex={0}>
             <div key={`${tab}:${recommendation.playerId}`}>
               {tab === 'why' ? (
-                <WhyAnswer recommendation={recommendation} isTopPick={subject.isTopPick} preferredExplanation={decision.explanationByPlayerId.get(recommendation.playerId)} expandReasoning={subject.expandReasoning} />
+                <WhyAnswer recommendation={recommendation} isTopPick={subject.isTopPick} lens={lens} preferredExplanation={decision.explanationByPlayerId.get(recommendation.playerId)} expandReasoning={subject.expandReasoning} />
               ) : tab === 'compare' ? (
                 <CompareAnswer
                   recommendations={subject.comparison.pair}

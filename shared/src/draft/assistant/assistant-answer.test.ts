@@ -124,6 +124,10 @@ describe('Assistant decision answer', () => {
     expect(why[1]?.answer).toMatch(/3 starter.*2 FLEX.*10 selections/);
     expect(why[3]?.answer).toMatch(/cost of waiting/i);
     expect(why.some((row) => row.answer.includes('17.6'))).toBe(false);
+    // The same factors never explain a Ranked Fit or Best Player rank: those lenses follow the rankings.
+    expect(getWhyRows(selected, true, undefined, undefined, 'ranked-fit')[3]?.answer).toBe('The best-ranked player who keeps a legal roster possible.');
+    expect(getWhyRows(selected, false, 2, undefined, 'ranked-fit')[3]?.answer).toBe('Ranked behind the players ahead of him who keep a legal roster possible; #2 at RB.');
+    expect(getWhyRows(selected, true, undefined, undefined, 'best-player')[3]?.answer).not.toMatch(/moved this player up/);
     const level = getWhyRows({ ...selected, diagnostics: selected.diagnostics ? { ...selected.diagnostics, valueOverReplacement: asVor(0.2) } : undefined }, true);
     expect(level[0]?.answer).toMatch(/about the same/);
     expect(level[0]?.answer).not.toMatch(/0\.2/);
