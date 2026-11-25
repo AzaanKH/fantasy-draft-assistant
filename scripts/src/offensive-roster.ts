@@ -1,14 +1,15 @@
-import { FLEX_GROUPS, OFFENSIVE_POSITIONS, type OffensivePosition } from '@fantasy-draft/shared/league';
-
-/** deriveRosterRules counts only standard FLEX slots. */
-const FLEX_POSITIONS: readonly OffensivePosition[] = FLEX_GROUPS.standard;
-
-export const POSITION_MAXIMUMS: Readonly<Record<OffensivePosition, number>> = {
-  QB: 4,
-  RB: 8,
-  WR: 8,
-  TE: 3,
-};
+import { OFFENSIVE_POSITIONS, type OffensivePosition } from '@fantasy-draft/shared/league';
+import {
+  deriveRosterRules,
+  flexEligibleCount,
+  flexTarget,
+  isFlexPosition,
+  isRankedFitLegal,
+  missingRequiredSlots as missingRequiredSlotsForCounts,
+  POSITION_MAXIMUMS,
+  type OffensiveRosterCounts,
+  type RosterRules,
+} from '@fantasy-draft/shared/draft';
 
 const REDUNDANT_SINGLE_STARTER_MULTIPLIERS: Readonly<Record<'QB' | 'TE', number>> = {
   QB: 0.2,
@@ -17,11 +18,7 @@ const REDUNDANT_SINGLE_STARTER_MULTIPLIERS: Readonly<Record<'QB' | 'TE', number>
 const FIXED_NEED_BONUS = 34;
 const FLEX_NEED_BONUS = 12;
 
-export interface RosterRules {
-  readonly fixedStarters: Record<OffensivePosition, number>;
-  readonly flexStarters: number;
-  readonly totalOffensiveSlots: number;
-}
+export { deriveRosterRules, POSITION_MAXIMUMS, type RosterRules };
 
 export type OffensiveRoster<Player> = Record<OffensivePosition, Player[]>;
 
@@ -29,61 +26,15 @@ export function createOffensiveRoster<Player>(): OffensiveRoster<Player> {
   return { QB: [], RB: [], WR: [], TE: [] };
 }
 
-export function deriveRosterRules(rosterPositions: readonly string[]): RosterRules {
-  const fixedStarters: Record<OffensivePosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
-  for (const position of OFFENSIVE_POSITIONS) {
-    fixedStarters[position] = rosterPositions.filter((slot) => slot === position).length;
-  }
-  const flexStarters = rosterPositions.filter((slot) => slot === 'FLEX').length;
-  return {
-    fixedStarters,
-    flexStarters,
-    totalOffensiveSlots:
-      Object.values(fixedStarters).reduce((sum, count) => sum + count, 0) +
-      flexStarters +
-      rosterPositions.filter((slot) => slot === 'BN').length,
-  };
-}
-
-function rosterSize<Player>(roster: OffensiveRoster<Player>): number {
-  return OFFENSIVE_POSITIONS.reduce((sum, position) => sum + roster[position].length, 0);
-}
-
-function cloneRosterWith<Player extends { position: OffensivePosition }>(
-  roster: OffensiveRoster<Player>,
-  candidate: Player
-): OffensiveRoster<Player> {
-  return {
-    QB: [...roster.QB, ...(candidate.position === 'QB' ? [candidate] : [])],
-    RB: [...roster.RB, ...(candidate.position === 'RB' ? [candidate] : [])],
-    WR: [...roster.WR, ...(candidate.position === 'WR' ? [candidate] : [])],
-    TE: [...roster.TE, ...(candidate.position === 'TE' ? [candidate] : [])],
-  };
-}
-
-function flexEligibleCount<Player>(roster: OffensiveRoster<Player>): number {
-  return FLEX_POSITIONS.reduce((sum, position) => sum + roster[position].length, 0);
-}
-
-function fixedFlexStarters(rules: RosterRules): number {
-  return FLEX_POSITIONS.reduce((sum, position) => sum + rules.fixedStarters[position], 0);
-}
-
-function flexTarget(rules: RosterRules): number {
-  return fixedFlexStarters(rules) + rules.flexStarters;
+export function rosterCounts<Player>(roster: OffensiveRoster<Player>): OffensiveRosterCounts {
+  return { QB: roster.QB.length, RB: roster.RB.length, WR: roster.WR.length, TE: roster.TE.length };
 }
 
 export function missingRequiredSlots<Player>(
   roster: OffensiveRoster<Player>,
   rules: RosterRules
 ): number {
-  const missingFixed = OFFENSIVE_POSITIONS.reduce(
-    (sum, position) => sum + Math.max(0, rules.fixedStarters[position] - roster[position].length),
-    0
-  );
-  const fixedFlexBase = fixedFlexStarters(rules);
-  const filledFlex = Math.min(rules.flexStarters, Math.max(0, flexEligibleCount(roster) - fixedFlexBase));
-  return missingFixed + Math.max(0, rules.flexStarters - filledFlex);
+  return missingRequiredSlotsForCounts(rosterCounts(roster), rules);
 }
 
 export function isLegalCandidate<Player extends { position: OffensivePosition }>(
@@ -92,10 +43,7 @@ export function isLegalCandidate<Player extends { position: OffensivePosition }>
   rules: RosterRules,
   remainingPicksIncludingCurrent: number
 ): boolean {
-  if (rosterSize(roster) >= rules.totalOffensiveSlots) return false;
-  if (roster[candidate.position].length >= POSITION_MAXIMUMS[candidate.position]) return false;
-  const after = cloneRosterWith(roster, candidate);
-  return missingRequiredSlots(after, rules) <= Math.max(0, remainingPicksIncludingCurrent - 1);
+  return isRankedFitLegal(candidate.position, rosterCounts(roster), rules, remainingPicksIncludingCurrent);
 }
 
 export function rosterAdjustedValue<Player extends { position: OffensivePosition }>(
@@ -105,8 +53,8 @@ export function rosterAdjustedValue<Player extends { position: OffensivePosition
   rules: RosterRules
 ): number {
   const fixedNeed = roster[candidate.position].length < rules.fixedStarters[candidate.position];
-  const flexEligible = FLEX_POSITIONS.includes(candidate.position);
-  const flexNeed = flexEligible && flexEligibleCount(roster) < flexTarget(rules);
+  const flexEligible = isFlexPosition(candidate.position);
+  const flexNeed = flexEligible && flexEligibleCount(rosterCounts(roster)) < flexTarget(rules);
   const redundantMultiplier = candidate.position === 'QB' || candidate.position === 'TE'
     ? REDUNDANT_SINGLE_STARTER_MULTIPLIERS[candidate.position]
     : null;

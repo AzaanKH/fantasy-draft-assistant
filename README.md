@@ -59,7 +59,7 @@ pnpm --silent draft readiness --json
 pnpm --silent draft connect sleeper:YOUR_DRAFT_ID --slot 5 --json
 pnpm --silent draft sessions --json
 pnpm --silent draft roster --json
-pnpm --silent draft recommend --lens best-pick --limit 5 --json
+pnpm --silent draft recommend --lens ranked-fit --limit 5 --json
 pnpm --silent draft export --out .local/draft-session.json --json
 pnpm --silent draft replay .local/draft-session.json --pick 24 --json
 ```

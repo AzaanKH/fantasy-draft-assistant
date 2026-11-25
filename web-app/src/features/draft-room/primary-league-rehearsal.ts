@@ -427,9 +427,7 @@ function rehearsePrimaryLeague(workspace: Workspace, now: number): PrimaryLeague
       },
     }, DRAFT_DISPLAY);
     const decision = createDraftDecisionOutput(
-      recommendations.draftNow,
-      recommendations.selection,
-      recommendations.bestAvailable,
+      recommendations,
       decisionLens,
       DRAFT_DISPLAY
     );

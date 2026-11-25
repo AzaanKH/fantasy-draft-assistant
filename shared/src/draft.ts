@@ -237,9 +237,11 @@ export interface Recommendation {
 
 /**
  * Manager-selectable perspectives over the same available-player set.
- * Best Pick is the roster-completion policy; Best Player is the untouched ECR reference.
+ * Ranked Fit (the default) is the ECR Anchor order limited to players who keep a legal
+ * completed roster possible; Best Pick is the roster-completion policy; Best Player is
+ * the untouched ECR reference.
  */
-export type DecisionLens = 'best-pick' | 'best-player';
+export type DecisionLens = 'ranked-fit' | 'best-pick' | 'best-player';
 
 export type DecisionDivergenceFactor =
   | 'league-value'
@@ -250,8 +252,10 @@ export type DecisionDivergenceFactor =
 
 /**
  * Canonical answer shared by every rendered draft-decision surface.
+ * Decision Divergence compares Best Pick with Ranked Fit, the default lens.
  */
 export interface DecisionOutput {
+  readonly rankedFit: Recommendation | null;
   readonly bestPick: Recommendation | null;
   readonly bestPlayer: Recommendation | null;
   readonly selectedLens: DecisionLens;

@@ -8,6 +8,7 @@ import type { RosterRequirements } from '@fantasy-draft/shared/league';
 import {
   applyPositionTiers,
   getRecommendations,
+  orderRankedFit,
   type RecommendationContext,
 } from '@fantasy-draft/shared/draft';
 import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
@@ -57,6 +58,7 @@ import {
   missingRequiredSlots,
   POSITION_MAXIMUMS,
   rosterAdjustedValue,
+  rosterCounts,
   type OffensiveRoster,
   type RosterRules,
 } from './offensive-roster.js';
@@ -241,15 +243,20 @@ function rosterAdjustedModelScore(
   return rosterAdjustedValue(candidate, valueOverReplacement, roster, rules);
 }
 
+/** The "Roster-aware ECR" row: the shipped Ranked Fit lens's first choice. */
 function chooseEcr(
   available: readonly PlayerSeason[],
   roster: RecommendationRoster,
   rules: RosterRules,
   remainingPicks: number
 ): PlayerSeason | undefined {
-  return [...available]
-    .filter((candidate) => isLegalCandidate(candidate, roster, rules, remainingPicks))
-    .sort((a, b) => asNumber(a.predraft_ecr) - asNumber(b.predraft_ecr))[0];
+  return orderRankedFit(available, {
+    position: (candidate) => candidate.position,
+    expertRank: (candidate) => asNumber(candidate.predraft_ecr),
+    counts: rosterCounts(roster),
+    rules,
+    remainingPicksIncludingCurrent: remainingPicks,
+  })[0];
 }
 
 function chooseModel(
@@ -1942,6 +1949,7 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
 
 export const backtestInternals = {
   createRoster,
+  chooseEcr,
   deriveRosterRules,
   missingRequiredSlots,
   isLegalCandidate,

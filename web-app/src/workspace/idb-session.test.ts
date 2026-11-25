@@ -88,6 +88,29 @@ describe('IndexedDB session boundary', () => {
     expect(() => decodeIndexedSession(session)).toThrow();
   });
 
+  it.each([
+    ['best-pick', 'ranked-fit'],
+    ['best-player', 'best-player'],
+  ] as const)('opens a legacy saved session with lens %s in %s and then honours an explicit choice', async (saved, opened) => {
+    // A session saved before Ranked Fit: no decisionLensDefault, and Best Pick stored because it was the default.
+    const { decisionLensDefault: _written, ...legacy } = { ...sessionFromState(initialDraftState(identity), identity, 1), decisionLens: saved };
+    expect('decisionLensDefault' in legacy).toBe(false);
+    expect(decodeIndexedSession(legacy).decisionLens).toBe(opened);
+    const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
+    await database.importV1(importV1([{ key: 'fantasy-draft-session-v1:sleeper:123', serialized: JSON.stringify(legacy) }]));
+    const workspace = createIndexedWorkspace({ database, identity, report: () => undefined });
+    await workspace.refresh();
+    expect(workspace.draft.getState().decisionLens).toBe(opened);
+
+    await workspace.send('setDecisionLens', 'best-pick');
+    const persisted = await workspace.readPersisted();
+    expect(persisted).toMatchObject({ decisionLens: 'best-pick', decisionLensDefault: 'ranked-fit' });
+    const reopened = createIndexedWorkspace({ database, identity, report: () => undefined });
+    await reopened.refresh();
+    expect(reopened.draft.getState().decisionLens).toBe('best-pick');
+    workspace.dispose(); reopened.dispose();
+  });
+
   it('retains imported pick-order prefix semantics without sorting insertion history', () => {
     const state = initialDraftState(identity);
     const history = [provisional(3), provisional(1), provisional(2)].map(pick => ({ ...pick, source: 'manual' as const, timestamp: 0 }));

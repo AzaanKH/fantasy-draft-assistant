@@ -25,7 +25,7 @@ describe('draft command arguments', () => {
       command: 'status', session: { id: 'espn:123', provider: 'espn', draftId: '123' }, slot: 4, json: true,
     });
     expect(parseArguments(['recommend', '--limit=5'], { DRAFT_SESSION: '123', DRAFT_SLOT: '5' })).toMatchObject({
-      session: { id: 'sleeper:123' }, slot: 5, limit: 5, lens: 'best-pick',
+      session: { id: 'sleeper:123' }, slot: 5, limit: 5, lens: 'ranked-fit',
     });
     expect(parseArguments(['watch', '--session', 'yahoo:456', '--format=ndjson'], {})).toMatchObject({
       session: { provider: 'yahoo', draftId: '456' },

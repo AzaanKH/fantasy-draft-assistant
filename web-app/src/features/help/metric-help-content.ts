@@ -39,12 +39,12 @@ export const METRIC_HELP = {
   bestPick: {
     title: 'Best Pick',
     summary: 'The available player recommended for improving your completed roster.',
-    detail: `The decision considers ${IS_DEMO ? 'model rankings' : 'expert rankings'}, league value, roster needs, useful reserves, tier supply, and next-pick timing. Best Pick can differ from Best Player, which follows the trusted player-quality ranking without roster or timing adjustments.`,
+    detail: `The decision considers ${IS_DEMO ? 'model rankings' : 'expert rankings'}, league value, roster needs, useful reserves, tier supply, and next-pick timing. Best Pick can differ from Ranked Fit, the default lens, which follows the trusted player-quality ranking among players who keep a legal roster, without value or timing adjustments.`,
   },
   recommendationRank: {
     title: 'Rank for this pick',
     summary: "This player's place among available players in the current decision lens.",
-    detail: 'Rank #1 is the first choice in that lens. Best Pick accounts for your roster and draft timing; Best Player follows the trusted player-quality ranking. This rank can change as players are drafted.',
+    detail: 'Rank #1 is the first choice in that lens. Ranked Fit follows the trusted player-quality ranking among players who keep a legal roster; Best Pick also weighs league value and draft timing; Best Player follows the ranking alone. This rank can change as players are drafted.',
   },
 } as const satisfies Record<HelpMetric, { readonly title: string; readonly summary: string; readonly detail: string }>;
 

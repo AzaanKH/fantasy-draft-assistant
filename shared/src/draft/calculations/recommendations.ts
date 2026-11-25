@@ -21,6 +21,7 @@ import {
   type BestPickTuning,
   type DraftTimingAlternatives,
 } from './best-pick-policy.js';
+import { orderLiveRankedFit } from './ranked-fit.js';
 
 type RecommendationDiagnostics = NonNullable<Recommendation['diagnostics']>;
 type RecommendationSubScores = NonNullable<Recommendation['subScores']>;
@@ -46,6 +47,8 @@ export interface RecommendationResult {
   readonly rbIntentionalReaches: readonly Recommendation[];
   /** Best Player ordering: the available-player ECR anchor, with no policy adjustments. */
   readonly bestAvailable: readonly Recommendation[];
+  /** Ranked Fit ordering: the ECR anchor limited to players who keep a legal completed roster possible. */
+  readonly rankedFit: readonly Recommendation[];
   /** Draftable contributors with a meaningful Sleeper market discount */
   readonly marketValues: readonly Recommendation[];
   /** Discounted replacement-level players hidden from Best Value by default */
@@ -63,6 +66,7 @@ export interface RecommendationBoardResult {
 
 type RecommendationSelectionPolicy =
   | 'ecr-anchor'
+  | 'ranked-fit'
   | 'league-aware-score'
   | 'primary-league-policy'
   | 'roster-feasibility';
@@ -336,6 +340,29 @@ function buildBestAvailableRecommendation(
   };
 }
 
+/**
+ * A Ranked Fit entry keeps the Best Pick policy's analysis of the same player (roster fit, depth, tiers, timing) so
+ * every lens explains a player the same way; only the order, reason and score are Ranked Fit's own.
+ */
+function buildRankedFitRecommendation(
+  player: Player,
+  policyAnalysis: Recommendation | undefined,
+  tierAvailability: TierAvailability | undefined,
+  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
+): Recommendation {
+  const { RANKING_LABELS, IS_DEMO } = display;
+  return {
+    ...policyAnalysis,
+    playerId: player.id,
+    playerName: player.name,
+    position: player.position,
+    reason: `${IS_DEMO ? RANKING_LABELS.anchor : 'Trusted ECR Anchor'} #${String(player.ecrRank)} among players who keep a legal roster`,
+    // Ranked Fit only filters by roster legality; ECR alone orders the legal players.
+    score: -Number(player.ecrRank),
+    diagnostics: policyAnalysis?.diagnostics ?? getDiagnostics(player, tierAvailability),
+  };
+}
+
 function buildMarketValueRecommendation(
   player: Player,
   tierAvailability: TierAvailability | undefined,
@@ -529,12 +556,13 @@ function calculateRecommendations(
     draftTimingAlternatives,
     tuning: context?.bestPickTuning,
   });
-  const draftNow = bestPickPolicy.evaluations
+  const policyRecommendations = bestPickPolicy.evaluations
     .map((evaluation) => buildBestPickPolicyRecommendation(
       evaluation,
       getPlayerTierAvailability(evaluation.player),
       display
-    ))
+    ));
+  const draftNow = [...policyRecommendations]
     .sort((a, b) =>
       Number(b.playerId === bestPickPolicy.preferredPlayerId) -
         Number(a.playerId === bestPickPolicy.preferredPlayerId) ||
@@ -577,6 +605,19 @@ function calculateRecommendations(
       a.playerId.localeCompare(b.playerId)
     )
     .slice(0, limit);
+
+  const policyRecommendationById = new Map(policyRecommendations.map((item) => [item.playerId, item]));
+  const rankedFit = orderLiveRankedFit(
+    [...availablePlayers].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
+    context
+  )
+    .slice(0, limit)
+    .map((player) => buildRankedFitRecommendation(
+      player,
+      policyRecommendationById.get(player.id),
+      availableTierAvailability.get(getTierKey(player.position, player.tier)),
+      display
+    ));
 
   const marketValues = [...recommendationPool]
     .filter(isActionableMarketValue)
@@ -630,6 +671,7 @@ function calculateRecommendations(
     draftNow,
     rbIntentionalReaches,
     bestAvailable,
+    rankedFit,
     marketValues,
     marketStashes,
     byNeed,

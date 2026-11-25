@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { isPosition, type Position } from '@fantasy-draft/shared/league';
-import { type DecisionLens } from '@fantasy-draft/shared/draft';
+import { DECISION_LENSES, DEFAULT_DECISION_LENS, type DecisionLens } from '@fantasy-draft/shared/draft';
 import { type DraftProvider } from '@fantasy-draft/shared/sync';
 import { CliError } from './errors';
 import { parseDraftRoomUrl } from '@fantasy-draft/shared/sync';
@@ -43,7 +43,7 @@ Options:
   --position QB|RB|WR|TE|K|DEF
   --available               Exclude drafted players and keeper reservations
   --search TEXT             Search player names, teams, and stable IDs
-  --lens best-pick|best-player
+  --lens ranked-fit|best-pick|best-player
   --limit NUMBER            Result count, defaults to 5 for recommend
   --server-url URL          Local server, also DRAFT_SERVER_URL
   --out FILE                Export path, existing files require --force
@@ -136,7 +136,7 @@ export function parseArguments(argv: readonly string[], env: NodeJS.ProcessEnv, 
   const session = sessionValue ? parseSession(sessionValue) : undefined;
   const saved = defaults.connections?.find(row => row.session ===
     (session?.id ?? (typedCommand === 'sessions' ? defaults.session : undefined)));
-  if (values.lens && !['best-pick', 'best-player'].includes(values.lens)) return usage('--lens must be best-pick or best-player.');
+  if (values.lens && !DECISION_LENSES.some(lens => lens === values.lens)) return usage('--lens must be ranked-fit, best-pick, or best-player.');
   const position = values.position?.toUpperCase();
   if (position !== undefined && !isPosition(position)) return usage('--position must be QB, RB, WR, TE, K, or DEF.');
   if (values.format && values.format !== 'ndjson') return usage('--format must be ndjson.');
@@ -152,7 +152,7 @@ export function parseArguments(argv: readonly string[], env: NodeJS.ProcessEnv, 
     command: typedCommand, session,
     slot: integer(values.slot ?? env.DRAFT_SLOT ?? (saved?.slot === undefined ? undefined : String(saved.slot)), '--slot', 32), json: values.json ?? false,
     position: position, available: values.available ?? false,
-    search: values.search, lens: (values.lens ?? 'best-pick') as DecisionLens,
+    search: values.search, lens: (values.lens ?? DEFAULT_DECISION_LENS) as DecisionLens,
     limit: integer(values.limit, '--limit', 1280), playerIds, serverUrl: url.origin,
     outputFile: values.out, replayFile, pick: integer(values.pick, '--pick', 1281), force: values.force ?? false,
     format: values.format as 'ndjson' | undefined,

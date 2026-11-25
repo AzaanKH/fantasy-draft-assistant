@@ -90,6 +90,41 @@ describe('roster-aware backtest helpers', () => {
     expect(backtestInternals.isLegalCandidate(player('wr2', 'WR'), roster, rules, 1)).toBe(false);
   });
 
+  it('picks the Roster-aware ECR row exactly as before Ranked Fit moved to shared', () => {
+    // The pre-move rule, kept verbatim as the reference: legal candidates by ascending ECR.
+    const positions: readonly OffensivePosition[] = ['QB', 'RB', 'WR', 'TE'];
+    const maximums = { QB: 4, RB: 8, WR: 8, TE: 3 } as const;
+    const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'BN', 'BN']);
+    const referenceLegal = (position: OffensivePosition, counts: Record<OffensivePosition, number>, remaining: number) => {
+      const size = positions.reduce((sum, item) => sum + counts[item], 0);
+      if (size >= rules.totalOffensiveSlots || counts[position] >= maximums[position]) return false;
+      const after = { ...counts, [position]: counts[position] + 1 };
+      const missingFixed = positions.reduce((sum, item) => sum + Math.max(0, rules.fixedStarters[item] - after[item]), 0);
+      const fixedFlexBase = rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE;
+      const filledFlex = Math.min(rules.flexStarters, Math.max(0, after.RB + after.WR + after.TE - fixedFlexBase));
+      return missingFixed + Math.max(0, rules.flexStarters - filledFlex) <= Math.max(0, remaining - 1);
+    };
+    const available = positions.flatMap((position, index) => [0, 1].map((copy) => ({
+      ...player(`${position}-${String(copy)}`, position), predraft_ecr: index * 2 + copy + 1,
+    })));
+    let checked = 0;
+    for (const qb of [0, 1, 2]) for (const rb of [0, 1, 2, 3]) for (const wr of [0, 1, 2, 3]) for (const te of [0, 1, 3]) {
+      for (const remaining of [1, 2, 3, 5, 9]) {
+        const roster = backtestInternals.createRoster();
+        const counts = { QB: qb, RB: rb, WR: wr, TE: te };
+        for (const position of positions) {
+          for (let index = 0; index < counts[position]; index += 1) roster[position].push(player(`${position}-held-${String(index)}`, position));
+        }
+        const expected = available
+          .filter((candidate) => referenceLegal(candidate.position, counts, remaining))
+          .sort((a, b) => a.predraft_ecr - b.predraft_ecr)[0];
+        expect(backtestInternals.chooseEcr(available, roster, rules, remaining)).toBe(expected);
+        checked += 1;
+      }
+    }
+    expect(checked).toBe(720);
+  });
+
   it('scores fixed starters and the best remaining flex player', () => {
     const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'WR', 'TE', 'FLEX']);
     const roster = backtestInternals.createRoster();

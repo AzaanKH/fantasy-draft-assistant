@@ -2,8 +2,8 @@
 
 Use this guide to prepare for the Primary League draft and decide whom to take
 when your turn arrives. Use the generated [draft prep report](draft-prep-report.md)
-for current players, keepers, and room history. Definitions of Best Pick, Best
-Player, and timing terms live in [CONTEXT.md](../CONTEXT.md).
+for current players, keepers, and room history. Definitions of Ranked Fit, Best
+Pick, Best Player, and timing terms live in [CONTEXT.md](../CONTEXT.md).
 
 ## Prepare for this league
 
@@ -18,9 +18,10 @@ for your keeper when deciding which positions your roster still needs.
 
 ## At each pick
 
-1. Compare Best Player with Best Pick. Best Player gives the expert-ranking
-   baseline; Best Pick considers your roster and the cost of waiting. Read the
-   stated reason when they differ.
+1. Start from Ranked Fit, the default lens: expert-ranking order among players
+   who keep a legal roster possible. Compare it with Best Pick, which also
+   weighs league value, depth, tiers, and the cost of waiting, and read the
+   stated reason when they differ. Best Player is the unfiltered expert ranking.
 2. Compare league-scored value among nearby candidates. Favor the player who
    improves your roster without abandoning a clear player-quality advantage
    merely to fill a position early.
@@ -39,6 +40,24 @@ for your keeper when deciding which positions your roster still needs.
 
 The live policy stays anchored to expert rankings. For source choices and
 recommendation rules, use [data-strategy.md](data-strategy.md).
+
+## Default decision lens
+
+Ranked Fit is the default Decision Lens in the Draft Workspace, the Assistant,
+and the CLI; Best Pick and Best Player stay selectable, and a lens you choose is
+kept with the draft session. Ranked Fit is the same ordering function
+(`orderRankedFit` in `shared/src/draft/calculations/ranked-fit.ts`) as the
+"Roster-aware ECR" row of the [recommendation backtest](recommendation-backtest.md).
+
+Decision (2026-11-25): over the 2022–2025 walk-forward folds, and in the
+provisional 2026 fold, the shipped Best Pick trails roster-aware ECR on starter
+points (−104) and VOR captured (−107). Best Pick regains the default only by
+beating Ranked Fit on starter points and VOR captured over the full 2026 season,
+with the Best Pick regression gate (`scripts/src/best-pick-backtest-gate.test.ts`)
+passing in CI.
+
+Sessions saved before Ranked Fit existed stored Best Pick because it was the
+default, not a choice, so they open in Ranked Fit; a saved Best Player is kept.
 
 ## Position choices
 

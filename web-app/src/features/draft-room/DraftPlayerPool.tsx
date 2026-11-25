@@ -2,6 +2,7 @@ import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
+import { DECISION_LENS_LABELS } from '@fantasy-draft/shared/draft';
 import {
   type Position,
   KICKER_DEFENSE_POSITIONS,
@@ -137,7 +138,7 @@ export function DraftPlayerPool({ onRevealRequest, heading, toolbarEnd }: {
     () => getFilterCounts(myRoster, config.rosterRequirements, config.totalRounds),
     [config.rosterRequirements, config.totalRounds, myRoster]
   );
-  const rankLabel = output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player';
+  const rankLabel = DECISION_LENS_LABELS[output.selectedLens];
   const orderLabel = recommendationsBlocked
     ? RANKING_LABELS.long
     : `${rankLabel} for recommended players, then ${RANKING_LABELS.long}`;

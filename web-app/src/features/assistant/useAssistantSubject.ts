@@ -1,14 +1,17 @@
 import * as React from 'react';
 import type { Player, Position } from '@fantasy-draft/shared/league';
-import { orderAnalysedRecommendations, type DecisionLens, type DraftDecisionOutput, type DraftDecisionView, type Recommendation } from '@fantasy-draft/shared/draft';
+import { DECISION_LENS_LABELS, orderAnalysedRecommendations, type DecisionLens, type DraftDecisionOutput, type DraftDecisionView, type Recommendation } from '@fantasy-draft/shared/draft';
 import type { NextPickAvailability } from '@/lib/next-pick-availability';
 import { modelDepth } from './assistant-pool';
 import { isMissingSelection, resolveViewedPlayer, type AssistantLens, type ViewedPlayer } from './assistant-navigation';
 import { toAnalysisTab, type AnalysisTab } from './AssistantLayout';
 
-/** Where the other decision lens picks a different leader. Shown only while that leader is the subject. */
+/**
+ * Where another decision lens picks a different leader. Shown only while that leader is the subject. Under Best Pick
+ * the other lens is Ranked Fit; under Ranked Fit or Best Player it is Best Pick, the Decision Divergence pair.
+ */
 export interface LensDivergence {
-  readonly label: 'Best Pick' | 'Best Player';
+  readonly label: string;
   readonly playerId: string;
   readonly playerName: string;
   readonly position: Position;
@@ -87,7 +90,7 @@ export function useAssistantSubject({
   readonly initialSelectedPlayerId: string | null;
   readonly initialLens: AssistantLens;
   readonly overall: DraftDecisionView;
-  readonly output: Pick<DraftDecisionOutput, 'bestPick' | 'bestPlayer' | 'decisionDivergenceExplanation'>;
+  readonly output: Pick<DraftDecisionOutput, 'rankedFit' | 'bestPick' | 'decisionDivergenceExplanation'>;
   readonly lens: DecisionLens;
   readonly recommendationById: ReadonlyMap<string, Recommendation>;
   readonly playerById: ReadonlyMap<string, Player>;
@@ -159,14 +162,17 @@ export function useAssistantSubject({
   );
 
   const player = viewedPlayerId ? playerById.get(viewedPlayerId) : undefined;
-  const otherLeader = lens === 'best-pick' ? output.bestPlayer : output.bestPick;
+  const otherLens: DecisionLens = lens === 'best-pick' ? 'ranked-fit' : 'best-pick';
+  const otherLeader = otherLens === 'ranked-fit' ? output.rankedFit : output.bestPick;
+  // The divergence explanation compares Best Pick with Ranked Fit, so it applies only when that is the pair shown.
+  const explainsPair = leader?.playerId === (lens === 'best-pick' ? output.bestPick : output.rankedFit)?.playerId;
   const divergence: LensDivergence | null = leader && otherLeader && otherLeader.playerId !== leader.playerId
     ? {
-        label: lens === 'best-pick' ? 'Best Player' : 'Best Pick',
+        label: DECISION_LENS_LABELS[otherLens],
         playerId: otherLeader.playerId,
         playerName: otherLeader.playerName,
         position: otherLeader.position,
-        reason: output.decisionDivergenceExplanation,
+        reason: explainsPair ? output.decisionDivergenceExplanation : null,
       }
     : null;
   const sameByeName = recommendation && player

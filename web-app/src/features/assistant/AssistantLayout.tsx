@@ -1,5 +1,5 @@
 import { useDraftState } from '@/workspace/WorkspaceProvider';
-import type { DecisionLens } from '@fantasy-draft/shared/draft';
+import { DECISION_LENSES, DECISION_LENS_LABELS, type DecisionLens } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { LoadingStatus, SkeletonBlock, SkeletonText } from '@/components/skeletons';
 import { SuggestionListPlaceholder } from '@/features/draft-room/DraftSuggestions';
@@ -128,8 +128,15 @@ export function AnalysisTabs({
 
 /** What each lens ranks by, as the hover text of its button and of the suggestions heading. */
 const LENS_BASIS: Readonly<Record<DecisionLens, string>> = {
+  'ranked-fit': `${RANKING_LABELS.short} order among players who keep a legal roster`,
   'best-pick': 'League value, roster fit and draft timing',
   'best-player': `Player quality (${RANKING_LABELS.short}), without roster or timing`,
+};
+
+const LEAD_HEADINGS: Readonly<Record<DecisionLens, string>> = {
+  'ranked-fit': 'Your Ranked Fit',
+  'best-pick': 'Your Best Pick',
+  'best-player': 'Best Player available',
 };
 
 export function LensToggle({
@@ -141,8 +148,9 @@ export function LensToggle({
 }): React.ReactElement {
   return (
     <div className="rec-lens" role="group" aria-label="Decision lens">
-      <button type="button" title={LENS_BASIS['best-pick']} aria-pressed={lens === 'best-pick'} disabled={!onChange} onClick={() => { onChange?.('best-pick'); }}>Best Pick</button>
-      <button type="button" title={LENS_BASIS['best-player']} aria-pressed={lens === 'best-player'} disabled={!onChange} onClick={() => { onChange?.('best-player'); }}>Best Player</button>
+      {DECISION_LENSES.map((item) => (
+        <button key={item} type="button" title={LENS_BASIS[item]} aria-pressed={lens === item} disabled={!onChange} onClick={() => { onChange?.(item); }}>{DECISION_LENS_LABELS[item]}</button>
+      ))}
     </div>
   );
 }
@@ -162,7 +170,7 @@ export function LeadHeading({
   return (
     <div className="rec-section-heading rec-lead-heading">
       {/* What the lens weighs is the heading's own description (and the lens buttons' titles), not a second line. */}
-      <h1 title={LENS_BASIS[lens]}>{lens === 'best-pick' ? 'Your Best Pick' : 'Best Player available'}</h1>
+      <h1 title={LENS_BASIS[lens]}>{LEAD_HEADINGS[lens]}</h1>
       {/* Kept in the layout while hidden, so the heading row does not shift when a search starts. */}
       <span className="rec-lead-hint" data-hidden={cardsShown ? undefined : ''} aria-hidden={cardsShown ? undefined : true}><SuggestionShortcutHint /></span>
       <div className="rec-lead-tools">
