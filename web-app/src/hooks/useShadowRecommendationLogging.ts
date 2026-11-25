@@ -183,8 +183,9 @@ export function useShadowRecommendationLogging(
           positionNeeds: needs,
         });
 
-        void postShadowRecommendation(endpoint, event).then((recorded) => {
-          if (!recorded) attemptedIds.delete(eventId);
+        // A rejected payload stays attempted: resending it for this pick cannot succeed.
+        void postShadowRecommendation(endpoint, event).then((outcome) => {
+          if (outcome === 'retryable') attemptedIds.delete(eventId);
         });
       } catch {
         attemptedIds.delete(eventId);

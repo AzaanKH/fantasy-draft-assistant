@@ -48,7 +48,6 @@
     "refresh:team-env": "pnpm --filter scripts generate:team-env",
     "refresh:daily": "pnpm refresh:sleeper && pnpm refresh:fantasypros && pnpm data:identity && pnpm refresh:contracts && pnpm refresh:team-env",
     "refresh:contracts": "pnpm --filter scripts refresh:contracts",
-    "data:predictions:season": "pnpm --filter scripts stamp:prediction-season",
     "data:demo:build": "pnpm --filter scripts build:demo-data && pnpm data:demo:check",
     "data:demo:install": "pnpm --filter scripts install:demo-data",
     "data:demo:check": "pnpm --filter scripts check:demo-data",

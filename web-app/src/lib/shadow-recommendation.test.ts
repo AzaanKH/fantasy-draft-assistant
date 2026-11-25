@@ -141,14 +141,14 @@ describe('Shadow Recommendation telemetry', () => {
     );
 
     expect(event.coreDecision.bestPick.playerId).toBe('best-pick');
-    await expect(request).resolves.toBe(false);
+    await expect(request).resolves.toBe('retryable');
     expect(event.coreDecision.bestPlayer.playerId).toBe('best-player');
   });
 
   it('accepts the decoded receipt through an injected fetch', async () => {
     const event = buildEvent();
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ eventId: event.eventId, recorded: true }));
-    await expect(postShadowRecommendation('/api/shadow-recommendations', event, fetcher)).resolves.toBe(true);
+    await expect(postShadowRecommendation('/api/shadow-recommendations', event, fetcher)).resolves.toBe('recorded');
     expect(fetcher).toHaveBeenCalledWith('/api/shadow-recommendations', expect.objectContaining({
       method: 'POST', body: JSON.stringify(event),
     }));
@@ -156,9 +156,16 @@ describe('Shadow Recommendation telemetry', () => {
   });
 
   it('contains malformed receipts and HTTP failures', async () => {
-    for (const response of [Response.json({ recorded: 'yes' }), new Response(null, { status: 503 })]) {
+    const cases: [Response, string][] = [
+      [Response.json({ recorded: 'yes' }), 'retryable'],
+      [new Response(null, { status: 503 }), 'retryable'],
+      [new Response(null, { status: 429 }), 'retryable'],
+      [new Response(null, { status: 422 }), 'rejected'],
+      [new Response(null, { status: 400 }), 'rejected'],
+    ];
+    for (const [response, outcome] of cases) {
       await expect(postShadowRecommendation('/api/shadow-recommendations', buildEvent(),
-        vi.fn(async () => response))).resolves.toBe(false);
+        vi.fn(async () => response))).resolves.toBe(outcome);
     }
   });
 });

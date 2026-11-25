@@ -102,8 +102,7 @@ logged only when the workspace season, the artifact's recorded target `season`
 (its rankings snapshot's season, written by `pnpm model:dataset`), and the
 policy season agree; the sync server applies the same check before
 deduplication. An artifact built before `season` was recorded is not logged
-until `pnpm data:predictions:season` recovers it from the matching model report
-or the model is rebuilt. A shadow result cannot change the displayed Best Pick or
+until it is rebuilt with `pnpm model:dataset`, which stamps the season. A shadow result cannot change the displayed Best Pick or
 Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest

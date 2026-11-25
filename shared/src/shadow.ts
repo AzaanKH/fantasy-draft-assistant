@@ -23,7 +23,7 @@ export type ShadowSeasonEligibility =
 export function shadowSeasonEligibility(seasons: ShadowSeasons): ShadowSeasonEligibility {
   const { workspace, artifact, policy } = seasons;
   if (artifact == null) {
-    return { eligible: false, reason: 'The prediction artifact does not record its target season; rebuild it or run `pnpm data:predictions:season`.' };
+    return { eligible: false, reason: 'The prediction artifact does not record its target season; rebuild it with `pnpm model:dataset`.' };
   }
   if (artifact !== workspace || policy !== workspace) {
     return { eligible: false, reason: `Seasons disagree: workspace ${String(workspace)}, prediction artifact ${String(artifact)}, policy ${String(policy)}.` };
