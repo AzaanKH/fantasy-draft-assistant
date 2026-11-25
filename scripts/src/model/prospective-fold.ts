@@ -155,15 +155,16 @@ export function isRegularSeasonComplete(status: ProspectiveSeasonStatus): boolea
     status.regGamesWithStats === REGULAR_SEASON_GAMES;
 }
 
+/** Games each team plays in a regular season: the pace numerator, whatever a traded player's stints schedule. */
+export const TEAM_SEASON_GAMES = 17;
+
 /**
- * Season-to-date totals scaled to a full-season pace by the player's team games: a player who misses games keeps
- * the zeros, so injuries still count. Complete seasons, and players with no team schedule, are left unscaled.
+ * Season-to-date totals scaled to a 17-game pace by the team games played across the player's stints: a player who
+ * misses games keeps the zeros, so injuries still count. Two stints can schedule 18 games when the teams' byes fall
+ * on either side of a trade, but a season is 17 games. Players with no team schedule are left unscaled; a complete
+ * season is scored on raw totals by the caller.
  */
-export function fullSeasonPace(
-  total: number,
-  teamGamesPlayed: number | null,
-  teamGamesScheduled: number | null
-): number {
-  if (teamGamesPlayed === null || teamGamesScheduled === null || teamGamesPlayed <= 0) return total;
-  return total * Math.max(1, teamGamesScheduled / teamGamesPlayed);
+export function fullSeasonPace(total: number, teamGamesPlayed: number | null): number {
+  if (teamGamesPlayed === null || teamGamesPlayed <= 0) return total;
+  return total * Math.max(1, TEAM_SEASON_GAMES / teamGamesPlayed);
 }

@@ -218,8 +218,10 @@ with the same SQL as `model.current_prediction_features` and the workload
 input chosen by the draft-day position, so they do not depend on today's
 player pool. Outcomes are nflverse regular-season weekly stats from scored
 games whose player stats have arrived (matched by `game_id`), scaled to a
-full-season pace by the matched team games across each player's team stints,
-missed games included. Until all
+17-game pace by the matched team games played across each player's team
+stints, missed games included; a complete season scores raw totals. The board
+ranks only players in the latest pre-draft scrape date, and the fold keeps its
+pre-draft training window when a rebuild adds the season's own rows. Until all
 272 regular-season games are scheduled, scored and matched, the fold is
 labelled provisional and stays out of every gate, aggregate and historical
 coverage count; afterwards it counts on its own single-season release check

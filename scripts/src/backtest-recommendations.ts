@@ -724,6 +724,8 @@ interface UserTurn {
   readonly pickNo: number;
   /** The user's offensive non-keeper picks from this one on; specialist and keeper picks are not turns. */
   readonly remainingPicks: number;
+  /** The user's next turn, the next chance to draft an offensive player; a later specialist pick is not one. */
+  readonly nextPickNo: number | null;
   /** The drafted player's scoring row, undefined only when the player has no outcome row at all. */
   readonly chosenRow: PlayerSeason | undefined;
 }
@@ -752,9 +754,11 @@ function planUserTurns(
   const turnIndexes = sortedPicks.flatMap((pick, index) => isUserOffensive(pick) && !pick.isKeeper ? [index] : []);
   const turns = new Map(turnIndexes.map((pickIndex, position) => {
     const pick = sortedPicks[pickIndex] as Pick;
+    const nextIndex = turnIndexes[position + 1];
     return [pickIndex, {
       pickNo: pick.pickNo,
       remainingPicks: turnIndexes.length - position,
+      nextPickNo: nextIndex === undefined ? null : (sortedPicks[nextIndex] as Pick).pickNo,
       chosenRow: scoring.get(pick.playerId),
     }] as const;
   }));
@@ -917,12 +921,12 @@ function finiteOrNull(value: unknown): number | null {
 
 /**
  * Board rows for each prospective season. The pool and positions come from the draft-day ranking snapshot: the
- * latest DynastyProcess scrape made before the draft started, selected after that cutoff is applied, plus every
- * offensive player the room drafted. Trailing features are rebuilt from the three training seasons before it, keyed
+ * latest DynastyProcess scrape date before the draft started, selected after that cutoff is applied, with no ranks
+ * carried in from older scrapes, plus every offensive player the room drafted. Trailing features are rebuilt from the three training seasons before it, keyed
  * by gsis_id with the workload input chosen by the draft-day position, so they never depend on who is in today's
- * player pool or on a later position change. Season-to-date nflverse outcomes are scaled to a full-season pace by
- * team games. Only the season after the last training season can be built, because its trailing features need
- * every earlier season.
+ * player pool or on a later position change. Season-to-date nflverse outcomes are scaled to a 17-game pace by
+ * team games played. The fold reads only training rows from before its season, so a rebuild that adds the season's
+ * own rows leaves it unchanged; it is built only when that window ends the season before.
  */
 async function loadProspectiveRows(
   connection: ModelConnection,
@@ -944,15 +948,17 @@ async function loadProspectiveRows(
       skipped: ['Prospective outcomes are not built; run `pnpm model:prospective`.'],
     };
   }
-  const lastTrainingSeason = finiteOrNull((await connection.runAndReadAll(
-    'select max(season) as season from model.prediction_training_dataset'
-  )).getRowObjects()[0]?.season);
   const rows: TrainingRow[] = [];
   const folds: ProspectiveFoldInput[] = [];
   for (const { season, draftStartTimestamp, picks } of seasons) {
-    if (lastTrainingSeason === null || season !== lastTrainingSeason + 1) {
+    // The fold keeps its pre-draft training window: rows for this season or later, which a rebuild adds once the
+    // season is played, never reach its features, history or coverage check.
+    const lastTrainingSeason = finiteOrNull((await connection.runAndReadAll(
+      `select max(season) as season from model.prediction_training_dataset where season < ${String(season)}`
+    )).getRowObjects()[0]?.season);
+    if (lastTrainingSeason !== season - 1) {
       skipped.push(
-        `${String(season)}: the training dataset ends in ${String(lastTrainingSeason ?? 'no season')}, ` +
+        `${String(season)}: the pre-draft training window ends in ${String(lastTrainingSeason ?? 'no season')}, ` +
         'so trailing features for this season cannot be rebuilt.'
       );
       continue;
@@ -988,7 +994,7 @@ async function loadProspectiveRows(
       with trained as (
         select gsis_id, min(season) as first_season
         from model.prediction_training_dataset
-        where gsis_id is not null
+        where gsis_id is not null and season < ${String(season)}
         group by 1
       ), ids as (
         select sleeper_player_id, any_value(gsis_id) as gsis_id
@@ -1013,11 +1019,13 @@ async function loadProspectiveRows(
           and cast(r.scrape_date as date)
             between make_date(${String(season)}, 5, 1) and make_date(${String(season)}, 9, 10)
       ), rankings as (
+        -- One snapshot only: the latest scrape date before the draft. A player missing from it is not carried in
+        -- with a stale rank from an older scrape; if drafted, he joins below as an unranked scoring row.
         select * from snapshots
-        where before_draft
+        where scrape_date = (select max(scrape_date) from snapshots where before_draft)
         qualify row_number() over (
           partition by sleeper_player_id
-          order by case when ranking_type = 'redraft-overall' then 0 else 1 end, scrape_date desc
+          order by case when ranking_type = 'redraft-overall' then 0 else 1 end
         ) = 1
       ), drafted as (
         ${draftedValues}
@@ -1040,7 +1048,6 @@ async function loadProspectiveRows(
         coalesce(outcomes.rush_attempts, 0)::double as rush_attempts,
         coalesce(outcomes.receptions, 0)::double as receptions,
         outcomes.team_games_played::double as team_games_played,
-        outcomes.team_games_scheduled::double as team_games_scheduled,
         pool.predraft_ecr::double as predraft_ecr,
         ${PROSPECTIVE_FEATURE_COLUMNS.map((column) => column === 'trailing_player_volume_3yr'
           ? `(${trailingPlayerVolumeSql('pool.position', 'history')})::double as ${column}`
@@ -1056,11 +1063,11 @@ async function loadProspectiveRows(
     `);
     const objects = reader.getRowObjects();
     const decoded = decodeBacktestTrainingRows(objects);
+    const complete = isRegularSeasonComplete(status);
     decoded.forEach((row, index) => {
       const source = objects[index];
       const played = finiteOrNull(source?.team_games_played);
-      const scheduled = finiteOrNull(source?.team_games_scheduled);
-      const pace = (value: number) => fullSeasonPace(value, played, scheduled);
+      const pace = (value: number) => complete ? value : fullSeasonPace(value, played);
       rows.push({
         ...row,
         games: pace(row.games),
@@ -1072,7 +1079,7 @@ async function loadProspectiveRows(
     folds.push({
       season,
       status,
-      complete: isRegularSeasonComplete(status),
+      complete,
       boardPlayers: decoded.filter((row) => (row.predraft_ecr ?? Infinity) <= 250).length,
       rankingsAfterDraft: finiteOrNull(objects[0]?.rankings_after_draft) ?? 0,
       unrankedDrafted: decoded.filter((row) => row.predraft_ecr === null).length,
@@ -1250,8 +1257,10 @@ async function main(): Promise<void> {
     const draftedKeys = new Set(history.seasons.flatMap((season) =>
       season.picks.map((pick) => playerSeasonKey(season.season, pick.playerId))
     ));
+    // A fold season replays only its draft-day board: training rows a later rebuild adds for it stay out.
+    const prospectiveFoldSeasons = new Set(prospective.folds.map((fold) => fold.season));
     const { playerSeasons, scoringRows, modelCache } = addDerivedValues(
-      [...rawRows, ...prospective.rows],
+      [...rawRows.filter((row) => !prospectiveFoldSeasons.has(row.season)), ...prospective.rows],
       draftedKeys
     );
     const evaluations: PickEvaluation[] = [];
@@ -1301,7 +1310,6 @@ async function main(): Promise<void> {
     const evaluationHistory = sortedHistory.filter((season) =>
       OUTER_TEST_SEASONS.includes(season.season as (typeof OUTER_TEST_SEASONS)[number])
     );
-    const prospectiveFoldSeasons = new Set(prospective.folds.map((fold) => fold.season));
     const prospectiveHistory = sortedHistory.filter((season) => prospectiveFoldSeasons.has(season.season));
     const prospectiveSeasonReports: typeof seasonReports = [];
     for (const season of [...evaluationHistory, ...prospectiveHistory]) {
@@ -1364,7 +1372,7 @@ async function main(): Promise<void> {
         // Turns and remaining picks follow the user's offensive draft slots, not whether the pick was on the board.
         const turn = userPlan.turns.get(index);
         if (turn) {
-          const { remainingPicks, chosenRow } = turn;
+          const { remainingPicks, chosenRow, nextPickNo: nextUserPick } = turn;
           const actualAvailable = seasonRows.filter((row) => !actualDrafted.has(row.sleeper_player_id));
           const strategyAvailable = (selected: ReadonlySet<string>): PlayerSeason[] =>
             seasonRows.filter((row) =>
@@ -1388,9 +1396,6 @@ async function main(): Promise<void> {
             remainingPicks
           );
           const modelPick = chooseModel(modelAvailable, model.roster, rules, remainingPicks);
-          const nextUserPick = sortedPicks.slice(index + 1).find((candidate) =>
-            candidate.isUserPick && !candidate.isKeeper
-          )?.pickNo ?? null;
           const totalTeams = Math.max(1, Object.keys(season.rosterIdToOwner).length);
           const totalPicks = sortedPicks.at(-1)?.pickNo ?? pick.pickNo;
           const ecrWaitingOnlyPick = choosePickEv(
@@ -1864,7 +1869,7 @@ async function main(): Promise<void> {
         },
         outcomeBasis: fold.complete
           ? 'Complete regular-season nflverse totals.'
-          : 'Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a full-season pace by each player\'s matched team games.',
+          : 'Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a 17-game pace by each player\'s matched team games.',
         boardPlayers: fold.boardPlayers,
         rankingsScrapedAfterDraftExcluded: fold.rankingsAfterDraft,
         unrankedDraftedPlayers: fold.unrankedDrafted,

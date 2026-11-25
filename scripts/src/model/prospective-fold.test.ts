@@ -93,12 +93,14 @@ describe('prospective fold', () => {
     }
   });
 
-  it('scales season-to-date totals by team games, keeping missed games as zeros', () => {
-    // Ten team games of seventeen: a player who scored 100 is on a 170-point pace, whether or not he played all ten.
-    expect(fullSeasonPace(100, 10, 17)).toBe(170);
-    expect(fullSeasonPace(100, 17, 17)).toBe(100);
-    expect(fullSeasonPace(100, null, null)).toBe(100);
-    expect(fullSeasonPace(0, 10, 17)).toBe(0);
+  it('scales season-to-date totals to a 17-game pace by team games, keeping missed games as zeros', () => {
+    // Ten team games: a player who scored 100 is on a 170-point pace, whether or not he played all ten.
+    expect(fullSeasonPace(100, 10)).toBe(170);
+    expect(fullSeasonPace(100, 17)).toBe(100);
+    expect(fullSeasonPace(100, null)).toBe(100);
+    expect(fullSeasonPace(0, 10)).toBe(0);
+    // A traded player whose stints scheduled 18 games still paces to 17: 100.3 over 11 played is 155.01, not 164.13.
+    expect(fullSeasonPace(100.3, 11)).toBeCloseTo(155.01, 2);
   });
 
   it('reads only regular-season weeks for the requested seasons', () => {

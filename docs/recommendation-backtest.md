@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-25T08:13:19.131Z
+Generated: 2026-11-25T08:31:22.063Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -68,11 +68,11 @@ regular-season games are scored and matched to weekly player stats; completeness
 
 ### 2026: **PROVISIONAL**
 
-- Regular season: 163 of 272 scheduled games scored (272 in a full season); 163 matched to weekly player stats, through week 11 (outcomes fetched 2026-11-25T00:11:39Z).
+- Regular season: 163 of 272 scheduled games scored (272 in a full season); 163 matched to weekly player stats, through week 11 (outcomes fetched 2026-11-25T00:27:54Z).
 - Excluded from the release gate until all 272 regular-season games are scored and matched to player stats; the numbers move each week.
-- Outcomes: Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a full-season pace by each player's matched team games.
+- Outcomes: Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a 17-game pace by each player's matched team games.
 - Coverage: 12 of 13 user picks scored.
-- Board: 226 offensive players ranked inside the top 250 in the last snapshot before the draft; 0 player rankings scraped after the draft started were excluded before that selection; 0 drafted players without a draft-day rank were added so their picks and keepers score.
+- Board: 223 offensive players ranked inside the top 250 in the last snapshot before the draft; 0 player rankings scraped after the draft started were excluded before that selection; 0 drafted players without a draft-day rank were added so their picks and keepers score.
 - Shadow Recommendation log: absent (no `data/shadow-logs/2026-recommendations.ndjson`), so only the replayed model is scored.
 
 | Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
@@ -80,7 +80,7 @@ regular-season games are scored and matched to weekly player stats; completeness
 | Actual user draft | 12 | 567.81 | 2252.43 | 152.47 | 0.58 |
 | Roster-aware ECR | 12 | 864.76 | 2593.24 | 127.73 | 0.92 |
 | Best Pick (shipped) | 12 | 819.54 | 2482.57 | 131.5 | 0.83 |
-| Baseline roster-aware model | 12 | 442.99 | 2341.57 | 181.76 | 0.5 |
+| Baseline roster-aware model | 12 | 433.99 | 2341.57 | 182.51 | 0.5 |
 | Roster-aware model | 12 | 102.79 | 2027.02 | 229.46 | 0.5 |
 
 Single-season release gate (model must beat roster-aware ECR on every release check this season; seasons won does not apply): **fail** (provisional, not counted)

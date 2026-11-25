@@ -307,8 +307,9 @@ describe('draft replay', () => {
 
     expect(plan.keeperRows.map((row) => row.sleeper_player_id)).toEqual(['keep']);
     expect([...plan.turns.entries()].map(([index, turn]) =>
-      [index, turn.pickNo, turn.remainingPicks, turn.chosenRow?.sleeper_player_id]
-    )).toEqual([[3, 4, 2, 'late'], [5, 6, 1, 'wr2']]);
+      [index, turn.pickNo, turn.remainingPicks, turn.nextPickNo, turn.chosenRow?.sleeper_player_id]
+    )).toEqual([[3, 4, 2, 6, 'late'], [5, 6, 1, null, 'wr2']]);
+    // The DEF pick between them is not the next chance to take an offensive player.
     const scored = [...plan.turns.values()].flatMap((turn) => turn.chosenRow ?? []);
     expect(backtestInternals.summarize(scored, [0, 0], 0)).toMatchObject({
       evaluatedPicks: 2,
@@ -319,24 +320,26 @@ describe('draft replay', () => {
 });
 
 describe('prospective board', () => {
-  it('builds the pool from the pre-draft ranking snapshot, falls back past post-draft scrapes, and keeps drafted players', async () => {
+  // Every training column the trailing history reads; unlisted ones stay null.
+  const historyColumns = [
+    'actual_points_per_game', 'expected_points_per_game', 'actual_value_over_replacement', 'pass_attempts',
+    'rush_attempts', 'targets', 'games', 'dropback_participation', 'receptions', 'target_share', 'air_yards_share',
+    'wopr', 'offense_snap_share', 'offense_snaps', 'pressure_rate', 'pressure_time_to_throw',
+    'number_of_pass_rushers', 'charted_route_targets', 'deep_route_target_share', 'screen_route_target_share',
+    'goal_line_carries', 'goal_line_targets', 'completion_percentage_above_expectation', 'avg_time_to_throw',
+    'avg_intended_air_yards', 'avg_separation', 'avg_yac_above_expectation', 'intended_air_yards_share',
+    'rush_yards_over_expected_per_attempt', 'rush_pct_over_expected', 'expected_pass_points',
+    'expected_rec_points', 'expected_rush_points', 'expected_total_tds', 'availability_eligible_missed_games',
+  ];
+  const trainingRow = (season: number, gsisId: string, values: Record<string, number>) =>
+    `select ${String(season)} as season, '${gsisId}' as gsis_id, ` +
+    historyColumns.map((column) => `${String(values[column] ?? 'null')}::double as ${column}`).join(', ');
+
+  async function loadBoard(options: { readonly gamesPlayed?: number; readonly extraSql?: readonly string[] } = {}) {
+    const gamesPlayed = options.gamesPlayed ?? 136;
     const { DuckDBInstance } = await import('@duckdb/node-api');
     const instance = await DuckDBInstance.create(':memory:');
     const connection = await instance.connect();
-    // Every training column the trailing history reads; unlisted ones stay null.
-    const historyColumns = [
-      'actual_points_per_game', 'expected_points_per_game', 'actual_value_over_replacement', 'pass_attempts',
-      'rush_attempts', 'targets', 'games', 'dropback_participation', 'receptions', 'target_share', 'air_yards_share',
-      'wopr', 'offense_snap_share', 'offense_snaps', 'pressure_rate', 'pressure_time_to_throw',
-      'number_of_pass_rushers', 'charted_route_targets', 'deep_route_target_share', 'screen_route_target_share',
-      'goal_line_carries', 'goal_line_targets', 'completion_percentage_above_expectation', 'avg_time_to_throw',
-      'avg_intended_air_yards', 'avg_separation', 'avg_yac_above_expectation', 'intended_air_yards_share',
-      'rush_yards_over_expected_per_attempt', 'rush_pct_over_expected', 'expected_pass_points',
-      'expected_rec_points', 'expected_rush_points', 'expected_total_tds', 'availability_eligible_missed_games',
-    ];
-    const trainingRow = (season: number, gsisId: string, values: Record<string, number>) =>
-      `select ${String(season)} as season, '${gsisId}' as gsis_id, ` +
-      historyColumns.map((column) => `${String(values[column] ?? 'null')}::double as ${column}`).join(', ');
     try {
       for (const sql of [
         'create schema source',
@@ -347,44 +350,82 @@ describe('prospective board', () => {
           union all ${trainingRow(2023, 'g-a', { games: 10, actual_points_per_game: 10, rush_attempts: 100, targets: 50 })}
           union all ${trainingRow(2024, 'g-a', { games: 10, actual_points_per_game: 12, rush_attempts: 100, targets: 50 })}
           union all ${trainingRow(2025, 'g-a', { games: 10, actual_points_per_game: 14, rush_attempts: 100, targets: 50 })}`,
+        // a's two stints scheduled 18 team games, 11 of them played.
         `create table model.prospective_player_outcomes as
           select 2026 as season, 'g-a' as gsis_id, 8.0 as games, 100.0 as ppr_points, 0.0 as rush_attempts,
-            0.0 as receptions, 8 as team_games_played, 17 as team_games_scheduled`,
+            0.0 as receptions, 11 as team_games_played, 18 as team_games_scheduled`,
         `create table model.prospective_season_status as select 2026 as season, 272 as reg_games_scheduled,
-          136 as reg_games_played, 136 as reg_games_with_stats, 9 as last_week_played, 'now' as fetched_at`,
+          ${String(gamesPlayed)} as reg_games_played, ${String(gamesPlayed)} as reg_games_with_stats,
+          9 as last_week_played, 'now' as fetched_at`,
         `create table model.dynastyprocess_player_ids as select * from (values
-          ('fp-a', 'g-a', 's-a'), ('fp-c', 'g-c', 's-c'), ('fp-d', 'g-d', 's-d')
+          ('fp-a', 'g-a', 's-a'), ('fp-b', 'g-b', 's-b'), ('fp-c', 'g-c', 's-c'), ('fp-d', 'g-d', 's-d'),
+          ('fp-e', 'g-e', 's-e')
         ) as t(fantasypros_id, gsis_id, sleeper_player_id)`,
-        // a: ranked, absent from today's player pool. c: re-ranked after the draft. d: drafted, never ranked.
+        // a: ranked, absent from today's player pool. b and e: only in an older pre-draft snapshot, e drafted.
+        // c: re-ranked after the draft. d: drafted, never ranked.
         `create table source.dynastyprocess_rankings as select * from (values
           ('fp-a', 'Player A', 'WR', 'redraft-overall', 20.0, '2026-08-20'),
+          ('fp-b', 'Player B', 'WR', 'redraft-overall', 3.0, '2026-08-13'),
+          ('fp-e', 'Player E', 'TE', 'redraft-overall', 4.0, '2026-08-13'),
           ('fp-c', 'Player C', 'RB', 'redraft-overall', 10.0, '2026-08-20'),
           ('fp-c', 'Player C', 'RB', 'redraft-overall', 5.0, '2026-09-08')
         ) as t(id, player, pos, page_type, ecr, scrape_date)`,
+        ...(options.extraSql ?? []),
       ]) await connection.run(sql);
 
-      const load = await backtestInternals.loadProspectiveRows(connection, [{
+      return await backtestInternals.loadProspectiveRows(connection, [{
         season: 2026,
         draftStartTimestamp: '2026-09-05T18:00:00.000Z',
-        picks: [{ playerId: 's-d', playerName: 'Player D', position: 'QB' }],
+        picks: [
+          { playerId: 's-d', playerName: 'Player D', position: 'QB' },
+          { playerId: 's-e', playerName: 'Player E', position: 'TE' },
+        ],
       }]);
-
-      expect(load.skipped).toEqual([]);
-      const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
-      expect(Object.keys(board).sort()).toEqual(['s-a', 's-c', 's-d']);
-      expect(board['s-a']).toMatchObject({ position: 'WR', predraft_ecr: 20, actual_points: 212.5 });
-      // Trailing features come from his own prior seasons, and the workload input follows the draft-day position.
-      expect(board['s-a']).toMatchObject({
-        trailing_points_per_game_3yr: 12,
-        trailing_rush_attempts_per_game_3yr: 10,
-        trailing_player_volume_3yr: 150,
-      });
-      expect(board['s-c']).toMatchObject({ trailing_points_per_game_3yr: null, trailing_player_volume_3yr: 0 });
-      expect(board['s-c']?.predraft_ecr).toBe(10);
-      expect(board['s-d']).toMatchObject({ position: 'QB', predraft_ecr: null });
-      expect(load.folds[0]).toMatchObject({ rankingsAfterDraft: 1, unrankedDrafted: 1, complete: false });
     } finally {
       connection.closeSync();
     }
+  }
+
+  it('builds the pool from the pre-draft ranking snapshot, falls back past post-draft scrapes, and keeps drafted players', async () => {
+    const load = await loadBoard();
+    expect(load.skipped).toEqual([]);
+    const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
+    expect(Object.keys(board).sort()).toEqual(['s-a', 's-c', 's-d', 's-e']);
+    // Season-to-date points at a 17-game pace over 11 team games played, not the 18 his stints scheduled.
+    expect(board['s-a']?.actual_points).toBeCloseTo(100 * 17 / 11, 6);
+    expect(board['s-a']).toMatchObject({ position: 'WR', predraft_ecr: 20 });
+    // Trailing features come from his own prior seasons, and the workload input follows the draft-day position.
+    expect(board['s-a']).toMatchObject({
+      trailing_points_per_game_3yr: 12,
+      trailing_rush_attempts_per_game_3yr: 10,
+      trailing_player_volume_3yr: 150,
+    });
+    expect(board['s-c']).toMatchObject({ trailing_points_per_game_3yr: null, trailing_player_volume_3yr: 0 });
+    expect(board['s-c']?.predraft_ecr).toBe(10);
+    expect(board['s-d']).toMatchObject({ position: 'QB', predraft_ecr: null });
+    // Missing from the latest pre-draft snapshot: no stale rank from an older one, so b is off the board and the
+    // drafted e only scores.
+    expect(board['s-e']).toMatchObject({ position: 'TE', predraft_ecr: null });
+    expect(load.folds[0]).toMatchObject({ rankingsAfterDraft: 1, unrankedDrafted: 2, complete: false });
+  });
+
+  it('scores a complete season on raw totals', async () => {
+    const load = await loadBoard({ gamesPlayed: 272 });
+    expect(load.folds[0]?.complete).toBe(true);
+    expect(load.rows.find((row) => row.sleeper_player_id === 's-a')?.actual_points).toBe(100);
+  });
+
+  it('keeps the pre-draft training window after a rebuild adds the season\'s own training rows', async () => {
+    const before = await loadBoard();
+    const after = await loadBoard({
+      extraSql: [
+        `insert into model.prediction_training_dataset
+          ${trainingRow(2026, 'g-a', { games: 17, actual_points_per_game: 40, rush_attempts: 300, targets: 90 })}`,
+        `insert into model.prediction_training_dataset
+          ${trainingRow(2026, 'g-c', { games: 17, actual_points_per_game: 20, rush_attempts: 200, targets: 10 })}`,
+      ],
+    });
+    expect(after.skipped).toEqual([]);
+    expect(after).toEqual(before);
   });
 });
