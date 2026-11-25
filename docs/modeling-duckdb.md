@@ -195,9 +195,10 @@ Decisions:
   thresholds to chase the 2022–2025 folds; that would overfit four seasons.
 - The model stays as Shadow Recommendation logging only and never orders live
   recommendations. Its code and pipeline stay in place.
-- It may be reopened only if the unchanged declaration passes the release gate
-  on the 2026 prospective fold, the first season scored after the declaration
-  was frozen, once the 2026 regular season is complete.
+- It may be reopened only if, once the 2026 regular season is complete, the
+  unchanged declaration beats roster-aware ECR on every release check applied
+  to the 2026 prospective fold alone, the first season scored after the
+  declaration was frozen. Seasons won does not apply to a single season.
 
 ## Prediction outputs and live use
 

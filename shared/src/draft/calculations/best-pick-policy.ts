@@ -29,10 +29,8 @@ export interface BestPickTuning {
 }
 /** League scoring and replacement value can add at most six policy points. */
 const BEST_PICK_LEAGUE_VALUE_MAX = 6;
-/** Roster construction can add at most a weighted fixed starter plus the urgency bonus: eight policy points as shipped. */
-function rosterFitMax(lateStarterWeight: number): number {
-  return 6 * Math.max(1, lateStarterWeight) + 2;
-}
+/** Roster construction can add at most fourteen policy points: a doubled fixed starter plus the urgency bonus. */
+const BEST_PICK_ROSTER_FIT_MAX = 14;
 /** Bench protection can add at most four policy points. */
 const BEST_PICK_DEPTH_VALUE_MAX = 4;
 /** Tier supply can add at most four cost-of-waiting policy points. */
@@ -414,7 +412,7 @@ function getRosterFitScore(
     score += 2;
   }
 
-  return round(clamp(score, 0, rosterFitMax(lateStarterWeight)));
+  return round(clamp(score, 0, BEST_PICK_ROSTER_FIT_MAX));
 }
 
 function getTierSupplyFactor(
@@ -716,7 +714,7 @@ export function evaluateBestPickPolicy(
         rosterFit: {
           score: rosterFitScore,
           minScore: 0,
-          maxScore: rosterFitMax(lateStarterWeight),
+          maxScore: BEST_PICK_ROSTER_FIT_MAX,
           fixedStartersOpen: before.fixedStartersOpen,
           flexSlotsOpen: before.flexSlotsOpen,
           benchSlotsOpen: before.benchSlotsOpen,

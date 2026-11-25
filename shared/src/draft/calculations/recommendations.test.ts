@@ -146,7 +146,7 @@ describe('getRecommendations', () => {
         rosterFit: {
           score: 6,
           minScore: 0,
-          maxScore: 8,
+          maxScore: 14,
           fixedStartersOpen: 7,
           flexSlotsOpen: 2,
           benchSlotsOpen: 5,
@@ -263,6 +263,17 @@ describe('getRecommendations', () => {
       const near = getRecommendations([benchReceiver, nearBack], [], 85, context);
       expect(near.draftNow[0]?.playerId).toBe('rb-near');
       expect(near.draftNow[0]?.decisionFactors?.rosterFit.score).toBe(6);
+
+      // The starter window is the normal 8 ranks: exactly 8 back is inside, 9 back is outside.
+      const edge = getRecommendations([
+        benchReceiver,
+        createPlayer('rb-8', 'RB', 72, 'Eight Back RB'),
+        createPlayer('rb-9', 'RB', 73, 'Nine Back RB'),
+      ], [], 85, context);
+      const boundary = (id: string) => edge.draftNow.find((pick) => pick.playerId === id)
+        ?.decisionFactors?.conservativeBoundary.withinBoundary;
+      expect(boundary('rb-8')).toBe(true);
+      expect(boundary('rb-9')).toBe(false);
 
       // Ten ranks back is outside it: the 12-rank starter window lost to roster-aware ECR in the backtest.
       const outside = getRecommendations([benchReceiver, neededBack], [], 85, context);

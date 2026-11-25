@@ -61,12 +61,14 @@ import {
   type RosterRules,
 } from './offensive-roster.js';
 import {
+  BEST_PICK_GATE_TOLERANCE,
   BEST_PICK_POLICY_SOURCES,
   bestPickGateFailures,
-  buildBestPickGateRecord,
+  bestPickReplayProblems,
   hashBestPickPolicySources,
-  parseBestPickGateBlock,
-  renderBestPickGateBlock,
+  nextBestPickGate,
+  parseBestPickGateBlocks,
+  renderBestPickGateBlocks,
 } from './best-pick-backtest-gate.js';
 
 const JSON_OUTPUT = join(BACKTESTS_MODEL_DIR, 'recommendation-backtest.json');
@@ -1421,13 +1423,32 @@ async function main(): Promise<void> {
       })),
     };
     const policySourceHash = hashBestPickPolicySources();
+    const acceptBestPickBaseline = process.argv.includes('--accept-best-pick-baseline');
     const previousReport = await readFile(MARKDOWN_OUTPUT, 'utf8').catch(() => '');
-    const bestPickGate = buildBestPickGateRecord(
-      parseBestPickGateBlock(previousReport),
-      policySourceHash,
-      bestPickPolicy.deltas.bestPickVsEcr
+    const bestPickGate = nextBestPickGate(
+      acceptBestPickBaseline
+        ? { candidate: undefined, baseline: undefined }
+        : parseBestPickGateBlocks(previousReport),
+      {
+        version: 2,
+        policySourceHash,
+        folds: seasonReports.map((season) => ({
+          season: season.season,
+          evaluatedPicks: season.strategies.bestPick.evaluatedPicks,
+        })),
+        bestPickVsEcr: bestPickPolicy.deltas.bestPickVsEcr,
+      },
+      bestPickReplayProblems(seasonReports.map((season) => ({
+        season: season.season,
+        bestPickPicks: season.strategies.bestPick.evaluatedPicks,
+        ecrPicks: season.strategies.rosterAwareEcr.evaluatedPicks,
+      }))),
+      acceptBestPickBaseline
     );
-    const bestPickGateProblems = bestPickGateFailures(bestPickGate, policySourceHash);
+    const bestPickGateProblems = [
+      ...bestPickGate.notes,
+      ...bestPickGateFailures(bestPickGate, policySourceHash),
+    ];
     const architectureComparison = {
       dataStatus: {
         projections: 'Historical leakage-safe shared projection proxy; historical FantasyPros snapshots are not available.',
@@ -1724,8 +1745,8 @@ backtest version.
 ## Promotion Gates
 
 Decision (2026-11-24): the prediction model failed this gate, so its feature-family work is frozen and it stays
-as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration passes the release
-gate on the 2026 prospective fold. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
+as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration beats roster-aware
+ECR on every release check applied to the completed 2026 prospective fold alone. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
 
 - Promoted: **${String(report.promotion.passed)}**
 - Decision: ${report.promotion.decision}
@@ -1782,19 +1803,21 @@ ${bestPickSeasonRows}
 
 ### Best Pick regression gate
 
-\`pnpm verify\` checks this record without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
-when ${BEST_PICK_POLICY_SOURCES.map((path) => `\`${path}\``).join(', ')} no longer hashes to
-\`policySourceHash\`, or when Best Pick's margin over roster-aware ECR is more than
-${String(bestPickGate.tolerance.vorCaptured)} VOR or ${String(bestPickGate.tolerance.averageRegret)} average regret
-worse than the baseline: the margin recorded for the previous policy. Regenerating an unchanged policy keeps its
-baseline.
+\`pnpm verify\` checks these records without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
+when either block is missing, when ${BEST_PICK_POLICY_SOURCES.map((path) => `\`${path}\``).join(', ')} no longer
+hash to the gate block's \`policySourceHash\`, when the gate block does not cover the 2022–2025 folds with the
+baseline's pick counts, or when Best Pick's margin over roster-aware ECR is more than
+${String(BEST_PICK_GATE_TOLERANCE.vorCaptured)} VOR or ${String(BEST_PICK_GATE_TOLERANCE.averageRegret)} average
+regret worse than the accepted baseline. Regenerating copies the baseline block unchanged; only
+\`pnpm model:backtest:accept-best-pick\` replaces it with the current replay, so a baseline change is always a
+reviewed diff. A partial replay is never recorded.
 
 ${[
   `- Gate: **${bestPickGateProblems.length === 0 ? 'pass' : 'fail'}**`,
   ...bestPickGateProblems.map((problem) => `- ${problem}`),
 ].join('\n')}
 
-${renderBestPickGateBlock(bestPickGate)}
+${renderBestPickGateBlocks(bestPickGate)}
 
 ## PickEV Architecture Comparison
 

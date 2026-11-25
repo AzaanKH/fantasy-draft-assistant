@@ -84,14 +84,18 @@ The runner retries 429 and 503 by default when the explicit retry count permits 
 
 The recommendation backtest needs private league data, so CI checks its
 committed result instead. `scripts/src/best-pick-backtest-gate.test.ts` runs in
-`pnpm test` (and so `pnpm verify`) and fails when
-`shared/src/draft/calculations/best-pick-policy.ts` no longer matches the hash
-recorded in [recommendation-backtest.md](recommendation-backtest.md), or when
-the recorded Best Pick margin over roster-aware ECR is more than 25 VOR or 1
-average regret worse than the previous policy's. After a policy change, run
+`pnpm test` (and so `pnpm verify`) against two blocks in
+[recommendation-backtest.md](recommendation-backtest.md): the gate block that
+`pnpm model:backtest` writes and the accepted baseline block. It fails when
+either block is missing, when the recommendation entry point, Best Pick policy
+or their selection modules no longer match the gate block's hash, when the gate
+block does not cover the 2022–2025 folds with the baseline's pick counts, or
+when Best Pick's margin over roster-aware ECR is more than 25 VOR or 1 average
+regret worse than the baseline's. After a policy change, run
 `pnpm model:backtest` in the real-data checkout and commit the regenerated
-report. The tolerance lives in `scripts/src/best-pick-backtest-gate.ts`; editing
-it in the report has no effect.
+report. Regeneration never moves the baseline; accepting a new one is an
+explicit `pnpm model:backtest:accept-best-pick` whose diff is reviewed with the
+change. The tolerance lives in `scripts/src/best-pick-backtest-gate.ts`.
 
 ## Repository content and emitted bundles
 

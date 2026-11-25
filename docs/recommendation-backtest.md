@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-24T23:48:00.865Z
+Generated: 2026-11-25T03:00:55.146Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -16,8 +16,8 @@ backtest version.
 ## Promotion Gates
 
 Decision (2026-11-24): the prediction model failed this gate, so its feature-family work is frozen and it stays
-as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration passes the release
-gate on the 2026 prospective fold. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
+as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration beats roster-aware
+ECR on every release check applied to the completed 2026 prospective fold alone. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
 
 - Promoted: **false**
 - Decision: At least one promotion gate fails; keep the model in Shadow Recommendation and out of live ordering.
@@ -85,42 +85,82 @@ rejected. Negative regret deltas are improvements.
 
 ### Best Pick regression gate
 
-`pnpm verify` checks this record without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
-when `shared/src/draft/calculations/best-pick-policy.ts` no longer hashes to
-`policySourceHash`, or when Best Pick's margin over roster-aware ECR is more than
-25 VOR or 1 average regret
-worse than the baseline: the margin recorded for the previous policy. Regenerating an unchanged policy keeps its
-baseline.
+`pnpm verify` checks these records without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
+when either block is missing, when `shared/src/draft/calculations/best-pick-policy.ts`, `shared/src/draft/calculations/recommendations.ts`, `shared/src/draft/calculations/tiers.ts`, `shared/src/draft/calculations/scarcity.ts`, `shared/src/draft/calculations/draft-stage.ts`, `shared/src/lineup-utility.ts` no longer
+hash to the gate block's `policySourceHash`, when the gate block does not cover the 2022–2025 folds with the
+baseline's pick counts, or when Best Pick's margin over roster-aware ECR is more than
+25 VOR or 1 average
+regret worse than the accepted baseline. Regenerating copies the baseline block unchanged; only
+`pnpm model:backtest:accept-best-pick` replaces it with the current replay, so a baseline change is always a
+reviewed diff. A partial replay is never recorded.
 
 - Gate: **pass**
 
 <!-- best-pick-gate:start -->
 ```json
 {
-  "version": 1,
-  "policySourceHash": "sha256:5595d79bd805870c4ceedbf0a1acf5ca9f66b65fdaeb7b49e843597b8e292266",
+  "version": 2,
+  "policySourceHash": "sha256:a3af5fdfbf949ece32def2750324aaeb7a70d3eef00bf89ee8ed7f16d97c3c16",
+  "folds": [
+    {
+      "season": 2022,
+      "evaluatedPicks": 13
+    },
+    {
+      "season": 2023,
+      "evaluatedPicks": 12
+    },
+    {
+      "season": 2024,
+      "evaluatedPicks": 12
+    },
+    {
+      "season": 2025,
+      "evaluatedPicks": 12
+    }
+  ],
   "bestPickVsEcr": {
     "starterPoints": -103.66,
     "vorCaptured": -106.74,
     "averageRegret": -1.92,
     "top24PositionHitRate": 0.03
-  },
-  "baseline": {
-    "policySourceHash": "sha256:9079cef62a0efa83f0167555959562dbb1ccbc2e0ef81608aa7a313d160b797d",
-    "bestPickVsEcr": {
-      "starterPoints": -58.86,
-      "vorCaptured": -367.2,
-      "averageRegret": 3.39,
-      "top24PositionHitRate": -0.02
-    }
-  },
-  "tolerance": {
-    "vorCaptured": 25,
-    "averageRegret": 1
   }
 }
 ```
 <!-- best-pick-gate:end -->
+
+<!-- best-pick-baseline:start -->
+```json
+{
+  "version": 2,
+  "policySourceHash": "sha256:a3af5fdfbf949ece32def2750324aaeb7a70d3eef00bf89ee8ed7f16d97c3c16",
+  "folds": [
+    {
+      "season": 2022,
+      "evaluatedPicks": 13
+    },
+    {
+      "season": 2023,
+      "evaluatedPicks": 12
+    },
+    {
+      "season": 2024,
+      "evaluatedPicks": 12
+    },
+    {
+      "season": 2025,
+      "evaluatedPicks": 12
+    }
+  ],
+  "bestPickVsEcr": {
+    "starterPoints": -103.66,
+    "vorCaptured": -106.74,
+    "averageRegret": -1.92,
+    "top24PositionHitRate": 0.03
+  }
+}
+```
+<!-- best-pick-baseline:end -->
 
 ## PickEV Architecture Comparison
 
