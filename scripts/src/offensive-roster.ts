@@ -53,8 +53,8 @@ export function rosterAdjustedValue<Player extends { position: OffensivePosition
   rules: RosterRules
 ): number {
   const fixedNeed = roster[candidate.position].length < rules.fixedStarters[candidate.position];
-  const flexEligible = isFlexPosition(candidate.position);
-  const flexNeed = flexEligible && flexEligibleCount(rosterCounts(roster)) < flexTarget(rules);
+  const flexEligible = isFlexPosition(candidate.position, rules);
+  const flexNeed = flexEligible && flexEligibleCount(rosterCounts(roster), rules) < flexTarget(rules);
   const redundantMultiplier = candidate.position === 'QB' || candidate.position === 'TE'
     ? REDUNDANT_SINGLE_STARTER_MULTIPLIERS[candidate.position]
     : null;

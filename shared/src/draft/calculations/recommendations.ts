@@ -607,10 +607,7 @@ function calculateRecommendations(
     .slice(0, limit);
 
   const policyRecommendationById = new Map(policyRecommendations.map((item) => [item.playerId, item]));
-  const rankedFit = orderLiveRankedFit(
-    [...availablePlayers].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
-    context
-  )
+  const rankedFit = orderLiveRankedFit(availablePlayers, context)
     .slice(0, limit)
     .map((player) => buildRankedFitRecommendation(
       player,

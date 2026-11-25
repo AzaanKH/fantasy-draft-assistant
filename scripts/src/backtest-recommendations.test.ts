@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OffensivePosition } from '@fantasy-draft/shared/league';
+import { getRecommendations } from '@fantasy-draft/shared/draft';
 import { backtestInternals } from './backtest-recommendations.js';
 
 function player(id: string, position: OffensivePosition, points: number = 100) {
@@ -76,6 +77,7 @@ describe('roster-aware backtest helpers', () => {
     ])).toEqual({
       fixedStarters: { QB: 1, RB: 2, WR: 2, TE: 1 },
       flexStarters: 2,
+      flexPositions: ['RB', 'WR', 'TE'],
       totalOffensiveSlots: 10,
     });
   });
@@ -90,8 +92,8 @@ describe('roster-aware backtest helpers', () => {
     expect(backtestInternals.isLegalCandidate(player('wr2', 'WR'), roster, rules, 1)).toBe(false);
   });
 
-  it('picks the Roster-aware ECR row exactly as before Ranked Fit moved to shared', () => {
-    // The pre-move rule, kept verbatim as the reference: legal candidates by ascending ECR.
+  it('picks the Roster-aware ECR row by the legal-roster rule', () => {
+    // The reference rule: legal candidates by ascending ECR. FLEX counts only players beyond their own fixed starters.
     const positions: readonly OffensivePosition[] = ['QB', 'RB', 'WR', 'TE'];
     const maximums = { QB: 4, RB: 8, WR: 8, TE: 3 } as const;
     const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'BN', 'BN']);
@@ -100,9 +102,8 @@ describe('roster-aware backtest helpers', () => {
       if (size >= rules.totalOffensiveSlots || counts[position] >= maximums[position]) return false;
       const after = { ...counts, [position]: counts[position] + 1 };
       const missingFixed = positions.reduce((sum, item) => sum + Math.max(0, rules.fixedStarters[item] - after[item]), 0);
-      const fixedFlexBase = rules.fixedStarters.RB + rules.fixedStarters.WR + rules.fixedStarters.TE;
-      const filledFlex = Math.min(rules.flexStarters, Math.max(0, after.RB + after.WR + after.TE - fixedFlexBase));
-      return missingFixed + Math.max(0, rules.flexStarters - filledFlex) <= Math.max(0, remaining - 1);
+      const surplusFlex = (['RB', 'WR', 'TE'] as const).reduce((sum, item) => sum + Math.max(0, after[item] - rules.fixedStarters[item]), 0);
+      return missingFixed + Math.max(0, rules.flexStarters - surplusFlex) <= Math.max(0, remaining - 1);
     };
     const available = positions.flatMap((position, index) => [0, 1].map((copy) => ({
       ...player(`${position}-${String(copy)}`, position), predraft_ecr: index * 2 + copy + 1,
@@ -123,6 +124,31 @@ describe('roster-aware backtest helpers', () => {
       }
     }
     expect(checked).toBe(720);
+  });
+
+  it('orders a tied pool the same way as the live Ranked Fit lens', () => {
+    // Every player shares one ECR; input order is neither name nor ID order, so only the shared tie rule decides.
+    const rows = [
+      { ...player('id-3', 'WR'), player_name: 'Cole' },
+      { ...player('id-1', 'RB'), player_name: 'Avery' },
+      { ...player('id-4', 'TE'), player_name: 'Blake' },
+      { ...player('id-2', 'WR'), player_name: 'Avery' },
+      { ...player('id-5', 'QB'), player_name: 'Drew' },
+    ].map((row) => ({ ...row, predraft_ecr: 7 }));
+    const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'BN', 'BN', 'BN']);
+    const roster = backtestInternals.createRoster();
+    const backtestOrder = backtestInternals.rankEcr(rows, roster, rules, 10).map((row) => row.sleeper_player_id);
+    const livePlayers = [...backtestInternals.buildBestPickBoard(rows).values()].reverse();
+    const live = getRecommendations(livePlayers, [], 10, {
+      currentPick: 1,
+      totalPicks: 120,
+      requirements: backtestInternals.pickEvRequirements(rules),
+      rosterCounts: {},
+      selectionsRemaining: 10,
+    }).rankedFit.map((recommendation) => recommendation.playerId);
+
+    expect(backtestOrder).toEqual(['id-1', 'id-2', 'id-4', 'id-3', 'id-5']);
+    expect(live).toEqual(backtestOrder);
   });
 
   it('scores fixed starters and the best remaining flex player', () => {
