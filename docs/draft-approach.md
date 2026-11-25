@@ -56,8 +56,11 @@ beating Ranked Fit on starter points and VOR captured over the full 2026 season,
 with the Best Pick regression gate (`scripts/src/best-pick-backtest-gate.test.ts`)
 passing in CI.
 
-Sessions saved before Ranked Fit existed stored Best Pick because it was the
-default, not a choice, so they open in Ranked Fit; a saved Best Player is kept.
+Sessions saved before Ranked Fit existed always stored a lens, and that format
+could not tell the Best Pick default apart from a deliberate Best Pick choice, so
+both open in Ranked Fit; a saved Best Player was always a choice and is kept.
+Sessions saved since then record the default in force, so a later Best Pick
+choice is kept.
 
 ## Position choices
 

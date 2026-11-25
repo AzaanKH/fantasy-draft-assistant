@@ -51,12 +51,15 @@ probabilities are calculated in
 
 ## Live Decision Policy
 
-The live recommendation engine runs only Best Pick policy. Best Pick combines the ECR Anchor
-with bounded league value, roster fit, tier supply, and Draft Timing over the
-Next-Pick Horizon. Conservative overrides stay near the ECR leader or within
-the permitted tier boundary, except when a legal completed roster requires an
-exception. Best Player remains available as the player-quality comparison:
-it lists the remaining players by expert rank with no roster adjustment.
+The live recommendation engine offers three Decision Lenses. Ranked Fit, the
+default, lists the ECR Anchor order limited to players who keep a legal
+completed roster possible, with no value or timing adjustment. Best Pick combines
+the ECR Anchor with bounded league value, roster fit, tier supply, and Draft
+Timing over the Next-Pick Horizon. Conservative overrides stay near the ECR
+leader or within the permitted tier boundary, except when a legal completed
+roster requires an exception. Best Player remains available as the
+player-quality comparison: it lists the remaining players by expert rank with no
+roster adjustment.
 
 A candidate who fills an open starting slot stays inside the same 8-rank ECR
 window as every other candidate, and the starting-slot bonus keeps one weight
@@ -106,7 +109,7 @@ recommendation step, where the manager's current draft state is known.
 Experimental predictions enter a separate Shadow Recommendation player pool
 when prediction data is ready and shadow logging is enabled. The app logs the
 shadow result beside the live decision for later evaluation. A shadow result
-cannot change the displayed Best Pick or Best Player.
+cannot change the displayed Ranked Fit, Best Pick, or Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
 records validation evidence in

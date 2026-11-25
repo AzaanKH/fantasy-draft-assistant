@@ -44,6 +44,7 @@ Options:
   --available               Exclude drafted players and keeper reservations
   --search TEXT             Search player names, teams, and stable IDs
   --lens ranked-fit|best-pick|best-player
+                            Decision Lens, defaults to ${DEFAULT_DECISION_LENS}
   --limit NUMBER            Result count, defaults to 5 for recommend
   --server-url URL          Local server, also DRAFT_SERVER_URL
   --out FILE                Export path, existing files require --force

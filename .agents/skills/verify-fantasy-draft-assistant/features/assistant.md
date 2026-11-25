@@ -10,7 +10,7 @@ A drafter can inspect the current recommendation, ask four decision questions, c
 - `assistant-questions`: Switch between explanation, comparison, waiting, and roster needs.
 - `assistant-return`: Go back to the draft workspace.
 - `assistant-pool`: Search, filter, sort, select, and expand the recommended player pool.
-- `assistant-views`: Switch between the `Suggestions` and `Position tiers` views and between the Best Pick and Best Player lenses.
+- `assistant-views`: Switch between the `Suggestions` and `Position tiers` views and between the Ranked Fit, Best Pick, and Best Player lenses.
 
 ## How to get to it (user POV)
 
@@ -29,7 +29,7 @@ Preconditions: `control.py doctor "$RUN_ID"` passes, recommendations have loaded
 - `assistant-questions`: On `/assistant`, click the fresh refs for `Compare`, `Can I wait?`, and `Roster needs` one at a time. They are `role="tab"` controls: capture a snapshot after each and require `aria-selected=true` and a changed answer. The Compare answer names two players and offers `Change player`; Can I wait? shows a return probability; roster needs shows the positional depth chart.
 - `assistant-return`: In the Suggestions view, click `Draft board` and require URL `/draft`; separately, use the header's `Draft workspace`. Verify the draft board still shows the same pick and the Queue count is unchanged.
 - `assistant-pool`: Search an observed player using the `Search recommended players` field, clear it, filter a position (`aria-pressed`), switch the native `Sort` select to `Tier first` and back to `Recommendation`, then click another player's row and require the subject line to read `Viewing: <name>`. Click `Show N more players` and require `Show fewer players` with `aria-expanded=true`. Source: `AssistantPage.tsx`.
-- `assistant-views`: Click the `Position tiers` view tab and require `aria-selected=true` and a `Position tiers` heading, then return to `Suggestions`. Toggle `Best Pick` / `Best Player` and require the heading to change. Source: `AssistantPage.tsx`, `AssistantContextBar.tsx`.
+- `assistant-views`: Click the `Position tiers` view tab and require `aria-selected=true` and a `Position tiers` heading, then return to `Suggestions`. Toggle `Ranked Fit` / `Best Pick` / `Best Player` and require the heading to change. Source: `AssistantPage.tsx`, `AssistantContextBar.tsx`.
 
 ## Gotchas
 
