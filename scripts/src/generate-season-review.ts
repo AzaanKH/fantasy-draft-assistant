@@ -7,7 +7,7 @@
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { Clock, Data, Effect } from 'effect';
@@ -134,20 +134,36 @@ export function lastScoredWeek(stateWeek: number, stateSeason: number, season: n
   return 0;
 }
 
+/** Last completed NFL week for player stats: every regular-season week once Sleeper is past the regular season. */
+export function completedNflWeek(stateWeek: number, stateSeason: number, seasonType: string, season: number): number {
+  if (stateSeason > season || (stateSeason === season && seasonType === 'post')) return REGULAR_SEASON_WEEKS;
+  return Math.min(REGULAR_SEASON_WEEKS, stateWeek - 1);
+}
+
 /**
- * The only cutoff the report supports: Sleeper's last completed week, bounded by the league's `last_scored_leg`.
- * Standings, points for/against and max PF come from live roster totals, so an earlier cutoff would mix week-N player
- * and transaction data with current standings; a later one would read unscored weeks.
+ * Two cutoffs. Standings, points for/against and max PF are Sleeper's live roster totals, so they reflect the league's
+ * last scored week (bounded by `last_scored_leg`, which ends before NFL week 18). Player stats, transactions and
+ * pickups may run later, through the last completed NFL week, but never earlier than standings: that would mix
+ * week-N player data with later standings.
  */
-export function resolveThroughWeek(requested: number | null, lastScored: number, lastScoredLeg: number | null): number {
-  const completed = lastScoredLeg === null ? lastScored : Math.min(lastScored, lastScoredLeg);
-  if (completed < 1) throw new SeasonReviewError({ message: 'No scored weeks yet.' });
-  if (requested !== null && requested !== completed) {
+export function resolveCutoffs(
+  requested: number | null,
+  nflCompleted: number,
+  lastScored: number,
+  lastScoredLeg: number | null
+): { readonly stats: number; readonly standings: number } {
+  const standings = lastScoredLeg === null ? lastScored : Math.min(lastScored, lastScoredLeg);
+  if (standings < 1) throw new SeasonReviewError({ message: 'No scored weeks yet.' });
+  const latest = Math.max(standings, nflCompleted);
+  if (requested !== null && requested < standings) {
     throw new SeasonReviewError({
-      message: `--through-week ${String(requested)} is not supported: week ${String(completed)} is the last completed week, and standings are live season totals, so the report runs only through week ${String(completed)}.`,
+      message: `--through-week ${String(requested)} is not supported: standings are live season totals through week ${String(standings)}, so player stats cannot stop earlier.`,
     });
   }
-  return completed;
+  if (requested !== null && requested > latest) {
+    throw new SeasonReviewError({ message: `--through-week ${String(requested)} is not supported: week ${String(latest)} is the last completed NFL week.` });
+  }
+  return { stats: requested ?? latest, standings };
 }
 
 /** Why a FantasyPros snapshot cannot stand in for pre-draft rankings, or null when it can. */
@@ -179,13 +195,13 @@ const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: 
   return null;
 });
 
-/** League data is private: refuse an output directory inside this checkout that git would let someone stage. */
-const assertPrivateOutDir = (outDir: string) => io(async () => {
-  const inside = relative(REPO_ROOT, outDir);
-  if (inside.startsWith('..') || isAbsolute(inside)) return;
-  for (const probe of ['season-review.md', join('raw', 'season-review.json')]) {
-    const ignored = await git(['-C', REPO_ROOT, 'check-ignore', '-q', join(outDir, probe)]).then(() => true, () => false);
-    if (!ignored) throw new SeasonReviewError({ message: `--out ${outDir} is inside the checkout but not git-ignored; private league data could be committed. Use a git-ignored path such as data/season-review/.` });
+/** League data is private: refuse to write any output file inside this checkout that git would let someone stage. */
+export const assertPrivateOutputs = (paths: readonly string[]): Effect.Effect<void, Error> => io(async () => {
+  for (const path of paths) {
+    const inside = relative(REPO_ROOT, path);
+    if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) continue;
+    const ignored = await git(['-C', REPO_ROOT, 'check-ignore', '-q', '--', path]).then(() => true, () => false);
+    if (!ignored) throw new SeasonReviewError({ message: `${path} is inside the checkout but not git-ignored; private league data could be committed. Use a git-ignored --out such as data/season-review/.` });
   }
 });
 
@@ -200,9 +216,12 @@ const readJson = <T>(path: string, decode: (value: unknown) => T) =>
 const readOptionalJson = <T>(path: string | null, decode: (value: unknown) => T) =>
   path && existsSync(path) ? readJson(path, decode) : Effect.succeed(null);
 
-function fetchSleeper<T>(rawDir: string, path: string, decode: (value: unknown) => T, timeoutMs = 20_000) {
+/** Raw provider responses, held until the output paths pass the privacy check: file name → contents. */
+type RawFiles = Map<string, string>;
+
+function fetchSleeper<T>(raw: RawFiles, path: string, decode: (value: unknown) => T, timeoutMs = 20_000) {
   return fetchJson(`${SLEEPER}${path}`, (value: unknown) => value, { label: 'Sleeper API', timeoutMs, retries: 2 }).pipe(
-    Effect.tap((value) => io(() => writeFile(join(rawDir, `${path.replace(/^\//, '').replaceAll('/', '_')}.json`), JSON.stringify(value)))),
+    Effect.tap((value) => Effect.sync(() => raw.set(`${path.replace(/^\//, '').replaceAll('/', '_')}.json`, JSON.stringify(value)))),
     Effect.flatMap((value) => Effect.try({ try: () => decode(value), catch: (cause) => new SeasonReviewError({ message: `Unexpected Sleeper ${path} payload: ${toError(cause).message}` }) })),
   );
 }
@@ -300,33 +319,33 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     return yield* new SeasonReviewError({ message: `primary-league-settings.json is for ${String(settings.season)}, not ${String(season)}` });
   }
   const outDir = options.outDir ?? join(REPO_ROOT, 'data', 'season-review', String(season));
-  yield* assertPrivateOutDir(outDir);
   const rawDir = join(outDir, 'raw');
-  yield* io(() => mkdir(rawDir, { recursive: true }));
+  const raw: RawFiles = new Map();
   if (options.predraftFantasyPros && !existsSync(options.predraftFantasyPros)) {
     return yield* new SeasonReviewError({ message: `Pre-draft FantasyPros snapshot not found at ${options.predraftFantasyPros}.` });
   }
 
   const leagueId = settings.leagueId;
   const [state, league, users, rosters, draft, picks] = yield* Effect.all([
-    fetchSleeper(rawDir, '/state/nfl', decodeSleeperState),
-    fetchSleeper(rawDir, `/league/${leagueId}`, decodeSleeperLeague),
-    fetchSleeper(rawDir, `/league/${leagueId}/users`, decodeSleeperUsers),
-    fetchSleeper(rawDir, `/league/${leagueId}/rosters`, decodeSleeperRosters),
-    fetchSleeper(rawDir, `/draft/${settings.draftId}`, decodeSleeperDraft),
-    fetchSleeper(rawDir, `/draft/${settings.draftId}/picks`, decodeSleeperPicks),
+    fetchSleeper(raw, '/state/nfl', decodeSleeperState),
+    fetchSleeper(raw, `/league/${leagueId}`, decodeSleeperLeague),
+    fetchSleeper(raw, `/league/${leagueId}/users`, decodeSleeperUsers),
+    fetchSleeper(raw, `/league/${leagueId}/rosters`, decodeSleeperRosters),
+    fetchSleeper(raw, `/draft/${settings.draftId}`, decodeSleeperDraft),
+    fetchSleeper(raw, `/draft/${settings.draftId}/picks`, decodeSleeperPicks),
   ], { concurrency: 3 });
   const weeks = Array.from({ length: REGULAR_SEASON_WEEKS }, (_, index) => index + 1)
     .filter((week) => Number(state.season) > season || week <= state.week);
   const matchups = yield* Effect.forEach(weeks, (week) =>
-    fetchSleeper(rawDir, `/league/${leagueId}/matchups/${String(week)}`, decodeSleeperMatchups).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 });
+    fetchSleeper(raw, `/league/${leagueId}/matchups/${String(week)}`, decodeSleeperMatchups).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 });
   const weekPoints = new Map(matchups.map(({ week, rows }) => [week, rows.reduce((sum, row) => sum + (row.points ?? 0), 0)]));
   const lastScoredLeg = league.settings['last_scored_leg'];
-  const throughWeek = yield* Effect.try({
-    try: () => resolveThroughWeek(options.throughWeek, lastScoredWeek(state.week, Number(state.season), season, weekPoints),
-      typeof lastScoredLeg === 'number' ? lastScoredLeg : null),
+  const cutoffs = yield* Effect.try({
+    try: () => resolveCutoffs(options.throughWeek, completedNflWeek(state.week, Number(state.season), state.season_type, season),
+      lastScoredWeek(state.week, Number(state.season), season, weekPoints), typeof lastScoredLeg === 'number' ? lastScoredLeg : null),
     catch: (cause) => cause instanceof SeasonReviewError ? cause : new SeasonReviewError({ message: toError(cause).message }),
   });
+  const throughWeek = cutoffs.stats;
 
   const draftStart = draft.start_time;
   if (draftStart === null || draftStart === undefined) return yield* new SeasonReviewError({ message: 'The Sleeper draft has no start_time to date the pre-draft snapshot against.' });
@@ -341,17 +360,17 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   const scoredWeeks = weeks.filter((week) => week <= throughWeek);
   const [transactions, weeklyStats, players, priorSleeper, priorCsv] = yield* Effect.all([
     Effect.forEach(scoredWeeks, (week) =>
-      fetchSleeper(rawDir, `/league/${leagueId}/transactions/${String(week)}`, decodeSleeperTransactions).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 }),
+      fetchSleeper(raw, `/league/${leagueId}/transactions/${String(week)}`, decodeSleeperTransactions).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 }),
     Effect.forEach(scoredWeeks, (week) =>
-      fetchSleeper(rawDir, `/stats/nfl/regular/${String(season)}/${String(week)}`, decodeSleeperStats, 30_000).pipe(Effect.map((stats) => ({ week, stats: numericStats(stats) }))), { concurrency: 4 }),
-    fetchSleeper(rawDir, '/players/nfl', decodeSleeperPlayers, 90_000),
-    fetchSleeper(rawDir, `/stats/nfl/regular/${String(season - 1)}`, decodeSleeperStats, 30_000),
+      fetchSleeper(raw, `/stats/nfl/regular/${String(season)}/${String(week)}`, decodeSleeperStats, 30_000).pipe(Effect.map((stats) => ({ week, stats: numericStats(stats) }))), { concurrency: 4 }),
+    fetchSleeper(raw, '/players/nfl', decodeSleeperPlayers, 90_000),
+    fetchSleeper(raw, `/stats/nfl/regular/${String(season - 1)}`, decodeSleeperStats, 30_000),
     Effect.tryPromise({
       try: (signal) => http.text(NFLVERSE_PLAYER_STATS(season - 1), { timeoutMs: 60_000, retries: 2, retryAfter: true }, { init: { signal } }),
       catch: (cause) => new SeasonReviewError({ message: `nflverse player stats download failed: ${toError(cause).message}` }),
     }),
   ], { concurrency: 3 });
-  yield* io(() => writeFile(join(rawDir, `nflverse_stats_player_reg_${String(season - 1)}.csv`), priorCsv));
+  raw.set(`nflverse_stats_player_reg_${String(season - 1)}.csv`, priorCsv);
 
   const evidence = yield* slotEvidence(options.dataDir, settings.draftId);
   const manager = resolveManagerSlot(options.managerSlot, evidence);
@@ -363,6 +382,7 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   const inputs: SeasonReviewInputs = {
     season,
     throughWeek,
+    standingsThroughWeek: cutoffs.standings,
     managerSlot: manager.slot,
     managerSlotEvidence: manager.evidence,
     league, users, rosters, draft, picks, weeklyStats, matchups, transactions, players,
@@ -382,8 +402,14 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   const generatedAt = new Date(yield* Clock.currentTimeMillis).toISOString();
   const jsonPath = join(outDir, `season-review-week-${String(throughWeek)}.json`);
   const markdownPath = join(outDir, `season-review-week-${String(throughWeek)}.md`);
-  yield* io(() => writeFile(jsonPath, `${JSON.stringify({ generatedAt, ...review }, null, 2)}\n`));
-  yield* io(() => writeFile(markdownPath, `${renderSeasonReviewMarkdown(review)}\n_Generated ${generatedAt}._\n`));
+  const outputs = new Map([
+    ...[...raw].map(([name, contents]) => [join(rawDir, name), contents] as const),
+    [jsonPath, `${JSON.stringify({ generatedAt, ...review }, null, 2)}\n`],
+    [markdownPath, `${renderSeasonReviewMarkdown(review)}\n_Generated ${generatedAt}._\n`],
+  ]);
+  yield* assertPrivateOutputs([...outputs.keys()]);
+  yield* io(() => mkdir(rawDir, { recursive: true }));
+  for (const [path, contents] of outputs) yield* io(() => writeFile(path, contents));
   yield* Effect.sync(() => {
     console.log(`Season review ${review.meta.label}`);
     console.log(`  Pre-draft rankings: ${predraft.source}`);

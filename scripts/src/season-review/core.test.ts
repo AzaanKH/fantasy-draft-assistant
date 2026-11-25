@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Effect } from 'effect';
 import { DEFAULT_SCORING_RULES, FLEX_GROUPS } from '@fantasy-draft/shared/league';
 import {
   acquisitionSource,
@@ -20,11 +23,13 @@ import {
   type RiskInput,
 } from './core.js';
 import {
+  assertPrivateOutputs,
+  completedNflWeek,
   lastScoredWeek,
   parseSeasonReviewArgs,
   predraftSnapshotProblem,
   resolveManagerSlot,
-  resolveThroughWeek,
+  resolveCutoffs,
 } from '../generate-season-review.js';
 
 const scoring = { pass_yd: 0.04, pass_td: 4, rush_yd: 0.1, rush_td: 6, rush_att: 0.2, rec: 1, rec_yd: 0.1, rec_td: 6, bonus_rec_te: 0.5 };
@@ -196,12 +201,29 @@ describe('season review entry decisions', () => {
     expect(lastScoredWeek(3, 2027, 2026, new Map([[17, 1300], [18, 0]]))).toBe(17);
   });
 
-  it('runs only through the last completed week, bounded by the league last_scored_leg', () => {
-    expect(resolveThroughWeek(null, 12, 11)).toBe(11);
-    expect(resolveThroughWeek(11, 11, null)).toBe(11);
-    expect(() => resolveThroughWeek(12, 12, 11)).toThrow('last completed week');
-    expect(() => resolveThroughWeek(9, 11, 11)).toThrow('standings are live');
-    expect(() => resolveThroughWeek(null, 0, null)).toThrow('No scored weeks');
+  it('keeps player stats through the last completed NFL week, never earlier than live standings', () => {
+    expect(completedNflWeek(12, 2026, 'regular', 2026)).toBe(11);
+    expect(completedNflWeek(18, 2026, 'post', 2026)).toBe(18);
+    expect(completedNflWeek(1, 2027, 'pre', 2026)).toBe(18);
+    expect(resolveCutoffs(null, 11, 11, 17)).toEqual({ stats: 11, standings: 11 });
+    // Full-season rerun: the league's playoffs end at last_scored_leg 17, NFL stats run through week 18.
+    expect(resolveCutoffs(18, 18, 17, 17)).toEqual({ stats: 18, standings: 17 });
+    expect(resolveCutoffs(null, 18, 17, 17)).toEqual({ stats: 18, standings: 17 });
+    expect(resolveCutoffs(17, 18, 17, 17)).toEqual({ stats: 17, standings: 17 });
+    expect(() => resolveCutoffs(16, 18, 17, 17)).toThrow('standings are live');
+    expect(() => resolveCutoffs(12, 11, 11, 17)).toThrow('last completed NFL week');
+    expect(() => resolveCutoffs(null, 0, 0, null)).toThrow('No scored weeks');
+  });
+
+  it('refuses any output file inside the checkout that git does not ignore', async () => {
+    const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+    const run = (paths: readonly string[]) => Effect.runPromiseExit(assertPrivateOutputs(paths));
+    // `..season-review` starts with dots but is a directory inside the checkout.
+    const leaked = await run([join(root, '..season-review', 'season-review-week-11.md')]);
+    expect(leaked._tag).toBe('Failure');
+    const ignored = await run([join(root, 'data', 'season-review', '2026', 'season-review-week-11.md'), join(root, 'data', 'season-review', '2026', 'raw', 'state_nfl.json')]);
+    expect(ignored._tag).toBe('Success');
+    expect((await run([join(root, '..', 'outside-checkout', 'season-review-week-11.md')]))._tag).toBe('Success');
   });
 
   it('accepts only a same-season FantasyPros snapshot refreshed before the draft', () => {

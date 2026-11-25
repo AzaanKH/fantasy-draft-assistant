@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pseudonymizeUserId } from '../import-league-draft-history.js';
-import { buildSeasonReview } from './analysis.js';
+import { buildBestPickBoard, buildSeasonReview, nextPickSurvival, type PredraftPlayer } from './analysis.js';
+import { conditionalSurvival } from './core.js';
 import type { SeasonReviewInputs } from './inputs.js';
 
 // Two teams, seven rounds: QB RB WR TE FLEX K BN. The manager (slot 1, roster 1) keeps a TE charged at pick 13.
@@ -47,6 +48,7 @@ function fixture(): SeasonReviewInputs {
   return {
     season: 2026,
     throughWeek: 1,
+    standingsThroughWeek: 1,
     managerSlot: 1,
     managerSlotEvidence: ['test'],
     league: {
@@ -109,6 +111,19 @@ describe('season review assembly', () => {
     const picks = buildSeasonReview(fixture()).picks;
     expect(picks.find((pick) => pick.playerId === 'WRa')?.adpDelta).toBe(-0.4);
     expect(picks.find((pick) => pick.playerId === 'QBa')?.adpDelta).toBe(-4.5);
+  });
+
+  it('feeds the Best Pick replay average pick, not ordinal ADP rank, wherever it needs a pick number', () => {
+    const player: PredraftPlayer = {
+      playerId: 'WRz', fantasyProsId: 'fp-WRz', name: 'WRz', position: 'WR', team, ecrRank: 120, ecrPositionRank: 40,
+      bestRank: null, worstRank: null, avgRank: null, adpRank: 130, adpPick: 136.4, projection: 100, projectionStats: {},
+    };
+    const boardPlayer = buildBestPickBoard(new Map([[player.playerId, player]]), new Map([['WR', 50]])).get('WRz');
+    expect(boardPlayer?.marketAdp).toBe(136.4);
+    expect(boardPlayer?.sleeperAdp).toBe(136.4);
+    expect(boardPlayer?.marketRank).toBe(130);
+    expect(nextPickSurvival(player, 125, 140)).toBe(conditionalSurvival(136.4, 125, 140));
+    expect(nextPickSurvival(player, 125, 140)).not.toBe(conditionalSurvival(130, 125, 140));
   });
 
   it('ranks drafted players without a stat line and counts them in the hit-rate denominator', () => {

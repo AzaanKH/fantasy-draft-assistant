@@ -111,7 +111,7 @@ function learnings(review: SeasonReview): string[] {
 
   out.push('', '### (c) Re-run after week 18', '');
   out.push(
-    '- `pnpm report:season-review -- --season 2026 --through-week 18` (full regular season); all season-to-date numbers here are provisional.',
+    '- `pnpm report:season-review -- --season 2026 --through-week 18` (full NFL regular season; standings stop at the league last_scored_leg); all season-to-date numbers here are provisional.',
     '- The 2026 provisional prospective backtest fold (owned elsewhere) — compare its roster-aware ECR and Best Pick rows with the counterfactual table here.',
     '- Re-score risk hit rates and per-position ECR correlations with full-season games played; injuries after week 11 will move several categories.',
     '- Refresh manager tendencies with the final 2026 transaction log before the 2027 keeper deadline.',

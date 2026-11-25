@@ -217,6 +217,7 @@ export interface SeasonReview {
   readonly meta: {
     readonly season: number;
     readonly throughWeek: number;
+    readonly standingsThroughWeek: number;
     readonly label: string;
     readonly managerSlot: number;
     readonly managerRosterId: number;
@@ -423,17 +424,25 @@ function requirementsFor(rules: RosterRules): RosterRequirements {
   };
 }
 
+/** Pick-number market cost: FantasyPros average pick, falling back to expert rank. Ordinal ADP rank only orders players. */
+const marketPick = (player: { readonly adpPick: number | null; readonly ecrRank: number }) => player.adpPick ?? player.ecrRank;
+
+/** Return probability for the replay: chance the player survives from this pick to the manager's next one. */
+export function nextPickSurvival(player: { readonly adpPick: number | null; readonly ecrRank: number }, pickNo: number, nextPick: number | null): number {
+  return nextPick === null ? 0 : conditionalSurvival(marketPick(player), pickNo, nextPick);
+}
+
 /**
  * The shipped Best Pick rule on the pre-draft board, built the way the recommendation backtest builds historical
  * boards: expert rank, league-scored projection and its VOR, FantasyPros ADP as market cost, and neutral live inputs.
  */
-function buildBestPickBoard(predraft: ReadonlyMap<string, PredraftPlayer>, projectionReplacement: ReadonlyMap<string, number>): Map<string, BoardPlayer> {
+export function buildBestPickBoard(predraft: ReadonlyMap<string, PredraftPlayer>, projectionReplacement: ReadonlyMap<string, number>): Map<string, BoardPlayer> {
   const players = [...predraft.values()]
     .sort((a, b) => a.ecrRank - b.ecrRank)
     .flatMap((player): BoardPlayer[] => {
       const position = player.position;
       if (!isOffensive(position)) return [];
-      const market = player.adpRank ?? player.ecrRank;
+      const market = marketPick(player);
       const projected = player.projection ?? 0;
       return [{
         id: player.playerId,
@@ -445,7 +454,7 @@ function buildBestPickBoard(predraft: ReadonlyMap<string, PredraftPlayer>, proje
         positionalRank: asRank(player.ecrPositionRank ?? player.ecrRank),
         sleeperAdp: market,
         valueScore: 0,
-        marketRank: market,
+        marketRank: player.adpRank ?? player.ecrRank,
         marketAdp: market,
         marketAdpTrend: 0,
         isContractYear: false,
@@ -714,7 +723,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     const available = (state: StrategyState) => [...predraft.values()].flatMap((player) => {
       const position = player.position;
       if (!isOffensive(position) || takenByOthers.has(player.playerId) || keeperIds.has(player.playerId) || state.selected.has(player.playerId)) return [];
-      return [{ playerId: player.playerId, position, ecrRank: player.ecrRank, adpRank: player.adpRank }];
+      return [{ playerId: player.playerId, position, ecrRank: player.ecrRank, adpPick: player.adpPick }];
     });
     const replayIndex = replayable.indexOf(pick.pickNo);
     const selectionsLeft = replayable.length - replayIndex;
@@ -732,7 +741,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       const boardPlayer = board.get(player.playerId);
       return boardPlayer ? [{
         ...boardPlayer,
-        nextPickSurvivalProbability: asProbability(nextPick === null ? 0 : conditionalSurvival(player.adpRank ?? player.ecrRank, pick.pickNo, nextPick)),
+        nextPickSurvivalProbability: asProbability(nextPickSurvival(player, pick.pickNo, nextPick)),
       }] : [];
     });
     const result = getRecommendations(boardPlayers, [], 1, {
@@ -1079,6 +1088,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     meta: {
       season: inputs.season,
       throughWeek: inputs.throughWeek,
+      standingsThroughWeek: inputs.standingsThroughWeek,
       label: `through week ${String(inputs.throughWeek)}`,
       managerSlot: inputs.managerSlot,
       managerRosterId,
@@ -1090,6 +1100,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       replacementLevels: Object.fromEntries(replacement),
       caveats: [
         `Season-to-date only: ${String(inputs.throughWeek)} scored weeks; playoffs and late-season injuries can reorder everything.`,
+        ...(inputs.standingsThroughWeek < inputs.throughWeek ? [`Standings, W-L and points for/against are the league's totals through week ${String(inputs.standingsThroughWeek)} (its last scored week); player stats run through week ${String(inputs.throughWeek)}.`] : []),
         `n = ${String(teams)} teams and one draft; team-level strategy comparisons are anecdotes, not evidence.`,
         'Points are league-scored from Sleeper weekly stats (verified equal to Sleeper matchup players_points for rostered players).',
         'Counterfactuals hold opponents\' picks fixed; a player a strategy takes early is not replaced on the opponent\'s roster.',

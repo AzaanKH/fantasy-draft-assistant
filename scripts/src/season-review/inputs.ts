@@ -193,6 +193,8 @@ export interface HistorySeason {
 export interface SeasonReviewInputs {
   readonly season: number;
   readonly throughWeek: number;
+  /** Week the live standings reflect; `throughWeek` (player stats) may run past it, never before. */
+  readonly standingsThroughWeek: number;
   readonly managerSlot: number;
   readonly managerSlotEvidence: readonly string[];
   readonly league: SleeperLeague;

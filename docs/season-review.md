@@ -32,13 +32,16 @@ Your draft slot comes from `isMyKeeper` in `league-history/current-keepers.json`
 and `managerDraftSlot` in matching rehearsal evidence. When they disagree or are
 missing the script stops; pass `--manager-slot`.
 
-The report runs through the last completed week: the last fully scored week
-before Sleeper's current week, capped at the league's `last_scored_leg`.
-Standings, points for/against and max PF are Sleeper's live season totals, so
-`--through-week` is accepted only when it names that week; earlier or later
-cutoffs are rejected rather than mixing weeks. `--out` defaults to
+The report keeps two cutoffs. Standings, points for/against and max PF are
+Sleeper's live season totals, so they reflect the league's last fully scored
+week, capped at its `last_scored_leg` (17 here: league playoffs end before NFL
+week 18). Player stats, transactions and pickups run through `--through-week`,
+which defaults to the last completed NFL week and may be any week from the
+standings week up to it, so `--through-week 18` reruns the full regular season.
+Earlier cutoffs are rejected rather than mixing weeks. `--out` defaults to
 `data/season-review/<year>/`, which is gitignored and classified private in the
-data catalog; a destination inside the checkout that git does not ignore is
+data catalog. Every output file is checked with `git check-ignore` before
+anything is written, and one inside the checkout that git does not ignore is
 refused. Raw provider responses land in `raw/`, and the report is written as
 `season-review-week-<n>.json` and `.md`.
 
