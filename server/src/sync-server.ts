@@ -52,10 +52,11 @@ const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
 );
 const MAX_JSON_BODY_BYTES = 256 * 1024;
 /**
- * Poll interval once the provider reports the draft complete. It stays under the CLI `draft watch` 30 s idle timeout
- * (cli/src/client.ts idleMs), so each poll's heartbeat keeps idle streams connected without a separate keepalive.
+ * Poll interval once the provider reports the draft complete. Each poll's heartbeat keeps CLI `draft watch` streams
+ * connected without a separate keepalive, so the gap between frames must stay under its 30 s idle timeout
+ * (cli/src/client.ts idleMs): 15 s sleep + 10 s worst-case request timeout = 25 s < 30 s.
  */
-const COMPLETED_DRAFT_POLL_INTERVAL_MS = 20_000;
+const COMPLETED_DRAFT_POLL_INTERVAL_MS = 15_000;
 
 interface ClientConnection {
   readonly id: number;

@@ -2,6 +2,7 @@ import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-js
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Effect, Layer, ManagedRuntime } from 'effect';
+import { TestClock } from 'effect/testing';
 import type { ServerResponse } from 'node:http';
 import { Writable } from 'node:stream';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -798,44 +799,62 @@ describe('createSyncServer', () => {
 });
 
 describe('draft session polling', () => {
-  // 1 ms normal interval, 200 ms once complete: the production 1 s / 20 s ratio, scaled for real timers.
-  const completedIntervalMs = 200;
+  // The production 1 s / 15 s intervals on a TestClock, so no assertion depends on real timer scheduling.
+  const normalIntervalMs = 1_000;
+  const completedIntervalMs = 15_000;
+  // Far beyond every clock adjustment below, so the request timeout never fires.
+  const requestTimeoutMs = 3_600_000;
 
   function startSession(draftStatus: () => 'drafting' | 'complete') {
     const fixtureFetch = createMockFetchJson();
-    const pollTimes: number[] = [];
+    let polls = 0;
     const adapter = new SleeperSyncAdapter('fixture-draft', fixtureFetchJson(async (url: string, signal: AbortSignal): Promise<unknown> => {
       if (url.endsWith('/draft/fixture-draft')) {
-        pollTimes.push(Date.now());
+        polls += 1;
         return { ...draftFixture, status: draftStatus() };
       }
       // The first poll reads picks just before the final one lands, as Sleeper's parallel requests can.
-      if (url.endsWith('/picks') && pollTimes.length <= 1) return picksFixture.slice(0, -1);
+      if (url.endsWith('/picks') && polls <= 1) return picksFixture.slice(0, -1);
       return fixtureFetch(url, signal);
     }));
-    const runtime = ManagedRuntime.make(Layer.empty);
+    const runtime = ManagedRuntime.make(TestClock.layer() as unknown as Layer.Layer<never>);
     const session = new syncServerInternals.DraftSession(
-      'sleeper', 'fixture-draft', adapter, 1, 1_000, 1 << 20, runtime, completedIntervalMs,
+      'sleeper', 'fixture-draft', adapter, normalIntervalMs, requestTimeoutMs, 1 << 20, runtime, completedIntervalMs,
     );
     const frames: string[] = [];
     const client = new Writable({ write(chunk: Buffer, _encoding, callback) { frames.push(chunk.toString()); callback(); } });
     session.addClient(client as unknown as ServerResponse);
+    const sleeping = () => (session as unknown as { pollSleeping: boolean }).pollSleeping;
+    /** Wait until poll number `count` has finished and the loop is asleep on the clock. */
+    const settledAfter = (count: number) => vi.waitFor(() => {
+      expect(polls).toBe(count);
+      expect(sleeping()).toBe(true);
+    });
+    /** Advance virtual time, then give any woken poll a chance to start. */
+    const advance = async (ms: number) => {
+      await runtime.runPromise(TestClock.adjust(ms));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    };
     const dispose = async () => { session.dispose(); await runtime.dispose(); };
-    return { session, pollTimes, frames, dispose };
+    return { session, frames, polls: () => polls, sleeping, settledAfter, advance, dispose };
   }
 
   it('polls a completed draft at the slow interval and still sends heartbeats', async () => {
-    const { session, pollTimes, frames, dispose } = startSession(() => 'complete');
+    const { session, frames, polls, sleeping, settledAfter, advance, dispose } = startSession(() => 'complete');
     try {
-      await vi.waitFor(() => { expect(pollTimes.length).toBeGreaterThanOrEqual(3); }, { timeout: 2_000 });
-      // Each poll after completion waited the slow interval (timers never fire early; allow 1 ms rounding).
-      expect(pollTimes[1]! - pollTimes[0]!).toBeGreaterThanOrEqual(completedIntervalMs - 1);
-      expect(pollTimes[2]! - pollTimes[1]!).toBeGreaterThanOrEqual(completedIntervalMs - 1);
-      // The final pick missed by the first poll arrives on a later one.
+      await settledAfter(1);
+      await advance(completedIntervalMs - 1);
+      expect(polls()).toBe(1);
+      expect(sleeping()).toBe(true);
+      await advance(1);
+      await settledAfter(2);
+      // The final pick missed by the first poll arrives on the next one.
       expect(session.getSnapshot().picks).toHaveLength(picksFixture.length);
       expect(frames.some((frame) => frame.includes('"type":"pick"'))).toBe(true);
       // An unchanged completed draft still produces per-poll heartbeats, which keep idle CLI streams open.
-      await vi.waitFor(() => { expect(frames.some((frame) => frame.includes('"type":"heartbeat"'))).toBe(true); });
+      await advance(completedIntervalMs);
+      await settledAfter(3);
+      expect(frames.some((frame) => frame.includes('"type":"heartbeat"'))).toBe(true);
     } finally {
       await dispose();
     }
@@ -843,14 +862,18 @@ describe('draft session polling', () => {
 
   it('returns to the normal interval when a later poll shows the draft not complete', async () => {
     let status: 'drafting' | 'complete' = 'complete';
-    const { pollTimes, dispose } = startSession(() => status);
+    const { polls, sleeping, settledAfter, advance, dispose } = startSession(() => status);
     try {
-      await vi.waitFor(() => { expect(pollTimes.length).toBeGreaterThanOrEqual(1); });
+      await settledAfter(1);
       status = 'drafting';
-      await vi.waitFor(() => { expect(pollTimes.length).toBeGreaterThanOrEqual(12); }, { timeout: 2_000 });
-      expect(pollTimes[1]! - pollTimes[0]!).toBeGreaterThanOrEqual(completedIntervalMs - 1);
-      // Ten polls after the draft reopened fit well inside one slow interval.
-      expect(pollTimes[11]! - pollTimes[1]!).toBeLessThan(completedIntervalMs);
+      await advance(completedIntervalMs);
+      await settledAfter(2);
+      // The reopened draft is polled again after one normal interval, not the slow one.
+      await advance(normalIntervalMs - 1);
+      expect(polls()).toBe(2);
+      expect(sleeping()).toBe(true);
+      await advance(1);
+      await settledAfter(3);
     } finally {
       await dispose();
     }
