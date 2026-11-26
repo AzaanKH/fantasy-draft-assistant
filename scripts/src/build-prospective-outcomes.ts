@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect } from 'effect';
 import { decodeBacktestLeagueHistory } from './script-file-schemas.js';
-import { DATA_DIR, runStatements, withModelDb } from './model/duckdb.js';
+import { DATA_DIR, runStatementsInTransaction, withModelDb } from './model/duckdb.js';
 import { PROSPECTIVE_FIRST_SEASON, prospectiveOutcomeStatements } from './model/prospective-fold.js';
 import { io, isEntryPoint, runMain } from './effect-runtime.js';
 
@@ -20,7 +20,8 @@ const program = Effect.gen(function* () {
     return;
   }
   yield* withModelDb((connection) => io(async () => {
-    await runStatements(connection, prospectiveOutcomeStatements(seasons));
+    // One transaction, so the season status never describes a different refresh than the player outcomes.
+    await runStatementsInTransaction(connection, prospectiveOutcomeStatements(seasons));
     const status = await connection.runAndReadAll('select * from model.prospective_season_status order by season');
     for (const row of status.getRowObjects()) {
       console.log(

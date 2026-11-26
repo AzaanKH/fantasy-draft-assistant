@@ -140,3 +140,18 @@ export async function runStatements(
     await connection.run(statement);
   }
 }
+
+/** Runs the statements as one transaction: either every table they replace is published, or none is. */
+export async function runStatementsInTransaction(
+  connection: DuckDBConnection,
+  statements: readonly string[]
+): Promise<void> {
+  await connection.run('begin transaction');
+  try {
+    await runStatements(connection, statements);
+  } catch (error) {
+    await connection.run('rollback');
+    throw error;
+  }
+  await connection.run('commit');
+}
