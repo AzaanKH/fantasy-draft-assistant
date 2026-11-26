@@ -625,3 +625,17 @@ describe('prospective board', () => {
     expect(after).toEqual(before);
   });
 });
+
+describe('unknownOutcomeReason', () => {
+  const { unknownOutcomeReason } = backtestInternals;
+  it('names rostered unknowns when no board player is unknown', () => {
+    expect(unknownOutcomeReason({ boardUnknownOutcomes: 0, unknownOutcomeRosters: { actual: 1 } }))
+      .toBe('rostered players have unknown outcomes (actual 1)');
+  });
+  it('names board unknowns, with rostered ones when present', () => {
+    expect(unknownOutcomeReason({ boardUnknownOutcomes: 2, unknownOutcomeRosters: {} }))
+      .toBe('2 board players have unknown outcomes, which leaves replacement levels, ranks and regret unscored');
+    expect(unknownOutcomeReason({ boardUnknownOutcomes: 1, unknownOutcomeRosters: { rosterAwareEcr: 1 } }))
+      .toBe('1 board players have unknown outcomes, which leaves replacement levels, ranks and regret unscored (rostered by rosterAwareEcr 1)');
+  });
+});

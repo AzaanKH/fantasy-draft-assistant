@@ -1199,6 +1199,20 @@ function prospectiveFoldStanding(
  * withheld or unevaluated one reports `passed: null` and no checks, so nothing computed from an incomplete comparison
  * can be read as a gate result.
  */
+/** Why a prospective fold's comparison is incomplete: unknown board outcomes, rostered unknowns, or both. */
+function unknownOutcomeReason(fold: {
+  readonly boardUnknownOutcomes: number;
+  readonly unknownOutcomeRosters: Readonly<Record<string, number>>;
+}): string {
+  const rostered = Object.entries(fold.unknownOutcomeRosters)
+    .map(([strategy, count]) => `${strategy} ${String(count)}`).join(', ');
+  const board = fold.boardUnknownOutcomes > 0
+    ? `${String(fold.boardUnknownOutcomes)} board players have unknown outcomes, which leaves replacement levels, ranks and regret unscored`
+    : '';
+  if (board && rostered) return `${board} (rostered by ${rostered})`;
+  return board || `rostered players have unknown outcomes (${rostered})`;
+}
+
 function prospectiveReleaseGate<Checks extends Readonly<Record<string, boolean>>>(
   strategyComparison: 'evaluated' | 'incomplete' | 'not evaluated',
   checks: Checks
@@ -2303,9 +2317,7 @@ async function main(): Promise<void> {
 - ${fold.strategyComparison === 'not evaluated'
     ? 'Excluded from the release gate: no ranked draft-day board, so the strategies were not compared; only the actual draft is scored.'
     : fold.strategyComparison === 'incomplete'
-    ? `Release gate withheld: the comparison is incomplete because ${String(fold.boardUnknownOutcomes)} board players have unknown outcomes, which leaves replacement levels, ranks and regret unscored${
-      Object.keys(fold.unknownOutcomeRosters).length === 0 ? '' : ` (rostered by ${
-      Object.entries(fold.unknownOutcomeRosters).map(([strategy, count]) => `${strategy} ${String(count)}`).join(', ')})`}.`
+    ? `Release gate withheld: the comparison is incomplete because ${unknownOutcomeReason(fold)}.`
     : fold.countsTowardReleaseGate
     ? `Counts toward the release gate: all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats.`
     : `Excluded from the release gate until all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats; the numbers move each week.`}
@@ -2572,7 +2584,7 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
           `release gate ${fold.releaseGate.passed ? 'PASS' : 'FAIL'}${fold.countsTowardReleaseGate ? '' : ' (not counted)'}`
         : fold.strategyComparison === 'incomplete'
         ? `Prospective ${String(fold.season)} (${fold.status}): release gate withheld (` +
-          `${String(fold.boardUnknownOutcomes)} board players with unknown outcomes).`
+          `${unknownOutcomeReason(fold)}).`
         : `Prospective ${String(fold.season)} (${fold.status}): release gate not evaluated (no ranked draft-day board).`);
     }
     console.log(`Best Pick regression gate: ${bestPickGateProblems.length === 0 ? 'PASS' : 'FAIL'}`);
@@ -2583,6 +2595,7 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
 }
 
 export const backtestInternals = {
+  unknownOutcomeReason,
   createRoster,
   deriveRosterRules,
   missingRequiredSlots,
