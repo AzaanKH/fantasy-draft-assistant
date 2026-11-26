@@ -32,9 +32,29 @@ const readRepoSource: ReadSource = (path) => readFileSync(join(REPO_ROOT, path),
 const SHARED_PACKAGE = '@fantasy-draft/shared';
 const SHARED_MANIFEST = 'shared/package.json';
 const SOURCE_CONDITION = '@fantasy-draft/source';
+/** The conditions Node matches under `tsx --conditions=@fantasy-draft/source`; the first one listed in an entry wins. */
+const RUNTIME_CONDITIONS = new Set([SOURCE_CONDITION, 'node', 'import', 'module-sync', 'default']);
+
+/** The replay script and the function it scores Best Pick with; the gate checks this entry lands on a hashed root. */
+export const BEST_PICK_REPLAY_SCRIPT = 'scripts/src/backtest-recommendations.ts';
+const BEST_PICK_REPLAY_EXPORT = 'getRecommendations';
+
+function parseSource(path: string, text: string): ts.SourceFile {
+  return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+
+const COMMONJS_CALLEES = new Set(['require', 'createRequire']);
+
+function isCommonJsLoad(node: ts.CallExpression): boolean {
+  const callee = node.expression;
+  if (ts.isIdentifier(callee)) return COMMONJS_CALLEES.has(callee.text);
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  return COMMONJS_CALLEES.has(callee.name.text) ||
+    (ts.isIdentifier(callee.expression) && callee.expression.text === 'require');
+}
 
 function runtimeImportSpecifiers(path: string, text: string): string[] {
-  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const source = parseSource(path, text);
   const specifiers: string[] = [];
   for (const statement of source.statements) {
     if (ts.isImportDeclaration(statement)) {
@@ -45,6 +65,16 @@ function runtimeImportSpecifiers(path: string, text: string): string[] {
     }
   }
   const visit = (node: ts.Node): void => {
+    if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
+      throw new Error(
+        `${path} loads a module with \`${node.getText(source)}\`; the Best Pick gate does not follow CommonJS loads.`
+      );
+    }
+    if (ts.isCallExpression(node) && isCommonJsLoad(node)) {
+      throw new Error(
+        `${path} calls ${node.expression.getText(source)}(); the Best Pick gate does not follow CommonJS loads.`
+      );
+    }
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       const [argument] = node.arguments;
       if (!argument || !ts.isStringLiteralLike(argument)) {
@@ -61,22 +91,46 @@ function runtimeImportSpecifiers(path: string, text: string): string[] {
   return specifiers;
 }
 
-/** Resolves `@fantasy-draft/shared/<subpath>` through the source condition of shared/package.json `exports`. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Resolves `@fantasy-draft/shared/<subpath>` the way Node does under the source condition: the exact subpath entry,
+ * then its first key among the runtime conditions. Only the simple shape the repo uses is accepted (an exact subpath
+ * whose first runtime condition is `@fantasy-draft/source` with a string target); anything else fails closed.
+ */
 function resolveSharedSelfImport(from: string, specifier: string, read: ReadSource): string {
   const subpath = specifier === SHARED_PACKAGE ? '.' : `.${specifier.slice(SHARED_PACKAGE.length)}`;
+  const fail = (reason: string): never => {
+    throw new Error(`${from} imports ${specifier}, which ${reason}`);
+  };
   let manifest: unknown;
   try {
     manifest = JSON.parse(read(SHARED_MANIFEST));
   } catch {
     manifest = undefined;
   }
-  const field = (value: unknown, key: string): unknown =>
-    value !== null && typeof value === 'object' && Object.hasOwn(value, key)
-      ? (value as Record<string, unknown>)[key]
-      : undefined;
-  const target = field(field(field(manifest, 'exports'), subpath), SOURCE_CONDITION);
+  const exportsField = isRecord(manifest) ? manifest['exports'] : undefined;
+  if (!isRecord(exportsField) || !Object.keys(exportsField).every((key) => key.startsWith('.'))) {
+    return fail(`the Best Pick gate cannot resolve: ${SHARED_MANIFEST} "exports" is not a subpath map.`);
+  }
+  const entry = Object.hasOwn(exportsField, subpath) ? exportsField[subpath] : undefined;
+  if (entry === undefined) {
+    if (Object.keys(exportsField).some((key) => key.includes('*'))) {
+      return fail(`${SHARED_MANIFEST} may match through a wildcard subpath, which the Best Pick gate does not support.`);
+    }
+    return fail(`${SHARED_MANIFEST} does not export from source.`);
+  }
+  if (!isRecord(entry)) {
+    return fail(`the Best Pick gate cannot resolve: ${SHARED_MANIFEST} exports "${subpath}" is not a condition map.`);
+  }
+  const condition = Object.keys(entry).find((key) => RUNTIME_CONDITIONS.has(key));
+  if (condition !== SOURCE_CONDITION) {
+    return fail(`${SHARED_MANIFEST} does not export from source: Node selects "${condition ?? 'nothing'}" first.`);
+  }
+  const target = entry[condition];
   if (typeof target !== 'string') {
-    throw new Error(`${from} imports ${specifier}, which ${SHARED_MANIFEST} does not export from source.`);
+    return fail(`the Best Pick gate cannot resolve: the "${SOURCE_CONDITION}" target is not a plain path.`);
   }
   const resolved = posix.normalize(posix.join('shared', target));
   if (resolved.startsWith(POLICY_SOURCE_ROOT)) {
@@ -87,10 +141,13 @@ function resolveSharedSelfImport(from: string, specifier: string, read: ReadSour
       // Fall through to the unresolvable error.
     }
   }
-  throw new Error(`${from} imports ${specifier}, which the Best Pick gate cannot resolve within shared/src.`);
+  return fail('the Best Pick gate cannot resolve within shared/src.');
 }
 
 function resolvePolicyImport(from: string, specifier: string, read: ReadSource): string {
+  if (specifier.startsWith('#') || specifier.startsWith('/') || specifier.startsWith('file:')) {
+    throw new Error(`${from} imports ${specifier}; the Best Pick gate does not follow package imports or absolute paths.`);
+  }
   if (!specifier.startsWith('.')) {
     if (specifier === SHARED_PACKAGE || specifier.startsWith(`${SHARED_PACKAGE}/`)) {
       return resolveSharedSelfImport(from, specifier, read);
@@ -121,8 +178,9 @@ function resolvePolicyImport(from: string, specifier: string, read: ReadSource):
  * Every shared/src file whose content decides what Best Pick recommends: the roots and their runtime import graph.
  * The walk follows static imports, re-exports and string-literal dynamic `import()` calls, resolving relative
  * specifiers and `@fantasy-draft/shared/<subpath>` self-imports to shared/src. Type-only imports are skipped because
- * they emit no code. An import the walk cannot resolve, or a dynamic `import()` with a computed specifier, throws, so a
- * new dependency can never fall outside the digest silently.
+ * they emit no code. Anything the walk cannot follow throws, so a new dependency can never fall outside the digest
+ * silently: an unresolvable import, a computed dynamic `import()`, a CommonJS load (`require`, `createRequire`,
+ * `import x = require()`), a `#` package import, or an export-map entry other than a plain source-condition path.
  */
 export function bestPickPolicySources(read: ReadSource = readRepoSource): string[] {
   const seen = new Set<string>();
@@ -137,6 +195,98 @@ export function bestPickPolicySources(read: ReadSource = readRepoSource): string
     }
   }
   return [...seen].sort();
+}
+
+function hasExportModifier(node: ts.Node): boolean {
+  return ts.canHaveModifiers(node) &&
+    (ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false);
+}
+
+/** Whether `file` declares `name` itself with `export function|class|const name`. */
+function declaresExport(source: ts.SourceFile, name: string): boolean {
+  return source.statements.some((statement) => {
+    if (!hasExportModifier(statement)) return false;
+    if (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) return statement.name?.text === name;
+    if (ts.isVariableStatement(statement)) {
+      return statement.declarationList.declarations.some((declaration) =>
+        ts.isIdentifier(declaration.name) && declaration.name.text === name);
+    }
+    return false;
+  });
+}
+
+/** The `export { local as name } from '...'` that re-exports `name`, if any. */
+function reExportOf(source: ts.SourceFile, name: string): { specifier: string; local: string } | undefined {
+  for (const statement of source.statements) {
+    if (!ts.isExportDeclaration(statement) || statement.isTypeOnly || !statement.moduleSpecifier) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier) || !statement.exportClause) continue;
+    if (!ts.isNamedExports(statement.exportClause)) continue;
+    const element = statement.exportClause.elements.find((candidate) => candidate.name.text === name);
+    if (element && !element.isTypeOnly) {
+      return { specifier: statement.moduleSpecifier.text, local: element.propertyName?.text ?? name };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The files the replay's `getRecommendations` import passes through, from the package entry it names to the file that
+ * declares the function. The replay reaches the policy through shared's export map and barrel re-exports rather than
+ * through the hashed roots directly, so this throws unless that chain ends in a hashed root. Barrel files on the
+ * chain are checked rather than hashed: they re-export the whole package, and hashing them would put unrelated code in
+ * the digest. Only `export function|class|const` declarations and named `export { ... } from` re-exports are
+ * followed; anything else (`export *`, local re-export lists, default exports) fails closed.
+ */
+export function bestPickReplayEntryChain(read: ReadSource = readRepoSource): string[] {
+  const script = parseSource(BEST_PICK_REPLAY_SCRIPT, read(BEST_PICK_REPLAY_SCRIPT));
+  const specifiers = script.statements.flatMap((statement) => {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) return [];
+    const clause = statement.importClause;
+    if (!clause || clause.phaseModifier === ts.SyntaxKind.TypeKeyword) return [];
+    const bindings = clause.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) return [];
+    const imported = bindings.elements.some((element) =>
+      !element.isTypeOnly && (element.propertyName ?? element.name).text === BEST_PICK_REPLAY_EXPORT);
+    return imported ? [statement.moduleSpecifier.text] : [];
+  });
+  const [specifier] = specifiers;
+  if (specifier === undefined || specifiers.length > 1) {
+    throw new Error(
+      `${BEST_PICK_REPLAY_SCRIPT} must import ${BEST_PICK_REPLAY_EXPORT} by name exactly once for the Best Pick gate ` +
+        `to trace it; found ${String(specifiers.length)} imports.`
+    );
+  }
+  if (specifier !== SHARED_PACKAGE && !specifier.startsWith(`${SHARED_PACKAGE}/`)) {
+    throw new Error(
+      `${BEST_PICK_REPLAY_SCRIPT} imports ${BEST_PICK_REPLAY_EXPORT} from ${specifier}; the Best Pick gate only ` +
+        `traces imports from ${SHARED_PACKAGE}.`
+    );
+  }
+  const chain: string[] = [];
+  let file = resolveSharedSelfImport(BEST_PICK_REPLAY_SCRIPT, specifier, read);
+  let name: string = BEST_PICK_REPLAY_EXPORT;
+  for (;;) {
+    if (chain.includes(file)) throw new Error(`${file} re-exports ${name} in a cycle.`);
+    chain.push(file);
+    const source = parseSource(file, read(file));
+    if (declaresExport(source, name)) break;
+    const reExport = reExportOf(source, name);
+    if (reExport === undefined) {
+      throw new Error(
+        `${file} exports ${name} in a form the Best Pick gate cannot trace; ` +
+          'use `export function` or a named `export { ... } from` re-export.'
+      );
+    }
+    file = resolvePolicyImport(file, reExport.specifier, read);
+    name = reExport.local;
+  }
+  if (!(BEST_PICK_POLICY_ROOTS as readonly string[]).includes(file)) {
+    throw new Error(
+      `${BEST_PICK_REPLAY_SCRIPT} imports ${BEST_PICK_REPLAY_EXPORT} from ${specifier}, which resolves to ${file}, ` +
+        `not a Best Pick policy root (${BEST_PICK_POLICY_ROOTS.join(', ')}). Update BEST_PICK_POLICY_ROOTS.`
+    );
+  }
+  return chain;
 }
 
 /** The outer folds a gate measurement must cover; a partial replay is never recorded. */

@@ -85,11 +85,20 @@ export async function ensureModelDirs(): Promise<void> {
   ]);
 }
 
+const modelDbThreads = (): string => String(Math.max(1, Math.min(4, availableParallelism())));
+
 export async function connectModelDb(): Promise<DuckDBConnection> {
   await ensureModelDirs();
-  const instance = await DuckDBInstance.fromCache(MODEL_DB_PATH, {
-    threads: String(Math.max(1, Math.min(4, availableParallelism()))),
-  });
+  const instance = await DuckDBInstance.fromCache(MODEL_DB_PATH, { threads: modelDbThreads() });
+  return instance.connect();
+}
+
+/**
+ * Opens an existing model database for reading only: no directories are created and DuckDB refuses writes, so a
+ * read-only job such as the backtest replay cannot change the filesystem before it decides to write its report.
+ */
+export async function connectModelDbReadOnly(path: string = MODEL_DB_PATH): Promise<DuckDBConnection> {
+  const instance = await DuckDBInstance.create(path, { access_mode: 'READ_ONLY', threads: modelDbThreads() });
   return instance.connect();
 }
 

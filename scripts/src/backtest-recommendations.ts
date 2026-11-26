@@ -21,7 +21,7 @@ import {
   BACKTESTS_MODEL_DIR,
   DATA_DIR,
   REPO_ROOT,
-  connectModelDb,
+  connectModelDbReadOnly,
 } from './model/duckdb.js';
 import {
   FLEX_GROUPS,
@@ -66,6 +66,7 @@ import {
   BEST_PICK_GATE_TOLERANCE,
   BEST_PICK_POLICY_ROOTS,
   bestPickGateFailures,
+  bestPickReplayEntryChain,
   bestPickReplayProblems,
   hashBestPickPolicySources,
   nextBestPickGate,
@@ -780,11 +781,13 @@ function formatEstimate(estimate: {
 
 async function main(): Promise<void> {
   // Hash before the replay so the recorded digest describes the code that ran; re-checked before any write.
+  bestPickReplayEntryChain();
   const policySourceHash = hashBestPickPolicySources();
   const history = decodeBacktestLeagueHistory(JSON.parse(
     await readFile(join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'), 'utf8')
   ));
-  const connection = await connectModelDb();
+  // Read-only and without creating model directories, so a run refused before writing leaves nothing behind.
+  const connection = await connectModelDbReadOnly();
 
   try {
     const reader = await connection.runAndReadAll(`
