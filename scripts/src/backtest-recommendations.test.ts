@@ -445,14 +445,19 @@ describe('prospective board', () => {
 
   it('leaves a pick with no GSIS ID unscored instead of scoring it as zero', async () => {
     const load = await loadBoard({
-      extraSql: [`insert into model.dynastyprocess_player_ids values ('fp-g', null, 's-g')`],
-      extraPicks: [{ playerId: 's-g', playerName: 'Player G', position: 'RB' }],
+      extraSql: [`insert into model.dynastyprocess_player_ids values ('fp-g', null, 's-g'), ('fp-h', 'NA', 's-h')`],
+      extraPicks: [
+        { playerId: 's-g', playerName: 'Player G', position: 'RB' },
+        // 'NA' is the source's missing GSIS ID, not an ID.
+        { playerId: 's-h', playerName: 'Player H', position: 'WR' },
+      ],
     });
     const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
     // d is mapped but recorded no stats: a verified zero that still scores. g cannot be joined to any outcome.
     expect(board['s-d']).toMatchObject({ actual_points: 0, games: 0 });
     expect(board['s-g']).toBeUndefined();
-    expect(load.folds[0]).toMatchObject({ unrankedDrafted: 2, unresolvedOutcomes: 1 });
+    expect(board['s-h']).toBeUndefined();
+    expect(load.folds[0]).toMatchObject({ unrankedDrafted: 2, unresolvedOutcomes: 2 });
 
     const { scoringRows } = backtestInternals.addDerivedValues(
       load.rows,

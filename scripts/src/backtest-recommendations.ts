@@ -1058,9 +1058,9 @@ async function loadProspectiveRows(
         pool.gsis_id::varchar as gsis_id,
         pool.player_name::varchar as player_name,
         pool.position::varchar as position,
-        -- A mapped player with no weekly stats row recorded no stats: a verified zero. Without a GSIS ID nothing can be
-        -- joined, so the outcome is unknown, not zero.
-        (pool.gsis_id is not null) as outcome_resolved,
+        -- A mapped player with no weekly stats row recorded no stats: a verified zero. Without a GSIS ID ('NA' is the
+        -- DynastyProcess missing value) nothing can be joined, so the outcome is unknown, not zero.
+        (coalesce(pool.gsis_id, 'NA') <> 'NA') as outcome_resolved,
         coalesce(outcomes.games, 0)::double as games,
         coalesce(outcomes.ppr_points, 0)::double as actual_points,
         coalesce(outcomes.rush_attempts, 0)::double as rush_attempts,
