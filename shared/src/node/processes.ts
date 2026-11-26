@@ -119,16 +119,17 @@ async function stopKnownGroups(groups: ReadonlySet<number>, termDeadline: number
 }
 
 async function stopGroup(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
-  if (process.platform === 'win32') { await stopOwnedGroups(pid, termGraceMs, killGraceMs, new Set()); return; }
-  const termDeadline = Date.now() + termGraceMs;
+  if (process.platform === 'win32') { await stopOwnedGroups(pid, termGraceMs, killGraceMs, new Set(), {}); return; }
   const discovered = new Set([pid]);
-  try { await stopOwnedGroups(pid, termGraceMs, killGraceMs, discovered); } catch {
-    await stopKnownGroups(discovered, termDeadline, killGraceMs);
+  const termSent: { at?: number } = {};
+  try { await stopOwnedGroups(pid, termGraceMs, killGraceMs, discovered, termSent); } catch {
+    // The SIGTERM grace runs from the first SIGTERM, so a slow failed `ps` before any signal doesn't shorten it.
+    await stopKnownGroups(discovered, (termSent.at ?? Date.now()) + termGraceMs, killGraceMs);
   }
 }
 
-/** Adds every process group it finds to `discovered`, which outlives an enumeration failure. */
-async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: number, discovered: Set<number>): Promise<void> {
+/** Adds every process group it finds to `discovered` and records the first SIGTERM in `termSent`; both outlive an enumeration failure. */
+async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: number, discovered: Set<number>, termSent: { at?: number }): Promise<void> {
   if (process.platform === 'win32') {
     await new Promise<void>((resolve, reject) => execFile('taskkill', ['/pid', String(pid), '/T', '/F'], { timeout: killGraceMs }, error => {
       if (error && 'code' in error && error.code !== 128) reject(new Error(error.message));
@@ -155,6 +156,7 @@ async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: nu
       if (!live.has(group)) { groups.delete(group); sent.delete(group); continue; }
       if (sent.get(group) === signal) continue;
       signalGroup(group, signal);
+      if (signal === 'SIGTERM') termSent.at ??= Date.now();
       sent.set(group, signal);
     }
     return live.size > 0;

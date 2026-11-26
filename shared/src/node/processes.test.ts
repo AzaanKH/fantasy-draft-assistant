@@ -190,3 +190,21 @@ it.skipIf(process.platform === 'win32')('kills detached descendants found before
     await service.stop();
   }
 });
+
+it.skipIf(process.platform === 'win32')('gives the full SIGTERM grace when a slow process-table read fails before any signal', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'ps-slow-fail-'));
+  temporary.push(dir);
+  // Enumeration takes 400 ms and then fails, before the first SIGTERM is sent.
+  await writeFile(join(dir, 'ps'), '#!/bin/sh\nsleep 0.4\nexit 1\n', { mode: 0o755 });
+  let ready!: () => void;
+  const started = new Promise<void>(resolve => { ready = resolve; });
+  const service = Processes.service(process.execPath, ['-e', "process.on('SIGTERM', () => { setTimeout(() => { process.exit(0); }, 300); }); console.log('ready'); setInterval(() => {}, 1000);"],
+    { timeoutMs: 10_000, termGraceMs: 500, killGraceMs: 1000, onStdout: () => { ready(); } });
+  await started;
+  const path = process.env['PATH'];
+  process.env['PATH'] = `${dir}:${path ?? ''}`;
+  try { await service.stop(); } finally { process.env['PATH'] = path; }
+  // The child needs 300 ms after SIGTERM; a grace measured from before the failed read would SIGKILL it first.
+  expect(service.exit?.signal).toBeNull();
+  expect(service.exit?.code).toBe(0);
+});
