@@ -135,3 +135,24 @@ it('does not signal an unrelated service while stopping an owned group', async (
     expect(alive(other.pid!)).toBe(true);
   } finally { await Promise.all([owned.stop(), other.stop()]); }
 });
+
+it.skipIf(process.platform === 'win32')('still stops its own group when the process table cannot be read', async () => {
+  let ready!: () => void;
+  const started = new Promise<void>(resolve => { ready = resolve; });
+  const service = Processes.service(process.execPath, ['-e', "process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000);"],
+    { timeoutMs: 10_000, termGraceMs: 50, killGraceMs: 1000, onStdout: () => { ready(); } });
+  await started;
+  const path = process.env['PATH'];
+  // With no PATH, execFile('ps') fails to spawn, so process-tree enumeration is unavailable.
+  process.env['PATH'] = '';
+  try {
+    let deadline!: ReturnType<typeof setTimeout>;
+    try {
+      await Promise.race([service.stop(), new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => { reject(new Error('stop() hung without process enumeration')); }, 3000);
+      })]);
+    } finally { clearTimeout(deadline); }
+  } finally { process.env['PATH'] = path; }
+  expect(service.exit?.signal).toBe('SIGKILL');
+  expect(alive(service.pid ?? 0)).toBe(false);
+});

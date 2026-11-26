@@ -432,23 +432,28 @@ export function resolveSlotToRoster(inputs: Pick<SeasonReviewInputs, 'draft' | '
 }
 
 /**
- * The manager's roster from resolveSlotToRoster, provided the league has it. Without slot_to_roster_id the draft_order
- * mapping must be corroborated by at least one of the slot's picks naming that roster (traded picks name others).
- * Anything else is ambiguous and stops the report rather than grading roster 0.
+ * The manager's roster: `--manager-roster-id` when given, else resolveSlotToRoster's roster for the manager's slot. An
+ * explicit roster must be one of the league's and must not contradict a mapping the draft does give. Anything else is
+ * ambiguous and stops the report rather than grading roster 0.
  */
-export function resolveManagerRosterId(inputs: Pick<SeasonReviewInputs, 'draft' | 'picks' | 'rosters' | 'managerSlot'>): number {
+export function resolveManagerRosterId(inputs: Pick<SeasonReviewInputs, 'draft' | 'rosters' | 'managerSlot' | 'managerRosterIdOption'>): number {
   const slot = String(inputs.managerSlot);
-  const rosterId = resolveSlotToRoster(inputs).get(inputs.managerSlot);
-  if (rosterId === undefined || !inputs.rosters.some((roster) => roster.roster_id === rosterId)) {
-    throw new Error(`Could not tie draft slot ${slot} to one league roster: the draft has no slot_to_roster_id for it and its draft_order does not map it to exactly one roster owner. Check --manager-slot.`);
-  }
-  if (!inputs.draft.slot_to_roster_id) {
-    const named = [...new Set(inputs.picks.filter((pick) => pick.draft_slot === inputs.managerSlot).flatMap((pick) => pickRosterId(pick) ?? []))];
-    if (named.length > 0 && !named.includes(rosterId)) {
-      throw new Error(`Could not tie draft slot ${slot} to one league roster: draft_order maps it to roster ${String(rosterId)}, but its picks name only ${named.map(String).join(', ')}. Check --manager-slot.`);
+  const rosterIds = inputs.rosters.map((roster) => roster.roster_id);
+  const mapped = resolveSlotToRoster(inputs).get(inputs.managerSlot);
+  const explicit = inputs.managerRosterIdOption ?? null;
+  if (explicit !== null) {
+    if (!rosterIds.includes(explicit)) {
+      throw new Error(`--manager-roster-id ${String(explicit)} is not a roster in this league (rosters ${rosterIds.map(String).join(', ')}).`);
     }
+    if (mapped !== undefined && mapped !== explicit) {
+      throw new Error(`--manager-roster-id ${String(explicit)} disagrees with the draft, which ties slot ${slot} to roster ${String(mapped)}. Check --manager-slot and --manager-roster-id.`);
+    }
+    return explicit;
   }
-  return rosterId;
+  if (mapped === undefined || !rosterIds.includes(mapped)) {
+    throw new Error(`Could not tie draft slot ${slot} to one league roster: the draft has no slot_to_roster_id for it and its draft_order does not map it to exactly one current roster owner (the team may have changed hands). Pass --manager-roster-id with your roster's id, or check --manager-slot.`);
+  }
+  return mapped;
 }
 
 function correlationRow(scope: string, predicted: readonly number[], actual: readonly number[]): CorrelationRow {
@@ -623,8 +628,10 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const fpMap = buildFantasyProsMap(inputs, info);
   const predraft = buildPredraft(inputs, fpMap);
   const names = managerNames(inputs);
-  const slotToRoster = resolveSlotToRoster(inputs);
   const managerRosterId = resolveManagerRosterId(inputs);
+  // An explicit --manager-roster-id places the manager's slot even where the draft's own mapping could not.
+  const slotToRoster = new Map([...resolveSlotToRoster(inputs)].filter(([, rosterId]) => rosterId !== managerRosterId));
+  slotToRoster.set(inputs.managerSlot, managerRosterId);
   const rosterOwner = new Map(inputs.rosters.map((roster) => [roster.roster_id, roster.owner_id ?? '']));
   const managerOf = (rosterId: number) => names.get(rosterOwner.get(rosterId) ?? '')?.name ?? `Roster ${String(rosterId)}`;
 

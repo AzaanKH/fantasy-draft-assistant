@@ -64,6 +64,7 @@ export interface SeasonReviewOptions {
   readonly predraftPredictions: string | null;
   readonly historyEcr: string | null;
   readonly managerSlot: number | null;
+  readonly managerRosterId: number | null;
   readonly throughWeek: number | null;
   readonly outDir: string | null;
 }
@@ -77,16 +78,17 @@ const FLAGS: Readonly<Record<string, keyof SeasonReviewOptions>> = {
   '--predraft-predictions': 'predraftPredictions',
   '--history-ecr': 'historyEcr',
   '--manager-slot': 'managerSlot',
+  '--manager-roster-id': 'managerRosterId',
   '--through-week': 'throughWeek',
   '--out': 'outDir',
 };
-const NUMERIC: ReadonlySet<keyof SeasonReviewOptions> = new Set(['season', 'managerSlot', 'throughWeek']);
+const NUMERIC: ReadonlySet<keyof SeasonReviewOptions> = new Set(['season', 'managerSlot', 'managerRosterId', 'throughWeek']);
 
 /** Parses `--flag value` pairs; a bare `--` from pnpm argument forwarding is ignored. */
 export function parseSeasonReviewArgs(argv: readonly string[], cwd: string): SeasonReviewOptions {
   const options: Record<string, string | number | null> = {
     season: null, dataDir: join(REPO_ROOT, 'data'), predraftFantasyPros: null, currentFantasyPros: null, predraftSleeper: null,
-    predraftPredictions: null, historyEcr: null, managerSlot: null, throughWeek: null, outDir: null,
+    predraftPredictions: null, historyEcr: null, managerSlot: null, managerRosterId: null, throughWeek: null, outDir: null,
   };
   const args = argv.filter((arg) => arg !== '--');
   for (let index = 0; index < args.length; index += 1) {
@@ -108,7 +110,7 @@ export function parseSeasonReviewArgs(argv: readonly string[], cwd: string): Sea
     season: count('season'), dataDir: text('dataDir') ?? join(REPO_ROOT, 'data'),
     predraftFantasyPros: text('predraftFantasyPros'), currentFantasyPros: text('currentFantasyPros'),
     predraftSleeper: text('predraftSleeper'), predraftPredictions: text('predraftPredictions'), historyEcr: text('historyEcr'),
-    managerSlot: count('managerSlot'), throughWeek: count('throughWeek'), outDir: text('outDir'),
+    managerSlot: count('managerSlot'), managerRosterId: count('managerRosterId'), throughWeek: count('throughWeek'), outDir: text('outDir'),
   };
 }
 
@@ -204,12 +206,20 @@ export function missingStatsMessage(throughWeek: number, standingsWeek: number):
   return `${missing} Standings already run through week ${String(standingsWeek)}, so no earlier --through-week is valid; rerun once week ${String(throughWeek)} player stats are published.`;
 }
 
+/** A state or week marker as compared: 11 and "11" are the same week; absent and null are both no marker. */
+const markerValue = (value: unknown): unknown => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+  return value;
+};
+
 /** Fails when Sleeper's NFL state moved while the report was reading, so standings and roster totals could span weeks. */
 export function stateChangeProblem(
   before: { readonly week: number; readonly season: string; readonly season_type: string },
   after: { readonly week: number; readonly season: string; readonly season_type: string }
 ): string | null {
-  if (before.week === after.week && before.season === after.season && before.season_type === after.season_type) return null;
+  const same = (key: 'week' | 'season' | 'season_type') => markerValue(before[key]) === markerValue(after[key]);
+  if (same('week') && same('season') && same('season_type')) return null;
   return `Sleeper moved from ${before.season} ${before.season_type} week ${String(before.week)} to ${after.season} ${after.season_type} week ${String(after.week)} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
 }
 
@@ -217,7 +227,7 @@ const SCORED_WEEK_MARKERS = ['last_scored_leg', 'leg'] as const;
 
 /** Fails when the league's scored-week markers moved between the league read and the re-read after rosters. */
 export function leagueMarkerProblem(before: Readonly<Record<string, unknown>>, after: Readonly<Record<string, unknown>>): string | null {
-  const moved = SCORED_WEEK_MARKERS.filter((key) => before[key] !== after[key]);
+  const moved = SCORED_WEEK_MARKERS.filter((key) => markerValue(before[key]) !== markerValue(after[key]));
   if (moved.length === 0) return null;
   return `Sleeper league ${moved.map((key) => `${key} moved from ${String(before[key])} to ${String(after[key])}`).join(' and ')} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
 }
@@ -240,12 +250,17 @@ const toError = (cause: unknown) => cause instanceof Error ? cause : new Error(S
 
 const git = (args: readonly string[]) => Processes.run('git', args, { timeoutMs: 60_000 });
 
-/** A child process as an Effect: interruption stops the child's process group and completes only once it has exited. */
+/**
+ * A child process as an Effect: interruption stops the child's process group and completes once it has exited. A failed
+ * cleanup is reported on stderr rather than failing or hanging the interruption.
+ */
 export const processEffect = (command: string, args: readonly string[], options: ProcessOptions): Effect.Effect<ProcessResult, Error> =>
   Effect.callback<ProcessResult, Error>((resume) => {
     const child = Processes.service(command, args, options);
     child.result.then((result) => { resume(Effect.succeed(result)); }, (cause: unknown) => { resume(Effect.fail(toError(cause))); });
-    return Effect.promise(() => child.stop().catch(() => undefined));
+    return Effect.promise(() => child.stop().catch((cause: unknown) => {
+      console.error(`Stopping ${command} (pid ${String(child.pid)}) failed: ${toError(cause).message}`);
+    }));
   });
 
 const gitEffect = (args: readonly string[], maxOutputBytes?: number) =>
@@ -315,8 +330,9 @@ export const assertPrivateOutputs = (paths: readonly string[], repoRoot: string 
  * The temp file holds the same private data, so it passes the same symlink and git-ignore checks first. A symlink at
  * `path` is refused; a hard link there keeps its inode and contents because rename only replaces the directory entry.
  */
-export const writePrivateFile = (path: string, contents: string, repoRoot: string = REPO_ROOT): Effect.Effect<void, Error> => Effect.gen(function* () {
-  const temp = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
+const tempPathFor = (path: string) => join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
+
+export const writePrivateFile = (path: string, contents: string, repoRoot: string = REPO_ROOT, temp: string = tempPathFor(path)): Effect.Effect<void, Error> => Effect.gen(function* () {
   yield* assertPrivateOutputs([path, temp], repoRoot);
   yield* io(async () => {
     const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o600);
@@ -334,6 +350,17 @@ export const writePrivateFile = (path: string, contents: string, repoRoot: strin
       throw cause;
     }
   });
+});
+
+/**
+ * Writes every output through writePrivateFile, but only after every final and temp path has passed the privacy
+ * checks, so one rejected path cannot leave some outputs freshly replaced beside stale ones.
+ */
+export const writePrivateOutputs = (outputs: ReadonlyMap<string, string>, repoRoot: string = REPO_ROOT): Effect.Effect<void, Error> => Effect.gen(function* () {
+  const temps = new Map([...outputs.keys()].map((path) => [path, tempPathFor(path)]));
+  yield* assertPrivateOutputs([...temps].flat(), repoRoot);
+  for (const directory of new Set([...outputs.keys()].map((path) => dirname(path)))) yield* io(() => mkdir(directory, { recursive: true }));
+  for (const [path, contents] of outputs) yield* writePrivateFile(path, contents, repoRoot, temps.get(path));
 });
 
 const readJson = <T>(path: string, decode: (value: unknown) => T) =>
@@ -550,6 +577,7 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     standingsThroughWeek: cutoffs.standings,
     managerSlot: manager.slot,
     managerSlotEvidence: manager.evidence,
+    managerRosterIdOption: options.managerRosterId,
     league, users, rosters, draft, picks, weeklyStats, matchups, transactions, players,
     priorSeasonSleeperGames,
     priorSeasonRows: priorSeasonRows(priorCsv),
@@ -577,9 +605,7 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     [jsonPath, `${JSON.stringify({ generatedAt, ...review }, null, 2)}\n`],
     [markdownPath, `${renderSeasonReviewMarkdown(review)}\n_Generated ${generatedAt}._\n`],
   ]);
-  yield* assertPrivateOutputs([...outputs.keys()]);
-  yield* io(() => mkdir(rawDir, { recursive: true }));
-  for (const [path, contents] of outputs) yield* writePrivateFile(path, contents);
+  yield* writePrivateOutputs(outputs);
   yield* Effect.sync(() => {
     console.log(`Season review ${review.meta.label}`);
     console.log(`  Pre-draft rankings: ${predraft.source}`);

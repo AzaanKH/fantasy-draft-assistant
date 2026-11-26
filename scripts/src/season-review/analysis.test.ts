@@ -204,7 +204,7 @@ describe('season review assembly', () => {
     const draft = { ...inputs.draft, slot_to_roster_id: null, draft_order: { u1: 1, u2: 2 } };
     // Slot 1's later picks were traded to roster 2: they name the recipient, but the slot still belongs to roster 1.
     const traded = inputs.picks.map((pick) => pick.draft_slot === 1 && pick.round > 1 ? { ...pick, roster_id: 2 } : pick);
-    expect(resolveManagerRosterId({ ...inputs, draft, picks: traded })).toBe(1);
+    expect(resolveManagerRosterId({ ...inputs, draft })).toBe(1);
     expect(buildSeasonReview({ ...inputs, draft, picks: traded }).meta.managerRosterId).toBe(1);
     expect(buildSeasonReview({ ...inputs, draft }).teams.find((team) => team.isManager)?.draftSlot).toBe(1);
     // A co-owner in draft_order maps to the roster they co-own.
@@ -212,7 +212,7 @@ describe('season review assembly', () => {
     expect(resolveManagerRosterId({ ...inputs, draft, rosters: coOwned })).toBe(1);
   });
 
-  it('refuses an ambiguous or uncorroborated slot-to-roster mapping instead of grading roster 0', () => {
+  it('refuses an ambiguous slot-to-roster mapping instead of grading roster 0', () => {
     const inputs = fixture();
     const draft = { ...inputs.draft, slot_to_roster_id: null, draft_order: { u1: 1, u2: 2 } };
     expect(() => resolveManagerRosterId({ ...inputs, draft: { ...draft, draft_order: null } })).toThrow('draft slot 1');
@@ -222,9 +222,31 @@ describe('season review assembly', () => {
     expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: twoRosters })).toThrow('draft slot 1');
     const shared = inputs.rosters.map((roster) => roster.roster_id === 1 ? { ...roster, co_owners: ['u2'] } : { ...roster, owner_id: 'u3' });
     expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: shared })).toThrow('draft slot 1');
-    // draft_order names roster 1, but every one of the slot's picks names roster 2.
-    const contradicted = inputs.picks.map((pick) => pick.draft_slot === 1 ? { ...pick, roster_id: 2 } : pick);
-    expect(() => buildSeasonReview({ ...inputs, draft, picks: contradicted })).toThrow('picks name only 2');
+    expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: shared })).toThrow('--manager-roster-id');
+  });
+
+  it('keeps the draft_order mapping when the manager traded away every pick from their slot', () => {
+    const inputs = fixture();
+    const draft = { ...inputs.draft, slot_to_roster_id: null, draft_order: { u1: 1, u2: 2 } };
+    // Each pick's roster_id is its recipient, so it says nothing about who owns slot 1.
+    const allTraded = inputs.picks.map((pick) => pick.draft_slot === 1 ? { ...pick, roster_id: 2 } : pick);
+    expect(resolveManagerRosterId({ ...inputs, draft })).toBe(1);
+    expect(buildSeasonReview({ ...inputs, draft, picks: allTraded }).meta.managerRosterId).toBe(1);
+  });
+
+  it('takes --manager-roster-id when the drafting manager no longer owns a roster, and checks it against the league', () => {
+    const inputs = fixture();
+    const draft = { ...inputs.draft, slot_to_roster_id: null, draft_order: { u1: 1, u2: 2 } };
+    // u1 drafted slot 1, then handed roster 1 to u9.
+    const handedOver = inputs.rosters.map((roster) => roster.roster_id === 1 ? { ...roster, owner_id: 'u9' } : roster);
+    expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: handedOver })).toThrow('Pass --manager-roster-id');
+    const review = buildSeasonReview({ ...inputs, draft, rosters: handedOver, managerRosterIdOption: 1 });
+    expect(review.meta.managerRosterId).toBe(1);
+    expect(review.teams.find((team) => team.isManager)?.draftSlot).toBe(1);
+    expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: handedOver, managerRosterIdOption: 7 })).toThrow('not a roster in this league');
+    // An explicit roster that contradicts the draft's own mapping stops the report.
+    expect(() => resolveManagerRosterId({ ...inputs, managerRosterIdOption: 2 })).toThrow('disagrees with the draft');
+    expect(resolveManagerRosterId({ ...inputs, managerRosterIdOption: 1 })).toBe(1);
   });
 
   it('ranks a drafted player by the draft position when the player directory has none', () => {

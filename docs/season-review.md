@@ -36,6 +36,16 @@ Your draft slot comes from `isMyKeeper` in `league-history/current-keepers.json`
 (only when that file's `season` is the report season) and `managerDraftSlot` in matching rehearsal evidence. When they disagree or are
 missing the script stops; pass `--manager-slot`.
 
+That slot is tied to your roster by the draft's `slot_to_roster_id`, else by its
+`draft_order` (user → slot) joined to the current roster owners and co-owners.
+A pick's `roster_id` names whoever made the pick, so traded picks do not count
+against the mapping. If the team changed hands after the draft, `draft_order`
+can name a manager who no longer owns a roster and the join fails; pass
+`--manager-roster-id <id>` (your roster's `roster_id` from Sleeper's
+`/league/<id>/rosters`). It must be one of the league's rosters and must agree
+with any mapping the draft does give; otherwise the script stops rather than
+grade the wrong team.
+
 The report keeps two cutoffs. Standings, points for/against and max PF are
 Sleeper's live regular-season totals, so they reflect the league's last fully
 scored week, capped at `last_scored_leg` and at the week before

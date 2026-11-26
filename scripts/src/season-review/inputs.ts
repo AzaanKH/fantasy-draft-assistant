@@ -198,6 +198,8 @@ export interface SeasonReviewInputs {
   readonly standingsThroughWeek: number;
   readonly managerSlot: number;
   readonly managerSlotEvidence: readonly string[];
+  /** `--manager-roster-id`: the manager's roster when the draft cannot tie their slot to one, e.g. after a team changed hands. */
+  readonly managerRosterIdOption?: number | null;
   readonly league: SleeperLeague;
   readonly users: SleeperUsers;
   readonly rosters: SleeperRosters;

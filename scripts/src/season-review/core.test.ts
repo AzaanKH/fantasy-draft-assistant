@@ -42,6 +42,7 @@ import {
   snapshotSeasonProblem,
   stateChangeProblem,
   writePrivateFile,
+  writePrivateOutputs,
 } from '../generate-season-review.js';
 
 const scoring = { pass_yd: 0.04, pass_td: 4, rush_yd: 0.1, rush_td: 6, rush_att: 0.2, rec: 1, rec_yd: 0.1, rec_td: 6, bonus_rec_te: 0.5 };
@@ -210,7 +211,9 @@ describe('parsing helpers', () => {
 describe('season review entry decisions', () => {
   it('parses flags after pnpm forwarding and rejects unknown or non-numeric values', () => {
     const options = parseSeasonReviewArgs(['--', '--season', '2026', '--through-week', '11', '--out', 'reports'], '/work');
-    expect(options).toMatchObject({ season: 2026, throughWeek: 11, outDir: '/work/reports', managerSlot: null });
+    expect(options).toMatchObject({ season: 2026, throughWeek: 11, outDir: '/work/reports', managerSlot: null, managerRosterId: null });
+    expect(parseSeasonReviewArgs(['--manager-roster-id', '4'], '/work').managerRosterId).toBe(4);
+    expect(() => parseSeasonReviewArgs(['--manager-roster-id', 'four'], '/work')).toThrow('positive integer');
     expect(() => parseSeasonReviewArgs(['--seasons', '2026'], '/work')).toThrow('Unknown option');
     expect(() => parseSeasonReviewArgs(['--season', 'next'], '/work')).toThrow('positive integer');
   });
@@ -285,12 +288,18 @@ describe('season review entry decisions', () => {
     expect(stateChangeProblem(state, { ...state })).toBeNull();
     expect(stateChangeProblem(state, { ...state, week: 13 })).toContain('week 12 to 2026 regular week 13');
     expect(stateChangeProblem(state, { ...state, season_type: 'post' })).toContain('Rerun');
+    // Equivalent numeric spellings of one week are no change.
+    expect(stateChangeProblem(state, { ...state, week: '12' as unknown as number })).toBeNull();
   });
 
   it('fails when the league scored-week markers move between the league read and the re-read after rosters', () => {
     expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12, name: 'x' }, { last_scored_leg: 11, leg: 12, name: 'y' })).toBeNull();
     expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 12, leg: 12 })).toContain('last_scored_leg moved from 11 to 12');
     expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 11, leg: 13 })).toContain('Rerun the report');
+    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: '12' }, { last_scored_leg: '11', leg: 12 })).toBeNull();
+    expect(leagueMarkerProblem({ last_scored_leg: null }, { last_scored_leg: null })).toBeNull();
+    expect(leagueMarkerProblem({ last_scored_leg: null }, {})).toBeNull();
+    expect(leagueMarkerProblem({ last_scored_leg: null }, { last_scored_leg: 11 })).toContain('moved from null to 11');
   });
 
   it('writes owner-only files whatever they replace, and refuses a temp path git does not ignore', async () => {
@@ -430,5 +439,31 @@ describe('season review entry decisions', () => {
     expect(predraftSnapshotProblem({ season: 2026, refreshedAt: '2026-08-30T21:16:15Z' }, 2026, draftStart)).toBeNull();
     expect(predraftSnapshotProblem({ season: 2025, refreshedAt: '2025-08-30T21:16:15Z' }, 2026, draftStart)).toContain('season 2025');
     expect(predraftSnapshotProblem({ season: 2026, refreshedAt: '2026-10-01T00:00:00Z' }, 2026, draftStart)).toContain('not before the draft');
+  });
+  it('checks every output path before writing any, so a rejected report leaves the raw files untouched', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-batch-')));
+    try {
+      const repo = join(base, 'repo');
+      const out = join(base, 'out');
+      await mkdir(join(out, 'raw'), { recursive: true });
+      execFileSync('git', ['init', '-q', repo]);
+      await writeFile(join(out, 'raw', 'state_nfl.json'), 'old raw\n');
+      await writeFile(join(base, 'target.md'), 'kept\n');
+      await symlink(join(base, 'target.md'), join(out, 'report.md'));
+      const outputs = new Map([[join(out, 'raw', 'state_nfl.json'), 'new raw\n'], [join(out, 'raw', 'fresh.json'), 'new\n'], [join(out, 'report.md'), 'report\n']]);
+      expect((await Effect.runPromiseExit(writePrivateOutputs(outputs, repo)))._tag).toBe('Failure');
+      expect(await readFile(join(out, 'raw', 'state_nfl.json'), 'utf8')).toBe('old raw\n');
+      expect(existsSync(join(out, 'raw', 'fresh.json'))).toBe(false);
+      expect(await readFile(join(base, 'target.md'), 'utf8')).toBe('kept\n');
+      // With the symlink gone the same batch writes, creating missing directories, and leaves no temp files.
+      await rm(join(out, 'report.md'));
+      const nested = new Map([...outputs, [join(out, 'new-dir', 'x.json'), 'x\n']]);
+      expect((await Effect.runPromiseExit(writePrivateOutputs(nested, repo)))._tag).toBe('Success');
+      expect(await readFile(join(out, 'raw', 'state_nfl.json'), 'utf8')).toBe('new raw\n');
+      expect(await readFile(join(out, 'new-dir', 'x.json'), 'utf8')).toBe('x\n');
+      expect([...await readdir(out), ...await readdir(join(out, 'raw'))].filter((name) => name.endsWith('.tmp'))).toEqual([]);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 });

@@ -95,7 +95,31 @@ async function processRows(): Promise<readonly ProcessRow[]> {
   }));
 }
 
+/** Signals only the child's own group when the process table cannot be read, so stopping never waits on enumeration. */
+async function stopGroupDirectly(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
+  for (const [signal, grace] of [['SIGTERM', termGraceMs], ['SIGKILL', killGraceMs]] as const) {
+    try { process.kill(-pid, signal); } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return;
+      throw error;
+    }
+    const deadline = Date.now() + grace;
+    while (groupExists(pid)) {
+      if (Date.now() >= deadline) break;
+      await pause(20);
+    }
+    if (!groupExists(pid)) return;
+  }
+  throw new Error('Process group did not exit after SIGKILL');
+}
+
 async function stopGroup(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
+  if (process.platform === 'win32') { await stopOwnedGroups(pid, termGraceMs, killGraceMs); return; }
+  try { await stopOwnedGroups(pid, termGraceMs, killGraceMs); } catch {
+    await stopGroupDirectly(pid, termGraceMs, killGraceMs);
+  }
+}
+
+async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
   if (process.platform === 'win32') {
     await new Promise<void>((resolve, reject) => execFile('taskkill', ['/pid', String(pid), '/T', '/F'], { timeout: killGraceMs }, error => {
       if (error && 'code' in error && error.code !== 128) reject(new Error(error.message));
