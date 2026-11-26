@@ -26,7 +26,7 @@ import {
 } from './model/duckdb.js';
 import { currentSeason, KICKER_DEFENSE_POSITIONS, OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
 import { buildHistoricalSnapshots } from './model/historical-snapshots.js';
-import { playerSeasonIdentitySql } from './model/player-identity-sql.js';
+import { playerSeasonIdentitySql, playerSeasonRankingSql } from './model/player-identity-sql.js';
 import { trailingHistorySql, trailingPlayerVolumeSql } from './model/trailing-features-sql.js';
 import {
   POSITION_FEATURES,
@@ -765,13 +765,14 @@ const program = Effect.gen(function* () {
         left join model.ffopportunity_player_seasons opp
           on ps.gsis_id = opp.gsis_id
           and ps.season = opp.season
-        left join model.dynastyprocess_predraft_rankings rankings
-          on (
-            ps.gsis_id = rankings.gsis_id
-            or (ids.sleeper_player_id is not null and ids.sleeper_player_id = rankings.sleeper_player_id)
-          )
-          and ps.season = rankings.season
-          and ps.position = rankings.position
+        left join (${playerSeasonRankingSql(
+          'model.nflverse_player_seasons',
+          'model.dynastyprocess_player_ids',
+          'model.dynastyprocess_predraft_rankings'
+        )}) rankings
+          on ps.season = rankings.player_season
+          and ps.gsis_id = rankings.player_gsis_id
+          and ps.position = rankings.player_position
         left join model.historical_asof_snapshots snapshot
           on ps.season = snapshot.season
           and ps.gsis_id = snapshot.gsis_id
