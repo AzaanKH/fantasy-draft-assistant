@@ -62,6 +62,7 @@ import {
 } from './offensive-roster.js';
 import {
   assertBestPickGateRecorded,
+  assertBestPickPolicyUnchanged,
   BEST_PICK_GATE_TOLERANCE,
   BEST_PICK_POLICY_ROOTS,
   bestPickGateFailures,
@@ -778,6 +779,8 @@ function formatEstimate(estimate: {
 }
 
 async function main(): Promise<void> {
+  // Hash before the replay so the recorded digest describes the code that ran; re-checked before any write.
+  const policySourceHash = hashBestPickPolicySources();
   const history = decodeBacktestLeagueHistory(JSON.parse(
     await readFile(join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'), 'utf8')
   ));
@@ -1426,7 +1429,6 @@ async function main(): Promise<void> {
         bestPickRejectedWeights: season.strategies.bestPickRejectedWeights.starterPoints,
       })),
     };
-    const policySourceHash = hashBestPickPolicySources();
     const acceptBestPickBaseline = process.argv.includes('--accept-best-pick-baseline');
     const previousReport = await readFile(MARKDOWN_OUTPUT, 'utf8').catch(() => '');
     const bestPickGate = nextBestPickGate(
@@ -1645,6 +1647,7 @@ async function main(): Promise<void> {
       evaluations,
     };
 
+    assertBestPickPolicyUnchanged(policySourceHash, hashBestPickPolicySources());
     await mkdir(dirname(JSON_OUTPUT), { recursive: true });
     await mkdir(dirname(MARKDOWN_OUTPUT), { recursive: true });
     await writeFile(JSON_OUTPUT, `${JSON.stringify(report, null, 2)}\n`);

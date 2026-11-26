@@ -29,8 +29,12 @@ type ReadSource = (path: string) => string;
 
 const readRepoSource: ReadSource = (path) => readFileSync(join(REPO_ROOT, path), 'utf8');
 
+const SHARED_PACKAGE = '@fantasy-draft/shared';
+const SHARED_MANIFEST = 'shared/package.json';
+const SOURCE_CONDITION = '@fantasy-draft/source';
+
 function runtimeImportSpecifiers(path: string, text: string): string[] {
-  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const specifiers: string[] = [];
   for (const statement of source.statements) {
     if (ts.isImportDeclaration(statement)) {
@@ -40,13 +44,59 @@ function runtimeImportSpecifiers(path: string, text: string): string[] {
       if (ts.isStringLiteral(statement.moduleSpecifier)) specifiers.push(statement.moduleSpecifier.text);
     }
   }
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const [argument] = node.arguments;
+      if (!argument || !ts.isStringLiteralLike(argument)) {
+        throw new Error(
+          `${path} has a dynamic import() with a computed specifier (${argument?.getText(source) ?? 'none'}), ` +
+            'which the Best Pick gate cannot hash.'
+        );
+      }
+      specifiers.push(argument.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
   return specifiers;
+}
+
+/** Resolves `@fantasy-draft/shared/<subpath>` through the source condition of shared/package.json `exports`. */
+function resolveSharedSelfImport(from: string, specifier: string, read: ReadSource): string {
+  const subpath = specifier === SHARED_PACKAGE ? '.' : `.${specifier.slice(SHARED_PACKAGE.length)}`;
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(read(SHARED_MANIFEST));
+  } catch {
+    manifest = undefined;
+  }
+  const field = (value: unknown, key: string): unknown =>
+    value !== null && typeof value === 'object' && Object.hasOwn(value, key)
+      ? (value as Record<string, unknown>)[key]
+      : undefined;
+  const target = field(field(field(manifest, 'exports'), subpath), SOURCE_CONDITION);
+  if (typeof target !== 'string') {
+    throw new Error(`${from} imports ${specifier}, which ${SHARED_MANIFEST} does not export from source.`);
+  }
+  const resolved = posix.normalize(posix.join('shared', target));
+  if (resolved.startsWith(POLICY_SOURCE_ROOT)) {
+    try {
+      read(resolved);
+      return resolved;
+    } catch {
+      // Fall through to the unresolvable error.
+    }
+  }
+  throw new Error(`${from} imports ${specifier}, which the Best Pick gate cannot resolve within shared/src.`);
 }
 
 function resolvePolicyImport(from: string, specifier: string, read: ReadSource): string {
   if (!specifier.startsWith('.')) {
+    if (specifier === SHARED_PACKAGE || specifier.startsWith(`${SHARED_PACKAGE}/`)) {
+      return resolveSharedSelfImport(from, specifier, read);
+    }
     if (specifier.startsWith('@fantasy-draft/')) {
-      throw new Error(`${from} imports ${specifier}; the Best Pick gate only follows relative imports within shared/src.`);
+      throw new Error(`${from} imports ${specifier}; the Best Pick gate only follows imports into shared/src.`);
     }
     // A third-party package is versioned by the lockfile, not by the gate.
     return '';
@@ -69,8 +119,10 @@ function resolvePolicyImport(from: string, specifier: string, read: ReadSource):
 
 /**
  * Every shared/src file whose content decides what Best Pick recommends: the roots and their runtime import graph.
- * Type-only imports are skipped because they emit no code. An import the walk cannot resolve throws, so a new
- * dependency can never fall outside the digest silently.
+ * The walk follows static imports, re-exports and string-literal dynamic `import()` calls, resolving relative
+ * specifiers and `@fantasy-draft/shared/<subpath>` self-imports to shared/src. Type-only imports are skipped because
+ * they emit no code. An import the walk cannot resolve, or a dynamic `import()` with a computed specifier, throws, so a
+ * new dependency can never fall outside the digest silently.
  */
 export function bestPickPolicySources(read: ReadSource = readRepoSource): string[] {
   const seen = new Set<string>();
@@ -132,6 +184,19 @@ export function hashBestPickPolicySources(read: ReadSource = readRepoSource): st
     hash.update(read(path).replace(/\r\n/g, '\n'));
   }
   return `sha256:${hash.digest('hex')}`;
+}
+
+/**
+ * Fails when the policy sources changed between the start of a replay and the report write, so a recorded
+ * `policySourceHash` always describes the code that actually ran.
+ */
+export function assertBestPickPolicyUnchanged(hashAtStart: string, hashAtWrite: string): void {
+  if (hashAtStart !== hashAtWrite) {
+    throw new Error(
+      `Best Pick policy sources changed during the replay (${hashAtStart} at start, ${hashAtWrite} before writing); ` +
+        'rerun the backtest on a stable checkout. No report was written.'
+    );
+  }
 }
 
 /** Per-fold draft pick numbers Best Pick and roster-aware ECR were scored on in one replay. */

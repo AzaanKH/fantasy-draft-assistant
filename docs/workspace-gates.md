@@ -92,7 +92,15 @@ or any shared/src module they reach through runtime imports no longer match the
 gate block's hash, when the gate block does not cover the 2022–2025 folds with
 the baseline's draft pick numbers, or
 when Best Pick's margin over roster-aware ECR is more than 25 VOR or 1 average
-regret worse than the baseline's. After a policy change, run
+regret worse than the baseline's. The hash walk follows static
+imports, re-exports and string-literal dynamic `import()` calls (type-only
+imports emit no code and are skipped), resolving relative specifiers and
+`@fantasy-draft/shared/<subpath>` self-imports through the `@fantasy-draft/source`
+condition of `shared/package.json` `exports`. An import it cannot resolve to a
+shared/src file, an import of another workspace package, or a dynamic `import()`
+with a computed specifier makes `pnpm model:backtest` exit non-zero without
+writing the report. The backtest hashes the sources before the replay and again
+before writing, and refuses to write if they differ. After a policy change, run
 `pnpm model:backtest` in the real-data checkout and commit the regenerated
 report. A replay that cannot be recorded (a missing fold, Best Pick and ECR
 scored on different picks, or picks that differ from the baseline's) exits

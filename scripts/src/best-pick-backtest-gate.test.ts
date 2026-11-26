@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   assertBestPickGateRecorded,
+  assertBestPickPolicyUnchanged,
   bestPickGateFailures,
   bestPickPolicySources,
   bestPickReplayProblems,
@@ -69,6 +70,86 @@ describe('Best Pick backtest gate', () => {
       .toBe(base);
     expect(() => bestPickPolicySources(read({ 'shared/src/draft/helper.ts': "import { gone } from './gone.js';" })))
       .toThrow(/cannot resolve/);
+  });
+
+  it('follows @fantasy-draft/shared self-imports through the package source exports', () => {
+    const files: Record<string, string> = {
+      'shared/package.json': JSON.stringify({
+        exports: {
+          './league': { '@fantasy-draft/source': './src/league/index.ts', import: './dist/league/index.js' },
+          './dist-only': { import: './dist/x.js' },
+        },
+      }),
+      'shared/src/draft/calculations/best-pick-policy.ts':
+        "import { slot } from '@fantasy-draft/shared/league';\nimport type { T } from '@fantasy-draft/shared/types';",
+      'shared/src/draft/calculations/recommendations.ts': 'export const r = 1;',
+      'shared/src/league/index.ts': "export { slot } from './slot.js';",
+      'shared/src/league/slot.ts': 'export const slot = 1;',
+    };
+    const read = (overrides: Record<string, string> = {}) => (path: string): string => {
+      const text = overrides[path] ?? files[path];
+      if (text === undefined) throw new Error(`missing ${path}`);
+      return text;
+    };
+    expect(bestPickPolicySources(read())).toEqual([
+      'shared/src/draft/calculations/best-pick-policy.ts',
+      'shared/src/draft/calculations/recommendations.ts',
+      'shared/src/league/index.ts',
+      'shared/src/league/slot.ts',
+    ]);
+    const base = hashBestPickPolicySources(read());
+    expect(hashBestPickPolicySources(read({ 'shared/src/league/slot.ts': 'export const slot = 2;' }))).not.toBe(base);
+    expect(() => bestPickPolicySources(read({
+      'shared/src/draft/calculations/recommendations.ts': "import { x } from '@fantasy-draft/shared/missing';",
+    }))).toThrow(/does not export from source/);
+    expect(() => bestPickPolicySources(read({
+      'shared/src/draft/calculations/recommendations.ts': "import { x } from '@fantasy-draft/shared/dist-only';",
+    }))).toThrow(/does not export from source/);
+    expect(() => bestPickPolicySources(read({
+      'shared/src/draft/calculations/recommendations.ts': "import { x } from '@fantasy-draft/other';",
+    }))).toThrow(/only follows imports into shared\/src/);
+  });
+
+  it('follows string-literal dynamic imports anywhere in a policy file and rejects computed ones', () => {
+    const files: Record<string, string> = {
+      'shared/src/draft/calculations/best-pick-policy.ts':
+        "export async function load() {\n  if (Math.random()) return (await import('./lazy.js')).lazy;\n}",
+      'shared/src/draft/calculations/recommendations.ts': 'export const r = await import(`../eager.js`);',
+      'shared/src/draft/calculations/lazy.ts': 'export const lazy = 1;',
+      'shared/src/draft/eager.ts': 'export const eager = 1;',
+    };
+    const read = (overrides: Record<string, string> = {}) => (path: string): string => {
+      const text = overrides[path] ?? files[path];
+      if (text === undefined) throw new Error(`missing ${path}`);
+      return text;
+    };
+    expect(bestPickPolicySources(read())).toEqual([
+      'shared/src/draft/calculations/best-pick-policy.ts',
+      'shared/src/draft/calculations/lazy.ts',
+      'shared/src/draft/calculations/recommendations.ts',
+      'shared/src/draft/eager.ts',
+    ]);
+    const base = hashBestPickPolicySources(read());
+    expect(hashBestPickPolicySources(read({ 'shared/src/draft/calculations/lazy.ts': 'export const lazy = 2;' })))
+      .not.toBe(base);
+    expect(() => bestPickPolicySources(read({
+      'shared/src/draft/calculations/recommendations.ts': "const name = './lazy.js';\nexport const r = import(name);",
+    }))).toThrow(/computed specifier/);
+    expect(() => bestPickPolicySources(read({
+      'shared/src/draft/calculations/recommendations.ts': 'export const r = import(`./${\'lazy\'}.js`);',
+    }))).toThrow(/computed specifier/);
+    expect(() => bestPickPolicySources(read({
+      'shared/src/draft/calculations/recommendations.ts': "export const r = import('./gone.js');",
+    }))).toThrow(/cannot resolve/);
+  });
+
+  it('refuses to record a replay whose policy sources changed mid-run', () => {
+    expect(() => {
+      assertBestPickPolicyUnchanged('sha256:a', 'sha256:a');
+    }).not.toThrow();
+    expect(() => {
+      assertBestPickPolicyUnchanged('sha256:a', 'sha256:b');
+    }).toThrow(/changed during the replay/);
   });
 
   it('fails when the policy source changes without a regenerated report', () => {
