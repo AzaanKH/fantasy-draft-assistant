@@ -467,6 +467,31 @@ describe('prospective board', () => {
       .toEqual([[2, undefined], [1, 's-d']]);
   });
 
+  it('leaves a complete fold with no ranked draft-day board out of the release gate', async () => {
+    // Every scrape is after the draft: no pre-draft snapshot, so only the drafted players load.
+    const load = await loadBoard({ gamesPlayed: 272, draftStartTimestamp: '2026-08-01T18:00:00.000Z' });
+    const fold = load.folds[0];
+    expect(fold).toMatchObject({ complete: true, boardPlayers: 0 });
+    expect(fold && backtestInternals.prospectiveFoldStanding(fold)).toEqual({
+      comparisonEvaluated: false,
+      countsTowardReleaseGate: false,
+      canReopen: false,
+    });
+    // The drafted players still score for the actual draft.
+    expect(load.rows.map((row) => row.sleeper_player_id).sort()).toEqual(['s-d', 's-e']);
+  });
+
+  it('lets only a complete 2026 fold with a board reopen the model', () => {
+    const standing = backtestInternals.prospectiveFoldStanding;
+    expect(standing({ season: 2026, complete: true, boardPlayers: 200 }))
+      .toEqual({ comparisonEvaluated: true, countsTowardReleaseGate: true, canReopen: true });
+    expect(standing({ season: 2026, complete: false, boardPlayers: 200 }))
+      .toEqual({ comparisonEvaluated: true, countsTowardReleaseGate: false, canReopen: false });
+    // A later complete fold still counts toward its own release check but cannot reopen the frozen declaration.
+    expect(standing({ season: 2027, complete: true, boardPlayers: 200 }))
+      .toEqual({ comparisonEvaluated: true, countsTowardReleaseGate: true, canReopen: false });
+  });
+
   it('replays only the draft-day board for a fold season, scoring each overlapping player once', () => {
     const ordinary = (id: string, points: number, ecr: number) => ({ ...player(id, 'WR', points), season: 2026, predraft_ecr: ecr });
     const history = [player('h1', 'WR', 120)];

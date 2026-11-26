@@ -1111,6 +1111,27 @@ async function loadProspectiveRows(
   return { rows, folds, skipped };
 }
 
+/**
+ * Where a prospective fold stands against the release gate. With no ranked draft-day board (no pre-draft snapshot,
+ * or none of its players map to a Sleeper ID) every strategy picks nothing and ties, so the comparison was never
+ * made: it is not evaluated and never counts as a gate result, though the actual draft still scores. Only the first
+ * prospective season, the first scored after the declaration was frozen (docs/modeling-duckdb.md), can reopen the
+ * model.
+ */
+function prospectiveFoldStanding(fold: Pick<ProspectiveFoldInput, 'season' | 'complete' | 'boardPlayers'>): {
+  readonly comparisonEvaluated: boolean;
+  readonly countsTowardReleaseGate: boolean;
+  readonly canReopen: boolean;
+} {
+  const comparisonEvaluated = fold.boardPlayers > 0;
+  const countsTowardReleaseGate = fold.complete && comparisonEvaluated;
+  return {
+    comparisonEvaluated,
+    countsTowardReleaseGate,
+    canReopen: countsTowardReleaseGate && fold.season === PROSPECTIVE_FIRST_SEASON,
+  };
+}
+
 /** A fold season replays only its draft-day board: training rows a later rebuild adds for it stay out. */
 function withProspectiveFolds(
   rawRows: readonly TrainingRow[],
@@ -1898,10 +1919,13 @@ async function main(): Promise<void> {
       const foldPicks = prospectiveHistory.find((season) => season.season === fold.season)?.picks ?? [];
       const shadowLogPath = join('data', 'shadow-logs', `${String(fold.season)}-recommendations.ndjson`);
       const shadowLogPresent = await access(join(REPO_ROOT, shadowLogPath)).then(() => true, () => false);
+      const standing = prospectiveFoldStanding(fold);
       return {
         season: fold.season,
         status: fold.complete ? 'complete' as const : 'provisional' as const,
-        countsTowardReleaseGate: fold.complete,
+        strategyComparison: standing.comparisonEvaluated ? 'evaluated' as const : 'not evaluated' as const,
+        countsTowardReleaseGate: standing.countsTowardReleaseGate,
+        canReopen: standing.canReopen,
         regularSeason: {
           gamesScheduled: fold.status.regGamesScheduled,
           gamesPlayed: fold.status.regGamesPlayed,
@@ -1929,7 +1953,8 @@ async function main(): Promise<void> {
           bestPick: seasonReport.strategies.bestPick,
         },
         releaseGate: {
-          passed: Object.values(singleSeasonChecks).every(Boolean),
+          evaluated: standing.comparisonEvaluated,
+          passed: standing.comparisonEvaluated && Object.values(singleSeasonChecks).every(Boolean),
           checks: singleSeasonChecks,
         },
         shadowLog: {
@@ -1940,9 +1965,7 @@ async function main(): Promise<void> {
         evaluations: foldEvaluations,
       };
     }));
-    const prospectiveReopenEligible = prospectiveFolds.some(
-      (fold) => fold.countsTowardReleaseGate && fold.releaseGate.passed
-    );
+    const prospectiveReopenEligible = prospectiveFolds.some((fold) => fold.canReopen && fold.releaseGate.passed);
     const counterfactualStrategies = {
       rosterAwareEcr: aggregateCounterfactualSeasons(ecrCounterfactualIterations),
       rosterAwareModel: aggregateCounterfactualSeasons(modelCounterfactualIterations),
@@ -2172,7 +2195,9 @@ async function main(): Promise<void> {
     }
 
 - Regular season: ${String(fold.regularSeason.gamesPlayed)} of ${String(fold.regularSeason.gamesScheduled)} scheduled games scored (${String(REGULAR_SEASON_GAMES)} in a full season); ${String(fold.regularSeason.gamesWithPlayerStats)} matched to weekly player stats, through week ${String(fold.regularSeason.lastWeekPlayed)} (outcomes fetched ${fold.regularSeason.outcomesFetchedAt}).
-- ${fold.countsTowardReleaseGate
+- ${fold.strategyComparison === 'not evaluated'
+    ? 'Excluded from the release gate: no ranked draft-day board, so the strategies were not compared; only the actual draft is scored.'
+    : fold.countsTowardReleaseGate
     ? `Counts toward the release gate: all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats.`
     : `Excluded from the release gate until all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats; the numbers move each week.`}
 - Outcomes: ${fold.outcomeBasis}
@@ -2185,14 +2210,18 @@ async function main(): Promise<void> {
 
 | Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
 | --- | ---: | ---: | ---: | ---: | ---: |
-${prospectiveMetricRows(fold)}
+${fold.strategyComparison === 'evaluated'
+  ? prospectiveMetricRows(fold)
+  : metricRow('Actual user draft', fold.strategies.actualUserDraft)}
 
-Single-season release gate (model must beat roster-aware ECR on every release check this season; seasons won does not apply): **${fold.releaseGate.passed ? 'pass' : 'fail'}**${
+${fold.releaseGate.evaluated
+  ? `Single-season release gate (model must beat roster-aware ECR on every release check this season; seasons won does not apply): **${fold.releaseGate.passed ? 'pass' : 'fail'}**${
   fold.countsTowardReleaseGate ? '' : ' (provisional, not counted)'}
 
 | Check | Result |
 | --- | --- |
-${Object.entries(fold.releaseGate.checks).map(([check, passed]) => `| ${check} | ${passed ? 'pass' : 'fail'} |`).join('\n')}
+${Object.entries(fold.releaseGate.checks).map(([check, passed]) => `| ${check} | ${passed ? 'pass' : 'fail'} |`).join('\n')}`
+  : 'Single-season release gate: **not evaluated** (no ranked draft-day board).'}
 `).join('\n');
     const prospectiveSection = `## Prospective Folds
 
@@ -2426,11 +2455,11 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
     console.log(`ECR release gate: ${promotion.releaseGatePassed ? 'PASS' : 'FAIL'}`);
     console.log(`Promotion: ${promotion.promotionPassed ? 'PASS' : 'FAIL'}`);
     for (const fold of prospectiveFolds) {
-      console.log(
-        `Prospective ${String(fold.season)} (${fold.status}): model ${String(fold.strategies.rosterAwareModel.starterPoints)} ` +
-        `vs ECR ${String(fold.strategies.rosterAwareEcr.starterPoints)} starter points; ` +
-        `release gate ${fold.releaseGate.passed ? 'PASS' : 'FAIL'}${fold.countsTowardReleaseGate ? '' : ' (not counted)'}`
-      );
+      console.log(fold.releaseGate.evaluated
+        ? `Prospective ${String(fold.season)} (${fold.status}): model ${String(fold.strategies.rosterAwareModel.starterPoints)} ` +
+          `vs ECR ${String(fold.strategies.rosterAwareEcr.starterPoints)} starter points; ` +
+          `release gate ${fold.releaseGate.passed ? 'PASS' : 'FAIL'}${fold.countsTowardReleaseGate ? '' : ' (not counted)'}`
+        : `Prospective ${String(fold.season)} (${fold.status}): release gate not evaluated (no ranked draft-day board).`);
     }
     console.log(`Best Pick regression gate: ${bestPickGateProblems.length === 0 ? 'PASS' : 'FAIL'}`);
     for (const problem of bestPickGateProblems) console.log(`  ${problem}`);
@@ -2452,6 +2481,7 @@ export const backtestInternals = {
   playerSeasonKey,
   summarize,
   loadProspectiveRows,
+  prospectiveFoldStanding,
   withProspectiveFolds,
   PROSPECTIVE_FEATURE_COLUMNS,
 };
