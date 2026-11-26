@@ -101,7 +101,12 @@ can filter them. Readiness still shows such predictions as degraded. A row is
 logged only when the workspace season, the artifact's recorded target `season`
 (its rankings snapshot's season, written by `pnpm model:dataset`), and the
 policy season agree; the sync server applies the same check before
-deduplication. An artifact built before `season` was recorded is not logged
+deduplication. The sync server also rejects (422) any event whose season differs
+from its configured shadow log season, which is 2026 (`DEFAULT_SHADOW_LOG_SEASON`
+in `server/src/sync-server.ts`) and is not overridden by any shipped entrypoint.
+Moving shadow logging to 2027 therefore needs that server change as well as a
+`pnpm model:dataset` rebuild. By default each season logs to its own
+`data/shadow-logs/<season>-recommendations.ndjson` file. An artifact built before `season` was recorded is not logged
 until it is rebuilt with `pnpm model:dataset`, which stamps the season. A shadow result cannot change the displayed Best Pick or
 Best Player.
 

@@ -44,9 +44,10 @@ export const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 /** The season the shadow log collects evidence for; its file is named after it. */
 const DEFAULT_SHADOW_LOG_SEASON = 2026;
-const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
-  new URL(`../../data/shadow-logs/${String(DEFAULT_SHADOW_LOG_SEASON)}-recommendations.ndjson`, import.meta.url)
-);
+/** The default shadow log file for a season, so each season writes to its own file. */
+function defaultShadowLogPath(season: number): string {
+  return fileURLToPath(new URL(`../../data/shadow-logs/${String(season)}-recommendations.ndjson`, import.meta.url));
+}
 const DEFAULT_CURRENT_KEEPERS_PATH = fileURLToPath(
   new URL(`../../${catalogPath(CATALOG.keepers)}`, import.meta.url)
 );
@@ -477,10 +478,10 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
     : ['http://localhost:3000'];
-  const shadowLogger = new ShadowRecommendationLogger(
-    options.shadowLogPath ?? DEFAULT_SHADOW_LOG_PATH
-  );
   const shadowLogSeason = options.shadowLogSeason ?? DEFAULT_SHADOW_LOG_SEASON;
+  const shadowLogger = new ShadowRecommendationLogger(
+    options.shadowLogPath ?? defaultShadowLogPath(shadowLogSeason)
+  );
   const marketAdpProvider = new FantasyFootballCalculatorAdpProvider(fetchJson);
   const runtime = ManagedRuntime.make(Layer.empty);
   const draftDataRefresh = new DraftDataRefreshJob(runtime, options.runRefreshScript);
