@@ -44,6 +44,7 @@ import {
   writePrivateFile,
   writePrivateOutputs,
 } from '../generate-season-review.js';
+import { decodeSleeperLeague, decodeSleeperState } from './inputs.js';
 
 const scoring = { pass_yd: 0.04, pass_td: 4, rush_yd: 0.1, rush_td: 6, rush_att: 0.2, rec: 1, rec_yd: 0.1, rec_td: 6, bonus_rec_te: 0.5 };
 
@@ -284,19 +285,39 @@ describe('season review entry decisions', () => {
   });
 
   it('fails when Sleeper rolls its week or season type while the report reads', () => {
-    const state = { week: 12, season: '2026', season_type: 'regular' };
+    const state = decodeSleeperState({ week: 12, leg: 12, season: '2026', season_type: 'regular' });
     expect(stateChangeProblem(state, { ...state })).toBeNull();
     expect(stateChangeProblem(state, { ...state, week: 13 })).toContain('week 12 to 2026 regular week 13');
     expect(stateChangeProblem(state, { ...state, season_type: 'post' })).toContain('Rerun');
-    // Equivalent numeric spellings of one week are no change.
-    expect(stateChangeProblem(state, { ...state, week: '12' as unknown as number })).toBeNull();
+    // Equivalent numeric spellings of one week decode to the same state, so they are no change.
+    expect(stateChangeProblem(state, decodeSleeperState({ week: '12', leg: '12', season: 2026, season_type: 'regular' }))).toBeNull();
+  });
+
+  it('decodes numeric-string NFL state weeks and seasons to numbers, and rejects non-numeric ones', () => {
+    expect(decodeSleeperState({ week: '11', leg: '11', season: '2026', season_type: 'regular' })).toEqual({ week: 11, leg: 11, season: 2026, season_type: 'regular' });
+    expect(decodeSleeperState({ week: 11, season: 2026, season_type: 'regular' })).toEqual({ week: 11, season: 2026, season_type: 'regular' });
+    expect(() => decodeSleeperState({ week: '', season: '2026', season_type: 'regular' })).toThrow();
+    expect(() => decodeSleeperState({ week: 'eleven', season: '2026', season_type: 'regular' })).toThrow();
+  });
+
+  it('gives a string-valued last_scored_leg the same standings cutoff as a numeric one', () => {
+    const league = (settings: Record<string, unknown>) => decodeSleeperLeague({
+      league_id: 'l', season: '2026', total_rosters: 2, roster_positions: [], scoring_settings: {}, settings: { name: 'kept', ...settings },
+    });
+    const numeric = league({ last_scored_leg: 10, leg: 11, playoff_week_start: 15 }).settings;
+    const strings = league({ last_scored_leg: '10', leg: '11', playoff_week_start: '15' }).settings;
+    expect(strings).toEqual(numeric);
+    expect(strings['name']).toBe('kept');
+    const cutoff = (settings: typeof numeric) => resolveCutoffs(null, 11, 11, settings.last_scored_leg ?? null, settings.playoff_week_start ?? null);
+    expect(cutoff(strings)).toEqual(cutoff(numeric));
+    expect(cutoff(strings)).toEqual({ stats: 11, standings: 10 });
+    expect(league({}).settings.last_scored_leg).toBeUndefined();
   });
 
   it('fails when the league scored-week markers move between the league read and the re-read after rosters', () => {
-    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12, name: 'x' }, { last_scored_leg: 11, leg: 12, name: 'y' })).toBeNull();
+    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 11, leg: 12 })).toBeNull();
     expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 12, leg: 12 })).toContain('last_scored_leg moved from 11 to 12');
     expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 11, leg: 13 })).toContain('Rerun the report');
-    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: '12' }, { last_scored_leg: '11', leg: 12 })).toBeNull();
     expect(leagueMarkerProblem({ last_scored_leg: null }, { last_scored_leg: null })).toBeNull();
     expect(leagueMarkerProblem({ last_scored_leg: null }, {})).toBeNull();
     expect(leagueMarkerProblem({ last_scored_leg: null }, { last_scored_leg: 11 })).toContain('moved from null to 11');

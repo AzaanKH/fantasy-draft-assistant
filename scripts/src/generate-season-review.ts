@@ -206,30 +206,23 @@ export function missingStatsMessage(throughWeek: number, standingsWeek: number):
   return `${missing} Standings already run through week ${String(standingsWeek)}, so no earlier --through-week is valid; rerun once week ${String(throughWeek)} player stats are published.`;
 }
 
-/** A state or week marker as compared: 11 and "11" are the same week; absent and null are both no marker. */
-const markerValue = (value: unknown): unknown => {
-  if (value === undefined || value === null) return null;
-  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
-  return value;
-};
+type SleeperState = ReturnType<typeof decodeSleeperState>;
+type ScoredWeekMarkers = Pick<ReturnType<typeof decodeSleeperLeague>['settings'], 'last_scored_leg' | 'leg'>;
 
 /** Fails when Sleeper's NFL state moved while the report was reading, so standings and roster totals could span weeks. */
-export function stateChangeProblem(
-  before: { readonly week: number; readonly season: string; readonly season_type: string },
-  after: { readonly week: number; readonly season: string; readonly season_type: string }
-): string | null {
-  const same = (key: 'week' | 'season' | 'season_type') => markerValue(before[key]) === markerValue(after[key]);
-  if (same('week') && same('season') && same('season_type')) return null;
-  return `Sleeper moved from ${before.season} ${before.season_type} week ${String(before.week)} to ${after.season} ${after.season_type} week ${String(after.week)} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
+export function stateChangeProblem(before: SleeperState, after: SleeperState): string | null {
+  const same = (key: 'week' | 'leg' | 'season' | 'season_type') => (before[key] ?? null) === (after[key] ?? null);
+  if (same('week') && same('leg') && same('season') && same('season_type')) return null;
+  return `Sleeper moved from ${String(before.season)} ${before.season_type} week ${String(before.week)} to ${String(after.season)} ${after.season_type} week ${String(after.week)} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
 }
 
 const SCORED_WEEK_MARKERS = ['last_scored_leg', 'leg'] as const;
 
-/** Fails when the league's scored-week markers moved between the league read and the re-read after rosters. */
-export function leagueMarkerProblem(before: Readonly<Record<string, unknown>>, after: Readonly<Record<string, unknown>>): string | null {
-  const moved = SCORED_WEEK_MARKERS.filter((key) => markerValue(before[key]) !== markerValue(after[key]));
+/** Fails when the league's scored-week markers moved between the league read and the re-read after rosters. Absent and null are both no marker. */
+export function leagueMarkerProblem(before: ScoredWeekMarkers, after: ScoredWeekMarkers): string | null {
+  const moved = SCORED_WEEK_MARKERS.filter((key) => (before[key] ?? null) !== (after[key] ?? null));
   if (moved.length === 0) return null;
-  return `Sleeper league ${moved.map((key) => `${key} moved from ${String(before[key])} to ${String(after[key])}`).join(' and ')} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
+  return `Sleeper league ${moved.map((key) => `${key} moved from ${String(before[key] ?? null)} to ${String(after[key] ?? null)}`).join(' and ')} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
 }
 
 /** An optional snapshot for another season would leak that season's context into this one; null keeps it. */
@@ -500,22 +493,20 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   ], { concurrency: 3 });
   const rosters = yield* fetchSleeper(raw, `/league/${leagueId}/rosters`, decodeSleeperRosters);
   const weeks = Array.from({ length: REGULAR_SEASON_WEEKS }, (_, index) => index + 1)
-    .filter((week) => Number(state.season) > season || week <= state.week);
+    .filter((week) => state.season > season || week <= state.week);
   const matchups = yield* Effect.forEach(weeks, (week) =>
     fetchSleeper(raw, `/league/${leagueId}/matchups/${String(week)}`, decodeSleeperMatchups).pipe(Effect.map((rows) => ({ week, rows }))), { concurrency: 4 });
   const weekPoints = new Map(matchups.map(({ week, rows }) => [week, rows.reduce((sum, row) => sum + (row.points ?? 0), 0)]));
-  const lastScoredLeg = league.settings['last_scored_leg'];
-  const playoffWeekStart = league.settings['playoff_week_start'];
   const schedule = yield* Effect.tryPromise({
     try: (signal) => http.text(NFLVERSE_SCHEDULE, { timeoutMs: 60_000, retries: 2, retryAfter: true }, { init: { signal } }),
     catch: (cause) => new SeasonReviewError({ message: `nflverse schedule download failed: ${toError(cause).message}` }),
   });
   // Sleeper rolls its week before Monday night ends; the schedule confirms every game of the week is final.
-  const nflCompleted = Math.min(completedNflWeek(state.week, Number(state.season), state.season_type, season), lastFinalScheduleWeek(schedule, season));
+  const nflCompleted = Math.min(completedNflWeek(state.week, state.season, state.season_type, season), lastFinalScheduleWeek(schedule, season));
   const cutoffs = yield* Effect.try({
     try: () => resolveCutoffs(options.throughWeek, nflCompleted,
-      lastScoredWeek(state.week, Number(state.season), season, weekPoints), typeof lastScoredLeg === 'number' ? lastScoredLeg : null,
-      typeof playoffWeekStart === 'number' ? playoffWeekStart : null),
+      lastScoredWeek(state.week, state.season, season, weekPoints), league.settings.last_scored_leg ?? null,
+      league.settings.playoff_week_start ?? null),
     catch: (cause) => cause instanceof SeasonReviewError ? cause : new SeasonReviewError({ message: toError(cause).message }),
   });
   const throughWeek = cutoffs.stats;

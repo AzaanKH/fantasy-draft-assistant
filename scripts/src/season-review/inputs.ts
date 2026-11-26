@@ -1,12 +1,19 @@
 /** Decoders and plain types for every season-review input. Unknown JSON is decoded here, at the I/O boundary. */
-import { Schema } from 'effect';
+import { Schema, SchemaTransformation } from 'effect';
 
 const num = Schema.Finite;
 const optNum = Schema.optional(Schema.NullOr(Schema.Finite));
 const optStr = Schema.optional(Schema.NullOr(Schema.String));
 
+/** A week or season Sleeper may send as 11 or "11"; decodes to the number so every later comparison sees one spelling. */
+const weekNumber = Schema.Union([
+  num,
+  Schema.String.check(Schema.isPattern(/^-?\d+(\.\d+)?$/)).pipe(Schema.decodeTo(num, SchemaTransformation.numberFromString)),
+]);
+const optWeekNumber = Schema.optional(Schema.NullOr(weekNumber));
+
 export const decodeSleeperState = Schema.decodeUnknownSync(Schema.Struct({
-  week: num, season: Schema.String, season_type: Schema.String,
+  week: weekNumber, leg: optWeekNumber, season: weekNumber, season_type: Schema.String,
 }));
 
 export const decodeSleeperLeague = Schema.decodeUnknownSync(Schema.Struct({
@@ -15,7 +22,10 @@ export const decodeSleeperLeague = Schema.decodeUnknownSync(Schema.Struct({
   total_rosters: num,
   roster_positions: Schema.Array(Schema.String),
   scoring_settings: Schema.Record(Schema.String, num),
-  settings: Schema.Record(Schema.String, Schema.Unknown),
+  settings: Schema.StructWithRest(
+    Schema.Struct({ last_scored_leg: optWeekNumber, leg: optWeekNumber, playoff_week_start: optWeekNumber }),
+    [Schema.Record(Schema.String, Schema.Unknown)],
+  ),
 }));
 
 export const decodeSleeperUsers = Schema.decodeUnknownSync(Schema.Array(Schema.Struct({
