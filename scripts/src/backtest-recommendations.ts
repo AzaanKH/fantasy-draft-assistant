@@ -1010,7 +1010,7 @@ async function loadProspectiveRows(
           and r.pos in ${sqlPositionList(OFFENSIVE_POSITIONS)}
           and cast(r.scrape_date as date)
             between make_date(${String(season)}, 5, 1) and make_date(${String(season)}, 9, 10)
-          and (cast(r.scrape_date as date) + interval 1 day)::timestamptz <= ${cutoff}
+          and ${scrapeInformationBoundSql('r.scrape_date')} <= ${cutoff}
       ), snapshots as (
         select
           ids.sleeper_player_id::varchar as sleeper_player_id,
@@ -1020,7 +1020,7 @@ async function loadProspectiveRows(
           r.page_type::varchar as ranking_type,
           r.ecr::double as predraft_ecr,
           cast(r.scrape_date as date) as scrape_date,
-          (cast(r.scrape_date as date) + interval 1 day)::timestamptz <= ${cutoff} as before_draft
+          ${scrapeInformationBoundSql('r.scrape_date')} <= ${cutoff} as before_draft
         from source.dynastyprocess_rankings r
         join model.dynastyprocess_player_ids ids on r.id::varchar = ids.fantasypros_id
         where r.page_type in ('redraft-overall', 'best-overall')
@@ -1112,6 +1112,15 @@ function withProspectiveFolds(
 
 function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
+}
+
+/**
+ * The information-time upper bound of a date-only scrape: the following midnight UTC, the same bound the historical
+ * snapshots use (docs/modeling-duckdb.md). The zone is pinned in the expression rather than left to the session's
+ * TimeZone, which DuckDB takes from the host, so every machine selects the same draft-day snapshot.
+ */
+function scrapeInformationBoundSql(scrapeDate: string): string {
+  return `timezone('UTC', (cast(${scrapeDate} as date) + interval 1 day)::timestamp)`;
 }
 
 function sqlTimestamp(iso: string): string {

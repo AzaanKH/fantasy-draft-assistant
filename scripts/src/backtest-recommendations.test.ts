@@ -335,7 +335,11 @@ describe('prospective board', () => {
     `select ${String(season)} as season, '${gsisId}' as gsis_id, ` +
     historyColumns.map((column) => `${String(values[column] ?? 'null')}::double as ${column}`).join(', ');
 
-  async function loadBoard(options: { readonly gamesPlayed?: number; readonly extraSql?: readonly string[] } = {}) {
+  async function loadBoard(options: {
+    readonly gamesPlayed?: number;
+    readonly extraSql?: readonly string[];
+    readonly draftStartTimestamp?: string;
+  } = {}) {
     const gamesPlayed = options.gamesPlayed ?? 136;
     const { DuckDBInstance } = await import('@duckdb/node-api');
     const instance = await DuckDBInstance.create(':memory:');
@@ -375,7 +379,7 @@ describe('prospective board', () => {
 
       return await backtestInternals.loadProspectiveRows(connection, [{
         season: 2026,
-        draftStartTimestamp: '2026-09-05T18:00:00.000Z',
+        draftStartTimestamp: options.draftStartTimestamp ?? '2026-09-05T18:00:00.000Z',
         picks: [
           { playerId: 's-d', playerName: 'Player D', position: 'QB' },
           { playerId: 's-e', playerName: 'Player E', position: 'TE' },
@@ -419,6 +423,22 @@ describe('prospective board', () => {
     // f is not on the board and a, c are not carried in from the older scrape; the drafted d and e still score.
     expect(Object.keys(board).sort()).toEqual(['s-d', 's-e']);
     expect(load.rows.every((row) => row.predraft_ecr === null)).toBe(true);
+  });
+
+  it('bounds a scrape date at the following midnight UTC whatever the session time zone', async () => {
+    // A September 5 scrape is known by 2026-09-06T00:00Z, two hours before this draft. A Los Angeles session would
+    // put that midnight at 07:00Z and fall back to the August 20 board.
+    const load = await loadBoard({
+      draftStartTimestamp: '2026-09-06T02:00:00.000Z',
+      extraSql: [
+        `set TimeZone = 'America/Los_Angeles'`,
+        `insert into source.dynastyprocess_rankings values ('fp-b', 'Player B', 'WR', 'redraft-overall', 3.0, '2026-09-05')`,
+      ],
+    });
+    const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
+    expect(Object.keys(board).sort()).toEqual(['s-b', 's-d', 's-e']);
+    expect(board['s-b']?.predraft_ecr).toBe(3);
+    expect(load.folds[0]?.rankingsAfterDraft).toBe(1);
   });
 
   it('replays only the draft-day board for a fold season, scoring each overlapping player once', () => {
