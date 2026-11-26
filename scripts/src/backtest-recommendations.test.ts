@@ -547,6 +547,17 @@ describe('prospective board', () => {
     });
   });
 
+  it('serializes a withheld or unevaluated fold gate with no pass, fail or computed checks', () => {
+    const checks = { aggregateStarterPointsBeatEcr: true, aggregateVorBeatEcr: true };
+    const serialized = (comparison: 'evaluated' | 'incomplete' | 'not evaluated', gateChecks = checks) =>
+      JSON.parse(JSON.stringify(backtestInternals.prospectiveReleaseGate(comparison, gateChecks))) as unknown;
+    // Every computed check passes, yet an incomplete comparison must not read as a pass.
+    expect(serialized('incomplete')).toEqual({ status: 'withheld', evaluated: false, passed: null, checks: null });
+    expect(serialized('not evaluated')).toEqual({ status: 'not evaluated', evaluated: false, passed: null, checks: null });
+    expect(serialized('evaluated')).toEqual({ status: 'pass', evaluated: true, passed: true, checks });
+    expect(serialized('evaluated', { ...checks, aggregateVorBeatEcr: false })).toMatchObject({ status: 'fail', passed: false });
+  });
+
   it('leaves a complete fold with no ranked draft-day board out of the release gate', async () => {
     // Every scrape is after the draft: no pre-draft snapshot, so only the drafted players load.
     const load = await loadBoard({ gamesPlayed: 272, draftStartTimestamp: '2026-08-01T18:00:00.000Z' });

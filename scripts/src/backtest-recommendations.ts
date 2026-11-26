@@ -1194,6 +1194,29 @@ function prospectiveFoldStanding(
   };
 }
 
+/**
+ * A prospective fold's serialized release gate. Only an evaluated comparison reports a pass or fail with its checks; a
+ * withheld or unevaluated one reports `passed: null` and no checks, so nothing computed from an incomplete comparison
+ * can be read as a gate result.
+ */
+function prospectiveReleaseGate<Checks extends Readonly<Record<string, boolean>>>(
+  strategyComparison: 'evaluated' | 'incomplete' | 'not evaluated',
+  checks: Checks
+):
+  | { readonly status: 'pass' | 'fail'; readonly evaluated: true; readonly passed: boolean; readonly checks: Checks }
+  | { readonly status: 'withheld' | 'not evaluated'; readonly evaluated: false; readonly passed: null; readonly checks: null } {
+  if (strategyComparison !== 'evaluated') {
+    return {
+      status: strategyComparison === 'incomplete' ? 'withheld' : 'not evaluated',
+      evaluated: false,
+      passed: null,
+      checks: null,
+    };
+  }
+  const passed = Object.values(checks).every(Boolean);
+  return { status: passed ? 'pass' : 'fail', evaluated: true, passed, checks };
+}
+
 /** A fold season replays only its draft-day board: training rows a later rebuild adds for it stay out. */
 function withProspectiveFolds(
   rawRows: readonly TrainingRow[],
@@ -2038,11 +2061,7 @@ async function main(): Promise<void> {
           rosterAwareModel: seasonReport.strategies.rosterAwareModel,
           bestPick: seasonReport.strategies.bestPick,
         },
-        releaseGate: {
-          evaluated: standing.comparisonEvaluated,
-          passed: standing.comparisonEvaluated && Object.values(singleSeasonChecks).every(Boolean),
-          checks: singleSeasonChecks,
-        },
+        releaseGate: prospectiveReleaseGate(standing.strategyComparison, singleSeasonChecks),
         shadowLog: {
           path: shadowLogPath,
           present: shadowLogPresent,
@@ -2051,7 +2070,7 @@ async function main(): Promise<void> {
         evaluations: foldEvaluations,
       };
     }));
-    const prospectiveReopenEligible = prospectiveFolds.some((fold) => fold.canReopen && fold.releaseGate.passed);
+    const prospectiveReopenEligible = prospectiveFolds.some((fold) => fold.canReopen && fold.releaseGate.passed === true);
     const counterfactualStrategies = {
       rosterAwareEcr: aggregateCounterfactualSeasons(ecrCounterfactualIterations),
       rosterAwareModel: aggregateCounterfactualSeasons(modelCounterfactualIterations),
@@ -2310,7 +2329,7 @@ ${fold.releaseGate.evaluated
 
 | Check | Result |
 | --- | --- |
-${Object.entries(fold.releaseGate.checks).map(([check, passed]) => `| ${check} | ${passed ? 'pass' : 'fail'} |`).join('\n')}`
+${Object.entries(fold.releaseGate.checks ?? {}).map(([check, passed]) => `| ${check} | ${passed ? 'pass' : 'fail'} |`).join('\n')}`
   : fold.strategyComparison === 'incomplete'
   ? 'Single-season release gate: **withheld** (board players with unknown outcomes).'
   : 'Single-season release gate: **not evaluated** (no ranked draft-day board).'}
@@ -2577,6 +2596,7 @@ export const backtestInternals = {
   summarize,
   loadProspectiveRows,
   prospectiveFoldStanding,
+  prospectiveReleaseGate,
   unknownOutcomeStrategies,
   countUnknownOutcomes,
   chooseEcr,
