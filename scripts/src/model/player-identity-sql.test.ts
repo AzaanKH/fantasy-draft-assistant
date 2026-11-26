@@ -86,4 +86,45 @@ describe('playerSeasonIdentitySql', () => {
       connection.closeSync();
     }
   });
+
+  async function rankingsFor(rankings: string): Promise<Record<string, unknown>[]> {
+    const connection = await (await DuckDBInstance.create(':memory:')).connect();
+    try {
+      await connection.run(`create table player_seasons as select * from (values
+        (2025, 'g-1', 'WR')
+      ) as t(season, gsis_id, position)`);
+      await connection.run(`create table identities as select * from (values
+        (2026, 'g-1', 's-1', 'fp-1', 'WR')
+      ) as t(season, gsis_id, sleeper_player_id, fantasypros_id, position)`);
+      await connection.run(`create table rankings as select * from (values ${rankings}
+      ) as t(season, fantasypros_id, gsis_id, sleeper_player_id, position, predraft_ecr)`);
+      return (await connection.runAndReadAll(`
+        select player_gsis_id, fantasypros_id, sleeper_player_id, predraft_ecr
+        from (${playerSeasonRankingSql('player_seasons', 'identities', 'rankings')})
+      `)).getRowObjects();
+    } finally {
+      connection.closeSync();
+    }
+  }
+
+  it('keeps the best ECR among aliases of one player', async () => {
+    // Same Sleeper ID, a missing one ('NA') and none at all: all the same player, so the best ECR wins.
+    expect(await rankingsFor(`
+      (2025, 'fp-1', 'g-1', 's-1', 'WR', 14.0::double),
+      (2025, 'fp-2', 'g-1', 'NA', 'WR', 9.0),
+      (2025, 'fp-3', 'g-1', null, 'WR', 11.0),
+      (2025, 'fp-4', null, 's-1', 'WR', 12.0)
+    `)).toEqual([{ player_gsis_id: 'g-1', fantasypros_id: 'fp-2', sleeper_player_id: 'NA', predraft_ecr: 9 }]);
+  });
+
+  it('fails naming both identities when rankings sharing a GSIS ID carry different Sleeper IDs', async () => {
+    // fp-2 has the better ECR but belongs to a different player; attaching it to g-1 would be silent corruption.
+    await expect(rankingsFor(`
+      (2025, 'fp-1', 'g-1', 's-1', 'WR', 14.0::double),
+      (2025, 'fp-2', 'g-1', 's-2', 'WR', 9.0)
+    `)).rejects.toThrow(
+      'Conflicting DynastyProcess rankings for GSIS ID g-1 in 2025 (WR): Sleeper IDs s-1 (FantasyPros fp-1) and s-2 ' +
+      '(FantasyPros fp-2) are different players'
+    );
+  });
 });
