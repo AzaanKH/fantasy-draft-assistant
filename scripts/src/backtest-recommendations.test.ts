@@ -495,6 +495,7 @@ describe('prospective board', () => {
     if (!fold) throw new Error('expected a fold');
     expect(backtestInternals.prospectiveFoldStanding(fold)).toMatchObject({ countsTowardReleaseGate: true });
     expect(backtestInternals.prospectiveFoldStanding(fold, unknownRosters)).toEqual({
+      strategyComparison: 'incomplete',
       comparisonEvaluated: false,
       countsTowardReleaseGate: false,
       canReopen: false,
@@ -509,12 +510,50 @@ describe('prospective board', () => {
       .toEqual([[2, true], [1, false]]);
   });
 
+  it('withholds the fold gate for an unknown outcome left unpicked on the board, even with every roster scored', () => {
+    // Fourteen known 2026 QBs and one ranked QB with no outcome. The replacement level (QB12) reads only known
+    // outcomes, so whether the unknown QB would have finished above it is exactly what the comparison cannot know.
+    const qb = (id: string, points: number, ecr: number) => ({ ...player(id, 'QB', points), season: 2026, predraft_ecr: ecr });
+    const known = Array.from({ length: 14 }, (_, index) => qb(`q${String(index)}`, 400 - index * 20, index + 2));
+    const unknown = { ...qb('q-unknown', 0, 1), gsis_id: null, outcomeUnknown: true };
+    const { playerSeasons } = backtestInternals.addDerivedValues([...known, unknown], new Set());
+    const board = playerSeasons.filter((row) => row.season === 2026);
+    expect(board.find((row) => row.sleeper_player_id === 'q-unknown'))
+      .toMatchObject({ customPositionRank: 0, leagueActualVor: 0 });
+
+    // Both rosters hold only known outcomes: the rostered-only check finds nothing, so the old standing evaluated.
+    const ecrRoster = backtestInternals.createRoster();
+    const modelRoster = backtestInternals.createRoster();
+    const byId = (id: string) => {
+      const row = board.find((candidate) => candidate.sleeper_player_id === id);
+      if (!row) throw new Error(`expected ${id}`);
+      return row;
+    };
+    backtestInternals.addToRoster(ecrRoster, byId('q0'));
+    backtestInternals.addToRoster(modelRoster, byId('q1'));
+    const unknownRosters = backtestInternals.unknownOutcomeStrategies({ rosterAwareEcr: ecrRoster, rosterAwareModel: modelRoster });
+    expect(unknownRosters).toEqual({});
+    const fold = { season: 2026, complete: true, boardPlayers: board.length };
+    expect(backtestInternals.prospectiveFoldStanding(fold, unknownRosters).strategyComparison).toBe('evaluated');
+
+    // Counting the whole board withholds the gate: not evaluated, not counted, cannot reopen.
+    const boardUnknown = backtestInternals.countUnknownOutcomes(board);
+    expect(boardUnknown).toBe(1);
+    expect(backtestInternals.prospectiveFoldStanding(fold, unknownRosters, boardUnknown)).toEqual({
+      strategyComparison: 'incomplete',
+      comparisonEvaluated: false,
+      countsTowardReleaseGate: false,
+      canReopen: false,
+    });
+  });
+
   it('leaves a complete fold with no ranked draft-day board out of the release gate', async () => {
     // Every scrape is after the draft: no pre-draft snapshot, so only the drafted players load.
     const load = await loadBoard({ gamesPlayed: 272, draftStartTimestamp: '2026-08-01T18:00:00.000Z' });
     const fold = load.folds[0];
     expect(fold).toMatchObject({ complete: true, boardPlayers: 0 });
     expect(fold && backtestInternals.prospectiveFoldStanding(fold)).toEqual({
+      strategyComparison: 'not evaluated',
       comparisonEvaluated: false,
       countsTowardReleaseGate: false,
       canReopen: false,
@@ -526,12 +565,12 @@ describe('prospective board', () => {
   it('lets only a complete 2026 fold with a board reopen the model', () => {
     const standing = backtestInternals.prospectiveFoldStanding;
     expect(standing({ season: 2026, complete: true, boardPlayers: 200 }))
-      .toEqual({ comparisonEvaluated: true, countsTowardReleaseGate: true, canReopen: true });
+      .toEqual({ strategyComparison: 'evaluated', comparisonEvaluated: true, countsTowardReleaseGate: true, canReopen: true });
     expect(standing({ season: 2026, complete: false, boardPlayers: 200 }))
-      .toEqual({ comparisonEvaluated: true, countsTowardReleaseGate: false, canReopen: false });
+      .toEqual({ strategyComparison: 'evaluated', comparisonEvaluated: true, countsTowardReleaseGate: false, canReopen: false });
     // A later complete fold still counts toward its own release check but cannot reopen the frozen declaration.
     expect(standing({ season: 2027, complete: true, boardPlayers: 200 }))
-      .toEqual({ comparisonEvaluated: true, countsTowardReleaseGate: true, canReopen: false });
+      .toEqual({ strategyComparison: 'evaluated', comparisonEvaluated: true, countsTowardReleaseGate: true, canReopen: false });
   });
 
   it('replays only the draft-day board for a fold season, scoring each overlapping player once', () => {
