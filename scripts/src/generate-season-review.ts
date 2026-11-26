@@ -5,12 +5,13 @@
  * totals, joins them with the pre-draft FantasyPros snapshot and local league context, and writes JSON and markdown
  * to a gitignored directory (league data is private). See docs/season-review.md.
  */
+import { randomUUID } from 'node:crypto';
 import { constants, existsSync } from 'node:fs';
-import { lstat, mkdir, open, readFile, readdir, realpath, stat } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm, stat } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
-import { Clock, Data, Effect } from 'effect';
+import { Clock, Data, Effect, Option } from 'effect';
 import { http } from '@fantasy-draft/shared/http';
 import { Processes } from '@fantasy-draft/shared/node';
 import { currentSeason } from '@fantasy-draft/shared/league';
@@ -156,11 +157,9 @@ export function lastFinalScheduleWeek(csv: string, season: number): number {
     const week = Number(at(cells, weekAt));
     open.set(week, (open.get(week) ?? false) || at(cells, awayAt) === '' || at(cells, homeAt) === '');
   }
+  // Walk consecutive weeks from 1: a week missing from the schedule is not known to be final.
   let completed = 0;
-  for (const [week, hasOpenGame] of [...open].sort(([left], [right]) => left - right)) {
-    if (hasOpenGame) break;
-    completed = week;
-  }
+  while (open.get(completed + 1) === false) completed += 1;
   return completed;
 }
 
@@ -196,6 +195,29 @@ export function resolveCutoffs(
   return { stats: requested ?? nflCompleted, standings };
 }
 
+/** Recovery step when Sleeper has not published player stats for the stats cutoff; never suggests a week below standings. */
+export function missingStatsMessage(throughWeek: number, standingsWeek: number): string {
+  const missing = `Sleeper has no week ${String(throughWeek)} player stats yet.`;
+  if (throughWeek > standingsWeek) {
+    return `${missing} Rerun once they are published, or pass --through-week between ${String(standingsWeek)} and ${String(throughWeek - 1)} (standings run through week ${String(standingsWeek)}).`;
+  }
+  return `${missing} Standings already run through week ${String(standingsWeek)}, so no earlier --through-week is valid; rerun once week ${String(throughWeek)} player stats are published.`;
+}
+
+/** Fails when Sleeper's NFL state moved while the report was reading, so standings and roster totals could span weeks. */
+export function stateChangeProblem(
+  before: { readonly week: number; readonly season: string; readonly season_type: string },
+  after: { readonly week: number; readonly season: string; readonly season_type: string }
+): string | null {
+  if (before.week === after.week && before.season === after.season && before.season_type === after.season_type) return null;
+  return `Sleeper moved from ${before.season} ${before.season_type} week ${String(before.week)} to ${after.season} ${after.season_type} week ${String(after.week)} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
+}
+
+/** An optional snapshot for another season would leak that season's context into this one; null keeps it. */
+export function snapshotSeasonProblem(label: string, snapshotSeason: number, season: number): string | null {
+  return snapshotSeason === season ? null : `${label} is for season ${String(snapshotSeason)}, not ${String(season)}; omitted from the risk analysis.`;
+}
+
 /** Why a FantasyPros snapshot cannot stand in for pre-draft rankings, or null when it can. */
 export function predraftSnapshotProblem(metadata: { readonly season: number; readonly refreshedAt: string }, season: number, draftStartMs: number): string | null {
   if (metadata.season !== season) return `is for season ${String(metadata.season)}, not ${String(season)}`;
@@ -205,22 +227,29 @@ export function predraftSnapshotProblem(metadata: { readonly season: number; rea
   return null;
 }
 
-const git = (args: readonly string[], maxOutputBytes?: number) =>
-  Processes.run('git', args, { timeoutMs: 60_000, ...(maxOutputBytes ? { maxOutputBytes } : {}) });
+const toError = (cause: unknown) => cause instanceof Error ? cause : new Error(String(cause));
+
+const git = (args: readonly string[], maxOutputBytes?: number, signal?: AbortSignal) =>
+  Processes.run('git', args, { timeoutMs: 60_000, ...(maxOutputBytes ? { maxOutputBytes } : {}), ...(signal ? { signal } : {}) });
+
+/** `git` as an Effect: interrupting the effect aborts the child process. */
+const gitEffect = (args: readonly string[], maxOutputBytes?: number) =>
+  Effect.tryPromise({ try: (signal) => git(args, maxOutputBytes, signal), catch: (cause) => toError(cause) });
 
 /** Latest committed `fantasypros-snapshot.json` in the data directory's git history that predates the draft. */
-const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: number) => io(async () => {
+const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: number) => Effect.gen(function* () {
   const path = './fantasypros-snapshot.json';
-  const { stdout } = await git(['-C', dataDir, 'log', '--format=%H', '--', path]);
+  const { stdout } = yield* gitEffect(['-C', dataDir, 'log', '--format=%H', '--', path]);
   for (const commit of stdout.split('\n').filter(Boolean)) {
-    let snapshot: FantasyProsSnapshot;
-    try {
-      const shown = await git(['-C', dataDir, 'show', `${commit}:${path}`], 512 * 1024 * 1024);
-      snapshot = decodeFantasyProsSnapshot(JSON.parse(shown.stdout));
-    } catch {
-      continue;
+    // A commit whose blob cannot be read or decoded is skipped.
+    const snapshot: Option.Option<FantasyProsSnapshot> = yield* gitEffect(['-C', dataDir, 'show', `${commit}:${path}`], 512 * 1024 * 1024).pipe(
+      Effect.flatMap((shown) => Effect.try({ try: () => decodeFantasyProsSnapshot(JSON.parse(shown.stdout)), catch: toError })),
+      Effect.option,
+    );
+    if (Option.isNone(snapshot)) continue;
+    if (predraftSnapshotProblem(snapshot.value.metadata, season, draftStartMs) === null) {
+      return { snapshot: snapshot.value, source: `git ${commit.slice(0, 7)}:${join(dataDir, 'fantasypros-snapshot.json')}` };
     }
-    if (predraftSnapshotProblem(snapshot.metadata, season, draftStartMs) === null) return { snapshot, source: `git ${commit.slice(0, 7)}:${join(dataDir, 'fantasypros-snapshot.json')}` };
   }
   return null;
 });
@@ -266,17 +295,26 @@ export const assertPrivateOutputs = (paths: readonly string[], repoRoot: string 
   }
 });
 
-/** Writes `contents` to `path` without following a symlink there (O_NOFOLLOW where the platform has it). */
+/**
+ * Writes `contents` to a new, exclusively created temp file beside `path`, then renames it over `path`. A symlink at
+ * `path` is refused; a hard link there keeps its inode and contents because rename only replaces the directory entry.
+ */
 export const writePrivateFile = (path: string, contents: string): Effect.Effect<void, Error> => io(async () => {
-  const handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0), 0o644);
+  if ((await lstat(path).catch(() => null))?.isSymbolicLink()) throw new SeasonReviewError({ message: `${path} is a symlink; refusing to write through it.` });
+  const temp = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
+  const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o644);
   try {
-    await handle.writeFile(contents);
-  } finally {
-    await handle.close();
+    try {
+      await handle.writeFile(contents);
+    } finally {
+      await handle.close();
+    }
+    await rename(temp, path);
+  } catch (cause) {
+    await rm(temp, { force: true });
+    throw cause;
   }
 });
-
-const toError = (cause: unknown) => cause instanceof Error ? cause : new Error(String(cause));
 
 const readJson = <T>(path: string, decode: (value: unknown) => T) =>
   io(async () => {
@@ -284,8 +322,13 @@ const readJson = <T>(path: string, decode: (value: unknown) => T) =>
     return decode(parsed);
   }).pipe(Effect.mapError((cause) => new SeasonReviewError({ message: `Could not read ${path}: ${cause.message}` })));
 
-const readOptionalJson = <T>(path: string | null, decode: (value: unknown) => T) =>
-  path && existsSync(path) ? readJson(path, decode) : Effect.succeed(null);
+/** A default artifact that may be absent: null when the file does not exist. */
+const readOptionalJson = <T>(path: string, decode: (value: unknown) => T) =>
+  existsSync(path) ? readJson(path, decode) : Effect.succeed(null);
+
+/** An explicitly supplied option must name a readable file; an omitted option falls back to `fallback`. */
+const readExplicitOr = <T>(explicit: string | null, decode: (value: unknown) => T, fallback: Effect.Effect<T | null, SeasonReviewError>) =>
+  explicit ? readJson(explicit, decode) : fallback;
 
 /** Raw provider responses, held until the output paths pass the privacy check: file name → contents. */
 type RawFiles = Map<string, string>;
@@ -328,8 +371,9 @@ function priorSeasonRows(csv: string): PriorSeasonRow[] {
   })).filter((row) => row.gsisId);
 }
 
-const readHistoryEcr = (path: string | null) => path && existsSync(path)
+const readHistoryEcr = (path: string | null) => path
   ? io(async () => {
+    if (!existsSync(path)) throw new SeasonReviewError({ message: `--history-ecr file not found at ${path}` });
     const instance = await DuckDBInstance.create(':memory:');
     const connection = await instance.connect();
     try {
@@ -360,12 +404,13 @@ const readHistory = (dataDir: string, season: number) => io(async () => {
   return history;
 });
 
-const slotEvidence = (dataDir: string, draftId: string) => io(async () => {
+export const slotEvidence = (dataDir: string, draftId: string, season: number): Effect.Effect<{ source: string; slot: number }[], Error> => io(async () => {
   const evidence: { source: string; slot: number }[] = [];
   const keepersPath = join(dataDir, 'league-history', 'current-keepers.json');
   if (existsSync(keepersPath)) {
     const keepers = decodeCurrentKeepers(JSON.parse(await readFile(keepersPath, 'utf8')));
-    for (const keeper of keepers.keepers) if (keeper.isMyKeeper) evidence.push({ source: `current-keepers isMyKeeper (${keeper.playerName})`, slot: keeper.team });
+    // Another season's keepers say nothing about this draft's slot.
+    if (keepers.season === season) for (const keeper of keepers.keepers) if (keeper.isMyKeeper) evidence.push({ source: `current-keepers isMyKeeper (${keeper.playerName})`, slot: keeper.team });
   }
   const rehearsalDir = join(dataDir, 'rehearsal-evidence');
   if (existsSync(rehearsalDir)) {
@@ -452,15 +497,27 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   raw.set(`nflverse_stats_player_reg_${String(season - 1)}.csv`, priorCsv);
   const lastWeekStats = weeklyStats.find(({ week }) => week === throughWeek)?.stats ?? {};
   if (!Object.values(lastWeekStats).some((line) => (line['gp'] ?? 0) > 0)) {
-    return yield* new SeasonReviewError({ message: `Sleeper has no week ${String(throughWeek)} player stats yet. Pass an earlier --through-week.` });
+    return yield* new SeasonReviewError({ message: missingStatsMessage(throughWeek, cutoffs.standings) });
   }
+  // Rosters, matchups, transactions and stats were read after the first state read; confirm Sleeper did not roll a week meanwhile.
+  const stateAfter = yield* fetchSleeper(new Map(), '/state/nfl', decodeSleeperState);
+  const stateProblem = stateChangeProblem(state, stateAfter);
+  if (stateProblem) return yield* new SeasonReviewError({ message: stateProblem });
 
-  const evidence = yield* slotEvidence(options.dataDir, settings.draftId);
+  const evidence = yield* slotEvidence(options.dataDir, settings.draftId, season);
   const manager = resolveManagerSlot(options.managerSlot, evidence);
   const priorSeasonSleeperGames = new Map(Object.entries(priorSleeper).flatMap(([playerId, line]) => {
     const gp = line['gp'];
     return typeof gp === 'number' ? [[playerId, gp] as const] : [];
   }));
+
+  const omittedInputs: string[] = [];
+  const contracts = yield* readOptionalJson(join(options.dataDir, 'contracts.json'), decodeContracts);
+  const contractsProblem = contracts ? snapshotSeasonProblem('contracts.json', contracts.contractYear, season) : null;
+  if (contractsProblem) omittedInputs.push(contractsProblem);
+  const sportsbook = yield* readOptionalJson(join(options.dataDir, 'sportsbook-snapshot.json'), decodeSportsbook);
+  const sportsbookProblem = sportsbook ? snapshotSeasonProblem('sportsbook-snapshot.json', sportsbook.metadata.season, season) : null;
+  if (sportsbookProblem) omittedInputs.push(sportsbookProblem);
 
   const inputs: SeasonReviewInputs = {
     season,
@@ -472,16 +529,21 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
     priorSeasonSleeperGames,
     priorSeasonRows: priorSeasonRows(priorCsv),
     predraftFantasyPros: predraft.snapshot,
-    currentFantasyPros: yield* readOptionalJson(options.currentFantasyPros ?? join(options.dataDir, 'fantasypros-snapshot.json'), decodeFantasyProsSnapshot),
+    currentFantasyPros: yield* readExplicitOr(options.currentFantasyPros, decodeFantasyProsSnapshot,
+      readOptionalJson(join(options.dataDir, 'fantasypros-snapshot.json'), decodeFantasyProsSnapshot)),
     identity: yield* readOptionalJson(join(options.dataDir, 'player-identity.json'), decodePlayerIdentity),
-    predraftSleeper: yield* readOptionalJson(options.predraftSleeper, decodeSleeperAdpFile),
-    contracts: yield* readOptionalJson(join(options.dataDir, 'contracts.json'), decodeContracts),
-    sportsbook: yield* readOptionalJson(join(options.dataDir, 'sportsbook-snapshot.json'), decodeSportsbook),
-    predraftPredictions: yield* readOptionalJson(options.predraftPredictions, decodePredictions),
+    predraftSleeper: yield* readExplicitOr(options.predraftSleeper, decodeSleeperAdpFile, Effect.succeed(null)),
+    contracts: contractsProblem ? null : contracts,
+    sportsbook: sportsbookProblem ? null : sportsbook,
+    omittedInputs,
+    predraftPredictions: yield* readExplicitOr(options.predraftPredictions, decodePredictions, Effect.succeed(null)),
     history: yield* readHistory(options.dataDir, season),
     historyEcr: yield* readHistoryEcr(options.historyEcr),
   };
-  const review = buildSeasonReview(inputs);
+  const review = yield* Effect.try({
+    try: () => buildSeasonReview(inputs),
+    catch: (cause) => new SeasonReviewError({ message: toError(cause).message }),
+  });
   const generatedAt = new Date(yield* Clock.currentTimeMillis).toISOString();
   const jsonPath = join(outDir, `season-review-week-${String(throughWeek)}.json`);
   const markdownPath = join(outDir, `season-review-week-${String(throughWeek)}.md`);

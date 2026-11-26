@@ -9,7 +9,13 @@ const signed = (value: number | null | undefined, digits = 1): string =>
   value === null || value === undefined || !Number.isFinite(value) ? '–' : `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
 const pct = (value: number | null | undefined): string =>
   value === null || value === undefined ? '–' : `${Math.round(value * 100)}%`;
-const escape = (value: string): string => value.replaceAll('|', '\\|');
+/** One table cell: line breaks become spaces so a row stays on one line, and pipes are escaped. */
+export const escape = (value: string): string => value.replace(/\r\n|\r|\n/g, ' ').replaceAll('|', '\\|');
+const REGULAR_SEASON_WEEKS = 18;
+/** Best-lineup total, or a marker when the picks cannot fill every required starter. */
+const lineup = (value: number | null): string => value === null ? 'incomplete lineup' : fmt(value);
+const lineupDelta = (value: number | null, base: number | null, digits = 1): string =>
+  value === null || base === null ? 'n/a (incomplete lineup)' : signed(value - base, digits);
 
 function table(headers: readonly string[], rows: readonly (readonly (string | number)[])[]): string {
   const line = (cells: readonly (string | number)[]) => `| ${cells.map((cell) => escape(String(cell))).join(' | ')} |`;
@@ -59,7 +65,7 @@ function learnings(review: SeasonReview): string[] {
     out.push(`- **Your draft ranks ${String(me.draftValueRank)}/${String(review.teams.length)} on value over cost (grade ${me.draftGrade}); you are ${String(me.standingsRank)}${ordinal(me.standingsRank)} in the standings and ${String(me.pointsForRank)}${ordinal(me.pointsForRank)} in points for.** ` +
       `Starter points from drafted players ${fmt(me.starterPointsBySource.draft, 0)}, waivers/FA ${fmt(me.starterPointsBySource.waiver + me.starterPointsBySource.free_agent, 0)}, trades ${fmt(me.starterPointsBySource.trade, 0)}.`);
   }
-  out.push(`- **Roster-aware ECR would have scored ${signed(cf.ecr.totalPoints - cf.actual.totalPoints, 0)} total points (${signed(cf.ecr.seasonLineupPoints - cf.actual.seasonLineupPoints, 0)} best-lineup points) versus your picks; the replayed Best Pick rule ${signed(cf.bestPick.totalPoints - cf.actual.totalPoints, 0)} (${signed(cf.bestPick.seasonLineupPoints - cf.actual.seasonLineupPoints, 0)}).** ` +
+  out.push(`- **Roster-aware ECR would have scored ${signed(cf.ecr.totalPoints - cf.actual.totalPoints, 0)} total points (${lineupDelta(cf.ecr.seasonLineupPoints, cf.actual.seasonLineupPoints, 0)} best-lineup points) versus your picks; the replayed Best Pick rule ${signed(cf.bestPick.totalPoints - cf.actual.totalPoints, 0)} (${lineupDelta(cf.bestPick.seasonLineupPoints, cf.actual.seasonLineupPoints, 0)}).** ` +
     'One season and fixed opponent picks: treat the sign as a hint and the magnitude as noise-heavy.');
   if (rbEarly && rbEarly.rho !== null) {
     const spansZero = !rbEarly.interval || (rbEarly.interval[0] <= 0 && rbEarly.interval[1] >= 0);
@@ -76,10 +82,13 @@ function learnings(review: SeasonReview): string[] {
   }
 
   out.push('', '### (b) Testable proposals for the recommendation policy and model', '');
-  out.push('Each proposal names the evidence from this season, its strength, and the backtest that would confirm or reject it. None should change live ordering until the 2026 fold is complete (after week 18) and the release gate passes.', '');
+  const { season, throughWeek } = review.meta;
+  const fullSeason = throughWeek >= REGULAR_SEASON_WEEKS;
+  const weeks = `${String(throughWeek)} week${throughWeek === 1 ? '' : 's'}`;
+  out.push(`Each proposal names the evidence from this season, its strength, and the backtest that would confirm or reject it. None should change live ordering until the ${String(season)} fold is complete (after week ${String(REGULAR_SEASON_WEEKS)}) and the release gate passes.`, '');
   const positions = review.rankings.ecrByPosition.map((row) => `${row.scope} ${fmt(row.rho, 2)} (n = ${String(row.n)})`).join('; ');
   out.push(`1. **Position-specific trust in the ECR Anchor.** ECR→season-to-date rank correlation by position: ${positions}. ` +
-    `Proposal: let Conservative Override neighborhoods vary by position (wider where ECR was least reliable). Evidence: weak (one season, 11 weeks; intervals overlap). Test: per-position ρ across 2022–2026 folds in \`pnpm model:backtest\`.`);
+    `Proposal: let Conservative Override neighborhoods vary by position (wider where ECR was least reliable). Evidence: weak (one season, ${weeks}; intervals overlap). Test: per-position ρ across 2022–${String(season)} folds in \`pnpm model:backtest\`.`);
   if (adp && ecr) {
     out.push(`2. **ADP vs ECR as the quality anchor.** On the ADP top 150, ADP ρ = ${fmt(adp.rho, 2)} (MAE ${fmt(adp.meanAbsoluteRankError)}) vs ECR ρ = ${fmt(ecr.rho, 2)} (MAE ${fmt(ecr.meanAbsoluteRankError)}). ` +
       'Proposal: keep ADP as timing evidence only unless it beats ECR in at least 3 of 5 seasons. Evidence: weak — the two orderings are highly collinear. Test: add an ADP-anchored strategy row to the backtest once historical observed ADP exists.');
@@ -89,7 +98,7 @@ function learnings(review: SeasonReview): string[] {
   const age = risk('age-cliff');
   if (rookie && prior && age && all) {
     out.push(`3. **Risk penalties.** Hit rates vs baseline ${pct(all.hitRate)}: rookies ${pct(rookie.hitRate)} (n = ${String(rookie.n)}), prior-season < 12 games ${pct(prior.hitRate)} (n = ${String(prior.n)}), age cliff ${pct(age.hitRate)} (n = ${String(age.n)}). ` +
-      'Proposal: a bounded injuryRiskScore/age penalty only for categories whose hit rate trails baseline by ≥ 15 points in a pooled 2022–2026 replay with dated injury data. Evidence: weak (small n per category; risks are not independent). Test: needs the dated-injury replay listed as missing in the backtest limitations.');
+      `Proposal: a bounded injuryRiskScore/age penalty only for categories whose hit rate trails baseline by ≥ 15 points in a pooled 2022–${String(season)} replay with dated injury data. Evidence: weak (small n per category; risks are not independent). Test: needs the dated-injury replay listed as missing in the backtest limitations.`);
   }
   const book = risk('sportsbook-disagreement');
   if (book) {
@@ -103,19 +112,27 @@ function learnings(review: SeasonReview): string[] {
       acc.push(`${row.row.scope}: FP ${fmt(row.row.rho, 2)} vs model ${fmt(model?.row.rho, 2)}`);
       return acc;
     }, []);
-    out.push(`5. **Shadow model vs FantasyPros projections** (points-rank correlation among relevant players): ${pairs.join('; ')}. Proposal: keep the model in Shadow Recommendation; promote nothing on an 11-week partial season. Test: 2026 provisional prospective fold.`);
+    out.push(`5. **Shadow model vs FantasyPros projections** (points-rank correlation among relevant players): ${pairs.join('; ')}. Proposal: keep the model in Shadow Recommendation; promote nothing on ${fullSeason ? 'one season' : `a ${String(throughWeek)}-week partial season`}. Test: ${String(season)} provisional prospective fold.`);
   }
   const calibration = review.adpCalibration;
   out.push(`6. **Draft Timing calibration.** ${pct(calibration.withinOneRound)} of ${String(calibration.n)} non-keeper picks went within one round of FantasyPros ADP; mean |pick − ADP| ${fmt(calibration.meanAbsoluteDelta)}, mean signed ${signed(calibration.meanDelta)}. ` +
     'Proposal: score the Return Probability curve against these observed outcomes (Brier score per pick) and against the league-history survival model before changing timing weights. Evidence: descriptive; one room, one draft.');
 
-  out.push('', '### (c) Re-run after week 18', '');
-  out.push(
-    '- `pnpm report:season-review -- --season 2026 --through-week 18` (full NFL regular season; standings stop at the league last_scored_leg); all season-to-date numbers here are provisional.',
-    '- The 2026 provisional prospective backtest fold (owned elsewhere) — compare its roster-aware ECR and Best Pick rows with the counterfactual table here.',
-    '- Re-score risk hit rates and per-position ECR correlations with full-season games played; injuries after week 11 will move several categories.',
-    '- Refresh manager tendencies with the final 2026 transaction log before the 2027 keeper deadline.',
-  );
+  if (fullSeason) {
+    out.push('', '### (c) Follow-ups for the full regular season', '');
+    out.push(
+      `- The ${String(season)} provisional prospective backtest fold (owned elsewhere) — compare its roster-aware ECR and Best Pick rows with the counterfactual table here.`,
+      `- Refresh manager tendencies with the final ${String(season)} transaction log before the ${String(season + 1)} keeper deadline.`,
+    );
+  } else {
+    out.push('', `### (c) Re-run after week ${String(REGULAR_SEASON_WEEKS)}`, '');
+    out.push(
+      `- \`pnpm report:season-review -- --season ${String(season)} --through-week ${String(REGULAR_SEASON_WEEKS)}\` plus any input options from this run (full NFL regular season; standings stop at the league last_scored_leg); all season-to-date numbers here are provisional.`,
+      `- The ${String(season)} provisional prospective backtest fold (owned elsewhere) — compare its roster-aware ECR and Best Pick rows with the counterfactual table here.`,
+      `- Re-score risk hit rates and per-position ECR correlations with full-season games played; injuries after week ${String(throughWeek)} will move several categories.`,
+      `- Refresh manager tendencies with the final ${String(season)} transaction log before the ${String(season + 1)} keeper deadline.`,
+    );
+  }
   return out;
 }
 
@@ -142,7 +159,9 @@ export function renderSeasonReviewMarkdown(review: SeasonReview): string {
     '**Read this first**',
     '',
     ...meta.caveats.map((caveat) => `- ${caveat}`),
-    `- The current FantasyPros snapshot is ${meta.currentRankingsAreDraftRankings ? '**still draft (week 0) consensus rankings, not rest-of-season**, so "current rank" below is the season-to-date league-scored points rank (and PPG rank)' : 'treated as rest-of-season rankings'}.`,
+    meta.currentRankingsAt === null
+      ? '- No current FantasyPros snapshot was supplied, so "current rank" below is the season-to-date league-scored points rank (and PPG rank) and there is no ranking drift table.'
+      : `- The current FantasyPros snapshot is ${meta.currentRankingsAreDraftRankings ? '**still draft (week 0) consensus rankings, not rest-of-season**, so "current rank" below is the season-to-date league-scored points rank (and PPG rank)' : 'treated as rest-of-season rankings'}.`,
     `- Your team: draft slot ${String(meta.managerSlot)} (roster ${String(meta.managerRosterId)}). Evidence: ${meta.managerSlotEvidence.join('; ')}.`,
     `- Replacement levels (${label} points): ${Object.entries(meta.replacementLevels).map(([position, value]) => `${position} ${fmt(value)}`).join(' · ')}.`,
     ...(meta.unmatchedDraftedPlayers.length ? [`- Drafted players without a pre-draft FantasyPros match: ${meta.unmatchedDraftedPlayers.join('; ')}.`] : []),
@@ -174,11 +193,11 @@ export function renderSeasonReviewMarkdown(review: SeasonReview): string {
       ])),
     '',
     table(['Strategy', 'Total pts', 'Δ vs you', 'Best-lineup pts', 'Δ vs you', 'Total VOR'], [
-      ['Your picks', fmt(myDraft.counterfactual.actual.totalPoints), '', fmt(myDraft.counterfactual.actual.seasonLineupPoints), '', fmt(myDraft.counterfactual.actual.totalVor)],
+      ['Your picks', fmt(myDraft.counterfactual.actual.totalPoints), '', lineup(myDraft.counterfactual.actual.seasonLineupPoints), '', fmt(myDraft.counterfactual.actual.totalVor)],
       ['Roster-aware ECR', fmt(myDraft.counterfactual.ecr.totalPoints), signed(myDraft.counterfactual.ecr.totalPoints - myDraft.counterfactual.actual.totalPoints),
-        fmt(myDraft.counterfactual.ecr.seasonLineupPoints), signed(myDraft.counterfactual.ecr.seasonLineupPoints - myDraft.counterfactual.actual.seasonLineupPoints), fmt(myDraft.counterfactual.ecr.totalVor)],
+        lineup(myDraft.counterfactual.ecr.seasonLineupPoints), lineupDelta(myDraft.counterfactual.ecr.seasonLineupPoints, myDraft.counterfactual.actual.seasonLineupPoints), fmt(myDraft.counterfactual.ecr.totalVor)],
       ['Best Pick (replayed)', fmt(myDraft.counterfactual.bestPick.totalPoints), signed(myDraft.counterfactual.bestPick.totalPoints - myDraft.counterfactual.actual.totalPoints),
-        fmt(myDraft.counterfactual.bestPick.seasonLineupPoints), signed(myDraft.counterfactual.bestPick.seasonLineupPoints - myDraft.counterfactual.actual.seasonLineupPoints), fmt(myDraft.counterfactual.bestPick.totalVor)],
+        lineup(myDraft.counterfactual.bestPick.seasonLineupPoints), lineupDelta(myDraft.counterfactual.bestPick.seasonLineupPoints, myDraft.counterfactual.actual.seasonLineupPoints), fmt(myDraft.counterfactual.bestPick.totalVor)],
     ]),
     '',
     'Best-lineup points = the season-total points of the best legal starting lineup from those picks (not week-by-week start/sit). Roster-aware ECR follows the recommendation backtest: it takes the best-ranked legal player, so it can stack backup QBs; compare strategies on best-lineup points.',
@@ -258,8 +277,8 @@ export function renderSeasonReviewMarkdown(review: SeasonReview): string {
     table(['Player', 'Pos', 'Pre-draft', 'Now (pts)', 'Pts', 'G', 'Drafted'], review.rankings.unrankedBreakouts.map((row) => [
       row.name, row.position, rankLabel(row.position, row.predraftPositionRank), rankLabel(row.position, row.actualPositionRank), fmt(row.points), row.games, row.drafted ? 'yes' : 'no',
     ])), '',
-    '### FantasyPros draft-ranking drift (Aug 30 → current snapshot, overall ECR)', '',
-    table(['Player', 'Pos', 'Aug 30', 'Now', 'Δ'], review.rankings.fantasyProsMovement.map((row) => [row.name, row.position, row.before, row.after, signed(row.before - row.after, 0)])),
+    `### FantasyPros draft-ranking drift (${meta.predraftRankingsLabel} → current snapshot, overall ECR)`, '',
+    table(['Player', 'Pos', meta.predraftRankingsLabel, 'Now', 'Δ'], review.rankings.fantasyProsMovement.map((row) => [row.name, row.position, row.before, row.after, signed(row.before - row.after, 0)])),
     '',
   );
 

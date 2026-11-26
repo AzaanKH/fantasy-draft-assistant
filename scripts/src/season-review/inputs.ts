@@ -214,6 +214,8 @@ export interface SeasonReviewInputs {
   readonly predraftSleeper: SleeperAdpFile | null;
   readonly contracts: Contracts | null;
   readonly sportsbook: Sportsbook | null;
+  /** Optional inputs left out because they are for another season, each as a reader-facing sentence. */
+  readonly omittedInputs: readonly string[];
   readonly predraftPredictions: Predictions | null;
   readonly history: readonly HistorySeason[];
   readonly historyEcr: ReadonlyMap<string, number>;

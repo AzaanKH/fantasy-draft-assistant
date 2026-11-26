@@ -17,6 +17,7 @@ import {
   createOffensiveRoster,
   deriveRosterRules,
   isLegalCandidate,
+  missingRequiredSlots,
   POSITION_MAXIMUMS,
   type OffensiveRoster,
   type RosterRules,
@@ -61,6 +62,12 @@ export const RELEVANT_POSITION_DEPTH: Readonly<Record<OffensivePosition, number>
 const ROOM_AVERAGE = 'room-average';
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+/** Short UTC date label for a snapshot timestamp, such as "Aug 30"; the raw text when it does not parse. */
+export function snapshotDateLabel(timestamp: string): string {
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? new Date(parsed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : timestamp;
+}
 const isOffensive = (position: string): position is OffensivePosition =>
   OFFENSIVE_POSITIONS.some((candidate) => candidate === position);
 
@@ -76,7 +83,7 @@ export interface PredraftPlayer {
   readonly worstRank: number | null;
   readonly avgRank: number | null;
   readonly adpRank: number | null;
-  /** FantasyPros average draft position as a pick number; the ordinal `adpRank` only orders players. */
+  /** FantasyPros average draft position as a pick number, null without one; the ordinal `adpRank` only orders players. */
   readonly adpPick: number | null;
   readonly projection: number | null;
   readonly projectionStats: StatProjection;
@@ -122,7 +129,8 @@ export interface CounterfactualPick {
 
 export interface StrategyTotals {
   readonly totalPoints: number;
-  readonly seasonLineupPoints: number;
+  /** Null when the picks cannot fill every required starter: an incomplete lineup has no comparable total. */
+  readonly seasonLineupPoints: number | null;
   readonly totalVor: number;
 }
 
@@ -223,6 +231,8 @@ export interface SeasonReview {
     readonly managerRosterId: number;
     readonly managerSlotEvidence: readonly string[];
     readonly predraftRankingsAt: string;
+    /** Short date of the pre-draft snapshot, such as "Aug 30". */
+    readonly predraftRankingsLabel: string;
     readonly currentRankingsAt: string | null;
     readonly currentRankingsAreDraftRankings: boolean;
     readonly unmatchedDraftedPlayers: readonly string[];
@@ -332,7 +342,7 @@ function buildFantasyProsMap(inputs: SeasonReviewInputs, info: ReadonlyMap<strin
   return map;
 }
 
-function buildPredraft(inputs: SeasonReviewInputs, fpMap: ReadonlyMap<string, string>): Map<string, PredraftPlayer> {
+export function buildPredraft(inputs: SeasonReviewInputs, fpMap: ReadonlyMap<string, string>): Map<string, PredraftPlayer> {
   const snapshot = inputs.predraftFantasyPros;
   const scoringRules = normalizeSleeperLeagueSettings(inputs.league).scoringRules;
   const adp = new Map(snapshot.adp.map((row) => [row.fantasyProsId, row]));
@@ -355,7 +365,7 @@ function buildPredraft(inputs: SeasonReviewInputs, fpMap: ReadonlyMap<string, st
       worstRank: row.worstRank ?? null,
       avgRank: row.avgRank ?? null,
       adpRank: adp.get(row.fantasyProsId)?.rank ?? null,
-      adpPick: adp.get(row.fantasyProsId)?.averageRank ?? adp.get(row.fantasyProsId)?.rank ?? null,
+      adpPick: adp.get(row.fantasyProsId)?.averageRank ?? null,
       projection: projection ? leagueProjection(projection, position, scoringRules) : null,
       projectionStats: {
         passingYards: projection?.projectedPassingYards ?? undefined,
@@ -386,10 +396,29 @@ function numberSetting(settings: Readonly<Record<string, unknown>>, key: string)
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-function rosterIdOf(pick: SeasonReviewInputs['picks'][number], slotToRoster: Readonly<Record<string, number>>): number {
+function pickRosterId(pick: SeasonReviewInputs['picks'][number]): number | null {
   const raw = pick.roster_id;
   const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : slotToRoster[String(pick.draft_slot)] ?? 0;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function rosterIdOf(pick: SeasonReviewInputs['picks'][number], slotToRoster: Readonly<Record<string, number>>): number {
+  return pickRosterId(pick) ?? slotToRoster[String(pick.draft_slot)] ?? 0;
+}
+
+/**
+ * The manager's roster: the draft's slot_to_roster_id, else the one roster every pick from that slot names, provided
+ * the league has that roster. Anything else is ambiguous and stops the report rather than grading roster 0.
+ */
+export function resolveManagerRosterId(inputs: Pick<SeasonReviewInputs, 'draft' | 'picks' | 'rosters' | 'managerSlot'>): number {
+  const mapped = inputs.draft.slot_to_roster_id?.[String(inputs.managerSlot)];
+  const fromPicks = [...new Set(inputs.picks.filter((pick) => pick.draft_slot === inputs.managerSlot).map(pickRosterId))];
+  const [only] = fromPicks;
+  const rosterId = mapped ?? (fromPicks.length === 1 && only !== null && only !== undefined ? only : null);
+  if (rosterId === null || !inputs.rosters.some((roster) => roster.roster_id === rosterId)) {
+    throw new Error(`Could not tie draft slot ${String(inputs.managerSlot)} to one league roster: the draft has no slot_to_roster_id for it and its picks name ${fromPicks.length ? fromPicks.map(String).join(', ') : 'no roster'}. Check --manager-slot.`);
+  }
+  return rosterId;
 }
 
 function correlationRow(scope: string, predicted: readonly number[], actual: readonly number[]): CorrelationRow {
@@ -511,7 +540,7 @@ function addToStrategy(state: StrategyState, player: CandidatePlayer): void {
 
 function strategyTotals(
   ids: readonly (string | null)[],
-  info: ReadonlyMap<string, PlayerInfo>,
+  positionOf: (playerId: string) => string,
   lines: ReadonlyMap<string, PlayerSeasonLine>,
   vorOf: (playerId: string) => number,
   rules: RosterRules,
@@ -526,17 +555,19 @@ function strategyTotals(
     const points = lines.get(id)?.points ?? 0;
     totalPoints += points;
     totalVor += vorOf(id);
-    const position = info.get(id)?.position ?? '';
+    const position = positionOf(id);
     if (isOffensive(position)) roster[position].push({ playerId: id, position });
     else special.set(position, [...(special.get(position) ?? []), points]);
   }
   // A legal lineup also starts every configured K and DEF slot.
   const specialStarters = KICKER_DEFENSE_POSITIONS.reduce((sum, position) => sum + [...(special.get(position) ?? [])]
     .sort((a, b) => b - a).slice(0, slots.fixed[position] ?? 0).reduce((total, points) => total + points, 0), 0);
+  const complete = missingRequiredSlots(roster, rules) === 0
+    && KICKER_DEFENSE_POSITIONS.every((position) => (special.get(position)?.length ?? 0) >= (slots.fixed[position] ?? 0));
   return {
     totalPoints: round2(totalPoints),
     totalVor: round2(totalVor),
-    seasonLineupPoints: round2(calculateStarterPoints(roster, rules, (player) => player.playerId,
+    seasonLineupPoints: !complete ? null : round2(calculateStarterPoints(roster, rules, (player) => player.playerId,
       (player) => lines.get(player.playerId)?.points ?? 0) + specialStarters),
   };
 }
@@ -563,20 +594,25 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const predraft = buildPredraft(inputs, fpMap);
   const names = managerNames(inputs);
   const slotToRoster = inputs.draft.slot_to_roster_id ?? {};
-  const managerRosterId = slotToRoster[String(inputs.managerSlot)] ?? 0;
+  const managerRosterId = resolveManagerRosterId(inputs);
   const rosterOwner = new Map(inputs.rosters.map((roster) => [roster.roster_id, roster.owner_id ?? '']));
   const managerOf = (rosterId: number) => names.get(rosterOwner.get(rosterId) ?? '')?.name ?? `Roster ${String(rosterId)}`;
+
+  // One position per player for ranking, VOR and the draft row: the live directory, else the draft pick's metadata.
+  const draftPosition = new Map(inputs.picks.flatMap((pick) =>
+    typeof pick.metadata?.['position'] === 'string' && pick.metadata['position'] ? [[pick.player_id, normalizePosition(pick.metadata['position'])] as const] : []));
+  const positionOf = (playerId: string) => info.get(playerId)?.position || draftPosition.get(playerId) || '';
 
   const lines = aggregateSeason(inputs.weeklyStats, scoring);
   const lineOf = (playerId: string) => lines.get(playerId);
   const scoredPositions = new Set<string>([...OFFENSIVE_POSITIONS, ...KICKER_DEFENSE_POSITIONS]);
   const universe = [...lines.values()].flatMap((line) => {
-    const position = info.get(line.playerId)?.position ?? '';
+    const position = positionOf(line.playerId);
     return scoredPositions.has(position) ? [{ ...line, position }] : [];
   });
   // Drafted players with no stat line yet still hold a rank: last at their position on zero points.
   for (const playerId of new Set(inputs.picks.map((pick) => pick.player_id))) {
-    const position = info.get(playerId)?.position ?? '';
+    const position = positionOf(playerId);
     if (lines.has(playerId) || !scoredPositions.has(position)) continue;
     universe.push({ playerId, points: 0, games: 0, pointsPerGame: 0, weeklyPoints: [], position });
   }
@@ -584,7 +620,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const replacement = replacementLevels(universe, slots, teams);
   // Floored at zero: a player below replacement is a free waiver swap, so a late bust costs the pick, not more.
   const vorOf = (playerId: string) => {
-    const position = info.get(playerId)?.position ?? '';
+    const position = positionOf(playerId);
     return Math.max(0, round2((lineOf(playerId)?.points ?? 0) - (replacement.get(position) ?? 0)));
   };
   const positionRanks = rankWithinGroups(universe, (line) => line.position, (line) => line.points, (line) => line.playerId);
@@ -633,8 +669,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     const rosterId = rosterIdOf(pick, slotToRoster);
     draftedBy.set(pick.player_id, rosterId);
     const player = info.get(pick.player_id);
-    const metadataPosition = typeof pick.metadata?.['position'] === 'string' ? pick.metadata['position'] : '';
-    const position = normalizePosition(player?.position || metadataPosition);
+    const position = positionOf(pick.player_id);
     const metadataTeam = typeof pick.metadata?.['team'] === 'string' && pick.metadata['team'] ? pick.metadata['team'] : null;
     const pre = predraft.get(pick.player_id);
     if (!pre && isOffensive(position)) unmatched.push(player?.name ?? pick.player_id);
@@ -644,7 +679,9 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     const positionRank = positionRanks.get(pick.player_id) ?? null;
     const vor = vorOf(pick.player_id);
     const expectedVor = expected.get(pick.pick_no) ?? 0;
-    const delta = adpDelta(pick.pick_no, pre?.adpPick ?? null);
+    // Descriptive pick cost may fall back to the ordinal ADP rank; the Best Pick replay never does.
+    const costPick = pre?.adpPick ?? pre?.adpRank ?? null;
+    const delta = adpDelta(pick.pick_no, costPick);
     const gsis = player?.gsisId ?? null;
     const prior = gsis ? priorByGsis.get(gsis) : undefined;
     const draftTeam = metadataTeam ?? pre?.team ?? player?.team ?? null;
@@ -669,7 +706,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       ecrRank: pre?.ecrRank ?? null,
       ecrPositionRank: pre?.ecrPositionRank ?? null,
       adpRank: pre?.adpRank ?? null,
-      adpPick: pre?.adpPick ?? null,
+      adpPick: costPick,
       adpDelta: delta,
       currentEcrRank: currentEcr.get(pick.player_id) ?? null,
       points: line?.points ?? 0,
@@ -712,7 +749,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const counterfactualPicks: CounterfactualPick[] = [];
   const takenByOthers = new Set<string>();
   const summary = (playerId: string | null) => playerId
-    ? { name: info.get(playerId)?.name ?? playerId, position: info.get(playerId)?.position ?? '', points: lineOf(playerId)?.points ?? 0 }
+    ? { name: info.get(playerId)?.name ?? playerId, position: positionOf(playerId), points: lineOf(playerId)?.points ?? 0 }
     : null;
   // Keepers are known before pick 1: both replays start with them rostered and count them once.
   const managerPicks = picks.filter((pick) => pick.rosterId === managerRosterId);
@@ -844,10 +881,16 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     const settings = rosterSettings.get(rosterId) ?? {};
     return round2(numberSetting(settings, 'fpts') + numberSetting(settings, 'fpts_decimal') / 100);
   };
+  const pointsAgainst = (rosterId: number) => {
+    const settings = rosterSettings.get(rosterId) ?? {};
+    return round2(numberSetting(settings, 'fpts_against') + numberSetting(settings, 'fpts_against_decimal') / 100);
+  };
+  // Sleeper's default order: record, then points for, then points against (higher first).
   const standingsOrder = [...rosterIds].sort((a, b) => {
     const sa = rosterSettings.get(a) ?? {};
     const sb = rosterSettings.get(b) ?? {};
-    return numberSetting(sb, 'wins') - numberSetting(sa, 'wins') || pointsFor(b) - pointsFor(a);
+    return numberSetting(sb, 'wins') - numberSetting(sa, 'wins') || numberSetting(sa, 'losses') - numberSetting(sb, 'losses')
+      || pointsFor(b) - pointsFor(a) || pointsAgainst(b) - pointsAgainst(a);
   });
   const pfOrder = [...rosterIds].sort((a, b) => pointsFor(b) - pointsFor(a));
   const slotOfRoster = new Map(Object.entries(slotToRoster).map(([slot, rosterId]) => [rosterId, Number(slot)]));
@@ -869,7 +912,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       losses: numberSetting(settings, 'losses'),
       ties: numberSetting(settings, 'ties'),
       pointsFor: pointsFor(rosterId),
-      pointsAgainst: round2(numberSetting(settings, 'fpts_against') + numberSetting(settings, 'fpts_against_decimal') / 100),
+      pointsAgainst: pointsAgainst(rosterId),
       maxPoints: round2(numberSetting(settings, 'ppts') + numberSetting(settings, 'ppts_decimal') / 100),
       standingsRank: standingsOrder.indexOf(rosterId) + 1,
       pointsForRank: pfOrder.indexOf(rosterId) + 1,
@@ -918,7 +961,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     return { measure, n: values.length, rho, interval: rho === null ? null : correlationInterval(rho, values.length) };
   });
 
-  // Manager tendencies: 2026 picks against ADP, plus history against pre-draft ECR.
+  // Manager tendencies: this season's picks against ECR, plus history against pre-draft ECR.
   const tendencyRows: { season: number; userId: string; originalUserId: string; manager: string; position: string; round: number; ecrDelta: number | null; isKeeper: boolean }[] = [];
   for (const pick of picks) {
     tendencyRows.push({
@@ -941,10 +984,11 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       });
     }
   }
-  const tendencies = (rows: typeof tendencyRows): ManagerTendency[] => {
+  // Individual rows come from `rows`; the room-average benchmark from every manager in `roomSource`, departed ones too.
+  const tendencies = (rows: typeof tendencyRows, roomSource: typeof tendencyRows = rows): ManagerTendency[] => {
     const byUser = new Map<string, typeof tendencyRows>();
     for (const row of rows) if (row.userId) byUser.set(row.userId, [...(byUser.get(row.userId) ?? []), row]);
-    const roomRows = rows.filter((row) => row.userId).map((row) => ({ ...row, userId: ROOM_AVERAGE, manager: 'Room average' }));
+    const roomRows = roomSource.filter((row) => row.userId).map((row) => ({ ...row, userId: ROOM_AVERAGE, manager: 'Room average' }));
     return [...byUser, [ROOM_AVERAGE, roomRows] as const].map(([userId, userRows]) => {
       const fresh = userRows.filter((row) => !row.isKeeper && isOffensive(row.position));
       const seasons = [...new Set(userRows.map((row) => row.season))].sort();
@@ -995,11 +1039,12 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const overallVorRank = new Map([...universe].filter((line) => isOffensive(line.position)).sort((a, b) => rawVor(b) - rawVor(a)).map((line, index) => [line.playerId, index + 1]));
   const marketSet = [...predraft.values()].filter((player) => isOffensive(player.position) && player.adpRank !== null && player.adpRank <= 150);
   const actualOverall = marketSet.map((player) => overallVorRank.get(player.playerId) ?? overallVorRank.size + 1);
+  const predraftLabel = snapshotDateLabel(inputs.predraftFantasyPros.metadata.refreshedAt);
   const adpVsEcr = [
-    { source: 'FantasyPros ADP (Aug 30)', row: correlationRow('ADP top 150', marketSet.map((player) => player.adpRank ?? 0), actualOverall) },
-    { source: 'FantasyPros ECR (Aug 30)', row: correlationRow('ADP top 150', marketSet.map((player) => player.ecrRank), actualOverall) },
+    { source: `FantasyPros ADP (${predraftLabel})`, row: correlationRow('ADP top 150', marketSet.map((player) => player.adpRank ?? 0), actualOverall) },
+    { source: `FantasyPros ECR (${predraftLabel})`, row: correlationRow('ADP top 150', marketSet.map((player) => player.ecrRank), actualOverall) },
     ...(inputs.predraftSleeper ? [{
-      source: 'Sleeper search rank (Aug 30)',
+      source: `Sleeper search rank (${snapshotDateLabel(inputs.predraftSleeper.fetchedAt)})`,
       row: (() => {
         const sleeperRank = new Map(inputs.predraftSleeper.players.map((player) => [player.playerId, player.sleeperAdp]));
         const subset = marketSet.filter((player) => sleeperRank.has(player.playerId));
@@ -1089,7 +1134,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     .slice(0, 15)
     .map((entry) => ({
       name: info.get(entry.playerId)?.name ?? entry.playerId,
-      position: info.get(entry.playerId)?.position ?? '',
+      position: positionOf(entry.playerId),
       manager: managerOf(entry.rosterId),
       firstWeek: entry.firstWeek,
       source: entry.source,
@@ -1109,6 +1154,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       managerRosterId,
       managerSlotEvidence: inputs.managerSlotEvidence,
       predraftRankingsAt: inputs.predraftFantasyPros.metadata.refreshedAt,
+      predraftRankingsLabel: predraftLabel,
       currentRankingsAt: inputs.currentFantasyPros?.metadata.refreshedAt ?? null,
       currentRankingsAreDraftRankings,
       unmatchedDraftedPlayers: unmatched,
@@ -1116,6 +1162,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       caveats: [
         `Season-to-date only: ${String(inputs.throughWeek)} scored weeks; playoffs and late-season injuries can reorder everything.`,
         ...(inputs.standingsThroughWeek < inputs.throughWeek ? [`Standings, W-L and points for/against are the league's totals through week ${String(inputs.standingsThroughWeek)} (its last scored week); player stats run through week ${String(inputs.throughWeek)}.`] : []),
+        ...inputs.omittedInputs,
         `n = ${String(teams)} teams and one draft; team-level strategy comparisons are anecdotes, not evidence.`,
         'Points are league-scored from Sleeper weekly stats (verified equal to Sleeper matchup players_points for rostered players).',
         'Counterfactuals hold opponents\' picks fixed; a player a strategy takes early is not replaced on the opponent\'s roster.',
@@ -1135,10 +1182,10 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       waits: myPicks.filter((pick) => !pick.isKeeper && (pick.adpDelta ?? 0) >= 6).sort((a, b) => (b.adpDelta ?? 0) - (a.adpDelta ?? 0)),
       counterfactual: {
         picks: counterfactualPicks,
-        actual: strategyTotals(actualIds, info, lines, vorOf, rules, slots),
-        ecr: strategyTotals(ecrState.picks, info, lines, vorOf, rules, slots),
-        bestPick: strategyTotals(bestPickState.picks, info, lines, vorOf, rules, slots),
-        bestPickMethod: 'Current shipped Best Pick rule (shared getRecommendations, best-pick-policy) replayed on the Aug 30 FantasyPros board with league-scored projections, VOR, FantasyPros ADP as market cost and the backtest survival curve; live-only inputs (news, bye weeks, contracts, environment, league-history survival) are neutral. The draft-day app (commit a7cc935) also used live Fantasy Football Calculator ADP and the league survival model, which cannot be replayed exactly.',
+        actual: strategyTotals(actualIds, positionOf, lines, vorOf, rules, slots),
+        ecr: strategyTotals(ecrState.picks, positionOf, lines, vorOf, rules, slots),
+        bestPick: strategyTotals(bestPickState.picks, positionOf, lines, vorOf, rules, slots),
+        bestPickMethod: `Current shipped Best Pick rule (shared getRecommendations, best-pick-policy) replayed on the ${predraftLabel} FantasyPros board with league-scored projections, VOR, FantasyPros average pick as market cost (ECR without one) and the backtest survival curve; live-only inputs (news, bye weeks, contracts, environment, league-history survival) are neutral. The draft-day app also used live Fantasy Football Calculator ADP and the league survival model, which cannot be replayed exactly. A replayed roster that cannot fill every required starter has no best-lineup total.`,
       },
     },
     teams: teamSummaries,
@@ -1155,7 +1202,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
     strategyCorrelations,
     tendencies: {
       current: tendencies(tendencyRows.filter((row) => row.season === inputs.season)),
-      withHistory: tendencies(historyRows),
+      withHistory: tendencies(historyRows, tendencyRows.filter((row) => row.season === inputs.season || historySeasons.includes(row.season))),
       historySeasons,
     },
     rankings: { ecrByPosition, ecrPpgByPosition, adpVsEcr, modelVsFantasyPros, risers, fallers, unrankedBreakouts, fantasyProsMovement },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -31,10 +31,14 @@ import {
   completedNflWeek,
   lastFinalScheduleWeek,
   lastScoredWeek,
+  missingStatsMessage,
   parseSeasonReviewArgs,
   predraftSnapshotProblem,
   resolveManagerSlot,
   resolveCutoffs,
+  slotEvidence,
+  snapshotSeasonProblem,
+  stateChangeProblem,
   writePrivateFile,
 } from '../generate-season-review.js';
 
@@ -174,6 +178,20 @@ describe('acquisitions', () => {
       { transactionId: 'f1', rosterId: 4, playerId: 'p1', firstWeek: 5, source: 'free_agent', faabBid: null, rostered: 27, started: 27 },
     ]);
   });
+
+  it('keeps a pickup dropped before it ever appears in a matchup as a zero-point stint', () => {
+    const adds = new Map([
+      ['4:p1', [{ week: 2, created: 20, rosterId: 4, playerId: 'p1', type: 'waiver' as const, transactionId: 'w1', faabBid: 3 }]],
+      ['4:p2', [{ week: 3, created: 30, rosterId: 4, playerId: 'p2', type: 'free_agent' as const, transactionId: 'f2', faabBid: null }]],
+      ['4:p3', [{ week: 9, created: 90, rosterId: 4, playerId: 'p3', type: 'free_agent' as const, transactionId: 'late', faabBid: null }]],
+      ['4:p4', [{ week: 2, created: 21, rosterId: 4, playerId: 'p4', type: 'trade' as const, transactionId: 't1', faabBid: null }]],
+    ]);
+    const stints = pickupStints([{ week: 3, rows: [{ roster_id: 4, players: ['p2'], starters: ['p2'], players_points: { p2: 8 } }] }], adds, 6);
+    expect(stints).toEqual([
+      { transactionId: 'w1', rosterId: 4, playerId: 'p1', firstWeek: 2, source: 'waiver', faabBid: 3, rostered: 0, started: 0 },
+      { transactionId: 'f2', rosterId: 4, playerId: 'p2', firstWeek: 3, source: 'free_agent', faabBid: null, rostered: 8, started: 8 },
+    ]);
+  });
 });
 
 describe('parsing helpers', () => {
@@ -239,11 +257,65 @@ describe('season review entry decisions', () => {
   it('counts a week as completed only when every regular-season game in it is final', () => {
     const csv = [
       'game_id,season,game_type,week,away_score,home_score',
+      ...Array.from({ length: 9 }, (_, index) => `w${String(index + 1)},2026,REG,${String(index + 1)},10,7`),
       'a,2026,REG,10,20,17', 'b,2026,REG,11,24,21', 'c,2026,REG,11,,', 'd,2026,REG,12,,',
       'e,2025,REG,11,10,13', 'f,2026,POST,19,,',
     ].join('\n');
     expect(lastFinalScheduleWeek(csv, 2026)).toBe(10);
     expect(lastFinalScheduleWeek(csv.replace('c,2026,REG,11,,', 'c,2026,REG,11,3,7'), 2026)).toBe(11);
+  });
+
+  it('stops the schedule cutoff at a week missing from the schedule', () => {
+    const csv = ['game_id,season,game_type,week,away_score,home_score', 'a,2026,REG,1,20,17', 'b,2026,REG,3,24,21'].join('\n');
+    expect(lastFinalScheduleWeek(csv, 2026)).toBe(1);
+    expect(lastFinalScheduleWeek(csv.replace('a,2026,REG,1', 'a,2026,REG,2'), 2026)).toBe(0);
+  });
+
+  it('suggests only a recovery the standings cutoff allows when week stats are missing', () => {
+    expect(missingStatsMessage(11, 11)).toContain('no earlier --through-week is valid');
+    expect(missingStatsMessage(11, 11)).not.toContain('between');
+    expect(missingStatsMessage(13, 11)).toContain('between 11 and 12');
+  });
+
+  it('fails when Sleeper rolls its week or season type while the report reads', () => {
+    const state = { week: 12, season: '2026', season_type: 'regular' };
+    expect(stateChangeProblem(state, { ...state })).toBeNull();
+    expect(stateChangeProblem(state, { ...state, week: 13 })).toContain('week 12 to 2026 regular week 13');
+    expect(stateChangeProblem(state, { ...state, season_type: 'post' })).toContain('Rerun');
+  });
+
+  it('omits optional risk snapshots for another season', () => {
+    expect(snapshotSeasonProblem('contracts.json', 2026, 2026)).toBeNull();
+    expect(snapshotSeasonProblem('sportsbook-snapshot.json', 2026, 2025)).toContain('sportsbook-snapshot.json is for season 2026, not 2025; omitted');
+  });
+
+  it('uses keeper slot evidence only from the requested season', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-keepers-')));
+    try {
+      await mkdir(join(base, 'league-history'), { recursive: true });
+      await writeFile(join(base, 'league-history', 'current-keepers.json'), JSON.stringify({
+        season: 2026, keepers: [{ playerName: 'Keeper', position: 'WR', team: 3, round: 5, isMyKeeper: true }],
+      }));
+      expect(await Effect.runPromise(slotEvidence(base, 'D', 2026))).toEqual([{ source: 'current-keepers isMyKeeper (Keeper)', slot: 3 }]);
+      expect(await Effect.runPromise(slotEvidence(base, 'D', 2025))).toEqual([]);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it('replaces a hard-linked output instead of writing into the shared inode, and leaves no temp file', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-hardlink-')));
+    try {
+      await writeFile(join(base, 'tracked.md'), 'tracked\n');
+      await link(join(base, 'tracked.md'), join(base, 'report.md'));
+      expect((await Effect.runPromiseExit(writePrivateFile(join(base, 'report.md'), 'private\n')))._tag).toBe('Success');
+      expect(await readFile(join(base, 'tracked.md'), 'utf8')).toBe('tracked\n');
+      expect(await readFile(join(base, 'report.md'), 'utf8')).toBe('private\n');
+      expect((await Effect.runPromiseExit(writePrivateFile(join(base, 'missing-dir', 'report.md'), 'private\n')))._tag).toBe('Failure');
+      expect((await readdir(base)).sort()).toEqual(['report.md', 'tracked.md']);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 
   it('checks outputs by real path, so a symlink or alternate spelling into the checkout is still git-ignore checked', async () => {

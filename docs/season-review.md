@@ -23,13 +23,17 @@ By default the script walks the git history of `<data-dir>/fantasypros-snapshot.
 and uses the newest commit whose snapshot is for the season and was refreshed
 before Sleeper's draft `start_time`. An explicit `--predraft-fantasypros` file is
 held to the same season and timestamp check. The other pre-draft files are
-whatever was saved before the draft. A
+whatever was saved before the draft. A file named by an explicit option that
+does not exist stops the run with its path; only omitted options and absent
+default files are skipped. `contracts.json` and `sportsbook-snapshot.json` are
+used only when their `contractYear` / `metadata.season` matches `--season`;
+a mismatched snapshot is left out and the report says so. A
 FantasyPros snapshot refreshed during the season still holds week-0 draft
 rankings, so "current rank" in the report is the season-to-date league-scored
 points rank, and the report says so when it detects that case.
 
 Your draft slot comes from `isMyKeeper` in `league-history/current-keepers.json`
-and `managerDraftSlot` in matching rehearsal evidence. When they disagree or are
+(only when that file's `season` is the report season) and `managerDraftSlot` in matching rehearsal evidence. When they disagree or are
 missing the script stops; pass `--manager-slot`.
 
 The report keeps two cutoffs. Standings, points for/against and max PF are
@@ -50,7 +54,12 @@ without following one. `--out` defaults to
 `data/season-review/<year>/`, which is gitignored and classified private in the
 data catalog. Every output file is checked with `git check-ignore` before
 anything is written, and one inside the checkout that git does not ignore is
-refused. Raw provider responses land in `raw/`, and the report is written as
+refused. That `git check-ignore` check covers only paths inside this checkout:
+an `--out` inside another checkout or anywhere else is not checked against any
+ignore rules, so keep such outputs out of version control yourself. FantasyPros
+data and Primary League evidence must stay on your machine. Each file is
+written to a new temp file beside it and renamed into place, so a hard link at
+an output path is replaced rather than overwritten. Raw provider responses land in `raw/`, and the report is written as
 `season-review-week-<n>.json` and `.md`.
 
 ## Method
@@ -68,7 +77,9 @@ refused. Raw provider responses land in `raw/`, and the report is written as
   their position on zero points. Risk categories count a pick as paying off when
   this is at least zero, over every pick in the category.
 - Pick cost against ADP uses FantasyPros' average draft position (falling back
-  to its ordinal ADP rank only when the average is missing).
+  to its ordinal ADP rank only when the average is missing). The Best Pick
+  replay never uses the ordinal rank as a pick number: without an average pick
+  its market cost and next-pick survival fall back to ECR.
 - Roster-aware ECR and Best Pick counterfactuals hold opponents' picks fixed,
   like the [recommendation backtest](recommendation-backtest.md). Both start
   with your keepers rostered, replay only your own non-keeper offensive picks,
@@ -79,6 +90,12 @@ refused. Raw provider responses land in `raw/`, and the report is written as
   model, which cannot be replayed exactly.
 - Correlations are Spearman rank correlations with approximate 95% intervals.
   Team-level comparisons have n = 10 and are reported as anecdotes.
+
+A replayed roster that cannot fill every required starter is reported as an
+incomplete lineup rather than given a best-lineup total. Standings order is
+wins, then points for, then points against (higher first), like Sleeper's
+default. The room-average tendency row uses every manager in the included
+drafts, departed ones too.
 
 Rerun after the final regular-season week and compare
 the counterfactual totals with the 2026 backtest fold before proposing any

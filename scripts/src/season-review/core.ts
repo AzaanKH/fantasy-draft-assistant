@@ -502,8 +502,9 @@ export interface PickupStint {
 }
 
 /**
- * Waiver and free-agent pickups, one row per acquiring transaction: a player dropped and re-added by the same roster
- * is two stints, each with its own source, FAAB bid and points.
+ * Waiver and free-agent pickups, one row per acquiring transaction through `throughWeek`: a player dropped and re-added
+ * by the same roster is two stints, each with its own source, FAAB bid and points. A pickup dropped before it appears in
+ * any matchup is a zero-point stint.
  */
 export function pickupStints(
   matchups: readonly { readonly week: number; readonly rows: readonly {
@@ -516,6 +517,15 @@ export function pickupStints(
   throughWeek: number
 ): PickupStint[] {
   const stints = new Map<string, PickupStint>();
+  const pickups = [...addsByRosterPlayer.values()].flat()
+    .filter((add): add is RosterAdd & { readonly type: 'waiver' | 'free_agent' } => (add.type === 'waiver' || add.type === 'free_agent') && add.week <= throughWeek)
+    .sort((a, b) => a.week - b.week || a.created - b.created);
+  for (const add of pickups) {
+    stints.set(`${add.transactionId}:${add.playerId}`, {
+      transactionId: add.transactionId, rosterId: add.rosterId, playerId: add.playerId, firstWeek: add.week, source: add.type,
+      faabBid: add.type === 'waiver' ? add.faabBid : null, rostered: 0, started: 0,
+    });
+  }
   for (const { week, rows } of [...matchups].sort((a, b) => a.week - b.week)) {
     if (week > throughWeek) continue;
     for (const row of rows) {
@@ -525,10 +535,8 @@ export function pickupStints(
         if (!add || (add.type !== 'waiver' && add.type !== 'free_agent')) continue;
         const points = row.players_points?.[playerId] ?? 0;
         const key = `${add.transactionId}:${playerId}`;
-        const entry = stints.get(key) ?? {
-          transactionId: add.transactionId, rosterId: row.roster_id, playerId, firstWeek: week, source: add.type,
-          faabBid: add.type === 'waiver' ? add.faabBid : null, rostered: 0, started: 0,
-        };
+        const entry = stints.get(key);
+        if (!entry) continue;
         stints.set(key, {
           ...entry,
           rostered: round2(entry.rostered + points),

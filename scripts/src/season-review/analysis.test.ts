@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { pseudonymizeUserId } from '../import-league-draft-history.js';
 import { getRecommendations } from '@fantasy-draft/shared/draft';
-import { buildBestPickBoard, buildSeasonReview, nextPickSurvival, replayTiming, type PredraftPlayer } from './analysis.js';
+import { buildBestPickBoard, buildPredraft, buildSeasonReview, nextPickSurvival, replayTiming, resolveManagerRosterId, type PredraftPlayer } from './analysis.js';
 import { conditionalSurvival } from './core.js';
 import type { SeasonReviewInputs } from './inputs.js';
+import { escape, renderSeasonReviewMarkdown } from './markdown.js';
 
 // Two teams, seven rounds: QB RB WR TE FLEX K BN. The manager (slot 1, roster 1) keeps a TE charged at pick 13.
 interface Fixture { readonly id: string; readonly position: string; readonly points: number | null; readonly ecr: number; readonly adp?: readonly [number, number] }
@@ -87,6 +88,7 @@ function fixture(): SeasonReviewInputs {
     predraftSleeper: null,
     contracts: null,
     sportsbook: null,
+    omittedInputs: [],
     predraftPredictions: null,
     history: [],
     historyEcr: new Map(),
@@ -171,5 +173,111 @@ describe('season review assembly', () => {
     });
     expect(review.tendencies.historySeasons).toEqual([2025]);
     expect(review.tendencies.withHistory.find((row) => row.userId === 'u1')?.seasons).toEqual([2025, 2026]);
+  });
+
+  it('keeps ordinal ADP rank out of the Best Pick market cost but uses it for descriptive pick cost', () => {
+    const inputs = fixture();
+    const adp = inputs.predraftFantasyPros.adp.map((row) => row.fantasyProsId === 'fp-WRb' ? { ...row, rank: 5, averageRank: undefined } : row);
+    const withoutAverage = { ...inputs, predraftFantasyPros: { ...inputs.predraftFantasyPros, adp } };
+    const predraft = buildPredraft(withoutAverage, new Map(PLAYERS.map((player) => [`fp-${player.id}`, player.id])));
+    expect(predraft.get('WRb')).toMatchObject({ adpRank: 5, adpPick: null, ecrRank: 2 });
+    expect(buildBestPickBoard(predraft, new Map()).get('WRb')?.marketAdp).toBe(2);
+    const pick = buildSeasonReview(withoutAverage).picks.find((row) => row.playerId === 'WRb');
+    expect(pick).toMatchObject({ adpPick: 5, adpDelta: 2 - 5 });
+  });
+
+  it('reports a lineup that cannot fill a required starter as incomplete instead of a total', () => {
+    const inputs = fixture();
+    // The opponent takes QBa at pick 5, so the manager's actual picks have no QB; QBx stays available to the replay.
+    const picks = inputs.picks.map((pick) => pick.player_id === 'QBa' ? { ...pick, roster_id: 2, draft_slot: 2 } : pick);
+    const review = buildSeasonReview({ ...inputs, picks });
+    expect(review.myDraft.counterfactual.actual.seasonLineupPoints).toBeNull();
+    expect(review.myDraft.counterfactual.ecr.seasonLineupPoints).not.toBeNull();
+    const markdown = renderSeasonReviewMarkdown(review);
+    expect(markdown).toContain('| Your picks | ');
+    expect(markdown).toContain('incomplete lineup');
+    expect(markdown).not.toContain('NaN');
+  });
+
+  it('resolves the manager roster from corroborating picks without slot_to_roster_id, and refuses roster 0', () => {
+    const inputs = fixture();
+    const draft = { ...inputs.draft, slot_to_roster_id: null };
+    expect(resolveManagerRosterId({ ...inputs, draft })).toBe(1);
+    expect(buildSeasonReview({ ...inputs, draft }).meta.managerRosterId).toBe(1);
+    const mixed = inputs.picks.map((pick, index) => index === 0 ? { ...pick, roster_id: 2 } : pick);
+    expect(() => resolveManagerRosterId({ ...inputs, draft, picks: mixed })).toThrow('draft slot 1');
+    const unknown = inputs.picks.map((pick) => pick.draft_slot === 1 ? { ...pick, roster_id: 7 } : pick);
+    expect(() => buildSeasonReview({ ...inputs, draft, picks: unknown })).toThrow('draft slot 1');
+  });
+
+  it('ranks a drafted player by the draft position when the player directory has none', () => {
+    const inputs = fixture();
+    const players = { ...inputs.players, WRc: { full_name: 'WRc', team } };
+    const picks = inputs.picks.map((pick) => pick.player_id === 'WRc' ? { ...pick, metadata: { position: 'WR' } } : pick);
+    const pick = buildSeasonReview({ ...inputs, players, picks }).picks.find((row) => row.playerId === 'WRc');
+    expect(pick?.position).toBe('WR');
+    expect(pick?.positionRank).not.toBeNull();
+    expect(pick?.vor).toBeGreaterThanOrEqual(0);
+  });
+
+  it('breaks standings ties on record and points for by higher points against', () => {
+    const inputs = fixture();
+    const rosters = [
+      { roster_id: 1, owner_id: 'u1', settings: { wins: 1, losses: 1, fpts: 100, fpts_against: 90 } },
+      { roster_id: 2, owner_id: 'u2', settings: { wins: 1, losses: 1, fpts: 100, fpts_against: 95 } },
+    ];
+    const teams = buildSeasonReview({ ...inputs, rosters }).teams;
+    expect(teams.find((row) => row.rosterId === 2)?.standingsRank).toBe(1);
+    expect(teams.find((row) => row.rosterId === 1)?.standingsRank).toBe(2);
+  });
+
+  it('builds the historical room average from every manager in the included drafts, departed ones too', () => {
+    const inputs = fixture();
+    const current = buildSeasonReview(inputs).tendencies.withHistory.find((row) => row.userId === 'room-average');
+    const hidden = pseudonymizeUserId('u1');
+    const review = buildSeasonReview({
+      ...inputs,
+      history: [{ season: 2025, teams: 2, users: [], picks: [
+        { pick_no: 1, round: 1, draft_slot: 1, picked_by: hidden, player_id: 'WRa', metadata: { position: 'WR' } },
+        { pick_no: 22, round: 1, draft_slot: 2, picked_by: 'departed', player_id: 'WRb', metadata: { position: 'WR' } },
+      ] }],
+      historyEcr: new Map([['2025:WRa', 21], ['2025:WRb', 2]]),
+    });
+    const rows = review.tendencies.withHistory;
+    expect(rows.some((row) => row.userId === 'departed')).toBe(false);
+    expect(rows.find((row) => row.userId === 'room-average')?.picks).toBe((current?.picks ?? 0) + 2);
+  });
+
+  it('lists inputs omitted for another season among the caveats', () => {
+    const review = buildSeasonReview({ ...fixture(), omittedInputs: ['contracts.json is for season 2027, not 2026; omitted from the risk analysis.'] });
+    expect(review.meta.caveats).toContain('contracts.json is for season 2027, not 2026; omitted from the risk analysis.');
+  });
+});
+
+describe('season review markdown', () => {
+  it('keeps a table row on one line when a cell has a line break', () => {
+    expect(escape('Line\nbreak|pipe\r\nend')).toBe('Line break\\|pipe end');
+  });
+
+  it('builds the rerun command and labels from the report season, cutoff and snapshot', () => {
+    const review = buildSeasonReview(fixture());
+    const past = { ...review, meta: { ...review.meta, season: 2025, throughWeek: 9, predraftRankingsAt: '2025-08-28T00:00:00.000Z', predraftRankingsLabel: 'Aug 28' } };
+    const markdown = renderSeasonReviewMarkdown(past);
+    expect(markdown).toContain('--season 2025 --through-week 18');
+    expect(markdown).toContain('one season, 9 weeks');
+    expect(markdown).toContain('injuries after week 9');
+    expect(markdown).toContain('(Aug 28 → current snapshot');
+    expect(markdown).not.toContain('--season 2026');
+    expect(markdown).toContain('2022–2025 folds');
+    expect(markdown).not.toContain('11 weeks');
+    const full = renderSeasonReviewMarkdown({ ...review, meta: { ...review.meta, throughWeek: 18 } });
+    expect(full).not.toContain('--through-week 18');
+    expect(full).toContain('Follow-ups for the full regular season');
+  });
+
+  it('says plainly when there is no current FantasyPros snapshot', () => {
+    const markdown = renderSeasonReviewMarkdown(buildSeasonReview(fixture()));
+    expect(markdown).toContain('No current FantasyPros snapshot was supplied');
+    expect(markdown).not.toContain('treated as rest-of-season rankings');
   });
 });
