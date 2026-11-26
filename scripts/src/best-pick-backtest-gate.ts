@@ -33,7 +33,7 @@ const SHARED_PACKAGE = '@fantasy-draft/shared';
 const SHARED_MANIFEST = 'shared/package.json';
 const SOURCE_CONDITION = '@fantasy-draft/source';
 /** The conditions Node matches under `tsx --conditions=@fantasy-draft/source`; the first one listed in an entry wins. */
-const RUNTIME_CONDITIONS = new Set([SOURCE_CONDITION, 'node', 'import', 'module-sync', 'default']);
+const RUNTIME_CONDITIONS = new Set([SOURCE_CONDITION, 'node', 'node-addons', 'import', 'module-sync', 'default']);
 
 /** The replay script and the function it scores Best Pick with; the gate checks this entry lands on a hashed root. */
 export const BEST_PICK_REPLAY_SCRIPT = 'scripts/src/backtest-recommendations.ts';
@@ -53,14 +53,28 @@ function isCommonJsLoad(node: ts.CallExpression): boolean {
     (ts.isIdentifier(callee.expression) && callee.expression.text === 'require');
 }
 
+/** The Node built-in that provides `createRequire`; any runtime import of it fails closed. */
+const COMMONJS_MODULES = new Set(['module', 'node:module']);
+
+/**
+ * `import { type A, type B } from` and `export { type A } from` emit no import: the repo does not set
+ * `verbatimModuleSyntax`, so tsx elides them like `import type`. A clause with no bindings is a side-effect import.
+ */
+const onlyTypeBindings = (bindings: ts.NamedImportBindings | ts.NamedExportBindings | undefined): boolean =>
+  bindings !== undefined && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings)) &&
+  bindings.elements.length > 0 && bindings.elements.every((element) => element.isTypeOnly);
+
 function runtimeImportSpecifiers(path: string, text: string): string[] {
   const source = parseSource(path, text);
   const specifiers: string[] = [];
   for (const statement of source.statements) {
     if (ts.isImportDeclaration(statement)) {
-      if (statement.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) continue;
+      const clause = statement.importClause;
+      if (clause?.phaseModifier === ts.SyntaxKind.TypeKeyword) continue;
+      if (clause && !clause.name && onlyTypeBindings(clause.namedBindings)) continue;
       if (ts.isStringLiteral(statement.moduleSpecifier)) specifiers.push(statement.moduleSpecifier.text);
     } else if (ts.isExportDeclaration(statement) && !statement.isTypeOnly && statement.moduleSpecifier) {
+      if (onlyTypeBindings(statement.exportClause)) continue;
       if (ts.isStringLiteral(statement.moduleSpecifier)) specifiers.push(statement.moduleSpecifier.text);
     }
   }
@@ -88,6 +102,10 @@ function runtimeImportSpecifiers(path: string, text: string): string[] {
     ts.forEachChild(node, visit);
   };
   visit(source);
+  const commonJs = specifiers.find((specifier) => COMMONJS_MODULES.has(specifier));
+  if (commonJs !== undefined) {
+    throw new Error(`${path} imports ${commonJs}, which provides createRequire; the Best Pick gate does not follow CommonJS loads.`);
+  }
   return specifiers;
 }
 
@@ -133,6 +151,7 @@ function resolveSharedSelfImport(from: string, specifier: string, read: ReadSour
     return fail(`the Best Pick gate cannot resolve: the "${SOURCE_CONDITION}" target is not a plain path.`);
   }
   const resolved = posix.normalize(posix.join('shared', target));
+  rejectModuleFormatExtension(from, specifier, resolved);
   if (resolved.startsWith(POLICY_SOURCE_ROOT)) {
     try {
       read(resolved);
@@ -142,6 +161,13 @@ function resolveSharedSelfImport(from: string, specifier: string, read: ReadSour
     }
   }
   return fail('the Best Pick gate cannot resolve within shared/src.');
+}
+
+/** `.mjs`/`.cjs`/`.mts`/`.cts` pick a module format by extension; the gate only models `.ts` files loaded as ESM. */
+function rejectModuleFormatExtension(from: string, specifier: string, path: string): void {
+  if (/\.[cm][jt]s$/.test(path)) {
+    throw new Error(`${from} imports ${specifier}; the Best Pick gate does not follow .mjs, .cjs, .mts or .cts files.`);
+  }
 }
 
 function resolvePolicyImport(from: string, specifier: string, read: ReadSource): string {
@@ -159,6 +185,7 @@ function resolvePolicyImport(from: string, specifier: string, read: ReadSource):
     return '';
   }
   const target = posix.normalize(posix.join(posix.dirname(from), specifier));
+  rejectModuleFormatExtension(from, specifier, target);
   const candidates = target.endsWith('.js')
     ? [target.replace(/\.js$/, '.ts'), target.replace(/\.js$/, '.tsx')]
     : [target, `${target}.ts`, `${target}/index.ts`];
@@ -178,9 +205,10 @@ function resolvePolicyImport(from: string, specifier: string, read: ReadSource):
  * Every shared/src file whose content decides what Best Pick recommends: the roots and their runtime import graph.
  * The walk follows static imports, re-exports and string-literal dynamic `import()` calls, resolving relative
  * specifiers and `@fantasy-draft/shared/<subpath>` self-imports to shared/src. Type-only imports are skipped because
- * they emit no code. Anything the walk cannot follow throws, so a new dependency can never fall outside the digest
- * silently: an unresolvable import, a computed dynamic `import()`, a CommonJS load (`require`, `createRequire`,
- * `import x = require()`), a `#` package import, or an export-map entry other than a plain source-condition path.
+ * they emit no code, as are imports whose bindings are all inline `type`. Anything the walk cannot follow throws, so a
+ * new dependency can never fall outside the digest silently: an unresolvable import, a computed dynamic `import()`, a
+ * CommonJS load (`require`, `createRequire`, any import of `module`/`node:module`, `import x = require()`), a `#`
+ * package import, a `.mjs`/`.cjs`/`.mts`/`.cts` file, or an export-map entry other than a plain source-condition path.
  */
 export function bestPickPolicySources(read: ReadSource = readRepoSource): string[] {
   const seen = new Set<string>();
@@ -234,8 +262,9 @@ function reExportOf(source: ts.SourceFile, name: string): { specifier: string; l
  * declares the function. The replay reaches the policy through shared's export map and barrel re-exports rather than
  * through the hashed roots directly, so this throws unless that chain ends in a hashed root. Barrel files on the
  * chain are checked rather than hashed: they re-export the whole package, and hashing them would put unrelated code in
- * the digest. Only `export function|class|const` declarations and named `export { ... } from` re-exports are
- * followed; anything else (`export *`, local re-export lists, default exports) fails closed.
+ * the digest. Only `export function|class|const getRecommendations` declarations and named
+ * `export { getRecommendations } from` re-exports are followed; anything else (a rename such as
+ * `export { other as getRecommendations }`, `export *`, local re-export lists, default exports) fails closed.
  */
 export function bestPickReplayEntryChain(read: ReadSource = readRepoSource): string[] {
   const script = parseSource(BEST_PICK_REPLAY_SCRIPT, read(BEST_PICK_REPLAY_SCRIPT));
@@ -264,7 +293,7 @@ export function bestPickReplayEntryChain(read: ReadSource = readRepoSource): str
   }
   const chain: string[] = [];
   let file = resolveSharedSelfImport(BEST_PICK_REPLAY_SCRIPT, specifier, read);
-  let name: string = BEST_PICK_REPLAY_EXPORT;
+  const name = BEST_PICK_REPLAY_EXPORT;
   for (;;) {
     if (chain.includes(file)) throw new Error(`${file} re-exports ${name} in a cycle.`);
     chain.push(file);
@@ -277,8 +306,12 @@ export function bestPickReplayEntryChain(read: ReadSource = readRepoSource): str
           'use `export function` or a named `export { ... } from` re-export.'
       );
     }
+    if (reExport.local !== name) {
+      throw new Error(
+        `${file} re-exports ${reExport.local} as ${name}; the Best Pick gate only traces ${name} under its own name.`
+      );
+    }
     file = resolvePolicyImport(file, reExport.specifier, read);
-    name = reExport.local;
   }
   if (!(BEST_PICK_POLICY_ROOTS as readonly string[]).includes(file)) {
     throw new Error(

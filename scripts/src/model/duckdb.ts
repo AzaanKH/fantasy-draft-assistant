@@ -95,7 +95,8 @@ export async function connectModelDb(): Promise<DuckDBConnection> {
 
 /**
  * Opens an existing model database for reading only: no directories are created and DuckDB refuses writes, so a
- * read-only job such as the backtest replay cannot change the filesystem before it decides to write its report.
+ * read-only job such as the backtest replay makes no database or report writes before it decides to write its
+ * report. DuckDB may still spill to a `<db>.tmp` directory beside the database under memory pressure.
  */
 export async function connectModelDbReadOnly(path: string = MODEL_DB_PATH): Promise<DuckDBConnection> {
   const instance = await DuckDBInstance.create(path, { access_mode: 'READ_ONLY', threads: modelDbThreads() });

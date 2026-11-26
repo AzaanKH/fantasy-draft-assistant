@@ -178,6 +178,15 @@ describe('Best Pick backtest gate', () => {
       'shared/src/draft/index.ts': "export { getRecommendations } from './calculations/other.js';",
     }))).toThrow(/resolves to shared\/src\/draft\/calculations\/other\.ts, not a Best Pick policy root/);
     expect(() => bestPickReplayEntryChain(read({
+      'shared/src/draft/index.ts': "export { other as getRecommendations } from './calculations/recommendations.js';",
+      [RECOMMENDATIONS]: 'export function getRecommendations() { return []; }\nexport function other() { return []; }',
+    }))).toThrow(/re-exports other as getRecommendations/);
+    expect(() => bestPickReplayEntryChain(read({
+      'shared/src/draft/calculations/middle.ts': "export { getRecommendations as getRecommendations } from './index.js';",
+      'shared/src/draft/index.ts': "export { getRecommendations } from './calculations/middle.js';",
+      'shared/src/draft/calculations/index.ts': "export { other as getRecommendations } from './recommendations.js';",
+    }))).toThrow(/re-exports other as getRecommendations/);
+    expect(() => bestPickReplayEntryChain(read({
       'shared/src/draft/index.ts': "export * from './calculations/recommendations.js';",
     }))).toThrow(/cannot trace/);
     expect(() => bestPickReplayEntryChain(read({
@@ -201,8 +210,51 @@ describe('Best Pick backtest gate', () => {
       "export function f() { return module.require('./helper.js'); }",
       "const path = require.resolve('./helper.js');",
       "import helper = require('./helper.js');",
+      "import { createRequire as load } from 'module';\nexport const r = load;",
+      "import * as nodeModule from 'node:module';\nexport const r = nodeModule;",
+      "import nodeModule from 'module';\nexport const r = nodeModule;",
+      "export { createRequire } from 'node:module';",
+      "export const r = import('node:module');",
     ]) {
       expect(() => bestPickPolicySources(read({ [RECOMMENDATIONS]: text }))).toThrow(/CommonJS/);
+    }
+  });
+
+  it('rejects relative imports of .mjs, .cjs, .mts and .cts files', () => {
+    const read = fakeRead({
+      [POLICY]: 'export const p = 1;',
+      [RECOMMENDATIONS]: 'export const r = 1;',
+      'shared/src/draft/calculations/x.mts': 'export const x = 1;',
+      'shared/src/draft/calculations/x.cts': 'export const x = 1;',
+    });
+    for (const specifier of ['./x.mjs', './x.cjs', './x.mts', './x.cts']) {
+      expect(() => bestPickPolicySources(read({ [RECOMMENDATIONS]: `import { x } from '${specifier}';` })))
+        .toThrow(/does not follow \.mjs, \.cjs, \.mts or \.cts/);
+    }
+  });
+
+  it('skips imports whose bindings are all inline type-only and keeps side-effect and mixed imports', () => {
+    const read = fakeRead({
+      [POLICY]: 'export const p = 1;',
+      [RECOMMENDATIONS]: 'export const r = 1;',
+      'shared/src/draft/calculations/types.ts': 'export type A = 1;\nexport type B = 2;\nexport const b = 1;',
+    });
+    const TYPES = 'shared/src/draft/calculations/types.ts';
+    for (const text of [
+      "import { type A, type B } from './types.js';",
+      "export { type A, type B } from './types.js';",
+      "import type { A } from './types.js';",
+    ]) {
+      expect(bestPickPolicySources(read({ [RECOMMENDATIONS]: text }))).toEqual([POLICY, RECOMMENDATIONS]);
+    }
+    for (const text of [
+      "import './types.js';",
+      "import {} from './types.js';",
+      "import { type A, b } from './types.js';",
+      "import b, { type A } from './types.js';",
+      "export { type A, b } from './types.js';",
+    ]) {
+      expect(bestPickPolicySources(read({ [RECOMMENDATIONS]: text }))).toEqual([POLICY, RECOMMENDATIONS, TYPES]);
     }
   });
 
@@ -237,6 +289,11 @@ describe('Best Pick backtest gate', () => {
     expect(() => bestPickPolicySources(withExports({
       './x': { default: './src/x.ts', '@fantasy-draft/source': './src/x.ts' },
     }))).toThrow(/Node selects "default" first/);
+    expect(() => bestPickPolicySources(withExports({
+      './x': { 'node-addons': './dist/x.js', '@fantasy-draft/source': './src/x.ts' },
+    }))).toThrow(/Node selects "node-addons" first/);
+    expect(() => bestPickPolicySources(withExports({ './x': { '@fantasy-draft/source': './src/x.mts' } })))
+      .toThrow(/does not follow \.mjs, \.cjs, \.mts or \.cts/);
     expect(() => bestPickPolicySources(withExports({
       './x': { '@fantasy-draft/source': { default: './src/x.ts' } },
     }))).toThrow(/not a plain path/);
