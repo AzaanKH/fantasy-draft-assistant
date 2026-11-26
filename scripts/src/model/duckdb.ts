@@ -141,7 +141,12 @@ export async function runStatements(
   }
 }
 
-/** Runs the statements as one transaction: either every table they replace is published, or none is. */
+/**
+ * Runs the statements as one transaction: either every table they replace is published, or none is.
+ *
+ * Requires an idle connection with no open transaction. DuckDB has no nested transactions: the BEGIN here fails
+ * inside a caller's transaction, and that failure aborts the caller's transaction too.
+ */
 export async function runStatementsInTransaction(
   connection: DuckDBConnection,
   statements: readonly string[]
