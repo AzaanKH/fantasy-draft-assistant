@@ -443,33 +443,70 @@ describe('prospective board', () => {
     expect(load.folds[0]?.rankingsAfterDraft).toBe(1);
   });
 
-  it('leaves a pick with no GSIS ID unscored instead of scoring it as zero', async () => {
+  it('keeps a ranked player with no GSIS ID selectable, with an unknown outcome that withholds the fold gate', async () => {
     const load = await loadBoard({
-      extraSql: [`insert into model.dynastyprocess_player_ids values ('fp-g', null, 's-g'), ('fp-h', 'NA', 's-h')`],
-      extraPicks: [
-        { playerId: 's-g', playerName: 'Player G', position: 'RB' },
-        // 'NA' is the source's missing GSIS ID, not an ID.
-        { playerId: 's-h', playerName: 'Player H', position: 'WR' },
+      gamesPlayed: 272,
+      extraSql: [
+        `insert into model.dynastyprocess_player_ids values ('fp-g', null, 's-g'), ('fp-h', 'NA', 's-h')`,
+        // g is the draft-day ECR #1 but has no GSIS ID, so no outcome can be joined.
+        `insert into source.dynastyprocess_rankings values ('fp-g', 'Player G', 'RB', 'redraft-overall', 1.0, '2026-08-20')`,
       ],
+      // 'NA' is the source's missing GSIS ID, not an ID.
+      extraPicks: [{ playerId: 's-h', playerName: 'Player H', position: 'WR' }],
     });
     const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
-    // d is mapped but recorded no stats: a verified zero that still scores. g cannot be joined to any outcome.
+    // d is mapped but recorded no stats: a verified zero that still scores.
     expect(board['s-d']).toMatchObject({ actual_points: 0, games: 0 });
-    expect(board['s-g']).toBeUndefined();
-    expect(board['s-h']).toBeUndefined();
-    expect(load.folds[0]).toMatchObject({ unrankedDrafted: 2, unresolvedOutcomes: 2 });
+    expect(board['s-d']?.outcomeUnknown).toBeUndefined();
+    // g stays on the board with his rank; h stays as a drafted scoring row. Both outcomes are unknown.
+    expect(board['s-g']).toMatchObject({ predraft_ecr: 1, position: 'RB', outcomeUnknown: true });
+    expect(board['s-h']).toMatchObject({ predraft_ecr: null, outcomeUnknown: true });
+    expect(load.folds[0]).toMatchObject({ boardPlayers: 3, unrankedDrafted: 3, unresolvedOutcomes: 2 });
 
-    const { scoringRows } = backtestInternals.addDerivedValues(
+    const { playerSeasons, scoringRows } = backtestInternals.addDerivedValues(
       load.rows,
-      new Set(['s-d', 's-e', 's-g'].map((id) => backtestInternals.playerSeasonKey(2026, id)))
+      new Set(['s-d', 's-e', 's-h'].map((id) => backtestInternals.playerSeasonKey(2026, id)))
     );
+    const g = playerSeasons.find((row) => row.sleeper_player_id === 's-g');
+    // The unknown outcome sets no actual rank or VOR; known players rank only among known outcomes.
+    expect(g).toMatchObject({ customPositionRank: 0, leagueActualVor: 0, leagueActualPoints: 0 });
+    expect(scoringRows.find((row) => row.sleeper_player_id === 's-h')?.outcomeUnknown).toBe(true);
+
+    // The ECR strategy drafts its #1, exactly as the live app would, and carries him on its roster.
+    const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'WR', 'TE', 'FLEX', 'BN']);
+    const roster = backtestInternals.createRoster();
+    const ecrPick = backtestInternals.chooseEcr(playerSeasons, roster, rules, 10);
+    expect(ecrPick?.sleeper_player_id).toBe('s-g');
+    if (!ecrPick) throw new Error('expected an ECR pick');
+    backtestInternals.addToRoster(roster, ecrPick);
+    const a = playerSeasons.find((row) => row.sleeper_player_id === 's-a');
+    if (!a) throw new Error('expected player a');
+    backtestInternals.addToRoster(roster, a);
+    // Scored coverage leaves the unknown pick out instead of counting it as zero.
+    expect(backtestInternals.summarize([ecrPick, a], [], 0)).toMatchObject({ evaluatedPicks: 1 });
+
+    const unknownRosters = backtestInternals.unknownOutcomeStrategies({
+      rosterAwareEcr: roster,
+      rosterAwareModel: backtestInternals.createRoster(),
+    });
+    expect(unknownRosters).toEqual({ rosterAwareEcr: 1 });
+    // A complete fold with a board would count; the unknown outcome withholds its gate result instead.
+    const fold = load.folds[0];
+    if (!fold) throw new Error('expected a fold');
+    expect(backtestInternals.prospectiveFoldStanding(fold)).toMatchObject({ countsTowardReleaseGate: true });
+    expect(backtestInternals.prospectiveFoldStanding(fold, unknownRosters)).toEqual({
+      comparisonEvaluated: false,
+      countsTowardReleaseGate: false,
+      canReopen: false,
+    });
+
     const plan = backtestInternals.planUserTurns([
-      { pickNo: 1, playerId: 's-g', position: 'RB', isUserPick: true, isKeeper: false },
+      { pickNo: 1, playerId: 's-h', position: 'WR', isUserPick: true, isKeeper: false },
       { pickNo: 2, playerId: 's-d', position: 'QB', isUserPick: true, isKeeper: false },
     ], new Map(scoringRows.map((row) => [row.sleeper_player_id, row])));
-    // g's pick keeps its turn, so the remaining-pick count is unchanged, but scores nothing.
-    expect([...plan.turns.values()].map((turn) => [turn.remainingPicks, turn.chosenRow?.sleeper_player_id]))
-      .toEqual([[2, undefined], [1, 's-d']]);
+    // h's pick keeps its turn and its roster slot; its outcome is unknown rather than zero.
+    expect([...plan.turns.values()].map((turn) => [turn.remainingPicks, turn.chosenRow?.outcomeUnknown ?? false]))
+      .toEqual([[2, true], [1, false]]);
   });
 
   it('leaves a complete fold with no ranked draft-day board out of the release gate', async () => {
