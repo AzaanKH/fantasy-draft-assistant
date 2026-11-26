@@ -18,8 +18,8 @@ import { ProviderError, type DraftSyncAdapter } from './sync-adapter.js';
  * Poll interval once the provider reports the draft complete. Each poll's heartbeat keeps CLI `draft watch` streams
  * connected without a separate keepalive, so the gap between frames should stay under its 30 s idle timeout
  * (cli/src/client.ts idleMs). With this default and no failures, the gap is at most 15 s sleep + 10 s worst-case
- * request timeout = 25 s. Failure backoff can stretch the sleep to its 30 s cap; a failed poll leaves the session
- * unsynced, so the next poll sends a status frame as it starts and the gap can reach 30 s.
+ * request timeout = 25 s. Failure backoff (capped at 30 s) does not keep that bound: the gap can reach or pass the
+ * idle timeout, so `draft watch` may reconnect while polls keep failing. See docs/effect-adoption.md.
  */
 const COMPLETED_DRAFT_POLL_INTERVAL_MS = 15_000;
 
