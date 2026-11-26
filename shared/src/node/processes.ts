@@ -95,31 +95,40 @@ async function processRows(): Promise<readonly ProcessRow[]> {
   }));
 }
 
-/** Signals only the child's own group when the process table cannot be read, so stopping never waits on enumeration. */
-async function stopGroupDirectly(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
-  for (const [signal, grace] of [['SIGTERM', termGraceMs], ['SIGKILL', killGraceMs]] as const) {
-    try { process.kill(-pid, signal); } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return;
-      throw error;
-    }
-    const deadline = Date.now() + grace;
-    while (groupExists(pid)) {
-      if (Date.now() >= deadline) break;
-      await pause(20);
-    }
-    if (!groupExists(pid)) return;
+function signalGroup(group: number, signal: NodeJS.Signals): void {
+  try { process.kill(-group, signal); } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error;
   }
-  throw new Error('Process group did not exit after SIGKILL');
+}
+
+/**
+ * Signals every group discovered so far when the process table cannot be read, so stopping never waits on enumeration
+ * and never forgets a detached descendant found before enumeration failed.
+ */
+async function stopKnownGroups(groups: ReadonlySet<number>, termDeadline: number, killGraceMs: number): Promise<void> {
+  const live = (): number[] => [...groups].filter(group => {
+    try { return groupExists(group); } catch { return false; }
+  });
+  for (const [signal, deadline] of [['SIGTERM', termDeadline], ['SIGKILL', undefined]] as const) {
+    for (const group of live()) signalGroup(group, signal);
+    const until = deadline ?? Date.now() + killGraceMs;
+    while (live().length > 0 && Date.now() < until) await pause(20);
+    if (live().length === 0) return;
+  }
+  throw new Error('Process groups did not exit after SIGKILL');
 }
 
 async function stopGroup(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
-  if (process.platform === 'win32') { await stopOwnedGroups(pid, termGraceMs, killGraceMs); return; }
-  try { await stopOwnedGroups(pid, termGraceMs, killGraceMs); } catch {
-    await stopGroupDirectly(pid, termGraceMs, killGraceMs);
+  if (process.platform === 'win32') { await stopOwnedGroups(pid, termGraceMs, killGraceMs, new Set()); return; }
+  const termDeadline = Date.now() + termGraceMs;
+  const discovered = new Set([pid]);
+  try { await stopOwnedGroups(pid, termGraceMs, killGraceMs, discovered); } catch {
+    await stopKnownGroups(discovered, termDeadline, killGraceMs);
   }
 }
 
-async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: number): Promise<void> {
+/** Adds every process group it finds to `discovered`, which outlives an enumeration failure. */
+async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: number, discovered: Set<number>): Promise<void> {
   if (process.platform === 'win32') {
     await new Promise<void>((resolve, reject) => execFile('taskkill', ['/pid', String(pid), '/T', '/F'], { timeout: killGraceMs }, error => {
       if (error && 'code' in error && error.code !== 128) reject(new Error(error.message));
@@ -140,14 +149,12 @@ async function stopOwnedGroups(pid: number, termGraceMs: number, killGraceMs: nu
         if (owned.has(row.parent) && !owned.has(row.pid)) { owned.add(row.pid); added = true; }
       }
     }
-    for (const row of rows) if (owned.has(row.pid) && row.pid === row.group) groups.add(row.group);
+    for (const row of rows) if (owned.has(row.pid) && row.pid === row.group) { groups.add(row.group); discovered.add(row.group); }
     const live = new Set(rows.filter(row => groups.has(row.group) && !row.status.startsWith('Z')).map(row => row.group));
     for (const group of groups) {
       if (!live.has(group)) { groups.delete(group); sent.delete(group); continue; }
       if (sent.get(group) === signal) continue;
-      try { process.kill(-group, signal); } catch (error) {
-        if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error;
-      }
+      signalGroup(group, signal);
       sent.set(group, signal);
     }
     return live.size > 0;

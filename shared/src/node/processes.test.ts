@@ -1,4 +1,4 @@
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -155,4 +155,38 @@ it.skipIf(process.platform === 'win32')('still stops its own group when the proc
   } finally { process.env['PATH'] = path; }
   expect(service.exit?.signal).toBe('SIGKILL');
   expect(alive(service.pid ?? 0)).toBe(false);
+});
+
+it.skipIf(process.platform === 'win32')('kills detached descendants found before the process table became unreadable', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'ps-fails-later-'));
+  temporary.push(dir);
+  const file = join(dir, 'pid');
+  const marker = join(dir, 'enumerated');
+  const fakePs = join(dir, 'ps');
+  // The first enumeration succeeds and discovers the detached grandchild; every later one fails.
+  await writeFile(fakePs, `#!/bin/sh\nif [ -e '${marker}' ]; then exit 1; fi\n: > '${marker}'\nexec /bin/ps "$@"\n`, { mode: 0o755 });
+  const nested = `process.on('SIGTERM', () => {}); require('node:fs').writeFileSync(${JSON.stringify(file)}, String(process.pid)); console.log('ready'); setInterval(() => {}, 1000);`;
+  const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(nested)}], { detached: true, stdio: 'inherit' }); setInterval(() => {}, 1000);`;
+  let ready!: () => void;
+  const started = new Promise<void>(resolve => { ready = resolve; });
+  const service = Processes.service(process.execPath, ['-e', parent], { timeoutMs: 10_000, termGraceMs: 50, killGraceMs: 1000, onStdout: () => { ready(); } });
+  let pid: number | undefined;
+  const path = process.env['PATH'];
+  try {
+    await started;
+    pid = Number(await readFile(file, 'utf8'));
+    process.env['PATH'] = `${dir}:${path ?? ''}`;
+    let deadline!: ReturnType<typeof setTimeout>;
+    try {
+      await Promise.race([service.stop(), new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => { reject(new Error('stop() hung after enumeration failed mid-shutdown')); }, 3000);
+      })]);
+    } finally { clearTimeout(deadline); }
+    await expect(readFile(marker)).resolves.toBeDefined();
+    expect(alive(pid)).toBe(false);
+  } finally {
+    process.env['PATH'] = path;
+    if (pid !== undefined) { try { process.kill(-pid, 'SIGKILL'); } catch { /* Fixture already stopped. */ } }
+    await service.stop();
+  }
 });
