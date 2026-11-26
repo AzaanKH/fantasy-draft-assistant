@@ -99,13 +99,23 @@ describe('mergeImportedSeasons', () => {
   it('keeps an earlier prospective season and replaces only the seasons this run refreshed', () => {
     const previous = [season(2024, 'old'), season(2025, 'old'), season(2026, 'old'), season(2027, 'old')];
     const refreshed = [season(2025, 'new'), season(2024, 'new'), season(2027, 'new')];
-    expect(mergeImportedSeasons(previous, refreshed, 2025)).toEqual([
+    expect(mergeImportedSeasons(previous, refreshed)).toEqual([
       season(2024, 'new'), season(2025, 'new'), season(2026, 'old'), season(2027, 'new'),
     ]);
   });
 
+  it('drops the latest configured season once it is removed from the configured list', () => {
+    // 2025 was the newest configured draft; with it removed the run imports through 2024 and confirms 2027. The
+    // stale 2025 is pre-prospective, so it is dropped; the imported 2026 is prospective and is kept.
+    const previous = [season(2024, 'old'), season(2025, 'old'), season(2026, 'old')];
+    const refreshed = [season(2024, 'new'), season(2027, 'new')];
+    expect(mergeImportedSeasons(previous, refreshed)).toEqual([
+      season(2024, 'new'), season(2026, 'old'), season(2027, 'new'),
+    ]);
+  });
+
   it('does not carry forward a configured season this run no longer imports', () => {
-    expect(mergeImportedSeasons([season(2022, 'old'), season(2023, 'old')], [season(2023, 'new')], 2023))
+    expect(mergeImportedSeasons([season(2022, 'old'), season(2023, 'old')], [season(2023, 'new')]))
       .toEqual([season(2023, 'new')]);
   });
 });

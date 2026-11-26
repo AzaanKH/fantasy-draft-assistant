@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Effect, Schema } from 'effect';
 import { fetchJson, HttpRequestError, io, isEntryPoint, runMain } from './effect-runtime.js';
+import { PROSPECTIVE_FIRST_SEASON } from './model/prospective-fold.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
@@ -591,19 +592,21 @@ const readConfirmedSeason = Effect.fn('readConfirmedSeason')(function* (previous
 });
 
 /**
- * The seasons to write: every season this run imported, plus earlier-imported prospective seasons (newer than the
- * configured history) that this run did not refresh. A confirmed season is imported only while it is the confirmed
- * Primary League season, so confirming 2027 must not drop an imported 2026 from the backtest and survival inputs.
- * Configured seasons are always re-imported, so a season removed from that list is not carried forward.
+ * The seasons to write: every season this run imported, plus earlier-imported prospective seasons (from
+ * PROSPECTIVE_FIRST_SEASON on) that this run did not refresh. A confirmed season is imported only while it is the
+ * confirmed Primary League season, so confirming 2027 must not drop an imported 2026 from the backtest and survival
+ * inputs. Earlier seasons come only from the configured list, which is always re-imported, so a season removed from
+ * that list is not carried forward. The boundary is the fixed prospective season, not the newest configured one:
+ * removing the latest configured season must drop it, not make it look prospective.
  */
 export function mergeImportedSeasons<S extends { readonly season: number }>(
   previous: readonly S[],
   refreshed: readonly S[],
-  lastConfiguredSeason: number
+  firstProspectiveSeason: number = PROSPECTIVE_FIRST_SEASON
 ): S[] {
   const refreshedSeasons = new Set(refreshed.map((season) => season.season));
   const retained = previous.filter((season) =>
-    season.season > lastConfiguredSeason && !refreshedSeasons.has(season.season)
+    season.season >= firstProspectiveSeason && !refreshedSeasons.has(season.season)
   );
   return [...refreshed, ...retained].sort((a, b) => a.season - b.season);
 }
@@ -628,7 +631,7 @@ const program = Effect.gen(function* () {
   const drafts = confirmed ? [...LEAGUE_DRAFTS, confirmed] : LEAGUE_DRAFTS;
   // Five requests per season; two seasons at a time keeps bursts small for Sleeper.
   const seasons = yield* Effect.forEach(drafts, importSeason, { concurrency: 2 });
-  const sortedSeasons = mergeImportedSeasons(yield* readPreviousSeasons(), seasons, lastConfigured?.season ?? Infinity);
+  const sortedSeasons = mergeImportedSeasons(yield* readPreviousSeasons(), seasons);
   for (const season of sortedSeasons) {
     if (!seasons.includes(season)) console.log(`Keeping the previously imported ${String(season.season)} season.`);
   }
