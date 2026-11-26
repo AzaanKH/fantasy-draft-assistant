@@ -21,6 +21,15 @@ function sqlList(values: readonly string[]): string {
   return `[${values.map(sqlString).join(', ')}]`;
 }
 
+/** The exact seasons as a SQL `in` list, matching the per-season file URLs even when the window has gaps. */
+export function sqlSeasonList(seasons: readonly number[]): string {
+  if (seasons.length === 0) throw new Error('At least one season is required');
+  for (const season of seasons) {
+    if (!Number.isSafeInteger(season)) throw new Error(`Season must be an integer, got ${season}`);
+  }
+  return `(${seasons.join(', ')})`;
+}
+
 function nflverseSeasonUrls(
   release: string,
   filePrefix: string,
@@ -55,6 +64,7 @@ function nflversePbpUrls(seasons: readonly number[]): string[] {
 
 /** Raw nflverse, ffopportunity and DynastyProcess tables in the `source` schema, for the given seasons. */
 export function sourceTableStatements(seasons: readonly number[]): string[] {
+  const seasonFilter = sqlSeasonList(seasons);
   return [
     `create schema if not exists source`,
     `create schema if not exists model`,
@@ -70,7 +80,7 @@ export function sourceTableStatements(seasons: readonly number[]): string[] {
     `create or replace table source.nflverse_schedules as
       select *
       from read_parquet(${sqlString(SOURCE_URLS.nflverseSchedules)})
-      where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
+      where season in ${seasonFilter}`,
     `create or replace table source.nflverse_team_stats as
       select *
       from read_parquet(${sqlList(nflverseSeasonUrls('stats_team', 'stats_team_reg', seasons))})`,
@@ -111,15 +121,15 @@ export function sourceTableStatements(seasons: readonly number[]): string[] {
     `create or replace table source.nflverse_nextgen_passing as
       select *
       from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenPassing)})
-      where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
+      where season in ${seasonFilter}`,
     `create or replace table source.nflverse_nextgen_receiving as
       select *
       from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenReceiving)})
-      where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
+      where season in ${seasonFilter}`,
     `create or replace table source.nflverse_nextgen_rushing as
       select *
       from read_parquet(${sqlString(SOURCE_URLS.nflverseNextGenRushing)})
-      where season between ${seasons[0]} and ${seasons[seasons.length - 1]}`,
+      where season in ${seasonFilter}`,
 
     `create or replace table source.ffopportunity_weekly as
       select *

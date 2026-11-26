@@ -245,12 +245,18 @@ export class DraftSession {
   }
 
   private broadcast(update: DraftSyncUpdate): void {
+    if (this.clients.size === 0) return;
+    const frame = encodeFrame(update);
     for (const { response } of this.clients.values()) {
-      this.send(update, response);
+      writeBoundedEvent(response, frame, this.maxBufferedBytes);
     }
   }
 
   private send(update: DraftSyncUpdate, response: ServerResponse): void {
-    writeBoundedEvent(response, `data: ${JSON.stringify(update)}\n\n`, this.maxBufferedBytes);
+    writeBoundedEvent(response, encodeFrame(update), this.maxBufferedBytes);
   }
+}
+
+function encodeFrame(update: DraftSyncUpdate): string {
+  return `data: ${JSON.stringify(update)}\n\n`;
 }
