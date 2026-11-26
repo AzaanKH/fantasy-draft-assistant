@@ -26,6 +26,7 @@ import {
 } from './model/duckdb.js';
 import { currentSeason, KICKER_DEFENSE_POSITIONS, OFFENSIVE_POSITIONS, POSITIONS, leagueScoringAdjustmentSql, sqlPositionList, type OffensivePosition } from '@fantasy-draft/shared/league';
 import { buildHistoricalSnapshots } from './model/historical-snapshots.js';
+import { playerSeasonIdentitySql } from './model/player-identity-sql.js';
 import { trailingHistorySql, trailingPlayerVolumeSql } from './model/trailing-features-sql.js';
 import {
   POSITION_FEATURES,
@@ -758,8 +759,9 @@ const program = Effect.gen(function* () {
             order by current_league_actual_points desc nulls last
           ) as actual_position_rank
         from model.nflverse_player_seasons ps
-        left join model.dynastyprocess_player_ids ids
+        left join (${playerSeasonIdentitySql('model.nflverse_player_seasons', 'model.dynastyprocess_player_ids')}) ids
           on ps.gsis_id = ids.gsis_id
+          and ps.season = ids.player_season
         left join model.ffopportunity_player_seasons opp
           on ps.gsis_id = opp.gsis_id
           and ps.season = opp.season
