@@ -433,13 +433,15 @@ export function resolveSlotToRoster(inputs: Pick<SeasonReviewInputs, 'draft' | '
 
 /**
  * The manager's roster: `--manager-roster-id` when given, else resolveSlotToRoster's roster for the manager's slot. An
- * explicit roster must be one of the league's and must not contradict a mapping the draft does give. Anything else is
+ * explicit roster must be one of the league's and must not contradict a mapping the draft does give, in either
+ * direction (the slot's roster, or the roster's slot). Anything else is
  * ambiguous and stops the report rather than grading roster 0.
  */
 export function resolveManagerRosterId(inputs: Pick<SeasonReviewInputs, 'draft' | 'rosters' | 'managerSlot' | 'managerRosterIdOption'>): number {
   const slot = String(inputs.managerSlot);
   const rosterIds = inputs.rosters.map((roster) => roster.roster_id);
-  const mapped = resolveSlotToRoster(inputs).get(inputs.managerSlot);
+  const slotToRoster = resolveSlotToRoster(inputs);
+  const mapped = slotToRoster.get(inputs.managerSlot);
   const explicit = inputs.managerRosterIdOption ?? null;
   if (explicit !== null) {
     if (!rosterIds.includes(explicit)) {
@@ -447,6 +449,10 @@ export function resolveManagerRosterId(inputs: Pick<SeasonReviewInputs, 'draft' 
     }
     if (mapped !== undefined && mapped !== explicit) {
       throw new Error(`--manager-roster-id ${String(explicit)} disagrees with the draft, which ties slot ${slot} to roster ${String(mapped)}. Check --manager-slot and --manager-roster-id.`);
+    }
+    const otherSlot = [...slotToRoster].find(([other, rosterId]) => rosterId === explicit && other !== inputs.managerSlot)?.[0];
+    if (otherSlot !== undefined) {
+      throw new Error(`--manager-roster-id ${String(explicit)} disagrees with the draft, which ties roster ${String(explicit)} to slot ${String(otherSlot)}. Check --manager-slot and --manager-roster-id.`);
     }
     return explicit;
   }

@@ -247,6 +247,8 @@ describe('season review assembly', () => {
     // An explicit roster that contradicts the draft's own mapping stops the report.
     expect(() => resolveManagerRosterId({ ...inputs, managerRosterIdOption: 2 })).toThrow('disagrees with the draft');
     expect(resolveManagerRosterId({ ...inputs, managerRosterIdOption: 1 })).toBe(1);
+    // Slot 1 is unresolved, but the draft ties roster 2 to slot 2, so it cannot be slot 1's roster.
+    expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: handedOver, managerRosterIdOption: 2 })).toThrow('ties roster 2 to slot 2');
   });
 
   it('ranks a drafted player by the draft position when the player directory has none', () => {
