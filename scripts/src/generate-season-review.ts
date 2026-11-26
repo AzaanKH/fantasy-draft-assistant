@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { Clock, Data, Effect, Option } from 'effect';
 import { http } from '@fantasy-draft/shared/http';
-import { Processes } from '@fantasy-draft/shared/node';
+import { Processes, type ProcessOptions, type ProcessResult } from '@fantasy-draft/shared/node';
 import { currentSeason } from '@fantasy-draft/shared/league';
 import { fetchJson, io, isEntryPoint, runMain, type HttpRequestError } from './effect-runtime.js';
 import { buildSeasonReview } from './season-review/analysis.js';
@@ -213,6 +213,15 @@ export function stateChangeProblem(
   return `Sleeper moved from ${before.season} ${before.season_type} week ${String(before.week)} to ${after.season} ${after.season_type} week ${String(after.week)} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
 }
 
+const SCORED_WEEK_MARKERS = ['last_scored_leg', 'leg'] as const;
+
+/** Fails when the league's scored-week markers moved between the league read and the re-read after rosters. */
+export function leagueMarkerProblem(before: Readonly<Record<string, unknown>>, after: Readonly<Record<string, unknown>>): string | null {
+  const moved = SCORED_WEEK_MARKERS.filter((key) => before[key] !== after[key]);
+  if (moved.length === 0) return null;
+  return `Sleeper league ${moved.map((key) => `${key} moved from ${String(before[key])} to ${String(after[key])}`).join(' and ')} while the report was reading league data, so standings and roster totals may come from different weeks. Rerun the report.`;
+}
+
 /** An optional snapshot for another season would leak that season's context into this one; null keeps it. */
 export function snapshotSeasonProblem(label: string, snapshotSeason: number, season: number): string | null {
   return snapshotSeason === season ? null : `${label} is for season ${String(snapshotSeason)}, not ${String(season)}; omitted from the risk analysis.`;
@@ -229,12 +238,18 @@ export function predraftSnapshotProblem(metadata: { readonly season: number; rea
 
 const toError = (cause: unknown) => cause instanceof Error ? cause : new Error(String(cause));
 
-const git = (args: readonly string[], maxOutputBytes?: number, signal?: AbortSignal) =>
-  Processes.run('git', args, { timeoutMs: 60_000, ...(maxOutputBytes ? { maxOutputBytes } : {}), ...(signal ? { signal } : {}) });
+const git = (args: readonly string[]) => Processes.run('git', args, { timeoutMs: 60_000 });
 
-/** `git` as an Effect: interrupting the effect aborts the child process. */
+/** A child process as an Effect: interruption stops the child's process group and completes only once it has exited. */
+export const processEffect = (command: string, args: readonly string[], options: ProcessOptions): Effect.Effect<ProcessResult, Error> =>
+  Effect.callback<ProcessResult, Error>((resume) => {
+    const child = Processes.service(command, args, options);
+    child.result.then((result) => { resume(Effect.succeed(result)); }, (cause: unknown) => { resume(Effect.fail(toError(cause))); });
+    return Effect.promise(() => child.stop().catch(() => undefined));
+  });
+
 const gitEffect = (args: readonly string[], maxOutputBytes?: number) =>
-  Effect.tryPromise({ try: (signal) => git(args, maxOutputBytes, signal), catch: (cause) => toError(cause) });
+  processEffect('git', args, { timeoutMs: 60_000, ...(maxOutputBytes ? { maxOutputBytes } : {}) });
 
 /** Latest committed `fantasypros-snapshot.json` in the data directory's git history that predates the draft. */
 const predraftSnapshotFromGit = (dataDir: string, season: number, draftStartMs: number) => Effect.gen(function* () {
@@ -296,24 +311,29 @@ export const assertPrivateOutputs = (paths: readonly string[], repoRoot: string 
 });
 
 /**
- * Writes `contents` to a new, exclusively created temp file beside `path`, then renames it over `path`. A symlink at
+ * Writes `contents` to a new, exclusively created owner-only temp file beside `path`, then renames it over `path`.
+ * The temp file holds the same private data, so it passes the same symlink and git-ignore checks first. A symlink at
  * `path` is refused; a hard link there keeps its inode and contents because rename only replaces the directory entry.
  */
-export const writePrivateFile = (path: string, contents: string): Effect.Effect<void, Error> => io(async () => {
-  if ((await lstat(path).catch(() => null))?.isSymbolicLink()) throw new SeasonReviewError({ message: `${path} is a symlink; refusing to write through it.` });
+export const writePrivateFile = (path: string, contents: string, repoRoot: string = REPO_ROOT): Effect.Effect<void, Error> => Effect.gen(function* () {
   const temp = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
-  const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o644);
-  try {
+  yield* assertPrivateOutputs([path, temp], repoRoot);
+  yield* io(async () => {
+    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o600);
     try {
-      await handle.writeFile(contents);
-    } finally {
-      await handle.close();
+      try {
+        // The creation mode is masked by the umask; set it outright so the renamed file is 0600 whatever it replaced.
+        await handle.chmod(0o600);
+        await handle.writeFile(contents);
+      } finally {
+        await handle.close();
+      }
+      await rename(temp, path);
+    } catch (cause) {
+      await rm(temp, { force: true });
+      throw cause;
     }
-    await rename(temp, path);
-  } catch (cause) {
-    await rm(temp, { force: true });
-    throw cause;
-  }
+  });
 });
 
 const readJson = <T>(path: string, decode: (value: unknown) => T) =>
@@ -442,14 +462,16 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   }
 
   const leagueId = settings.leagueId;
-  const [state, league, users, rosters, draft, picks] = yield* Effect.all([
-    fetchSleeper(raw, '/state/nfl', decodeSleeperState),
+  // Order matters: the NFL state and the league's scored-week markers are read before the mutable roster and matchup
+  // data, and both are read again after it, so any roll in between is caught.
+  const state = yield* fetchSleeper(raw, '/state/nfl', decodeSleeperState);
+  const [league, users, draft, picks] = yield* Effect.all([
     fetchSleeper(raw, `/league/${leagueId}`, decodeSleeperLeague),
     fetchSleeper(raw, `/league/${leagueId}/users`, decodeSleeperUsers),
-    fetchSleeper(raw, `/league/${leagueId}/rosters`, decodeSleeperRosters),
     fetchSleeper(raw, `/draft/${settings.draftId}`, decodeSleeperDraft),
     fetchSleeper(raw, `/draft/${settings.draftId}/picks`, decodeSleeperPicks),
   ], { concurrency: 3 });
+  const rosters = yield* fetchSleeper(raw, `/league/${leagueId}/rosters`, decodeSleeperRosters);
   const weeks = Array.from({ length: REGULAR_SEASON_WEEKS }, (_, index) => index + 1)
     .filter((week) => Number(state.season) > season || week <= state.week);
   const matchups = yield* Effect.forEach(weeks, (week) =>
@@ -499,9 +521,12 @@ export const generateSeasonReview = (options: SeasonReviewOptions): Effect.Effec
   if (!Object.values(lastWeekStats).some((line) => (line['gp'] ?? 0) > 0)) {
     return yield* new SeasonReviewError({ message: missingStatsMessage(throughWeek, cutoffs.standings) });
   }
-  // Rosters, matchups, transactions and stats were read after the first state read; confirm Sleeper did not roll a week meanwhile.
-  const stateAfter = yield* fetchSleeper(new Map(), '/state/nfl', decodeSleeperState);
-  const stateProblem = stateChangeProblem(state, stateAfter);
+  // Rosters, matchups, transactions and stats were read after the first state and league reads; confirm neither moved meanwhile.
+  const [stateAfter, leagueAfter] = yield* Effect.all([
+    fetchSleeper(new Map(), '/state/nfl', decodeSleeperState),
+    fetchSleeper(new Map(), `/league/${leagueId}`, decodeSleeperLeague),
+  ]);
+  const stateProblem = stateChangeProblem(state, stateAfter) ?? leagueMarkerProblem(league.settings, leagueAfter.settings);
   if (stateProblem) return yield* new SeasonReviewError({ message: stateProblem });
 
   const evidence = yield* slotEvidence(options.dataDir, settings.draftId, season);

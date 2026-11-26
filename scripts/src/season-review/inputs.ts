@@ -27,6 +27,7 @@ export const decodeSleeperUsers = Schema.decodeUnknownSync(Schema.Array(Schema.S
 export const decodeSleeperRosters = Schema.decodeUnknownSync(Schema.Array(Schema.Struct({
   roster_id: num,
   owner_id: optStr,
+  co_owners: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
   settings: Schema.Record(Schema.String, Schema.Unknown),
 })));
 

@@ -277,9 +277,12 @@ export function renderSeasonReviewMarkdown(review: SeasonReview): string {
     table(['Player', 'Pos', 'Pre-draft', 'Now (pts)', 'Pts', 'G', 'Drafted'], review.rankings.unrankedBreakouts.map((row) => [
       row.name, row.position, rankLabel(row.position, row.predraftPositionRank), rankLabel(row.position, row.actualPositionRank), fmt(row.points), row.games, row.drafted ? 'yes' : 'no',
     ])), '',
-    `### FantasyPros draft-ranking drift (${meta.predraftRankingsLabel} → current snapshot, overall ECR)`, '',
-    table(['Player', 'Pos', meta.predraftRankingsLabel, 'Now', 'Δ'], review.rankings.fantasyProsMovement.map((row) => [row.name, row.position, row.before, row.after, signed(row.before - row.after, 0)])),
-    '',
+    // Without a current snapshot there is no drift to show; the caveats already say the snapshot is absent.
+    ...(meta.currentRankingsAt === null ? [] : [
+      `### FantasyPros draft-ranking drift (${meta.predraftRankingsLabel} → current snapshot, overall ECR)`, '',
+      table(['Player', 'Pos', meta.predraftRankingsLabel, 'Now', 'Δ'], review.rankings.fantasyProsMovement.map((row) => [row.name, row.position, row.before, row.after, signed(row.before - row.after, 0)])),
+      '',
+    ]),
   );
 
   // 4. Risks.

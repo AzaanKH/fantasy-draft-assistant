@@ -199,15 +199,32 @@ describe('season review assembly', () => {
     expect(markdown).not.toContain('NaN');
   });
 
-  it('resolves the manager roster from corroborating picks without slot_to_roster_id, and refuses roster 0', () => {
+  it('maps the slot to its original owner through draft_order when slot_to_roster_id is absent, despite traded picks', () => {
     const inputs = fixture();
-    const draft = { ...inputs.draft, slot_to_roster_id: null };
-    expect(resolveManagerRosterId({ ...inputs, draft })).toBe(1);
-    expect(buildSeasonReview({ ...inputs, draft }).meta.managerRosterId).toBe(1);
-    const mixed = inputs.picks.map((pick, index) => index === 0 ? { ...pick, roster_id: 2 } : pick);
-    expect(() => resolveManagerRosterId({ ...inputs, draft, picks: mixed })).toThrow('draft slot 1');
-    const unknown = inputs.picks.map((pick) => pick.draft_slot === 1 ? { ...pick, roster_id: 7 } : pick);
-    expect(() => buildSeasonReview({ ...inputs, draft, picks: unknown })).toThrow('draft slot 1');
+    const draft = { ...inputs.draft, slot_to_roster_id: null, draft_order: { u1: 1, u2: 2 } };
+    // Slot 1's later picks were traded to roster 2: they name the recipient, but the slot still belongs to roster 1.
+    const traded = inputs.picks.map((pick) => pick.draft_slot === 1 && pick.round > 1 ? { ...pick, roster_id: 2 } : pick);
+    expect(resolveManagerRosterId({ ...inputs, draft, picks: traded })).toBe(1);
+    expect(buildSeasonReview({ ...inputs, draft, picks: traded }).meta.managerRosterId).toBe(1);
+    expect(buildSeasonReview({ ...inputs, draft }).teams.find((team) => team.isManager)?.draftSlot).toBe(1);
+    // A co-owner in draft_order maps to the roster they co-own.
+    const coOwned = inputs.rosters.map((roster) => roster.roster_id === 1 ? { ...roster, owner_id: 'u9', co_owners: ['u1'] } : roster);
+    expect(resolveManagerRosterId({ ...inputs, draft, rosters: coOwned })).toBe(1);
+  });
+
+  it('refuses an ambiguous or uncorroborated slot-to-roster mapping instead of grading roster 0', () => {
+    const inputs = fixture();
+    const draft = { ...inputs.draft, slot_to_roster_id: null, draft_order: { u1: 1, u2: 2 } };
+    expect(() => resolveManagerRosterId({ ...inputs, draft: { ...draft, draft_order: null } })).toThrow('draft slot 1');
+    expect(() => resolveManagerRosterId({ ...inputs, draft: { ...draft, draft_order: { u2: 2 } } })).toThrow('draft slot 1');
+    // The slot's user owns two rosters, or two slots claim one roster.
+    const twoRosters = inputs.rosters.map((roster) => ({ ...roster, owner_id: 'u1' }));
+    expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: twoRosters })).toThrow('draft slot 1');
+    const shared = inputs.rosters.map((roster) => roster.roster_id === 1 ? { ...roster, co_owners: ['u2'] } : { ...roster, owner_id: 'u3' });
+    expect(() => resolveManagerRosterId({ ...inputs, draft, rosters: shared })).toThrow('draft slot 1');
+    // draft_order names roster 1, but every one of the slot's picks names roster 2.
+    const contradicted = inputs.picks.map((pick) => pick.draft_slot === 1 ? { ...pick, roster_id: 2 } : pick);
+    expect(() => buildSeasonReview({ ...inputs, draft, picks: contradicted })).toThrow('picks name only 2');
   });
 
   it('ranks a drafted player by the draft position when the player directory has none', () => {
@@ -261,7 +278,7 @@ describe('season review markdown', () => {
 
   it('builds the rerun command and labels from the report season, cutoff and snapshot', () => {
     const review = buildSeasonReview(fixture());
-    const past = { ...review, meta: { ...review.meta, season: 2025, throughWeek: 9, predraftRankingsAt: '2025-08-28T00:00:00.000Z', predraftRankingsLabel: 'Aug 28' } };
+    const past = { ...review, meta: { ...review.meta, season: 2025, throughWeek: 9, currentRankingsAt: '2025-11-20T00:00:00.000Z', predraftRankingsAt: '2025-08-28T00:00:00.000Z', predraftRankingsLabel: 'Aug 28' } };
     const markdown = renderSeasonReviewMarkdown(past);
     expect(markdown).toContain('--season 2025 --through-week 18');
     expect(markdown).toContain('one season, 9 weeks');
@@ -275,9 +292,13 @@ describe('season review markdown', () => {
     expect(full).toContain('Follow-ups for the full regular season');
   });
 
-  it('says plainly when there is no current FantasyPros snapshot', () => {
-    const markdown = renderSeasonReviewMarkdown(buildSeasonReview(fixture()));
+  it('says plainly when there is no current FantasyPros snapshot, and leaves out the drift table', () => {
+    const review = buildSeasonReview(fixture());
+    const markdown = renderSeasonReviewMarkdown(review);
     expect(markdown).toContain('No current FantasyPros snapshot was supplied');
     expect(markdown).not.toContain('treated as rest-of-season rankings');
+    expect(markdown).not.toContain('draft-ranking drift');
+    const current = renderSeasonReviewMarkdown({ ...review, meta: { ...review.meta, currentRankingsAt: '2026-11-20T00:00:00.000Z' } });
+    expect(current).toContain('### FantasyPros draft-ranking drift');
   });
 });

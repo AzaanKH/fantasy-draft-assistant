@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import { link, mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, link, mkdtemp, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Effect } from 'effect';
+import { Effect, Fiber } from 'effect';
 import { DEFAULT_SCORING_RULES, FLEX_GROUPS } from '@fantasy-draft/shared/league';
 import {
   acquisitionSource,
@@ -31,9 +31,11 @@ import {
   completedNflWeek,
   lastFinalScheduleWeek,
   lastScoredWeek,
+  leagueMarkerProblem,
   missingStatsMessage,
   parseSeasonReviewArgs,
   predraftSnapshotProblem,
+  processEffect,
   resolveManagerSlot,
   resolveCutoffs,
   slotEvidence,
@@ -283,6 +285,51 @@ describe('season review entry decisions', () => {
     expect(stateChangeProblem(state, { ...state })).toBeNull();
     expect(stateChangeProblem(state, { ...state, week: 13 })).toContain('week 12 to 2026 regular week 13');
     expect(stateChangeProblem(state, { ...state, season_type: 'post' })).toContain('Rerun');
+  });
+
+  it('fails when the league scored-week markers move between the league read and the re-read after rosters', () => {
+    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12, name: 'x' }, { last_scored_leg: 11, leg: 12, name: 'y' })).toBeNull();
+    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 12, leg: 12 })).toContain('last_scored_leg moved from 11 to 12');
+    expect(leagueMarkerProblem({ last_scored_leg: 11, leg: 12 }, { last_scored_leg: 11, leg: 13 })).toContain('Rerun the report');
+  });
+
+  it('writes owner-only files whatever they replace, and refuses a temp path git does not ignore', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-mode-')));
+    try {
+      await writeFile(join(base, 'report.md'), 'old\n');
+      await chmod(join(base, 'report.md'), 0o644);
+      expect((await Effect.runPromiseExit(writePrivateFile(join(base, 'report.md'), 'private\n')))._tag).toBe('Success');
+      expect((await stat(join(base, 'report.md'))).mode & 0o777).toBe(0o600);
+      expect((await Effect.runPromiseExit(writePrivateFile(join(base, 'fresh.md'), 'private\n')))._tag).toBe('Success');
+      expect((await stat(join(base, 'fresh.md'))).mode & 0o777).toBe(0o600);
+      // The ignore rule covers the report name but not its `.report.md.<uuid>.tmp` sibling: nothing is written.
+      const repo = join(base, 'repo');
+      await mkdir(join(repo, 'out'), { recursive: true });
+      execFileSync('git', ['init', '-q', repo]);
+      await writeFile(join(repo, '.gitignore'), 'out/*.md\n');
+      expect((await Effect.runPromiseExit(writePrivateFile(join(repo, 'out', 'report.md'), 'private\n', repo)))._tag).toBe('Failure');
+      expect(await readdir(join(repo, 'out'))).toEqual([]);
+      await writeFile(join(repo, '.gitignore'), 'out/\n');
+      expect((await Effect.runPromiseExit(writePrivateFile(join(repo, 'out', 'report.md'), 'private\n', repo)))._tag).toBe('Success');
+      expect(await readdir(join(repo, 'out'))).toEqual(['report.md']);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it('does not complete an interrupted child process until the child has exited', async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'season-review-child-')));
+    try {
+      const pidFile = join(base, 'pid');
+      const script = `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000);`;
+      const fiber = Effect.runFork(processEffect(process.execPath, ['-e', script], { timeoutMs: 60_000 }));
+      while (!existsSync(pidFile) || (await readFile(pidFile, 'utf8')) === '') await new Promise((done) => setTimeout(done, 20));
+      const pid = Number(await readFile(pidFile, 'utf8'));
+      await Effect.runPromise(Fiber.interrupt(fiber));
+      expect(() => process.kill(pid, 0)).toThrow();
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 
   it('omits optional risk snapshots for another season', () => {

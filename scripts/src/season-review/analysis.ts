@@ -402,21 +402,51 @@ function pickRosterId(pick: SeasonReviewInputs['picks'][number]): number | null 
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function rosterIdOf(pick: SeasonReviewInputs['picks'][number], slotToRoster: Readonly<Record<string, number>>): number {
-  return pickRosterId(pick) ?? slotToRoster[String(pick.draft_slot)] ?? 0;
+function rosterIdOf(pick: SeasonReviewInputs['picks'][number], slotToRoster: ReadonlyMap<number, number>): number {
+  return pickRosterId(pick) ?? slotToRoster.get(pick.draft_slot) ?? 0;
 }
 
 /**
- * The manager's roster: the draft's slot_to_roster_id, else the one roster every pick from that slot names, provided
- * the league has that roster. Anything else is ambiguous and stops the report rather than grading roster 0.
+ * Draft slot → the roster that owns it: the draft's slot_to_roster_id, else its draft_order (user → slot) joined to
+ * roster owners and co-owners. A pick's roster_id is not used: a traded pick names its recipient, not the slot's owner.
+ * A slot whose users own no roster or several, or that shares a roster with another slot, is left out as ambiguous.
+ */
+export function resolveSlotToRoster(inputs: Pick<SeasonReviewInputs, 'draft' | 'rosters'>): ReadonlyMap<number, number> {
+  const mapped = inputs.draft.slot_to_roster_id;
+  if (mapped) return new Map(Object.entries(mapped).map(([slot, rosterId]) => [Number(slot), rosterId]));
+  const candidates = new Map<number, Set<number>>();
+  for (const [userId, slot] of Object.entries(inputs.draft.draft_order ?? {})) {
+    const owned = inputs.rosters.filter((roster) => roster.owner_id === userId || (roster.co_owners ?? []).includes(userId));
+    const rosters = candidates.get(slot) ?? new Set<number>();
+    // A user with no roster or several cannot place the slot; -1 marks it ambiguous.
+    for (const rosterId of owned.length === 1 ? owned.map((roster) => roster.roster_id) : [-1]) rosters.add(rosterId);
+    candidates.set(slot, rosters);
+  }
+  const unique = [...candidates].flatMap(([slot, rosters]) => {
+    const [only] = rosters;
+    return rosters.size === 1 && only !== undefined && only >= 0 ? [[slot, only] as const] : [];
+  });
+  const slotsPerRoster = new Map<number, number>();
+  for (const [, rosterId] of unique) slotsPerRoster.set(rosterId, (slotsPerRoster.get(rosterId) ?? 0) + 1);
+  return new Map(unique.filter(([, rosterId]) => slotsPerRoster.get(rosterId) === 1));
+}
+
+/**
+ * The manager's roster from resolveSlotToRoster, provided the league has it. Without slot_to_roster_id the draft_order
+ * mapping must be corroborated by at least one of the slot's picks naming that roster (traded picks name others).
+ * Anything else is ambiguous and stops the report rather than grading roster 0.
  */
 export function resolveManagerRosterId(inputs: Pick<SeasonReviewInputs, 'draft' | 'picks' | 'rosters' | 'managerSlot'>): number {
-  const mapped = inputs.draft.slot_to_roster_id?.[String(inputs.managerSlot)];
-  const fromPicks = [...new Set(inputs.picks.filter((pick) => pick.draft_slot === inputs.managerSlot).map(pickRosterId))];
-  const [only] = fromPicks;
-  const rosterId = mapped ?? (fromPicks.length === 1 && only !== null && only !== undefined ? only : null);
-  if (rosterId === null || !inputs.rosters.some((roster) => roster.roster_id === rosterId)) {
-    throw new Error(`Could not tie draft slot ${String(inputs.managerSlot)} to one league roster: the draft has no slot_to_roster_id for it and its picks name ${fromPicks.length ? fromPicks.map(String).join(', ') : 'no roster'}. Check --manager-slot.`);
+  const slot = String(inputs.managerSlot);
+  const rosterId = resolveSlotToRoster(inputs).get(inputs.managerSlot);
+  if (rosterId === undefined || !inputs.rosters.some((roster) => roster.roster_id === rosterId)) {
+    throw new Error(`Could not tie draft slot ${slot} to one league roster: the draft has no slot_to_roster_id for it and its draft_order does not map it to exactly one roster owner. Check --manager-slot.`);
+  }
+  if (!inputs.draft.slot_to_roster_id) {
+    const named = [...new Set(inputs.picks.filter((pick) => pick.draft_slot === inputs.managerSlot).flatMap((pick) => pickRosterId(pick) ?? []))];
+    if (named.length > 0 && !named.includes(rosterId)) {
+      throw new Error(`Could not tie draft slot ${slot} to one league roster: draft_order maps it to roster ${String(rosterId)}, but its picks name only ${named.map(String).join(', ')}. Check --manager-slot.`);
+    }
   }
   return rosterId;
 }
@@ -593,7 +623,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
   const fpMap = buildFantasyProsMap(inputs, info);
   const predraft = buildPredraft(inputs, fpMap);
   const names = managerNames(inputs);
-  const slotToRoster = inputs.draft.slot_to_roster_id ?? {};
+  const slotToRoster = resolveSlotToRoster(inputs);
   const managerRosterId = resolveManagerRosterId(inputs);
   const rosterOwner = new Map(inputs.rosters.map((roster) => [roster.roster_id, roster.owner_id ?? '']));
   const managerOf = (rosterId: number) => names.get(rosterOwner.get(rosterId) ?? '')?.name ?? `Roster ${String(rosterId)}`;
@@ -893,7 +923,7 @@ export function buildSeasonReview(inputs: SeasonReviewInputs): SeasonReview {
       || pointsFor(b) - pointsFor(a) || pointsAgainst(b) - pointsAgainst(a);
   });
   const pfOrder = [...rosterIds].sort((a, b) => pointsFor(b) - pointsFor(a));
-  const slotOfRoster = new Map(Object.entries(slotToRoster).map(([slot, rosterId]) => [rosterId, Number(slot)]));
+  const slotOfRoster = new Map([...slotToRoster].map(([slot, rosterId]) => [rosterId, slot]));
   const teamSummaries: TeamSummary[] = rosterIds.map((rosterId) => {
     const teamPicks = picks.filter((pick) => pick.rosterId === rosterId).sort((a, b) => a.round - b.round || a.pickNo - b.pickNo);
     const positionsByRound = teamPicks.map((pick) => pick.position);
