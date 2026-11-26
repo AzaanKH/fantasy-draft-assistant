@@ -906,6 +906,11 @@ interface ProspectiveFoldInput {
   readonly rankingsAfterDraft: number;
   /** Drafted offensive players with no draft-day rank, added so their picks and keepers still score. */
   readonly unrankedDrafted: number;
+  /**
+   * Ranked or drafted players with no GSIS ID, so no outcome can be joined. They get no scoring row: their picks keep
+   * their turns but score nothing and stay out of coverage, rather than scoring as zero points.
+   */
+  readonly unresolvedOutcomes: number;
 }
 
 interface ProspectiveLoad {
@@ -1053,6 +1058,9 @@ async function loadProspectiveRows(
         pool.gsis_id::varchar as gsis_id,
         pool.player_name::varchar as player_name,
         pool.position::varchar as position,
+        -- A mapped player with no weekly stats row recorded no stats: a verified zero. Without a GSIS ID nothing can be
+        -- joined, so the outcome is unknown, not zero.
+        (pool.gsis_id is not null) as outcome_resolved,
         coalesce(outcomes.games, 0)::double as games,
         coalesce(outcomes.ppr_points, 0)::double as actual_points,
         coalesce(outcomes.rush_attempts, 0)::double as rush_attempts,
@@ -1076,9 +1084,11 @@ async function loadProspectiveRows(
     const objects = reader.getRowObjects();
     const decoded = decodeBacktestTrainingRows(objects);
     const complete = isRegularSeasonComplete(status);
+    const resolved = decoded.filter((_row, index) => objects[index]?.outcome_resolved === true);
     decoded.forEach((row, index) => {
       const source = objects[index];
-      const played = finiteOrNull(source?.team_games_played);
+      if (source?.outcome_resolved !== true) return;
+      const played = finiteOrNull(source.team_games_played);
       const pace = (value: number) => complete ? value : fullSeasonPace(value, played);
       rows.push({
         ...row,
@@ -1092,9 +1102,10 @@ async function loadProspectiveRows(
       season,
       status,
       complete,
-      boardPlayers: decoded.filter((row) => (row.predraft_ecr ?? Infinity) <= 250).length,
+      boardPlayers: resolved.filter((row) => (row.predraft_ecr ?? Infinity) <= 250).length,
       rankingsAfterDraft: finiteOrNull(objects[0]?.rankings_after_draft) ?? 0,
-      unrankedDrafted: decoded.filter((row) => row.predraft_ecr === null).length,
+      unrankedDrafted: resolved.filter((row) => row.predraft_ecr === null).length,
+      unresolvedOutcomes: decoded.length - resolved.length,
     });
   }
   return { rows, folds, skipped };
@@ -1904,6 +1915,7 @@ async function main(): Promise<void> {
         boardPlayers: fold.boardPlayers,
         rankingsScrapedAfterDraftExcluded: fold.rankingsAfterDraft,
         unrankedDraftedPlayers: fold.unrankedDrafted,
+        playersWithoutOutcomeId: fold.unresolvedOutcomes,
         coverage: {
           // Picks the actual draft scored, not replay turns: a turn whose player has no outcome row scores nothing.
           evaluatedUserPicks: seasonReport.strategies.actualUserDraft.evaluatedPicks,
@@ -2164,7 +2176,8 @@ async function main(): Promise<void> {
     ? `Counts toward the release gate: all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats.`
     : `Excluded from the release gate until all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats; the numbers move each week.`}
 - Outcomes: ${fold.outcomeBasis}
-- Coverage: ${String(fold.coverage.evaluatedUserPicks)} of ${String(fold.coverage.totalUserPicks)} user picks scored.
+- Coverage: ${String(fold.coverage.evaluatedUserPicks)} of ${String(fold.coverage.totalUserPicks)} user picks scored.${
+  fold.playersWithoutOutcomeId === 0 ? '' : ` ${String(fold.playersWithoutOutcomeId)} ranked or drafted players have no GSIS ID, so their outcomes are unresolved: they are left off the board and their picks are not scored.`}
 - Board: ${String(fold.boardPlayers)} offensive players ranked inside the top 250 in the last snapshot before the draft; ${String(fold.rankingsScrapedAfterDraftExcluded)} player rankings scraped after the draft started were excluded before that selection; ${String(fold.unrankedDraftedPlayers)} drafted players without a draft-day rank were added so their picks and keepers score.
 - Shadow Recommendation log: ${fold.shadowLog.present
     ? `\`${fold.shadowLog.path}\` is present but this report does not score it yet.`

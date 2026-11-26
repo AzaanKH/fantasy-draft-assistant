@@ -339,6 +339,7 @@ describe('prospective board', () => {
     readonly gamesPlayed?: number;
     readonly extraSql?: readonly string[];
     readonly draftStartTimestamp?: string;
+    readonly extraPicks?: ReadonlyArray<{ readonly playerId: string; readonly playerName: string; readonly position: 'QB' | 'RB' | 'WR' | 'TE' }>;
   } = {}) {
     const gamesPlayed = options.gamesPlayed ?? 136;
     const { DuckDBInstance } = await import('@duckdb/node-api');
@@ -383,6 +384,7 @@ describe('prospective board', () => {
         picks: [
           { playerId: 's-d', playerName: 'Player D', position: 'QB' },
           { playerId: 's-e', playerName: 'Player E', position: 'TE' },
+          ...(options.extraPicks ?? []),
         ],
       }]);
     } finally {
@@ -439,6 +441,30 @@ describe('prospective board', () => {
     expect(Object.keys(board).sort()).toEqual(['s-b', 's-d', 's-e']);
     expect(board['s-b']?.predraft_ecr).toBe(3);
     expect(load.folds[0]?.rankingsAfterDraft).toBe(1);
+  });
+
+  it('leaves a pick with no GSIS ID unscored instead of scoring it as zero', async () => {
+    const load = await loadBoard({
+      extraSql: [`insert into model.dynastyprocess_player_ids values ('fp-g', null, 's-g')`],
+      extraPicks: [{ playerId: 's-g', playerName: 'Player G', position: 'RB' }],
+    });
+    const board = Object.fromEntries(load.rows.map((row) => [row.sleeper_player_id, row]));
+    // d is mapped but recorded no stats: a verified zero that still scores. g cannot be joined to any outcome.
+    expect(board['s-d']).toMatchObject({ actual_points: 0, games: 0 });
+    expect(board['s-g']).toBeUndefined();
+    expect(load.folds[0]).toMatchObject({ unrankedDrafted: 2, unresolvedOutcomes: 1 });
+
+    const { scoringRows } = backtestInternals.addDerivedValues(
+      load.rows,
+      new Set(['s-d', 's-e', 's-g'].map((id) => backtestInternals.playerSeasonKey(2026, id)))
+    );
+    const plan = backtestInternals.planUserTurns([
+      { pickNo: 1, playerId: 's-g', position: 'RB', isUserPick: true, isKeeper: false },
+      { pickNo: 2, playerId: 's-d', position: 'QB', isUserPick: true, isKeeper: false },
+    ], new Map(scoringRows.map((row) => [row.sleeper_player_id, row])));
+    // g's pick keeps its turn, so the remaining-pick count is unchanged, but scores nothing.
+    expect([...plan.turns.values()].map((turn) => [turn.remainingPicks, turn.chosenRow?.sleeper_player_id]))
+      .toEqual([[2, undefined], [1, 's-d']]);
   });
 
   it('replays only the draft-day board for a fold season, scoring each overlapping player once', () => {
