@@ -53,8 +53,10 @@ const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
 const MAX_JSON_BODY_BYTES = 256 * 1024;
 /**
  * Poll interval once the provider reports the draft complete. Each poll's heartbeat keeps CLI `draft watch` streams
- * connected without a separate keepalive, so the gap between frames must stay under its 30 s idle timeout
- * (cli/src/client.ts idleMs): 15 s sleep + 10 s worst-case request timeout = 25 s < 30 s.
+ * connected without a separate keepalive, so the gap between frames should stay under its 30 s idle timeout
+ * (cli/src/client.ts idleMs). With this default and no failures, the gap is at most 15 s sleep + 10 s worst-case
+ * request timeout = 25 s. Failure backoff can stretch the sleep to its 30 s cap; a failed poll leaves the session
+ * unsynced, so the next poll sends a status frame as it starts and the gap can reach 30 s.
  */
 const COMPLETED_DRAFT_POLL_INTERVAL_MS = 15_000;
 
