@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decodeLeagueHistoryDraft, decodeLeagueHistoryPicks, decodeLeagueHistoryRosters, decodeLeagueHistoryUsers, pseudonymizeUserId, resolveConfirmedManager, sanitizeRawValue } from './import-league-draft-history.js';
+import { decodeLeagueHistoryDraft, decodeLeagueHistoryPicks, decodeLeagueHistoryRosters, decodeLeagueHistoryUsers, mergeImportedSeasons, pseudonymizeUserId, resolveConfirmedManager, sanitizeRawValue } from './import-league-draft-history.js';
 
 describe('league draft history sanitization', () => {
   it('redacts roster nicknames and pseudonymizes user identifiers', () => {
@@ -90,5 +90,22 @@ describe('confirmed prospective season manager', () => {
       draftOrder: { manager: 2 },
       slotToRosterId: { '2': 9 },
     })).toEqual(expect.stringContaining('no single owner for slot 5'));
+  });
+});
+
+describe('mergeImportedSeasons', () => {
+  const season = (year: number, source: string) => ({ season: year, source });
+
+  it('keeps an earlier prospective season and replaces only the seasons this run refreshed', () => {
+    const previous = [season(2024, 'old'), season(2025, 'old'), season(2026, 'old'), season(2027, 'old')];
+    const refreshed = [season(2025, 'new'), season(2024, 'new'), season(2027, 'new')];
+    expect(mergeImportedSeasons(previous, refreshed, 2025)).toEqual([
+      season(2024, 'new'), season(2025, 'new'), season(2026, 'old'), season(2027, 'new'),
+    ]);
+  });
+
+  it('does not carry forward a configured season this run no longer imports', () => {
+    expect(mergeImportedSeasons([season(2022, 'old'), season(2023, 'old')], [season(2023, 'new')], 2023))
+      .toEqual([season(2023, 'new')]);
   });
 });

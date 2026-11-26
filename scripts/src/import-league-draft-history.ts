@@ -590,6 +590,34 @@ const readConfirmedSeason = Effect.fn('readConfirmedSeason')(function* (previous
   return config;
 });
 
+/**
+ * The seasons to write: every season this run imported, plus earlier-imported prospective seasons (newer than the
+ * configured history) that this run did not refresh. A confirmed season is imported only while it is the confirmed
+ * Primary League season, so confirming 2027 must not drop an imported 2026 from the backtest and survival inputs.
+ * Configured seasons are always re-imported, so a season removed from that list is not carried forward.
+ */
+export function mergeImportedSeasons<S extends { readonly season: number }>(
+  previous: readonly S[],
+  refreshed: readonly S[],
+  lastConfiguredSeason: number
+): S[] {
+  const refreshedSeasons = new Set(refreshed.map((season) => season.season));
+  const retained = previous.filter((season) =>
+    season.season > lastConfiguredSeason && !refreshedSeasons.has(season.season)
+  );
+  return [...refreshed, ...retained].sort((a, b) => a.season - b.season);
+}
+
+const previousHistorySchema = openStruct({ seasons: Schema.Array(openStruct({ season: Schema.Finite })) });
+
+/** Seasons in the history file this run replaces; none when it does not exist yet. */
+const readPreviousSeasons = Effect.fn('readPreviousSeasons')(function* () {
+  const text = yield* io(() => readFile(OUTPUT_FILE, 'utf8').catch(() => null));
+  if (text === null) return [];
+  // Written by this script, so each season keeps its full shape; only the season number is checked.
+  return Schema.decodeUnknownSync(previousHistorySchema)(JSON.parse(text)).seasons as unknown as LeagueSeasonHistory[];
+});
+
 const program = Effect.gen(function* () {
   yield* io(() => mkdir(RAW_DIR, { recursive: true }));
 
@@ -600,7 +628,10 @@ const program = Effect.gen(function* () {
   const drafts = confirmed ? [...LEAGUE_DRAFTS, confirmed] : LEAGUE_DRAFTS;
   // Five requests per season; two seasons at a time keeps bursts small for Sleeper.
   const seasons = yield* Effect.forEach(drafts, importSeason, { concurrency: 2 });
-  const sortedSeasons = [...seasons].sort((a, b) => a.season - b.season);
+  const sortedSeasons = mergeImportedSeasons(yield* readPreviousSeasons(), seasons, lastConfigured?.season ?? Infinity);
+  for (const season of sortedSeasons) {
+    if (!seasons.includes(season)) console.log(`Keeping the previously imported ${String(season.season)} season.`);
+  }
   const totalPicks = sortedSeasons.reduce((sum, season) => sum + season.picks.length, 0);
   const userPicks = sortedSeasons.reduce((sum, season) => sum + season.userPicks.length, 0);
 
