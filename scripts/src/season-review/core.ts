@@ -504,7 +504,7 @@ export interface PickupStint {
 /**
  * Waiver and free-agent pickups, one row per acquiring transaction through `throughWeek`: a player dropped and re-added
  * by the same roster is two stints, each with its own source, FAAB bid and points. A pickup dropped before it appears in
- * any matchup is a zero-point stint.
+ * any matchup is a zero-point stint; its first week is the add's week, otherwise the first matchup week on the roster.
  */
 export function pickupStints(
   matchups: readonly { readonly week: number; readonly rows: readonly {
@@ -517,6 +517,7 @@ export function pickupStints(
   throughWeek: number
 ): PickupStint[] {
   const stints = new Map<string, PickupStint>();
+  const seen = new Set<string>();
   const pickups = [...addsByRosterPlayer.values()].flat()
     .filter((add): add is RosterAdd & { readonly type: 'waiver' | 'free_agent' } => (add.type === 'waiver' || add.type === 'free_agent') && add.week <= throughWeek)
     .sort((a, b) => a.week - b.week || a.created - b.created);
@@ -537,8 +538,11 @@ export function pickupStints(
         const key = `${add.transactionId}:${playerId}`;
         const entry = stints.get(key);
         if (!entry) continue;
+        const firstWeek = seen.has(key) ? entry.firstWeek : week;
+        seen.add(key);
         stints.set(key, {
           ...entry,
+          firstWeek,
           rostered: round2(entry.rostered + points),
           started: starters.includes(playerId) ? round2(entry.started + points) : entry.started,
         });

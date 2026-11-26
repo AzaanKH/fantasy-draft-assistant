@@ -186,10 +186,11 @@ describe('acquisitions', () => {
       ['4:p3', [{ week: 9, created: 90, rosterId: 4, playerId: 'p3', type: 'free_agent' as const, transactionId: 'late', faabBid: null }]],
       ['4:p4', [{ week: 2, created: 21, rosterId: 4, playerId: 'p4', type: 'trade' as const, transactionId: 't1', faabBid: null }]],
     ]);
-    const stints = pickupStints([{ week: 3, rows: [{ roster_id: 4, players: ['p2'], starters: ['p2'], players_points: { p2: 8 } }] }], adds, 6);
+    // p2 is added in week 3's transactions but first plays for the roster in week 4.
+    const stints = pickupStints([{ week: 4, rows: [{ roster_id: 4, players: ['p2'], starters: ['p2'], players_points: { p2: 8 } }] }], adds, 6);
     expect(stints).toEqual([
       { transactionId: 'w1', rosterId: 4, playerId: 'p1', firstWeek: 2, source: 'waiver', faabBid: 3, rostered: 0, started: 0 },
-      { transactionId: 'f2', rosterId: 4, playerId: 'p2', firstWeek: 3, source: 'free_agent', faabBid: null, rostered: 8, started: 8 },
+      { transactionId: 'f2', rosterId: 4, playerId: 'p2', firstWeek: 4, source: 'free_agent', faabBid: null, rostered: 8, started: 8 },
     ]);
   });
 });

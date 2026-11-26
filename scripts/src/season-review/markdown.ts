@@ -112,7 +112,7 @@ function learnings(review: SeasonReview): string[] {
       acc.push(`${row.row.scope}: FP ${fmt(row.row.rho, 2)} vs model ${fmt(model?.row.rho, 2)}`);
       return acc;
     }, []);
-    out.push(`5. **Shadow model vs FantasyPros projections** (points-rank correlation among relevant players): ${pairs.join('; ')}. Proposal: keep the model in Shadow Recommendation; promote nothing on ${fullSeason ? 'one season' : `a ${String(throughWeek)}-week partial season`}. Test: ${String(season)} provisional prospective fold.`);
+    out.push(`5. **Shadow model vs FantasyPros projections** (points-rank correlation among relevant players): ${pairs.join('; ')}. Proposal: keep the model in Shadow Recommendation; promote nothing on ${fullSeason ? 'one season' : `${[8, 11].includes(throughWeek) ? 'an' : 'a'} ${String(throughWeek)}-week partial season`}. Test: ${String(season)} provisional prospective fold.`);
   }
   const calibration = review.adpCalibration;
   out.push(`6. **Draft Timing calibration.** ${pct(calibration.withinOneRound)} of ${String(calibration.n)} non-keeper picks went within one round of FantasyPros ADP; mean |pick − ADP| ${fmt(calibration.meanAbsoluteDelta)}, mean signed ${signed(calibration.meanDelta)}. ` +
