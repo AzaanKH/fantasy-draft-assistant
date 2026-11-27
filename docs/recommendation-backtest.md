@@ -56,6 +56,44 @@ ECR on every release check applied to the completed 2026 prospective fold alone.
 | Baseline roster-aware model | 49 | 1447.92 | 8412.06 | 133.49 | 0.61 |
 | Roster-aware model | 49 | 1300.26 | 8368.2 | 136.5 | 0.59 |
 
+## Prospective Folds
+
+Seasons drafted after the 2026-predeclared-v1 declaration was frozen. Their outcomes could not
+shape the declaration, so a complete prospective season that passes the release gate is the only evidence that
+reopens the model (see [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24)).
+A fold stays provisional, and outside every gate and aggregate above, until all 272 of its
+regular-season games are scored and matched to weekly player stats; completeness comes from nflverse, not a flag. Refresh outcomes with `pnpm model:prospective`.
+
+- Reopen eligible: **false**
+
+### 2026: **PROVISIONAL**
+
+- Regular season: 163 of 272 scheduled games scored (272 in a full season); 163 matched to weekly player stats, through week 11 (outcomes fetched 2026-11-25T00:37:35Z).
+- Excluded from the release gate until all 272 regular-season games are scored and matched to player stats; the numbers move each week.
+- Outcomes: Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a 17-game pace by each player's matched team games.
+- Coverage: 12 of 13 user picks scored.
+- Board: 223 offensive players ranked inside the top 250 in the last snapshot before the draft; 0 player rankings scraped after the draft started were excluded before that selection; 0 drafted players without a draft-day rank were added so their picks and keepers score.
+- Shadow Recommendation log: absent (no `data/shadow-logs/2026-recommendations.ndjson`), so only the replayed model is scored.
+
+| Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Actual user draft | 12 | 567.81 | 2252.43 | 152.47 | 0.58 |
+| Roster-aware ECR | 12 | 864.76 | 2593.24 | 127.73 | 0.92 |
+| Best Pick (shipped) | 12 | 819.54 | 2482.57 | 131.5 | 0.83 |
+| Baseline roster-aware model | 12 | 433.99 | 2341.57 | 182.51 | 0.5 |
+| Roster-aware model | 12 | 102.79 | 2027.02 | 229.46 | 0.5 |
+
+Single-season release gate (model must beat roster-aware ECR on every release check this season; seasons won does not apply): **fail** (provisional, not counted)
+
+| Check | Result |
+| --- | --- |
+| aggregateStarterPointsBeatEcr | fail |
+| aggregateVorBeatEcr | fail |
+| averageRegretBeatEcr | fail |
+| top24HitRateNonInferior | fail |
+| noSeasonStarterRegressionOver15Percent | fail |
+
+
 ## Best Pick Policy
 
 The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board. The rejected-weights row replays the same rule with

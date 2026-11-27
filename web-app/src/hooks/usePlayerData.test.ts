@@ -35,6 +35,7 @@ let coreLoading = false;
 let pendingMergeInputs: ReadonlySet<string> = new Set();
 const MERGE_INPUTS = new Set(['sleeper-adp', 'team-environment', 'fantasy-football-calculator-adp']);
 let shadowEnabled = false;
+let policySeason = 2026;
 let predictionEnabled: unknown;
 let result: PlayerDataQueryResult;
 function Probe() { result = usePlayerDataQuery(); return null; }
@@ -47,6 +48,7 @@ beforeEach(() => {
   pendingMergeInputs = new Set();
   failedMergeInputs.clear();
   shadowEnabled = false;
+  policySeason = 2026;
   predictionEnabled = undefined;
   draftState.connection = null;
   draftState.demo = false;
@@ -58,7 +60,7 @@ beforeEach(() => {
     const policy = key === 'recommendation-policy';
     const mergeInput = MERGE_INPUTS.has(key);
     return {
-      data: policy ? { ...SAFE_RECOMMENDATION_POLICY, shadowLogging: { ...SAFE_RECOMMENDATION_POLICY.shadowLogging, enabled: shadowEnabled } } : mergeInput && pendingMergeInputs.has(key) ? undefined : loadedData[key],
+      data: policy ? { ...SAFE_RECOMMENDATION_POLICY, shadowLogging: { ...SAFE_RECOMMENDATION_POLICY.shadowLogging, enabled: shadowEnabled, season: policySeason } } : mergeInput && pendingMergeInputs.has(key) ? undefined : loadedData[key],
       isLoading: core ? coreLoading : mergeInput ? pendingMergeInputs.has(key) : !policy,
       isSuccess: core ? !coreLoading : policy,
       isError: failedMergeInputs.has(key),
@@ -229,7 +231,7 @@ describe('player data loading boundaries', () => {
         },
         'team-environment': { generatedAt: timestamp, teams: {} },
         predictions: {
-          generatedAt: timestamp, modelVersion: 'test',
+          generatedAt: timestamp, modelVersion: 'test', season: 2026,
           players: Array.from({ length: 800 }, () => ({ playerId: 'player-1', name: 'Test Player', team: 'DET', position: 'WR', projectedPoints: 280, valueOverReplacement: 80, ceilingScore: 8, floorScore: 7, upsideScore: 8, uncertaintyScore: 2, injuryRiskScore: 2, predictionSource: 'model' })),
         },
       };
@@ -245,6 +247,106 @@ describe('player data loading boundaries', () => {
       expect(result.shadowPlayers).toEqual([]);
     }
   );
+
+  describe('shadow logging gate for degraded predictions', () => {
+    function loadShadowSources(predictionGeneratedAt: string | null, targetSeason: number | null = 2026) {
+      const coreTimestamp = '2026-09-05T15:53:00.000Z';
+      shadowEnabled = true;
+      draftState.connection = { provider: 'sleeper', draftId: 'test', draftPosition: 5 };
+      loadedData = {
+        'fantasypros-snapshot': {
+          metadata: { season: 2026, refreshedAt: coreTimestamp, sourceType: 'api' },
+          rankings: [{ fantasyProsId: 'fp-1', rank: 1, name: 'Test Player', position: 'WR', team: 'DET', byeWeek: 8, positionalRank: 1 }],
+          projections: [], news: [],
+        },
+        'player-identity': {
+          season: 2026, generatedAt: coreTimestamp,
+          players: [{ canonicalId: 'player-1', fantasyProsId: 'fp-1', name: 'Test Player', aliases: [], position: 'WR', team: 'DET' }],
+          coverage: { fantasyProsRankingMatchRate: 1, matchedDefenses: 32 },
+        },
+        ...(predictionGeneratedAt === null ? {} : {
+          predictions: {
+            generatedAt: predictionGeneratedAt, modelVersion: 'test', ...(targetSeason === null ? {} : { season: targetSeason }),
+            players: Array.from({ length: 800 }, () => ({ playerId: 'player-1', name: 'Test Player', team: 'DET', position: 'WR', projectedPoints: 280, valueOverReplacement: 80, ceilingScore: 8, floorScore: 7, upsideScore: 8, uncertaintyScore: 2, injuryRiskScore: 2, predictionSource: 'model' })),
+          },
+        }),
+      };
+    }
+
+    it('logs draft-day predictions built before the preflight refreshed rankings, with their freshness', () => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      loadShadowSources('2026-09-05T15:17:00.000Z');
+      render();
+
+      expect(result.dataInfo.shadowRecommendationAvailable).toBe(false);
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(true);
+      expect(result.shadowPlayers).toHaveLength(1);
+      expect(result.players[0]?.projectedPoints).not.toBe(280);
+      expect(result.dataInfo.predictionFreshness).toBe('older-than-dependency');
+      expect(result.dataInfo.predictionDependencies).toEqual({
+        rankingsRefreshedAt: '2026-09-05T15:53:00.000Z',
+        identitiesGeneratedAt: '2026-09-05T15:53:00.000Z',
+        teamEnvironmentGeneratedAt: null,
+      });
+    });
+
+    it('logs predictions past the seven-day live limit as stale', () => {
+      vi.setSystemTime(Date.parse('2026-09-20T12:00:00Z'));
+      loadShadowSources('2026-09-06T12:00:00.000Z');
+      render();
+
+      expect(result.dataInfo.shadowRecommendationAvailable).toBe(false);
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(true);
+      expect(result.dataInfo.predictionFreshness).toBe('stale');
+    });
+
+    it.each([
+      ['missing', null, 2026],
+      ['built for another season', '2026-09-01T12:00:00.000Z', 2025],
+      // A 2025 model rebuilt after the March 1 rollover must not count as 2026 evidence.
+      ['a 2025 model rebuilt in March', '2026-03-10T12:00:00.000Z', 2025],
+      ['without a recorded target season', '2026-09-01T12:00:00.000Z', null],
+    ] as const)('does not log predictions that are %s', (_label, generatedAt, targetSeason) => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      loadShadowSources(generatedAt, targetSeason);
+      render();
+
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(false);
+      expect(result.dataInfo.predictionFreshness).toBeNull();
+      expect(result.dataInfo.shadowLoggingSeason).toBeNull();
+      expect(result.shadowPlayers).toEqual([]);
+    });
+
+    it('says why an artifact without a target season is not logged', () => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      loadShadowSources('2026-09-01T12:00:00.000Z', null);
+      render();
+
+      expect(result.dataInfo.shadowLoggingBlockedReason).toMatch(/does not record its target season/);
+    });
+
+    it('logs a 2026 model built before the March 1 rollover', () => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      loadShadowSources('2026-02-20T12:00:00.000Z', 2026);
+      render();
+
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(true);
+      expect(result.dataInfo.shadowLoggingSeason).toBe(2026);
+      expect(result.dataInfo.predictionTargetSeason).toBe(2026);
+      expect(result.dataInfo.predictionFreshness).toBe('older-than-dependency');
+    });
+
+    it('does not log when the policy season disagrees with the workspace and artifact', () => {
+      vi.setSystemTime(Date.parse('2026-09-05T16:30:00Z'));
+      policySeason = 2025;
+      loadShadowSources('2026-09-05T15:17:00.000Z', 2026);
+      render();
+
+      expect(result.dataInfo.shadowLoggingEnabled).toBe(false);
+      expect(result.dataInfo.shadowLoggingSeason).toBeNull();
+      expect(result.dataInfo.shadowLoggingBlockedReason).toMatch(/policy 2025/);
+    });
+  });
 
   it('loads predictions only for enabled shadow logging with confirmed connection and loaded core queries', () => {
     shadowEnabled = true;

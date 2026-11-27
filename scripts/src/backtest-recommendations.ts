@@ -29,6 +29,7 @@ import {
   OFFENSIVE_POSITIONS,
   calculateLeagueScoringAdjustment,
   getHistoricalLeagueScoringAdjustments,
+  sqlPositionList,
   type OffensivePosition,
 } from '@fantasy-draft/shared/league';
 import {
@@ -75,6 +76,15 @@ import {
   parseBestPickGateBlocks,
   renderBestPickGateBlocks,
 } from './best-pick-backtest-gate.js';
+import {
+  PROSPECTIVE_FIRST_SEASON,
+  REGULAR_SEASON_GAMES,
+  fullSeasonPace,
+  isRegularSeasonComplete,
+  type ProspectiveSeasonStatus,
+} from './model/prospective-fold.js';
+import { trailingHistorySql, trailingPlayerVolumeSql } from './model/trailing-features-sql.js';
+import { access } from 'node:fs/promises';
 
 const JSON_OUTPUT = join(BACKTESTS_MODEL_DIR, 'recommendation-backtest.json');
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'recommendation-backtest.md');
@@ -99,7 +109,12 @@ const REPLACEMENT_POSITION_RANKS: Record<OffensivePosition, number> = {
   TE: 14,
 };
 
-type TrainingRow = BacktestTrainingRow;
+/**
+ * `outcomeUnknown` marks a prospective board row with no GSIS ID, so no outcome can be joined. The row stays on the
+ * board with its normal roster impact (position, slot, survival), as it would in the live app, but its outcome fields
+ * are placeholders: it never scores, never sets a replacement level or rank, and never trains the residual model.
+ */
+type TrainingRow = BacktestTrainingRow & { readonly outcomeUnknown?: boolean };
 
 interface PlayerSeason extends TrainingRow {
   readonly sleeper_player_id: string;
@@ -542,8 +557,19 @@ function getPriorUsage(
   };
 }
 
-function addDerivedValues(rows: readonly TrainingRow[]): {
+/** Key of one player's season in the scoring lookup. */
+function playerSeasonKey(season: number, playerId: string): string {
+  return `${String(season)}|${playerId}`;
+}
+
+/**
+ * Board rows for the replay, plus `scoringRows`: the board and every requested off-board player (no rank, or ranked
+ * past 250). Off-board rows never enter the fit, the centers or replacement levels, and are never candidates; they
+ * exist so the picks and keepers that drafted them still score against the board's replacement level.
+ */
+function addDerivedValues(rows: readonly TrainingRow[], scoringKeys: ReadonlySet<string> = new Set()): {
   readonly playerSeasons: PlayerSeason[];
+  readonly scoringRows: PlayerSeason[];
   readonly modelCache: ReadonlyMap<string, ReturnType<typeof fitPositionResidualModel>>;
 } {
   const eligible = rows.filter(
@@ -553,7 +579,7 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
       Number.isFinite(row.predraft_ecr) &&
       asNumber(row.predraft_ecr) <= 250
   );
-  const residualRows: PositionResidualRow[] = eligible.map((row) => ({
+  const residualRows: PositionResidualRow[] = eligible.filter((row) => !row.outcomeUnknown).map((row) => ({
     season: row.season,
     position: row.position,
     targetResidual: row.actual_points / Math.max(1, row.games) * 17 - getSharedPprProjection(row),
@@ -618,7 +644,9 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
     clippedResidualCenterCache.set(key, center);
     return center;
   };
-  const baseRows: PlayerSeason[] = eligible.map((row) => {
+  const deriveBase = (
+    row: TrainingRow & { sleeper_player_id: string; position: OffensivePosition }
+  ): PlayerSeason => {
     const scoringRules = getHistoricalLeagueScoringAdjustments(row.season);
     const leagueActualPoints = row.actual_points + calculateLeagueScoringAdjustment({
       position: row.position,
@@ -631,7 +659,9 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
       rushAttempts: usage.rushAttemptsPerGame * 17,
       receptions: usage.receptionsPerGame * 17,
     }, scoringRules);
-    const sharedProjectedPoints = getSharedPprProjection(row) + estimatedCustomBonus;
+    // An unranked off-board player projects from the bottom of the board, not from rank 0.
+    const sharedProjectedPoints =
+      getSharedPprProjection(row.predraft_ecr === null ? { ...row, predraft_ecr: 300 } : row) + estimatedCustomBonus;
     const positionModel = getWalkForwardModel(row.season, row.position);
     let fittedResidual = 0;
     if (positionModel !== null) {
@@ -651,7 +681,7 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
       ...row,
       sleeper_player_id: row.sleeper_player_id,
       position: row.position,
-      leagueActualPoints,
+      leagueActualPoints: row.outcomeUnknown ? 0 : leagueActualPoints,
       leagueActualVor: 0,
       customPositionRank: 0,
       baselineModelScore: sharedProjectedPoints,
@@ -659,16 +689,21 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
       baselineProjectedPoints: sharedProjectedPoints,
       transparentProjectedPoints: sharedProjectedPoints + fittedResidual,
     };
-  });
+  };
+  const baseRows: PlayerSeason[] = eligible.map(deriveBase);
 
+  // Projected replacement levels read the whole board, as the live app would; actual ones read only known outcomes.
   const playerSeasons = baseRows.map((row) => {
     const positionRows = baseRows
-      .filter((candidate) => candidate.season === row.season && candidate.position === row.position)
+      .filter((candidate) => candidate.season === row.season && candidate.position === row.position);
+    const knownRows = positionRows
+      .filter((candidate) => !candidate.outcomeUnknown)
       .sort((a, b) => b.leagueActualPoints - a.leagueActualPoints);
-    const customPositionRank =
-      positionRows.findIndex((candidate) => candidate.sleeper_player_id === row.sleeper_player_id) + 1;
+    const customPositionRank = row.outcomeUnknown
+      ? 0
+      : knownRows.findIndex((candidate) => candidate.sleeper_player_id === row.sleeper_player_id) + 1;
     const replacementPoints =
-      positionRows[REPLACEMENT_POSITION_RANKS[row.position] - 1]?.leagueActualPoints ?? 0;
+      knownRows[REPLACEMENT_POSITION_RANKS[row.position] - 1]?.leagueActualPoints ?? 0;
     const baselineReplacementPoints = [...positionRows]
       .sort((a, b) => b.baselineModelScore - a.baselineModelScore)[
         REPLACEMENT_POSITION_RANKS[row.position] - 1
@@ -680,12 +715,90 @@ function addDerivedValues(rows: readonly TrainingRow[]): {
     return {
       ...row,
       customPositionRank,
-      leagueActualVor: row.leagueActualPoints - replacementPoints,
+      leagueActualVor: row.outcomeUnknown ? 0 : row.leagueActualPoints - replacementPoints,
       baselineModelScore: row.baselineModelScore - baselineReplacementPoints,
       transparentModelScore: row.transparentModelScore - positionModelReplacementPoints,
     };
   });
-  return { playerSeasons, modelCache };
+
+  const eligibleRows = new Set<TrainingRow>(eligible);
+  const offBoardRows = rows
+    .filter((row): row is TrainingRow & { sleeper_player_id: string; position: OffensivePosition } =>
+      Boolean(row.sleeper_player_id) &&
+      isOffensivePosition(row.position) &&
+      !eligibleRows.has(row) &&
+      scoringKeys.has(playerSeasonKey(row.season, row.sleeper_player_id ?? ''))
+    )
+    .map(deriveBase)
+    .map((row) => {
+      const positionRows = baseRows
+        .filter((candidate) => candidate.season === row.season && candidate.position === row.position);
+      const knownRows = positionRows.filter((candidate) => !candidate.outcomeUnknown);
+      const replacementAt = (
+        candidates: readonly PlayerSeason[],
+        score: (candidate: PlayerSeason) => number
+      ): number =>
+        candidates.map(score).sort((a, b) => b - a)[REPLACEMENT_POSITION_RANKS[row.position] - 1] ?? 0;
+      return {
+        ...row,
+        customPositionRank: row.outcomeUnknown
+          ? 0
+          : knownRows.filter((candidate) => candidate.leagueActualPoints > row.leagueActualPoints).length + 1,
+        leagueActualVor: row.outcomeUnknown
+          ? 0
+          : row.leagueActualPoints - replacementAt(knownRows, (candidate) => candidate.leagueActualPoints),
+        baselineModelScore:
+          row.baselineModelScore - replacementAt(positionRows, (candidate) => candidate.baselineModelScore),
+        transparentModelScore:
+          row.transparentModelScore - replacementAt(positionRows, (candidate) => candidate.transparentModelScore),
+      };
+    });
+  return { playerSeasons, scoringRows: [...playerSeasons, ...offBoardRows], modelCache };
+}
+
+interface UserTurn {
+  readonly pickNo: number;
+  /** The user's offensive non-keeper picks from this one on; specialist and keeper picks are not turns. */
+  readonly remainingPicks: number;
+  /** The user's next turn, the next chance to draft an offensive player; a later specialist pick is not one. */
+  readonly nextPickNo: number | null;
+  /** The drafted player's scoring row, undefined only when the player has no outcome row at all. */
+  readonly chosenRow: PlayerSeason | undefined;
+}
+
+/**
+ * The user's side of one replayed draft: keeper rows, in league-history order, that start every strategy's roster,
+ * and one turn per offensive non-keeper user pick, keyed by its index in the picks sorted by pick number. Players
+ * resolve through the scoring lookup, so off-board picks and keepers score even though they were never on the board.
+ */
+function planUserTurns(
+  picks: ReadonlyArray<{
+    readonly pickNo: number;
+    readonly playerId: string;
+    readonly position: Position;
+    readonly isUserPick: boolean;
+    readonly isKeeper: boolean;
+  }>,
+  scoring: ReadonlyMap<string, PlayerSeason>
+): { readonly keeperRows: PlayerSeason[]; readonly turns: ReadonlyMap<number, UserTurn> } {
+  type Pick = (typeof picks)[number];
+  const isUserOffensive = (pick: Pick): boolean => pick.isUserPick && isOffensivePosition(pick.position);
+  const sortedPicks = [...picks].sort((a, b) => a.pickNo - b.pickNo);
+  const keeperRows = picks
+    .filter((pick) => isUserOffensive(pick) && pick.isKeeper)
+    .flatMap((pick) => scoring.get(pick.playerId) ?? []);
+  const turnIndexes = sortedPicks.flatMap((pick, index) => isUserOffensive(pick) && !pick.isKeeper ? [index] : []);
+  const turns = new Map(turnIndexes.map((pickIndex, position) => {
+    const pick = sortedPicks[pickIndex] as Pick;
+    const nextIndex = turnIndexes[position + 1];
+    return [pickIndex, {
+      pickNo: pick.pickNo,
+      remainingPicks: turnIndexes.length - position,
+      nextPickNo: nextIndex === undefined ? null : (sortedPicks[nextIndex] as Pick).pickNo,
+      chosenRow: scoring.get(pick.playerId),
+    }] as const;
+  }));
+  return { keeperRows, turns };
 }
 
 function calculateStarterPoints(roster: RecommendationRoster, rules: RosterRules): number {
@@ -697,11 +810,41 @@ function calculateStarterPoints(roster: RecommendationRoster, rules: RosterRules
   );
 }
 
+/**
+ * A pick's regret against the best known outcome still on its board, or null when the pick's own outcome is unknown:
+ * an unknown pick has no regret to score, and an unknown board player cannot be the benchmark.
+ */
+function pickRegret(board: readonly PlayerSeason[], chosen: PlayerSeason): number | null {
+  if (chosen.outcomeUnknown) return null;
+  const best = board.reduce<PlayerSeason | undefined>(
+    (top, row) => !row.outcomeUnknown && (top === undefined || row.leagueActualVor > top.leagueActualVor) ? row : top,
+    undefined
+  );
+  return Math.max(0, (best?.leagueActualVor ?? 0) - chosen.leagueActualVor);
+}
+
+/** For each strategy whose roster, keepers included, holds unknown-outcome players: how many. */
+function unknownOutcomeStrategies(
+  rosters: Readonly<Record<string, RecommendationRoster>>
+): Readonly<Record<string, number>> {
+  return Object.fromEntries(Object.entries(rosters).flatMap(([strategy, roster]) => {
+    const count = Object.values(roster).flat().filter((player) => player.outcomeUnknown).length;
+    return count === 0 ? [] : [[strategy, count] as const];
+  }));
+}
+
+/** Unknown-outcome players among rows, such as a fold's board, rostered or not. */
+function countUnknownOutcomes(rows: readonly PlayerSeason[]): number {
+  return rows.filter((row) => row.outcomeUnknown).length;
+}
+
+/** Scores only picks with known outcomes: an unknown-outcome pick is out of coverage, not a zero. */
 function summarize(
-  rows: readonly PlayerSeason[],
+  allRows: readonly PlayerSeason[],
   regrets: readonly number[],
   starterPoints: number
 ): StrategyMetrics {
+  const rows = allRows.filter((row) => !row.outcomeUnknown);
   return {
     evaluatedPicks: rows.length,
     vorCaptured: round(rows.reduce((sum, row) => sum + row.leagueActualVor, 0)),
@@ -734,14 +877,18 @@ function aggregate(metrics: readonly StrategyMetrics[]): StrategyMetrics {
 
 function evaluatePromotionGates(
   seasons: readonly PromotionSeasonMetrics[],
-  strategies: PromotionStrategyMetrics
+  strategies: PromotionStrategyMetrics,
+  release: { readonly seasonsExpected: number; readonly seasonsRequired: number } = {
+    seasonsExpected: OUTER_TEST_SEASONS.length,
+    seasonsRequired: RELEASE_SEASONS_REQUIRED,
+  }
 ): PromotionGateResult {
   const seasonsWon = seasons.filter(
     (season) =>
       season.strategies.rosterAwareModel.starterPoints >
       season.strategies.rosterAwareEcr.starterPoints
   ).length;
-  const hasAllReleaseSeasons = seasons.length === OUTER_TEST_SEASONS.length;
+  const hasAllReleaseSeasons = seasons.length === release.seasonsExpected;
   const regressions = seasons.map((season) => {
     const ecrPoints = season.strategies.rosterAwareEcr.starterPoints;
     return ecrPoints === 0
@@ -756,7 +903,7 @@ function evaluatePromotionGates(
   };
   const releaseGateChecks = {
     seasonsWon:
-      hasAllReleaseSeasons && seasonsWon >= RELEASE_SEASONS_REQUIRED,
+      hasAllReleaseSeasons && seasonsWon >= release.seasonsRequired,
     aggregateStarterPointsBeatEcr:
       strategies.rosterAwareModel.starterPoints > strategies.rosterAwareEcr.starterPoints,
     aggregateVorBeatEcr:
@@ -778,8 +925,8 @@ function evaluatePromotionGates(
     releaseGateChecks,
     promotionPassed: featureGatePassed && releaseGatePassed,
     seasonsWon,
-    seasonsRequired: RELEASE_SEASONS_REQUIRED,
-    seasonsExpected: OUTER_TEST_SEASONS.length,
+    seasonsRequired: release.seasonsRequired,
+    seasonsExpected: release.seasonsExpected,
     hasAllReleaseSeasons,
     worstStarterRegression,
   };
@@ -796,6 +943,338 @@ function formatEstimate(estimate: {
 }): string {
   return `${String(estimate.mean)} (${String(estimate.confidenceInterval.lower)}–` +
     `${String(estimate.confidenceInterval.upper)})`;
+}
+
+type ModelConnection = Awaited<ReturnType<typeof connectModelDbReadOnly>>;
+
+/** Feature columns a prospective row shares with the training rows, rebuilt from the seasons before it. */
+const PROSPECTIVE_FEATURE_COLUMNS = [
+  'trailing_points_per_game_3yr', 'trailing_expected_points_per_game_3yr',
+  'trailing_pass_attempts_per_game_3yr', 'trailing_rush_attempts_per_game_3yr',
+  'trailing_targets_per_game_3yr', 'trailing_player_volume_3yr', 'trailing_target_share_3yr',
+  'trailing_air_yards_share_3yr', 'trailing_offense_snap_share_3yr', 'trailing_offense_snaps_per_game_3yr',
+  'trailing_pressure_rate_3yr', 'trailing_pressure_time_to_throw_3yr', 'trailing_number_pass_rushers_3yr',
+  'trailing_dropback_participation_per_game_3yr', 'trailing_charted_route_targets_per_game_3yr',
+  'trailing_targets_per_dropback_participation_3yr', 'trailing_deep_route_target_share_3yr',
+  'trailing_screen_route_target_share_3yr', 'trailing_goal_line_carries_per_game_3yr',
+  'trailing_goal_line_targets_per_game_3yr', 'trailing_completion_percentage_above_expectation_3yr',
+  'trailing_avg_time_to_throw_3yr', 'trailing_avg_intended_air_yards_3yr', 'trailing_avg_separation_3yr',
+  'trailing_avg_yac_above_expectation_3yr', 'trailing_expected_rush_points_per_game_3yr',
+  'trailing_expected_tds_per_game_3yr', 'trailing_rush_yards_over_expected_per_attempt_3yr',
+  'trailing_rush_pct_over_expected_3yr',
+] as const;
+
+interface ProspectiveFoldInput {
+  readonly season: number;
+  readonly status: ProspectiveSeasonStatus;
+  readonly complete: boolean;
+  readonly boardPlayers: number;
+  readonly rankingsAfterDraft: number;
+  /** Drafted offensive players with no draft-day rank, added so their picks and keepers still score. */
+  readonly unrankedDrafted: number;
+  /**
+   * Ranked or drafted players with no GSIS ID, so no outcome can be joined. They stay selectable on the board with
+   * their outcome unknown, never a fake zero; a roster holding one leaves the fold's comparison incomplete.
+   */
+  readonly unresolvedOutcomes: number;
+}
+
+interface ProspectiveLoad {
+  readonly rows: TrainingRow[];
+  readonly folds: ProspectiveFoldInput[];
+  readonly skipped: string[];
+}
+
+function finiteOrNull(value: unknown): number | null {
+  const number = typeof value === 'bigint' ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) ? number : null;
+}
+
+/**
+ * Board rows for each prospective season. The pool and positions come from the draft-day ranking snapshot: the
+ * latest DynastyProcess scrape date before the draft started, selected after that cutoff is applied, with no ranks
+ * carried in from older scrapes, plus every offensive player the room drafted. Trailing features are rebuilt from the three training seasons before it, keyed
+ * by gsis_id with the workload input chosen by the draft-day position, so they never depend on who is in today's
+ * player pool or on a later position change. Season-to-date nflverse outcomes are scaled to a 17-game pace by
+ * team games played. The fold reads only training rows from before its season, so a rebuild that adds the season's
+ * own rows leaves it unchanged; it is built only when that window ends the season before.
+ */
+async function loadProspectiveRows(
+  connection: ModelConnection,
+  seasons: ReadonlyArray<{
+    readonly season: number;
+    readonly draftStartTimestamp?: string | undefined;
+    readonly picks: ReadonlyArray<{ readonly playerId: string; readonly playerName: string; readonly position: Position }>;
+  }>
+): Promise<ProspectiveLoad> {
+  const skipped: string[] = [];
+  if (seasons.length === 0) return { rows: [], folds: [], skipped };
+  const tables = new Set((await connection.runAndReadAll(
+    `select table_name from information_schema.tables where table_schema = 'model'`
+  )).getRowObjects().map((row) => String(row.table_name)));
+  if (!tables.has('prospective_player_outcomes') || !tables.has('prospective_season_status')) {
+    return {
+      rows: [],
+      folds: [],
+      skipped: ['Prospective outcomes are not built; run `pnpm model:prospective`.'],
+    };
+  }
+  const rows: TrainingRow[] = [];
+  const folds: ProspectiveFoldInput[] = [];
+  for (const { season, draftStartTimestamp, picks } of seasons) {
+    // The fold keeps its pre-draft training window: rows for this season or later, which a rebuild adds once the
+    // season is played, never reach its features, history or coverage check.
+    const lastTrainingSeason = finiteOrNull((await connection.runAndReadAll(
+      `select max(season) as season from model.prediction_training_dataset where season < ${String(season)}`
+    )).getRowObjects()[0]?.season);
+    if (lastTrainingSeason !== season - 1) {
+      skipped.push(
+        `${String(season)}: the pre-draft training window ends in ${String(lastTrainingSeason ?? 'no season')}, ` +
+        'so trailing features for this season cannot be rebuilt.'
+      );
+      continue;
+    }
+    if (!draftStartTimestamp || Number.isNaN(Date.parse(draftStartTimestamp))) {
+      skipped.push(`${String(season)}: the league history has no draft start time to cut rankings at.`);
+      continue;
+    }
+    const statusRow = (await connection.runAndReadAll(
+      `select * from model.prospective_season_status where season = ${String(season)}`
+    )).getRowObjects()[0];
+    if (!statusRow) {
+      skipped.push(`${String(season)}: no nflverse schedule rows; rerun \`pnpm model:prospective\`.`);
+      continue;
+    }
+    const status: ProspectiveSeasonStatus = {
+      season,
+      regGamesScheduled: finiteOrNull(statusRow.reg_games_scheduled) ?? 0,
+      regGamesPlayed: finiteOrNull(statusRow.reg_games_played) ?? 0,
+      regGamesWithStats: finiteOrNull(statusRow.reg_games_with_stats) ?? 0,
+      lastWeekPlayed: finiteOrNull(statusRow.last_week_played),
+      fetchedAt: String(statusRow.fetched_at),
+    };
+    const cutoff = sqlTimestamp(draftStartTimestamp);
+    const drafted = picks.filter((pick) => isOffensivePosition(pick.position));
+    const draftedValues = drafted.length === 0
+      ? `select null::varchar as sleeper_player_id, null::varchar as player_name, null::varchar as position
+          where false`
+      : `select * from (values ${drafted.map((pick) =>
+        `(${sqlString(pick.playerId)}, ${sqlString(pick.playerName)}, ${sqlString(pick.position)})`
+      ).join(', ')}) as drafted(sleeper_player_id, player_name, position)`;
+    const reader = await connection.runAndReadAll(`
+      with trained as (
+        select gsis_id, min(season) as first_season
+        from model.prediction_training_dataset
+        where gsis_id is not null and season < ${String(season)}
+        group by 1
+      ), ids as (
+        select sleeper_player_id, any_value(gsis_id) as gsis_id
+        from model.dynastyprocess_player_ids
+        where sleeper_player_id is not null
+        group by 1
+      ), source_dates as (
+        -- The draft-day snapshot is picked from the raw scrapes, before the ID join: an unmapped player in the newest
+        -- scrape only keeps that player off the board, never pushes the board back to an older scrape.
+        select max(cast(r.scrape_date as date)) as scrape_date
+        from source.dynastyprocess_rankings r
+        where r.page_type in ('redraft-overall', 'best-overall')
+          and r.pos in ${sqlPositionList(OFFENSIVE_POSITIONS)}
+          and cast(r.scrape_date as date)
+            between make_date(${String(season)}, 5, 1) and make_date(${String(season)}, 9, 10)
+          and ${scrapeInformationBoundSql('r.scrape_date')} <= ${cutoff}
+      ), snapshots as (
+        select
+          ids.sleeper_player_id::varchar as sleeper_player_id,
+          ids.gsis_id::varchar as gsis_id,
+          r.player::varchar as player_name,
+          r.pos::varchar as position,
+          r.page_type::varchar as ranking_type,
+          r.ecr::double as predraft_ecr,
+          cast(r.scrape_date as date) as scrape_date,
+          ${scrapeInformationBoundSql('r.scrape_date')} <= ${cutoff} as before_draft
+        from source.dynastyprocess_rankings r
+        join model.dynastyprocess_player_ids ids on r.id::varchar = ids.fantasypros_id
+        where r.page_type in ('redraft-overall', 'best-overall')
+          and r.pos in ${sqlPositionList(OFFENSIVE_POSITIONS)}
+          and ids.sleeper_player_id is not null
+          and cast(r.scrape_date as date)
+            between make_date(${String(season)}, 5, 1) and make_date(${String(season)}, 9, 10)
+      ), rankings as (
+        -- One snapshot only: the latest scrape date before the draft. A player missing from it is not carried in
+        -- with a stale rank from an older scrape; if drafted, he joins below as an unranked scoring row.
+        select * from snapshots
+        where scrape_date = (select scrape_date from source_dates)
+        qualify row_number() over (
+          partition by sleeper_player_id
+          order by case when ranking_type = 'redraft-overall' then 0 else 1 end
+        ) = 1
+      ), drafted as (
+        ${draftedValues}
+      ), pool as (
+        select sleeper_player_id, gsis_id, player_name, position, predraft_ecr from rankings
+        union all
+        select drafted.sleeper_player_id, ids.gsis_id, drafted.player_name, drafted.position, null::double
+        from drafted
+        left join ids on ids.sleeper_player_id = drafted.sleeper_player_id
+        where drafted.sleeper_player_id not in (select sleeper_player_id from rankings)
+      )
+      select
+        ${String(season)}::integer as season,
+        pool.sleeper_player_id::varchar as sleeper_player_id,
+        pool.gsis_id::varchar as gsis_id,
+        pool.player_name::varchar as player_name,
+        pool.position::varchar as position,
+        -- A mapped player with no weekly stats row recorded no stats: a verified zero. Without a GSIS ID ('NA' is the
+        -- DynastyProcess missing value) nothing can be joined, so the outcome is unknown, not zero.
+        (coalesce(pool.gsis_id, 'NA') <> 'NA') as outcome_resolved,
+        coalesce(outcomes.games, 0)::double as games,
+        coalesce(outcomes.ppr_points, 0)::double as actual_points,
+        coalesce(outcomes.rush_attempts, 0)::double as rush_attempts,
+        coalesce(outcomes.receptions, 0)::double as receptions,
+        outcomes.team_games_played::double as team_games_played,
+        pool.predraft_ecr::double as predraft_ecr,
+        ${PROSPECTIVE_FEATURE_COLUMNS.map((column) => column === 'trailing_player_volume_3yr'
+          ? `(${trailingPlayerVolumeSql('pool.position', 'history')})::double as ${column}`
+          : `history.${column}::double as ${column}`).join(',\n        ')},
+        least(3, greatest(0, ${String(season)} - coalesce(trained.first_season, ${String(season)})))::integer
+          as history_seasons,
+        (select count(*) from snapshots where not before_draft)::integer as rankings_after_draft
+      from pool
+      left join (${trailingHistorySql(season)}) history on history.gsis_id = pool.gsis_id
+      left join trained on trained.gsis_id = pool.gsis_id
+      left join model.prospective_player_outcomes outcomes
+        on outcomes.season = ${String(season)} and outcomes.gsis_id = pool.gsis_id
+      -- Replay sorts break ties by input order, so the board comes back in a fixed order.
+      order by pool.sleeper_player_id
+    `);
+    const objects = reader.getRowObjects();
+    const decoded = decodeBacktestTrainingRows(objects);
+    const complete = isRegularSeasonComplete(status);
+    const resolvedCount = objects.filter((source) => source.outcome_resolved === true).length;
+    decoded.forEach((row, index) => {
+      const source = objects[index];
+      if (source?.outcome_resolved !== true) {
+        rows.push({ ...row, outcomeUnknown: true });
+        return;
+      }
+      const played = finiteOrNull(source.team_games_played);
+      const pace = (value: number) => complete ? value : fullSeasonPace(value, played);
+      rows.push({
+        ...row,
+        games: pace(row.games),
+        actual_points: pace(row.actual_points),
+        rush_attempts: pace(row.rush_attempts),
+        receptions: pace(row.receptions),
+      });
+    });
+    folds.push({
+      season,
+      status,
+      complete,
+      boardPlayers: decoded.filter((row) => (row.predraft_ecr ?? Infinity) <= 250).length,
+      rankingsAfterDraft: finiteOrNull(objects[0]?.rankings_after_draft) ?? 0,
+      unrankedDrafted: decoded.filter((row) => row.predraft_ecr === null).length,
+      unresolvedOutcomes: decoded.length - resolvedCount,
+    });
+  }
+  return { rows, folds, skipped };
+}
+
+/**
+ * Where a prospective fold stands against the release gate. With no ranked draft-day board (no pre-draft snapshot,
+ * or none of its players map to a Sleeper ID) every strategy picks nothing and ties, so the comparison was never
+ * made: it is not evaluated and never counts as a gate result, though the actual draft still scores. When any
+ * player in the evaluation universe (the fold's board, which sets replacement levels, actual ranks, regret and
+ * top-24 hits) has an unknown outcome, or any roster holds one, the comparison is incomplete even if every roster is
+ * fully scored: an unknown player left on the board still shifts every known player's VOR and rank. The gate result is
+ * then withheld the same way rather than reported as a pass or fail. Only the first prospective season, the first
+ * scored after the declaration was frozen (docs/modeling-duckdb.md), can reopen the model.
+ */
+function prospectiveFoldStanding(
+  fold: Pick<ProspectiveFoldInput, 'season' | 'complete' | 'boardPlayers'>,
+  unknownOutcomeRosters: Readonly<Record<string, number>> = {},
+  boardUnknownOutcomes = 0
+): {
+  readonly strategyComparison: 'evaluated' | 'incomplete' | 'not evaluated';
+  readonly comparisonEvaluated: boolean;
+  readonly countsTowardReleaseGate: boolean;
+  readonly canReopen: boolean;
+} {
+  const strategyComparison = fold.boardPlayers === 0
+    ? 'not evaluated'
+    : boardUnknownOutcomes > 0 || Object.keys(unknownOutcomeRosters).length > 0 ? 'incomplete' : 'evaluated';
+  const comparisonEvaluated = strategyComparison === 'evaluated';
+  const countsTowardReleaseGate = fold.complete && comparisonEvaluated;
+  return {
+    strategyComparison,
+    comparisonEvaluated,
+    countsTowardReleaseGate,
+    canReopen: countsTowardReleaseGate && fold.season === PROSPECTIVE_FIRST_SEASON,
+  };
+}
+
+/**
+ * A prospective fold's serialized release gate. Only an evaluated comparison reports a pass or fail with its checks; a
+ * withheld or unevaluated one reports `passed: null` and no checks, so nothing computed from an incomplete comparison
+ * can be read as a gate result.
+ */
+/** Why a prospective fold's comparison is incomplete: unknown board outcomes, rostered unknowns, or both. */
+function unknownOutcomeReason(fold: {
+  readonly boardUnknownOutcomes: number;
+  readonly unknownOutcomeRosters: Readonly<Record<string, number>>;
+}): string {
+  const rostered = Object.entries(fold.unknownOutcomeRosters)
+    .map(([strategy, count]) => `${strategy} ${String(count)}`).join(', ');
+  const board = fold.boardUnknownOutcomes > 0
+    ? `${String(fold.boardUnknownOutcomes)} board players have unknown outcomes, which leaves replacement levels, ranks and regret unscored`
+    : '';
+  if (board && rostered) return `${board} (rostered by ${rostered})`;
+  return board || `rostered players have unknown outcomes (${rostered})`;
+}
+
+function prospectiveReleaseGate<Checks extends Readonly<Record<string, boolean>>>(
+  strategyComparison: 'evaluated' | 'incomplete' | 'not evaluated',
+  checks: Checks
+):
+  | { readonly status: 'pass' | 'fail'; readonly evaluated: true; readonly passed: boolean; readonly checks: Checks }
+  | { readonly status: 'withheld' | 'not evaluated'; readonly evaluated: false; readonly passed: null; readonly checks: null } {
+  if (strategyComparison !== 'evaluated') {
+    return {
+      status: strategyComparison === 'incomplete' ? 'withheld' : 'not evaluated',
+      evaluated: false,
+      passed: null,
+      checks: null,
+    };
+  }
+  const passed = Object.values(checks).every(Boolean);
+  return { status: passed ? 'pass' : 'fail', evaluated: true, passed, checks };
+}
+
+/** A fold season replays only its draft-day board: training rows a later rebuild adds for it stay out. */
+function withProspectiveFolds(
+  rawRows: readonly TrainingRow[],
+  prospectiveRows: readonly TrainingRow[],
+  foldSeasons: readonly number[]
+): TrainingRow[] {
+  const folds = new Set(foldSeasons);
+  return [...rawRows.filter((row) => !folds.has(row.season)), ...prospectiveRows];
+}
+
+function sqlString(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
+/**
+ * The information-time upper bound of a date-only scrape: the following midnight UTC, the same bound the historical
+ * snapshots use (docs/modeling-duckdb.md). The zone is pinned in the expression rather than left to the session's
+ * TimeZone, which DuckDB takes from the host, so every machine selects the same draft-day snapshot.
+ */
+function scrapeInformationBoundSql(scrapeDate: string): string {
+  return `timezone('UTC', (cast(${scrapeDate} as date) + interval 1 day)::timestamp)`;
+}
+
+function sqlTimestamp(iso: string): string {
+  return `'${new Date(iso).toISOString()}'::timestamptz`;
 }
 
 async function main(): Promise<void> {
@@ -874,6 +1353,7 @@ async function main(): Promise<void> {
           ) as row_number
         from model.prediction_training_dataset
       ) where row_number = 1
+      order by season, sleeper_player_id, position
     `);
     const rawRows = decodeBacktestTrainingRows(reader.getRowObjects()).map((row) => ({
       ...row,
@@ -950,7 +1430,20 @@ async function main(): Promise<void> {
         ? null : asNumber(row.trailing_rush_pct_over_expected_3yr),
       history_seasons: asNumber(row.history_seasons),
     }));
-    const { playerSeasons, modelCache } = addDerivedValues(rawRows);
+    const prospectiveSeasonInputs = history.seasons
+      .filter((season) => season.season >= PROSPECTIVE_FIRST_SEASON)
+      .sort((a, b) => a.season - b.season);
+    const prospective = await loadProspectiveRows(connection, prospectiveSeasonInputs);
+    // Prospective rows only add seasons after every outer fold: walk-forward fits and centers read earlier or
+    // same-season rows, so the 2022–2025 results do not change.
+    const draftedKeys = new Set(history.seasons.flatMap((season) =>
+      season.picks.map((pick) => playerSeasonKey(season.season, pick.playerId))
+    ));
+    const prospectiveFoldSeasons = new Set(prospective.folds.map((fold) => fold.season));
+    const { playerSeasons, scoringRows, modelCache } = addDerivedValues(
+      withProspectiveFolds(rawRows, prospective.rows, [...prospectiveFoldSeasons]),
+      draftedKeys
+    );
     const evaluations: PickEvaluation[] = [];
     const seasonReports: Array<{
       season: number;
@@ -998,13 +1491,22 @@ async function main(): Promise<void> {
     const evaluationHistory = sortedHistory.filter((season) =>
       OUTER_TEST_SEASONS.includes(season.season as (typeof OUTER_TEST_SEASONS)[number])
     );
-    for (const season of evaluationHistory) {
+    const prospectiveHistory = sortedHistory.filter((season) => prospectiveFoldSeasons.has(season.season));
+    const prospectiveSeasonReports: typeof seasonReports = [];
+    /** Per prospective season: rostered unknown-outcome players for each strategy whose roster holds any. */
+    const unknownOutcomeRosters = new Map<number, Readonly<Record<string, number>>>();
+    /** Per prospective season: unknown-outcome players anywhere in the board that feeds the actual-outcome metrics. */
+    const boardUnknownOutcomes = new Map<number, number>();
+    for (const season of [...evaluationHistory, ...prospectiveHistory]) {
+      const isProspective = prospectiveFoldSeasons.has(season.season);
       const trainingSeasons = sortedHistory
         .filter((candidate) => candidate.season < season.season)
         .map((candidate) => candidate.season);
       const rules = deriveRosterRules(season.rosterPositions);
       const seasonRows = playerSeasons.filter((row) => row.season === season.season);
-      const byPlayerId = new Map(seasonRows.map((row) => [row.sleeper_player_id, row]));
+      const scoringById = new Map(scoringRows
+        .filter((row) => row.season === season.season)
+        .map((row) => [row.sleeper_player_id, row]));
       const keepers = season.picks.filter((pick) => pick.isKeeper);
       const roomDrafted = new Set(keepers.map((pick) => pick.playerId));
       const actualDrafted = new Set(keepers.map((pick) => pick.playerId));
@@ -1033,9 +1535,8 @@ async function main(): Promise<void> {
       const bestPickPickNumbers: number[] = [];
       const ecrPickNumbers: number[] = [];
 
-      for (const keeper of keepers.filter((pick) => pick.isUserPick)) {
-        const row = byPlayerId.get(keeper.playerId);
-        if (!row) continue;
+      const userPlan = planUserTurns(season.picks, scoringById);
+      for (const row of userPlan.keeperRows) {
         addToRoster(actual.roster, row);
         addToRoster(ecr.roster, row);
         addToRoster(baseline.roster, row);
@@ -1053,12 +1554,10 @@ async function main(): Promise<void> {
       for (let index = 0; index < sortedPicks.length; index += 1) {
         const pick = sortedPicks[index];
         if (!pick || pick.isKeeper) continue;
-        const chosenRow = byPlayerId.get(pick.playerId);
-
-        if (pick.isUserPick && chosenRow && isOffensivePosition(pick.position)) {
-          const remainingPicks = sortedPicks.slice(index).filter((candidate) =>
-            candidate.isUserPick && !candidate.isKeeper && byPlayerId.has(candidate.playerId)
-          ).length;
+        // Turns and remaining picks follow the user's offensive draft slots, not whether the pick was on the board.
+        const turn = userPlan.turns.get(index);
+        if (turn) {
+          const { remainingPicks, chosenRow, nextPickNo: nextUserPick } = turn;
           const actualAvailable = seasonRows.filter((row) => !actualDrafted.has(row.sleeper_player_id));
           const strategyAvailable = (selected: ReadonlySet<string>): PlayerSeason[] =>
             seasonRows.filter((row) =>
@@ -1082,9 +1581,6 @@ async function main(): Promise<void> {
             remainingPicks
           );
           const modelPick = chooseModel(modelAvailable, model.roster, rules, remainingPicks);
-          const nextUserPick = sortedPicks.slice(index + 1).find((candidate) =>
-            candidate.isUserPick && !candidate.isKeeper
-          )?.pickNo ?? null;
           const totalTeams = Math.max(1, Object.keys(season.rosterIdToOwner).length);
           const totalPicks = sortedPicks.at(-1)?.pickNo ?? pick.pickNo;
           const ecrWaitingOnlyPick = choosePickEv(
@@ -1172,35 +1668,36 @@ async function main(): Promise<void> {
               risk: true,
             }
           );
-          const bestActual = [...actualAvailable].sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
-          const bestEcrBoard = [...ecrAvailable].sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
-          const bestBaselineBoard = [...baselineAvailable]
+          const bestActual = [...actualAvailable].filter((row) => !row.outcomeUnknown)
             .sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
-          const bestModelBoard = [...modelAvailable].sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
 
-          actual.rows.push(chosenRow);
-          addToRoster(actual.roster, chosenRow);
-          actual.regrets.push(Math.max(0, (bestActual?.leagueActualVor ?? 0) - chosenRow.leagueActualVor));
+          if (chosenRow) {
+            actual.rows.push(chosenRow);
+            addToRoster(actual.roster, chosenRow);
+            const regret = pickRegret(actualAvailable, chosenRow);
+            if (regret !== null) actual.regrets.push(regret);
+          }
           if (ecrPick) {
             ecrPickNumbers.push(pick.pickNo);
             ecr.rows.push(ecrPick);
             ecrSelected.add(ecrPick.sleeper_player_id);
             addToRoster(ecr.roster, ecrPick);
-            ecr.regrets.push(Math.max(0, (bestEcrBoard?.leagueActualVor ?? 0) - ecrPick.leagueActualVor));
+            const regret = pickRegret(ecrAvailable, ecrPick);
+            if (regret !== null) ecr.regrets.push(regret);
           }
           if (modelPick) {
             model.rows.push(modelPick);
             modelSelected.add(modelPick.sleeper_player_id);
             addToRoster(model.roster, modelPick);
-            model.regrets.push(Math.max(0, (bestModelBoard?.leagueActualVor ?? 0) - modelPick.leagueActualVor));
+            const regret = pickRegret(modelAvailable, modelPick);
+            if (regret !== null) model.regrets.push(regret);
           }
           if (baselinePick) {
             baseline.rows.push(baselinePick);
             baselineSelected.add(baselinePick.sleeper_player_id);
             addToRoster(baseline.roster, baselinePick);
-            baseline.regrets.push(
-              Math.max(0, (bestBaselineBoard?.leagueActualVor ?? 0) - baselinePick.leagueActualVor)
-            );
+            const regret = pickRegret(baselineAvailable, baselinePick);
+            if (regret !== null) baseline.regrets.push(regret);
           }
           const recordPickEv = (
             accumulator: StrategyAccumulator,
@@ -1209,13 +1706,11 @@ async function main(): Promise<void> {
             board: readonly PlayerSeason[]
           ): void => {
             if (!selectedPlayer) return;
-            const bestBoard = [...board].sort((a, b) => b.leagueActualVor - a.leagueActualVor)[0];
             accumulator.rows.push(selectedPlayer);
             selected.add(selectedPlayer.sleeper_player_id);
             addToRoster(accumulator.roster, selectedPlayer);
-            accumulator.regrets.push(
-              Math.max(0, (bestBoard?.leagueActualVor ?? 0) - selectedPlayer.leagueActualVor)
-            );
+            const regret = pickRegret(board, selectedPlayer);
+            if (regret !== null) accumulator.regrets.push(regret);
           };
           recordPickEv(
             ecrWaitingOnly,
@@ -1318,7 +1813,24 @@ async function main(): Promise<void> {
         accumulator.regrets,
         calculateStarterPoints(accumulator.roster, rules)
       );
-      seasonReports.push({
+      if (isProspective) {
+        const rosters: Record<string, RecommendationRoster> = {
+          actualUserDraft: actual.roster,
+          rosterAwareEcr: ecr.roster,
+          rosterAwareBaselineModel: baseline.roster,
+          rosterAwareModel: model.roster,
+          ecrWaitingOnly: ecrWaitingOnly.roster,
+          pickEvProjection: pickEvProjection.roster,
+          pickEvWaiting: pickEvWaiting.roster,
+          pickEvOption: pickEvOption.roster,
+          pickEvFull: pickEvFull.roster,
+          bestPick: bestPick.roster,
+          bestPickRejectedWeights: bestPickRejected.roster,
+        };
+        unknownOutcomeRosters.set(season.season, unknownOutcomeStrategies(rosters));
+        boardUnknownOutcomes.set(season.season, countUnknownOutcomes(seasonRows));
+      }
+      (isProspective ? prospectiveSeasonReports : seasonReports).push({
         season: season.season,
         trainingSeasons,
         positionModelSelections: Object.fromEntries(OFFENSIVE_POSITIONS.map((position) => {
@@ -1351,6 +1863,8 @@ async function main(): Promise<void> {
           : modelMetrics.starterPoints < ecrMetrics.starterPoints ? 'ecr' : 'tie',
       });
 
+      // The counterfactual room is a diagnostic of the outer folds only.
+      if (isProspective) continue;
       const counterfactualPlayers = seasonRows.map((row) => ({
         id: row.sleeper_player_id,
         name: row.player_name,
@@ -1526,6 +2040,70 @@ async function main(): Promise<void> {
         fullVsEcr.top24PositionHitRate >= -0.02,
     };
     const promotion = evaluatePromotionGates(seasonReports, strategies);
+    const historicalEvaluations = evaluations.filter((evaluation) => !prospectiveFoldSeasons.has(evaluation.season));
+    const prospectiveFolds = await Promise.all(prospective.folds.flatMap((fold) => {
+      const seasonReport = prospectiveSeasonReports.find((season) => season.season === fold.season);
+      return seasonReport ? [{ fold, seasonReport }] : [];
+    }).map(async ({ fold, seasonReport }) => {
+      const gate = evaluatePromotionGates([seasonReport], seasonReport.strategies, {
+        seasonsExpected: 1,
+        seasonsRequired: 1,
+      });
+      // Seasons won has no meaning for one season; every other release check must pass on its own.
+      const { seasonsWon: _seasonsWon, ...singleSeasonChecks } = gate.releaseGateChecks;
+      const foldEvaluations = evaluations.filter((evaluation) => evaluation.season === fold.season);
+      const foldPicks = prospectiveHistory.find((season) => season.season === fold.season)?.picks ?? [];
+      const shadowLogPath = join('data', 'shadow-logs', `${String(fold.season)}-recommendations.ndjson`);
+      const shadowLogPresent = await access(join(REPO_ROOT, shadowLogPath)).then(() => true, () => false);
+      const unknownRosters = unknownOutcomeRosters.get(fold.season) ?? {};
+      const boardUnknown = boardUnknownOutcomes.get(fold.season) ?? 0;
+      const standing = prospectiveFoldStanding(fold, unknownRosters, boardUnknown);
+      return {
+        season: fold.season,
+        status: fold.complete ? 'complete' as const : 'provisional' as const,
+        strategyComparison: standing.strategyComparison,
+        /** Rostered unknown-outcome players per affected strategy; any entry withholds the fold's gate result. */
+        unknownOutcomeRosters: unknownRosters,
+        /** Unknown-outcome players anywhere on the board, rostered or not; any withholds the fold's gate result. */
+        boardUnknownOutcomes: boardUnknown,
+        countsTowardReleaseGate: standing.countsTowardReleaseGate,
+        canReopen: standing.canReopen,
+        regularSeason: {
+          gamesScheduled: fold.status.regGamesScheduled,
+          gamesPlayed: fold.status.regGamesPlayed,
+          gamesWithPlayerStats: fold.status.regGamesWithStats,
+          lastWeekPlayed: fold.status.lastWeekPlayed,
+          outcomesFetchedAt: fold.status.fetchedAt,
+        },
+        outcomeBasis: fold.complete
+          ? 'Complete regular-season nflverse totals.'
+          : 'Season-to-date nflverse regular-season totals from scored games with player stats, scaled to a 17-game pace by each player\'s matched team games.',
+        boardPlayers: fold.boardPlayers,
+        rankingsScrapedAfterDraftExcluded: fold.rankingsAfterDraft,
+        unrankedDraftedPlayers: fold.unrankedDrafted,
+        playersWithoutOutcomeId: fold.unresolvedOutcomes,
+        coverage: {
+          // Picks the actual draft scored, not replay turns: a turn whose player has no outcome row scores nothing.
+          evaluatedUserPicks: seasonReport.strategies.actualUserDraft.evaluatedPicks,
+          totalUserPicks: foldPicks.filter((pick) => pick.isUserPick && !pick.isKeeper).length,
+        },
+        strategies: {
+          actualUserDraft: seasonReport.strategies.actualUserDraft,
+          rosterAwareEcr: seasonReport.strategies.rosterAwareEcr,
+          rosterAwareBaselineModel: seasonReport.strategies.rosterAwareBaselineModel,
+          rosterAwareModel: seasonReport.strategies.rosterAwareModel,
+          bestPick: seasonReport.strategies.bestPick,
+        },
+        releaseGate: prospectiveReleaseGate(standing.strategyComparison, singleSeasonChecks),
+        shadowLog: {
+          path: shadowLogPath,
+          present: shadowLogPresent,
+          scored: false,
+        },
+        evaluations: foldEvaluations,
+      };
+    }));
+    const prospectiveReopenEligible = prospectiveFolds.some((fold) => fold.canReopen && fold.releaseGate.passed === true);
     const counterfactualStrategies = {
       rosterAwareEcr: aggregateCounterfactualSeasons(ecrCounterfactualIterations),
       rosterAwareModel: aggregateCounterfactualSeasons(modelCounterfactualIterations),
@@ -1604,7 +2182,7 @@ async function main(): Promise<void> {
         ),
       },
       coverage: {
-        evaluatedUserPicks: evaluations.length,
+        evaluatedUserPicks: historicalEvaluations.length,
         totalHistoricalUserPicks: evaluationHistory.reduce(
           (count, season) => count + season.picks.filter((pick) => pick.isUserPick && !pick.isKeeper).length,
           0
@@ -1655,6 +2233,12 @@ async function main(): Promise<void> {
       architectureComparison,
       bestPickPolicy,
       bestPickGate,
+      prospective: {
+        firstSeason: PROSPECTIVE_FIRST_SEASON,
+        reopenEligible: prospectiveReopenEligible,
+        folds: prospectiveFolds,
+        skipped: prospective.skipped,
+      },
       pickEvOverrideValidation,
       strategies,
       seasons: seasonReports,
@@ -1666,7 +2250,7 @@ async function main(): Promise<void> {
         'PickEV architecture ablations use historical projection, ADP, and risk proxies; they compare scoring architecture now but cannot establish the incremental value of true historical FantasyPros and observed ADP inputs.',
         'The sample contains only four outer seasons and should be treated as a product gate, not statistical proof of superiority.',
       ],
-      evaluations,
+      evaluations: historicalEvaluations,
     };
 
     assertBestPickPolicyUnchanged(policySourceHash, hashBestPickPolicySources());
@@ -1737,6 +2321,65 @@ async function main(): Promise<void> {
       `| ${name} | ${String(metrics.evaluatedPicks)} | ${String(metrics.vorCaptured)} | ` +
       `${String(metrics.starterPoints)} | ${String(metrics.averageRegret)} | ` +
       `${String(metrics.top24PositionHitRate)} |`;
+    const prospectiveMetricRows = (fold: (typeof prospectiveFolds)[number]): string => [
+      metricRow('Actual user draft', fold.strategies.actualUserDraft),
+      metricRow('Roster-aware ECR', fold.strategies.rosterAwareEcr),
+      metricRow('Best Pick (shipped)', fold.strategies.bestPick),
+      metricRow('Baseline roster-aware model', fold.strategies.rosterAwareBaselineModel),
+      metricRow('Roster-aware model', fold.strategies.rosterAwareModel),
+    ].join('\n');
+    const prospectiveFoldSections = prospectiveFolds.map((fold) => `### ${String(fold.season)}: ${
+      fold.status === 'complete' ? 'complete' : '**PROVISIONAL**'
+    }
+
+- Regular season: ${String(fold.regularSeason.gamesPlayed)} of ${String(fold.regularSeason.gamesScheduled)} scheduled games scored (${String(REGULAR_SEASON_GAMES)} in a full season); ${String(fold.regularSeason.gamesWithPlayerStats)} matched to weekly player stats, through week ${String(fold.regularSeason.lastWeekPlayed)} (outcomes fetched ${fold.regularSeason.outcomesFetchedAt}).
+- ${fold.strategyComparison === 'not evaluated'
+    ? 'Excluded from the release gate: no ranked draft-day board, so the strategies were not compared; only the actual draft is scored.'
+    : fold.strategyComparison === 'incomplete'
+    ? `Release gate withheld: the comparison is incomplete because ${unknownOutcomeReason(fold)}.`
+    : fold.countsTowardReleaseGate
+    ? `Counts toward the release gate: all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats.`
+    : `Excluded from the release gate until all ${String(REGULAR_SEASON_GAMES)} regular-season games are scored and matched to player stats; the numbers move each week.`}
+- Outcomes: ${fold.outcomeBasis}
+- Coverage: ${String(fold.coverage.evaluatedUserPicks)} of ${String(fold.coverage.totalUserPicks)} user picks scored.${
+  fold.playersWithoutOutcomeId === 0 ? '' : ` ${String(fold.playersWithoutOutcomeId)} ranked or drafted players have no GSIS ID, so their outcomes are unknown: they stay selectable on the board, but their picks are not scored and any one on the board leaves the comparison incomplete.`}
+- Board: ${String(fold.boardPlayers)} offensive players ranked inside the top 250 in the last snapshot before the draft; ${String(fold.rankingsScrapedAfterDraftExcluded)} player rankings scraped after the draft started were excluded before that selection; ${String(fold.unrankedDraftedPlayers)} drafted players without a draft-day rank were added so their picks and keepers score.
+- Shadow Recommendation log: ${fold.shadowLog.present
+    ? `\`${fold.shadowLog.path}\` is present but this report does not score it yet.`
+    : `absent (no \`${fold.shadowLog.path}\`), so only the replayed model is scored.`}
+
+| Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+${fold.strategyComparison !== 'not evaluated'
+  ? prospectiveMetricRows(fold)
+  : metricRow('Actual user draft', fold.strategies.actualUserDraft)}
+
+${fold.releaseGate.evaluated
+  ? `Single-season release gate (model must beat roster-aware ECR on every release check this season; seasons won does not apply): **${fold.releaseGate.passed ? 'pass' : 'fail'}**${
+  fold.countsTowardReleaseGate ? '' : ' (provisional, not counted)'}
+
+| Check | Result |
+| --- | --- |
+${Object.entries(fold.releaseGate.checks ?? {}).map(([check, passed]) => `| ${check} | ${passed ? 'pass' : 'fail'} |`).join('\n')}`
+  : fold.strategyComparison === 'incomplete'
+  ? 'Single-season release gate: **withheld** (board players with unknown outcomes).'
+  : 'Single-season release gate: **not evaluated** (no ranked draft-day board).'}
+`).join('\n');
+    const prospectiveSection = `## Prospective Folds
+
+Seasons drafted after the ${POSITION_MODEL_CANDIDATE_SET_VERSION} declaration was frozen. Their outcomes could not
+shape the declaration, so a complete prospective season that passes the release gate is the only evidence that
+reopens the model (see [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24)).
+A fold stays provisional, and outside every gate and aggregate above, until all ${String(REGULAR_SEASON_GAMES)} of its
+regular-season games are scored and matched to weekly player stats; completeness comes from nflverse, not a flag. Refresh outcomes with \`pnpm model:prospective\`.
+
+${[
+  `- Reopen eligible: **${String(prospectiveReopenEligible)}**`,
+  ...prospective.skipped.map((reason) => `- Skipped: ${reason}`),
+].join('\n')}
+
+${prospectiveFoldSections || 'No prospective season is available.'}
+`;
     const bestPickRows = [
       metricRow('Roster-aware ECR', bestPickPolicy.strategies.rosterAwareEcr),
       metricRow('Best Pick (shipped weights)', bestPickPolicy.strategies.bestPick),
@@ -1807,6 +2450,7 @@ ${releaseGateRows}
 | Baseline roster-aware model | ${String(strategies.rosterAwareBaselineModel.evaluatedPicks)} | ${String(strategies.rosterAwareBaselineModel.vorCaptured)} | ${String(strategies.rosterAwareBaselineModel.starterPoints)} | ${String(strategies.rosterAwareBaselineModel.averageRegret)} | ${String(strategies.rosterAwareBaselineModel.top24PositionHitRate)} |
 | Roster-aware model | ${String(strategies.rosterAwareModel.evaluatedPicks)} | ${String(strategies.rosterAwareModel.vorCaptured)} | ${String(strategies.rosterAwareModel.starterPoints)} | ${String(strategies.rosterAwareModel.averageRegret)} | ${String(strategies.rosterAwareModel.top24PositionHitRate)} |
 
+${prospectiveSection}
 ## Best Pick Policy
 
 ${bestPickPolicy.description} The rejected-weights row replays the same rule with
@@ -1952,6 +2596,16 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
     console.log(`Feature gate: ${promotion.featureGatePassed ? 'PASS' : 'FAIL'}`);
     console.log(`ECR release gate: ${promotion.releaseGatePassed ? 'PASS' : 'FAIL'}`);
     console.log(`Promotion: ${promotion.promotionPassed ? 'PASS' : 'FAIL'}`);
+    for (const fold of prospectiveFolds) {
+      console.log(fold.releaseGate.evaluated
+        ? `Prospective ${String(fold.season)} (${fold.status}): model ${String(fold.strategies.rosterAwareModel.starterPoints)} ` +
+          `vs ECR ${String(fold.strategies.rosterAwareEcr.starterPoints)} starter points; ` +
+          `release gate ${fold.releaseGate.passed ? 'PASS' : 'FAIL'}${fold.countsTowardReleaseGate ? '' : ' (not counted)'}`
+        : fold.strategyComparison === 'incomplete'
+        ? `Prospective ${String(fold.season)} (${fold.status}): release gate withheld (` +
+          `${unknownOutcomeReason(fold)}).`
+        : `Prospective ${String(fold.season)} (${fold.status}): release gate not evaluated (no ranked draft-day board).`);
+    }
     console.log(`Best Pick regression gate: ${bestPickGateProblems.length === 0 ? 'PASS' : 'FAIL'}`);
     for (const problem of bestPickGateProblems) console.log(`  ${problem}`);
   } finally {
@@ -1960,6 +2614,7 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
 }
 
 export const backtestInternals = {
+  unknownOutcomeReason,
   createRoster,
   rankEcr,
   chooseEcr,
@@ -1971,6 +2626,18 @@ export const backtestInternals = {
   rosterAdjustedModelScore,
   calculateStarterPoints,
   evaluatePromotionGates,
+  addDerivedValues,
+  planUserTurns,
+  playerSeasonKey,
+  summarize,
+  loadProspectiveRows,
+  prospectiveFoldStanding,
+  prospectiveReleaseGate,
+  unknownOutcomeStrategies,
+  countUnknownOutcomes,
+  addToRoster,
+  withProspectiveFolds,
+  PROSPECTIVE_FEATURE_COLUMNS,
 };
 
 const entryPoint = process.argv[1];

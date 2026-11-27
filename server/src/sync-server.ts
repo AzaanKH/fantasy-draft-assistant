@@ -1,5 +1,6 @@
 import { currentSeason } from '@fantasy-draft/shared/league';
 import { http, HttpError as RequestHttpError } from '@fantasy-draft/shared/http';
+import { isShadowEventSeasonEligible } from '@fantasy-draft/shared/draft';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -36,9 +37,12 @@ export type { FetchJson };
 
 export const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-const DEFAULT_SHADOW_LOG_PATH = fileURLToPath(
-  new URL('../../data/shadow-logs/2026-recommendations.ndjson', import.meta.url)
-);
+/** The season the shadow log collects evidence for; its file is named after it. */
+const DEFAULT_SHADOW_LOG_SEASON = 2026;
+/** The default shadow log file for a season, so each season writes to its own file. */
+function defaultShadowLogPath(season: number): string {
+  return fileURLToPath(new URL(`../../data/shadow-logs/${String(season)}-recommendations.ndjson`, import.meta.url));
+}
 const DEFAULT_CURRENT_KEEPERS_PATH = fileURLToPath(
   new URL(`../../${catalogPath(CATALOG.keepers)}`, import.meta.url)
 );
@@ -56,6 +60,8 @@ interface SyncServerOptions {
   readonly allowedOrigins?: readonly string[];
   readonly requestToken?: string;
   readonly shadowLogPath?: string;
+  /** The season the shadow log accepts; events for another season or from another season's artifact are rejected. */
+  readonly shadowLogSeason?: number;
   readonly draftData?: {
     readonly currentKeepers?: unknown;
     readonly sportsbookSnapshot?: unknown;
@@ -243,8 +249,9 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const allowedOrigins = options.allowedOrigins?.length
     ? options.allowedOrigins
     : ['http://localhost:3000'];
+  const shadowLogSeason = options.shadowLogSeason ?? DEFAULT_SHADOW_LOG_SEASON;
   const shadowLogger = new ShadowRecommendationLogger(
-    options.shadowLogPath ?? DEFAULT_SHADOW_LOG_PATH
+    options.shadowLogPath ?? defaultShadowLogPath(shadowLogSeason)
   );
   const marketAdpProvider = new FantasyFootballCalculatorAdpProvider(fetchJson);
   const runtime = ManagedRuntime.make(Layer.empty);
@@ -432,6 +439,12 @@ export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
       if (!event) {
         console.warn('[sync-server] Rejected invalid shadow recommendation event');
         sendJson(request, response, 400, { error: 'Invalid shadow recommendation event' }, allowedOrigins);
+        return;
+      }
+      // Checked before the logger sees the event, so a wrong-season artifact cannot reserve the pick's dedupe key.
+      if (!isShadowEventSeasonEligible(event, shadowLogSeason)) {
+        console.warn('[sync-server] Rejected shadow recommendation event for another season');
+        sendJson(request, response, 422, { error: 'Shadow recommendation event is not for the logged season' }, allowedOrigins);
         return;
       }
 

@@ -3,17 +3,20 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Effect, Schema } from 'effect';
 import { fetchJson, HttpRequestError, io, isEntryPoint, runMain } from './effect-runtime.js';
+import { PROSPECTIVE_FIRST_SEASON } from './model/prospective-fold.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../data');
 const LEAGUE_HISTORY_DIR = join(DATA_DIR, 'league-history');
 const RAW_DIR = join(LEAGUE_HISTORY_DIR, 'raw');
 const OUTPUT_FILE = join(LEAGUE_HISTORY_DIR, 'leagueDraftHistory.json');
+/** The confirmed Primary League, kept in local private data so its league and draft IDs never enter source. */
+const PRIMARY_LEAGUE_SETTINGS_FILE = join(DATA_DIR, 'primary-league-settings.json');
 
 const SLEEPER_API_BASE = 'https://api.sleeper.app/v1';
 const FETCH_TIMEOUT_MS = 10_000;
@@ -52,6 +55,7 @@ const sleeperDraftSchema = openStruct({
   type: Schema.String, start_time: Schema.Finite, settings: numberRecord,
   metadata: Schema.NullOr(openStruct({ name: Schema.optional(Schema.String), scoring_type: Schema.optional(Schema.String) })),
   draft_order: Schema.NullOr(numberRecord),
+  slot_to_roster_id: Schema.optional(Schema.NullOr(numberRecord)),
 });
 const sleeperLeagueSchema = openStruct({
   league_id: Schema.String, name: Schema.String, season: Schema.String,
@@ -529,13 +533,108 @@ const importSeason = Effect.fn('importSeason')(function* (config: LeagueDraftCon
   return history;
 });
 
+const confirmedLeagueSchema = openStruct({
+  season: Schema.Finite,
+  leagueId: Schema.optional(Schema.String),
+  draftId: Schema.optional(Schema.String),
+});
+
+/**
+ * The manager's slot and roster in the confirmed draft. Rosters change hands, so the manager is the user who held
+ * the configured slot in last season's draft order; the confirmed draft's own order and slot-to-roster map then give
+ * this season's slot and roster. Returns why it failed instead when either draft lacks the mapping.
+ */
+export function resolveConfirmedManager(
+  previous: { readonly userSlot: number; readonly draftOrder: Readonly<Record<string, number>> | null },
+  confirmed: {
+    readonly draftOrder: Readonly<Record<string, number>> | null;
+    readonly slotToRosterId: Readonly<Record<string, number>> | null | undefined;
+  }
+): { readonly userSlot: number; readonly userRosterId: number } | string {
+  const owners = Object.entries(previous.draftOrder ?? {}).filter(([, slot]) => slot === previous.userSlot);
+  if (owners.length !== 1 || !owners[0]) {
+    return `last season's draft order has no single owner for slot ${String(previous.userSlot)}`;
+  }
+  const userSlot = confirmed.draftOrder?.[owners[0][0]];
+  if (userSlot === undefined) return "last season's manager is not in the confirmed draft order";
+  const userRosterId = confirmed.slotToRosterId?.[String(userSlot)];
+  if (userRosterId === undefined) return `the confirmed draft has no roster for slot ${String(userSlot)}`;
+  return { userSlot, userRosterId };
+}
+
+/**
+ * The confirmed Primary League season, when it is newer than the configured history. An unresolved manager is
+ * reported and the season left out, so the historical import still completes.
+ */
+const readConfirmedSeason = Effect.fn('readConfirmedSeason')(function* (previous: LeagueDraftConfig) {
+  const text = yield* io(() => readFile(PRIMARY_LEAGUE_SETTINGS_FILE, 'utf8').catch(() => null));
+  if (text === null) return null;
+  const settings = Schema.decodeUnknownSync(confirmedLeagueSchema)(JSON.parse(text));
+  const { leagueId, draftId } = settings;
+  if (settings.season <= previous.season || !leagueId || !draftId) return null;
+  const [previousDraft, draft] = yield* Effect.all([
+    sleeperRequest(`/draft/${previous.draftId}`, decodeLeagueHistoryDraft),
+    sleeperRequest(`/draft/${draftId}`, decodeLeagueHistoryDraft),
+  ], { concurrency: 'unbounded' });
+  const manager = resolveConfirmedManager(
+    { userSlot: previous.userSlot, draftOrder: previousDraft.draft_order },
+    { draftOrder: draft.draft_order, slotToRosterId: draft.slot_to_roster_id }
+  );
+  if (typeof manager === 'string') {
+    console.warn(
+      `Skipping the confirmed ${String(settings.season)} prospective season: ${manager}. ` +
+      'Historical seasons are imported without it.'
+    );
+    return null;
+  }
+  const config: LeagueDraftConfig = { season: settings.season, draftId, leagueId, ...manager };
+  return config;
+});
+
+/**
+ * The seasons to write: every season this run imported, plus earlier-imported prospective seasons (from
+ * PROSPECTIVE_FIRST_SEASON on) that this run did not refresh. A confirmed season is imported only while it is the
+ * confirmed Primary League season, so confirming 2027 must not drop an imported 2026 from the backtest and survival
+ * inputs. Earlier seasons come only from the configured list, which is always re-imported, so a season removed from
+ * that list is not carried forward. The boundary is the fixed prospective season, not the newest configured one:
+ * removing the latest configured season must drop it, not make it look prospective.
+ */
+export function mergeImportedSeasons<S extends { readonly season: number }>(
+  previous: readonly S[],
+  refreshed: readonly S[],
+  firstProspectiveSeason: number = PROSPECTIVE_FIRST_SEASON
+): S[] {
+  const refreshedSeasons = new Set(refreshed.map((season) => season.season));
+  const retained = previous.filter((season) =>
+    season.season >= firstProspectiveSeason && !refreshedSeasons.has(season.season)
+  );
+  return [...refreshed, ...retained].sort((a, b) => a.season - b.season);
+}
+
+const previousHistorySchema = openStruct({ seasons: Schema.Array(openStruct({ season: Schema.Finite })) });
+
+/** Seasons in the history file this run replaces; none when it does not exist yet. */
+const readPreviousSeasons = Effect.fn('readPreviousSeasons')(function* () {
+  const text = yield* io(() => readFile(OUTPUT_FILE, 'utf8').catch(() => null));
+  if (text === null) return [];
+  // Written by this script, so each season keeps its full shape; only the season number is checked.
+  return Schema.decodeUnknownSync(previousHistorySchema)(JSON.parse(text)).seasons as unknown as LeagueSeasonHistory[];
+});
+
 const program = Effect.gen(function* () {
   yield* io(() => mkdir(RAW_DIR, { recursive: true }));
 
   console.log('Importing historical Sleeper drafts...');
+  const lastConfigured = LEAGUE_DRAFTS[LEAGUE_DRAFTS.length - 1];
+  const confirmed = lastConfigured ? yield* readConfirmedSeason(lastConfigured) : null;
+  if (confirmed) console.log(`Including the confirmed Primary League ${String(confirmed.season)} draft.`);
+  const drafts = confirmed ? [...LEAGUE_DRAFTS, confirmed] : LEAGUE_DRAFTS;
   // Five requests per season; two seasons at a time keeps bursts small for Sleeper.
-  const seasons = yield* Effect.forEach(LEAGUE_DRAFTS, importSeason, { concurrency: 2 });
-  const sortedSeasons = [...seasons].sort((a, b) => a.season - b.season);
+  const seasons = yield* Effect.forEach(drafts, importSeason, { concurrency: 2 });
+  const sortedSeasons = mergeImportedSeasons(yield* readPreviousSeasons(), seasons);
+  for (const season of sortedSeasons) {
+    if (!seasons.includes(season)) console.log(`Keeping the previously imported ${String(season.season)} season.`);
+  }
   const totalPicks = sortedSeasons.reduce((sum, season) => sum + season.picks.length, 0);
   const userPicks = sortedSeasons.reduce((sum, season) => sum + season.userPicks.length, 0);
 

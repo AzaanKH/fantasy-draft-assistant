@@ -6,25 +6,36 @@ import type { ExtensionMessage, MessageResponse } from '../shared/types';
 export function decodeAuthorizedExtensionMessage(
   value: unknown, sender: chrome.runtime.MessageSender, extensionId: string
 ): ExtensionMessage {
-  if (sender.id !== extensionId || !sender.url) throw new Error('Invalid extension sender');
+  if (sender.id !== extensionId) throw new Error('Invalid extension sender');
   const message = decodeExtensionMessage(value);
-  const url = new URL(sender.url);
-  const route = parseDraftRoomUrl(sender.url);
-  const internal = url.origin === `chrome-extension://${extensionId}` ||
-    (url.protocol === 'chrome-extension:' && url.hostname === extensionId);
   if (message.type === 'GET_DRAFT_STATUS' || message.type === 'OPEN_SIDE_PANEL') {
+    const url = sender.url === undefined ? undefined : new URL(sender.url);
+    const internal = url !== undefined && (url.origin === `chrome-extension://${extensionId}` ||
+      (url.protocol === 'chrome-extension:' && url.hostname === extensionId));
     if (internal && ['/sidepanel.html', '/options.html'].includes(url.pathname)) return message;
     throw new Error('Background state is available only to extension pages');
   }
-  if (!sender.tab || sender.frameId !== 0 || url.protocol !== 'https:' || !isDraftProviderHost(url.hostname)) {
+  // Chromium freezes sender.url at script-context creation, so after a single-page
+  // navigation it still names the old route. The tab URL is current; bind it to
+  // the frame's origin so a cross-origin navigation cannot borrow it.
+  const origin = sender.origin === undefined ? undefined : new URL(sender.origin);
+  const tabUrl = sender.tab?.url === undefined ? undefined : new URL(sender.tab.url);
+  if (sender.frameId !== 0 || origin === undefined || tabUrl === undefined ||
+      origin.protocol !== 'https:' || !isDraftProviderHost(origin.hostname) || tabUrl.origin !== origin.origin) {
     throw new Error('Invalid provider frame');
   }
+  const route = parseDraftRoomUrl(tabUrl.href);
   switch (message.type) {
-    case 'ESPN_DRAFT_SNAPSHOT':
+    case 'ESPN_DRAFT_SNAPSHOT': {
       if (message.data.draft.leagueSettings !== undefined) throw new Error('Page snapshots cannot supply league settings');
-      if (route.provider === 'espn' && message.data.draft.draftId === route.draftId &&
+      // ESPN's draft room always takes a full page load, so the document itself must
+      // have loaded there too; a same-origin URL change cannot lend it the route.
+      const frameRoute = parseDraftRoomUrl(sender.url ?? '');
+      if (route.provider === 'espn' && frameRoute.provider === 'espn' && frameRoute.draftId === route.draftId &&
+          message.data.draft.draftId === route.draftId &&
           (message.data.draft.leagueId === undefined || message.data.draft.leagueId === route.draftId)) return message;
       break;
+    }
     case 'DRAFT_ROOM_STATUS':
       if (!message.data.isInDraftRoom && !route.isInDraftRoom) return message;
       if (message.data.isInDraftRoom && route.isInDraftRoom &&
