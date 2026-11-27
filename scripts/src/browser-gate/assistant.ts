@@ -125,6 +125,8 @@ export async function checkAssistantSuggestions(browser: Browser): Promise<void>
     const errors = watchErrors(page);
     await openPausedMockAssistant(page);
     await page.locator('.suggestion-list .suggestion-row').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
+    // The four cards sit whole on screen once the decision hero above them is scrolled away.
+    await scrollPastHero(page);
     const cards = await page.evaluate(() => {
       const top = document.querySelector('.draft-app-header')?.getBoundingClientRect().bottom ?? 0;
       return [...document.querySelectorAll('.suggestion-list .suggestion-row')].map((card) => {
@@ -261,6 +263,8 @@ export async function checkAssistantColdLoad(browser: Browser, viewport: { reado
     released = true;
     for (const resolve of held.splice(0)) resolve();
     await page.locator('.rec-workspace:not([aria-busy]) .suggestion-list > li').nth(SUGGESTION_CARDS - 1).waitFor({ timeout: 20_000 });
+    // Heights are compared as loaded; the cards are checked whole once the decision hero is scrolled away.
+    await scrollPastHero(page);
     await forEachTheme(page, async (theme) => {
       const themed = `${label} ${theme}`;
       const skeleton = skeletons.get(theme);
@@ -343,6 +347,19 @@ export async function cutFactValues(page: Page): Promise<readonly string[]> {
   }));
 }
 
+/**
+ * Scrolls the decision hero off the top, so the existing page (the bar, cards and analysis) sits where it sat before
+ * the hero existed: its top where the hero's top was.
+ */
+export async function scrollPastHero(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const hero = document.querySelector('.rec-workspace > section.call')?.getBoundingClientRect();
+    const bar = document.querySelector('.rec-workspace > .rec-context')?.getBoundingClientRect();
+    if (hero && bar) window.scrollTo(0, window.scrollY + bar.top - hero.top);
+  });
+  await page.waitForTimeout(100);
+}
+
 /** Best available rows wholly inside the window below the sticky header, before any scrolling. */
 export async function poolRowsAboveFold(page: Page): Promise<number> {
   return page.evaluate(() => {
@@ -360,6 +377,7 @@ export async function checkAssistantAnswerRoom(browser: Browser, viewport: { rea
   try {
     const errors = watchErrors(page);
     await openSlotTwelveAssistant(page);
+    await scrollPastHero(page);
     const { analysis: intended } = await intendedAnalysisHeights(page);
     const wide = viewport.width >= ASSISTANT_RAIL_BREAKPOINT;
     // Measured in the second theme as well, so a theme-only size change (a font weight, a border) cannot hide.
@@ -373,7 +391,7 @@ export async function checkAssistantAnswerRoom(browser: Browser, viewport: { rea
         analysis: Math.round(analysis?.height ?? 0),
         strip: strip?.textContent ?? '',
         stripShown: stripBox !== undefined && stripBox.height > 0 && stripBox.top >= 0 && stripBox.bottom <= window.innerHeight,
-        context: document.querySelector('.rec-context-pick [data-next-turn]')?.textContent ?? '',
+        context: document.querySelector('.call [data-next-turn]')?.textContent ?? '',
       };
     });
     let room = await roomIn();
@@ -385,7 +403,7 @@ export async function checkAssistantAnswerRoom(browser: Browser, viewport: { rea
     });
     assert(room.visible >= MIN_ANSWER_HEIGHT, `${label}: only ${String(room.visible)}px of the answer is visible before scrolling; it needs ${String(MIN_ANSWER_HEIGHT)}px`);
     assert(Math.abs(room.analysis - intended) <= 1, `${label}: the analysis is ${String(room.analysis)}px; this window intends ${String(intended)}px`);
-    // The next turn is said once, in the bar at the top of the page; the strip never repeats it.
+    // The next turn is said once, in the decision hero at the top of the page; the strip never repeats it.
     assert(/in \d+ pick/.test(room.context), `${label}: the bar does not say when the next turn is ("${room.context}")`);
     if (!wide) {
       assert(room.stripShown, `${label}: the queue and roster strip is not on screen`);

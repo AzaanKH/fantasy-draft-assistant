@@ -15,7 +15,7 @@ import type { AssistantDraftMode } from './assistant-context';
  * trip back to the cards: Draft on your turn in a mock, Record (the Provisional Pick dialog) during live Manual
  * Continuity, and plain guidance otherwise. Both actions respect the workspace's shared pick lock.
  */
-export function ViewedPlayerAction({ player, playerName, mode, provider, nextPickLabel, isQueued = false, quiet = false, onQueue }: {
+export function ViewedPlayerAction({ player, playerName, mode, provider, nextPickLabel, isQueued = false, quiet = false, draftLabel = 'Draft', onQueue }: {
   /** Undefined when the viewed player has been drafted. */
   readonly player: Player | undefined;
   readonly playerName: string;
@@ -25,6 +25,8 @@ export function ViewedPlayerAction({ player, playerName, mode, provider, nextPic
   readonly isQueued?: boolean;
   /** Outlined, beside the suggestion cards, whose leader holds the page's one filled action. */
   readonly quiet?: boolean;
+  /** The Draft button's text; the decision hero names the player ("Draft Hart"). */
+  readonly draftLabel?: string;
   /** Queue toggle beside Draft; omitted for a drafted subject. */
   readonly onQueue?: (playerId: string) => void;
 }): React.ReactElement {
@@ -49,10 +51,11 @@ export function ViewedPlayerAction({ player, playerName, mode, provider, nextPic
       control = (
         <Button size="sm" className="rec-action" variant={status?.state === 'failed' ? 'destructive' : quiet ? 'outline' : 'default'}
           disabled={pickInFlight} aria-busy={status?.state === 'pending' || undefined}
-          aria-label={status?.state === 'failed' ? `Retry drafting ${player.name}` : `Draft ${player.name}`}
+          // A custom label ("Draft Hart") is its own name: an aria-label must contain the visible text.
+          aria-label={status?.state === 'failed' ? `Retry drafting ${player.name}` : draftLabel === 'Draft' ? `Draft ${player.name}` : undefined}
           title="Quick Mock. Picks are made here."
           onClick={() => { draftPlayer(player); }}>
-          {status?.state === 'pending' ? 'Saving…' : status?.state === 'failed' ? 'Retry draft' : 'Draft'}
+          {status?.state === 'pending' ? 'Saving…' : status?.state === 'failed' ? 'Retry draft' : draftLabel}
         </Button>
       );
     }
