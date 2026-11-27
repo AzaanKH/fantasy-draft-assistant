@@ -112,18 +112,22 @@ function policyRecommendation(
 }
 
 describe('createDraftDecisionOutput', () => {
-  it('always exposes both answers, the selected lens, and divergence', () => {
+  it('always exposes every answer, the selected lens, and divergence', () => {
     const bestPick = recommendation('roster-fit', 'Roster Fit', 8);
     const bestPlayer = recommendation('ecr-leader', 'ECR Leader', 4);
 
     const output = createDraftDecisionOutput(
-      [bestPick, bestPlayer],
-      { preferredPlayerId: bestPick.playerId, policy: 'league-aware-score' },
-      [bestPlayer, bestPick],
+      {
+        draftNow: [bestPick, bestPlayer],
+        selection: { preferredPlayerId: bestPick.playerId, policy: 'league-aware-score' },
+        bestAvailable: [bestPlayer, bestPick],
+        rankedFit: [bestPlayer, bestPick],
+      },
       'best-player'
     );
 
     expect(output).toMatchObject({
+      rankedFit: bestPlayer,
       bestPick,
       bestPlayer,
       selectedLens: 'best-player',
@@ -179,25 +183,32 @@ describe('createDraftDecisionOutput', () => {
     const bestPlayer = recommendation('ecr-leader', 'ECR Leader', 1);
 
     const output = createDraftDecisionOutput(
-      [bestPick, bestPlayerPolicyVersion],
-      { preferredPlayerId: bestPick.playerId, policy: 'primary-league-policy' },
-      [bestPlayer],
-      'best-player'
+      {
+        draftNow: [bestPick, bestPlayerPolicyVersion],
+        selection: { preferredPlayerId: bestPick.playerId, policy: 'primary-league-policy' },
+        bestAvailable: [bestPlayer],
+        rankedFit: [bestPlayer],
+      },
+      'ranked-fit'
     );
 
     expect(output.decisionDivergenceFactor).toBe(factor);
+    expect(output.decisionDivergenceExplanation).toContain('Best Pick prefers Roster Builder over ECR Leader because');
     expect(output.decisionDivergenceExplanation).toContain(expected);
     expect(output.decisionDivergenceExplanation).toContain(
-      'while ECR Leader remains Best Player at ECR #1.'
+      'while ECR Leader remains Ranked Fit at ECR #1.'
     );
   });
 
-  it('defaults cleanly to Best Pick when both lenses agree', () => {
+  it('reports no divergence when Best Pick and Ranked Fit agree', () => {
     const player = recommendation('consensus', 'Consensus Player', 1);
     const output = createDraftDecisionOutput(
-      [player],
-      { preferredPlayerId: player.playerId, policy: 'ecr-anchor' },
-      [player],
+      {
+        draftNow: [player],
+        selection: { preferredPlayerId: player.playerId, policy: 'ecr-anchor' },
+        bestAvailable: [player],
+        rankedFit: [player],
+      },
       'best-pick'
     );
 
@@ -206,5 +217,41 @@ describe('createDraftDecisionOutput', () => {
     expect(output.decisionDivergence).toBe(false);
     expect(output.decisionDivergenceFactor).toBeNull();
     expect(output.decisionDivergenceExplanation).toBeNull();
+  });
+
+  it('compares Best Pick with Ranked Fit, not Best Player', () => {
+    const bestPlayer = recommendation('illegal-qb', 'Third QB', 1);
+    const rankedFit = recommendation('legal-rb', 'Needed RB', 5);
+    const output = createDraftDecisionOutput(
+      {
+        draftNow: [rankedFit],
+        selection: { preferredPlayerId: rankedFit.playerId, policy: 'roster-feasibility' },
+        bestAvailable: [bestPlayer, rankedFit],
+        rankedFit: [rankedFit],
+      },
+      'ranked-fit'
+    );
+
+    expect(output.selectedView).toBe(output.rankedFitView);
+    expect(output.selected).toBe(rankedFit);
+    expect(output.rankedFitView.selection.policy).toBe('ranked-fit');
+    expect(output.bestPlayer).toBe(bestPlayer);
+    expect(output.decisionDivergence).toBe(false);
+  });
+
+  it('explains each view in its own lens, so Ranked Fit never claims Best Pick factors set its order', () => {
+    const player = policyRecommendation('fit', 'Fit Player', 3, 'league-value', true);
+    const output = createDraftDecisionOutput(
+      {
+        draftNow: [player],
+        selection: { preferredPlayerId: player.playerId, policy: 'primary-league-policy' },
+        bestAvailable: [player],
+        rankedFit: [player],
+      },
+      'ranked-fit'
+    );
+
+    expect(output.selectedView.explanationByPlayerId.get('fit')).toMatch(/Ranked Fit orders .* Best Pick analysis, which does not change this order: .*to his Best Pick score/);
+    expect(output.bestPickView.explanationByPlayerId.get('fit')).toMatch(/value adds 2\.0 to his score/);
   });
 });

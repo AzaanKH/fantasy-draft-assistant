@@ -118,9 +118,7 @@ function calculateFromDraftState(players: readonly Player[] = PLAYERS) {
   }, DRAFT_DISPLAY);
 
   return createDraftDecisionOutput(
-    recommendations.draftNow,
-    recommendations.selection,
-    recommendations.bestAvailable,
+    recommendations,
     state.decisionLens,
     DRAFT_DISPLAY
   );
@@ -167,13 +165,14 @@ describe('Draft Workspace decision integration', () => {
     expect(initial).toMatchObject({
       bestPick: { playerId: 'roster-rb' },
       bestPlayer: { playerId: 'ecr-leader' },
+      rankedFit: { playerId: 'ecr-leader' },
       selectedLens: 'best-pick',
       selected: { playerId: 'roster-rb' },
       decisionDivergence: true,
       decisionDivergenceFactor: 'league-value',
     });
     expect(initial.decisionDivergenceExplanation).toBe(
-      'Prefer Roster Builder over ECR Leader because Roster Builder is +45 pts over a fill-in starter, 43 more than ECR Leader in this league, while ECR Leader remains Best Player at ECR #1.'
+      'Best Pick prefers Roster Builder over ECR Leader because Roster Builder is +45 pts over a fill-in starter, 43 more than ECR Leader in this league, while ECR Leader remains Ranked Fit at ECR #1.'
     );
 
     const stateBeforeSwitch = draftStore.getState();

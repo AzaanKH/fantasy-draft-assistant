@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OffensivePosition } from '@fantasy-draft/shared/league';
+import { getRecommendations } from '@fantasy-draft/shared/draft';
 import { backtestInternals } from './backtest-recommendations.js';
 
 function player(id: string, position: OffensivePosition, points: number = 100) {
@@ -76,6 +77,7 @@ describe('roster-aware backtest helpers', () => {
     ])).toEqual({
       fixedStarters: { QB: 1, RB: 2, WR: 2, TE: 1 },
       flexStarters: 2,
+      flexPositions: ['RB', 'WR', 'TE'],
       totalOffensiveSlots: 10,
     });
   });
@@ -88,6 +90,65 @@ describe('roster-aware backtest helpers', () => {
 
     expect(backtestInternals.isLegalCandidate(player('qb', 'QB'), roster, rules, 1)).toBe(true);
     expect(backtestInternals.isLegalCandidate(player('wr2', 'WR'), roster, rules, 1)).toBe(false);
+  });
+
+  it('picks the Roster-aware ECR row by the legal-roster rule', () => {
+    // The reference rule: legal candidates by ascending ECR. FLEX counts only players beyond their own fixed starters.
+    const positions: readonly OffensivePosition[] = ['QB', 'RB', 'WR', 'TE'];
+    const maximums = { QB: 4, RB: 8, WR: 8, TE: 3 } as const;
+    const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'BN', 'BN']);
+    const referenceLegal = (position: OffensivePosition, counts: Record<OffensivePosition, number>, remaining: number) => {
+      const size = positions.reduce((sum, item) => sum + counts[item], 0);
+      if (size >= rules.totalOffensiveSlots || counts[position] >= maximums[position]) return false;
+      const after = { ...counts, [position]: counts[position] + 1 };
+      const missingFixed = positions.reduce((sum, item) => sum + Math.max(0, rules.fixedStarters[item] - after[item]), 0);
+      const surplusFlex = (['RB', 'WR', 'TE'] as const).reduce((sum, item) => sum + Math.max(0, after[item] - rules.fixedStarters[item]), 0);
+      return missingFixed + Math.max(0, rules.flexStarters - surplusFlex) <= Math.max(0, remaining - 1);
+    };
+    const available = positions.flatMap((position, index) => [0, 1].map((copy) => ({
+      ...player(`${position}-${String(copy)}`, position), predraft_ecr: index * 2 + copy + 1,
+    })));
+    let checked = 0;
+    for (const qb of [0, 1, 2]) for (const rb of [0, 1, 2, 3]) for (const wr of [0, 1, 2, 3]) for (const te of [0, 1, 3]) {
+      for (const remaining of [1, 2, 3, 5, 9]) {
+        const roster = backtestInternals.createRoster();
+        const counts = { QB: qb, RB: rb, WR: wr, TE: te };
+        for (const position of positions) {
+          for (let index = 0; index < counts[position]; index += 1) roster[position].push(player(`${position}-held-${String(index)}`, position));
+        }
+        const expected = available
+          .filter((candidate) => referenceLegal(candidate.position, counts, remaining))
+          .sort((a, b) => a.predraft_ecr - b.predraft_ecr)[0];
+        expect(backtestInternals.chooseEcr(available, roster, rules, remaining)).toBe(expected);
+        checked += 1;
+      }
+    }
+    expect(checked).toBe(720);
+  });
+
+  it('orders a tied pool the same way as the live Ranked Fit lens', () => {
+    // Every player shares one ECR; input order is neither name nor ID order, so only the shared tie rule decides.
+    const rows = [
+      { ...player('id-3', 'WR'), player_name: 'Cole' },
+      { ...player('id-1', 'RB'), player_name: 'Avery' },
+      { ...player('id-4', 'TE'), player_name: 'Blake' },
+      { ...player('id-2', 'WR'), player_name: 'Avery' },
+      { ...player('id-5', 'QB'), player_name: 'Drew' },
+    ].map((row) => ({ ...row, predraft_ecr: 7 }));
+    const rules = backtestInternals.deriveRosterRules(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'BN', 'BN', 'BN']);
+    const roster = backtestInternals.createRoster();
+    const backtestOrder = backtestInternals.rankEcr(rows, roster, rules, 10).map((row) => row.sleeper_player_id);
+    const livePlayers = [...backtestInternals.buildBestPickBoard(rows).values()].reverse();
+    const live = getRecommendations(livePlayers, [], 10, {
+      currentPick: 1,
+      totalPicks: 120,
+      requirements: backtestInternals.pickEvRequirements(rules),
+      rosterCounts: {},
+      selectionsRemaining: 10,
+    }).rankedFit.map((recommendation) => recommendation.playerId);
+
+    expect(backtestOrder).toEqual(['id-1', 'id-2', 'id-4', 'id-3', 'id-5']);
+    expect(live).toEqual(backtestOrder);
   });
 
   it('scores fixed starters and the best remaining flex player', () => {

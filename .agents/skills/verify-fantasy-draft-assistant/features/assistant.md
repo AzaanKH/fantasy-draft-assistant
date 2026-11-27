@@ -10,12 +10,12 @@ A drafter can inspect the current recommendation, ask four decision questions, c
 - `assistant-questions`: Switch between explanation, comparison, waiting, and roster needs.
 - `assistant-return`: Go back to the draft workspace.
 - `assistant-pool`: Search, filter, sort, select, and expand the recommended player pool.
-- `assistant-views`: Switch between the `Suggestions` and `Position tiers` views and between the Best Pick and Best Player lenses.
+- `assistant-views`: Switch between the `Suggestions` and `Position tiers` views and between the Ranked Fit, Best Pick, and Best Player lenses.
 
 ## How to get to it (user POV)
 
 - Choose `Assistant` in the header, or open `/assistant` directly for the default analysis.
-- From `/draft`, use `Why this pick` in `Current Best Pick` or `Ask why` in the top Suggestions card.
+- From `/draft`, use `Why this pick` in `Current recommendation` (the bar under the board, which follows the active Decision Lens) or `Ask why` in the top Suggestions card.
 - On Assistant, choose `Why this player?`, `Compare`, `Can I wait?`, or `Roster needs`. In Compare, `Change player` opens a picker for the comparison player.
 - Choose `Draft board` (in the Suggestions view) or the header's `Draft workspace` to go back.
 
@@ -23,13 +23,13 @@ A drafter can inspect the current recommendation, ask four decision questions, c
 
 Preconditions: `control.py doctor "$RUN_ID"` passes, recommendations have loaded, and no Core Draft Data blocker hides the answers. Record the selected player before comparing answers.
 
-- `assistant-header`: Open `/draft`, take `snapshot -i`, and click the `Assistant` button ref inside `Primary navigation`. Require URL `/assistant`, the heading `Your Best Pick` (or `Best Player available` under that lens), the subject line `Best Pick: <player>`, and the four question tabs.
-- `assistant-best-pick`: Start again at `/draft`; click `Why this pick` in `Current Best Pick`. Require `/assistant`, `Why this player?` selected, and the same player as the bar's Best Pick in the subject line.
+- `assistant-header`: Open `/draft`, take `snapshot -i`, and click the `Assistant` button ref inside `Primary navigation`. Require URL `/assistant`, the lead heading for the active Decision Lens (`Your Ranked Fit` by default, `Your Best Pick`, or `Best Player available`), the player's name heading with the label `<lens> · #1` (`Ranked Fit · #1`, `Best Pick · #1`, or `Best Player · #1`), and the four question tabs. Source: `AssistantLayout.tsx` (`LEAD_HEADINGS`), `AssistantAnalysisPanel.tsx` (`subjectLabel`).
+- `assistant-best-pick`: Start again at `/draft`; click `Why this pick` in `Current recommendation` (the bar under the board, which follows the active Decision Lens). Require `/assistant`, `Why this player?` selected, and the same player as the bar's pick in the subject line.
 - `assistant-suggestion`: Start again at `/draft`; scroll to the `Suggestions` tab, open it, and click `Ask why` on its top card. Require the card's player in the subject line. Only the rank-1 card has `Ask why`.
 - `assistant-questions`: On `/assistant`, click the fresh refs for `Compare`, `Can I wait?`, and `Roster needs` one at a time. They are `role="tab"` controls: capture a snapshot after each and require `aria-selected=true` and a changed answer. The Compare answer names two players and offers `Change player`; Can I wait? shows a return probability; roster needs shows the positional depth chart.
 - `assistant-return`: In the Suggestions view, click `Draft board` and require URL `/draft`; separately, use the header's `Draft workspace`. Verify the draft board still shows the same pick and the Queue count is unchanged.
-- `assistant-pool`: Search an observed player using the `Search recommended players` field, clear it, filter a position (`aria-pressed`), switch the native `Sort` select to `Tier first` and back to `Recommendation`, then click another player's row and require the subject line to read `Viewing: <name>`. Click `Show N more players` and require `Show fewer players` with `aria-expanded=true`. Source: `AssistantPage.tsx`.
-- `assistant-views`: Click the `Position tiers` view tab and require `aria-selected=true` and a `Position tiers` heading, then return to `Suggestions`. Toggle `Best Pick` / `Best Player` and require the heading to change. Source: `AssistantPage.tsx`, `AssistantContextBar.tsx`.
+- `assistant-pool`: Search an observed player using the `Search recommended players` field, clear it, filter a position (`aria-pressed`), switch the native `Sort` select to `Tier first` and back to `Recommendation`, then click another player's row and require that player's name heading with the label `Viewing · #<rank> overall`. Click `Show N more players` and require `Show fewer players` with `aria-expanded=true`. Source: `AssistantPage.tsx`.
+- `assistant-views`: Click the `Position tiers` view tab and require `aria-selected=true` and a `Position tiers` heading, then return to `Suggestions`. Toggle `Ranked Fit` / `Best Pick` / `Best Player` and require the heading to change. Source: `AssistantPage.tsx`, `AssistantContextBar.tsx`.
 
 ## Gotchas
 

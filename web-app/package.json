@@ -11,7 +11,6 @@
     "lint": "node ../scripts/lint.mjs web-app",
     "test": "vitest run --config ../vitest.config.js --project web-app",
     "rehearse:primary-league": "tsx --conditions=@fantasy-draft/source src/features/draft-room/run-primary-league-rehearsal.ts",
-    "experiment:primary-league": "tsx --conditions=@fantasy-draft/source src/experiments/run-primary-league-experiments.ts",
     "profile:recommendations": "tsx --conditions=@fantasy-draft/source src/lib/calculations/profile-recommendations.ts",
     "test:watch": "vitest --config ../vitest.config.js --project web-app",
     "clean": "rm -rf dist node_modules/.vite"
