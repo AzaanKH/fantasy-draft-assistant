@@ -39,6 +39,15 @@
   --board-team-9: #4AD0EE;
   --board-team-10: #F07BF0;
 
+  /* Position tier colors (light): Tier 1 to Tier 6 tint the tier groups and fill the tier pills; --tier-ink is the pill text, at least 4.5:1 on every tier color. */
+  --tier-1: #6a3fc0;
+  --tier-2: #8f5c00;
+  --tier-3: #0b7563;
+  --tier-4: #2f66a8;
+  --tier-5: #5c6880;
+  --tier-6: #6b6f78;
+  --tier-ink: #fff;
+
   color-scheme: light;
 }
 
@@ -151,4 +160,13 @@
   --color-emerald-700: #00AAA8;
   --color-emerald-800: #0A5C6A;
   --color-emerald-950: #0A3447;
+
+  /* Position tier colors (dark), with dark pill text. */
+  --tier-1: #b5a3ff;
+  --tier-2: #f5b942;
+  --tier-3: #49e8cc;
+  --tier-4: #7fb2ff;
+  --tier-5: #9aa6c2;
+  --tier-6: #b4bccb;
+  --tier-ink: var(--night-ink);
 }

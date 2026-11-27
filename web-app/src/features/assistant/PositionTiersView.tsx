@@ -6,12 +6,15 @@ import { getPlayerRisk } from '@/lib/player-risk';
 import { PositionTag } from '@/components/PositionTag';
 import { OFFENSIVE_POSITIONS, POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
 import type { Recommendation } from '@fantasy-draft/shared/draft';
-import { ArrowLeft, ArrowRight, Check, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, Check, Plus, Search, X } from 'lucide-react';
 import * as React from 'react';
 import { describeMissingAvailability, formatAvailabilityPercent, getNextPickAvailability, type NextPickAvailability } from '@/lib/next-pick-availability';
 import { useAssistantData } from './AssistantDataContext';
 import { useSearchShortcut } from './useSearchShortcut';
-import { buildOverallBands, buildPositionTiers, isTierDepleted, type OverallBand, type TierGroup, type TierPlayer } from './assistant-tiers';
+import {
+  buildOverallBands, buildPositionTiers, countLikelyAvailable, findBiggestCliff, findNextPickMark, formatTierStatus, getTierStatus, isTierDepleted,
+  type NextPickMark, type OverallBand, type PositionTierGroup, type SurvivalLookup, type TierCliff, type TierGroup, type TierPlayer,
+} from './assistant-tiers';
 
 type TierFilter = 'ALL' | Position;
 
@@ -39,11 +42,58 @@ interface TierColumn {
   readonly position: Position | null;
   readonly activeTier: number | null;
   readonly exhaustedTiers: readonly number[];
-  readonly groups: readonly (TierGroup | OverallBand)[];
+  readonly groups: readonly (PositionTierGroup | OverallBand)[];
+  /** Position columns only: the drop when the active tier runs out, and that tier's undrafted players. */
+  readonly activeDrop: number | null;
+  readonly activeRemaining: readonly TierPlayer[];
 }
 
 function groupTitle(group: TierGroup | OverallBand): string {
   return 'label' in group ? group.label : `Tier ${String(group.tier)}`;
+}
+
+/** A tier's rows split before `playerId` (not when it leads the tier), so the next-pick divider sits between two lists. */
+function splitAt(rows: readonly TierPlayer[], playerId: string | undefined): readonly (readonly TierPlayer[])[] {
+  const index = playerId === undefined ? -1 : rows.findIndex((row) => row.id === playerId);
+  return index > 0 ? [rows.slice(0, index), rows.slice(index)] : [rows];
+}
+
+/** Tiers past the sixth share its color; Overall's round bands are neutral. */
+const TIER_COLOR_COUNT = 6;
+function tierColor(group: PositionTierGroup | OverallBand): string {
+  return 'label' in group ? 'var(--color-muted-foreground)' : `var(--tier-${String(Math.min(Math.max(group.tier, 1), TIER_COLOR_COUNT))})`;
+}
+
+/** "Your next pick" divider: between two runs of a tier's rows, or a standalone bar between tiers or after the last. */
+function NextPickLine({ label, standalone }: { readonly label: string; readonly standalone?: boolean }): React.ReactElement {
+  return (
+    <div className="rec-tier-nextpick" data-standalone={standalone ? '' : undefined} role="separator" aria-label={`Your next pick, ${label}`}>
+      <ArrowDown aria-hidden="true" />Your next pick · {label}
+    </div>
+  );
+}
+
+/** The projected-point drop between two adjacent tiers; the board's biggest imminent cliff is the loud one. */
+function TierDrop({ points, from, to, steep }: { readonly points: number; readonly from: number; readonly to: number; readonly steep: boolean }): React.ReactElement {
+  return (
+    <div className="rec-tier-drop" data-steep={steep || undefined} title={`Tier ${String(to)} projects ${String(points)} fewer points than Tier ${String(from)}`}>
+      <span aria-hidden="true">▼ −{String(points)} pts</span>
+      <span className="sr-only">Tier {String(from)} to Tier {String(to)}: {String(points)} fewer projected points</span>
+    </div>
+  );
+}
+
+function CliffBanner({ cliff }: { readonly cliff: TierCliff }): React.ReactElement {
+  return (
+    <div className="rec-tier-cliff" role="note" data-tier-cliff={cliff.position}>
+      <strong aria-hidden="true">−{String(cliff.points)}</strong>
+      <span>
+        <b>Biggest cliff: {cliff.position} after Tier {String(cliff.tier)}</b>
+        <span className="sr-only">, {String(cliff.points)} projected points</span>
+        {cliff.othersMax !== null ? <span className="rec-muted"> · Other positions drop {String(cliff.othersMax)} pts or less</span> : null}
+      </span>
+    </div>
+  );
 }
 
 /**
@@ -320,7 +370,7 @@ export function PositionTiersView({
     }));
     if (filter !== 'ALL') return positionColumns;
     const overall = buildOverallBands({ players, draftedPlayerIds, bandSize, query: deferredQuery, showDrafted });
-    return [{ key: 'OVERALL', position: null, ...overall }, ...positionColumns];
+    return [{ key: 'OVERALL', position: null, activeDrop: null, activeRemaining: [], ...overall }, ...positionColumns];
   }, [players, filter, draftedPlayerIds, deferredQuery, showDrafted, bandSize]);
   // Only columns with matches render, and the grid declares exactly that many tracks: a sparse search never leaves
   // empty tracks for "More columns" to scroll into (R9-5).
@@ -340,39 +390,75 @@ export function PositionTiersView({
     () => new Map(players.map((player) => [player.id, getTierRowAvailability(player.id, recommendationById.get(player.id), availabilityById, isFinal)])),
     [availabilityById, isFinal, players, recommendationById]
   );
+  const survival = React.useCallback<SurvivalLookup>((playerId) => {
+    if (draftedPlayerIds.has(playerId)) return undefined;
+    const availability = rowAvailability.get(playerId);
+    return availability?.kind === 'estimate' ? availability.probability : undefined;
+  }, [draftedPlayerIds, rowAvailability]);
+  // Compared across positions, so only when the sheet shows them all.
+  const cliff = React.useMemo(
+    () => filter === 'ALL' ? findBiggestCliff(columns.flatMap((column) => column.position ? [{ ...column, position: column.position }] : [])) : null,
+    [columns, filter]
+  );
   const setPages = (key: TierColumn['key'], pages: number): void => {
     setColumnPages((current) => new Map(current).set(key, pages));
   };
 
-  const renderGroup = (group: TierGroup | OverallBand, column: TierColumn, listed: readonly TierPlayer[]): React.ReactElement => {
+  const renderGroup = (
+    group: PositionTierGroup | OverallBand,
+    column: TierColumn,
+    listed: readonly TierPlayer[],
+    mark: NextPickMark | null,
+    previousTier: number | undefined
+  ): React.ReactElement => {
     const key = `${column.key}-${String(group.tier)}`;
+    const dropBefore = 'dropBefore' in group ? group.dropBefore : null;
+    const markId = mark?.kind === 'before' ? mark.playerId : undefined;
+    const lineAbove = markId !== undefined && listed[0]?.id === markId;
+    const likely = nextPickLabel ? countLikelyAvailable(group.remaining, survival) : null;
+    const estimated = likely !== null && group.remaining.some((player) => survival(player.id) !== undefined);
     return (
-      <section key={key} className="rec-tier-group" aria-label={column.position ? `${column.position} Tier ${String(group.tier)}` : `Overall ${groupTitle(group)}`}>
-        <div className="rec-tier-header">
-          <strong>{groupTitle(group)}</strong>
-          <span className="rec-muted">{String(group.available)} of {String(group.total)} remaining</span>
-        </div>
-        {isTierDepleted(group) ? <p className="rec-tier-caption">Only {String(group.available)} left in this tier</p> : null}
-        <ol>
-          {listed.map((player) => (
-            <TierRow
-              key={player.id}
-              player={player}
-              detail={playerById.get(player.id)}
-              drafted={draftedPlayerIds.has(player.id)}
-              draftedPickLabel={draftedPickLabels.get(player.id)}
-              availability={rowAvailability.get(player.id) ?? UNESTIMATED}
-              isBestPick={player.id === bestPickId}
-              isSelected={player.id === selectedPlayerId}
-              isQueued={queuedSet.has(player.id)}
-              nextPickLabel={nextPickLabel}
-              showPosition={column.position === null}
-              onSelect={onSelect}
-              onQueue={onQueue}
-            />
+      <React.Fragment key={key}>
+        {dropBefore !== null && previousTier !== undefined ? (
+          <TierDrop points={dropBefore} from={previousTier} to={group.tier}
+            steep={cliff !== null && column.position === cliff.position && previousTier === cliff.tier} />
+        ) : null}
+        {lineAbove && nextPickLabel ? <NextPickLine label={nextPickLabel} standalone /> : null}
+        <section className="rec-tier-group" style={{ '--tier-color': tierColor(group) } as React.CSSProperties}
+          aria-label={column.position ? `${column.position} Tier ${String(group.tier)}` : `Overall ${groupTitle(group)}`}>
+          <div className="rec-tier-header">
+            <strong className="rec-tier-pill">{groupTitle(group)}</strong>
+            <span className="rec-tier-meta" data-depleted={isTierDepleted(group) || undefined}>
+              {group.available === 0 ? 'All drafted' : `${String(group.available)} of ${String(group.total)} left`}
+              {estimated && group.available > 0 ? ` · ${String(likely)} likely at ${nextPickLabel ?? ''}` : ''}
+            </span>
+          </div>
+          {splitAt(listed, markId).map((run, index) => (
+            <React.Fragment key={run[0]?.id ?? index}>
+              {index > 0 && nextPickLabel ? <NextPickLine label={nextPickLabel} /> : null}
+              <ol>
+                {run.map((player) => (
+                  <TierRow
+                    key={player.id}
+                    player={player}
+                    detail={playerById.get(player.id)}
+                    drafted={draftedPlayerIds.has(player.id)}
+                    draftedPickLabel={draftedPickLabels.get(player.id)}
+                    availability={rowAvailability.get(player.id) ?? UNESTIMATED}
+                    isBestPick={player.id === bestPickId}
+                    isSelected={player.id === selectedPlayerId}
+                    isQueued={queuedSet.has(player.id)}
+                    nextPickLabel={nextPickLabel}
+                    showPosition={column.position === null}
+                    onSelect={onSelect}
+                    onQueue={onQueue}
+                  />
+                ))}
+              </ol>
+            </React.Fragment>
           ))}
-        </ol>
-      </section>
+        </section>
+      </React.Fragment>
     );
   };
 
@@ -380,12 +466,9 @@ export function PositionTiersView({
     <section className="rec-tiers" aria-labelledby="rec-tiers-heading">
       <div className="rec-section-heading">
         <h1 id="rec-tiers-heading">Position tiers</h1>
-        <span className="rec-muted">
-          Players of similar value, grouped; Overall bands the expert order by round. {nextPickLabel
-            ? `% is the chance a player is still there at ${nextPickLabel}.`
-            : 'Final pick: no later pick to estimate.'}
-        </span>
+        <span className="rec-muted">{nextPickLabel ? `% = chance still there at ${nextPickLabel}` : 'Final pick'}</span>
       </div>
+      {cliff ? <CliffBanner cliff={cliff} /> : null}
       <div className="rec-pool-toolbar">
         <label className="rec-search">
           <Search className="size-4" aria-hidden="true" />
@@ -436,11 +519,20 @@ export function PositionTiersView({
               return [{ group, listed }];
             });
             const hidden = total - visible.reduce((sum, item) => sum + item.listed.length, 0);
+            const rawMark = nextPickLabel ? findNextPickMark(visible.flatMap((item) => item.listed), survival) : null;
+            // "After the list" is only true when the whole list is showing.
+            const mark = rawMark?.kind === 'after' && hidden > 0 ? null : rawMark;
+            const status = column.position ? getTierStatus(column.activeTier, column.activeRemaining, survival) : null;
             return (
               <div key={column.key} className="rec-tier-column" data-key={column.key}>
                 <h2 className="rec-tier-title">
                   {column.position ? <><PositionTag position={column.position} />{POSITION_NAMES[column.position]}</> : 'Overall'}
                 </h2>
+                {status ? (
+                  <p className="rec-tier-status" data-tone={status.kind === 'empties' ? 'warn' : status.kind === 'lasts' ? 'ok' : undefined}>
+                    {formatTierStatus(status, nextPickLabel)}
+                  </p>
+                ) : null}
                 <div className="rec-tier-colhead" aria-hidden="true" title={`${RANKING_LABELS.title} (${RANKING_LABELS.source}), not the model's overall rank`}>
                   <span className="rec-tier-colhead-rank">{TIER_RANK_HEADER}</span>
                   <span>Player</span>
@@ -456,7 +548,8 @@ export function PositionTiersView({
                         : `${String(column.exhaustedTiers.length)} ${column.exhaustedTiers.length === 1 ? 'band' : 'bands'} drafted.`}
                   </p>
                 ) : null}
-                {visible.map(({ group, listed }) => renderGroup(group, column, listed))}
+                {visible.map(({ group, listed }, index) => renderGroup(group, column, listed, mark, visible[index - 1]?.group.tier))}
+                {mark?.kind === 'after' && nextPickLabel ? <NextPickLine label={nextPickLabel} standalone /> : null}
                 {hidden > 0 || pages > 0 ? (
                   <div className="rec-tier-more">
                     {hidden > 0 ? (
