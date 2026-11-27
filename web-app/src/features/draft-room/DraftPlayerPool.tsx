@@ -227,13 +227,13 @@ export function DraftPlayerPool({ onRevealRequest, heading, toolbarEnd }: {
                 type="button"
                 className="draft-position-filter"
                 aria-pressed={positionFilter === position}
-                aria-label={count ? `${getFilterLabel(position)}, ${count.filled} of ${count.target} filled` : getFilterLabel(position)}
                 onClick={() => {
                   setPositionFilter(position);
                 }}
               >
                 <span>{getFilterLabel(position)}</span>
                 {count ? <small aria-hidden="true">{String(count.filled)} / {String(count.target)}</small> : null}
+                {count ? <span className="sr-only">, {String(count.filled)} of {String(count.target)} filled</span> : null}
               </button>
             );
           })}

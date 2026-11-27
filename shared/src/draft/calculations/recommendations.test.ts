@@ -186,8 +186,8 @@ describe('getRecommendations', () => {
         ?.decisionFactors?.rosterFit).toMatchObject({ score: 0, surplusStarter: true });
       expect(result.draftNow.find((pick) => pick.playerId === 'flex-wr')
         ?.decisionFactors?.rosterFit).toMatchObject({
-          // Doubled: eight players are rostered, so this is past the manager's fifth selection.
-          score: 8,
+          // The FLEX bonus at its base weight: the late starter bonus is not doubled.
+          score: 4,
           fixedStartersOpen: 0,
           flexSlotsOpen: 1,
           benchSlotsOpen: 5,
@@ -249,25 +249,43 @@ describe('getRecommendations', () => {
       expect(result.draftNow[0]?.decisionFactors?.rosterFit.materiallyChangedOrdering).toBe(true);
     });
 
-    it('lets a player who fills an open starter reach a full round past the ECR leader', () => {
+    it('keeps a player who fills an open starter inside the normal ECR window', () => {
       const benchReceiver = createPlayer('wr-bench', 'WR', 64, 'Bench WR');
+      const nearBack = createPlayer('rb-near', 'RB', 68, 'Near RB');
       const neededBack = createPlayer('rb-need', 'RB', 74, 'Needed RB');
-      const farBack = createPlayer('rb-far', 'RB', 77, 'Far RB');
       const context = {
         requirements: DEFAULT_ROSTER_REQUIREMENTS,
         rosterCounts: { QB: 1, RB: 1, WR: 5, TE: 0, K: 0, DEF: 0 },
         selectionsRemaining: 7,
       };
 
-      // Ten ranks back, inside the starter window; the doubled RB2 bonus (12) outweighs the bench bonus (1).
-      const result = getRecommendations([benchReceiver, neededBack], [], 85, context);
-      expect(result.draftNow[0]?.playerId).toBe('rb-need');
-      expect(result.draftNow[0]?.decisionFactors?.rosterFit.score).toBe(12);
-      expect(result.draftNow[0]?.decisionFactors?.conservativeBoundary.withinBoundary).toBe(true);
+      // Four ranks back, inside the window: the RB2 bonus (6) over the bench bonus (1) covers the rank gap.
+      const near = getRecommendations([benchReceiver, nearBack], [], 85, context);
+      expect(near.draftNow[0]?.playerId).toBe('rb-near');
+      expect(near.draftNow[0]?.decisionFactors?.rosterFit.score).toBe(6);
 
-      // Thirteen ranks back is outside it, whatever the roster needs.
-      const outside = getRecommendations([benchReceiver, farBack], [], 85, context);
+      // The starter window is the normal 8 ranks: exactly 8 back is inside, 9 back is outside.
+      const edge = getRecommendations([
+        benchReceiver,
+        createPlayer('rb-8', 'RB', 72, 'Eight Back RB'),
+        createPlayer('rb-9', 'RB', 73, 'Nine Back RB'),
+      ], [], 85, context);
+      const boundary = (id: string) => edge.draftNow.find((pick) => pick.playerId === id)
+        ?.decisionFactors?.conservativeBoundary.withinBoundary;
+      expect(boundary('rb-8')).toBe(true);
+      expect(boundary('rb-9')).toBe(false);
+
+      // Ten ranks back is outside it: the 12-rank starter window lost to roster-aware ECR in the backtest.
+      const outside = getRecommendations([benchReceiver, neededBack], [], 85, context);
       expect(outside.draftNow[0]?.playerId).toBe('wr-bench');
+
+      // The backtest replays the rejected weights through the tuning override.
+      const rejected = getRecommendations([benchReceiver, neededBack], [], 85, {
+        ...context,
+        bestPickTuning: { starterEcrNeighborhood: 12, lateStarterWeight: 2 },
+      });
+      expect(rejected.draftNow[0]?.playerId).toBe('rb-need');
+      expect(rejected.draftNow[0]?.decisionFactors?.rosterFit).toMatchObject({ score: 12, maxScore: 14 });
     });
 
     it('keeps the starter bonus at its base weight through the first five selections', () => {

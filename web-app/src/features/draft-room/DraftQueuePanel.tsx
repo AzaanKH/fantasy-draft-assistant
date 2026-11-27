@@ -1,7 +1,7 @@
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { PositionLabel } from '@/components/PositionLabel';
 import { SkeletonBlock } from '@/components/skeletons';
@@ -106,7 +106,7 @@ export function DraftQueuePanel(): React.ReactElement {
               removePlayerFromQueue(player.id);
             }}
           >
-            <Trash2 className="size-4" />
+            <Trash className="size-4" />
           </Button>
         </MotionReorderItem>
       ))}
