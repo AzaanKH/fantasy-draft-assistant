@@ -2,7 +2,7 @@ import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftSessionMode, useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import { POSITIONS, type Player, type Position } from '@fantasy-draft/shared/league';
-import { createSlotSequence, type PoolSort } from '@fantasy-draft/shared/draft';
+import { createSlotSequence, type DecisionLens, type PoolSort } from '@fantasy-draft/shared/draft';
 import { Button } from '@/components/ui/button';
 import { type AssistantLens } from '@/features/assistant/assistant-navigation';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
@@ -15,7 +15,7 @@ import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { ArrowLeft, X } from 'lucide-react';
 import * as React from 'react';
-import { AssistantContextBar, AssistantTopPick } from './AssistantContextBar';
+import { AssistantContextBar } from './AssistantContextBar';
 import { AssistantSkeleton, AssistantViewTabs, LeadHeading, SuggestionsLayout } from './AssistantLayout';
 import { AssistantQueue, AssistantRailSummary, AssistantRoster, UpcomingPicks } from './AssistantRail';
 import { AssistantAnalysisPanel } from './AssistantAnalysisPanel';
@@ -23,6 +23,7 @@ import { AssistantPool, AssistantSearch, type PositionFilter } from './Assistant
 import { collectRecommendations } from './assistant-pool';
 import { PositionTiersView } from './PositionTiersView';
 import { AssistantDataProvider, type AssistantData } from './AssistantDataContext';
+import { DecisionHero } from './DecisionHero';
 import { useTierDrawer } from './useTierDrawer';
 import { useAssistantSubject } from './useAssistantSubject';
 import {
@@ -161,6 +162,19 @@ export function AssistantPage({
     openTierDrawer(origin);
     explain(playerId);
   }, [explain, openTierDrawer]);
+  const setSelectedLens = decision.setSelectedLens;
+  const resetSubject = subject.reset;
+  const changeLens = React.useCallback((lens: DecisionLens) => {
+    setSelectedLens(lens);
+    resetSubject();
+  }, [resetSubject, setSelectedLens]);
+  const setAnalysisTab = subject.setTab;
+  /** The hero's Compare options: the call's analysis on its Compare tab, in the tier sheet when tiers are open. */
+  const openCompare = React.useCallback((playerId: string, origin: HTMLElement) => {
+    if (view === 'tiers') openTierDrawer(origin);
+    explain(playerId);
+    setAnalysisTab('compare');
+  }, [explain, openTierDrawer, setAnalysisTab, view]);
   const focusFirstResult = React.useCallback(() => {
     document.querySelector<HTMLButtonElement>('.rec-pool-list [data-pool-select]')?.focus();
   }, []);
@@ -211,24 +225,21 @@ export function AssistantPage({
   return (
     <AssistantDataProvider value={assistantData}>
     <main className="assistant-workspace rec-workspace" data-suggestion-keys="">
+      <DecisionHero
+        view={overall}
+        output={decision.output}
+        lens={decisionLens}
+        onLensChange={changeLens}
+        byPosition={decision.byPosition}
+        availabilityById={availabilityById}
+        playerById={playerById}
+        needs={needs}
+        draft={{ mode, provider: liveSync.connection?.provider ?? null, nextPickLabel }}
+        onCompare={openCompare}
+      />
       <AssistantContextBar
         tabs={<AssistantViewTabs view={view} onChange={setView} />}
-        topPick={view === 'tiers' && topSuggestion ? (
-          <AssistantTopPick
-            recommendation={topSuggestion}
-            player={playerById.get(topSuggestion.playerId)}
-            draft={{ mode, provider: liveSync.connection?.provider ?? null, nextPickLabel }}
-            onSelect={openTierAnalysis}
-          />
-        ) : null}
-        pickWindow={pickWindow}
-        totalTeams={config.totalTeams} draftType={config.draftType}
         sync={sync}
-        lens={decisionLens}
-        onLensChange={(lens) => {
-          decision.setSelectedLens(lens);
-          subject.reset();
-        }}
       />
 
       {view === 'tiers' ? (
@@ -256,7 +267,7 @@ export function AssistantPage({
       ) : (
       <SuggestionsLayout
         main={(<>
-          <LeadHeading lens={decisionLens} cardsShown={!deferredSearch}
+          <LeadHeading cardsShown={!deferredSearch}
             search={<AssistantSearch ref={searchRef} value={searchQuery} onChange={setSearchQuery} onArrowDown={focusFirstResult} />} />
 
           {/* A search replaces the four cards with its matches, directly under the search box; clearing it brings them back. */}

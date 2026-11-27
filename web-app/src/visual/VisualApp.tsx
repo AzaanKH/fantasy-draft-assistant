@@ -508,6 +508,9 @@ function VisualReadySignal(): null {
 export function VisualApp(): React.ReactElement {
   const [{ draftStore, playerData }] = React.useState(() => {
     const draftStore = createVisualDraftStore(getVisualLeague(window.location.search));
+    // `?lens=best-player` opens the fixture on another Decision Lens, for render checks of the decision hero.
+    const lens = new URLSearchParams(window.location.search).get('lens');
+    if (lens === 'best-pick' || lens === 'best-player' || lens === 'ranked-fit') draftStore.setState({ decisionLens: lens });
     const playerData = window.location.pathname === '/__visual/board-late'
       ? { ...VISUAL_PLAYER_DATA, players: seedLateBoard(draftStore, VISUAL_PLAYERS, VISUAL_NOW) }
       : VISUAL_PLAYER_DATA;
@@ -536,7 +539,8 @@ export function VisualApp(): React.ReactElement {
   });
 
   return (
-    <ThemeProvider initialTheme={route.screen === 'late-board' ? 'system' : 'light'} persist={false}>
+    // `?theme=dark` renders a fixture in the dark palette.
+    <ThemeProvider initialTheme={route.screen === 'late-board' ? 'system' : new URLSearchParams(window.location.search).get('theme') === 'dark' ? 'dark' : 'light'} persist={false}>
       <QueryClientProvider client={queryClient}>
         <DraftDataRefreshRequestContext.Provider value={requestRefreshStatus}>
           <WorkspaceProvider workspace={workspace}>

@@ -1,0 +1,79 @@
+/* The decision hero ("the call") at the top of the Assistant. Tokens only; light and dark come from the tokens.
+   Laptop widths give each row a fixed height so the loading skeleton and the loaded call match (no layout shift). */
+
+.call { --call-pad: 20px; --call-headshot: 96px; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, var(--color-card)), var(--color-card) 55%); }
+
+.call-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 56px; padding: 8px var(--call-pad); border-bottom: 1px solid var(--color-border); }
+.call-turn { display: contents; }
+.call-turn .draft-turn-banner[data-variant=compact] { min-height: 32px; padding-block: 4px; }
+/* Waiting: the context line counts the picks; the banner stays only for its screen-reader announcement. */
+.call-turn .draft-turn-banner[data-state=waiting] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.call-context { color: var(--color-muted-foreground); font-size: var(--text-sm); line-height: 20px; font-variant-numeric: tabular-nums; }
+.call-context [data-next-turn] { color: var(--color-foreground); }
+.call-top .rec-lens { margin-left: auto; }
+
+.call-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 20px; min-height: calc(var(--call-headshot) + 2 * var(--call-pad)); padding: var(--call-pad); }
+.call-headshot { --position-color: var(--color-muted-foreground); position: relative; display: grid; width: var(--call-headshot); height: var(--call-headshot); flex: none; border: 1px solid color-mix(in srgb, var(--position-color) 45%, transparent); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--position-color) 16%, var(--color-card)); }
+.call-headshot[data-position=QB] { --position-color: var(--color-position-qb); --position-ink: var(--position-qb-ink, var(--color-position-qb)); }
+.call-headshot[data-position=RB] { --position-color: var(--color-position-rb); --position-ink: var(--position-rb-ink, var(--color-position-rb)); }
+.call-headshot[data-position=WR] { --position-color: var(--color-position-wr); --position-ink: var(--position-wr-ink, var(--color-position-wr)); }
+.call-headshot[data-position=TE] { --position-color: var(--color-position-te); --position-ink: var(--position-te-ink, var(--color-position-te)); }
+.call-headshot[data-position=K] { --position-color: var(--color-position-k); --position-ink: var(--position-k-ink, var(--color-position-k)); }
+.call-headshot[data-position=DEF] { --position-color: var(--color-position-def); --position-ink: var(--position-def-ink, var(--color-position-def)); }
+/* The headshot fills the tile; its initials stand-in takes the position color in the display face. */
+.call-headshot > .call-headshot-image { width: 100%; height: 100%; border-radius: inherit; background: none; color: var(--position-ink, var(--color-foreground)); font-family: var(--font-display); font-size: 34px; font-weight: 700; }
+.call-team { position: absolute; right: -8px; bottom: -8px; padding: 2px 6px; border-radius: var(--radius-xs); background: var(--color-foreground); color: var(--color-background); font-size: var(--text-2xs); font-weight: 700; line-height: 14px; }
+
+.call-copy { min-width: 0; }
+.call-name { overflow: hidden; color: var(--color-foreground); font-family: var(--font-display); font-size: clamp(36px, 4.6vw, 60px); font-weight: 700; line-height: 1; letter-spacing: .005em; text-overflow: ellipsis; white-space: nowrap; }
+.call-verb { color: var(--color-primary); }
+.call-why { margin-top: 8px; overflow: hidden; color: var(--color-muted-foreground); font-size: var(--text-base); line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
+
+.call-actions { display: flex; flex-direction: column; gap: 8px; width: 220px; }
+.call-actions .rec-viewed-action { margin: 0; }
+.call-actions .rec-viewed-action-buttons, .call-actions .rec-viewed-action-control { width: 100%; }
+.call-actions .rec-action { width: 100%; min-height: 44px; font-size: var(--text-base); font-weight: 700; }
+.call-actions .rec-action-note { flex-basis: 100%; }
+.call-secondary { width: 100%; min-height: 40px; }
+
+.call-foot { display: flex; flex-wrap: wrap; min-height: 70px; border-top: 1px solid var(--color-border); }
+.call-stats { display: flex; }
+.call-stat { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 12px 22px 12px var(--call-pad); border-right: 1px solid var(--color-border); }
+.call-stat strong { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.call-stat span { color: var(--color-muted-foreground); font-size: var(--text-xs); line-height: 16px; white-space: nowrap; }
+.call-stat[data-urgent] strong { color: var(--color-danger); }
+.call-skip { display: flex; flex: 1 1 320px; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; padding: 12px var(--call-pad); }
+.call-skip-label { color: var(--color-muted-foreground); font-size: var(--text-xs); line-height: 16px; }
+.call-skip ul { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--text-sm); line-height: 20px; }
+.call-skip li { display: inline-flex; min-width: 0; align-items: center; gap: 6px; }
+.call-skip-name { overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.call-skip-bar { display: inline-block; flex: none; width: 38px; height: 5px; overflow: hidden; border-radius: var(--radius-xs); background: var(--color-muted); }
+.call-skip-bar i { display: block; height: 100%; background: var(--color-primary); }
+.call-skip li strong { font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: no-preference) { .call-swap { animation: call-in var(--motion-duration-content) var(--motion-ease-out); } }
+@keyframes call-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Loading: the same rows with placeholders, so nothing moves when data arrives. */
+.call-placeholder-name { height: 52px; width: min(420px, 80%); }
+.call[aria-busy] .call-headshot { border-color: var(--color-border); background: var(--color-surface-raised); }
+
+@media (max-width: 900px) {
+  .call-main { grid-template-columns: auto minmax(0, 1fr); min-height: 0; }
+  .call-actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; width: auto; }
+  .call-actions > * { flex: 1 1 200px; }
+  .call-name, .call-why { white-space: normal; overflow-wrap: anywhere; }
+  .call-stats { flex-basis: 100%; }
+  .call-stat { flex: 1 1 0; }
+  .call-stat:last-child { border-right: 0; }
+  .call-skip { flex-basis: 100%; border-top: 1px solid var(--color-border); }
+}
+@media (max-width: 520px) {
+  .call { --call-pad: 14px; --call-headshot: 72px; }
+  .call-headshot > .call-headshot-image { font-size: 26px; }
+  .call-main { gap: 14px; }
+  .call-name { font-size: 34px; }
+  .call-top .rec-lens { margin-left: 0; }
+  .call-stat { padding-inline: 12px 8px; }
+  .call-stat strong { font-size: 24px; }
+}
