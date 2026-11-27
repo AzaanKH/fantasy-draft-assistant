@@ -312,6 +312,9 @@
 .rec-tier-drop[data-steep]::before, .rec-tier-drop[data-steep]::after { background: repeating-linear-gradient(90deg, var(--color-danger) 0 4px, transparent 4px 8px); }
 .rec-tier-nextpick { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-block: 1px solid var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); font-size: var(--text-2xs); line-height: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
 .rec-tier-nextpick[data-standalone] { margin-bottom: 8px; border: 1px solid var(--color-primary); border-radius: var(--radius-sm); }
+/* Inside a tier the first likely row draws the marker as its own first grid row; the row's text already says it. */
+.rec-tier-row[data-next-pick] { height: auto; grid-template-rows: auto 30px; }
+.rec-tier-row[data-next-pick]::before { content: attr(data-next-pick); content: attr(data-next-pick) / ""; grid-column: 1 / -1; margin-inline: calc(-1 * var(--tier-row-pad)); padding: 3px 8px; border-block: 1px solid var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); font-size: var(--text-2xs); line-height: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
 .rec-tier-nextpick svg { flex: none; width: 12px; height: 12px; }
 /* Names the row number's source (ECR), aligned over the rows' own rank and availability cells. */
 .rec-tier-colhead { display: grid; grid-template-columns: var(--tier-rank-width) minmax(var(--tier-identity-min), 1fr) var(--tier-flag-width) var(--tier-value-width) var(--tier-queue-width); gap: var(--tier-cell-gap); margin-bottom: 4px; padding: 0 var(--tier-row-pad); color: var(--color-muted-foreground); font-size: var(--text-2xs); line-height: 14px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }

@@ -52,12 +52,6 @@ function groupTitle(group: TierGroup | OverallBand): string {
   return 'label' in group ? group.label : `Tier ${String(group.tier)}`;
 }
 
-/** A tier's rows split before `playerId` (not when it leads the tier), so the next-pick divider sits between two lists. */
-function splitAt(rows: readonly TierPlayer[], playerId: string | undefined): readonly (readonly TierPlayer[])[] {
-  const index = playerId === undefined ? -1 : rows.findIndex((row) => row.id === playerId);
-  return index > 0 ? [rows.slice(0, index), rows.slice(index)] : [rows];
-}
-
 /** Tiers 1 to 5 each have a color; Tier 6 and later share the neutral --tier-rest, as do Overall's round bands. */
 const TIER_COLOR_COUNT = 5;
 export function tierColor(group: Pick<PositionTierGroup, 'tier'> | OverallBand): string {
@@ -65,14 +59,20 @@ export function tierColor(group: Pick<PositionTierGroup, 'tier'> | OverallBand):
   return `var(--tier-${String(Math.max(group.tier, 1))})`;
 }
 
-/** "Your next pick" divider: between two runs of a tier's rows, or a standalone bar between tiers or after the last. */
-function NextPickLine({ label, standalone }: { readonly label: string; readonly standalone?: boolean }): React.ReactElement {
+/**
+ * The next-pick marker between tiers or after the list. Odds are not monotonic in ECR order, so it names the first
+ * player likely there rather than a cutoff. Inside a tier the marked row draws the same label itself
+ * (`data-next-pick`), so a moving mark never splits the list or remounts rows.
+ */
+function NextPickLine({ text }: { readonly text: string }): React.ReactElement {
   return (
-    <div className="rec-tier-nextpick" data-standalone={standalone ? '' : undefined} role="separator" aria-label={`Your next pick, ${label}`}>
-      <ArrowDown aria-hidden="true" />Your next pick · {label}
+    <div className="rec-tier-nextpick" data-standalone="" role="separator" aria-label={text}>
+      <ArrowDown aria-hidden="true" />{text}
     </div>
   );
 }
+
+const firstLikelyText = (label: string): string => `First likely at ${label}`;
 
 /** The projected-point drop between two adjacent tiers; the board's biggest imminent cliff is the loud one. */
 function TierDrop({ points, from, to, steep }: { readonly points: number; readonly from: number; readonly to: number; readonly steep: boolean }): React.ReactElement {
@@ -133,6 +133,7 @@ const TierRow = React.memo(function TierRow({
   isSelected,
   isQueued,
   nextPickLabel,
+  firstLikely,
   showPosition,
   onSelect,
   onQueue,
@@ -148,6 +149,8 @@ const TierRow = React.memo(function TierRow({
   readonly isSelected: boolean;
   readonly isQueued: boolean;
   readonly nextPickLabel: string | null;
+  /** The first listed player likely there at the next pick, when that is not the tier's first row. */
+  readonly firstLikely: boolean;
   /** Overall bands mix positions, so their rows name the position. */
   readonly showPosition: boolean;
   readonly onSelect: (playerId: string, origin: HTMLElement) => void;
@@ -162,9 +165,11 @@ const TierRow = React.memo(function TierRow({
     drafted ? (draftedPickLabel ? `Drafted ${draftedPickLabel}` : 'Drafted') : null,
     isBestPick ? 'Best Pick' : null,
     isSelected ? 'Viewing' : null,
+    firstLikely && nextPickLabel ? firstLikelyText(nextPickLabel) : null,
   ].filter(Boolean).join(', ');
   return (
-    <li className="rec-tier-row" data-drafted={drafted} data-selected={isSelected} data-best={isBestPick || undefined} data-tier-player-id={player.id}>
+    <li className="rec-tier-row" data-drafted={drafted} data-selected={isSelected} data-best={isBestPick || undefined} data-tier-player-id={player.id}
+      data-next-pick={firstLikely && nextPickLabel ? `↓ ${firstLikelyText(nextPickLabel)}` : undefined}>
       <span className="rec-candidate-rank" title={tierRankText(player.ecrRank)}>
         <span aria-hidden="true">{String(player.ecrRank)}</span>
         <span className="sr-only">{tierRankText(player.ecrRank)}</span>
@@ -424,7 +429,7 @@ export function PositionTiersView({
           <TierDrop points={dropBefore} from={previousTier} to={group.tier}
             steep={cliff !== null && column.position === cliff.position && previousTier === cliff.tier} />
         ) : null}
-        {lineAbove && nextPickLabel ? <NextPickLine label={nextPickLabel} standalone /> : null}
+        {lineAbove && nextPickLabel ? <NextPickLine text={firstLikelyText(nextPickLabel)} /> : null}
         <section className="rec-tier-group" style={{ '--tier-color': tierColor(group) } as React.CSSProperties}
           aria-label={column.position ? `${column.position} Tier ${String(group.tier)}` : `Overall ${groupTitle(group)}`}>
           <div className="rec-tier-header">
@@ -434,30 +439,26 @@ export function PositionTiersView({
               {estimated && group.available > 0 ? ` · ${String(likely)} likely at ${nextPickLabel ?? ''}` : ''}
             </span>
           </div>
-          {splitAt(listed, markId).map((run, index) => (
-            <React.Fragment key={run[0]?.id ?? index}>
-              {index > 0 && nextPickLabel ? <NextPickLine label={nextPickLabel} /> : null}
-              <ol>
-                {run.map((player) => (
-                  <TierRow
-                    key={player.id}
-                    player={player}
-                    detail={playerById.get(player.id)}
-                    drafted={draftedPlayerIds.has(player.id)}
-                    draftedPickLabel={draftedPickLabels.get(player.id)}
-                    availability={rowAvailability.get(player.id) ?? UNESTIMATED}
-                    isBestPick={player.id === bestPickId}
-                    isSelected={player.id === selectedPlayerId}
-                    isQueued={queuedSet.has(player.id)}
-                    nextPickLabel={nextPickLabel}
-                    showPosition={column.position === null}
-                    onSelect={onSelect}
-                    onQueue={onQueue}
-                  />
-                ))}
-              </ol>
-            </React.Fragment>
-          ))}
+          <ol>
+            {listed.map((player, index) => (
+              <TierRow
+                key={player.id}
+                player={player}
+                detail={playerById.get(player.id)}
+                drafted={draftedPlayerIds.has(player.id)}
+                draftedPickLabel={draftedPickLabels.get(player.id)}
+                availability={rowAvailability.get(player.id) ?? UNESTIMATED}
+                isBestPick={player.id === bestPickId}
+                isSelected={player.id === selectedPlayerId}
+                isQueued={queuedSet.has(player.id)}
+                nextPickLabel={nextPickLabel}
+                firstLikely={index > 0 && player.id === markId}
+                showPosition={column.position === null}
+                onSelect={onSelect}
+                onQueue={onQueue}
+              />
+            ))}
+          </ol>
         </section>
       </React.Fragment>
     );
@@ -550,7 +551,7 @@ export function PositionTiersView({
                   </p>
                 ) : null}
                 {visible.map(({ group, listed }, index) => renderGroup(group, column, listed, mark, visible[index - 1]?.group.tier))}
-                {mark?.kind === 'after' && nextPickLabel ? <NextPickLine label={nextPickLabel} standalone /> : null}
+                {mark?.kind === 'after' && nextPickLabel ? <NextPickLine text={`None listed likely at ${nextPickLabel}`} /> : null}
                 {hidden > 0 || pages > 0 ? (
                   <div className="rec-tier-more">
                     {hidden > 0 ? (

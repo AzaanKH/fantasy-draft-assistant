@@ -37,11 +37,12 @@ function render(odds: Readonly<Record<string, number>>, nextPickLabel: string | 
 }
 const column = (): Element | null => container.querySelector('.rec-tier-column[data-key="RB"]');
 
-it('splits the tier at the first player likely there, so each list holds only rows', () => {
+it('marks the first player likely there on its own row, so each tier keeps one list of rows', () => {
   render({ a: 0.1, b: 0.3, c: 0.8, d: 0.9, e: 0.95 });
   const tierOne = column()?.querySelector('section[aria-label="RB Tier 1"]');
-  expect(tierOne?.querySelectorAll('ol')).toHaveLength(2);
-  expect(tierOne?.querySelector('[role="separator"]')?.getAttribute('aria-label')).toBe('Your next pick, 2.08');
+  expect(tierOne?.querySelectorAll('ol')).toHaveLength(1);
+  expect(tierOne?.querySelector('[data-next-pick]')?.getAttribute('data-tier-player-id')).toBe('c');
+  expect(tierOne?.querySelector('[data-next-pick]')?.getAttribute('data-next-pick')).toContain('First likely at 2.08');
   expect([...container.querySelectorAll('.rec-tiers ol > *')].every((child) => child.matches('li.rec-tier-row'))).toBe(true);
   expect(column()?.querySelector('.rec-tier-status')?.textContent).toBe('Tier 1 should last to 2.08');
   // Tier 1's weakest (285) against Tier 2's best (250).
@@ -49,13 +50,23 @@ it('splits the tier at the first player likely there, so each list holds only ro
   expect(container.querySelector('[data-tier-cliff="RB"]')?.textContent).toContain('Biggest cliff: RB after Tier 1');
 });
 
-it('warns when the tier empties first, and leaves the divider out on the final pick', () => {
+it('keeps the opener row and its focus when a live pick moves the mark', () => {
+  render({ a: 0.1, b: 0.3, c: 0.8, d: 0.9, e: 0.95 });
+  const opener = column()?.querySelector<HTMLButtonElement>('[data-tier-player-id="c"] .rec-tier-identity');
+  act(() => { opener?.focus(); });
+  render({ a: 0.1, b: 0.7, c: 0.8, d: 0.9, e: 0.95 });
+  expect(column()?.querySelector('[data-next-pick]')?.getAttribute('data-tier-player-id')).toBe('b');
+  expect(column()?.querySelector('[data-tier-player-id="c"] .rec-tier-identity')).toBe(opener);
+  expect(document.activeElement).toBe(opener);
+});
+
+it('says no tier player is likely there, and leaves the marker out on the final pick', () => {
   render({ a: 0.1, b: 0.3, c: 0.2, d: 0.9, e: 0.95 });
-  expect(column()?.querySelector('.rec-tier-status')?.textContent).toBe('Tier 1 empties before your pick');
-  expect(column()?.querySelector('.rec-tier-nextpick[data-standalone]')).not.toBeNull();
+  expect(column()?.querySelector('.rec-tier-status')?.textContent).toBe('No Tier 1 player likely at 2.08');
+  expect(column()?.querySelector('.rec-tier-nextpick')?.textContent).toContain('First likely at 2.08');
 
   render({}, null);
-  expect(container.querySelector('.rec-tier-nextpick')).toBeNull();
+  expect(container.querySelector('.rec-tier-nextpick, [data-next-pick]')).toBeNull();
   expect(column()?.querySelector('.rec-tier-status')?.textContent).toBe('3 left in Tier 1');
 });
 

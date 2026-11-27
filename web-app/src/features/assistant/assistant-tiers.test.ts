@@ -53,6 +53,13 @@ describe('buildPositionTiers', () => {
     expect(skipping.groups.map((group) => [group.tier, group.dropBefore])).toEqual([[3, null]]);
   });
 
+  it('measures past a drafted-out middle tier to the next tier with players left', () => {
+    const roster = [rb('x', 1, 1, 300), rb('y', 2, 2, 290), rb('z', 3, 3, 240)];
+    const tiers = buildPositionTiers({ players: roster, position: 'RB', draftedPlayerIds: new Set(['y']) });
+    expect(tiers.activeDrop).toBe(60);
+    expect(tiers.groups.map((group) => [group.tier, group.dropBefore])).toEqual([[1, null], [3, 60]]);
+  });
+
   it('has no drop ahead of the last tier', () => {
     const tiers = buildPositionTiers({ players, position: 'WR', draftedPlayerIds: new Set() });
     expect(tiers.activeDrop).toBeNull();
@@ -135,7 +142,7 @@ describe('getTierStatus', () => {
   it('says the tier empties when nobody in it is likely there, and lasts otherwise', () => {
     const empties = getTierStatus(2, remaining, survivalFrom({ a: 0.2, b: 0.4 }));
     expect(empties).toEqual({ kind: 'empties', tier: 2 });
-    expect(empties && formatTierStatus(empties, '6.06')).toBe('Tier 2 empties before your pick');
+    expect(empties && formatTierStatus(empties, '6.06')).toBe('No Tier 2 player likely at 6.06');
     const lasts = getTierStatus(2, remaining, survivalFrom({ a: 0.2, b: 0.7 }));
     expect(lasts).toEqual({ kind: 'lasts', tier: 2, likely: 1 });
     expect(lasts && formatTierStatus(lasts, '6.06')).toBe('Tier 2 should last to 6.06');

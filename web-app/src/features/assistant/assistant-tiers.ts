@@ -28,7 +28,7 @@ export interface PositionTiers {
   /** Earlier tiers with no available players. */
   readonly exhaustedTiers: readonly number[];
   readonly groups: readonly PositionTierGroup[];
-  /** Points lost when the active tier runs out: the drop from it to the next tier. Null with no next tier. */
+  /** Points lost when the active tier runs out: the drop to the next tier with players left. Null with none left. */
   readonly activeDrop: number | null;
   /** The active tier's undrafted players, whatever the search. */
   readonly activeRemaining: readonly TierPlayer[];
@@ -93,19 +93,21 @@ export function buildPositionTiers({
       };
     })
     .filter((group) => group.players.length > 0);
+  // A break is measured against the group listed just above when every tier between them is drafted out (hidden or
+  // not), so it is the live gap; a tier with players left that a search hid in between leaves no label.
   const groups = listed.map((group, index): PositionTierGroup => {
-    const above = tiers[tiers.indexOf(group.tier) - 1];
-    const adjacent = above !== undefined && listed[index - 1]?.tier === above;
-    return { ...group, dropBefore: adjacent ? tierDropPoints(dropBasis(above), dropBasis(group.tier)) : null };
+    const above = listed[index - 1]?.tier;
+    const live = above !== undefined && tiers.every((tier) => tier <= above || tier >= group.tier || remainingOf(tier).length === 0);
+    return { ...group, dropBefore: live ? tierDropPoints(dropBasis(above), dropBasis(group.tier)) : null };
   });
-  const nextTier = activeTier === null ? undefined : tiers[tiers.indexOf(activeTier) + 1];
+  const nextTier = activeTier === null ? undefined : tiers.find((tier) => tier > activeTier && remainingOf(tier).length > 0);
 
   return {
     position,
     activeTier,
     exhaustedTiers: activeTier === null ? tiers : tiers.filter((tier) => tier < activeTier),
     groups,
-    activeDrop: activeTier === null || nextTier === undefined ? null : tierDropPoints(remainingOf(activeTier), dropBasis(nextTier)),
+    activeDrop: activeTier === null || nextTier === undefined ? null : tierDropPoints(remainingOf(activeTier), remainingOf(nextTier)),
     activeRemaining: activeTier === null ? [] : remainingOf(activeTier),
   };
 }
@@ -250,7 +252,7 @@ export function getTierStatus(activeTier: number | null, remaining: readonly Pic
 }
 
 export function formatTierStatus(status: TierStatus, nextPickLabel: string | null): string {
-  if (status.kind === 'empties') return `Tier ${String(status.tier)} empties before your pick`;
+  if (status.kind === 'empties') return `No Tier ${String(status.tier)} player likely at ${nextPickLabel ?? 'your pick'}`;
   if (status.kind === 'lasts') return `Tier ${String(status.tier)} should last to ${nextPickLabel ?? 'your pick'}`;
   return `${String(status.left)} left in Tier ${String(status.tier)}`;
 }
