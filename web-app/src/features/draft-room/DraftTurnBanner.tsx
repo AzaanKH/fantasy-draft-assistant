@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CheckCircle2, Clock, Lock } from 'lucide-react';
+import { CircleCheck, Clock, Lock } from 'lucide-react';
 import { getKeeperPickNumber } from '@fantasy-draft/shared/draft';
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
@@ -44,7 +44,7 @@ function useTurnAnnouncement(status: TurnStatus): string {
   return announcement;
 }
 
-const ICONS = { 'on-clock': Clock, keeper: Lock, 'my-picks-done': CheckCircle2, complete: CheckCircle2, waiting: null } as const;
+const ICONS = { 'on-clock': Clock, keeper: Lock, 'my-picks-done': CircleCheck, complete: CircleCheck, waiting: null } as const;
 
 /**
  * The loudest element on screen when it is your pick: the board's on-clock warning fill, the pick label,

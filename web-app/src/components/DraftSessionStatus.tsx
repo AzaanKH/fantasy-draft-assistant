@@ -2,7 +2,7 @@ import { useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider
 import { DRAFT_DISPLAY, IS_DEMO } from '@/lib/demo-mode';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
-import { CircleAlert, Info, Settings2, X } from 'lucide-react';
+import { CircleExclamationPoint, Info, Settings2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { IconTooltip } from '@/components/ui/tooltip';
@@ -35,7 +35,7 @@ export function getHeaderSyncState(sessionMode: 'setup' | 'mock' | 'live', synch
 
 /**
  * Pick, mode and setup health behind one popover. `compact` (the draft room, where the turn banner already
- * shows the pick) lets it shrink to its status icon at laptop widths so the header stays on one row.
+ * shows the pick) visually hides the pick at laptop widths so the header stays on one row; it stays in the name.
  */
 export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings, compact = false }: {
   readonly compact?: boolean;
@@ -64,13 +64,16 @@ export function DraftSessionStatus({ keeperStatus, onManageLeagueSettings, compa
     <Popover open={open} onOpenChange={setOpen}>
       <IconTooltip label="Draft session details">
       <PopoverTrigger asChild>
-        <Button ref={triggerRef} variant="ghost" size="sm" className="draft-session-status" data-compact={compact ? '' : undefined} aria-label={`Draft status: ${pick}, ${mode}, ${sync.label}.${needsAttention ? ' Setup needs attention.' : ''} View details`}>
+        <Button ref={triggerRef} variant="ghost" size="sm" className="draft-session-status" data-compact={compact ? '' : undefined}>
+          {/* The name comes from the visible text (WCAG 2.5.3); the sr-only spans only add context around it. */}
+          <span className="sr-only">Draft status:</span>
           <span className="draft-session-pick">{pick}</span>
           {!complete ? <span className="draft-session-overall text-muted-foreground">#{String(decision.currentPick)}</span> : null}
           <span className="draft-session-mode">{mode}</span>
           <span className="draft-session-sync" data-sync={sync.tone}>{sync.label}</span>
+          <span className="sr-only">{needsAttention ? '. Setup needs attention.' : '.'} View details</span>
           {needsAttention
-            ? <CircleAlert className="size-3 text-warning" aria-hidden="true" />
+            ? <CircleExclamationPoint className="size-3 text-warning" aria-hidden="true" />
             : <Info className="size-3 text-muted-foreground" aria-hidden="true" />}
         </Button>
       </PopoverTrigger>

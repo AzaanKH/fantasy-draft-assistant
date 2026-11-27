@@ -1,7 +1,7 @@
 import { useNow } from '@/workspace/useNow';
 import * as React from 'react';
 import {
-  CheckCircle2,
+  CircleCheck,
   Clock3,
   LoaderCircle,
   Radio,
@@ -55,7 +55,7 @@ const STATUS_PRESENTATION: Record<DraftSynchronizationState, StatusPresentation>
   },
   complete: {
     label: 'Complete',
-    icon: CheckCircle2,
+    icon: CircleCheck,
     className: 'text-success',
     animate: false,
   },
