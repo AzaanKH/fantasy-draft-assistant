@@ -38,12 +38,11 @@
 .position-tag[data-position=K] { --position-color: var(--color-position-k); }
 .position-tag[data-position=DEF] { --position-color: var(--color-position-def); }
 
-/* One bar: the view tabs, the turn, the lens. The tabs' underline sits on the bar's own bottom edge. */
+/* The bar under the decision hero: the view tabs and sync status. The tabs' underline sits on the bar's own bottom edge. */
 .rec-context { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; min-height: 52px; padding: 0 12px 0 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-card); }
 .rec-context > .rec-view-tabs { align-self: stretch; margin-bottom: -1px; border-bottom: 0; }
 .rec-context > .rec-view-tabs button { min-height: 50px; font-size: var(--text-base); }
-.rec-context-pick, .rec-context-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.rec-context-pick { margin-left: auto; }
+.rec-context-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-left: auto; }
 .rec-top-pick { display: flex; min-width: 0; align-items: center; gap: 8px; min-height: 36px; padding: 2px 4px 2px 12px; border: 1px solid color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-primary) 8%, var(--color-card)); }
 .rec-top-pick-label { color: var(--color-muted-foreground); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
 .rec-top-pick-name { min-width: 0; overflow: hidden; border-radius: var(--radius-xs); color: var(--color-foreground); font-size: var(--text-base); font-weight: 700; line-height: 24px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
@@ -54,7 +53,6 @@
 .rec-top-pick .rec-action { min-height: 30px; }
 .rec-top-pick .rec-action-note { display: none; }
 .rec-top-pick:not(:has(.rec-viewed-action-buttons)) { padding-right: 12px; }
-.rec-context-next { color: var(--color-foreground); font-size: var(--text-sm); line-height: 20px; font-variant-numeric: tabular-nums; }
 .rec-sync { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-sm); }
 .rec-sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); flex-shrink: 0; }
 .rec-sync[data-sync=pending] .rec-sync-dot, .rec-sync[data-sync=local] .rec-sync-dot { background: var(--color-muted-foreground); }
@@ -427,4 +425,3 @@
 .rec-viewed-action-control { display: inline-flex; flex: none; max-width: 100%; }
 .rec-viewed-action .rec-action-note { margin-top: 0; flex: 1 1 120px; line-height: 16px; }
 .rec-viewed-action-error { flex-basis: 100%; color: var(--color-danger); font-size: var(--text-xs); font-weight: 600; }
-.rec-context-pick .draft-turn-banner[data-variant=compact] { min-height: 32px; padding-block: 4px; }
