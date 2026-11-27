@@ -80,6 +80,34 @@ Import shared contracts through exact subpaths: `/league` for players, positions
 
 The runner retries 429 and 503 by default when the explicit retry count permits it. The default backoff is 1,500 ms times the retry number. Retry-After accepts seconds and HTTP dates, keeps the existing 500 ms minimum, and stops rather than retrying early when the requested delay exceeds the default 10,000 ms limit. Retries add positive jitter below 10% of the delay, capped at 250 ms. Options allow injected fetch, time and randomness for tests. Caller abort cancels body reads and retry waits. `HttpError` distinguishes timeout, abort, network, status, invalid JSON and invalid stream failures, and strips credentials, query and fragment from its URL.
 
+## Best Pick regression gate
+
+The recommendation backtest needs private league data, so CI checks its
+committed result instead. `scripts/src/best-pick-backtest-gate.test.ts` runs in
+`pnpm test` (and so `pnpm verify`) against two blocks in
+[recommendation-backtest.md](recommendation-backtest.md): the gate block that
+`pnpm model:backtest` writes and the accepted baseline block. It fails when
+either block is missing, when the recommendation entry point, Best Pick policy
+or any shared/src module they reach through runtime imports no longer match the
+gate block's hash, when the gate block does not cover the 2022–2025 folds with
+the baseline's draft pick numbers, or
+when Best Pick's margin over roster-aware ECR is more than 25 VOR or 1 average
+regret worse than the baseline's. The hash walk follows static
+imports, re-exports and string-literal dynamic `import()` calls (type-only
+imports emit no code and are skipped), resolving relative specifiers and
+`@fantasy-draft/shared/<subpath>` self-imports through the `@fantasy-draft/source`
+condition of `shared/package.json` `exports`. An import it cannot resolve to a
+shared/src file, an import of another workspace package, or a dynamic `import()`
+with a computed specifier makes `pnpm model:backtest` exit non-zero without
+writing the report. The backtest hashes the sources before the replay and again
+before writing, and refuses to write if they differ. After a policy change, run
+`pnpm model:backtest` in the real-data checkout and commit the regenerated
+report. A replay that cannot be recorded (a missing fold, Best Pick and ECR
+scored on different picks, or picks that differ from the baseline's) exits
+non-zero without writing the report. Regeneration never moves the baseline; accepting a new one is an
+explicit `pnpm model:backtest:accept-best-pick` whose diff is reviewed with the
+change. The tolerance lives in `scripts/src/best-pick-backtest-gate.ts`.
+
 ## Repository content and emitted bundles
 
 <!-- generated:repository-policy:start -->

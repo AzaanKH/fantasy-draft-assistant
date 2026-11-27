@@ -1,4 +1,3 @@
-import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   type Player,
   type Position,
@@ -10,6 +9,7 @@ import {
   decodeFantasyProsSnapshot, decodeSleeperDataFile, decodeTeamEnvDataFile, decodePlayerIdentityFile, decodeKeeperFile, decodeLeagueSurvivalModel,
 } from '@fantasy-draft/shared/catalog';
 import {
+  createDraftDisplayContext,
   createSlotSequence,
 } from '@fantasy-draft/shared/draft';
 import {
@@ -19,13 +19,16 @@ import {
   DEFAULT_ROSTER_REQUIREMENTS,
   DEFAULT_SCORING_RULES,
 } from '@fantasy-draft/shared/league';
-import fantasyProsJson from '../../../data/fantasypros-snapshot.json';
-import identityJson from '../../../data/player-identity.json';
-import keeperJson from '../../../data/league-history/current-keepers.json';
-import sleeperJson from '../../../data/sleeper-adp.json';
-import survivalModelJson from '../../../data/league-history/survival-model.json';
-import teamEnvironmentJson from '../../../data/team-environment.json';
+import fantasyProsJson from '../../../data/fantasypros-snapshot.json' with { type: 'json' };
+import identityJson from '../../../data/player-identity.json' with { type: 'json' };
+import keeperJson from '../../../data/league-history/current-keepers.json' with { type: 'json' };
+import sleeperJson from '../../../data/sleeper-adp.json' with { type: 'json' };
+import survivalModelJson from '../../../data/league-history/survival-model.json' with { type: 'json' };
+import teamEnvironmentJson from '../../../data/team-environment.json' with { type: 'json' };
 import { calculateAllScarcityScores, getRecommendations, mergePlayerData, normalizePlayerName, applyLeagueSurvivalModel, type LeagueSurvivalModel, calculateTeamNeeds, estimateMockSurvivalProbabilities, getKeeperAtPick, selectCpuPlayer, type MockDraftEngineConfig, type MockDraftPickLike, type MockKeeperAssignment, type MockLeagueHistoryModel } from '@fantasy-draft/shared/draft';
+
+// The web app's display context outside Vite, where demo mode is never set.
+const DRAFT_DISPLAY = createDraftDisplayContext(false);
 
 type CorePosition = 'QB' | 'RB' | 'WR' | 'TE';
 

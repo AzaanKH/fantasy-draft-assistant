@@ -21,7 +21,7 @@ import {
   BACKTESTS_MODEL_DIR,
   DATA_DIR,
   REPO_ROOT,
-  connectModelDb,
+  connectModelDbReadOnly,
 } from './model/duckdb.js';
 import {
   FLEX_GROUPS,
@@ -60,6 +60,19 @@ import {
   type OffensiveRoster,
   type RosterRules,
 } from './offensive-roster.js';
+import {
+  assertBestPickGateRecorded,
+  assertBestPickPolicyUnchanged,
+  BEST_PICK_GATE_TOLERANCE,
+  BEST_PICK_POLICY_ROOTS,
+  bestPickGateFailures,
+  bestPickReplayEntryChain,
+  bestPickReplayProblems,
+  hashBestPickPolicySources,
+  nextBestPickGate,
+  parseBestPickGateBlocks,
+  renderBestPickGateBlocks,
+} from './best-pick-backtest-gate.js';
 
 const JSON_OUTPUT = join(BACKTESTS_MODEL_DIR, 'recommendation-backtest.json');
 const MARKDOWN_OUTPUT = join(REPO_ROOT, 'docs', 'recommendation-backtest.md');
@@ -350,8 +363,8 @@ function choosePickEv(
 type BoardPlayer = Parameters<typeof getRecommendations>[0][number];
 type BestPickTuning = NonNullable<RecommendationContext['bestPickTuning']>;
 
-/** The starter weights Best Pick used before the window widened and the late bonus doubled. */
-const PRIOR_BEST_PICK_TUNING: BestPickTuning = { starterEcrNeighborhood: 8, lateStarterWeight: 1 };
+/** The starter weights 09781a5 shipped and the backtest rejected: a 12-rank starter window and a doubled late bonus. */
+const REJECTED_BEST_PICK_TUNING: BestPickTuning = { starterEcrNeighborhood: 12, lateStarterWeight: 2 };
 
 function ceilingProxy(player: PlayerSeason): number {
   return Math.min(10, 5 + Math.max(0, 2 - player.history_seasons) * 1.5);
@@ -767,10 +780,14 @@ function formatEstimate(estimate: {
 }
 
 async function main(): Promise<void> {
+  // Hash before the replay so the recorded digest describes the code that ran; re-checked before any write.
+  bestPickReplayEntryChain();
+  const policySourceHash = hashBestPickPolicySources();
   const history = decodeBacktestLeagueHistory(JSON.parse(
     await readFile(join(DATA_DIR, 'league-history', 'leagueDraftHistory.json'), 'utf8')
   ));
-  const connection = await connectModelDb();
+  // Read-only and without creating model directories, so a run refused before writing leaves nothing behind.
+  const connection = await connectModelDbReadOnly();
 
   try {
     const reader = await connection.runAndReadAll(`
@@ -930,8 +947,10 @@ async function main(): Promise<void> {
         pickEvOption: StrategyMetrics;
         pickEvFull: StrategyMetrics;
         bestPick: StrategyMetrics;
-        bestPickPriorWeights: StrategyMetrics;
+        bestPickRejectedWeights: StrategyMetrics;
       };
+      /** Draft pick numbers Best Pick and roster-aware ECR were scored on, for the regression gate. */
+      bestPickGatePicks: { readonly bestPick: readonly number[]; readonly rosterAwareEcr: readonly number[] };
       positionModelSelections: Readonly<Record<
         OffensivePosition,
         PositionModelSelectionSummary
@@ -989,9 +1008,11 @@ async function main(): Promise<void> {
       const pickEvFull: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
       const bestPickBoard = buildBestPickBoard(seasonRows);
       const bestPickSelected = new Set<string>();
-      const bestPickPriorSelected = new Set<string>();
+      const bestPickRejectedSelected = new Set<string>();
       const bestPick: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
-      const bestPickPrior: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
+      const bestPickRejected: StrategyAccumulator = { rows: [], regrets: [], roster: createRoster() };
+      const bestPickPickNumbers: number[] = [];
+      const ecrPickNumbers: number[] = [];
 
       for (const keeper of keepers.filter((pick) => pick.isUserPick)) {
         const row = byPlayerId.get(keeper.playerId);
@@ -1006,7 +1027,7 @@ async function main(): Promise<void> {
         addToRoster(pickEvOption.roster, row);
         addToRoster(pickEvFull.roster, row);
         addToRoster(bestPick.roster, row);
-        addToRoster(bestPickPrior.roster, row);
+        addToRoster(bestPickRejected.roster, row);
       }
 
       const sortedPicks = [...season.picks].sort((a, b) => a.pickNo - b.pickNo);
@@ -1142,6 +1163,7 @@ async function main(): Promise<void> {
           addToRoster(actual.roster, chosenRow);
           actual.regrets.push(Math.max(0, (bestActual?.leagueActualVor ?? 0) - chosenRow.leagueActualVor));
           if (ecrPick) {
+            ecrPickNumbers.push(pick.pickNo);
             ecr.rows.push(ecrPick);
             ecrSelected.add(ecrPick.sleeper_player_id);
             addToRoster(ecr.roster, ecrPick);
@@ -1207,39 +1229,36 @@ async function main(): Promise<void> {
             pickEvFullAvailable
           );
           const bestPickAvailable = strategyAvailable(bestPickSelected);
-          const bestPickPriorAvailable = strategyAvailable(bestPickPriorSelected);
-          recordPickEv(
-            bestPick,
-            bestPickSelected,
-            chooseBestPick(
-              bestPickAvailable,
-              bestPickBoard,
-              bestPick.roster,
-              rules,
-              remainingPicks,
-              pick.pickNo,
-              nextUserPick,
-              totalTeams,
-              totalPicks
-            ),
-            bestPickAvailable
+          const bestPickRejectedAvailable = strategyAvailable(bestPickRejectedSelected);
+          const bestPickChoice = chooseBestPick(
+            bestPickAvailable,
+            bestPickBoard,
+            bestPick.roster,
+            rules,
+            remainingPicks,
+            pick.pickNo,
+            nextUserPick,
+            totalTeams,
+            totalPicks
           );
+          if (bestPickChoice) bestPickPickNumbers.push(pick.pickNo);
+          recordPickEv(bestPick, bestPickSelected, bestPickChoice, bestPickAvailable);
           recordPickEv(
-            bestPickPrior,
-            bestPickPriorSelected,
+            bestPickRejected,
+            bestPickRejectedSelected,
             chooseBestPick(
-              bestPickPriorAvailable,
+              bestPickRejectedAvailable,
               bestPickBoard,
-              bestPickPrior.roster,
+              bestPickRejected.roster,
               rules,
               remainingPicks,
               pick.pickNo,
               nextUserPick,
               totalTeams,
               totalPicks,
-              PRIOR_BEST_PICK_TUNING
+              REJECTED_BEST_PICK_TUNING
             ),
-            bestPickPriorAvailable
+            bestPickRejectedAvailable
           );
           evaluations.push({
             season: season.season,
@@ -1305,8 +1324,9 @@ async function main(): Promise<void> {
           pickEvOption: summarizePickEv(pickEvOption),
           pickEvFull: summarizePickEv(pickEvFull),
           bestPick: summarizePickEv(bestPick),
-          bestPickPriorWeights: summarizePickEv(bestPickPrior),
+          bestPickRejectedWeights: summarizePickEv(bestPickRejected),
         },
+        bestPickGatePicks: { bestPick: bestPickPickNumbers, rosterAwareEcr: ecrPickNumbers },
         winner: modelMetrics.starterPoints > ecrMetrics.starterPoints
           ? 'model'
           : modelMetrics.starterPoints < ecrMetrics.starterPoints ? 'ecr' : 'tie',
@@ -1387,8 +1407,8 @@ async function main(): Promise<void> {
     });
     const bestPickStrategies = {
       bestPick: aggregate(seasonReports.map((season) => season.strategies.bestPick)),
-      bestPickPriorWeights: aggregate(
-        seasonReports.map((season) => season.strategies.bestPickPriorWeights)
+      bestPickRejectedWeights: aggregate(
+        seasonReports.map((season) => season.strategies.bestPickRejectedWeights)
       ),
     };
     const bestPickPolicy = {
@@ -1396,22 +1416,46 @@ async function main(): Promise<void> {
         'The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board.',
       inputs:
         'Expert rank, walk-forward projection and value over replacement. Live-feed inputs (news, bye weeks, contract and environment signals) take neutral values.',
-      priorWeights: PRIOR_BEST_PICK_TUNING,
+      rejectedWeights: REJECTED_BEST_PICK_TUNING,
       strategies: { rosterAwareEcr: strategies.rosterAwareEcr, ...bestPickStrategies },
       deltas: {
         bestPickVsEcr: metricDelta(bestPickStrategies.bestPick, strategies.rosterAwareEcr),
-        bestPickVsPriorWeights: metricDelta(
+        bestPickVsRejectedWeights: metricDelta(
           bestPickStrategies.bestPick,
-          bestPickStrategies.bestPickPriorWeights
+          bestPickStrategies.bestPickRejectedWeights
         ),
       },
       seasons: seasonReports.map((season) => ({
         season: season.season,
         rosterAwareEcr: season.strategies.rosterAwareEcr.starterPoints,
         bestPick: season.strategies.bestPick.starterPoints,
-        bestPickPriorWeights: season.strategies.bestPickPriorWeights.starterPoints,
+        bestPickRejectedWeights: season.strategies.bestPickRejectedWeights.starterPoints,
       })),
     };
+    const acceptBestPickBaseline = process.argv.includes('--accept-best-pick-baseline');
+    const previousReport = await readFile(MARKDOWN_OUTPUT, 'utf8').catch(() => '');
+    const bestPickGate = nextBestPickGate(
+      acceptBestPickBaseline
+        ? { candidate: undefined, baseline: undefined }
+        : parseBestPickGateBlocks(previousReport),
+      {
+        version: 3,
+        policySourceHash,
+        folds: seasonReports.map((season) => ({
+          season: season.season,
+          pickNumbers: season.bestPickGatePicks.bestPick,
+        })),
+        bestPickVsEcr: bestPickPolicy.deltas.bestPickVsEcr,
+      },
+      bestPickReplayProblems(seasonReports.map((season) => ({
+        season: season.season,
+        bestPickPicks: season.bestPickGatePicks.bestPick,
+        ecrPicks: season.bestPickGatePicks.rosterAwareEcr,
+      }))),
+      acceptBestPickBaseline
+    );
+    assertBestPickGateRecorded(bestPickGate);
+    const bestPickGateProblems = bestPickGateFailures(bestPickGate, policySourceHash);
     const architectureComparison = {
       dataStatus: {
         projections: 'Historical leakage-safe shared projection proxy; historical FantasyPros snapshots are not available.',
@@ -1591,6 +1635,7 @@ async function main(): Promise<void> {
       },
       architectureComparison,
       bestPickPolicy,
+      bestPickGate,
       pickEvOverrideValidation,
       strategies,
       seasons: seasonReports,
@@ -1605,6 +1650,7 @@ async function main(): Promise<void> {
       evaluations,
     };
 
+    assertBestPickPolicyUnchanged(policySourceHash, hashBestPickPolicySources());
     await mkdir(dirname(JSON_OUTPUT), { recursive: true });
     await mkdir(dirname(MARKDOWN_OUTPUT), { recursive: true });
     await writeFile(JSON_OUTPUT, `${JSON.stringify(report, null, 2)}\n`);
@@ -1675,7 +1721,7 @@ async function main(): Promise<void> {
     const bestPickRows = [
       metricRow('Roster-aware ECR', bestPickPolicy.strategies.rosterAwareEcr),
       metricRow('Best Pick (shipped weights)', bestPickPolicy.strategies.bestPick),
-      metricRow('Best Pick (prior starter weights)', bestPickPolicy.strategies.bestPickPriorWeights),
+      metricRow('Best Pick (rejected 12/2 weights)', bestPickPolicy.strategies.bestPickRejectedWeights),
     ].join('\n');
     const bestPickDeltaRows = Object.entries(bestPickPolicy.deltas)
       .map(([name, delta]) =>
@@ -1686,7 +1732,7 @@ async function main(): Promise<void> {
     const bestPickSeasonRows = bestPickPolicy.seasons
       .map((season) =>
         `| ${String(season.season)} | ${String(season.rosterAwareEcr)} | ` +
-        `${String(season.bestPick)} | ${String(season.bestPickPriorWeights)} |`
+        `${String(season.bestPick)} | ${String(season.bestPickRejectedWeights)} |`
       )
       .join('\n');
     await writeFile(MARKDOWN_OUTPUT, `# Recommendation Backtest
@@ -1705,6 +1751,10 @@ declaration before the 2022–2025 outer folds. Changing it requires a new
 backtest version.
 
 ## Promotion Gates
+
+Decision (2026-11-24): the prediction model failed this gate, so its feature-family work is frozen and it stays
+as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration beats roster-aware
+ECR on every release check applied to the completed 2026 prospective fold alone. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
 
 - Promoted: **${String(report.promotion.passed)}**
 - Decision: ${report.promotion.decision}
@@ -1740,9 +1790,10 @@ ${releaseGateRows}
 
 ## Best Pick Policy
 
-${bestPickPolicy.description} The prior-weights row replays the same rule with
-the starter window at ${String(PRIOR_BEST_PICK_TUNING.starterEcrNeighborhood)} ranks and no doubled late bonus.
-Negative regret deltas are improvements.
+${bestPickPolicy.description} The rejected-weights row replays the same rule with
+the starter window at ${String(REJECTED_BEST_PICK_TUNING.starterEcrNeighborhood)} ranks and the late starter bonus
+multiplied by ${String(REJECTED_BEST_PICK_TUNING.lateStarterWeight)}, the tuning 09781a5 shipped and this report
+rejected. Negative regret deltas are improvements.
 
 - Inputs: ${bestPickPolicy.inputs}
 
@@ -1754,9 +1805,28 @@ ${bestPickRows}
 | --- | ---: | ---: | ---: | ---: |
 ${bestPickDeltaRows}
 
-| Season | Roster-aware ECR | Best Pick | Best Pick, prior weights |
+| Season | Roster-aware ECR | Best Pick | Best Pick, rejected weights |
 | ---: | ---: | ---: | ---: |
 ${bestPickSeasonRows}
+
+### Best Pick regression gate
+
+\`pnpm verify\` checks these records without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
+when either block is missing, when ${BEST_PICK_POLICY_ROOTS.map((path) => `\`${path}\``).join(', ')} and the
+shared/src modules they reach through runtime imports no longer hash to the gate block's \`policySourceHash\`, when
+the gate block does not cover the 2022–2025 folds with the baseline's draft picks, or when Best Pick's margin over roster-aware ECR is more than
+${String(BEST_PICK_GATE_TOLERANCE.vorCaptured)} VOR or ${String(BEST_PICK_GATE_TOLERANCE.averageRegret)} average
+regret worse than the accepted baseline. Regenerating copies the baseline block unchanged; only
+\`pnpm model:backtest:accept-best-pick\` replaces it with the current replay, so a baseline change is always a
+reviewed diff. A partial replay, or one whose Best Pick and ECR picks differ, stops the run before any report is
+written.
+
+${[
+  `- Gate: **${bestPickGateProblems.length === 0 ? 'pass' : 'fail'}**`,
+  ...bestPickGateProblems.map((problem) => `- ${problem}`),
+].join('\n')}
+
+${renderBestPickGateBlocks(bestPickGate)}
 
 ## PickEV Architecture Comparison
 
@@ -1863,6 +1933,8 @@ ${counterfactualReport.limitations.map((limitation) => `- ${limitation}`).join('
     console.log(`Feature gate: ${promotion.featureGatePassed ? 'PASS' : 'FAIL'}`);
     console.log(`ECR release gate: ${promotion.releaseGatePassed ? 'PASS' : 'FAIL'}`);
     console.log(`Promotion: ${promotion.promotionPassed ? 'PASS' : 'FAIL'}`);
+    console.log(`Best Pick regression gate: ${bestPickGateProblems.length === 0 ? 'PASS' : 'FAIL'}`);
+    for (const problem of bestPickGateProblems) console.log(`  ${problem}`);
   } finally {
     connection.closeSync();
   }

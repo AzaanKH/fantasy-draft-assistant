@@ -1,4 +1,4 @@
-import { CircleAlert, LoaderCircle, PlugZap, RefreshCw, Settings2 } from 'lucide-react';
+import { CircleExclamationPoint, LoaderCircle, PlugZap, RefreshCw, Settings2 } from 'lucide-react';
 import {
   formatDraftReadinessAge,
   REFRESHABLE_CORE_DRAFT_DATA_KEYS,
@@ -169,7 +169,7 @@ export function DraftReadinessBlockedNotice({
       role="alert"
     >
       <div className="draft-setup-heading">
-        <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+        <CircleExclamationPoint className="size-4 shrink-0" aria-hidden="true" />
         <div>
           <h2 id="recommendations-blocked-heading">Finish setup to turn on recommendations</h2>
           <p>

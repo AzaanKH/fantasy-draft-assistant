@@ -10,11 +10,15 @@ import {
 
 /** Normal Best Pick choices cannot move beyond this ECR neighborhood. */
 export const BEST_PICK_ECR_NEIGHBORHOOD = 8;
-/** A candidate who fills an open starting slot may sit a full round behind the ECR champion. */
-const BEST_PICK_STARTER_ECR_NEIGHBORHOOD = 12;
-/** From the manager's sixth selection an open starting slot is worth double. */
+/**
+ * How far behind the ECR champion a candidate who fills an open starting slot may sit. Shipped equal to the normal
+ * neighborhood: the 12-rank window from 09781a5 lost to roster-aware ECR in docs/recommendation-backtest.md.
+ */
+const BEST_PICK_STARTER_ECR_NEIGHBORHOOD = 8;
+/** From the manager's sixth selection the starting-slot bonus is multiplied by the late starter weight. */
 const BEST_PICK_LATE_STARTER_ROSTER_SIZE = 5;
-const BEST_PICK_LATE_STARTER_WEIGHT = 2;
+/** Shipped at 1 (no late bonus); the doubled bonus from 09781a5 lost to roster-aware ECR in the backtest. */
+const BEST_PICK_LATE_STARTER_WEIGHT = 1;
 
 /** Overrides for the two starter weights, so a backtest can replay other settings. The app passes none. */
 export interface BestPickTuning {
