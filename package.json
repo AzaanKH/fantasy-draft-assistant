@@ -83,7 +83,7 @@
     "globals": "^15.13.0",
     "typescript-eslint": "^8.18.0",
     "eslint-plugin-react-hooks": "^5.1.0",
-    "vitest": "^4.1.12",
+    "vitest": "^5.1.1",
     "jsdom": "^26.0.0",
     "tinyglobby": "^0.2.15",
     "yaml": "^2.8.1"
@@ -102,7 +102,8 @@
       "nanoid@3": "^3.3.18",
       "ajv@6": "^6.14.0",
       "picomatch@4": "^4.0.4",
-      "@humanfs/node@0.16": "^0.16.8"
+      "@humanfs/node@0.16": "^0.16.8",
+      "@swc/core": "1.16.2"
     },
     "auditConfig": {
       "ignoreGhsas": [

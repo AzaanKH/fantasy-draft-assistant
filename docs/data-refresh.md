@@ -131,6 +131,11 @@ pnpm data:demo:check web-app/dist
 Pages serves `index.html` for `/draft` and `/assistant` because the build has no
 top-level `404.html`.
 
+The root `package.json` pins `@swc/core` to 1.16.2 through `pnpm.overrides`. From 1.16.12 its
+native binding unpacks into a cache directory and refuses one whose parent another user can write, which
+the Cloudflare build image's home and `/tmp` both fail, so `vite build` cannot load `@vitejs/plugin-react-swc`.
+Lift the pin once SWC accepts that image or `SWC_NATIVE_BINDING_CACHE` can point at a directory it trusts there.
+
 In demo rankings, each position is ordered by the model blended with Sleeper,
 and positions are compared by the model's value over replacement. Kickers and
 defenses start at pick 150. The market ADP keeps Sleeper's order within each

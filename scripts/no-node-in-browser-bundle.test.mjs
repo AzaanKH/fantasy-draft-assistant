@@ -22,7 +22,7 @@ async function bundle(name, source) {
   return build({
     ...sourceCondition, root: fixtureRoot, configFile: false, logLevel: 'silent',
     plugins: [noNodeInBrowserBundle()],
-    build: { write: false, rollupOptions: { input: entry } },
+    build: { write: false, rolldownOptions: { input: entry } },
   });
 }
 

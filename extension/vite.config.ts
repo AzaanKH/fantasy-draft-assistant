@@ -10,7 +10,8 @@ import { noNodeInBrowserBundle } from '../scripts/no-node-in-browser-bundle';
 const ports = localDevPorts(process.env);
 const distDir = resolve(__dirname, 'dist');
 const define = { __DRAFT_LOCAL_PORTS__: JSON.stringify(ports) };
-const output = { entryFileNames: '[name].js', chunkFileNames: '[name].js', assetFileNames: '[name].[ext]' };
+// Maps keep line mappings only: embedded sources would ship local league data compiled into the bundle.
+const output = { entryFileNames: '[name].js', chunkFileNames: '[name].js', assetFileNames: '[name].[ext]', sourcemapExcludeSources: true };
 const classicContentScripts = {
   content: resolve(__dirname, 'src/content/sleeper-detector.ts'),
   'espn-page': resolve(__dirname, 'src/content/espn-page-bridge.ts'),
@@ -123,7 +124,7 @@ function buildClassicContentScripts(): Plugin {
             minify: false,
             sourcemap: true,
             watch,
-            rollupOptions: { input: { [name]: entry }, output: { ...output, inlineDynamicImports: true } },
+            rolldownOptions: { input: { [name]: entry }, output: { ...output, codeSplitting: false } },
           },
         });
       }
@@ -141,7 +142,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: false,
-    rollupOptions: {
+    rolldownOptions: {
       input: {
         background: resolve(__dirname, 'src/background/service-worker.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.ts'),
