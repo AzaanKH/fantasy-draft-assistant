@@ -1,60 +1,34 @@
-import { createSlotSequence, type DecisionLens, type Recommendation } from '@fantasy-draft/shared/draft';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import type { Player } from '@fantasy-draft/shared/league';
-import { type DraftProvider, type DraftType } from '@fantasy-draft/shared/sync';
+import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import { PositionTag } from '@/components/PositionTag';
 import { formatAvailabilityPercent, getNextPickAvailability } from '@/lib/next-pick-availability';
-import { formatNextTurn, getSyncStatus, picksUntilTurn, type AssistantDraftMode, type PickWindow } from './assistant-context';
+import { getSyncStatus, type AssistantDraftMode } from './assistant-context';
 import { ViewedPlayerAction } from './ViewedPlayerAction';
 import { useNow } from '@/workspace/useNow';
-import { LensToggle } from './AssistantLayout';
-import { DraftTurnBanner } from '@/features/draft-room/DraftTurnBanner';
 
 /**
- * The Assistant's one bar: the view tabs, the turn, and the Ranked Fit / Best Pick / Best Player lens. Each fact is said once on
- * the page. The app header owns the current pick and the mode, so the banner says only whose turn it is and the line
- * beside it says when yours comes; sync freshness shows here only for a live draft. Turn status is the shared
- * keeper-aware banner, so a reserved keeper never reads as "your turn".
+ * The Assistant's bar under the decision hero: the view tabs, the top pick while Position tiers is open, and sync
+ * freshness for a live draft. The hero above it owns the turn and the lens, so each fact is said once on the page.
  */
 export function AssistantContextBar({
   tabs,
   topPick,
-  pickWindow,
-  totalTeams,
-  draftType,
   sync,
-  lens,
-  onLensChange,
 }: {
   /** The Suggestions / Position tiers tabs, at the bar's start. */
   readonly tabs: React.ReactNode;
   /** The top suggestion, on views where its card is not on screen. */
   readonly topPick?: React.ReactNode;
-  readonly pickWindow: PickWindow;
-  readonly totalTeams: number;
-  readonly draftType: DraftType;
   readonly sync: AssistantSyncStatusInput;
-  readonly lens: DecisionLens;
-  readonly onLensChange: (lens: DecisionLens) => void;
 }): React.ReactElement {
-  const nextLabel = pickWindow.nextPick === null ? null : createSlotSequence({ type: draftType, teams: totalTeams, rounds: Math.ceil(pickWindow.nextPick / totalTeams) }).label(pickWindow.nextPick);
-  const nextTurn = formatNextTurn(picksUntilTurn(pickWindow), nextLabel);
-
   return (
     <div className="rec-context">
       {tabs}
       {topPick}
-      <div className="rec-context-pick">
-        <DraftTurnBanner variant="compact" showPick={false} />
-        {pickWindow.onClock
-          // On the clock, the line beside the banner looks ahead to the next turn.
-          ? <span className="rec-context-next" data-next-turn={nextTurn ? '' : undefined}>{nextTurn ?? 'Your final pick'}</span>
-          // Waiting, the banner counts the picks, so this line finishes its sentence with where your pick falls.
-          : <span className="rec-context-next">{nextLabel ? `at ${nextLabel}` : 'No picks left'}</span>}
-      </div>
       <div className="rec-context-status">
         <AssistantSyncStatus sync={sync} />
-        <LensToggle lens={lens} onChange={onLensChange} />
       </div>
     </div>
   );
