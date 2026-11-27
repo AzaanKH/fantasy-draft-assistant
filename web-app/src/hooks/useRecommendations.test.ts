@@ -9,10 +9,9 @@ import { createDraftStore } from '@/stores/draftStore';
 import { WorkspaceTestProvider } from '@/workspace/workspace-test-helpers';
 import { createQuickMockSettings, type LeagueSurvivalModel } from '@fantasy-draft/shared/draft';
 import type { PersistedDraftSyncConnection } from '@/workspace/connection-hints';
-import type { LocalLeagueProfile } from '@/stores/leagueSetupStore';
 
 const setup = vi.hoisted(() => ({
-  profile: 'quick-mock' as LocalLeagueProfile,
+  profile: 'quick-mock',
   connection: null as PersistedDraftSyncConnection | null,
 }));
 vi.mock('@/stores/leagueSetupStore', () => ({
@@ -48,7 +47,7 @@ const model: LeagueSurvivalModel = {
   positions: Object.fromEntries(POSITIONS.map((position) => [position, {
     position, leagueMedianPick: 20, sleeperMedianPick: 40, pickPremium: -20,
     top50RateDelta: 0.2, top100RateDelta: 0.1, sampleSize: 20,
-  }])) as LeagueSurvivalModel['positions'],
+  }])),
 };
 let catalog: readonly Player[] = [player];
 let store: ReturnType<typeof createDraftStore>;

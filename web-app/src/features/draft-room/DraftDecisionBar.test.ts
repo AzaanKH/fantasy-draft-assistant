@@ -6,7 +6,6 @@ import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
-  DecisionLens,
   Recommendation,
   RecommendationDecisionFactors,
 } from '@fantasy-draft/shared/draft';
@@ -17,11 +16,11 @@ import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ ...VISUAL_PLAYER_DATA, isLoading: decision.playersLoading }) }));
 
 const decision = vi.hoisted(() => ({
-  output: { selected: null as Recommendation | null, selectedLens: 'best-pick' as DecisionLens },
+  output: { selected: null as Recommendation | null, selectedLens: 'best-pick' },
   isLoading: true,
   recommendationsBlocked: false,
   playersLoading: false,
-  readiness: null as unknown,
+  readiness: null,
 }));
 vi.mock('@/features/recommendations/DraftDecisionContext', () => ({
   useDraftDecision: () => decision,

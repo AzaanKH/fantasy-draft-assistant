@@ -12,7 +12,7 @@ function fetchCatalogFile<T>(file: Parameters<typeof catalogPath>[0], label: str
 
 function decodeFile<A>(value: unknown, decode: (value: unknown) => A, label: string, formatError = `Invalid ${label} data format`): A {
   try { return decode(value); }
-  catch (error) { throw new Error(`${formatError}: ${String(error)}`); }
+  catch (error) { throw new Error(`${formatError}: ${String(error)}`, { cause: error }); }
 }
 
 function decodeOptionalFile<A>(value: unknown, decode: (value: unknown, options?: DecodeOptions) => A, label: string): A & { readonly warnings: readonly string[] } {
@@ -44,7 +44,7 @@ export async function fetchPredictionData(): Promise<PredictionsDataFile & { rea
   } catch (error) {
     if (error instanceof HttpError && error.kind === 'status') {
       if (error.status === 404) return { generatedAt: null, modelVersion: 'none', players: [], warnings: [] };
-      throw new Error(`Failed to load prediction data: ${String(error.status)}`);
+      throw new Error(`Failed to load prediction data: ${String(error.status)}`, { cause: error });
     }
     throw error;
   }

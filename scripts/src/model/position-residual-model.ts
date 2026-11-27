@@ -330,7 +330,7 @@ function selectHyperparameters(
     POSITION_MODEL_VOLUME_THRESHOLD_CANDIDATES[position].flatMap((volumeThreshold) =>
       POSITION_MODEL_LAMBDA_CANDIDATES.map((lambda) => ({
         specificationId: specification.id,
-        featureNames: specification.features[position] as readonly string[],
+        featureNames: specification.features[position],
         lambda,
         volumeThreshold,
       }))

@@ -101,7 +101,8 @@ export default tseslint.config(
   {
     files: ['web-app/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
-    rules: reactHooks.configs.recommended.rules,
+    // The rules recommended before v7; v7's recommended preset adds the React Compiler rules.
+    rules: { 'react-hooks/rules-of-hooks': 'error', 'react-hooks/exhaustive-deps': 'warn' },
   },
   {
     files: ['{cli,scripts,server,shared}/src/**/*.test.ts'],

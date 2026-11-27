@@ -71,6 +71,7 @@ describe('ESPN relay through the runtime boundary', () => {
     const id = 'a'.repeat(32);
     const sender: chrome.runtime.MessageSender = {
       id, frameId: 0, url: 'https://fantasy.espn.com/football/draft?leagueId=4242',
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- @types/chrome still requires Tab.selected.
       tab: { id: 7, index: 0, pinned: false, highlighted: false, windowId: 1, active: true, incognito: false, selected: true, discarded: false, autoDiscardable: true, groupId: -1 },
     };
     sender.origin = 'https://fantasy.espn.com';

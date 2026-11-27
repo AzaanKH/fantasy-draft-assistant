@@ -18,7 +18,7 @@ const DEPENDENCIES = {
 };
 
 // The draft-day shape: predictions built at 15:17Z, then the preflight refreshed rankings and identities at 15:53Z.
-const playerData = vi.hoisted(() => ({ value: null as unknown }));
+const playerData = vi.hoisted((): { value: unknown } => ({ value: null }));
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => playerData.value }));
 vi.mock('./useLeagueTimingEvidence', () => ({ useLeagueTimingEvidence: () => ({ model: null, warnings: [] }) }));
 

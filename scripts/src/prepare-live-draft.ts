@@ -38,7 +38,7 @@ async function runRefreshStep(step: RefreshStep, signal: AbortSignal): Promise<v
   } catch (error) {
     if (!(error instanceof ProcessError) || error.kind !== 'exit') throw error;
     const outcome = error.result.signal ? `signal ${error.result.signal}` : `exit code ${String(error.exitCode)}`;
-    throw new Error(`${step.label} refresh failed with ${outcome}.`);
+    throw new Error(`${step.label} refresh failed with ${outcome}.`, { cause: error });
   }
 }
 

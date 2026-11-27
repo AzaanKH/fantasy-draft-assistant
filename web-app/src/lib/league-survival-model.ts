@@ -11,13 +11,13 @@ export async function fetchLeagueSurvivalModel(): Promise<(LeagueSurvivalModel &
         const model = decodeLeagueSurvivalModel(parsed, { onWarning: message => warnings.push(message) });
         return { ...model, warnings };
       } catch (error) {
-        throw new Error(`Invalid league survival model shape from /${catalogPath(CATALOG.survival)}: ${String(error)}`);
+        throw new Error(`Invalid league survival model shape from /${catalogPath(CATALOG.survival)}: ${String(error)}`, { cause: error });
       }
     }, BROWSER_HTTP_POLICY);
   } catch (error) {
     if (error instanceof HttpError && error.kind === 'status') {
       if (error.status === 404) return null;
-      throw new Error(`Failed to load league survival model: ${String(error.status)}`);
+      throw new Error(`Failed to load league survival model: ${String(error.status)}`, { cause: error });
     }
     throw error;
   }

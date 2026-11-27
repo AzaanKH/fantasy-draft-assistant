@@ -13,12 +13,8 @@ import {
   type PositionNeed,
   type Recommendation,
 } from '@fantasy-draft/shared/draft';
-import {
-  type DraftProvider,
-} from '@fantasy-draft/shared/sync';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { DraftDecisionView } from '@fantasy-draft/shared/draft';
-import type { DraftSynchronizationState } from '@/lib/draft-sync-state';
 import { createDraftStore } from '@/stores/draftStore';
 const draftStore = createDraftStore();
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
@@ -78,8 +74,8 @@ const needs: PositionNeed[] = [{
 }];
 
 const mocks = vi.hoisted(() => ({
-  provider: 'sleeper' as DraftProvider | null,
-  synchronizationState: 'confirmed' as DraftSynchronizationState,
+  provider: 'sleeper',
+  synchronizationState: 'confirmed',
   canDraft: true,
   pickInFlight: false,
   draftPlayer: vi.fn(),
