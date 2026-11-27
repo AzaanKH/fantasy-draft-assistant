@@ -223,6 +223,12 @@ const PPR_BASELINE = {
   receivingTouchdown: 6,
 } as const;
 
+/** The projection fields league re-scoring reads; any FantasyPros projection row satisfies it. */
+export type LeagueProjectionInput = Pick<FantasyProsProjection,
+  | 'projectedPoints' | 'baseProjectedPoints' | 'projectedRushAttempts' | 'projectedReceptions'
+  | 'projectedPassingYards' | 'projectedPassingTouchdowns' | 'projectedRushingYards'
+  | 'projectedRushingTouchdowns' | 'projectedReceivingYards' | 'projectedReceivingTouchdowns'>;
+
 interface LeagueProjectionResult {
   readonly projectedPoints: number;
   readonly adjustment: number;
@@ -242,7 +248,7 @@ function contribution(
  * projection components are added or removed locally.
  */
 export function calculateLeagueProjection(
-  projection: FantasyProsProjection,
+  projection: LeagueProjectionInput,
   position: Position,
   rules: ScoringRules
 ): LeagueProjectionResult {

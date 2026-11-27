@@ -63,6 +63,7 @@
     "model:backtest:accept-best-pick": "pnpm --filter scripts backtest:recommendations --accept-best-pick-baseline",
     "model:backtest:contracts": "pnpm --filter scripts backtest:contracts",
     "report:draft-prep": "pnpm --filter scripts generate:draft-prep",
+    "report:season-review": "pnpm --filter scripts generate:season-review",
     "prepare:draft": "pnpm refresh:daily && pnpm model:dataset && pnpm model:league-survival && pnpm model:backtest && pnpm model:backtest:contracts && pnpm report:draft-prep && pnpm data:check:strict",
     "clean": "pnpm run -r clean && rm -rf node_modules",
     "sync:pair": "pnpm --filter server exec tsx --conditions=@fantasy-draft/source src/pair-extension.ts",

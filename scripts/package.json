@@ -25,6 +25,7 @@
     "install:demo-data": "tsx --conditions=@fantasy-draft/source src/install-demo-data.ts",
     "check:demo-data": "tsx --conditions=@fantasy-draft/source src/check-demo-data.ts",
     "generate:team-env": "tsx --conditions=@fantasy-draft/source src/generate-team-env.ts",
+    "generate:season-review": "tsx --conditions=@fantasy-draft/source src/generate-season-review.ts",
     "generate:draft-prep": "tsx --conditions=@fantasy-draft/source src/generate-draft-prep-report.ts",
     "backtest:recommendations": "tsx --conditions=@fantasy-draft/source src/backtest-recommendations.ts",
     "backtest:prospective": "tsx --conditions=@fantasy-draft/source src/build-prospective-outcomes.ts",

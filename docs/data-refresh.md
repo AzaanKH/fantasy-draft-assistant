@@ -62,6 +62,7 @@ rankings.
 | `pnpm model:backtest` | Replays the recommendation model, rewrites the fixed-board and counterfactual reports, and updates historical recommendation evaluation. | After prediction, scoring, league-history, recommendation, or backtest changes, and once during final draft preparation. |
 | `pnpm model:backtest:contracts` | Runs the leakage-safe 2012–2025 contract-year feature ablation. | After contract/model logic changes and before enabling the signal. |
 | `pnpm report:draft-prep` | Rewrites the prep report from existing artifacts. | After late keeper edits. |
+| `pnpm report:season-review -- --season <year>` | Fetches Sleeper league results and writes the in-season draft retrospective to the gitignored `data/season-review/<year>/`. See [season-review.md](season-review.md). | During the season and after the final regular-season week. |
 | `pnpm experiment:primary-league` | Replays the seven Primary League decision experiments and rewrites their JSON and Markdown reports. | After material rankings, keeper, draft-order, opponent-model, scoring, or Best Pick policy changes. |
 
 `pnpm verify` is the deterministic code gate used by pull requests. Freshness
@@ -222,6 +223,7 @@ Additional retention rules come from the same manifest. Exact tracked exceptions
 | `data/league-history/raw/` | Prefix | private |
 | `data/shadow-logs/` | Prefix | private |
 | `data/rehearsal-evidence/` | Prefix | private |
+| `data/season-review/` | Prefix | private |
 <!-- generated:data-catalog:end -->
 
 Shadow recommendation logs record model and fallback decision pairs without exposing the experimental recommendation.
