@@ -55,9 +55,9 @@
 .roster-tick { position: absolute; top: 9px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--color-border); }
 .roster-gain {
   position: absolute; inset-inline: 0; top: 10px; height: 4px; border-radius: 2px; background: var(--color-primary); transform-origin: left center;
-  transition: transform 450ms var(--motion-ease-out);
+  transition: transform var(--motion-duration-layout) var(--motion-ease-out);
 }
-.roster-dot-rail { position: absolute; inset: 0; pointer-events: none; transition: transform 450ms var(--motion-ease-out), opacity var(--motion-duration-content) ease; }
+.roster-dot-rail { position: absolute; inset: 0; pointer-events: none; transition: transform var(--motion-duration-layout) var(--motion-ease-out), opacity var(--motion-duration-content) ease; }
 .roster-dot-rail[data-hidden] { opacity: 0; }
 .roster-dot { position: absolute; top: 3px; left: -9px; width: 18px; height: 18px; border-radius: 50%; }
 .roster-dot-now { border: 2px solid var(--color-muted-foreground); background: var(--color-card); }
