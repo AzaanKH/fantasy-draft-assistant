@@ -231,3 +231,45 @@ export async function checkRouteFailure(browser: Browser): Promise<void> {
     await page.close();
   }
 }
+
+/**
+ * A paused mock at the user's pick on a phone: the on-clock banner wraps inside the header row instead of
+ * pushing the page sideways, even at the widest frame of its turn-start ring, and pool headers stay in their columns.
+ */
+export async function checkPhoneMock(browser: Browser, width: number): Promise<void> {
+  const label = `Paused mock @ ${String(width)}px`;
+  const page = await gatePage(browser, { viewport: { width, height: 844 } });
+  try {
+    const errors = watchErrors(page);
+    await page.goto(`${ORIGIN}/draft`);
+    await activateStorage(page);
+    await startMockUntilOnClock(page);
+    await page.getByRole('button', { name: 'Pause' }).click();
+    // The pool selector also shows in a running mock, so wait for the paused state itself.
+    await page.getByRole('button', { name: 'Resume' }).waitFor();
+    await page.locator('.draft-pool-table.has-draft-action').waitFor();
+    await assertNoPageOverflow(page, label);
+    const banner = await page.locator('.draft-app-header .draft-turn-banner').first().evaluate((element) => {
+      const parts = [...element.querySelectorAll('.draft-turn-banner-text > *')].map((part) => part.getBoundingClientRect().right);
+      return { right: element.getBoundingClientRect().right, textRight: Math.max(...parts) };
+    });
+    assert(banner.right <= width && banner.textRight <= banner.right + 0.5,
+      `${label}: the turn banner (to ${banner.right.toFixed(1)}px, text to ${banner.textRight.toFixed(1)}px) does not fit the viewport`);
+    // Hold the ring at the pulse's final scale (useTurnStartPulse) so the check does not depend on animation timing;
+    // !important outranks a still-running pulse animation in the cascade.
+    await page.addStyleTag({ content: '.draft-turn-banner::after { transform: scale(1.25) !important; opacity: 1 !important; }' });
+    await assertNoPageOverflow(page, `${label} with the turn-start ring at full scale`);
+    const spilling = await page.locator('.draft-pool-heading [role=columnheader]').evaluateAll((cells) => cells.flatMap((cell) => {
+      const box = cell.getBoundingClientRect();
+      if (box.width === 0) return [];
+      const inner = [...cell.querySelectorAll('button, abbr')].map((child) => child.getBoundingClientRect()).filter((rect) => rect.width > 0);
+      // Headers may use a few pixels of the column gap; past that they would touch the next column.
+      return inner.some((rect) => rect.left < box.left - 5 || rect.right > box.right + 5) ? [`"${(cell.textContent ?? '').trim()}"`] : [];
+    }));
+    assert(spilling.length === 0, `${label}: pool headers spill into the next column: ${spilling.join(', ')}`);
+    assertNoConsoleErrors(errors, label);
+    console.log(`  ${label}: banner ends at ${banner.right.toFixed(1)}px, no page overflow at full ring scale, pool headers inside their columns`);
+  } finally {
+    await page.close();
+  }
+}
