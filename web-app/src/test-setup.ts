@@ -20,13 +20,16 @@ if (typeof Element !== 'undefined') {
 // React reports render crashes and jsdom reports uncaught errors through console.error; a test that passes over
 // one is hiding a broken tree. React's dev-only "Warning:" messages (act, SSR layout effects) are not crashes and
 // are left out. Tests that expect an error stub console.error themselves (vi.spyOn), bypassing this recorder.
+// React 19 dropped the "Warning:" prefix, so its act warnings are matched by their format strings from the start;
+// an unrelated error that merely quotes one still counts.
+const REACT_DEV_WARNING = /^(?:Warning:|An update to \S+ inside a test was not wrapped in act\(|A suspended resource finished loading inside a test, but the event was not wrapped in act\()/;
 const original = console.error;
 let reported: string[] = [];
 
 beforeEach(() => {
   reported = [];
   console.error = (...args: unknown[]) => {
-    if (typeof args[0] === 'string' && args[0].startsWith('Warning:')) { original(...args); return; }
+    if (typeof args[0] === 'string' && REACT_DEV_WARNING.test(args[0])) { original(...args); return; }
     reported.push(args.map((arg) => (arg instanceof Error ? arg.message : String(arg))).join(' ').slice(0, 300));
     original(...args);
   };

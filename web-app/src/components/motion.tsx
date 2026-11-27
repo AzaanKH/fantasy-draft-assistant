@@ -79,7 +79,7 @@ export function useSubjectFade(ref: React.RefObject<HTMLElement | null>, subject
 }
 
 function useChangeAnimation(
-  element: React.RefObject<HTMLElement>,
+  element: React.RefObject<HTMLElement | null>,
   motionKey: React.Key,
   keyframes: Keyframe[],
   duration: number

@@ -227,7 +227,7 @@ const NO_OVERFLOW: ColumnOverflow = { start: false, end: false };
  * column resizes, and whenever `contentKey` changes (filter, search, Show drafted, paging), because new content can
  * widen or narrow the sheet without resizing the scroller's own box.
  */
-function useColumnOverflow(ref: React.RefObject<HTMLDivElement>, contentKey: string): ColumnOverflow {
+function useColumnOverflow(ref: React.RefObject<HTMLDivElement | null>, contentKey: string): ColumnOverflow {
   const [overflow, setOverflow] = React.useState<ColumnOverflow>(NO_OVERFLOW);
   React.useLayoutEffect(() => {
     const element = ref.current;
@@ -253,7 +253,7 @@ function useColumnOverflow(ref: React.RefObject<HTMLDivElement>, contentKey: str
  * column heading. The sheet also still scrolls with a trackpad, wheel or keyboard.
  */
 function TierColumns({ scrollerRef, overflow, count, hasOverall, children }: {
-  readonly scrollerRef: React.RefObject<HTMLDivElement>;
+  readonly scrollerRef: React.RefObject<HTMLDivElement | null>;
   readonly overflow: ColumnOverflow;
   /** Columns actually rendered; the sheet declares exactly this many tracks. */
   readonly count: number;
@@ -269,7 +269,7 @@ function TierColumns({ scrollerRef, overflow, count, hasOverall, children }: {
 }
 
 /** Scrolls the sheet by one column. */
-function TierScrollCues({ scrollerRef, overflow }: { readonly scrollerRef: React.RefObject<HTMLDivElement>; readonly overflow: ColumnOverflow }): React.ReactElement | null {
+function TierScrollCues({ scrollerRef, overflow }: { readonly scrollerRef: React.RefObject<HTMLDivElement | null>; readonly overflow: ColumnOverflow }): React.ReactElement | null {
   if (!overflow.start && !overflow.end) return null;
   const scrollByColumn = (direction: 1 | -1): void => {
     const element = scrollerRef.current;

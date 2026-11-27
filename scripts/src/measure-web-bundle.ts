@@ -8,8 +8,8 @@ import { REPO_ROOT } from './model/duckdb.js';
 
 const DIST_DIR = join(REPO_ROOT, 'web-app', 'dist');
 const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.bundleReport));
-// Includes Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
-const JS_GZIP_BUDGET = 384 * 1024;
+// Includes React 19, Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
+const JS_GZIP_BUDGET = 400 * 1024;
 const CSS_GZIP_BUDGET = 28 * 1024;
 const STATIC_OUTPUT_BUDGET = 9 * 1024 * 1024;
 const PROHIBITED_STATIC_EXTENSIONS = new Set(['.duckdb', '.ndjson', '.parquet']);
