@@ -11,7 +11,7 @@ import { LensToggle } from './AssistantLayout';
 import { DraftTurnBanner } from '@/features/draft-room/DraftTurnBanner';
 
 /**
- * The Assistant's one bar: the view tabs, the turn, and the Best Pick / Best Player lens. Each fact is said once on
+ * The Assistant's one bar: the view tabs, the turn, and the Ranked Fit / Best Pick / Best Player lens. Each fact is said once on
  * the page. The app header owns the current pick and the mode, so the banner says only whose turn it is and the line
  * beside it says when yours comes; sync freshness shows here only for a live draft. Turn status is the shared
  * keeper-aware banner, so a reserved keeper never reads as "your turn".

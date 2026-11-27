@@ -67,6 +67,7 @@ export function DraftDecisionProvider({
     draftNow,
     rbIntentionalReaches,
     bestAvailable,
+    rankedFit,
     marketValues,
     marketStashes,
     byNeed,
@@ -88,22 +89,23 @@ export function DraftDecisionProvider({
   );
   const output = React.useMemo(
     () => createDraftDecisionOutput(
-      draftNow,
-      selection,
-      bestAvailable,
+      { draftNow, selection, bestAvailable, rankedFit },
       selectedLens,
       DRAFT_DISPLAY
     ),
-    [bestAvailable, draftNow, selectedLens, selection]
+    [bestAvailable, draftNow, rankedFit, selectedLens, selection]
   );
   const outputByPosition = React.useMemo(() => {
     const decisions = {} as Record<Position, DraftDecisionOutput>;
     POSITIONS.forEach((position) => {
       const state = positionRecommendationStates[position];
       decisions[position] = createDraftDecisionOutput(
-        state.recommendations,
-        state.selection,
-        state.bestAvailable,
+        {
+          draftNow: state.recommendations,
+          selection: state.selection,
+          bestAvailable: state.bestAvailable,
+          rankedFit: state.rankedFit,
+        },
         selectedLens,
         DRAFT_DISPLAY
       );
@@ -122,6 +124,7 @@ export function DraftDecisionProvider({
     draftNow,
     rbIntentionalReaches,
     bestAvailable,
+    rankedFit,
     marketValues,
     marketStashes,
     byNeed,
@@ -155,6 +158,7 @@ export function DraftDecisionProvider({
     output,
     outputByPosition,
     positionRecommendationStates,
+    rankedFit,
     rbIntentionalReaches,
     readiness,
     recommendationsBlocked,

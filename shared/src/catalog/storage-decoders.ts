@@ -58,12 +58,12 @@ const playerIds = /* @__PURE__ */ Schema.Array(text).check(/* @__PURE__ */ Schem
 const history = /* @__PURE__ */ Schema.Array(recordedPick).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
 const keepers = /* @__PURE__ */ Schema.Array(keeper).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
 const unresolved = /* @__PURE__ */ Schema.Array(unresolvedPick).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= MAX_DRAFT_PICKS));
-const lens = /* @__PURE__ */ Schema.Literals(['best-pick', 'best-player']);
+const lens = /* @__PURE__ */ Schema.Literals(['ranked-fit', 'best-pick', 'best-player']);
 const session = /* @__PURE__ */ object({ version: /* @__PURE__ */ Schema.Literal(1), identity, config, leagueSettings,
   draftProgress: Schema.Unknown,
   currentPick: /* @__PURE__ */ integer(1, MAX_DRAFT_PICKS + 1), draftHistory: history, preloadedKeepers: keepers,
   shortlistedPlayerIds: playerIds, keepersInitialized: Schema.Boolean, unresolvedProviderPicks: unresolved,
-  decisionLens: lens, manualContinuityBaselineAt: nullableTimestamp, lastConfirmedSyncAt: nullableTimestamp,
+  decisionLens: lens, decisionLensDefault: /* @__PURE__ */ Schema.optional(lens), manualContinuityBaselineAt: nullableTimestamp, lastConfirmedSyncAt: nullableTimestamp,
   lastConfirmedPickNumber: /* @__PURE__ */ integer(0, MAX_DRAFT_PICKS), revision: /* @__PURE__ */ integer(0, Number.MAX_SAFE_INTEGER),
   lineage: /* @__PURE__ */ Schema.Array(text).check(/* @__PURE__ */ Schema.makeFilter(value => value.length <= DRAFT_SESSION_LINEAGE_LIMIT)),
 }).check(/* @__PURE__ */ Schema.makeFilter(value => {

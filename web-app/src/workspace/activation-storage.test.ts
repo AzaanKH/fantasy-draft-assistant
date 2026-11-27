@@ -10,7 +10,7 @@ import {
   ActivationCancelledError, ActivationStaleError, createActivationStorage,
   type ActivationController, type ActivationDecision, type ActivationReview,
 } from './activation-storage';
-import { ACTIVATION_RECORD, DRAFT_DATABASE, IMPORT_METADATA, openDraftDatabase, type DraftDatabase, type StorageDiagnostic } from './indexed-db';
+import { ACTIVATION_RECORD, DRAFT_DATABASE, DRAFT_DATABASE_VERSION, IMPORT_METADATA, openDraftDatabase, type DraftDatabase, type StorageDiagnostic } from './indexed-db';
 import { decodeIndexedSession } from './idb-session';
 import * as indexedDatabase from './indexed-db';
 
@@ -188,7 +188,7 @@ describe('storage activation preflight', () => {
 
 async function probeCount(): Promise<number> {
   return new Promise((resolve, reject) => {
-    const request = factory.open(DRAFT_DATABASE, 1);
+    const request = factory.open(DRAFT_DATABASE, DRAFT_DATABASE_VERSION);
     request.onsuccess = () => {
       const count = request.result.transaction(['probes']).objectStore('probes').count();
       count.onsuccess = () => { request.result.close(); resolve(count.result); };
@@ -297,7 +297,7 @@ describe('storage activation decisions', () => {
     const database = await inspect();
     await database.commit({ expect: {}, metadata: [] });
     await new Promise<void>((resolve, reject) => {
-      const request = factory.open(DRAFT_DATABASE, 1);
+      const request = factory.open(DRAFT_DATABASE, DRAFT_DATABASE_VERSION);
       request.onsuccess = () => {
         const tx = request.result.transaction(['sessions'], 'readwrite');
         tx.objectStore('sessions').put({ broken: true }, 'sleeper:999');
@@ -394,7 +394,7 @@ describe('global activation and atomic import', () => {
 
   it('keeps a corrupt IndexedDB row without a source after an explicit global decision', async () => {
     const database = await inspect();
-    const request = factory.open(DRAFT_DATABASE, 1);
+    const request = factory.open(DRAFT_DATABASE, DRAFT_DATABASE_VERSION);
     const corrupt = { version: 1, raw: 'preserve exactly', nested: ['unreadable', 17] };
     await new Promise<void>((resolve, reject) => {
       request.onsuccess = () => {
@@ -549,7 +549,7 @@ describe('review r2 activation regressions', () => {
 
   it('invalidates an invalid-indexed decision when the displayed raw row changes', async () => {
     const raw = async (value: unknown): Promise<void> => new Promise((resolve, reject) => {
-      const request = factory.open(DRAFT_DATABASE, 1);
+      const request = factory.open(DRAFT_DATABASE, DRAFT_DATABASE_VERSION);
       request.onsuccess = () => {
         const tx = request.result.transaction(['sessions'], 'readwrite');
         tx.objectStore('sessions').put(value, 'sleeper:orphan');

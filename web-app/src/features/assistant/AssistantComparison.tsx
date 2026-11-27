@@ -3,6 +3,7 @@ import {
   getComparisonPreference,
   type DraftDecisionView,
   getRecommendationExplanation,
+  getDecisionLensForPolicy,
   getComparisonHighlights,
 } from '@fantasy-draft/shared/draft';
 import { type Player } from '@fantasy-draft/shared/league';
@@ -34,7 +35,7 @@ export function CompareAnswer({
   // The rule (overall rank, else model score) is shared/src/draft's; this only words it.
   const { preferred, other } = getComparisonPreference(decision, first, second);
   const preferredExplanation = decision.explanationByPlayerId.get(preferred.playerId)
-    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY);
+    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY, getDecisionLensForPolicy(decision.selection.policy));
   const highlights = getComparisonHighlights(first, second, decision, DRAFT_DISPLAY);
 
   return (

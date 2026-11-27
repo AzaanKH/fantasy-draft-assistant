@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
   runPrimaryLeagueExperiments,
   type PrimaryLeagueExperimentReport,
-} from './primary-league-experiments';
+} from './primary-league-experiments.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const JSON_REPORT_PATH = resolve(REPO_ROOT, 'data/primary-league-experiments.json');

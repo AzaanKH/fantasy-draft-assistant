@@ -792,7 +792,11 @@ describe('draftStore', () => {
     expect(draftStore.getState().draftHistory).toHaveLength(3);
   });
 
-  it('defaults to Best Pick and changes only the Decision Lens', () => {
+  it('starts a new store in Ranked Fit', () => {
+    expect(createDraftStore().getState().decisionLens).toBe('ranked-fit');
+  });
+
+  it('changes only the Decision Lens', () => {
     const store = draftStore.getState();
     store.setSessionMode('live');
     store.setPositionFilter('WR');

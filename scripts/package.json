@@ -17,6 +17,7 @@
     "primary-league:release-gate": "tsx --conditions=@fantasy-draft/source src/primary-league-release-gate.ts",
     "check:dev-ports": "tsx --conditions=@fantasy-draft/source src/check-dev-ports.ts",
     "measure:web-bundle": "tsx --conditions=@fantasy-draft/source src/measure-web-bundle.ts",
+    "experiment:primary-league": "tsx --conditions=@fantasy-draft/source src/experiments/run-primary-league-experiments.ts",
     "measure:effect-adoption": "tsx --conditions=@fantasy-draft/source src/measure-effect-adoption.ts",
     "import:league-history": "tsx --conditions=@fantasy-draft/source src/import-league-draft-history.ts",
     "build:league-survival": "tsx --conditions=@fantasy-draft/source src/build-league-survival-model.ts",

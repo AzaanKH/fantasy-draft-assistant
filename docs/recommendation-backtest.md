@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-13T07:55:02.198Z
+Generated: 2026-11-25T19:50:12.602Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -14,6 +14,10 @@ declaration before the 2022–2025 outer folds. Changing it requires a new
 backtest version.
 
 ## Promotion Gates
+
+Decision (2026-11-24): the prediction model failed this gate, so its feature-family work is frozen and it stays
+as Shadow Recommendation logging only. It may be reopened only if the unchanged declaration beats roster-aware
+ECR on every release check applied to the completed 2026 prospective fold alone. See [modeling-duckdb.md](./modeling-duckdb.md#status-frozen-as-shadow-recommendation-2026-11-24).
 
 - Promoted: **false**
 - Decision: At least one promotion gate fails; keep the model in Shadow Recommendation and out of live ordering.
@@ -54,29 +58,110 @@ backtest version.
 
 ## Best Pick Policy
 
-The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board. The prior-weights row replays the same rule with
-the starter window at 8 ranks and no doubled late bonus.
-Negative regret deltas are improvements.
+The shipped Best Pick rule, called through the same function the Assistant uses, on each historical board. The rejected-weights row replays the same rule with
+the starter window at 12 ranks and the late starter bonus
+multiplied by 2, the tuning 09781a5 shipped and this report
+rejected. Negative regret deltas are improvements.
 
 - Inputs: Expert rank, walk-forward projection and value over replacement. Live-feed inputs (news, bye weeks, contract and environment signals) take neutral values.
 
 | Strategy | Picks | VOR captured | Starter points | Average regret | Top-24 hit rate |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Roster-aware ECR | 49 | 2015.9 | 8774.3 | 105.91 | 0.69 |
-| Best Pick (shipped weights) | 49 | 1648.7 | 8715.44 | 109.3 | 0.67 |
-| Best Pick (prior starter weights) | 49 | 1909.16 | 8670.64 | 103.99 | 0.72 |
+| Best Pick (shipped weights) | 49 | 1909.16 | 8670.64 | 103.99 | 0.72 |
+| Best Pick (rejected 12/2 weights) | 49 | 1648.7 | 8715.44 | 109.3 | 0.67 |
 
 | Comparison | Starter points | VOR captured | Average regret | Top-24 hit rate |
 | --- | ---: | ---: | ---: | ---: |
-| bestPickVsEcr | -58.86 | -367.2 | 3.39 | -0.02 |
-| bestPickVsPriorWeights | 44.8 | -260.46 | 5.31 | -0.05 |
+| bestPickVsEcr | -103.66 | -106.74 | -1.92 | 0.03 |
+| bestPickVsRejectedWeights | -44.8 | 260.46 | -5.31 | 0.05 |
 
-| Season | Roster-aware ECR | Best Pick | Best Pick, prior weights |
+| Season | Roster-aware ECR | Best Pick | Best Pick, rejected weights |
 | ---: | ---: | ---: | ---: |
 | 2022 | 2333.7 | 2333.7 | 2333.7 |
 | 2023 | 2284.7 | 2224.42 | 2224.42 |
-| 2024 | 1708.52 | 1885.14 | 1840.34 |
+| 2024 | 1708.52 | 1840.34 | 1885.14 |
 | 2025 | 2447.38 | 2272.18 | 2272.18 |
+
+### Best Pick regression gate
+
+`pnpm verify` checks these records without league data (scripts/src/best-pick-backtest-gate.test.ts). It fails
+when either block is missing, when `shared/src/draft/calculations/best-pick-policy.ts`, `shared/src/draft/calculations/recommendations.ts` and the
+shared/src modules they reach through runtime imports no longer hash to the gate block's `policySourceHash`, when
+the gate block does not cover the 2022–2025 folds with the baseline's draft picks, or when Best Pick's margin over roster-aware ECR is more than
+25 VOR or 1 average
+regret worse than the accepted baseline. Regenerating copies the baseline block unchanged; only
+`pnpm model:backtest:accept-best-pick` replaces it with the current replay, so a baseline change is always a
+reviewed diff. A partial replay, or one whose Best Pick and ECR picks differ, stops the run before any report is
+written.
+
+- Gate: **pass**
+
+<!-- best-pick-gate:start -->
+```json
+{
+  "version": 3,
+  "policySourceHash": "sha256:25960cffb87fa8371218a53cbbc7cf19942002233d4fa1b942e1938d47d0007f",
+  "folds": [
+    {
+      "season": 2022,
+      "pickNumbers": [7, 14, 27, 34, 47, 54, 67, 74, 87, 94, 107, 114, 127]
+    },
+    {
+      "season": 2023,
+      "pickNumbers": [6, 15, 26, 35, 46, 55, 66, 75, 86, 95, 115, 126]
+    },
+    {
+      "season": 2024,
+      "pickNumbers": [8, 17, 24, 48, 53, 57, 68, 73, 88, 93, 108, 128]
+    },
+    {
+      "season": 2025,
+      "pickNumbers": [8, 13, 28, 33, 48, 53, 68, 88, 93, 108, 128, 133]
+    }
+  ],
+  "bestPickVsEcr": {
+    "starterPoints": -103.66,
+    "vorCaptured": -106.74,
+    "averageRegret": -1.92,
+    "top24PositionHitRate": 0.03
+  }
+}
+```
+<!-- best-pick-gate:end -->
+
+<!-- best-pick-baseline:start -->
+```json
+{
+  "version": 3,
+  "policySourceHash": "sha256:832ddf42dfa6d3ea2e7bc001467be68d1b9986cf074ea4158b819b4ec97ce1de",
+  "folds": [
+    {
+      "season": 2022,
+      "pickNumbers": [7, 14, 27, 34, 47, 54, 67, 74, 87, 94, 107, 114, 127]
+    },
+    {
+      "season": 2023,
+      "pickNumbers": [6, 15, 26, 35, 46, 55, 66, 75, 86, 95, 115, 126]
+    },
+    {
+      "season": 2024,
+      "pickNumbers": [8, 17, 24, 48, 53, 57, 68, 73, 88, 93, 108, 128]
+    },
+    {
+      "season": 2025,
+      "pickNumbers": [8, 13, 28, 33, 48, 53, 68, 88, 93, 108, 128, 133]
+    }
+  ],
+  "bestPickVsEcr": {
+    "starterPoints": -103.66,
+    "vorCaptured": -106.74,
+    "averageRegret": -1.92,
+    "top24PositionHitRate": 0.03
+  }
+}
+```
+<!-- best-pick-baseline:end -->
 
 ## PickEV Architecture Comparison
 

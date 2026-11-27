@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { decodeIndexedSession } from './idb-session';
 import { initialDraftState, reduceDraftCommand, sessionFromState } from './draft-reducer';
-import { openDraftDatabase } from './indexed-db';
+import { DRAFT_DATABASE, openDraftDatabase, sessionKey } from './indexed-db';
 import { createIndexedWorkspace } from './indexed-workspace';
 
 const identity = { provider: 'sleeper', draftId: '123' } as const;
@@ -86,6 +86,62 @@ describe('IndexedDB session boundary', () => {
     const session = sessionFromState({ ...state, draftHistory: history,
       draftProgress: { anchor: { kind: 'carry', pickNumber: 1 }, historyLength: 2, historyPrefix } }, identity, 1);
     expect(() => decodeIndexedSession(session)).toThrow();
+  });
+
+  it.each([
+    ['best-pick', 'ranked-fit'],
+    ['best-player', 'best-player'],
+  ] as const)('opens a legacy saved session with lens %s in %s and then honours an explicit choice', async (saved, opened) => {
+    // A session saved before Ranked Fit: no decisionLensDefault, and Best Pick stored because it was the default.
+    const { decisionLensDefault: _written, ...legacy } = { ...sessionFromState(initialDraftState(identity), identity, 1), decisionLens: saved };
+    expect('decisionLensDefault' in legacy).toBe(false);
+    expect(decodeIndexedSession(legacy).decisionLens).toBe(opened);
+    const database = await openDraftDatabase({ factory: new IDBFactory(), decode: decodeIndexedSession, report: () => undefined });
+    await database.importV1(importV1([{ key: 'fantasy-draft-session-v1:sleeper:123', serialized: JSON.stringify(legacy) }]));
+    const workspace = createIndexedWorkspace({ database, identity, report: () => undefined });
+    await workspace.refresh();
+    expect(workspace.draft.getState().decisionLens).toBe(opened);
+
+    await workspace.send('setDecisionLens', 'best-pick');
+    const persisted = await workspace.readPersisted();
+    expect(persisted).toMatchObject({ decisionLens: 'best-pick', decisionLensDefault: 'ranked-fit' });
+    const reopened = createIndexedWorkspace({ database, identity, report: () => undefined });
+    await reopened.refresh();
+    expect(reopened.draft.getState().decisionLens).toBe('best-pick');
+    workspace.dispose(); reopened.dispose();
+  });
+
+  it('fences a version 1 tab: the upgrade closes its connection, keeps its data, and refuses its reopen', async () => {
+    // A tab running the pre-Ranked Fit build: version 1 schema, and it closes on versionchange as that build does.
+    const factory = new IDBFactory();
+    const legacy = { ...sessionFromState(initialDraftState(identity), identity, 1), decisionLens: 'best-player' as const };
+    const { decisionLensDefault: _marker, ...stored } = legacy;
+    const stale = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = factory.open(DRAFT_DATABASE, 1);
+      request.onupgradeneeded = () => { for (const store of ['sessions', 'metadata', 'probes']) request.result.createObjectStore(store); };
+      request.onsuccess = () => {
+        const tx = request.result.transaction(['sessions'], 'readwrite');
+        tx.objectStore('sessions').put(stored, sessionKey(identity));
+        tx.oncomplete = () => { resolve(request.result); };
+        tx.onabort = () => { reject(tx.error ?? new Error('Legacy write aborted')); };
+      };
+      request.onerror = () => { reject(request.error ?? new Error('Legacy open failed')); };
+    });
+    let closedByUpgrade = false;
+    stale.onversionchange = () => { closedByUpgrade = true; stale.close(); };
+
+    const database = await openDraftDatabase({ factory, decode: decodeIndexedSession, report: () => undefined });
+    expect(closedByUpgrade).toBe(true);
+    expect((await database.read(identity))?.decisionLens).toBe('best-player');
+    // The stale tab can no longer write a session that drops the lens marker or rejects Ranked Fit.
+    expect(() => stale.transaction(['sessions'], 'readwrite')).toThrow();
+    const reopen = await new Promise<string | undefined>((resolve) => {
+      const request = factory.open(DRAFT_DATABASE, 1);
+      request.onsuccess = () => { request.result.close(); resolve(undefined); };
+      request.onerror = () => { resolve(request.error?.name); };
+    });
+    expect(reopen).toBe('VersionError');
+    database.close();
   });
 
   it('retains imported pick-order prefix semantics without sorting insertion history', () => {

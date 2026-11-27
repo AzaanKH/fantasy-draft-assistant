@@ -15,7 +15,7 @@ import { DraftTurnBanner } from '@/features/draft-room/DraftTurnBanner';
 import { DraftReadinessBlockedNotice } from '@/features/draft-room/DraftReadinessBlockedNotice';
 import { ProviderIdentityBlockedNotice } from '@/features/draft-room/ProviderIdentityBlockedNotice';
 import { useDraftDecision } from '@/features/recommendations/DraftDecisionContext';
-import { getPreferredRecommendation, getRecommendationPolicyLabel, type DraftDecisionView, getRecommendationExplanation, formatSignedNumber } from '@fantasy-draft/shared/draft';
+import { getPreferredRecommendation, getRecommendationPolicyLabel, type DraftDecisionView, getRecommendationExplanation, getDecisionLensForPolicy, formatSignedNumber } from '@fantasy-draft/shared/draft';
 import { useDraftSync, type DraftSyncViewState } from '@/hooks/useDraftSync';
 import { usePlayerDataQuery } from '@/hooks/usePlayerData';
 import { useQueryClient } from '@tanstack/react-query';
@@ -114,7 +114,7 @@ function HeadToHead({
   const secondPlayer = playerById.get(second.playerId);
   const preferred = getPreferredRecommendation(decision, [first, second]) ?? first;
   const preferredExplanation = decision.explanationByPlayerId.get(preferred.playerId)
-    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY);
+    ?? getRecommendationExplanation(preferred, DRAFT_DISPLAY, getDecisionLensForPolicy(decision.selection.policy));
 
   return (
     <>
@@ -201,9 +201,10 @@ function AssistantPanel({
   const expectedAlternative = recommendation.decisionFactors?.draftTiming.expectedAlternative
     ?? diagnostics?.expectedNextPickAlternative;
   const need = needs.find((item) => item.position === recommendation.position);
+  const activeLens = getDecisionLensForPolicy(decision.selection.policy);
   const detailedExplanation = decision.explanationByPlayerId.get(recommendation.playerId)
-    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY);
-  const explanation = getCompactDecisionExplanation(recommendation) ?? detailedExplanation;
+    ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY, activeLens);
+  const explanation = getCompactDecisionExplanation(recommendation, activeLens) ?? detailedExplanation;
   const reasons = [
     // The raw reason's later parts are model terms; its first part is the plain label the decision bar also uses.
     diagnostics ? `${formatSignedNumber(diagnostics.valueOverReplacement, 0)} pts over a fill-in starter` : recommendation.reason.split(' · ')[0] ?? recommendation.reason,

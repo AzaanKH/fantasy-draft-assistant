@@ -25,6 +25,10 @@ describe('draft usage contract', () => {
       expect(await invoke(argv)).toEqual({ code: 0, stdout: HELP, stderr: '' });
     });
 
+  it('names the default Decision Lens in help', () => {
+    expect(HELP).toContain('Decision Lens, defaults to ranked-fit');
+  });
+
   it.each([
     [['--json', '--bogus'], '--json', "Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--bogus\""],
     [['--json'], '--json', 'Unknown command . Run draft --help.'],
