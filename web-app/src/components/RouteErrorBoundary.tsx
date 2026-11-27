@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CircleAlert } from 'lucide-react';
+import { CircleExclamationPoint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface RouteErrorBoundaryProps {
@@ -54,7 +54,7 @@ export class RouteErrorBoundary extends React.Component<RouteErrorBoundaryProps,
     const needsReload = isPageImportFailure(error);
     return (
       <main className="draft-route-error" role="alert">
-        <CircleAlert className="size-5 shrink-0" aria-hidden="true" />
+        <CircleExclamationPoint className="size-5 shrink-0" aria-hidden="true" />
         <div>
           <h1>This page couldn’t load</h1>
           <p>

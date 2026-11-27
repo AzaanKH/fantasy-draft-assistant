@@ -1,7 +1,7 @@
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
-import { CircleAlert } from 'lucide-react';
+import { CircleExclamationPoint } from 'lucide-react';
 import type { UnresolvedProviderPick } from '@/stores/draftStore';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +29,7 @@ export function ProviderIdentityBlockedNotice({
       role="alert"
     >
       <div className="flex items-start gap-2">
-        <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-700 dark:text-red-300" />
+        <CircleExclamationPoint className="mt-0.5 size-4 shrink-0 text-red-700 dark:text-red-300" />
         <div>
           <h2
             id={headingId}
