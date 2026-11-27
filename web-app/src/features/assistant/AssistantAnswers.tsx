@@ -2,18 +2,14 @@ import { DRAFT_DISPLAY } from '@/lib/demo-mode';
 import {
   getRecommendationExplanation,
   type AssistantAnswerRow,
-  getRosterAnswer,
   getWaitAnswer,
   getWhyRows,
 } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
-import { type Player } from '@fantasy-draft/shared/league';
-import { type DecisionLens, type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
+import { type DecisionLens, type Recommendation } from '@fantasy-draft/shared/draft';
 import { ChevronDown } from 'lucide-react';
 import * as React from 'react';
 
-
-const PositionalDepthChart = React.lazy(() => import('./PositionalDepthChart'));
 
 /**
  * The model's own reasoning in plain words, collapsed under the answer. A card's "Full reasoning" opens the Why tab
@@ -92,38 +88,6 @@ export function WaitAnswer({ recommendation, teamsNeedingPosition }: {
           : ''}
         Team needs are roster context. An estimate is not a guarantee.
       </p>
-    </div>
-  );
-}
-
-export function RosterAnswer({ needs, recommendation, player, sameByeName }: {
-  readonly needs: readonly PositionNeed[];
-  readonly recommendation: Recommendation;
-  readonly player?: Player;
-  readonly sameByeName: string | null;
-}): React.ReactElement {
-  const answer = getRosterAnswer(needs, recommendation.position);
-  const rows: AssistantAnswerRow[] = [
-    { label: 'Open starters', answer: answer.openStarters, tone: 'neutral' },
-    { label: `${recommendation.position} slots`, answer: answer.slots, tone: 'neutral' },
-  ];
-  if (player?.byeWeek) {
-    rows.push({
-      label: 'Bye week',
-      answer: sameByeName
-        ? `Bye ${String(player.byeWeek)}, same week as ${sameByeName}.`
-        : `Bye ${String(player.byeWeek)}. No overlap with your ${recommendation.position}s.`,
-      tone: sameByeName ? 'caution' : 'neutral',
-    });
-  }
-
-  return (
-    <div className="min-w-0">
-      <h3 className="rec-answer-title">{answer.headline}</h3>
-      <AnswerRows rows={rows} />
-      <React.Suspense fallback={<p role="status" className="rec-answer-footnote">Loading positional depth…</p>}>
-        <PositionalDepthChart needs={needs} />
-      </React.Suspense>
     </div>
   );
 }
