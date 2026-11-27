@@ -58,6 +58,9 @@ describe('buildPositionTiers', () => {
     const tiers = buildPositionTiers({ players: roster, position: 'RB', draftedPlayerIds: new Set(['y']) });
     expect(tiers.activeDrop).toBe(60);
     expect(tiers.groups.map((group) => [group.tier, group.dropBefore])).toEqual([[1, null], [3, 60]]);
+    // Shown, the drafted-out tier gets no label; the live cliff still sits before Tier 3, measured from Tier 1.
+    const shown = buildPositionTiers({ players: roster, position: 'RB', draftedPlayerIds: new Set(['y']), showDrafted: true });
+    expect(shown.groups.map((group) => [group.tier, group.dropBefore, group.dropFrom])).toEqual([[1, null, null], [2, null, 1], [3, 60, 1]]);
   });
 
   it('has no drop ahead of the last tier', () => {

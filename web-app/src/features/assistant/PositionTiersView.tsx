@@ -414,20 +414,20 @@ export function PositionTiersView({
     group: PositionTierGroup | OverallBand,
     column: TierColumn,
     listed: readonly TierPlayer[],
-    mark: NextPickMark | null,
-    previousTier: number | undefined
+    mark: NextPickMark | null
   ): React.ReactElement => {
     const key = `${column.key}-${String(group.tier)}`;
     const dropBefore = 'dropBefore' in group ? group.dropBefore : null;
+    const dropFrom = 'dropFrom' in group ? group.dropFrom : null;
     const markId = mark?.kind === 'before' ? mark.playerId : undefined;
     const lineAbove = markId !== undefined && listed[0]?.id === markId;
     const likely = nextPickLabel ? countLikelyAvailable(group.remaining, survival) : null;
     const estimated = likely !== null && group.remaining.some((player) => survival(player.id) !== undefined);
     return (
       <React.Fragment key={key}>
-        {dropBefore !== null && previousTier !== undefined ? (
-          <TierDrop points={dropBefore} from={previousTier} to={group.tier}
-            steep={cliff !== null && column.position === cliff.position && previousTier === cliff.tier} />
+        {dropBefore !== null && dropFrom !== null ? (
+          <TierDrop points={dropBefore} from={dropFrom} to={group.tier}
+            steep={cliff !== null && column.position === cliff.position && dropFrom === cliff.tier} />
         ) : null}
         {lineAbove && nextPickLabel ? <NextPickLine text={firstLikelyText(nextPickLabel)} /> : null}
         <section className="rec-tier-group" style={{ '--tier-color': tierColor(group) } as React.CSSProperties}
@@ -550,7 +550,7 @@ export function PositionTiersView({
                         : `${String(column.exhaustedTiers.length)} ${column.exhaustedTiers.length === 1 ? 'band' : 'bands'} drafted.`}
                   </p>
                 ) : null}
-                {visible.map(({ group, listed }, index) => renderGroup(group, column, listed, mark, visible[index - 1]?.group.tier))}
+                {visible.map(({ group, listed }) => renderGroup(group, column, listed, mark))}
                 {mark?.kind === 'after' && nextPickLabel ? <NextPickLine text={`None listed likely at ${nextPickLabel}`} /> : null}
                 {hidden > 0 || pages > 0 ? (
                   <div className="rec-tier-more">

@@ -19,6 +19,8 @@ export interface PositionTierGroup extends TierGroup {
    * tier above is not the group listed just before this one (a search hid it).
    */
   readonly dropBefore: number | null;
+  /** The tier `dropBefore` is measured from. */
+  readonly dropFrom: number | null;
 }
 
 export interface PositionTiers {
@@ -93,21 +95,28 @@ export function buildPositionTiers({
       };
     })
     .filter((group) => group.players.length > 0);
+  const nextTier = activeTier === null ? undefined : tiers.find((tier) => tier > activeTier && remainingOf(tier).length > 0);
+  const activeDrop = activeTier === null || nextTier === undefined ? null : tierDropPoints(remainingOf(activeTier), remainingOf(nextTier));
+  const activeListed = listed.some((group) => group.tier === activeTier);
   // A break is measured against the group listed just above when every tier between them is drafted out (hidden or
-  // not), so it is the live gap; a tier with players left that a search hid in between leaves no label.
+  // not), so it is the live gap; a tier with players left that a search hid in between leaves no label. Past the
+  // active tier the one label is the live cliff (the banner's), before the next tier with players left; drafted-out
+  // tiers shown in between get none.
   const groups = listed.map((group, index): PositionTierGroup => {
+    if (activeTier !== null && nextTier !== undefined && group.tier > activeTier && group.tier <= nextTier) {
+      return { ...group, dropBefore: group.tier === nextTier && activeListed ? activeDrop : null, dropFrom: activeTier };
+    }
     const above = listed[index - 1]?.tier;
     const live = above !== undefined && tiers.every((tier) => tier <= above || tier >= group.tier || remainingOf(tier).length === 0);
-    return { ...group, dropBefore: live ? tierDropPoints(dropBasis(above), dropBasis(group.tier)) : null };
+    return { ...group, dropBefore: live ? tierDropPoints(dropBasis(above), dropBasis(group.tier)) : null, dropFrom: above ?? null };
   });
-  const nextTier = activeTier === null ? undefined : tiers.find((tier) => tier > activeTier && remainingOf(tier).length > 0);
 
   return {
     position,
     activeTier,
     exhaustedTiers: activeTier === null ? tiers : tiers.filter((tier) => tier < activeTier),
     groups,
-    activeDrop: activeTier === null || nextTier === undefined ? null : tierDropPoints(remainingOf(activeTier), remainingOf(nextTier)),
+    activeDrop,
     activeRemaining: activeTier === null ? [] : remainingOf(activeTier),
   };
 }

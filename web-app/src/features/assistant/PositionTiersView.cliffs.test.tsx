@@ -74,3 +74,22 @@ it('colors Tiers 1 to 5 apart and gives Tier 6 and later the shared neutral', ()
   expect([1, 2, 3, 4, 5].map((tier) => tierColor({ tier }))).toEqual(['var(--tier-1)', 'var(--tier-2)', 'var(--tier-3)', 'var(--tier-4)', 'var(--tier-5)']);
   expect([6, 7, 12].map((tier) => tierColor({ tier }))).toEqual(['var(--tier-rest)', 'var(--tier-rest)', 'var(--tier-rest)']);
 });
+
+it('puts the highlighted cliff before the next live tier with Show drafted on, never before a drafted-out tier', () => {
+  const roster = [back('x', 1, 1, 300), back('y', 2, 2, 290), back('z', 3, 3, 240)];
+  act(() => {
+    root.render(createElement(TooltipProvider, { children: withAssistantData(createAssistantTestData({
+      players: roster, draftedPlayerIds: new Set(['y']), availabilityById: new Map([['x', estimate(0.2)], ['z', estimate(0.9)]]),
+    }), createElement(PositionTiersView, { selectedPlayerId: undefined, onSelect: vi.fn() })) }));
+  });
+  act(() => { container.querySelector<HTMLInputElement>('.rec-checkbox input')?.click(); });
+  expect(column()?.querySelector('section[aria-label="RB Tier 2"]')).not.toBeNull();
+  const steep = column()?.querySelectorAll('.rec-tier-drop[data-steep]');
+  expect(steep).toHaveLength(1);
+  expect(steep?.[0]?.textContent).toContain('−60 pts');
+  let next = steep?.[0]?.nextElementSibling;
+  while (next && next.tagName !== 'SECTION') next = next.nextElementSibling;
+  expect(next?.getAttribute('aria-label')).toBe('RB Tier 3');
+  expect(column()?.textContent).not.toContain('−10');
+  expect(container.querySelector('[data-tier-cliff="RB"]')?.textContent).toContain('Biggest cliff: RB after Tier 1');
+});
