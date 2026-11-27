@@ -1,5 +1,5 @@
 import { optimizeLineupUtility } from '@fantasy-draft/shared/draft';
-import { OFFENSIVE_POSITIONS, POSITIONS, isFlexEligible, type Player, type Position, type RosterRequirements } from '@fantasy-draft/shared/league';
+import { POSITIONS, isFlexEligible, type Player, type Position, type RosterRequirements } from '@fantasy-draft/shared/league';
 
 /** The player facts the Roster needs tab reads. `Player` satisfies it. */
 export type RosterPlayer = Pick<Player, 'id' | 'name' | 'position' | 'projectedPoints' | 'ceilingScore' | 'byeWeek'>;
@@ -108,9 +108,10 @@ export interface LeagueRanks {
   readonly myPointsAfter: Readonly<Partial<Record<Position, number>>>;
 }
 
-/** Offensive positions this league starts, directly or through FLEX. */
+/** Every position this league starts, in its own slots or through a FLEX slot that exists. */
 export function rankedPositions(requirements: RosterRequirements): readonly Position[] {
-  return OFFENSIVE_POSITIONS.filter((position) => requirements[position].starters > 0 || isFlexEligible(requirements, position));
+  const hasFlex = requirements.FLEX.starters > 0;
+  return POSITIONS.filter((position) => requirements[position].starters > 0 || (hasFlex && isFlexEligible(requirements, position)));
 }
 
 function starterPointsByPosition(lineup: Lineup, positions: readonly Position[]): Partial<Record<Position, number>> {
@@ -122,8 +123,12 @@ function starterPointsByPosition(lineup: Lineup, positions: readonly Position[])
   return points;
 }
 
+/** Hundredths of a point, so float noise in a sum (164.7 + 125.6 vs 164.9 + 125.4) never splits a tie. */
+const toHundredths = (points: number): number => Math.round(points * 100);
+
 function rankAmong(value: number, others: readonly number[]): number {
-  return 1 + others.filter((other) => other > value).length;
+  const own = toHundredths(value);
+  return 1 + others.filter((other) => toHundredths(other) > own).length;
 }
 
 /**
@@ -194,6 +199,15 @@ export function buildByeStrip<P extends RosterPlayer>(starters: readonly P[], ca
   const candidateWeek = Number.isInteger(candidate.byeWeek) && candidate.byeWeek > 0 ? candidate.byeWeek : null;
   const clashWith = candidateWeek === null ? [] : starters.filter((player) => player.id !== candidate.id && player.byeWeek === candidateWeek);
   return { weeks, clashWith, candidateWeek };
+}
+
+/**
+ * The bye strip for a previewed pick: only players in the projected starting slots count toward a week, so a
+ * candidate who lands on the bench never makes a collision; his own week is still marked.
+ */
+export function previewByeStrip<P extends RosterPlayer>(preview: CandidatePreview<P>, candidate: P, window: { readonly first: number; readonly last: number }): ByeStrip<P> {
+  const starters = preview.after.slots.flatMap((slot) => (slot.player ? [slot.player] : []));
+  return buildByeStrip(starters, candidate, window);
 }
 
 /**

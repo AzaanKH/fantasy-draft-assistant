@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { useDraftView } from '@/workspace/useDraftView';
 import {
-  buildByeStrip,
   byeWindow,
   computeLeagueRanks,
   ordinal,
+  previewByeStrip,
   previewCandidate,
   rankOffset,
   shortName,
@@ -24,14 +24,6 @@ const NO_PLAYERS: readonly Player[] = [];
 const POINTS_HELP = 'Projected season points of your best starting lineup in your league’s scoring.';
 
 const formatPoints = (points: number): string => Math.round(points).toLocaleString('en-US');
-
-/** The top recommendations for this lens, always including the viewed player. */
-function pickCandidates(recommendations: readonly Recommendation[], subjectId: string): readonly Recommendation[] {
-  const top = recommendations.slice(0, CANDIDATE_COUNT);
-  if (top.some((item) => item.playerId === subjectId)) return top;
-  const subject = recommendations.find((item) => item.playerId === subjectId);
-  return subject ? [...top.slice(0, CANDIDATE_COUNT - 1), subject] : top;
-}
 
 function Slot({ slot, isNew }: { readonly slot: LineupSlot<Player>; readonly isNew: boolean }): React.ReactElement {
   return (
@@ -167,9 +159,7 @@ function ByeStripView({ preview, candidate, range }: {
   readonly candidate: Player;
   readonly range: { readonly first: number; readonly last: number };
 }): React.ReactElement {
-  const starters = preview.after.slots.flatMap((slot) => (slot.player ? [slot.player] : []));
-  // A benched candidate still has a bye worth seeing against the starters.
-  const strip = buildByeStrip(preview.slotKey === null ? [...starters, candidate] : starters, candidate, range);
+  const strip = previewByeStrip(preview, candidate, range);
   return (
     <section className="roster-block" aria-labelledby="roster-bye-title">
       <h3 id="roster-bye-title" className="roster-block-title">Byes</h3>
@@ -226,11 +216,11 @@ export function RosterNeeds({ recommendation, decision, playerById, onViewPlayer
   const candidate = playerById.get(recommendation.playerId);
 
   const candidates = React.useMemo(
-    () => pickCandidates(decision.recommendations, recommendation.playerId).flatMap((item) => {
+    () => decision.recommendations.slice(0, CANDIDATE_COUNT).flatMap((item) => {
       const player = playerById.get(item.playerId);
       return player ? [{ player, gain: previewCandidate(myRoster, player, requirements).gain }] : [];
     }),
-    [decision.recommendations, myRoster, playerById, recommendation.playerId, requirements]
+    [decision.recommendations, myRoster, playerById, requirements]
   );
   const preview = React.useMemo(() => (candidate ? previewCandidate(myRoster, candidate, requirements) : null), [candidate, myRoster, requirements]);
   const ranks = React.useMemo(

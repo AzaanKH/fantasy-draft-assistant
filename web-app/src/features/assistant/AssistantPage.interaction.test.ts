@@ -682,13 +682,20 @@ describe('What does my roster need? from the page', () => {
     const pick = (pickNumber: number, index: number, teamIndex: number) => ({
       pickNumber, playerId: `wr-${String(index)}`, playerName: `Receiver ${String(index)}`, position: 'WR' as const, teamIndex, teamName: `Team ${String(teamIndex + 1)}`,
     });
-    act(() => {
-      draftStore.getState().recordProvisionalPick(pick(2, 91, 1));
-    });
+    // Distinct projections: Receiver 1 outscores Team 2's receiver, Receiver 2 does not.
+    const [first, second] = players;
+    if (!first || !second) throw new Error('Missing receivers');
+    const base = players[90]?.projectedPoints ?? 0;
+    players[0] = { ...first, projectedPoints: base + 50 };
+    players[1] = { ...second, projectedPoints: base - 50 };
+    // Live mode first: a provisional pick is recorded only in a live draft.
+    act(() => { draftStore.setState({ sessionMode: 'live' }); });
+    act(() => { draftStore.getState().recordProvisionalPick(pick(2, 91, 1)); });
     try {
+      expect(draftStore.getState().draftHistory).toHaveLength(1);
       renderPage('live');
       click(button('Roster needs'));
-      // No WR against Team 2's one: 2nd now, level with them (tied 1st) once Receiver 1 joins.
+      // No WR against Team 2's one: 2nd now, 1st once Receiver 1 joins.
       const ladder = rosterPanel().querySelector('[data-ladder="WR"]');
       expect(ladder?.getAttribute('aria-label')).toMatch(/^WR: 2nd of \d+ now, 1st with Receiver 1$/);
       expect(rosterPanel().querySelector('details summary')?.textContent).toMatch(/^See all \d+ teams$/);
@@ -697,9 +704,21 @@ describe('What does my roster need? from the page', () => {
       if (!candidate) throw new Error('Missing candidate');
       click(candidate);
       expect(rosterPanel().querySelector('[data-ladder="WR"]')).toBe(ladder);
+      expect(ladder?.getAttribute('aria-label')).toMatch(/^WR: 2nd of \d+ now$/);
       expect(rosterPanel().querySelector('[aria-pressed="true"][data-candidate]')?.getAttribute('data-candidate')).toBe('wr-2');
     } finally {
+      players[0] = first;
+      players[1] = second;
       act(() => { draftStore.setState({ draftHistory: [] }); });
     }
+  });
+
+  it('keeps the top five candidates when viewing a player outside them, and previews his slot', () => {
+    renderPage('live', { initialSelectedPlayerId: 'wr-6' });
+    click(button('Roster needs'));
+    const chips = [...rosterPanel().querySelectorAll('[data-candidate]')].map((chip) => chip.getAttribute('data-candidate'));
+    expect(chips).toEqual(['wr-1', 'wr-2', 'wr-3', 'wr-4', 'wr-5']);
+    expect(rosterPanel().querySelector('[aria-pressed="true"][data-candidate]')).toBeNull();
+    expect(rosterPanel().querySelector('[data-preview]')?.textContent).toContain('Receiver 6');
   });
 });

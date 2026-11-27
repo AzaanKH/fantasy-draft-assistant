@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS, FLEX_GROUPS, type Position, type RosterRequirements } from '@fantasy-draft/shared/league';
 import { optimizeLineupUtility } from '@fantasy-draft/shared/draft';
-import { buildByeStrip, buildLineup, byeWindow, computeLeagueRanks, ordinal, previewCandidate, rankOffset, shortName, type RosterPlayer } from './roster-needs';
+import { buildByeStrip, buildLineup, byeWindow, computeLeagueRanks, ordinal, previewByeStrip, previewCandidate, rankOffset, rankedPositions, shortName, type RosterPlayer } from './roster-needs';
 
 const LEAGUE: RosterRequirements = {
   ...DEFAULT_ROSTER_REQUIREMENTS,
@@ -92,6 +92,30 @@ describe('computeLeagueRanks', () => {
     expect(tied?.ladders.find((ladder) => ladder.position === 'QB')?.now).toBe(1);
   });
 
+  it('ranks every position the league starts, kicker and defense included', () => {
+    const withKickers: RosterRequirements = { ...LEAGUE, K: { starters: 1, max: 1 }, DEF: { starters: 1, max: 1 } };
+    expect(rankedPositions(withKickers)).toEqual(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
+    const ranks = computeLeagueRanks({ teamRosters: [[p('K', 140)], [p('K', 150), p('DEF', 120)]], myTeamIndex: 0, candidate: p('DEF', 130), requirements: withKickers });
+    expect(ranks?.ladders.find((ladder) => ladder.position === 'K')).toEqual({ position: 'K', now: 2, after: 2 });
+    expect(ranks?.ladders.find((ladder) => ladder.position === 'DEF')).toEqual({ position: 'DEF', now: 2, after: 1 });
+    expect(ranks?.teams[1]?.points.DEF).toBe(120);
+  });
+
+  it('ignores FLEX eligibility when the league has no FLEX slot', () => {
+    const noFlex: RosterRequirements = { ...LEAGUE, TE: { starters: 0, max: 3 }, FLEX: { starters: 0, eligiblePositions: [...FLEX_GROUPS.standard] } };
+    expect(rankedPositions(noFlex)).toEqual(['QB', 'RB', 'WR']);
+    const ranks = computeLeagueRanks({ teamRosters: [[p('TE', 150)], [p('TE', 100)]], myTeamIndex: 0, candidate: null, requirements: noFlex });
+    expect(ranks?.ladders.map((ladder) => ladder.position)).toEqual(['QB', 'RB', 'WR']);
+  });
+
+  it('treats totals equal to the hundredth of a point as a tie despite float noise', () => {
+    expect(164.7 + 125.6).not.toBe(164.9 + 125.4);
+    const ranks = computeLeagueRanks({ teamRosters: [[p('RB', 164.7), p('RB', 125.6)], [p('RB', 164.9), p('RB', 125.4)]], myTeamIndex: 0, candidate: null, requirements: LEAGUE });
+    expect(ranks?.ladders.find((ladder) => ladder.position === 'RB')?.now).toBe(1);
+    const flipped = computeLeagueRanks({ teamRosters: [[p('RB', 164.9), p('RB', 125.4)], [p('RB', 164.7), p('RB', 125.6)]], myTeamIndex: 0, candidate: null, requirements: LEAGUE });
+    expect(flipped?.ladders.find((ladder) => ladder.position === 'RB')?.now).toBe(1);
+  });
+
   it('returns null with no league to rank against', () => {
     expect(computeLeagueRanks({ teamRosters: [[p('QB', 300)], [], []], myTeamIndex: 0, candidate: null, requirements: LEAGUE })).toBeNull();
     expect(computeLeagueRanks({ teamRosters: [[p('QB', 300)]], myTeamIndex: 0, candidate: null, requirements: LEAGUE })).toBeNull();
@@ -114,6 +138,20 @@ describe('bye strip', () => {
     expect(strip.weeks.map((week) => week.out.length)).toEqual([0, 1, 0, 0, 3, 0]);
     expect(strip.clashWith).toEqual([rb, wr]);
     expect(strip.candidateWeek).toBe(9);
+  });
+
+  it('never counts a benched candidate toward a starter collision, but still marks his week', () => {
+    const noFlex: RosterRequirements = { ...LEAGUE, FLEX: { starters: 0, eligiblePositions: [] } };
+    const starter = p('TE', 150, 9);
+    const candidate = p('TE', 100, 9);
+    const preview = previewCandidate([starter], candidate, noFlex);
+    expect(preview.slotKey).toBeNull();
+    const strip = previewByeStrip(preview, candidate, { first: 8, last: 10 });
+    expect(strip.weeks.map((week) => week.out.length)).toEqual([0, 1, 0]);
+    expect(strip.candidateWeek).toBe(9);
+    // A starting candidate does count.
+    const starting = previewCandidate([], candidate, noFlex);
+    expect(previewByeStrip(starting, candidate, { first: 9, last: 9 }).weeks[0]?.out).toEqual([candidate]);
   });
 
   it('reports no clash when the candidate’s bye is unknown', () => {
