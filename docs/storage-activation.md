@@ -23,6 +23,8 @@ Nothing in the app writes version 1 any more, so the old close-other-tabs confir
 ## What was kept on purpose
 
 - The `fantasy-draft-storage-migrated` marker is still written and never expires. It fences old cached tabs and extension versions.
+- The IndexedDB schema is at version 2 since Ranked Fit became the default Decision Lens. Sessions can hold the `ranked-fit` lens and a `decisionLensDefault` marker that version 1 builds reject or drop, so opening version 2 closes every version 1 connection (`onversionchange`) and a version 1 tab that reopens gets a VersionError and the storage notice asking for a reload. Bump the version again whenever older builds could not read or would not preserve a session field.
+- After updating the app, reload every open draft-app tab before opening the side panel. A side panel opened while an old tab is still running may time out during the storage sharing check; reloading the old tab resolves it, and no data is lost. If the side panel has already timed out, click **Retry** in the panel after reloading the old app tab.
 - Retained raw version 1 source, import metadata and prior activation records stay in IndexedDB. Do not delete them as cleanup.
 - A database left mid-rollback by the removed operator tooling still refuses to open for writing (`rollback-in-progress`). No such database is expected; recovering one needs the tooling from before this change (`git show 89af465`).
 

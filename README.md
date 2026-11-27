@@ -12,7 +12,7 @@ Submit your picks in the provider's own draft room.
 ## What it does
 
 - **Draft workspace.** Follow the snake draft board, search the player pool, keep a shortlist, and track your roster.
-- **Draft decisions.** Compare the Best Pick and Best Player decision lenses. Best Pick accounts for roster fit and draft timing. Best Value lists actionable Sleeper market-discount recommendations. Explanations cover positional depth, tiers, and the chance a player lasts until your next pick.
+- **Draft decisions.** Compare three decision lenses. Ranked Fit, the default, follows expert rankings among players who keep a legal roster possible. Best Pick also weighs league value, roster fit, and draft timing. Best Player follows the rankings alone. Best Value lists actionable Sleeper market-discount recommendations. Explanations cover positional depth, tiers, and the chance a player lasts until your next pick.
 - **Assistant.** Inspect a recommendation, compare alternatives, ask whether you can wait, and review roster needs. Its answers come from the app's ranking and draft calculations.
 - **Live sync.** Connect a provider draft by URL or ID. Sleeper and Yahoo use the local server; ESPN uses observations from your signed-in browser tab.
 - **Mock drafts and recovery.** Practice locally. During a live sync outage, record provisional picks and reconcile them when the provider returns.
@@ -59,7 +59,7 @@ pnpm --silent draft readiness --json
 pnpm --silent draft connect sleeper:YOUR_DRAFT_ID --slot 5 --json
 pnpm --silent draft sessions --json
 pnpm --silent draft roster --json
-pnpm --silent draft recommend --lens best-pick --limit 5 --json
+pnpm --silent draft recommend --lens ranked-fit --limit 5 --json
 pnpm --silent draft export --out .local/draft-session.json --json
 pnpm --silent draft replay .local/draft-session.json --pick 24 --json
 ```

@@ -35,6 +35,8 @@ export interface PersistedDraftSession {
   readonly keepersInitialized: boolean;
   readonly unresolvedProviderPicks: UnresolvedProviderPick[];
   readonly decisionLens: DraftStore['decisionLens'];
+  /** The default lens when this session was written; absent before Ranked Fit became the default. */
+  readonly decisionLensDefault?: DraftStore['decisionLens'];
   readonly manualContinuityBaselineAt: number | null;
   readonly lastConfirmedSyncAt: number | null;
   readonly lastConfirmedPickNumber: number;

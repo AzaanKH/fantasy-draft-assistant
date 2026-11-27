@@ -1,7 +1,7 @@
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
 import { toWholePercent } from '../../units/brands.js';
 import type { DecisionDivergenceFactor, DecisionLens, DecisionOutput, Recommendation } from '../../draft.js';
-import type { RecommendationSelection } from '../calculations/recommendations.js';
+import type { RecommendationResult, RecommendationSelection } from '../calculations/recommendations.js';
 import { getRecommendationExplanation } from './recommendation-explanation.js';
 
 export interface DraftDecisionView {
@@ -14,6 +14,7 @@ export interface DraftDecisionView {
 }
 
 export interface DraftDecisionOutput extends DecisionOutput {
+  readonly rankedFitView: DraftDecisionView;
   readonly bestPickView: DraftDecisionView;
   readonly bestPlayerView: DraftDecisionView;
   readonly selectedView: DraftDecisionView;
@@ -49,36 +50,36 @@ function getPolicyVersion(
 
 function getFactorAdvantage(
   preferred: Recommendation,
-  bestPlayerPolicyVersion: Recommendation | undefined,
+  comparisonPolicyVersion: Recommendation | undefined,
   factor: DecisionDivergenceFactor
 ): number {
   const preferredFactors = preferred.decisionFactors;
-  const bestPlayerFactors = bestPlayerPolicyVersion?.decisionFactors;
+  const comparisonFactors = comparisonPolicyVersion?.decisionFactors;
   if (!preferredFactors) return Number.NEGATIVE_INFINITY;
 
   if (factor === 'league-value') {
     return preferredFactors.leagueValue.score -
-      (bestPlayerFactors?.leagueValue.score ?? 0);
+      (comparisonFactors?.leagueValue.score ?? 0);
   }
   if (factor === 'roster-fit') {
     return preferredFactors.rosterFit.score -
-      (bestPlayerFactors?.rosterFit.score ?? 0);
+      (comparisonFactors?.rosterFit.score ?? 0);
   }
   if (factor === 'depth-value') {
     return preferredFactors.depthValue.score -
-      (bestPlayerFactors?.depthValue.score ?? 0);
+      (comparisonFactors?.depthValue.score ?? 0);
   }
   if (factor === 'tier-supply') {
     return preferredFactors.tierSupply.score -
-      (bestPlayerFactors?.tierSupply.score ?? 0);
+      (comparisonFactors?.tierSupply.score ?? 0);
   }
   return preferredFactors.draftTiming.score -
-    (bestPlayerFactors?.draftTiming.score ?? 0);
+    (comparisonFactors?.draftTiming.score ?? 0);
 }
 
 function getDominantDivergenceFactor(
   bestPick: Recommendation,
-  bestPlayerPolicyVersion: Recommendation | undefined
+  comparisonPolicyVersion: Recommendation | undefined
 ): DecisionDivergenceFactor | null {
   const factors = bestPick.decisionFactors;
   if (!factors) return null;
@@ -90,7 +91,7 @@ function getDominantDivergenceFactor(
         factors.leagueValue.materiallyChangedOrdering === true,
       advantage: getFactorAdvantage(
         bestPick,
-        bestPlayerPolicyVersion,
+        comparisonPolicyVersion,
         'league-value'
       ),
     },
@@ -101,7 +102,7 @@ function getDominantDivergenceFactor(
         factors.conservativeBoundary.feasibilityException,
       advantage: getFactorAdvantage(
         bestPick,
-        bestPlayerPolicyVersion,
+        comparisonPolicyVersion,
         'roster-fit'
       ),
     },
@@ -111,7 +112,7 @@ function getDominantDivergenceFactor(
         factors.depthValue.materiallyChangedOrdering,
       advantage: getFactorAdvantage(
         bestPick,
-        bestPlayerPolicyVersion,
+        comparisonPolicyVersion,
         'depth-value'
       ),
     },
@@ -120,7 +121,7 @@ function getDominantDivergenceFactor(
       materiallyChangedOrdering: factors.tierSupply.materiallyChangedOrdering,
       advantage: getFactorAdvantage(
         bestPick,
-        bestPlayerPolicyVersion,
+        comparisonPolicyVersion,
         'tier-supply'
       ),
     },
@@ -129,7 +130,7 @@ function getDominantDivergenceFactor(
       materiallyChangedOrdering: factors.draftTiming.materiallyChangedOrdering,
       advantage: getFactorAdvantage(
         bestPick,
-        bestPlayerPolicyVersion,
+        comparisonPolicyVersion,
         'draft-timing'
       ),
     },
@@ -149,22 +150,22 @@ function getDominantDivergenceFactor(
 function getDivergenceTradeoff(
   factor: DecisionDivergenceFactor,
   bestPick: Recommendation,
-  bestPlayer: Recommendation,
-  bestPlayerPolicyVersion: Recommendation | undefined
+  comparison: Recommendation,
+  comparisonPolicyVersion: Recommendation | undefined
 ): string {
   const factors = bestPick.decisionFactors;
   if (!factors) return 'the bounded completed-roster policy changes the order';
 
   if (factor === 'league-value') {
     const preferredValue = factors.leagueValue.valueOverReplacement;
-    const bestPlayerValue = bestPlayerPolicyVersion?.decisionFactors
+    const comparisonValue = comparisonPolicyVersion?.decisionFactors
       ?.leagueValue.valueOverReplacement ??
-      bestPlayer.diagnostics?.valueOverReplacement;
-    const valueAdvantage = bestPlayerValue === undefined
+      comparison.diagnostics?.valueOverReplacement;
+    const valueAdvantage = comparisonValue === undefined
       ? null
-      : preferredValue - bestPlayerValue;
+      : preferredValue - comparisonValue;
     return valueAdvantage !== null && valueAdvantage > 0
-      ? `${bestPick.playerName} is ${formatSignedNumber(preferredValue)} pts over a fill-in starter, ${formatNumber(valueAdvantage)} more than ${bestPlayer.playerName} in this league`
+      ? `${bestPick.playerName} is ${formatSignedNumber(preferredValue)} pts over a fill-in starter, ${formatNumber(valueAdvantage)} more than ${comparison.playerName} in this league`
       : `${bestPick.playerName} has the stronger league-adjusted value`;
   }
 
@@ -200,9 +201,10 @@ function getDivergenceTradeoff(
     : `${bestPick.playerName} has only a ${String(returnPercent)}% chance of still being there at pick ${nextPick}, and waiting costs ${formatNumber(timing.costOfWaiting)} expected points`;
 }
 
+/** Best Pick against Ranked Fit: the policy alternative against the default lens. */
 function getDecisionDivergence(
   bestPick: Recommendation | null,
-  bestPlayer: Recommendation | null,
+  rankedFit: Recommendation | null,
   bestPickView: DraftDecisionView,
   display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
 ): {
@@ -212,37 +214,44 @@ function getDecisionDivergence(
   const { RANKING_LABELS, IS_DEMO } = display;
   if (
     !bestPick ||
-    !bestPlayer ||
-    bestPick.playerId === bestPlayer.playerId
+    !rankedFit ||
+    bestPick.playerId === rankedFit.playerId
   ) {
     return { factor: null, explanation: null };
   }
 
-  const bestPlayerPolicyVersion = getPolicyVersion(
+  const rankedFitPolicyVersion = getPolicyVersion(
     bestPickView,
-    bestPlayer.playerId
+    rankedFit.playerId
   );
   const factor = getDominantDivergenceFactor(
     bestPick,
-    bestPlayerPolicyVersion
+    rankedFitPolicyVersion
   );
   if (!factor) return { factor: null, explanation: null };
 
   const tradeoff = getDivergenceTradeoff(
     factor,
     bestPick,
-    bestPlayer,
-    bestPlayerPolicyVersion
+    rankedFit,
+    rankedFitPolicyVersion
   );
-  const ecrRank = bestPlayer.diagnostics?.expertRank;
-  const bestPlayerMeaning = ecrRank === undefined
+  const ecrRank = rankedFit.diagnostics?.expertRank;
+  const rankedFitMeaning = ecrRank === undefined
     ? IS_DEMO ? `under the ${RANKING_LABELS.anchor.toLowerCase()}` : 'under the trusted ECR Anchor'
     : `at ${RANKING_LABELS.inline} #${String(ecrRank)}`;
 
   return {
     factor,
-    explanation: `Prefer ${bestPick.playerName} over ${bestPlayer.playerName} because ${tradeoff}, while ${bestPlayer.playerName} remains Best Player ${bestPlayerMeaning}.`,
+    explanation: `Best Pick prefers ${bestPick.playerName} over ${rankedFit.playerName} because ${tradeoff}, while ${rankedFit.playerName} remains Ranked Fit ${rankedFitMeaning}.`,
   };
+}
+
+/** The Decision Lens whose order a view's selection policy produces. */
+export function getDecisionLensForPolicy(policy: RecommendationSelection['policy'] | undefined): DecisionLens {
+  if (policy === 'ranked-fit') return 'ranked-fit';
+  if (policy === 'ecr-anchor') return 'best-player';
+  return 'best-pick';
 }
 
 export function createDraftDecisionView(
@@ -270,7 +279,7 @@ export function createDraftDecisionView(
     explanationByPlayerId: new Map(
       visibleRecommendations.map((recommendation) => [
         recommendation.playerId,
-        getRecommendationExplanation(recommendation, display),
+        getRecommendationExplanation(recommendation, display, getDecisionLensForPolicy(selection.policy)),
       ])
     ),
     selection: {
@@ -280,49 +289,62 @@ export function createDraftDecisionView(
   };
 }
 
+export type DraftDecisionInput = Pick<RecommendationResult, 'draftNow' | 'selection' | 'bestAvailable' | 'rankedFit'>;
+
 export function createDraftDecisionOutput(
-  bestPickRecommendations: readonly Recommendation[],
-  bestPickSelection: RecommendationSelection,
-  bestPlayerRecommendations: readonly Recommendation[],
+  input: DraftDecisionInput,
   selectedLens: DecisionLens,
   display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
 ): DraftDecisionOutput {
   const bestPickView = createDraftDecisionView(
-    bestPickRecommendations,
-    bestPickSelection, undefined,
+    input.draftNow,
+    input.selection, undefined,
     display
   );
   const bestPlayerView = createDraftDecisionView(
-    bestPlayerRecommendations,
+    input.bestAvailable,
     {
-      preferredPlayerId: bestPlayerRecommendations[0]?.playerId,
+      preferredPlayerId: input.bestAvailable[0]?.playerId,
       policy: 'ecr-anchor',
     }, undefined,
     display
   );
+  const rankedFitView = createDraftDecisionView(
+    input.rankedFit,
+    {
+      preferredPlayerId: input.rankedFit[0]?.playerId,
+      policy: 'ranked-fit',
+    }, undefined,
+    display
+  );
+  const rankedFit = rankedFitView.preferred;
   const bestPick = bestPickView.preferred;
   const bestPlayer = bestPlayerView.preferred;
   const selectedView = selectedLens === 'best-pick'
     ? bestPickView
-    : bestPlayerView;
+    : selectedLens === 'best-player'
+      ? bestPlayerView
+      : rankedFitView;
   const divergence = getDecisionDivergence(
     bestPick,
-    bestPlayer,
+    rankedFit,
     bestPickView,
     display
   );
 
   return {
+    rankedFit,
     bestPick,
     bestPlayer,
     selectedLens,
     selected: selectedView.preferred,
     decisionDivergence:
       bestPick !== null &&
-      bestPlayer !== null &&
-      bestPick.playerId !== bestPlayer.playerId,
+      rankedFit !== null &&
+      bestPick.playerId !== rankedFit.playerId,
     decisionDivergenceFactor: divergence.factor,
     decisionDivergenceExplanation: divergence.explanation,
+    rankedFitView,
     bestPickView,
     bestPlayerView,
     selectedView,
@@ -355,5 +377,6 @@ export function getRecommendationPolicyLabel(
   if (selection.policy === 'roster-feasibility') return 'Roster feasibility';
   if (selection.policy === 'primary-league-policy') return `${LEAGUE_LABEL} policy`;
   if (selection.policy === 'ecr-anchor') return RANKING_LABELS.anchor;
+  if (selection.policy === 'ranked-fit') return 'Ranked Fit';
   return 'League-aware score';
 }

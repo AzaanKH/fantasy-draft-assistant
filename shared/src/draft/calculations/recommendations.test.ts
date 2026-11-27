@@ -903,6 +903,44 @@ describe('getRecommendations', () => {
 
   });
 
+  describe('rankedFit', () => {
+    it('orders legal players by ECR and keeps the Best Pick analysis of each player', () => {
+      // One selection left and the TE slot open: only the TE keeps the roster legal.
+      const players = [createPlayer('qb', 'QB', 1), createPlayer('wr', 'WR', 2), createPlayer('te', 'TE', 40)];
+      const needs = createNeeds([{ position: 'TE', priority: 'critical' }]);
+      const result = getRecommendations(players, needs, 10, {
+        currentPick: 100,
+        totalPicks: 150,
+        requirements: { ...DEFAULT_ROSTER_REQUIREMENTS, FLEX: { starters: 0, eligiblePositions: [] }, K: { starters: 0, max: 0 }, BENCH: { spots: 0 } },
+        rosterCounts: { QB: 1, RB: 2, WR: 2, TE: 0 },
+        selectionsRemaining: 1,
+      });
+
+      expect(result.bestAvailable[0]?.playerId).toBe('qb');
+      expect(result.rankedFit.map((rec) => rec.playerId)).toEqual(['te']);
+      const policy = result.draftNow.find((rec) => rec.playerId === 'te');
+      expect(result.rankedFit[0]).toMatchObject({
+        score: -40,
+        reason: expect.stringContaining('among players who keep a legal roster') as unknown,
+        decisionFactors: policy?.decisionFactors,
+        diagnostics: policy?.diagnostics,
+      });
+    });
+
+    it('is the ECR order when every player keeps the roster legal', () => {
+      const players = [createPlayer('wr', 'WR', 3), createPlayer('qb', 'QB', 2), createPlayer('rb', 'RB', 1)];
+      const needs = createNeeds([{ position: 'RB', priority: 'critical' }]);
+      const result = getRecommendations(players, needs, 10, {
+        currentPick: 1,
+        totalPicks: 150,
+        requirements: DEFAULT_ROSTER_REQUIREMENTS,
+        rosterCounts: { QB: 1 },
+        selectionsRemaining: 14,
+      });
+      expect(result.rankedFit.map((rec) => rec.playerId)).toEqual(['rb', 'qb', 'wr']);
+    });
+  });
+
   describe('bestAvailable', () => {
     it('returns players sorted by ECR rank', () => {
       const players = [
