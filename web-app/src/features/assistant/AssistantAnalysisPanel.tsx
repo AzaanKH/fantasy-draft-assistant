@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  DECISION_LENS_LABELS,
   formatSignedNumber,
   getWaitingCostSummary,
   type DecisionLens,
@@ -169,7 +170,7 @@ export function AnalysisAlerts({ alerts }: { readonly alerts: readonly string[] 
 
 /** "Best Pick · #1", "Viewing · #14 overall", or "Not in top 60". */
 function subjectLabel(subject: AnalysisSubject, lens: DecisionLens): string {
-  if (subject.isLeader) return `${lens === 'best-pick' ? 'Best Pick' : 'Best Player'} · #1`;
+  if (subject.isLeader) return `${DECISION_LENS_LABELS[lens]} · #1`;
   if (subject.rank !== undefined) return `Viewing · #${String(subject.rank)} overall`;
   return `Viewing · not in top ${String(subject.modelDepth)}`;
 }
@@ -286,7 +287,7 @@ export const AssistantAnalysisPanel = React.forwardRef<HTMLElement, AssistantAna
           <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${tab}`} className="rec-answer" tabIndex={0}>
             <div key={`${tab}:${recommendation.playerId}`}>
               {tab === 'why' ? (
-                <WhyAnswer recommendation={recommendation} isTopPick={subject.isTopPick} preferredExplanation={decision.explanationByPlayerId.get(recommendation.playerId)} expandReasoning={subject.expandReasoning} />
+                <WhyAnswer recommendation={recommendation} isTopPick={subject.isTopPick} lens={lens} preferredExplanation={decision.explanationByPlayerId.get(recommendation.playerId)} expandReasoning={subject.expandReasoning} />
               ) : tab === 'compare' ? (
                 <CompareAnswer
                   recommendations={subject.comparison.pair}

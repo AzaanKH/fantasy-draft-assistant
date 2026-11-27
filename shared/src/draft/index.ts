@@ -62,6 +62,28 @@ export {
   type RecommendationResult,
 } from './calculations/recommendations.js';
 export {
+  DEFAULT_DECISION_LENS,
+  DECISION_LENSES,
+  DECISION_LENS_LABELS,
+  resolveSavedDecisionLens,
+} from './decision-lens.js';
+export {
+  deriveRosterRules,
+  flexEligibleCount,
+  flexTarget,
+  isFlexPosition,
+  isRankedFitLegal,
+  missingRequiredSlots,
+  orderLiveRankedFit,
+  orderRankedFit,
+  POSITION_MAXIMUMS,
+  rosterRulesFromRequirements,
+  type LiveRankedFitContext,
+  type OffensiveRosterCounts,
+  type RankedFitInput,
+  type RosterRules,
+} from './calculations/ranked-fit.js';
+export {
   calculateAllScarcityScores,
 } from './calculations/scarcity.js';
 export {
@@ -91,12 +113,14 @@ export type {
 export {
   createDraftDecisionOutput,
   createDraftDecisionView,
+  getDecisionLensForPolicy,
   type DraftDecisionOutput,
   type DraftDecisionView,
   getPreferredRecommendation,
   getRecommendationPolicyLabel,
 } from './recommendations/draft-decision.js';
 export {
+  getDecisionLensOrderSentence,
   getRecommendationExplanation,
 } from './recommendations/recommendation-explanation.js';
 export {

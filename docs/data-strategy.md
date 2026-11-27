@@ -51,12 +51,15 @@ probabilities are calculated in
 
 ## Live Decision Policy
 
-The live recommendation engine runs only Best Pick policy. Best Pick combines the ECR Anchor
-with bounded league value, roster fit, tier supply, and Draft Timing over the
-Next-Pick Horizon. Conservative overrides stay near the ECR leader or within
-the permitted tier boundary, except when a legal completed roster requires an
-exception. Best Player remains available as the player-quality comparison:
-it lists the remaining players by expert rank with no roster adjustment.
+The live recommendation engine offers three Decision Lenses. Ranked Fit, the
+default, lists the ECR Anchor order limited to players who keep a legal
+completed roster possible, with no value or timing adjustment. Best Pick combines
+the ECR Anchor with bounded league value, roster fit, tier supply, and Draft
+Timing over the Next-Pick Horizon. Conservative overrides stay near the ECR
+leader or within the permitted tier boundary, except when a legal completed
+roster requires an exception. Best Player remains available as the
+player-quality comparison: it lists the remaining players by expert rank with no
+roster adjustment.
 
 A candidate who fills an open starting slot stays inside the same 8-rank ECR
 window as every other candidate, and the starting-slot bonus keeps one weight
@@ -120,8 +123,8 @@ in `server/src/sync-server.ts`) and is not overridden by any shipped entrypoint.
 Moving shadow logging to 2027 therefore needs that server change as well as a
 `pnpm model:dataset` rebuild. By default each season logs to its own
 `data/shadow-logs/<season>-recommendations.ndjson` file. An artifact built before `season` was recorded is not logged
-until it is rebuilt with `pnpm model:dataset`, which stamps the season. A shadow result cannot change the displayed Best Pick or
-Best Player.
+until it is rebuilt with `pnpm model:dataset`, which stamps the season. A shadow result cannot change the displayed Ranked Fit,
+Best Pick, or Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
 records validation evidence in

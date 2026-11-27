@@ -51,8 +51,8 @@ export const COMMANDS = {
     examples: [
       {
         task: 'Get advice',
-        command: 'draft recommend --session SESSION --lens best-pick --limit 5 --json',
-        result: 'Ranked candidates, explanations, roster needs, and Best Pick/Best Player divergence.',
+        command: 'draft recommend --session SESSION --lens ranked-fit --limit 5 --json',
+        result: 'Ranked candidates, explanations, roster needs, and Best Pick/Ranked Fit divergence.',
       },
     ],
   },

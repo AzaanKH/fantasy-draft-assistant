@@ -2,6 +2,12 @@ import type { DraftSessionIdentity, PersistedDraftSession } from '@/stores/draft
 import type { RawV1Entry, V1Import } from './v1-import';
 
 export const DRAFT_DATABASE = 'fantasy-draft-workspace-v2';
+/**
+ * Schema version. 2: sessions may store the Ranked Fit lens and the `decisionLensDefault` marker, which a version 1
+ * client can neither read nor preserve. Opening at 2 closes every version 1 connection (its `onversionchange`), so a
+ * stale tab can no longer write, and a stale tab that reopens gets a VersionError and the "Reload" storage notice.
+ */
+export const DRAFT_DATABASE_VERSION = 2;
 export const IMPORT_METADATA = 'fantasy-draft-v1-import-v2';
 /** Global activation record: written atomically with the import, read by every writer as the rollback fence. */
 export const ACTIVATION_RECORD = 'fantasy-draft-activation-v1';
@@ -75,11 +81,14 @@ export function openDraftDatabase({ factory, decode, report, name = DRAFT_DATABA
     const fail = (phase: StorageDiagnostic['phase'], error: unknown): void => {
       failed = true; report({ phase, error }); reject(asError(error));
     };
-    try { request = factory.open(name, 1); } catch (error) { fail('open', error); return; }
+    try { request = factory.open(name, DRAFT_DATABASE_VERSION); } catch (error) { fail('open', error); return; }
     request.onblocked = () => { fail('blocked', new Error('Close other draft windows before opening workspace storage')); };
     request.onerror = () => { fail('open', request.error); };
     request.onupgradeneeded = () => {
-      try { for (const store of STORES) request.result.createObjectStore(store); }
+      try {
+        // Version 2 changes only what sessions may hold; a version 1 database already has every store.
+        for (const store of STORES) if (!request.result.objectStoreNames.contains(store)) request.result.createObjectStore(store);
+      }
       catch (error) { fail('upgrade', error); request.transaction?.abort(); }
     };
     request.onsuccess = () => {

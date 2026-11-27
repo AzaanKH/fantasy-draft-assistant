@@ -112,6 +112,39 @@ describe('getRecommendationExplanation', () => {
     expect(explanation).toMatch(/changed Best Pick/);
   });
 
+  it('explains a Ranked Fit rank by the rankings and labels attached factors as Best Pick analysis', () => {
+    const withFactors = recommendation('RB', 3, 240, {
+      leagueValue: { score: 2.5, minScore: 0, maxScore: 6, projectedPoints: 240, replacementPoints: 200, valueOverReplacement: asVor(40) },
+      draftTiming: {
+        score: 2.1, minScore: 0, maxScore: 4, nextPickNumber: 13, nextPickLabel: '2.03', picksUntilNextPick: 5,
+        returnProbability: asProbability(0.05), candidateValue: 24, costOfWaiting: 16.7, source: 'league-history',
+        materiallyChangedOrdering: true,
+      },
+      conservativeBoundary: { ecrRankLimit: asRank(9), samePositionTier: false, withinBoundary: false, feasibilityException: true },
+    });
+    const explanation = getRecommendationExplanation(withFactors, undefined, 'ranked-fit');
+
+    expect(explanation).toMatch(/^Ranked Fit orders the players who keep a legal roster possible by the rankings alone\. Test Player is #3 in the rankings\. Best Pick analysis, which does not change this order:/);
+    expect(explanation).toMatch(/value adds 2\.5 to his Best Pick score/);
+    expect(explanation).toMatch(/adds 2\.1 to his Best Pick score/);
+    expect(explanation).not.toMatch(/to his score|taking him now|roster fillable/);
+    // Best Pick keeps its own wording.
+    expect(getRecommendationExplanation(withFactors)).toMatch(/value adds 2\.5 to his score/);
+  });
+
+  it('leads a Best Player explanation with its rule when only diagnostics exist', () => {
+    const explanation = getRecommendationExplanation(
+      recommendation('WR', 1, 300, undefined, { tierRemaining: 2, nextPickSurvivalProbability: asProbability(0.4) }),
+      undefined,
+      'best-player',
+    );
+
+    expect(explanation).toMatch(/^Best Player follows the rankings alone\. Test Player is one of 2 players remaining in WR Tier 1/);
+    expect(explanation).not.toMatch(/changed Best Pick|moved/);
+    // Best Pick's diagnostics-only wording is unchanged.
+    expect(getRecommendationExplanation(recommendation('WR', 1, 300, undefined, {}))).toMatch(/^Test Player is /);
+  });
+
   it.each([
     ['the last player in a tier, with risky waiting', 'WR', { tierRemaining: 1, isLastInTier: true, valueOverReplacement: asVor(127),
       nextPickSurvivalProbability: asProbability(0.14) }, [/last available player in WR Tier 1/, /\+127 pts/, /14%.*risky/]],

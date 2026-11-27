@@ -29,6 +29,7 @@ const EMPTY_RECOMMENDATIONS: RecommendationResult = {
   draftNow: [],
   rbIntentionalReaches: [],
   bestAvailable: [],
+  rankedFit: [],
   marketValues: [],
   marketStashes: [],
   byNeed: [],
@@ -48,6 +49,7 @@ export function hasRemainingDraftDecision(
 interface PositionRecommendationDecision {
   readonly recommendations: readonly Recommendation[];
   readonly bestAvailable: readonly Recommendation[];
+  readonly rankedFit: readonly Recommendation[];
   readonly selection: RecommendationSelection;
 }
 
@@ -55,6 +57,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
   draftNow: readonly Recommendation[];
   rbIntentionalReaches: readonly Recommendation[];
   bestAvailable: readonly Recommendation[];
+  rankedFit: readonly Recommendation[];
   marketValues: readonly Recommendation[];
   marketStashes: readonly Recommendation[];
   byNeed: readonly Recommendation[];
@@ -162,6 +165,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
         decisions[position] = {
           recommendations: [],
           bestAvailable: [],
+          rankedFit: [],
           selection: EMPTY_SELECTION,
         };
       }
@@ -182,6 +186,7 @@ export function useRecommendations(limit: number = 5, enabled: boolean = true): 
       decisions[position] = {
         recommendations: result.draftNow,
         bestAvailable: result.bestAvailable,
+        rankedFit: result.rankedFit,
         selection: result.selection,
       };
     }
