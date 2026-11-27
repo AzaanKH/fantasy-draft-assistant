@@ -1,5 +1,6 @@
 import { useDraftState } from '@/workspace/WorkspaceProvider';
 import { POSITIONS } from '@fantasy-draft/shared/league';
+import { DECISION_LENS_LABELS } from '@fantasy-draft/shared/draft';
 import { useDraftView } from '@/workspace/useDraftView';
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import * as React from 'react';
@@ -105,7 +106,7 @@ export function DraftDock({
   return (
     <section className={cn('draft-dock', isSplit && 'is-split', !isExpanded && 'is-collapsed')} aria-label="Draft tools">
       <h2 className="sr-only">Draft workspace</h2>
-      <p className="sr-only">Player pool ordered by {recommendationsBlocked ? RANKING_LABELS.long : output.selectedLens === 'best-pick' ? 'Best Pick' : 'Best Player'}</p>
+      <p className="sr-only">Player pool ordered by {recommendationsBlocked ? RANKING_LABELS.long : DECISION_LENS_LABELS[output.selectedLens]}</p>
       {checklist ? <div className="draft-dock-checklist">{checklist}</div> : null}
       {isSplit ? (
         <>

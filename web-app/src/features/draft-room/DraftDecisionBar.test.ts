@@ -6,6 +6,7 @@ import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
+  DecisionLens,
   Recommendation,
   RecommendationDecisionFactors,
 } from '@fantasy-draft/shared/draft';
@@ -16,7 +17,7 @@ import { getDraftDecisionBarReason } from './draft-decision-bar-reason';
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ ...VISUAL_PLAYER_DATA, isLoading: decision.playersLoading }) }));
 
 const decision = vi.hoisted(() => ({
-  output: { bestPick: null as Recommendation | null },
+  output: { selected: null as Recommendation | null, selectedLens: 'best-pick' as DecisionLens },
   isLoading: true,
   recommendationsBlocked: false,
   playersLoading: false,
@@ -34,14 +35,14 @@ describe('DraftDecisionBar loading', () => {
   afterEach(() => { Object.assign(decision, { isLoading: true, recommendationsBlocked: false, playersLoading: false, readiness: null }); });
 
   it('keeps the settled pick visible while loading', () => {
-    decision.output.bestPick = recommendation();
+    decision.output.selected = recommendation();
     const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() })));
     expect(markup).toContain('Why this pick');
     expect(markup).toContain('Add Best Pick to queue');
   });
 
   it('reports loading, not a paused setup, while player data loads', () => {
-    decision.output.bestPick = null;
+    decision.output.selected = null;
     decision.isLoading = false;
     decision.recommendationsBlocked = true;
     decision.playersLoading = true;
@@ -55,7 +56,7 @@ describe('DraftDecisionBar loading', () => {
     ['blocked', { isLoading: false, recommendationsBlocked: true }, /Paused until setup/],
     ['empty', { isLoading: false }, /No pick available/],
   ] as const)('reports the %s status in the bar when there is no pick', (_, state, message) => {
-    decision.output.bestPick = null;
+    decision.output.selected = null;
     Object.assign(decision, state);
     const markup = renderToStaticMarkup(createElement(DraftDecisionBar, { onOpenAssistant: vi.fn() }));
     expect(markup).toMatch(message);
@@ -146,10 +147,10 @@ function recommendation(
 
 describe('getDraftDecisionBarReason', () => {
   it('uses the dominant divergence factor for the short reason', () => {
-    expect(getDraftDecisionBarReason(recommendation(), 'draft-timing')).toBe(
+    expect(getDraftDecisionBarReason(recommendation(), 'best-pick', 'draft-timing')).toBe(
       'Waiting costs 16.5 expected points before your next selection.'
     );
-    expect(getDraftDecisionBarReason(recommendation(), 'tier-supply')).toBe(
+    expect(getDraftDecisionBarReason(recommendation(), 'best-pick', 'tier-supply')).toBe(
       '1 RB option remains in Tier 2 before a 20.0 point drop.'
     );
     expect(getDraftDecisionBarReason(recommendation({
@@ -163,7 +164,7 @@ describe('getDraftDecisionBarReason', () => {
         contingencyPoints: 20,
         materiallyChangedOrdering: true,
       },
-    }), 'depth-value')).toBe(
+    }), 'best-pick', 'depth-value')).toBe(
       'Depth Value moves RB first with 0 reserves against a target of 2.'
     );
   });
@@ -176,7 +177,7 @@ describe('getDraftDecisionBarReason', () => {
     });
     const signedValue = value > 0 ? `+${String(value)}` : String(value);
 
-    expect(getDraftDecisionBarReason(pick, 'league-value')).toBe(
+    expect(getDraftDecisionBarReason(pick, 'best-pick', 'league-value')).toBe(
       `League value moves this pick first at ${signedValue} pts over a fill-in starter.`
     );
     expect(getDraftDecisionBarReason(pick)).toBe(
@@ -200,8 +201,19 @@ describe('getDraftDecisionBarReason', () => {
 
     expect(getDraftDecisionBarReason(
       recommendation(feasibilityFactors),
+      'best-pick',
       'draft-timing'
     )).toBe('Keeps a legal roster possible with 1 selection left.');
+  });
+
+  it('explains Ranked Fit and Best Player by their own reason, not by attached Best Pick factors', () => {
+    const pick = { ...recommendation(), reason: 'Trusted ECR Anchor #8 among players who keep a legal roster' };
+    expect(getDraftDecisionBarReason(pick, 'ranked-fit', 'draft-timing')).toBe(
+      'Trusted ECR Anchor #8 among players who keep a legal roster.'
+    );
+    expect(getDraftDecisionBarReason(pick, 'best-player')).toBe(
+      'Trusted ECR Anchor #8 among players who keep a legal roster.'
+    );
   });
 
   it('reduces legacy recommendation text to its first plain-language reason', () => {

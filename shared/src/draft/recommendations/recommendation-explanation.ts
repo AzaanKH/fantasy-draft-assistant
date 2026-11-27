@@ -1,16 +1,39 @@
 import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context.js';
-import type { Recommendation } from '../../draft.js';
+import type { DecisionLens, Recommendation } from '../../draft.js';
 import { formatSignedNumber } from '../format.js';
 
+/** Why the active lens ranks a player, for lenses whose order the attached Best Pick factors do not set. */
+const LENS_ORDER_SENTENCES: Readonly<Record<Exclude<DecisionLens, 'best-pick'>, string>> = {
+  'ranked-fit': 'Ranked Fit orders the players who keep a legal roster possible by the rankings alone.',
+  'best-player': 'Best Player follows the rankings alone.',
+};
+
+/**
+ * The active lens's ordering rule, which leads every explanation in a lens other than Best Pick so attached Best
+ * Pick factors never read as the reason for that order. Empty for Best Pick, whose factors are the reason.
+ */
+export function getDecisionLensOrderSentence(lens: DecisionLens): string {
+  return lens === 'best-pick' ? '' : LENS_ORDER_SENTENCES[lens];
+}
+
+/**
+ * The full reasoning for a player in a Decision Lens. Best Pick's factors set Best Pick's order; in Ranked Fit
+ * and Best Player they are only Best Pick's analysis of the same player, so they are labelled that way.
+ */
 export function getRecommendationExplanation(
   recommendation: Recommendation,
-  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
+  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY,
+  lens: DecisionLens = 'best-pick'
 ): string {
   const { LEAGUE_LABEL } = display;
+  const isBestPick = lens === 'best-pick';
+  const score = isBestPick ? 'his score' : 'his Best Pick score';
   const diagnostics = recommendation.diagnostics;
   const factors = recommendation.decisionFactors;
+  const lensRule = getDecisionLensOrderSentence(lens);
+  const withLensRule = (text: string): string => (lensRule ? `${lensRule} ${text}` : text);
   if (!diagnostics) {
-    return `Consider ${recommendation.playerName} now: ${recommendation.reason}.`;
+    return withLensRule(`Consider ${recommendation.playerName} now: ${recommendation.reason}.`);
   }
 
   if (factors) {
@@ -19,7 +42,7 @@ export function getRecommendationExplanation(
       ? `, including ${formatSignedNumber(factors.leagueValue.scoringAdjustment, 1)} from ${LEAGUE_LABEL} scoring`
       : '';
     const valueSentence =
-      `${LEAGUE_LABEL} value adds ${factors.leagueValue.score.toFixed(1)} to his score: he projects ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} pts over a fill-in starter${scoringDetail}.`;
+      `${LEAGUE_LABEL} value adds ${factors.leagueValue.score.toFixed(1)} to ${score}: he projects ${formatSignedNumber(factors.leagueValue.valueOverReplacement, 0)} pts over a fill-in starter${scoringDetail}.`;
     const fixedStarterLabel = factors.rosterFit.fixedStartersOpen === 1
       ? 'fixed starter spot'
       : 'fixed starter spots';
@@ -44,13 +67,14 @@ export function getRecommendationExplanation(
       returnProbability !== undefined && factors.draftTiming.nextPickNumber !== undefined
         ? `${timingSource} gives a ${String(Math.round(returnProbability * 100))}% chance he's still there at pick ${factors.draftTiming.nextPickLabel ?? `#${String(factors.draftTiming.nextPickNumber)}`}. ${expectedAlternative
           ? `If you wait, ${expectedAlternative.playerName} is the best estimated ${recommendation.position} option, at ${formatSignedNumber(expectedAlternative.expectedValue, 0)} expected pts over a fill-in starter.`
-          : `No ${recommendation.position} is projected to be left at that pick.`} Waiting costs ${factors.draftTiming.costOfWaiting.toFixed(1)} expected points, which adds ${factors.draftTiming.score.toFixed(1)} to taking him now.${factors.draftTiming.materiallyChangedOrdering ? ' That next-pick tradeoff changed Best Pick.' : ''}`
+          : `No ${recommendation.position} is projected to be left at that pick.`} Waiting costs ${factors.draftTiming.costOfWaiting.toFixed(1)} expected points, which adds ${factors.draftTiming.score.toFixed(1)} to ${isBestPick ? 'taking him now' : score}.${factors.draftTiming.materiallyChangedOrdering ? ' That next-pick tradeoff changed Best Pick.' : ''}`
         : '';
-    const feasibilitySentence = factors.conservativeBoundary.feasibilityException
+    const feasibilitySentence = isBestPick && factors.conservativeBoundary.feasibilityException
       ? `No player in the usual range of the rankings could still complete a legal roster, so he is taken early to keep the roster fillable. `
       : '';
 
-    return `${recommendation.playerName} is #${String(factors.playerQuality.ecrRank)} in the rankings. ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
+    const analysisLabel = isBestPick ? '' : 'Best Pick analysis, which does not change this order:';
+    return `${lensRule} ${recommendation.playerName} is #${String(factors.playerQuality.ecrRank)} in the rankings. ${analysisLabel} ${valueSentence} ${rosterSentence} ${depthSentence} ${tierSupplySentence} ${timingSentence} ${feasibilitySentence}`
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -83,8 +107,8 @@ export function getRecommendationExplanation(
       : probability < 70
         ? `The chance this player reaches your next pick is ${String(probability)}%, so waiting carries some risk.`
         : `The chance this player reaches your next pick is ${String(probability)}%, so waiting may be reasonable.`;
-    return `${recommendation.playerName} is ${playerDescription}. ${timing}`;
+    return withLensRule(`${recommendation.playerName} is ${playerDescription}. ${timing}`);
   }
 
-  return `${recommendation.playerName} is ${playerDescription}.`;
+  return withLensRule(`${recommendation.playerName} is ${playerDescription}.`);
 }

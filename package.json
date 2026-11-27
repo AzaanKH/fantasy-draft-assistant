@@ -40,7 +40,7 @@
     "draft:readiness": "pnpm --filter scripts check:draft-readiness",
     "draft:rehearsal": "pnpm --filter web-app rehearse:primary-league",
     "draft:release-gate": "pnpm --filter scripts primary-league:release-gate",
-    "experiment:primary-league": "pnpm --filter web-app experiment:primary-league",
+    "experiment:primary-league": "pnpm --filter scripts experiment:primary-league",
     "refresh:fantasypros": "pnpm --filter scripts refresh:fantasypros-snapshot",
     "refresh:sleeper": "pnpm --filter scripts fetch:sleeper",
     "import:sportsbook": "pnpm --filter scripts import:sportsbook",
@@ -59,6 +59,7 @@
     "model:snapshots": "pnpm --filter scripts model:snapshots",
     "model:league-survival": "pnpm --filter scripts build:league-survival",
     "model:backtest": "pnpm --filter scripts backtest:recommendations",
+    "model:backtest:accept-best-pick": "pnpm --filter scripts backtest:recommendations --accept-best-pick-baseline",
     "model:backtest:contracts": "pnpm --filter scripts backtest:contracts",
     "report:draft-prep": "pnpm --filter scripts generate:draft-prep",
     "prepare:draft": "pnpm refresh:daily && pnpm model:dataset && pnpm model:league-survival && pnpm model:backtest && pnpm model:backtest:contracts && pnpm report:draft-prep && pnpm data:check:strict",
@@ -99,7 +100,8 @@
       "nanoid@3": "^3.3.18",
       "ajv@6": "^6.14.0",
       "picomatch@4": "^4.0.4",
-      "@humanfs/node@0.16": "^0.16.8"
+      "@humanfs/node@0.16": "^0.16.8",
+      "@swc/core": "1.16.2"
     },
     "auditConfig": {
       "ignoreGhsas": [

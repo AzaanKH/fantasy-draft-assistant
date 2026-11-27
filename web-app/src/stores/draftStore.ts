@@ -1,3 +1,4 @@
+import { DEFAULT_DECISION_LENS } from '@fantasy-draft/shared/draft';
 import { isDraftSessionIdentity } from '@fantasy-draft/shared/sync';
 import { create, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -73,7 +74,7 @@ export function createDraftStore({ session = null }: DraftStoreOptions = {}): Dr
     keepersInitialized: false,
     mockSurvivalProbabilities: {},
     unresolvedProviderPicks: [],
-    decisionLens: 'best-pick',
+    decisionLens: DEFAULT_DECISION_LENS,
     filter: defaultFilter,
 
     ...createModeActions(set),

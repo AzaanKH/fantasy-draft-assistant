@@ -229,14 +229,13 @@ const execute = Effect.fn('execute')(function* (args: Arguments, client: DraftCl
   }
   yield* attempt(() => { requireAdvice(context, readiness); });
   const board = adviceBoard(context, pool);
-  const decision = createDraftDecisionOutput(board.recommendations.draftNow, board.recommendations.selection,
-    board.recommendations.bestAvailable, args.lens);
+  const decision = createDraftDecisionOutput(board.recommendations, args.lens);
   const recommendations = decision.selectedView.recommendations;
   const common = { session: session.id, ...origin, slot: context.slot, currentPick: context.currentPick,
     yourNextTurn: context.nextTurn, lens: args.lens, sync: context.sync, readiness, warnings };
   if (args.command === 'recommend') {
     return { data: { ...common, hasRemainingDecision: board.hasDecision,
-      bestPick: decision.bestPick, bestPlayer: decision.bestPlayer,
+      rankedFit: decision.rankedFit, bestPick: decision.bestPick, bestPlayer: decision.bestPlayer,
       decisionDivergence: decision.decisionDivergence,
       decisionDivergenceFactor: decision.decisionDivergenceFactor,
       decisionDivergenceExplanation: decision.decisionDivergenceExplanation,

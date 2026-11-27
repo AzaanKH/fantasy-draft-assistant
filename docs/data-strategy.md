@@ -51,24 +51,40 @@ probabilities are calculated in
 
 ## Live Decision Policy
 
-The live recommendation engine runs only Best Pick policy. Best Pick combines the ECR Anchor
-with bounded league value, roster fit, tier supply, and Draft Timing over the
-Next-Pick Horizon. Conservative overrides stay near the ECR leader or within
-the permitted tier boundary, except when a legal completed roster requires an
-exception. Best Player remains available as the player-quality comparison:
-it lists the remaining players by expert rank with no roster adjustment.
+The live recommendation engine offers three Decision Lenses. Ranked Fit, the
+default, lists the ECR Anchor order limited to players who keep a legal
+completed roster possible, with no value or timing adjustment. Best Pick combines
+the ECR Anchor with bounded league value, roster fit, tier supply, and Draft
+Timing over the Next-Pick Horizon. Conservative overrides stay near the ECR
+leader or within the permitted tier boundary, except when a legal completed
+roster requires an exception. Best Player remains available as the
+player-quality comparison: it lists the remaining players by expert rank with no
+roster adjustment.
 
-Two roster rules shape Best Pick, for every position. A candidate who fills an
-open starting slot may sit a full round (12 ranks) behind the ECR leader rather
-than 8, and from the manager's sixth selection that slot is worth double. A
-candidate at a filled position that cannot play FLEX (a backup QB in a one-QB
-league) is set behind every other candidate until the offensive starters are
-filled. `pnpm model:backtest` replays Best Pick through the same function the
-Assistant calls and reports it beside roster-aware ECR and beside the earlier
-starter weights, in the Best Pick Policy section of
+A candidate who fills an open starting slot stays inside the same 8-rank ECR
+window as every other candidate, and the starting-slot bonus keeps one weight
+for the whole draft. A candidate at a filled position that cannot play FLEX (a
+backup QB in a one-QB league) is set behind every other candidate until the
+offensive starters are filled.
+
+Decision, 2026-11-24: Best Pick went back to these starter weights. The 12-rank
+starter window and doubled late bonus from 09781a5 lost to roster-aware ECR on
+every backtest metric (VOR −367, average regret +3.4). The 8-rank weights still
+trail ECR on starter points (−104) and VOR (−107) but beat it on average regret
+(−1.9) and top-24 hit rate (+0.03), and beat the 12/2 weights on VOR (+260) and
+regret (−5.3). The backup-QB rule stayed: with the 8-rank weights
+it adds 57 VOR and lowers regret by 1.2. The weights were not searched or tuned
+further; four seasons are too few to fit them.
+
+`pnpm model:backtest` replays Best Pick through the same function the
+Assistant calls and reports it beside roster-aware ECR and beside the rejected
+12/2 weights, in the Best Pick Policy section of
 [recommendation-backtest.md](recommendation-backtest.md). The replay covers 49
 selections over four seasons, with neutral values for news, bye weeks, contract
-and environment inputs, so it shows direction and cannot prove a weight.
+and environment inputs, so it shows direction and cannot prove a weight. Any
+change to `best-pick-policy.ts` must regenerate that report, and its margin over
+ECR may not regress; see
+[the Best Pick regression gate](recommendation-backtest.md#best-pick-regression-gate).
 
 Use [best-pick-policy.ts](../shared/src/draft/calculations/best-pick-policy.ts)
 for score bounds and selection rules, and
@@ -93,7 +109,7 @@ recommendation step, where the manager's current draft state is known.
 Experimental predictions enter a separate Shadow Recommendation player pool
 when prediction data is ready and shadow logging is enabled. The app logs the
 shadow result beside the live decision for later evaluation. A shadow result
-cannot change the displayed Best Pick or Best Player.
+cannot change the displayed Ranked Fit, Best Pick, or Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
 records validation evidence in

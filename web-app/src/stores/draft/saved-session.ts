@@ -1,6 +1,7 @@
 import { deriveDraftState } from './source';
 import { castDraft, type Draft } from 'immer';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
+import { resolveSavedDecisionLens } from '@fantasy-draft/shared/draft';
 import type { DraftSessionIdentity, PersistedDraftSession } from '../draftSessionStorage';
 import { defaultConfig } from './state';
 import type { DraftState } from './types';
@@ -26,7 +27,7 @@ export function applySavedDraftSession(
   state.manualContinuityBaselineAt = saved?.manualContinuityBaselineAt ?? null;
   state.lastConfirmedSyncAt = saved?.lastConfirmedSyncAt ?? null;
   state.lastConfirmedPickNumber = saved?.lastConfirmedPickNumber ?? 0;
-  state.decisionLens = saved?.decisionLens ?? 'best-pick';
+  state.decisionLens = resolveSavedDecisionLens(saved);
   state.mockSurvivalProbabilities = {};
   state.shortlistedPlayerIds = [...deriveDraftState(state).shortlistedPlayerIds];
 }

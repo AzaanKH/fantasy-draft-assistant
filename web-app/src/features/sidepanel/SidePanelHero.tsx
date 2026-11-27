@@ -7,7 +7,7 @@ import { MotionIdentitySwap } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { PlayerStatusFacts, VerdictChip } from '@/features/draft-room/suggestion-card-parts';
 import { getRecommendationVerdict } from '@/features/draft-room/suggestion-reasons';
-import { type DraftDecisionView, formatSignedNumber } from '@fantasy-draft/shared/draft';
+import { type DraftDecisionView, formatSignedNumber, getDecisionLensForPolicy } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
 import { HERO_CARD } from './SidePanelFrame';
 import { getCompactDecisionExplanation } from './sidepanel-insights';
@@ -55,7 +55,7 @@ export function RecommendationHero({
   const diagnostics = recommendation.diagnostics;
   const availability = getNextPickAvailability(diagnostics);
   const missingAvailability = describeMissingAvailability(availability);
-  const explanation = getCompactDecisionExplanation(recommendation);
+  const explanation = getCompactDecisionExplanation(recommendation, getDecisionLensForPolicy(decision.selection.policy));
 
   return (
     <section className={HERO_CARD}>

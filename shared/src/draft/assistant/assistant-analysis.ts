@@ -2,7 +2,7 @@ import { LIVE_DRAFT_DISPLAY, type DraftDisplayContext } from '../display-context
 import { toWholePercent, type Percent } from '../../units/brands.js';
 import { type DraftDecisionView } from '../recommendations/draft-decision.js';
 import { formatSignedNumber } from '../format.js';
-import { type ExpectedNextPickAlternative, type PositionNeed, type Recommendation } from '../../draft.js';
+import { type DecisionLens, type ExpectedNextPickAlternative, type PositionNeed, type Recommendation } from '../../draft.js';
 import { type Position } from '../../player.js';
 
 export type PoolSort = 'recommendation' | 'tier';
@@ -78,20 +78,31 @@ function getTimingFacts(recommendation: Recommendation): TimingFacts {
   };
 }
 
-/** States which bounded adjustment moved the order, without restating figures owned by other answers. */
+/**
+ * States what set this player's place in the active lens. In Best Pick that is the bounded adjustment that moved the
+ * order; Ranked Fit and Best Player follow the rankings, so attached Best Pick factors never explain their order.
+ */
 function getRecommendationChangeAnswer(
   recommendation: Recommendation,
   isTopPick: boolean,
   positionRank?: number,
-  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
+  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY,
+  lens: DecisionLens = 'best-pick'
 ): string {
   const { LEAGUE_LABEL } = display;
+  const positionPlace = positionRank === undefined ? '.' : `; #${String(positionRank)} at ${recommendation.position}.`;
+  if (lens === 'ranked-fit') {
+    return isTopPick
+      ? 'The best-ranked player who keeps a legal roster possible.'
+      : `Ranked behind the players ahead of him who keep a legal roster possible${positionPlace}`;
+  }
+  if (lens === 'best-player') {
+    return isTopPick ? 'The best-ranked available player.' : `Ranked behind the players ahead of him in the rankings${positionPlace}`;
+  }
   const factors = recommendation.decisionFactors;
   const unchanged = isTopPick
     ? 'Follows the rankings; roster and timing did not move anyone ahead.'
-    : `Roster and timing did not lift this player above the Best Pick${positionRank === undefined
-      ? '.'
-      : `; #${String(positionRank)} at ${recommendation.position}.`}`;
+    : `Roster and timing did not lift this player above the Best Pick${positionPlace}`;
   if (!factors) return unchanged;
 
   if (factors.conservativeBoundary.feasibilityException) {
@@ -116,7 +127,8 @@ export function getWhyRows(
   recommendation: Recommendation,
   isTopPick: boolean,
   positionRank?: number,
-  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY
+  display: DraftDisplayContext = LIVE_DRAFT_DISPLAY,
+  lens: DecisionLens = 'best-pick'
 ): readonly AssistantAnswerRow[] {
   const diagnostics = recommendation.diagnostics;
   const factors = recommendation.decisionFactors;
@@ -125,11 +137,11 @@ export function getWhyRows(
     : ` #${String(positionRank)} among available ${recommendation.position}s.`;
   // Plain words on the primary line; the detailed figures stay in Full reasoning.
   const vor = diagnostics ? Math.round(diagnostics.valueOverReplacement) : 0;
-  // "Projects 0 pts more than a fill-in DEF" reads as a model error: say it plainly and let the rows below give
-  // the reason (the open spot, the tier, or the order).
+  // "Projects 0 pts more than a fill-in DEF" reads as a model error: say it plainly. Only Best Pick weighs roster and
+  // tier, so only it hands the decision to those rows; the other lenses leave the order to "Why it ranks here".
   const value = diagnostics
     ? `${hasNearZeroValue(recommendation)
-      ? `Projects about the same as a fill-in ${recommendation.position}, so the roster and tier below decide.`
+      ? `Projects about the same as a fill-in ${recommendation.position}${lens === 'best-pick' ? ', so the roster and tier below decide' : ''}.`
       : `Projects ${pluralize(Math.abs(vor), 'pt', 'pts')} ${vor >= 0 ? 'more' : 'fewer'} than a fill-in ${recommendation.position}.`} #${String(diagnostics.expertRank)} overall.${positionPlace}`
     : 'League value is not available for this player.';
   const rosterFit = factors
@@ -146,7 +158,7 @@ export function getWhyRows(
     { label: 'Value', answer: value, tone: isTopPick ? 'positive' : 'neutral' },
     { label: 'Roster fit', answer: rosterFit, tone: 'neutral' },
     { label: 'Tier', answer: tier, tone: tierSupply && tierSupply.remainingInTier <= 2 ? 'caution' : 'neutral' },
-    { label: 'Why it ranks here', answer: getRecommendationChangeAnswer(recommendation, isTopPick, positionRank, display), tone: 'neutral' },
+    { label: 'Why it ranks here', answer: getRecommendationChangeAnswer(recommendation, isTopPick, positionRank, display, lens), tone: 'neutral' },
   ];
 }
 

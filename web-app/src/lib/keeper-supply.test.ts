@@ -159,9 +159,7 @@ describe('Primary League keeper supply end-to-end', () => {
       rosterCounts: { RB: 0, WR: 0 },
     }, DRAFT_DISPLAY);
     return createDraftDecisionOutput(
-      bestPick.draftNow,
-      bestPick.selection,
-      bestPick.bestAvailable,
+      bestPick,
       'best-pick',
       DRAFT_DISPLAY
     );
@@ -182,7 +180,7 @@ describe('Primary League keeper supply end-to-end', () => {
     expect(deriveDraftState(state).myRoster.RB).toEqual(['keeper-4']);
 
     const output = decisionOutputForBothLenses();
-    for (const view of [output.bestPickView, output.bestPlayerView]) {
+    for (const view of [output.rankedFitView, output.bestPickView, output.bestPlayerView]) {
       const visibleIds = new Set(view.recommendations.map((pick) => pick.playerId));
       for (const keeperId of keeperPlayerIds) {
         expect(visibleIds.has(keeperId)).toBe(false);

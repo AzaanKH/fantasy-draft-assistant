@@ -25,19 +25,23 @@ The compact view used beside the provider draft room, with the same draft state 
 _Avoid_: Separate recommendation app
 
 **Best Pick**:
-The available player preferred by the Decision Policy for improving the expected completed roster, given league value, roster needs, Depth Value, tier supply, and the Next-Pick Horizon. It can differ from Best Player.
+The available player preferred by the Decision Policy for improving the expected completed roster, given league value, roster needs, Depth Value, tier supply, and the Next-Pick Horizon. It can differ from Ranked Fit and Best Player.
 _Avoid_: Highest-ranked available player
 
 **Best Player**:
 The highest-quality available player according to the trusted player-quality ranking, without considering the manager's roster or whether the player could be selected later.
 _Avoid_: Best Pick
 
+**Ranked Fit**:
+The ECR Anchor order limited to available players who keep a legal completed roster possible: drafting them leaves enough selections to fill every starting slot without exceeding the roster size or a position maximum. It applies no league-value, depth, tier, or timing adjustment, and a legal surplus starter (a backup QB while a lineup hole remains) keeps its ECR place. It is the default Decision Lens and the same ordering as the recommendation backtest's "Roster-aware ECR" row.
+_Avoid_: Roster-aware ECR (backtest row name only), Best Available, Best Pick
+
 **Decision Lens**:
-The manager-selected perspective used to order available players. The canonical lenses are Best Pick and Best Player, and both remain available throughout the draft.
+The manager-selected perspective used to order available players. The canonical lenses are Ranked Fit (the default), Best Pick, and Best Player, and all three remain available throughout the draft. A lens the manager chose is kept with the draft session.
 _Avoid_: Sort order
 
 **Decision Divergence**:
-The state in which Best Pick and Best Player identify different players. Both candidates remain visible, with the league-value, roster-fit, depth-value, tier-supply, or timing reason stated explicitly.
+The state in which Best Pick and Ranked Fit identify different players. Both candidates remain visible, with the league-value, roster-fit, depth-value, tier-supply, or timing reason that moved Best Pick away from Ranked Fit stated explicitly. Best Player is not part of the comparison.
 _Avoid_: Ranking error
 
 **Decision Policy**:
