@@ -58,10 +58,11 @@ function splitAt(rows: readonly TierPlayer[], playerId: string | undefined): rea
   return index > 0 ? [rows.slice(0, index), rows.slice(index)] : [rows];
 }
 
-/** Tiers past the sixth share its color; Overall's round bands are neutral. */
-const TIER_COLOR_COUNT = 6;
-function tierColor(group: PositionTierGroup | OverallBand): string {
-  return 'label' in group ? 'var(--color-muted-foreground)' : `var(--tier-${String(Math.min(Math.max(group.tier, 1), TIER_COLOR_COUNT))})`;
+/** Tiers 1 to 5 each have a color; Tier 6 and later share the neutral --tier-rest, as do Overall's round bands. */
+const TIER_COLOR_COUNT = 5;
+export function tierColor(group: Pick<PositionTierGroup, 'tier'> | OverallBand): string {
+  if ('label' in group || group.tier > TIER_COLOR_COUNT) return 'var(--tier-rest)';
+  return `var(--tier-${String(Math.max(group.tier, 1))})`;
 }
 
 /** "Your next pick" divider: between two runs of a tier's rows, or a standalone bar between tiers or after the last. */

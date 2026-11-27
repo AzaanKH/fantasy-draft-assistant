@@ -7,7 +7,7 @@ import { asProbability, asRank } from '@fantasy-draft/shared/units';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { NextPickAvailability } from '@/lib/next-pick-availability';
 import { VISUAL_PLAYERS } from '@/visual/VisualApp';
-import { PositionTiersView } from './PositionTiersView';
+import { PositionTiersView, tierColor } from './PositionTiersView';
 import { createAssistantTestData, withAssistantData } from './assistant-data-test-helpers';
 
 let container: HTMLDivElement;
@@ -57,4 +57,9 @@ it('warns when the tier empties first, and leaves the divider out on the final p
   render({}, null);
   expect(container.querySelector('.rec-tier-nextpick')).toBeNull();
   expect(column()?.querySelector('.rec-tier-status')?.textContent).toBe('3 left in Tier 1');
+});
+
+it('colors Tiers 1 to 5 apart and gives Tier 6 and later the shared neutral', () => {
+  expect([1, 2, 3, 4, 5].map((tier) => tierColor({ tier }))).toEqual(['var(--tier-1)', 'var(--tier-2)', 'var(--tier-3)', 'var(--tier-4)', 'var(--tier-5)']);
+  expect([6, 7, 12].map((tier) => tierColor({ tier }))).toEqual(['var(--tier-rest)', 'var(--tier-rest)', 'var(--tier-rest)']);
 });
