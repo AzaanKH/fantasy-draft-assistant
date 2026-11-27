@@ -137,11 +137,11 @@ export function getWhyRows(
     : ` #${String(positionRank)} among available ${recommendation.position}s.`;
   // Plain words on the primary line; the detailed figures stay in Full reasoning.
   const vor = diagnostics ? Math.round(diagnostics.valueOverReplacement) : 0;
-  // "Projects 0 pts more than a fill-in DEF" reads as a model error: say it plainly and let the rows below give
-  // the reason (the open spot, the tier, or the order).
+  // "Projects 0 pts more than a fill-in DEF" reads as a model error: say it plainly. Only Best Pick weighs roster and
+  // tier, so only it hands the decision to those rows; the other lenses leave the order to "Why it ranks here".
   const value = diagnostics
     ? `${hasNearZeroValue(recommendation)
-      ? `Projects about the same as a fill-in ${recommendation.position}, so the roster and tier below decide.`
+      ? `Projects about the same as a fill-in ${recommendation.position}${lens === 'best-pick' ? ', so the roster and tier below decide' : ''}.`
       : `Projects ${pluralize(Math.abs(vor), 'pt', 'pts')} ${vor >= 0 ? 'more' : 'fewer'} than a fill-in ${recommendation.position}.`} #${String(diagnostics.expertRank)} overall.${positionPlace}`
     : 'League value is not available for this player.';
   const rosterFit = factors

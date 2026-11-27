@@ -128,9 +128,16 @@ describe('Assistant decision answer', () => {
     expect(getWhyRows(selected, true, undefined, undefined, 'ranked-fit')[3]?.answer).toBe('The best-ranked player who keeps a legal roster possible.');
     expect(getWhyRows(selected, false, 2, undefined, 'ranked-fit')[3]?.answer).toBe('Ranked behind the players ahead of him who keep a legal roster possible; #2 at RB.');
     expect(getWhyRows(selected, true, undefined, undefined, 'best-player')[3]?.answer).not.toMatch(/moved this player up/);
-    const level = getWhyRows({ ...selected, diagnostics: selected.diagnostics ? { ...selected.diagnostics, valueOverReplacement: asVor(0.2) } : undefined }, true);
-    expect(level[0]?.answer).toMatch(/about the same/);
+    const levelPlayer = { ...selected, diagnostics: selected.diagnostics ? { ...selected.diagnostics, valueOverReplacement: asVor(0.2) } : undefined };
+    const level = getWhyRows(levelPlayer, true);
+    expect(level[0]?.answer).toMatch(/^Projects about the same as a fill-in RB, so the roster and tier below decide\. /);
     expect(level[0]?.answer).not.toMatch(/0\.2/);
+    // Ranked Fit and Best Player apply no roster or tier adjustment, so the Value row stays neutral.
+    for (const lens of ['ranked-fit', 'best-player'] as const) {
+      const neutral = getWhyRows(levelPlayer, true, undefined, undefined, lens)[0]?.answer;
+      expect(neutral).toMatch(/^Projects about the same as a fill-in RB\. #4 overall\./);
+      expect(neutral).not.toMatch(/roster|tier/i);
+    }
 
     const wait = getWaitAnswer(selected);
     expect(wait.headline).toMatch(/unlikely.*2\.03/i);
