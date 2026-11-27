@@ -1,7 +1,7 @@
 import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Effect, ManagedRuntime } from 'effect';
 import { TestClock } from 'effect/testing';
 import type { ServerResponse } from 'node:http';
 import { Writable } from 'node:stream';
@@ -817,7 +817,7 @@ describe('draft session polling', () => {
       if (url.endsWith('/picks') && polls <= 1) return picksFixture.slice(0, -1);
       return fixtureFetch(url, signal);
     }));
-    const runtime = ManagedRuntime.make(TestClock.layer() as unknown as Layer.Layer<never>);
+    const runtime = ManagedRuntime.make(TestClock.layer());
     const session = new syncServerInternals.DraftSession(
       'sleeper', 'fixture-draft', adapter, normalIntervalMs, requestTimeoutMs, 1 << 20, runtime, completedIntervalMs,
     );
