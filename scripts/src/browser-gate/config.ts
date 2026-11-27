@@ -14,6 +14,8 @@ export const MOCK_TIMEOUT_MS = 60_000;
 export const ASSISTANT_STATES = ['wait', 'compare', 'roster', 'why'] as const;
 export const DESKTOP = 1280;
 export const PHONE = 390;
+/** Phone widths where a paused mock at the user's pick must fit: the on-clock banner is the header's widest copy. */
+export const PHONE_MOCK_WIDTHS = [360, 390] as const;
 /** Laptop and desktop widths where the split dock's sidebar narrows the player pool most. */
 export const POOL_WIDTHS = [1280, 1366, 1440] as const;
 /** The pool's optional columns (data-col in DraftPlayerPoolRow) plus Proj; all must fit at POOL_WIDTHS. */
