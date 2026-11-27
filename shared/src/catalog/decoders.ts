@@ -140,6 +140,8 @@ const prediction = /* @__PURE__ */ openStruct({
 const predictionsEnvelope = /* @__PURE__ */ openStruct({
   generatedAt: /* @__PURE__ */ Schema.NullOr(Schema.String),
   modelVersion: /* @__PURE__ */ Schema.String.check(/* @__PURE__ */ Schema.makeFilter(value => value.length > 0)),
+  /** The season the model targets (its rankings snapshot's season). Absent on artifacts built before it was recorded. */
+  season: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ Schema.Finite.check(/* @__PURE__ */ Schema.makeFilter(value => Number.isInteger(value)))),
   players: /* @__PURE__ */ Schema.Array(Schema.Unknown),
 });
 const decodePredictionsEnvelope = /* @__PURE__ */ Schema.decodeUnknownSync(predictionsEnvelope);

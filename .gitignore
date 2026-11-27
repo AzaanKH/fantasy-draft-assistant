@@ -65,6 +65,8 @@ data/primary-league-release-gate-report.json
 data/historical-snapshot-report.json
 data/draft-prep-report.json
 data/rehearsal-evidence/
+# In-season draft retrospectives (raw Sleeper pulls and generated reports):
+data/season-review/
 # The FantasyPros-free model run that feeds demo-data/:
 data/model/fantasypros-free/
 data/model/*.duckdb

@@ -21,7 +21,19 @@ function stringList(maximum: number) {
 const shadowRecommendationEvent = /* @__PURE__ */ openStruct({
   eventId: /* @__PURE__ */ boundedString(256), season: /* @__PURE__ */ integer(-Number.MAX_VALUE, Number.MAX_VALUE),
   draftId: /* @__PURE__ */ boundedString(128), pickNumber: /* @__PURE__ */ integer(1, Number.MAX_VALUE), observedAt: timestamp,
-  experiment: /* @__PURE__ */ openStruct({ sourceLabel: /* @__PURE__ */ Schema.Literal('Experimental prediction artifact'), modelVersion: /* @__PURE__ */ boundedString(128), generatedAt: timestamp, freshness: /* @__PURE__ */ Schema.Literal('ready') }),
+  experiment: /* @__PURE__ */ openStruct({
+    sourceLabel: /* @__PURE__ */ Schema.Literal('Experimental prediction artifact'), modelVersion: /* @__PURE__ */ boundedString(128), generatedAt: timestamp,
+    /** The season the prediction artifact was built for. Absent on rows logged before it was recorded; the server requires it on new events. */
+    targetSeason: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ integer(1900, 2200)),
+    /** Readiness of the predictions when logged. Rows written before degraded logging existed are always `ready`. */
+    freshness: /* @__PURE__ */ Schema.Literals(['ready', 'older-than-dependency', 'stale']),
+    /** The dependency timestamps the predictions were compared against; absent on older rows. */
+    dependencies: /* @__PURE__ */ Schema.optional(/* @__PURE__ */ openStruct({
+      rankingsRefreshedAt: /* @__PURE__ */ Schema.NullOr(timestamp),
+      identitiesGeneratedAt: /* @__PURE__ */ Schema.NullOr(timestamp),
+      teamEnvironmentGeneratedAt: /* @__PURE__ */ Schema.NullOr(timestamp),
+    })),
+  }),
   coreDecision: /* @__PURE__ */ openStruct({ ecrAnchor: /* @__PURE__ */ Schema.Literal('FantasyPros ECR'), policy: /* @__PURE__ */ boundedString(64), bestPick: recommendation, bestPlayer: recommendation, recommendations }),
   shadowRecommendations: recommendations, disagreement: Schema.Boolean,
   context: /* @__PURE__ */ openStruct({
@@ -36,3 +48,5 @@ export const isShadowRecommendationEvent: (value: unknown) => value is ShadowRec
 
 export type ShadowRecommendationEvent = DataShape<typeof shadowRecommendationEvent.Type>;
 export type ShadowRecommendation = DataShape<typeof recommendation.Type>;
+export type ShadowPredictionFreshness = ShadowRecommendationEvent['experiment']['freshness'];
+export type ShadowPredictionDependencies = NonNullable<ShadowRecommendationEvent['experiment']['dependencies']>;

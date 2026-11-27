@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decodeLeagueHistoryDraft, decodeLeagueHistoryPicks, decodeLeagueHistoryRosters, decodeLeagueHistoryUsers, pseudonymizeUserId, sanitizeRawValue } from './import-league-draft-history.js';
+import { decodeLeagueHistoryDraft, decodeLeagueHistoryPicks, decodeLeagueHistoryRosters, decodeLeagueHistoryUsers, mergeImportedSeasons, pseudonymizeUserId, resolveConfirmedManager, sanitizeRawValue } from './import-league-draft-history.js';
 
 describe('league draft history sanitization', () => {
   it('redacts roster nicknames and pseudonymizes user identifiers', () => {
@@ -68,5 +68,54 @@ describe('league draft history boundaries', () => {
       .toEqual([{ ...roster, players: null, metadata: null }]);
     expect(decodeLeagueHistoryUsers([{ ...user, metadata: null, settings: null }]))
       .toEqual([{ ...user, metadata: null, settings: null }]);
+  });
+});
+
+describe('confirmed prospective season manager', () => {
+  const previous = { userSlot: 8, draftOrder: { manager: 8, other: 3 } };
+
+  it('follows last season\'s slot owner through the confirmed draft order and slot-to-roster map', () => {
+    expect(resolveConfirmedManager(previous, {
+      draftOrder: { manager: 2, other: 8 },
+      slotToRosterId: { '2': 9, '8': 4 },
+    })).toEqual({ userSlot: 2, userRosterId: 9 });
+  });
+
+  it('reports, rather than guesses, when a draft lacks the mapping', () => {
+    expect(resolveConfirmedManager(previous, { draftOrder: { other: 8 }, slotToRosterId: { '8': 4 } }))
+      .toEqual(expect.stringContaining('not in the confirmed draft order'));
+    expect(resolveConfirmedManager(previous, { draftOrder: { manager: 2 }, slotToRosterId: null }))
+      .toEqual(expect.stringContaining('no roster for slot 2'));
+    expect(resolveConfirmedManager({ userSlot: 5, draftOrder: previous.draftOrder }, {
+      draftOrder: { manager: 2 },
+      slotToRosterId: { '2': 9 },
+    })).toEqual(expect.stringContaining('no single owner for slot 5'));
+  });
+});
+
+describe('mergeImportedSeasons', () => {
+  const season = (year: number, source: string) => ({ season: year, source });
+
+  it('keeps an earlier prospective season and replaces only the seasons this run refreshed', () => {
+    const previous = [season(2024, 'old'), season(2025, 'old'), season(2026, 'old'), season(2027, 'old')];
+    const refreshed = [season(2025, 'new'), season(2024, 'new'), season(2027, 'new')];
+    expect(mergeImportedSeasons(previous, refreshed)).toEqual([
+      season(2024, 'new'), season(2025, 'new'), season(2026, 'old'), season(2027, 'new'),
+    ]);
+  });
+
+  it('drops the latest configured season once it is removed from the configured list', () => {
+    // 2025 was the newest configured draft; with it removed the run imports through 2024 and confirms 2027. The
+    // stale 2025 is pre-prospective, so it is dropped; the imported 2026 is prospective and is kept.
+    const previous = [season(2024, 'old'), season(2025, 'old'), season(2026, 'old')];
+    const refreshed = [season(2024, 'new'), season(2027, 'new')];
+    expect(mergeImportedSeasons(previous, refreshed)).toEqual([
+      season(2024, 'new'), season(2026, 'old'), season(2027, 'new'),
+    ]);
+  });
+
+  it('does not carry forward a configured season this run no longer imports', () => {
+    expect(mergeImportedSeasons([season(2022, 'old'), season(2023, 'old')], [season(2023, 'new')]))
+      .toEqual([season(2023, 'new')]);
   });
 });

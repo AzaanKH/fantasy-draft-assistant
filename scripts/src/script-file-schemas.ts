@@ -87,6 +87,7 @@ export const decodeOperationalEvidence = Schema.decodeUnknownSync(operationalEvi
 const backtestLeagueHistory = openStruct({
   seasons: Schema.Array(openStruct({
     season: Schema.Finite,
+    draftStartTimestamp: Schema.optional(Schema.String),
     rosterPositions: Schema.Array(Schema.String),
     rosterIdToOwner: Schema.Record(Schema.String, Schema.NullOr(Schema.String)),
     picks: Schema.Array(openStruct({

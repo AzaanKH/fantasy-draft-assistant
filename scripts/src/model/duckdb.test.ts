@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { afterEach, describe, expect, it } from 'vitest';
-import { connectModelDbReadOnly } from './duckdb.js';
+import { connectModelDbReadOnly, runStatementsInTransaction } from './duckdb.js';
 
 describe('connectModelDbReadOnly', () => {
   let dir: string | undefined;
@@ -35,5 +35,32 @@ describe('connectModelDbReadOnly', () => {
     const missingDir = join(dir, 'model');
     await expect(connectModelDbReadOnly(join(missingDir, 'model.duckdb'))).rejects.toThrow();
     expect(existsSync(missingDir)).toBe(false);
+  });
+});
+
+describe('runStatementsInTransaction', () => {
+  it('keeps every table from the previous refresh when a later statement fails', async () => {
+    const connection = await (await DuckDBInstance.create(':memory:')).connect();
+    try {
+      await connection.run(`create table status as select 'old' as generation`);
+      await connection.run(`create table outcomes as select 'old' as generation`);
+      await expect(runStatementsInTransaction(connection, [
+        `create or replace table status as select 'new' as generation`,
+        `create or replace table outcomes as select * from missing_source`,
+      ])).rejects.toThrow(/missing_source/);
+      const read = async (table: string) =>
+        (await connection.runAndReadAll(`select generation from ${table}`)).getRowObjects();
+      expect(await read('status')).toEqual([{ generation: 'old' }]);
+      expect(await read('outcomes')).toEqual([{ generation: 'old' }]);
+
+      await runStatementsInTransaction(connection, [
+        `create or replace table status as select 'new' as generation`,
+        `create or replace table outcomes as select 'new' as generation`,
+      ]);
+      expect(await read('status')).toEqual([{ generation: 'new' }]);
+      expect(await read('outcomes')).toEqual([{ generation: 'new' }]);
+    } finally {
+      connection.closeSync();
+    }
   });
 });

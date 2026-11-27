@@ -10,9 +10,9 @@ import {
   checkAssistantSuggestions, checkPartlyHiddenCardRetry,
 } from './assistant.js';
 import { checkAppearanceThenFullBoard, checkBoardFollowsLiveOnResize, checkBoardHeightFollowsResize, checkDockRosterHotkeys, checkLaterRoundBoard } from './board.js';
-import { LAPTOP_VIEWPORTS, POOL_WIDTHS, SIDE_PANEL_WIDTHS, THEMES } from './config.js';
+import { LAPTOP_VIEWPORTS, PHONE_MOCK_WIDTHS, POOL_WIDTHS, SIDE_PANEL_WIDTHS, THEMES } from './config.js';
 import { checkChipContrast, checkFocusRingContrast } from './contrast.js';
-import { checkChecklistPool, checkDraftFlow, checkLaptopDraftRoom, checkPhoneWorkspace, checkPoolColumns, checkRouteFailure } from './draft-room.js';
+import { checkChecklistPool, checkDraftFlow, checkLaptopDraftRoom, checkPhoneMock, checkPhoneWorkspace, checkPoolColumns, checkRouteFailure } from './draft-room.js';
 import { checkReducedMotion } from './motion.js';
 import { checkFinalPickLabels, checkSidePanelBanner } from './side-panel.js';
 import { checkTierSheet } from './tiers.js';
@@ -34,6 +34,7 @@ export function gateChecks(): readonly GateCheck[] {
     for (const width of check.widths) add(`${check.url} @ ${String(width)}px`, (browser) => checkVisualRoute(browser, check, width), width === check.widths[0] ? 'smoke' : 'full');
   }
   add('draft workspace @ 390px', checkPhoneWorkspace);
+  for (const width of PHONE_MOCK_WIDTHS) add(`paused mock @ ${String(width)}px`, (browser) => checkPhoneMock(browser, width));
   for (const width of POOL_WIDTHS) add(`pool columns @ ${String(width)}px`, (browser) => checkPoolColumns(browser, width));
   for (const viewport of LAPTOP_VIEWPORTS) {
     const size = `${String(viewport.width)}x${String(viewport.height)}`;

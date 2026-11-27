@@ -51,6 +51,7 @@ export function useShadowRecommendationLogging(
   const currentPick = useDraftView((view) => view.currentPick);
   const isMyTurn = useDraftView((view) => view.isMyTurn);
   const attemptedEventIds = useRef(new Set<string>());
+  const reportedBlockedReason = useRef<string | null>(null);
   const timingEvidence = useLeagueTimingEvidence(dataInfo.shadowLoggingEnabled && draftReady);
   const context = useMemo(() => ({
     currentPick,
@@ -60,12 +61,23 @@ export function useShadowRecommendationLogging(
     draftType: config.draftType,
   }), [config.myPickPosition, config.totalRounds, config.totalTeams, config.draftType, currentPick]);
 
+  // A season mismatch or an artifact without a target season logs no rows; say why once instead of failing silently.
+  useEffect(() => {
+    const reason = dataInfo.shadowLoggingBlockedReason;
+    if (!reason || reportedBlockedReason.current === reason) return;
+    reportedBlockedReason.current = reason;
+    console.warn(`[shadow-recommendations] Not logging Shadow Recommendations: ${reason}`);
+  }, [dataInfo.shadowLoggingBlockedReason]);
+
   useEffect(() => {
     const attemptedIds = attemptedEventIds.current;
     const endpoint = dataInfo.shadowLoggingEndpoint;
     const season = dataInfo.shadowLoggingSeason;
     const modelVersion = dataInfo.predictionModelVersion;
     const predictionGeneratedAt = dataInfo.predictionGeneratedAt;
+    const predictionFreshness = dataInfo.predictionFreshness;
+    const predictionDependencies = dataInfo.predictionDependencies;
+    const predictionTargetSeason = dataInfo.predictionTargetSeason;
     if (
       !draftReady ||
       !draftId ||
@@ -73,9 +85,11 @@ export function useShadowRecommendationLogging(
       !isMyTurn ||
       !dataInfo.shadowLoggingEnabled ||
       season !== 2026 ||
+      predictionTargetSeason !== season ||
       !endpoint ||
       !modelVersion ||
       !predictionGeneratedAt ||
+      !predictionFreshness ||
       !coreBestPick ||
       !coreBestPlayer ||
       coreRecommendations.length === 0 ||
@@ -152,6 +166,9 @@ export function useShadowRecommendationLogging(
           observedAt: new Date().toISOString(),
           modelVersion,
           predictionGeneratedAt,
+          predictionTargetSeason,
+          predictionFreshness,
+          predictionDependencies,
           corePolicy,
           coreBestPick,
           coreBestPlayer,
@@ -166,8 +183,9 @@ export function useShadowRecommendationLogging(
           positionNeeds: needs,
         });
 
-        void postShadowRecommendation(endpoint, event).then((recorded) => {
-          if (!recorded) attemptedIds.delete(eventId);
+        // A rejected payload stays attempted: resending it for this pick cannot succeed.
+        void postShadowRecommendation(endpoint, event).then((outcome) => {
+          if (outcome === 'retryable') attemptedIds.delete(eventId);
         });
       } catch {
         attemptedIds.delete(eventId);
@@ -180,5 +198,5 @@ export function useShadowRecommendationLogging(
         attemptedIds.delete(eventId);
       }
     };
-  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
+  }, [config.myPickPosition, config.rosterRequirements, config.totalRounds, config.totalTeams, context, coreBestPick, coreBestPlayer, corePolicy, coreRecommendations, currentPick, dataInfo.predictionDependencies, dataInfo.predictionFreshness, dataInfo.predictionGeneratedAt, dataInfo.predictionModelVersion, dataInfo.predictionTargetSeason, dataInfo.shadowLoggingEnabled, dataInfo.shadowLoggingEndpoint, dataInfo.shadowLoggingSeason, draftId, draftProvider, draftReady, draftedPlayerIds, isMyTurn, leagueSettingsFingerprint, myRoster, needs, shadowPlayers, timingEvidence.model]);
 }

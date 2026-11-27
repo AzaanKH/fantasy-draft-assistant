@@ -58,9 +58,11 @@ rankings.
 | `pnpm refresh:team-env` | Derives `data/team-environment.json` from the latest completed nflverse season. | Weekly during the offseason or after pipeline changes. |
 | `pnpm refresh:daily` | Runs Sleeper, FantasyPros, identity, contract, and team-environment refreshes. | Draft week. |
 | `pnpm prepare:draft` | Refreshes daily data, rebuilds DuckDB predictions and survival data, runs the backtest, and writes the prep report. | Draft week and after scoring/model changes. |
+| `pnpm model:prospective` | Downloads nflverse weekly stats and the schedule for prospective seasons (2026 on) into DuckDB. Not part of `pnpm prepare:draft`. | Weekly during the season, before `pnpm model:backtest`, to refresh the provisional prospective fold. |
 | `pnpm model:backtest` | Replays the recommendation model, rewrites the fixed-board and counterfactual reports, and updates historical recommendation evaluation. | After prediction, scoring, league-history, recommendation, or backtest changes, and once during final draft preparation. |
 | `pnpm model:backtest:contracts` | Runs the leakage-safe 2012–2025 contract-year feature ablation. | After contract/model logic changes and before enabling the signal. |
 | `pnpm report:draft-prep` | Rewrites the prep report from existing artifacts. | After late keeper edits. |
+| `pnpm report:season-review -- --season <year>` | Fetches Sleeper league results and writes the in-season draft retrospective to the gitignored `data/season-review/<year>/`. See [season-review.md](season-review.md). | During the season and after the final regular-season week. |
 | `pnpm experiment:primary-league` | Replays the seven Primary League decision experiments and rewrites their JSON and Markdown reports. | After material rankings, keeper, draft-order, opponent-model, scoring, or Best Pick policy changes. |
 
 `pnpm verify` is the deterministic code gate used by pull requests. Freshness
@@ -226,6 +228,7 @@ Additional retention rules come from the same manifest. Exact tracked exceptions
 | `data/league-history/raw/` | Prefix | private |
 | `data/shadow-logs/` | Prefix | private |
 | `data/rehearsal-evidence/` | Prefix | private |
+| `data/season-review/` | Prefix | private |
 <!-- generated:data-catalog:end -->
 
 Shadow recommendation logs record model and fallback decision pairs without exposing the experimental recommendation.
