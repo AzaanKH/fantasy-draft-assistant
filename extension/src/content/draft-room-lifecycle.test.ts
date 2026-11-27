@@ -16,6 +16,7 @@ function createHarness(initialUrl: string) {
   const observers: FakeObserver[] = [];
   const intervalCallbacks: Array<() => void> = [];
   const messages: ExtensionMessage[] = [];
+  const urlWatchers: Array<{ readonly onChange: () => void; stopped: boolean }> = [];
   const environment: DraftRoomLifecycleEnvironment = {
     document,
     getUrl: () => url,
@@ -27,6 +28,11 @@ function createHarness(initialUrl: string) {
       };
       observers.push(observer);
       return observer;
+    },
+    watchUrl: (onChange) => {
+      const watcher = { onChange, stopped: false };
+      urlWatchers.push(watcher);
+      return () => { watcher.stopped = true; };
     },
     setTimeout: (callback, delay) => window.setTimeout(callback, delay),
     clearTimeout: (timer) => {
@@ -48,6 +54,7 @@ function createHarness(initialUrl: string) {
     }),
     messages,
     observers,
+    urlWatchers,
     intervalCallbacks,
     setUrl: (nextUrl: string) => {
       url = nextUrl;
@@ -71,19 +78,19 @@ describe('draft room lifecycle', () => {
       harness.messages.filter((message) => message.type === 'DRAFT_ROOM_STATUS')
     ).toHaveLength(1);
     expect(harness.intervalCallbacks).toHaveLength(1);
-    expect(harness.observers).toHaveLength(2);
+    expect(harness.observers).toHaveLength(1);
+    expect(harness.urlWatchers).toHaveLength(1);
   });
 
   it('tears down Sleeper detection when SPA navigation enters Yahoo', () => {
     const harness = createHarness('https://sleeper.com/draft/nfl/123');
     harness.lifecycle.start();
     const sleeperObserver = harness.observers[0];
-    const urlObserver = harness.observers[1];
 
     harness.setUrl(
       'https://football.fantasysports.yahoo.com/draftclient/f1/7428778/3'
     );
-    urlObserver?.callback([], urlObserver as unknown as MutationObserver);
+    harness.urlWatchers[0]?.onChange();
 
     expect(sleeperObserver?.disconnect).toHaveBeenCalledOnce();
     expect(harness.messages.at(-1)).toEqual({
@@ -94,7 +101,37 @@ describe('draft room lifecycle', () => {
         draftId: '7428778',
       },
     });
-    expect(harness.observers).toHaveLength(2);
+    expect(harness.observers).toHaveLength(1);
+  });
+
+  it('ignores URL notifications that do not change the URL', () => {
+    const harness = createHarness('https://sleeper.com/draft/nfl/123');
+    harness.lifecycle.start();
+
+    harness.urlWatchers[0]?.onChange();
+    harness.urlWatchers[0]?.onChange();
+
+    expect(harness.messages.filter((message) => message.type === 'DRAFT_ROOM_STATUS')).toHaveLength(1);
+    expect(harness.observers).toHaveLength(1);
+  });
+
+  it('starts Sleeper detection when SPA navigation enters a draft room and stops watching on stop', () => {
+    const harness = createHarness('https://sleeper.com/leagues/1/team');
+    harness.lifecycle.start();
+    expect(harness.observers).toHaveLength(0);
+
+    harness.setUrl('https://sleeper.com/draft/nfl/123');
+    harness.urlWatchers[0]?.onChange();
+
+    expect(harness.messages.at(-1)).toEqual({
+      type: 'DRAFT_ROOM_STATUS',
+      data: { isInDraftRoom: true, provider: 'sleeper', draftId: '123' },
+    });
+    expect(harness.observers).toHaveLength(1);
+
+    harness.lifecycle.stop();
+    expect(harness.urlWatchers[0]?.stopped).toBe(true);
+    expect(harness.observers[0]?.disconnect).toHaveBeenCalledOnce();
   });
 
   it('emits a newly added Sleeper pick once across scans', () => {

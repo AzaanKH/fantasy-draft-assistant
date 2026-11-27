@@ -5,7 +5,7 @@ import { createSlotSequence, type SlotRef } from '@fantasy-draft/shared/draft';
 import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import { useDraftSessionKey, useLandedPick } from './usePickLanded';
-import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3X3, Hourglass } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, Clock3, Focus, Grid3x3, Hourglass } from 'lucide-react';
 import './draft-board.css';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -552,7 +552,7 @@ export function DraftBoard({
               <span className="hidden sm:inline">Current pick</span>
             </BoardModeButton>
             <BoardModeButton active={mode === 'full'} onClick={() => { setMode('full'); }}>
-              <Grid3X3 className="size-3.5" />
+              <Grid3x3 className="size-3.5" />
               Full board
             </BoardModeButton>
           </div>
