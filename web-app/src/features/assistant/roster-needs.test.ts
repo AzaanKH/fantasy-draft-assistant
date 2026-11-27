@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROSTER_REQUIREMENTS, FLEX_GROUPS, type Position, type RosterRequirements } from '@fantasy-draft/shared/league';
 import { optimizeLineupUtility } from '@fantasy-draft/shared/draft';
-import { buildByeStrip, buildLineup, byeWindow, computeLeagueRanks, ordinal, previewCandidate, rankOffset, type RosterPlayer } from './roster-needs';
+import { buildByeStrip, buildLineup, byeWindow, computeLeagueRanks, ordinal, previewCandidate, rankOffset, shortName, type RosterPlayer } from './roster-needs';
 
 const LEAGUE: RosterRequirements = {
   ...DEFAULT_ROSTER_REQUIREMENTS,
@@ -128,4 +128,14 @@ it('formats ranks and track offsets', () => {
   expect(rankOffset(10, 10)).toBe(100);
   expect(rankOffset(5, 9)).toBe(50);
   expect(rankOffset(1, 1)).toBe(0);
+});
+
+it('abbreviates first names for tight slots, keeping initials, single names and defenses whole', () => {
+  expect(shortName('Kyren Williams')).toBe('K. Williams');
+  expect(shortName('Christian McCaffrey')).toBe('C. McCaffrey');
+  expect(shortName('Amon-Ra St. Brown')).toBe('A. St. Brown');
+  expect(shortName('Marvin Harrison Jr.')).toBe('M. Harrison Jr.');
+  expect(shortName('A.J. Brown')).toBe('A.J. Brown');
+  expect(shortName('Kyren')).toBe('Kyren');
+  expect(shortName('Houston Texans', 'DEF')).toBe('Houston Texans');
 });

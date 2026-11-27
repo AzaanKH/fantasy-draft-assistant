@@ -196,6 +196,19 @@ export function buildByeStrip<P extends RosterPlayer>(starters: readonly P[], ca
   return { weeks, clashWith, candidateWeek };
 }
 
+/**
+ * "Kyren Williams" -> "K. Williams" for tight lineup slots. A first name that is already initials ("A.J. Brown"),
+ * a single-word name and a team defense keep their full form.
+ */
+export function shortName(name: string, position?: Position): string {
+  const trimmed = name.trim();
+  const space = trimmed.indexOf(' ');
+  if (position === 'DEF' || space <= 0) return trimmed;
+  const first = trimmed.slice(0, space);
+  if (first.includes('.')) return trimmed;
+  return `${first.charAt(0)}. ${trimmed.slice(space + 1).trim()}`;
+}
+
 export function ordinal(rank: number): string {
   const tens = rank % 100;
   if (tens >= 11 && tens <= 13) return `${String(rank)}th`;

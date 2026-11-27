@@ -12,6 +12,7 @@ import {
   ordinal,
   previewCandidate,
   rankOffset,
+  shortName,
   type CandidatePreview,
   type LeagueRanks,
   type LineupSlot,
@@ -34,9 +35,22 @@ function pickCandidates(recommendations: readonly Recommendation[], subjectId: s
 
 function Slot({ slot, isNew }: { readonly slot: LineupSlot<Player>; readonly isNew: boolean }): React.ReactElement {
   return (
-    <li className={cn('roster-slot', !slot.player && 'roster-slot-empty', isNew && 'roster-slot-new')} data-slot={slot.key} data-preview={isNew ? '' : undefined}>
+    <li
+      className={cn('roster-slot', !slot.player && 'roster-slot-empty', isNew && 'roster-slot-new')}
+      data-slot={slot.key}
+      data-preview={isNew ? '' : undefined}
+      title={slot.player ? `${slot.label}: ${slot.player.name}` : undefined}
+    >
       <span className="roster-slot-label">{slot.label}</span>
-      <span className="roster-slot-name">{slot.player ? <>{isNew ? <span aria-hidden="true">+ </span> : null}{slot.player.name}</> : 'Open'}</span>
+      {slot.player ? (
+        // Full name when the slot is wide, "K. Williams" when it is tight; screen readers always get the full name.
+        <span className="roster-slot-name">
+          {isNew ? <span aria-hidden="true">+ </span> : null}
+          <span className="roster-slot-full" aria-hidden="true">{slot.player.name}</span>
+          <span className="roster-slot-short" aria-hidden="true">{shortName(slot.player.name, slot.player.position)}</span>
+          <span className="sr-only">{slot.player.name}</span>
+        </span>
+      ) : <span className="roster-slot-name">Open</span>}
       {slot.player ? <span className="roster-slot-points">{formatPoints(slot.player.projectedPoints)}</span> : null}
       {isNew ? <span className="sr-only"> (this pick)</span> : null}
     </li>
