@@ -2,7 +2,7 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { DecisionLens, Recommendation } from '@fantasy-draft/shared/draft';
+import type { Recommendation } from '@fantasy-draft/shared/draft';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { createDraftStore } from '@/stores/draftStore';
 import { VISUAL_PLAYER_DATA } from '@/visual/VisualApp';
@@ -11,7 +11,7 @@ import { DraftDecisionBar } from './DraftDecisionBar';
 
 const bestPick: Recommendation = { playerId: 'best-pick', playerName: 'Best Pick', position: 'RB', reason: 'critical roster need', score: 12 };
 const rankedFit: Recommendation = { playerId: 'ranked-fit', playerName: 'Ranked Fit Player', position: 'WR', reason: 'Trusted ECR Anchor #3 among players who keep a legal roster', score: -3 };
-const state = vi.hoisted(() => ({ canDraft: false, pickInFlight: false, synchronizationState: 'confirmed', draftPlayer: vi.fn(), lens: 'best-pick' as DecisionLens, onOpenAssistant: vi.fn() }));
+const state = vi.hoisted(() => ({ canDraft: false, pickInFlight: false, synchronizationState: 'confirmed', draftPlayer: vi.fn(), lens: 'best-pick', onOpenAssistant: vi.fn() }));
 vi.mock('@/hooks/usePlayerData', () => ({ usePlayerDataQuery: () => ({ ...VISUAL_PLAYER_DATA, players: [
   { ...VISUAL_PLAYER_DATA.players[0], id: 'best-pick', name: 'Best Pick', position: 'RB' },
   { ...VISUAL_PLAYER_DATA.players[0], id: 'ranked-fit', name: 'Ranked Fit Player', position: 'WR' },
