@@ -1,7 +1,10 @@
 import { fixtureFetchJson, type FixtureFetchJson } from './__fixtures__/fetch-json.js';
 import { decodeDraftSyncSnapshot, decodeDraftSyncUpdate } from '@fantasy-draft/shared/catalog';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Effect } from 'effect';
+import { Effect, ManagedRuntime } from 'effect';
+import { TestClock } from 'effect/testing';
+import type { ServerResponse } from 'node:http';
+import { Writable } from 'node:stream';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -21,6 +24,7 @@ import {
   yahooPlayersFixture,
   yahooSettingsFixture,
 } from './__fixtures__/yahoo-fixtures.js';
+import { SleeperSyncAdapter } from './sleeper-adapter.js';
 import {
   YAHOO_PUBLIC_API_BASE,
   YAHOO_PUBLIC_READ_API_BASE,
@@ -790,6 +794,88 @@ describe('createSyncServer', () => {
       });
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('draft session polling', () => {
+  // The production 1 s / 15 s intervals on a TestClock, so no assertion depends on real timer scheduling.
+  const normalIntervalMs = 1_000;
+  const completedIntervalMs = 15_000;
+  // Far beyond every clock adjustment below, so the request timeout never fires.
+  const requestTimeoutMs = 3_600_000;
+
+  function startSession(draftStatus: () => 'drafting' | 'complete') {
+    const fixtureFetch = createMockFetchJson();
+    let polls = 0;
+    const adapter = new SleeperSyncAdapter('fixture-draft', fixtureFetchJson(async (url: string, signal: AbortSignal): Promise<unknown> => {
+      if (url.endsWith('/draft/fixture-draft')) {
+        polls += 1;
+        return { ...draftFixture, status: draftStatus() };
+      }
+      // The first poll reads picks just before the final one lands, as Sleeper's parallel requests can.
+      if (url.endsWith('/picks') && polls <= 1) return picksFixture.slice(0, -1);
+      return fixtureFetch(url, signal);
+    }));
+    const runtime = ManagedRuntime.make(TestClock.layer());
+    const session = new syncServerInternals.DraftSession(
+      'sleeper', 'fixture-draft', adapter, normalIntervalMs, requestTimeoutMs, 1 << 20, runtime, completedIntervalMs,
+    );
+    const frames: string[] = [];
+    const client = new Writable({ write(chunk: Buffer, _encoding, callback) { frames.push(chunk.toString()); callback(); } });
+    session.addClient(client as unknown as ServerResponse);
+    const sleeping = () => (session as unknown as { pollSleeping: boolean }).pollSleeping;
+    /** Wait until poll number `count` has finished and the loop is asleep on the clock. */
+    const settledAfter = (count: number) => vi.waitFor(() => {
+      expect(polls).toBe(count);
+      expect(sleeping()).toBe(true);
+    });
+    /** Advance virtual time, then give any woken poll a chance to start. */
+    const advance = async (ms: number) => {
+      await runtime.runPromise(TestClock.adjust(ms));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    };
+    const dispose = async () => { session.dispose(); await runtime.dispose(); };
+    return { session, frames, polls: () => polls, sleeping, settledAfter, advance, dispose };
+  }
+
+  it('polls a completed draft at the slow interval and still sends heartbeats', async () => {
+    const { session, frames, polls, sleeping, settledAfter, advance, dispose } = startSession(() => 'complete');
+    try {
+      await settledAfter(1);
+      await advance(completedIntervalMs - 1);
+      expect(polls()).toBe(1);
+      expect(sleeping()).toBe(true);
+      await advance(1);
+      await settledAfter(2);
+      // The final pick missed by the first poll arrives on the next one.
+      expect(session.getSnapshot().picks).toHaveLength(picksFixture.length);
+      expect(frames.some((frame) => frame.includes('"type":"pick"'))).toBe(true);
+      // An unchanged completed draft still produces per-poll heartbeats, which keep idle CLI streams open.
+      await advance(completedIntervalMs);
+      await settledAfter(3);
+      expect(frames.some((frame) => frame.includes('"type":"heartbeat"'))).toBe(true);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('returns to the normal interval when a later poll shows the draft not complete', async () => {
+    let status: 'drafting' | 'complete' = 'complete';
+    const { polls, sleeping, settledAfter, advance, dispose } = startSession(() => status);
+    try {
+      await settledAfter(1);
+      status = 'drafting';
+      await advance(completedIntervalMs);
+      await settledAfter(2);
+      // The reopened draft is polled again after one normal interval, not the slow one.
+      await advance(normalIntervalMs - 1);
+      expect(polls()).toBe(2);
+      expect(sleeping()).toBe(true);
+      await advance(1);
+      await settledAfter(3);
+    } finally {
+      await dispose();
     }
   });
 });

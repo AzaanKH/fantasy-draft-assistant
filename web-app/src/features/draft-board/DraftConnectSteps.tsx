@@ -3,7 +3,7 @@
  * first snapshot, recover from errors, choose a slot, and manage an active sync.
  */
 import * as React from 'react';
-import { CircleAlert, LoaderCircle, RefreshCw, Unplug } from 'lucide-react';
+import { CircleExclamationPoint, LoaderCircle, RefreshCw, Unplug } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -156,7 +156,7 @@ export function SyncErrorStep({
     <div className="space-y-4">
       <div className="rounded-md border border-danger/50 bg-danger/10 p-4">
         <div className="flex items-center gap-2 font-semibold text-danger">
-          <CircleAlert className="size-4" />
+          <CircleExclamationPoint className="size-4" />
           {providerLabel(provider)} draft could not be synced
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -284,7 +284,7 @@ export function ConnectedSyncStep({
       {importWarning && (
         <div className="rounded-md border border-warning/50 bg-warning/10 p-4">
           <div className="flex items-center gap-2 font-semibold text-warning">
-            <CircleAlert className="size-4" />
+            <CircleExclamationPoint className="size-4" />
             {rejectedPickCount}{' '}
             {rejectedPickCount === 1 ? 'pick needs' : 'picks need'} attention
           </div>

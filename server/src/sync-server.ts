@@ -51,6 +51,14 @@ const DEFAULT_SPORTSBOOK_SNAPSHOT_PATH = fileURLToPath(
   new URL(`../../${catalogPath(CATALOG.sportsbook)}`, import.meta.url)
 );
 const MAX_JSON_BODY_BYTES = 256 * 1024;
+/**
+ * Poll interval once the provider reports the draft complete. Each poll's heartbeat keeps CLI `draft watch` streams
+ * connected without a separate keepalive, so the gap between frames should stay under its 30 s idle timeout
+ * (cli/src/client.ts idleMs). With this default and no failures, the gap is at most 15 s sleep + 10 s worst-case
+ * request timeout = 25 s. Failure backoff (capped at 30 s) does not keep that bound: the gap can reach or pass the
+ * idle timeout, so `draft watch` may reconnect while polls keep failing. See docs/effect-adoption.md.
+ */
+const COMPLETED_DRAFT_POLL_INTERVAL_MS = 15_000;
 
 interface ClientConnection {
   readonly id: number;
@@ -111,6 +119,7 @@ class DraftSession {
     requestTimeoutMs: number,
     private readonly maxBufferedBytes: number,
     private readonly runtime: ManagedRuntime.ManagedRuntime<never, never>,
+    private readonly completedPollIntervalMs = COMPLETED_DRAFT_POLL_INTERVAL_MS,
   ) {
     this.adapter = adapter;
     this.poll = new SharedPoll(() => this.performPoll(), runtime);
@@ -220,13 +229,19 @@ class DraftSession {
     }
   }
 
+  /**
+   * A completed draft rarely changes, so it is polled slowly rather than not at all: a late final pick or a reopened
+   * draft still arrives, and failed polls keep the last successful status.
+   */
   private pollLoop(): Effect.Effect<void> {
     return Effect.gen({ self: this }, function* () {
       for (;;) {
         yield* this.poll.join();
         if (this.clients.size === 0) return;
+        const backoffMs = Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000);
+        const complete = this.engine.getSnapshot().draft?.status === 'complete';
         this.pollSleeping = true;
-        yield* Effect.sleep(Math.min(this.pollIntervalMs * 2 ** this.consecutiveFailures, 30_000)).pipe(
+        yield* Effect.sleep(complete ? Math.max(this.completedPollIntervalMs, backoffMs) : backoffMs).pipe(
           Effect.ensuring(Effect.sync(() => { this.pollSleeping = false; })),
         );
       }
@@ -454,7 +469,7 @@ async function defaultFetchJson<A>(
 }
 
 /** Exposed for tests of provider request cleanup. */
-export const syncServerInternals = { defaultFetchJson };
+export const syncServerInternals = { defaultFetchJson, DraftSession };
 
 export function createSyncServer(options: SyncServerOptions = {}): SyncServer {
   const requestToken = options.requestToken ?? randomBytes(32).toString('base64url');

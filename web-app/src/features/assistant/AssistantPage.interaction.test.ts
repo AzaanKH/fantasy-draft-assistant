@@ -168,6 +168,14 @@ function labelled(label: string): HTMLButtonElement {
   return match;
 }
 
+// Filter buttons take their name from visible text plus sr-only fill counts, not an aria-label.
+function positionFilter(position: string, fill: string): HTMLButtonElement {
+  const match = Array.from(document.querySelectorAll<HTMLButtonElement>('.rec-filters button'))
+    .find((button) => button.querySelector('span')?.textContent === position && button.textContent.includes(`, ${fill}`));
+  if (!match) throw new Error(`No ${position} filter showing ${fill}`);
+  return match;
+}
+
 function click(element: HTMLElement): void {
   act(() => { element.click(); });
 }
@@ -528,7 +536,7 @@ describe('Assistant main action by draft mode', () => {
     expect(rankOf('wr-7')).toBe('7');
     expect(announcedRankOf('wr-7')).toBe('Overall rank 7');
     click(labelled('Clear search'));
-    click(labelled('WR, 2 of 2 filled'));
+    click(positionFilter('WR', '2 of 2 filled'));
     showAllPlayers();
     expect(rankOf('wr-7')).toBe('7');
     expect(announcedRankOf('wr-7')).toBe('Overall rank 7');

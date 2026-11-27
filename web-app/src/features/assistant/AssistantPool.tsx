@@ -164,10 +164,10 @@ export function AssistantPool({
             const total = filter === 'ALL' ? totalRounds : need?.startersNeeded ?? 0;
             return (
               <button key={filter} type="button" aria-pressed={positionFilter === filter}
-                aria-label={`${filter === 'ALL' ? 'All' : filter}, ${String(filled)} of ${String(total)} filled`}
                 onClick={() => { onPositionFilterChange(filter); setShowAll(false); }}>
                 <span>{filter === 'ALL' ? 'All' : filter}</span>
-                <small title="Roster spots filled">{String(filled)}/{String(total)}</small>
+                <small title="Roster spots filled" aria-hidden="true">{String(filled)}/{String(total)}</small>
+                <span className="sr-only">, {String(filled)} of {String(total)} filled</span>
               </button>
             );
           })}

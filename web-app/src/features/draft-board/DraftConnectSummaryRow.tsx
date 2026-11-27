@@ -4,7 +4,7 @@
  * Must render inside the connection <Dialog> because it owns the DialogTrigger.
  */
 import type * as React from 'react';
-import { CheckCircle2, CircleAlert, Link2, LoaderCircle } from 'lucide-react';
+import { CircleCheck, CircleExclamationPoint, Link2, LoaderCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DialogTrigger } from '@/components/ui/dialog';
@@ -78,9 +78,9 @@ export function DraftConnectSummaryRow(props: DraftConnectSummaryRowProps): Reac
           : kind === 'choose-slot' ? 'Choose slot'
             : 'Manage sync';
   const Icon = kind === 'connecting' ? LoaderCircle
-    : kind === 'connected' ? CheckCircle2
+    : kind === 'connected' ? CircleCheck
       : kind === 'disconnected' || kind === 'choose-slot' ? Link2
-        : CircleAlert;
+        : CircleExclamationPoint;
 
   return (
     <div
