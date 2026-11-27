@@ -1,4 +1,4 @@
-import { CircleHelp, ListChecks } from 'lucide-react';
+import { CircleQuestionMark, ListChecks } from 'lucide-react';
 import { sendWorkspaceCommand } from '@/workspace/workspace-command';
 import { useWorkspace, useDraftState, useConnectionState } from '@/workspace/WorkspaceProvider';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
@@ -63,7 +63,7 @@ const SidePanelPage = React.lazy(() =>
 function HeaderControlsPlaceholder(): React.ReactElement {
   return (
     <>
-      <Button variant="outline" size="sm" disabled aria-label="Loading draft controls"><CircleHelp aria-hidden="true" /><span className="draft-header-label">How scores work</span></Button>
+      <Button variant="outline" size="sm" disabled aria-label="Loading draft controls"><CircleQuestionMark aria-hidden="true" /><span className="draft-header-label">How scores work</span></Button>
       <Button variant="outline" size="sm" disabled aria-hidden="true" tabIndex={-1}><ListChecks aria-hidden="true" /><span className="draft-header-label">League roster</span></Button>
     </>
   );

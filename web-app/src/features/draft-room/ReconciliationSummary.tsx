@@ -3,9 +3,9 @@ import { type DraftType } from '@fantasy-draft/shared/sync';
 import * as React from 'react';
 import {
   BadgeCheck,
-  CircleAlert,
+  CircleExclamationPoint,
   RefreshCw,
-  Trash2,
+  Trash,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ export function ReconciliationSummary({
   const hasRemovals = summary.removals.length > 0;
   const hasChangedProviderTruth = hasCorrections || hasRemovals;
   const Icon = hasUnresolved
-    ? CircleAlert
+    ? CircleExclamationPoint
     : hasChangedProviderTruth
       ? RefreshCw
       : BadgeCheck;
@@ -153,7 +153,7 @@ export function ReconciliationSummary({
           {summary.removals.length > 0 ? (
             <div className="mt-3">
               <h3 className="flex items-center gap-1.5 text-xs font-bold text-warning">
-                <Trash2 className="size-3.5" aria-hidden="true" />
+                <Trash className="size-3.5" aria-hidden="true" />
                 Removed · {String(summary.removals.length)}
               </h3>
               <ul className="mt-1 space-y-1" aria-label="Removed draft picks">
@@ -188,7 +188,7 @@ export function ReconciliationSummary({
           {summary.unresolvedIdentities.length > 0 ? (
             <div className="mt-3">
               <h3 className="flex items-center gap-1.5 text-xs font-bold text-red-800 dark:text-red-300">
-                <CircleAlert className="size-3.5" aria-hidden="true" />
+                <CircleExclamationPoint className="size-3.5" aria-hidden="true" />
                 Unresolved identities · {String(summary.unresolvedIdentities.length)}
               </h3>
               <ul className="mt-1 space-y-1" aria-label="Unresolved provider identities">
