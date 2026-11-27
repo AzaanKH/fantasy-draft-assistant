@@ -147,7 +147,7 @@ export function LensToggle({
   return (
     <div className="rec-lens" role="group" aria-label="Decision lens">
       {DECISION_LENSES.map((item) => (
-        <button key={item} type="button" title={LENS_BASIS[item]} aria-pressed={lens === item} disabled={!onChange} onClick={() => { onChange?.(item); }}>{DECISION_LENS_LABELS[item]}</button>
+        <button key={item} type="button" data-lens={item} title={LENS_BASIS[item]} aria-pressed={lens === item} disabled={!onChange} onClick={() => { onChange?.(item); }}>{DECISION_LENS_LABELS[item]}</button>
       ))}
     </div>
   );

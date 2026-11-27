@@ -233,6 +233,7 @@ export function AssistantPage({
         byPosition={decision.byPosition}
         availabilityById={availabilityById}
         playerById={playerById}
+        needs={needs}
         draft={{ mode, provider: liveSync.connection?.provider ?? null, nextPickLabel }}
         onCompare={openCompare}
       />

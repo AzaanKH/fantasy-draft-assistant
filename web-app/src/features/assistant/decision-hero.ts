@@ -1,19 +1,51 @@
-import { DECISION_LENSES, formatSignedNumber, type DecisionDivergenceFactor, type DecisionLens, type DecisionOutput, type Recommendation } from '@fantasy-draft/shared/draft';
+import { DECISION_LENSES, formatSignedNumber, type DecisionDivergenceFactor, type DecisionLens, type DecisionOutput, type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
 import type { Position } from '@fantasy-draft/shared/league';
-import { getReasonFactor } from '@/features/draft-room/draft-decision-bar-reason';
 import type { NextPickAvailability } from '@/lib/next-pick-availability';
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? '' : 's'}`;
 
+/** The player's value over a fill-in starter: the guarded figure every other surface shows, so the two never differ. */
+function heroValueOverReplacement(recommendation: Recommendation): number | undefined {
+  const vor = recommendation.diagnostics?.valueOverReplacement ?? recommendation.decisionFactors?.leagueValue.valueOverReplacement;
+  return typeof vor === 'number' && Number.isFinite(vor) ? vor : undefined;
+}
+
+/** Best Pick's factors in the decision bar's order: the divergence factor, then each that moved the pick. */
+function decidingFactors(recommendation: Recommendation, divergenceFactor: DecisionDivergenceFactor | null): readonly DecisionDivergenceFactor[] {
+  const factors = recommendation.decisionFactors;
+  if (!factors) return [];
+  const moved: [DecisionDivergenceFactor, boolean | undefined][] = [
+    ['draft-timing', factors.draftTiming.materiallyChangedOrdering],
+    ['tier-supply', factors.tierSupply.materiallyChangedOrdering],
+    ['depth-value', factors.depthValue.materiallyChangedOrdering],
+    ['roster-fit', factors.rosterFit.materiallyChangedOrdering],
+    ['league-value', factors.leagueValue.materiallyChangedOrdering],
+  ];
+  const order = moved.filter(([, changed]) => changed === true).map(([factor]) => factor);
+  return divergenceFactor ? [divergenceFactor, ...order.filter((factor) => factor !== divergenceFactor)] : order;
+}
+
+/** "Fills your open WR starting spot", only when the pick's own position (or a FLEX it can fill) has an open starter slot. */
+function describeOpenSlot(position: Position, need: PositionNeed | undefined): string | null {
+  if (!need) return null;
+  const fixed = Math.max(0, need.startersNeeded - need.startersFilled);
+  if (fixed > 0) return fixed === 1 ? `Fills your open ${position} starting spot` : `Fills one of your ${String(fixed)} open ${position} starting spots`;
+  const flex = need.isFlexEligible ? Math.max(0, need.flexSlotsNeeded - need.flexSlotsFilled) : 0;
+  if (flex > 0) return flex === 1 ? 'Fills your open FLEX spot' : `Fills one of your ${String(flex)} open FLEX spots`;
+  return null;
+}
+
 /**
  * The call's one reason, in plain words, from the same figures as the lens's why-text: Ranked Fit and Best Player
  * rank by the rankings alone (Ranked Fit only among players who keep a legal roster possible), so their line is the
- * rank; Best Pick's line is the factor that decided it, as the decision bar picks it.
+ * rank; Best Pick's line is the first factor that decided it (the decision bar's order) that holds for this player.
  */
 export function getHeroReason(
   recommendation: Recommendation,
   lens: DecisionLens,
-  divergenceFactor: DecisionDivergenceFactor | null = null
+  divergenceFactor: DecisionDivergenceFactor | null = null,
+  /** The team's need at the pick's position: a roster-fit reason must name a slot this player can fill. */
+  need?: PositionNeed
 ): string {
   const factors = recommendation.decisionFactors;
   const rank = recommendation.diagnostics?.expertRank ?? factors?.playerQuality.ecrRank;
@@ -22,38 +54,44 @@ export function getHeroReason(
   if (lens === 'best-player') return `Highest-ranked player left on the board${overall ? `, ${overall}` : ''}`;
 
   const position = recommendation.position;
-  const overFillIn = (vor: number): string => `${formatSignedNumber(Math.round(vor))} points over a fill-in ${position}`;
-  if (!factors) {
-    const vor = recommendation.diagnostics?.valueOverReplacement;
-    return typeof vor === 'number' && Number.isFinite(vor) ? `Projects ${overFillIn(vor)}` : `Best Pick's top choice${overall ? `, ${overall}` : ''}`;
-  }
-  const factorValue = overFillIn(factors.leagueValue.valueOverReplacement);
+  const vor = heroValueOverReplacement(recommendation);
+  const value = vor === undefined ? null : `${formatSignedNumber(Math.round(vor))} points over a fill-in ${position}`;
+  const fallback = value ? `Projects ${value}${overall ? `, ${overall}` : ''}` : `Best Pick's top choice${overall ? `, ${overall}` : ''}`;
+  if (!factors) return fallback;
   if (factors.conservativeBoundary.feasibilityException) {
     return `Keeps your roster fillable with ${plural(factors.rosterFit.selectionsRemaining, 'pick')} left`;
   }
-  switch (getReasonFactor(recommendation, divergenceFactor)) {
-    case 'draft-timing': {
-      const at = factors.draftTiming.nextPickLabel;
-      return `Waiting${at ? ` until ${at}` : ''} costs about ${plural(Math.round(factors.draftTiming.costOfWaiting), 'point')}`;
+  for (const factor of decidingFactors(recommendation, divergenceFactor)) {
+    switch (factor) {
+      case 'draft-timing': {
+        const at = factors.draftTiming.nextPickLabel;
+        return `Waiting${at ? ` until ${at}` : ''} costs about ${plural(Math.round(factors.draftTiming.costOfWaiting), 'point')}`;
+      }
+      case 'tier-supply': {
+        const { remainingInTier, currentTier } = factors.tierSupply;
+        const drop = `a ${String(Math.round(factors.tierSupply.dropoffPoints))}-point drop`;
+        return remainingInTier === 1
+          ? `Last ${position} in Tier ${String(currentTier)} before ${drop}`
+          : `Only ${plural(remainingInTier, position)} left in Tier ${String(currentTier)} before ${drop}`;
+      }
+      case 'roster-fit': {
+        const slot = describeOpenSlot(position, need);
+        if (slot) return slot;
+        break;
+      }
+      case 'depth-value':
+        return `Adds ${position} depth: you have ${String(factors.depthValue.reserveCount)} of ${String(factors.depthValue.targetReserveCount)} backups`;
+      case 'league-value':
+        if (value) return `Projects ${value} in your scoring`;
+        break;
     }
-    case 'tier-supply': {
-      const { remainingInTier, currentTier } = factors.tierSupply;
-      const drop = `a ${String(Math.round(factors.tierSupply.dropoffPoints))}-point drop`;
-      return remainingInTier === 1
-        ? `Last ${position} in Tier ${String(currentTier)} before ${drop}`
-        : `Only ${plural(remainingInTier, position)} left in Tier ${String(currentTier)} before ${drop}`;
-    }
-    case 'roster-fit': {
-      const open = factors.rosterFit.fixedStartersOpen + factors.rosterFit.flexSlotsOpen;
-      return open === 1 ? 'Fills your last open starting spot' : `Fills one of your ${String(open)} open starting spots`;
-    }
-    case 'depth-value':
-      return `Adds ${position} depth: you have ${String(factors.depthValue.reserveCount)} of ${String(factors.depthValue.targetReserveCount)} backups`;
-    case 'league-value':
-      return `Projects ${factorValue} in your scoring`;
-    default:
-      return `Projects ${factorValue}${overall ? `, ${overall}` : ''}`;
   }
+  return fallback;
+}
+
+/** The skip row's lead-in: a choice only on the clock; while waiting, just who should last to your pick. */
+export function getSkipRowLabel(position: Position, pickLabel: string, onClock: boolean): string {
+  return onClock ? `Skip ${position} now? Still there at ${pickLabel}:` : `Likely there at ${pickLabel}:`;
 }
 
 /** The top pick of each lens, as the decision output names them. */
@@ -114,10 +152,11 @@ export function getHeroStats(recommendation: Recommendation, availability: NextP
       urgent: gone >= 50,
     });
   }
-  if (diagnostics && Number.isFinite(diagnostics.valueOverReplacement)) {
+  const vor = heroValueOverReplacement(recommendation);
+  if (vor !== undefined) {
     stats.push({
       key: 'value',
-      value: formatSignedNumber(Math.round(diagnostics.valueOverReplacement)),
+      value: formatSignedNumber(Math.round(vor)),
       label: 'over fill-in',
       title: `Projected points over a fill-in ${recommendation.position} starter.`,
     });

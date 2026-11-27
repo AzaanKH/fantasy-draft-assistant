@@ -1,14 +1,15 @@
-import { DECISION_LENS_LABELS, type DecisionLens, type DraftDecisionOutput, type DraftDecisionView } from '@fantasy-draft/shared/draft';
+import { DECISION_LENS_LABELS, type DecisionLens, type DraftDecisionOutput, type DraftDecisionView, type PositionNeed } from '@fantasy-draft/shared/draft';
 import type { Player, Position } from '@fantasy-draft/shared/league';
 import type { DraftProvider } from '@fantasy-draft/shared/sync';
 import { ArrowLeftRight, GitCompareArrows } from 'lucide-react';
 import * as React from 'react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { Button } from '@/components/ui/button';
+import { useTurnStatus } from '@/features/draft-room/DraftTurnBanner';
 import { getNextPickAvailability, type NextPickAvailability } from '@/lib/next-pick-availability';
 import type { AssistantDraftMode } from './assistant-context';
 import { HeroTopRow } from './AssistantLayout';
-import { getDisagreeingLens, getHeroReason, getHeroStats, getSkipRow, shortPlayerName } from './decision-hero';
+import { getDisagreeingLens, getHeroReason, getHeroStats, getSkipRow, getSkipRowLabel, shortPlayerName } from './decision-hero';
 import { ViewedPlayerAction } from './ViewedPlayerAction';
 import './decision-hero.css';
 
@@ -27,6 +28,7 @@ export function DecisionHero({
   byPosition,
   availabilityById,
   playerById,
+  needs,
   draft,
   onCompare,
 }: {
@@ -40,13 +42,21 @@ export function DecisionHero({
   readonly byPosition: Readonly<Record<Position, DraftDecisionView>>;
   readonly availabilityById: ReadonlyMap<string, NextPickAvailability>;
   readonly playerById: ReadonlyMap<string, Player>;
+  /** The team's needs by position: a roster-fit reason must name a slot the pick can fill. */
+  readonly needs: readonly PositionNeed[];
   readonly draft: { readonly mode: AssistantDraftMode; readonly provider: DraftProvider | null; readonly nextPickLabel: string | null };
   /** Opens Compare on the call, when every lens agrees. */
   readonly onCompare: (playerId: string, origin: HTMLElement) => void;
 }): React.ReactElement {
   const hero = view.preferred;
+  const sectionRef = React.useRef<HTMLElement>(null);
+  /** The switch button unmounts with the old call, so focus moves to the lens it selected. */
+  const switchLens = (next: DecisionLens): void => {
+    onLensChange(next);
+    sectionRef.current?.querySelector<HTMLButtonElement>(`[role="group"] button[data-lens="${next}"]`)?.focus();
+  };
   return (
-    <section className="call" aria-label="Decision">
+    <section ref={sectionRef} className="call" aria-label="Decision">
       <HeroTopRow lens={lens} onLensChange={onLensChange} />
       {hero ? (
         // Keyed on the lens and the pick, so a lens switch replays the call's short fade-in (CSS, reduced-motion aware).
@@ -55,10 +65,11 @@ export function DecisionHero({
             view={view}
             output={output}
             lens={lens}
-            onLensChange={onLensChange}
+            onLensChange={switchLens}
             byPosition={byPosition}
             availabilityById={availabilityById}
             player={playerById.get(hero.playerId)}
+            need={needs.find((item) => item.position === hero.position)}
             draft={draft}
             onCompare={onCompare}
           />
@@ -68,7 +79,7 @@ export function DecisionHero({
   );
 }
 
-function HeroCall({ view, output, lens, onLensChange, byPosition, availabilityById, player, draft, onCompare }: {
+function HeroCall({ view, output, lens, onLensChange, byPosition, availabilityById, player, need, draft, onCompare }: {
   readonly view: DraftDecisionView;
   readonly output: HeroOutput;
   readonly lens: DecisionLens;
@@ -76,12 +87,15 @@ function HeroCall({ view, output, lens, onLensChange, byPosition, availabilityBy
   readonly byPosition: Readonly<Record<Position, DraftDecisionView>>;
   readonly availabilityById: ReadonlyMap<string, NextPickAvailability>;
   readonly player: Player | undefined;
+  readonly need: PositionNeed | undefined;
   readonly draft: { readonly mode: AssistantDraftMode; readonly provider: DraftProvider | null; readonly nextPickLabel: string | null };
   readonly onCompare: (playerId: string, origin: HTMLElement) => void;
 }): React.ReactElement | null {
+  // Keeper-aware: a reserved keeper at your slot is not a pick you can skip anything with.
+  const onClock = useTurnStatus()?.kind === 'on-clock';
   const hero = view.preferred;
   if (!hero) return null;
-  const reason = getHeroReason(hero, lens, output.decisionDivergenceFactor);
+  const reason = getHeroReason(hero, lens, output.decisionDivergenceFactor, need);
   const availability = availabilityById.get(hero.playerId) ?? getNextPickAvailability(hero.diagnostics);
   const stats = getHeroStats(hero, availability);
   const positionOrder: Partial<Record<Position, DraftDecisionView['recommendations']>> = {};
@@ -132,7 +146,7 @@ function HeroCall({ view, output, lens, onLensChange, byPosition, availabilityBy
           ) : null}
           {skip && skipAt ? (
             <div className="call-skip">
-              <span className="call-skip-label">Skip {skip.position} now? Still there at {skipAt}:</span>
+              <span className="call-skip-label">{getSkipRowLabel(skip.position, skipAt, onClock)}</span>
               <ul>
                 {skip.players.map((item) => {
                   const percent = Math.round(item.probability * 100);

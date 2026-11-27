@@ -695,6 +695,17 @@ describe('Assistant decision hero', () => {
     expect(hero().querySelector('[role="group"][aria-label="Decision lens"]')).not.toBeNull();
   });
 
+  it('moves focus to the selected lens when the switch button replaces the call', () => {
+    renderPage('mock');
+    // The mock's Ranked Fit has no leader, so Best Pick's top pick differs and the hero offers the switch.
+    const switchButton = [...hero().querySelectorAll('button')].find((candidate) => candidate.textContent.includes('Best Pick picks'));
+    if (!switchButton) throw new Error('No lens switch button');
+    act(() => { switchButton.focus(); });
+    click(switchButton);
+    expect(document.activeElement?.getAttribute('data-lens')).toBe('best-pick');
+    expect(hero().querySelector('[role="group"]')?.contains(document.activeElement)).toBe(true);
+  });
+
   it('offers Compare when every lens agrees and opens the analysis on it', () => {
     act(() => { draftStore.setState({ decisionLens: 'best-pick' }); });
     try {

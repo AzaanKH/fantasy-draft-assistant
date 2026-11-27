@@ -1,9 +1,9 @@
 import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
-import type { Recommendation, RecommendationDecisionFactors } from '@fantasy-draft/shared/draft';
+import type { PositionNeed, Recommendation, RecommendationDecisionFactors } from '@fantasy-draft/shared/draft';
 import type { Position } from '@fantasy-draft/shared/league';
 import { describe, expect, it } from 'vitest';
 import type { NextPickAvailability } from '@/lib/next-pick-availability';
-import { getDisagreeingLens, getHeroReason, getHeroStats, getSkipRow, shortPlayerName } from './decision-hero';
+import { getDisagreeingLens, getHeroReason, getHeroStats, getSkipRow, getSkipRowLabel, shortPlayerName } from './decision-hero';
 
 function rec(playerId: string, position: Position = 'WR', diagnostics: Partial<NonNullable<Recommendation['diagnostics']>> = {}): Recommendation {
   return {
@@ -144,6 +144,9 @@ describe('getSkipRow', () => {
 });
 
 describe('getHeroReason', () => {
+  const need = (change: Partial<PositionNeed> = {}): PositionNeed => ({
+    position: 'RB', priority: 'medium', startersNeeded: 2, startersFilled: 2, flexSlotsNeeded: 1, flexSlotsFilled: 1, isFlexEligible: true, scarcityScore: 0, ...change,
+  });
   const withFactors = (change: (factors: RecommendationDecisionFactors) => RecommendationDecisionFactors = (factors) => factors): Recommendation => ({
     ...rec('a', 'RB', { expertRank: asRank(47) }),
     decisionFactors: change(decisionFactors()),
@@ -161,17 +164,43 @@ describe('getHeroReason', () => {
   it('states the Best Pick factor that decided the pick, in plain words', () => {
     expect(getHeroReason(withFactors(moved('draftTiming')), 'best-pick')).toBe('Waiting until 3.05 costs about 17 points');
     expect(getHeroReason(withFactors(moved('tierSupply')), 'best-pick')).toBe('Last RB in Tier 2 before a 20-point drop');
-    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick')).toBe('Fills one of your 3 open starting spots');
+    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick', null, need({ startersFilled: 0 }))).toBe('Fills one of your 2 open RB starting spots');
     expect(getHeroReason(withFactors(moved('depthValue')), 'best-pick')).toBe('Adds RB depth: you have 0 of 2 backups');
-    expect(getHeroReason(withFactors(moved('leagueValue')), 'best-pick')).toBe('Projects +40 points over a fill-in RB in your scoring');
-    expect(getHeroReason(withFactors(), 'best-pick')).toBe('Projects +40 points over a fill-in RB, #47 overall');
+    expect(getHeroReason(withFactors(moved('leagueValue')), 'best-pick')).toBe('Projects +60 points over a fill-in RB in your scoring');
+    expect(getHeroReason(withFactors(), 'best-pick')).toBe('Projects +60 points over a fill-in RB, #47 overall');
     // The divergence factor (why Best Pick differs from Ranked Fit) wins over the factors' own order.
-    expect(getHeroReason(withFactors(moved('draftTiming')), 'best-pick', 'roster-fit')).toBe('Fills one of your 3 open starting spots');
+    expect(getHeroReason(withFactors(moved('draftTiming')), 'best-pick', 'roster-fit', need({ startersFilled: 1 }))).toBe('Fills your open RB starting spot');
   });
 
   it('keeps a roster-completion pick in plain words, and falls back to value without factors', () => {
     const feasibility = withFactors((factors) => ({ ...factors, conservativeBoundary: { ...factors.conservativeBoundary, feasibilityException: true } }));
     expect(getHeroReason(feasibility, 'best-pick')).toBe('Keeps your roster fillable with 8 picks left');
-    expect(getHeroReason(rec('a', 'WR'), 'best-pick')).toBe('Projects +60 points over a fill-in WR');
+    expect(getHeroReason(rec('a', 'WR'), 'best-pick')).toBe('Projects +60 points over a fill-in WR, #1 overall');
+  });
+
+  it('never claims a starting spot the pick cannot fill, and falls through to the next deciding factor', () => {
+    // A bench RB while the open starter slot is a TE: both RB starters and the FLEX are filled.
+    const full = need();
+    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick', null, full)).toBe('Projects +60 points over a fill-in RB, #47 overall');
+    expect(getHeroReason(withFactors(moved('draftTiming')), 'best-pick', 'roster-fit', full)).toBe('Waiting until 3.05 costs about 17 points');
+    // Without the team's needs the slot cannot be checked, so the line never claims one.
+    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick')).toBe('Projects +60 points over a fill-in RB, #47 overall');
+    // A FLEX it can fill still counts; one it cannot does not.
+    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick', null, need({ flexSlotsFilled: 0 }))).toBe('Fills your open FLEX spot');
+    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick', null, need({ flexSlotsFilled: 0, isFlexEligible: false }))).toBe('Projects +60 points over a fill-in RB, #47 overall');
+  });
+
+  it('states the same value over a fill-in as the stat beside it', () => {
+    const recommendation = withFactors(moved('leagueValue'));
+    const stat = getHeroStats(recommendation, { kind: 'unestimated' }).find((item) => item.key === 'value');
+    expect(stat?.value).toBe('+60');
+    expect(getHeroReason(recommendation, 'best-pick')).toContain('+60 points');
+  });
+});
+
+describe('getSkipRowLabel', () => {
+  it('offers the skip only on the clock; while waiting it says who should last to your pick', () => {
+    expect(getSkipRowLabel('RB', '6.06', true)).toBe('Skip RB now? Still there at 6.06:');
+    expect(getSkipRowLabel('RB', '6.06', false)).toBe('Likely there at 6.06:');
   });
 });

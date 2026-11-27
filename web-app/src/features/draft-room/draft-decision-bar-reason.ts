@@ -13,8 +13,7 @@ function sentenceCase(value: string): string {
     : 'Current roster and draft timing put this player first.';
 }
 
-/** The Best Pick factor that most decided this pick: the divergence factor when given, else the first that moved it. */
-export function getReasonFactor(
+function getReasonFactor(
   recommendation: Recommendation,
   divergenceFactor: DecisionDivergenceFactor | null
 ): DecisionDivergenceFactor | null {
