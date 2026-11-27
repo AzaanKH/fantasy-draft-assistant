@@ -9,7 +9,8 @@ import { REPO_ROOT } from './model/duckdb.js';
 const DIST_DIR = join(REPO_ROOT, 'web-app', 'dist');
 const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.bundleReport));
 // Includes React 19, Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
-const JS_GZIP_BUDGET = 400 * 1024;
+// The Assistant redesign (#161–#163) left about 1.5 KB of headroom under the old JavaScript budget.
+const JS_GZIP_BUDGET = 440 * 1024;
 // The Assistant redesign (#161–#163) added the decision hero, position tiers and roster-needs styles.
 const CSS_GZIP_BUDGET = 32 * 1024;
 const STATIC_OUTPUT_BUDGET = 9 * 1024 * 1024;

@@ -49,7 +49,7 @@ Use the printed run ID for doctor, CLI commands, extension-browser, and stop. Br
 ## Web bundle limits
 
 `pnpm measure:web-bundle` checks all JavaScript chunks against a combined
-400 KiB gzip budget, CSS against 32 KiB gzip, and the complete build output
+440 KiB gzip budget, CSS against 32 KiB gzip, and the complete build output
 against 9 MiB. Deferred chunks still count toward the JavaScript limit.
 The build-output limit includes source maps, fonts, and browser data.
 
@@ -85,6 +85,9 @@ stays under its 9 MiB budget.
 The Assistant redesign (#161–#163: the decision hero, position tiers and the
 roster-needs view) brings CSS to about 30.9 KiB gzip, so the CSS budget rises
 from 28 to 32 KiB.
+
+The redesign left about 1.5 KB of headroom under the 400 KiB JavaScript gzip
+budget. The JavaScript budget rises to 440 KiB.
 
 Animation wrappers live in `web-app/src/components/motion.tsx`. Motion handles
 measured list movement and keyed content transitions. CSS and the Web Animations
