@@ -669,3 +669,51 @@ describe('What does my roster need? from the page', () => {
     expect(analysisPanel().textContent).not.toContain('This adds depth');
   });
 });
+
+describe('Assistant decision hero', () => {
+  function hero(): HTMLElement {
+    const section = document.querySelector<HTMLElement>('section.call[aria-label="Decision"]');
+    if (!section) throw new Error('Decision hero is not rendered');
+    return section;
+  }
+
+  it('calls the lens leader with its Draft action and the model facts', () => {
+    renderPage('mock');
+    expect(document.querySelector('h1')?.textContent).toBe('Draft Receiver 1');
+    expect(hero().querySelector('.call-why')?.textContent).toBe('WR · Highest-ranked player who still fits your roster, #1 overall');
+    // Position tiers keeps the call in the hero; the bar no longer repeats the top pick.
+    click(button('Position tiers'));
+    expect(document.querySelector('.rec-context')?.textContent).not.toContain('Receiver 1');
+    click(button('Suggestions'));
+    // The availability map's 90% survival, not the recommendation's own 40%: the page's one source for the estimate.
+    expect([...hero().querySelectorAll('.call-stat')].map((stat) => stat.textContent)).toEqual(['10%gone by 2.12', '+59over fill-in', 'Tier 13 WRs left']);
+    const draft = [...hero().querySelectorAll('button')].find((candidate) => candidate.textContent === 'Draft 1');
+    if (draft) click(draft);
+    expect(mocks.draftPlayer).toHaveBeenCalledWith(expect.objectContaining({ id: 'wr-1' }));
+    // The lens toggle lives in the hero only.
+    expect(document.querySelectorAll('[role="group"][aria-label="Decision lens"]')).toHaveLength(1);
+    expect(hero().querySelector('[role="group"][aria-label="Decision lens"]')).not.toBeNull();
+  });
+
+  it('moves focus to the selected lens when the switch button replaces the call', () => {
+    renderPage('mock');
+    // The mock's Ranked Fit has no leader, so Best Pick's top pick differs and the hero offers the switch.
+    const switchButton = [...hero().querySelectorAll('button')].find((candidate) => candidate.textContent.includes('Best Pick picks'));
+    if (!switchButton) throw new Error('No lens switch button');
+    act(() => { switchButton.focus(); });
+    click(switchButton);
+    expect(document.activeElement?.getAttribute('data-lens')).toBe('best-pick');
+    expect(hero().querySelector('[role="group"]')?.contains(document.activeElement)).toBe(true);
+  });
+
+  it('offers Compare when every lens agrees and opens the analysis on it', () => {
+    act(() => { draftStore.setState({ decisionLens: 'best-pick' }); });
+    try {
+      renderPage('mock');
+      click(button('Compare options'));
+      expect(document.getElementById('rec-tab-compare')?.getAttribute('aria-selected')).toBe('true');
+    } finally {
+      act(() => { draftStore.setState({ decisionLens: 'ranked-fit' }); });
+    }
+  });
+});

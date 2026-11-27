@@ -1,14 +1,18 @@
 import { useDraftState } from '@/workspace/WorkspaceProvider';
-import { DECISION_LENSES, DECISION_LENS_LABELS, type DecisionLens } from '@fantasy-draft/shared/draft';
+import { useDraftView } from '@/workspace/useDraftView';
+import { createSlotSequence, DECISION_LENSES, DECISION_LENS_LABELS, type DecisionLens } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
 import { LoadingStatus, SkeletonBlock, SkeletonText } from '@/components/skeletons';
+import { DraftTurnBanner } from '@/features/draft-room/DraftTurnBanner';
 import { SuggestionListPlaceholder } from '@/features/draft-room/DraftSuggestions';
 import { SuggestionShortcutHint } from '@/features/draft-room/SuggestionShortcutHint';
 // data-suggestion-keys on each Assistant <main>: SUGGESTION_KEYS_ATTRIBUTE, so 1-4 act only on cards on screen.
 import { RANKING_LABELS } from '@/lib/demo-mode';
+import { formatNextTurn, getPickWindow, picksUntilTurn } from './assistant-context';
 import type { AssistantLens } from './assistant-navigation';
 import { AssistantRailSummary } from './AssistantRail';
 import './assistant.css';
+import './decision-hero.css';
 
 /**
  * The Assistant's layout. AssistantPage loads lazily, so its loading state renders these same pieces
@@ -126,17 +130,11 @@ export function AnalysisTabs({
   );
 }
 
-/** What each lens ranks by, as the hover text of its button and of the suggestions heading. */
-const LENS_BASIS: Readonly<Record<DecisionLens, string>> = {
+/** What each lens ranks by: the hover text of its button. */
+export const LENS_BASIS: Readonly<Record<DecisionLens, string>> = {
   'ranked-fit': `${RANKING_LABELS.short} order among players who keep a legal roster`,
   'best-pick': 'League value, roster fit and draft timing',
   'best-player': `Player quality (${RANKING_LABELS.short}), without roster or timing`,
-};
-
-const LEAD_HEADINGS: Readonly<Record<DecisionLens, string>> = {
-  'ranked-fit': 'Your Ranked Fit',
-  'best-pick': 'Your Best Pick',
-  'best-player': 'Best Player available',
 };
 
 export function LensToggle({
@@ -149,19 +147,81 @@ export function LensToggle({
   return (
     <div className="rec-lens" role="group" aria-label="Decision lens">
       {DECISION_LENSES.map((item) => (
-        <button key={item} type="button" title={LENS_BASIS[item]} aria-pressed={lens === item} disabled={!onChange} onClick={() => { onChange?.(item); }}>{DECISION_LENS_LABELS[item]}</button>
+        <button key={item} type="button" data-lens={item} title={LENS_BASIS[item]} aria-pressed={lens === item} disabled={!onChange} onClick={() => { onChange?.(item); }}>{DECISION_LENS_LABELS[item]}</button>
       ))}
     </div>
   );
 }
 
-/** The suggestions heading. Navigation back to the board lives in the header tabs, never beside the search. */
-export function LeadHeading({
+/**
+ * The decision hero's first row: the turn banner (shown on the clock, a keeper slot or picks done), the current pick
+ * and when your next turn comes, and the lens. The loading skeleton renders this same row, so it never moves.
+ */
+export function HeroTopRow({
   lens,
+  onLensChange,
+}: {
+  readonly lens: DecisionLens;
+  /** Omitted while the page loads, which disables the lens. */
+  readonly onLensChange?: (lens: DecisionLens) => void;
+}): React.ReactElement {
+  const config = useDraftState((state) => state.config);
+  const currentPick = useDraftView((view) => view.currentPick);
+  const order = createSlotSequence({ type: config.draftType, teams: config.totalTeams, rounds: config.totalRounds });
+  const pickWindow = getPickWindow(currentPick, config.totalTeams, config.totalRounds, config.myPickPosition, config.draftType);
+  const currentLabel = currentPick <= config.totalTeams * config.totalRounds ? order.label(currentPick) : null;
+  const nextLabel = pickWindow.nextPick === null ? null : order.label(pickWindow.nextPick);
+  const nextTurn = formatNextTurn(picksUntilTurn(pickWindow), nextLabel);
+  return (
+    <div className="call-top">
+      {/* Waiting, the banner is visually hidden (the line beside it counts the picks) but stays mounted, so its
+          announcement still fires when the clock comes round. */}
+      <span className="call-turn"><DraftTurnBanner variant="compact" showPick={false} /></span>
+      {currentLabel ? (
+        <span className="call-context">
+          Pick {currentLabel}{' · '}
+          {/* The page's one statement of the next turn. */}
+          <span data-next-turn={nextTurn ? '' : undefined}>{nextTurn ?? (pickWindow.onClock ? 'Your final pick' : 'No picks left')}</span>
+        </span>
+      ) : null}
+      <LensToggle lens={lens} onChange={onLensChange} />
+    </div>
+  );
+}
+
+/** The decision hero while the page loads: its real first row, and placeholders for the call. */
+function DecisionHeroPlaceholder({ lens }: { readonly lens: DecisionLens }): React.ReactElement {
+  return (
+    <section className="call" data-loading="" aria-label="Decision">
+      <HeroTopRow lens={lens} />
+      <div className="call-main" aria-hidden="true">
+        <span className="call-headshot" />
+        <div className="call-copy">
+          <SkeletonBlock className="call-placeholder-name" />
+          <p className="call-why"><SkeletonText className="w-72" /></p>
+        </div>
+        <div className="call-actions">
+          <SkeletonBlock className="h-11 w-full" />
+          <SkeletonBlock className="h-10 w-full" />
+        </div>
+      </div>
+      <div className="call-foot" aria-hidden="true">
+        <div className="call-stats">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="call-stat"><strong><SkeletonText className="w-14" /></strong><span><SkeletonText className="w-20" /></span></div>
+          ))}
+        </div>
+        <div className="call-skip"><span className="call-skip-label"><SkeletonText className="w-48" /></span><ul><li><SkeletonText className="w-80" /></li></ul></div>
+      </div>
+    </section>
+  );
+}
+
+/** The suggestions toolbar: the shortcut hint and the player search. The page's h1 is the decision hero's call. */
+export function LeadHeading({
   search,
   cardsShown = true,
 }: {
-  readonly lens: DecisionLens;
   /** Player search, beside the cards it replaces while it has a query. */
   readonly search?: React.ReactNode;
   /** False while search results replace the cards: no "Press 1–4" for cards that are not there. */
@@ -169,9 +229,7 @@ export function LeadHeading({
 }): React.ReactElement {
   return (
     <div className="rec-section-heading rec-lead-heading">
-      {/* What the lens weighs is the heading's own description (and the lens buttons' titles), not a second line. */}
-      <h1 title={LENS_BASIS[lens]}>{LEAD_HEADINGS[lens]}</h1>
-      {/* Kept in the layout while hidden, so the heading row does not shift when a search starts. */}
+      {/* Kept in the layout while hidden, so the row does not shift when a search starts. */}
       <span className="rec-lead-hint" data-hidden={cardsShown ? undefined : ''} aria-hidden={cardsShown ? undefined : true}><SuggestionShortcutHint /></span>
       <div className="rec-lead-tools">
         {search}
@@ -225,20 +283,14 @@ export function AssistantSkeleton({
   return (
     <main className="assistant-workspace rec-workspace" aria-busy="true" data-suggestion-keys="">
       <LoadingStatus label="Loading the Assistant" />
+      <DecisionHeroPlaceholder lens={lens} />
       <div className="rec-context">
         <AssistantViewTabs view="suggestions" />
-        <div className="rec-context-pick">
-          <SkeletonBlock className="h-8 w-40 rounded-sm" />
-          <span className="rec-context-next"><SkeletonText className="w-40" /></span>
-        </div>
-        <div className="rec-context-status">
-          <LensToggle lens={lens} />
-        </div>
       </div>
       <SuggestionsLayout
         main={(
           <>
-            <LeadHeading lens={lens} search={<SearchPlaceholder />} />
+            <LeadHeading search={<SearchPlaceholder />} />
             <SuggestionListPlaceholder variant="assistant" />
           </>
         )}
