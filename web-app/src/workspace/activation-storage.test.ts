@@ -577,7 +577,8 @@ describe('review r2 activation regressions', () => {
     const close = vi.spyOn(late, 'close');
     let complete: ((database: DraftDatabase) => void) | undefined;
     vi.spyOn(indexedDatabase, 'openDraftDatabase').mockReturnValueOnce(new Promise(resolve => { complete = resolve; })).mockResolvedValue(retry);
-    const activation = controller({ timeoutMs: 10 });
+    // The hung open times out at any bound; the retry's real IndexedDB work needs room on a loaded runner.
+    const activation = controller({ timeoutMs: 100 });
     expect(await activation.resume()).toBeNull();
     expect(await activation.preflight()).toMatchObject({ status: 'review', ready: true });
     complete?.(late);
@@ -612,8 +613,9 @@ describe('review r2 activation regressions', () => {
     const probe = database.probe.bind(database);
     let calls = 0;
     vi.spyOn(database, 'probe').mockImplementation((key, value) => ++calls === 4 ? new Promise(() => undefined) : probe(key, value));
-    const activation = controller({ timeoutMs: 10 });
-    const result = await Promise.race([activation.preflight(), new Promise(resolve => { setTimeout(() => { resolve('still pending after 100ms'); }, 100); })]);
+    // The never-settling probe times out at any bound; the other probes are real IndexedDB work that needs room on a loaded runner.
+    const activation = controller({ timeoutMs: 100 });
+    const result = await Promise.race([activation.preflight(), new Promise(resolve => { setTimeout(() => { resolve('still pending after 2s'); }, 2_000); })]);
     expect(result).toMatchObject({ status: 'review', ready: true });
     expect(calls).toBe(4);
     expect(await probeCount()).toBe(0);
