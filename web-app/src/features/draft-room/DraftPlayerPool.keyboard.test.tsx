@@ -27,6 +27,8 @@ beforeEach(() => {
   // jsdom has no layout; give the scroller a size so the virtualizer renders rows.
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(900);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(900);
   store = createDraftStore();
   store.getState().setConfig({ totalTeams: 4, totalRounds: 3, myPickPosition: 1, draftType: 'snake' });
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);

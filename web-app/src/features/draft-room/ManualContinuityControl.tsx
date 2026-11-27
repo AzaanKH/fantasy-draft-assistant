@@ -2,7 +2,7 @@ import { requestWorkspace } from '@/workspace/ui-dispatch';
 import { useWorkspace, useDraftState } from '@/workspace/WorkspaceProvider';
 import { createSlotSequence } from '@fantasy-draft/shared/draft';
 import * as React from 'react';
-import { CircleAlert, PenLine, ShieldAlert, Trash2 } from 'lucide-react';
+import { CircleExclamationPoint, PenLine, ShieldExclamationPoint, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -125,9 +125,9 @@ export function ManualContinuityControl(): React.ReactElement | null {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-3" role="status" aria-live="polite">
             {isManual ? (
-              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-warning" />
+              <ShieldExclamationPoint className="mt-0.5 size-5 shrink-0 text-warning" />
             ) : (
-              <CircleAlert className="mt-0.5 size-5 shrink-0 text-warning" />
+              <CircleExclamationPoint className="mt-0.5 size-5 shrink-0 text-warning" />
             )}
             <div className="min-w-0">
               <h2 className="text-sm font-bold">
@@ -205,7 +205,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
                       onClick={() => { openRemovalDialog(pick.pickNumber); }}
                       aria-label={`Remove Provisional Pick for ${pick.playerName}`}
                     >
-                      <Trash2 />
+                      <Trash />
                       Remove
                     </Button>
                   </div>
@@ -257,7 +257,7 @@ export function ManualContinuityControl(): React.ReactElement | null {
               onClick={() => { void handleRemove(); }}
               disabled={removalPending || !pendingRemovalPick}
             >
-              <Trash2 />
+              <Trash />
               Remove Provisional Pick
             </Button>
           </DialogFooter>
