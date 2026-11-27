@@ -733,7 +733,7 @@ describe('createSyncServer', () => {
     });
     const event = {
       eventId: '2026:sleeper:fixture-draft:1',
-      season: 2027,
+      season: 2026,
       draftId: 'fixture-draft',
       pickNumber: 1,
       observedAt: '2026-08-20T18:00:00.000Z',
@@ -741,6 +741,7 @@ describe('createSyncServer', () => {
         sourceLabel: 'Experimental prediction artifact',
         modelVersion: 'test-model',
         generatedAt: '2026-08-20T17:00:00.000Z',
+        targetSeason: 2026,
         freshness: 'ready',
       },
       coreDecision: {
@@ -793,6 +794,104 @@ describe('createSyncServer', () => {
         eventId: event.eventId,
         disagreement: true,
       });
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('records a Shadow Recommendation built from predictions older than their dependencies, with that freshness', async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-log-'));
+    const shadowLogPath = join(temporaryDirectory, 'recommendations.ndjson');
+    const server = createSyncServer({ fetchJson: createMockFetchJson(), shadowLogPath });
+    const recommendation = { playerId: 'ecr-1', playerName: 'ECR Player', position: 'WR', score: 10 };
+    const dependencies = {
+      rankingsRefreshedAt: '2026-09-05T15:53:00.000Z',
+      identitiesGeneratedAt: '2026-09-05T15:53:00.000Z',
+      teamEnvironmentGeneratedAt: null,
+    };
+    const event = {
+      eventId: '2026:sleeper:draft-day:1', season: 2026, draftId: 'draft-day', pickNumber: 1,
+      observedAt: '2026-09-05T16:30:00.000Z',
+      experiment: {
+        sourceLabel: 'Experimental prediction artifact', modelVersion: 'test-model',
+        generatedAt: '2026-09-05T15:17:00.000Z', targetSeason: 2026, freshness: 'older-than-dependency', dependencies,
+      },
+      coreDecision: {
+        ecrAnchor: 'FantasyPros ECR', policy: 'primary-league-policy',
+        bestPick: recommendation, bestPlayer: recommendation, recommendations: [recommendation],
+      },
+      shadowRecommendations: [{ ...recommendation, playerId: 'model-1', playerName: 'Model Player' }],
+      disagreement: true,
+      context: {
+        draftProvider: 'sleeper', leagueSettingsFingerprint: 'primary-league-test', totalTeams: 10, totalRounds: 15,
+        myPickPosition: 1, draftedPlayerIds: [], rosterPlayerIds: [], positionNeeds: [],
+      },
+    };
+    const base = await listen(server);
+
+    try {
+      const post = (body: unknown) => fetch(`${base}/api/shadow-recommendations`, {
+        method: 'POST',
+        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const unknownFreshness = await post({ ...event, eventId: 'unknown', experiment: { ...event.experiment, freshness: 'missing' } });
+      expect(unknownFreshness.status).toBe(400);
+      expect((await post(event)).status).toBe(201);
+
+      const lines = (await readFile(shadowLogPath, 'utf8')).trim().split('\n');
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0] ?? '{}')).toMatchObject({
+        eventId: event.eventId,
+        experiment: { generatedAt: '2026-09-05T15:17:00.000Z', freshness: 'older-than-dependency', dependencies },
+      });
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a Shadow Recommendation for another season before it can reserve the pick', async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'fantasy-shadow-log-'));
+    const shadowLogPath = join(temporaryDirectory, 'recommendations.ndjson');
+    const server = createSyncServer({ fetchJson: createMockFetchJson(), shadowLogPath, shadowLogSeason: 2026 });
+    const recommendation = { playerId: 'ecr-1', playerName: 'ECR Player', position: 'WR', score: 10 };
+    const event = {
+      eventId: '2026:sleeper:draft-day:1', season: 2026, draftId: 'draft-day', pickNumber: 1,
+      observedAt: '2026-09-05T16:30:00.000Z',
+      experiment: {
+        sourceLabel: 'Experimental prediction artifact', modelVersion: 'test-model',
+        generatedAt: '2026-03-05T15:17:00.000Z', targetSeason: 2026, freshness: 'stale',
+      },
+      coreDecision: {
+        ecrAnchor: 'FantasyPros ECR', policy: 'primary-league-policy',
+        bestPick: recommendation, bestPlayer: recommendation, recommendations: [recommendation],
+      },
+      shadowRecommendations: [{ ...recommendation, playerId: 'model-1', playerName: 'Model Player' }],
+      disagreement: true,
+      context: {
+        draftProvider: 'sleeper', leagueSettingsFingerprint: 'primary-league-test', totalTeams: 10, totalRounds: 15,
+        myPickPosition: 1, draftedPlayerIds: [], rosterPlayerIds: [], positionNeeds: [],
+      },
+    };
+    const { targetSeason: _omitted, ...legacyExperiment } = event.experiment;
+    const base = await listen(server);
+
+    try {
+      const post = (body: unknown) => fetch(`${base}/api/shadow-recommendations`, {
+        method: 'POST',
+        headers: { Origin: 'http://localhost:3000', 'X-Sync-Token': TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      // A 2025 model rebuilt after the March rollover, an artifact with no target season, and another season's log.
+      expect((await post({ ...event, experiment: { ...event.experiment, targetSeason: 2025 } })).status).toBe(422);
+      expect((await post({ ...event, experiment: legacyExperiment })).status).toBe(422);
+      expect((await post({ ...event, season: 2027, experiment: { ...event.experiment, targetSeason: 2027 } })).status).toBe(422);
+      await expect(readFile(shadowLogPath, 'utf8')).rejects.toThrow();
+
+      expect((await post(event)).status).toBe(201);
+      const lines = (await readFile(shadowLogPath, 'utf8')).trim().split('\n');
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0] ?? '{}')).toMatchObject({ eventId: event.eventId, experiment: { targetSeason: 2026 } });
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
     }

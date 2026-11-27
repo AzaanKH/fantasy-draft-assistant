@@ -53,6 +53,7 @@ export async function writePredictionArtifacts(
       {
         generatedAt: new Date().toISOString(),
         modelVersion,
+        season: currentSeason,
         sources: MODEL_SOURCES,
         players: predictionRows.map((row) => ({
           playerId: String(row.player_id),

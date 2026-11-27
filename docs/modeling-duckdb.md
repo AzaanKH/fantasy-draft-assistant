@@ -232,7 +232,8 @@ refresh the fold.
 ## Prediction outputs and live use
 
 `data/predictions.json` feeds a separate Shadow Recommendation player pool when
-prediction data is ready and shadow logging is enabled. Use
+shadow logging is enabled and current-season predictions have loaded, even if
+they are older than their dependencies; each logged row records that freshness. Use
 [data strategy](data-strategy.md#experimental-predictions-and-optional-evidence)
 for the live policy and promotion rules. Neither a dataset build nor a passing
 backtest enables model outputs in live recommendations.

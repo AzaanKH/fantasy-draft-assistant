@@ -107,9 +107,24 @@ opportunity, availability, and role features. Roster need belongs in the
 recommendation step, where the manager's current draft state is known.
 
 Experimental predictions enter a separate Shadow Recommendation player pool
-when prediction data is ready and shadow logging is enabled. The app logs the
-shadow result beside the live decision for later evaluation. A shadow result
-cannot change the displayed Ranked Fit, Best Pick, or Best Player.
+when shadow logging is enabled and a current-season prediction artifact with a
+model version and enough rows has loaded. The app logs the shadow result beside
+the live decision for later evaluation. Predictions older than rankings,
+identities, or team environment, or past the seven-day limit, are still logged:
+each row records the prediction freshness (`ready`, `older-than-dependency`, or
+`stale`) and the dependency timestamps it was compared against, so evaluation
+can filter them. Readiness still shows such predictions as degraded. A row is
+logged only when the workspace season, the artifact's recorded target `season`
+(its rankings snapshot's season, written by `pnpm model:dataset`), and the
+policy season agree; the sync server applies the same check before
+deduplication. The sync server also rejects (422) any event whose season differs
+from its configured shadow log season, which is 2026 (`DEFAULT_SHADOW_LOG_SEASON`
+in `server/src/sync-server.ts`) and is not overridden by any shipped entrypoint.
+Moving shadow logging to 2027 therefore needs that server change as well as a
+`pnpm model:dataset` rebuild. By default each season logs to its own
+`data/shadow-logs/<season>-recommendations.ndjson` file. An artifact built before `season` was recorded is not logged
+until it is rebuilt with `pnpm model:dataset`, which stamps the season. A shadow result cannot change the displayed Ranked Fit,
+Best Pick, or Best Player.
 
 Contract and sportsbook inputs remain informational. The contract backtest
 records validation evidence in

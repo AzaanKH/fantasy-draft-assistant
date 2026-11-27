@@ -1,8 +1,10 @@
-import { http } from '@fantasy-draft/shared/http';
+import { http, HttpError } from '@fantasy-draft/shared/http';
 import { BROWSER_HTTP_POLICY } from '@/lib/http';
 import type {
   PositionNeed,
   Recommendation,
+  ShadowPredictionDependencies,
+  ShadowPredictionFreshness,
   ShadowRecommendation,
   ShadowRecommendationEvent,
 } from '@fantasy-draft/shared/draft';
@@ -29,6 +31,11 @@ interface BuildShadowRecommendationEventInput {
   readonly observedAt: string;
   readonly modelVersion: string;
   readonly predictionGeneratedAt: string;
+  /** The season the prediction artifact was built for; the server rejects events where it differs from `season`. */
+  readonly predictionTargetSeason: number;
+  /** Readiness of the predictions; a degraded artifact is still logged so the season's evidence is kept. */
+  readonly predictionFreshness: ShadowPredictionFreshness;
+  readonly predictionDependencies: ShadowPredictionDependencies;
   readonly corePolicy: string;
   readonly coreBestPick: Recommendation;
   readonly coreBestPlayer: Recommendation;
@@ -59,7 +66,9 @@ export function buildShadowRecommendationEvent(
       sourceLabel: 'Experimental prediction artifact',
       modelVersion: input.modelVersion,
       generatedAt: input.predictionGeneratedAt,
-      freshness: 'ready',
+      targetSeason: input.predictionTargetSeason,
+      freshness: input.predictionFreshness,
+      dependencies: input.predictionDependencies,
     },
     coreDecision: {
       ecrAnchor: 'FantasyPros ECR',
@@ -88,12 +97,22 @@ export function buildShadowRecommendationEvent(
   };
 }
 
+/**
+ * `rejected` means the server refused this payload (a non-retryable 4xx such as 422);
+ * resending the same event cannot succeed. `retryable` covers network failures, 429, and 5xx.
+ */
+export type ShadowPostOutcome = 'recorded' | 'retryable' | 'rejected';
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
 /** Shadow telemetry is best effort and must never reject into the live UI. */
 export async function postShadowRecommendation(
   endpoint: string,
   event: ShadowRecommendationEvent,
   fetcher?: typeof fetch
-): Promise<boolean> {
+): Promise<ShadowPostOutcome> {
   try {
     await http.json(endpoint, value => {
       if (typeof value !== 'object' || value === null || !('eventId' in value) ||
@@ -106,8 +125,12 @@ export async function postShadowRecommendation(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(event),
     } });
-    return true;
-  } catch {
-    return false;
+    return 'recorded';
+  } catch (error) {
+    if (error instanceof HttpError && error.kind === 'status' && error.status !== undefined &&
+        error.status >= 400 && error.status < 500 && !isRetryableStatus(error.status)) {
+      return 'rejected';
+    }
+    return 'retryable';
   }
 }
