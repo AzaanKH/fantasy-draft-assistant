@@ -662,10 +662,44 @@ describe('Assistant main action by draft mode', () => {
 });
 
 describe('What does my roster need? from the page', () => {
-  it('reports an open FLEX starter instead of depth when fixed WR starters are filled', () => {
+  const rosterPanel = (): HTMLElement => {
+    const panel = analysisPanel().querySelector<HTMLElement>('[data-roster-needs]');
+    if (!panel) throw new Error('Roster needs is not rendered');
+    return panel;
+  };
+
+  it('previews the slot the viewed player fills and waits for other teams before ranking', () => {
     renderPage('live');
     click(button('Roster needs'));
-    expect(analysisPanel().textContent).toContain('Fills an open FLEX starter slot.');
-    expect(analysisPanel().textContent).not.toContain('This adds depth');
+    const preview = rosterPanel().querySelector('[data-preview]');
+    expect(preview?.getAttribute('data-slot')).toBe('WR-0');
+    expect(preview?.textContent).toContain('Receiver 1');
+    expect(rosterPanel().querySelector('[data-ranks-empty]')).not.toBeNull();
+    expect(rosterPanel().querySelector('[aria-pressed="true"][data-candidate]')?.getAttribute('data-candidate')).toBe('wr-1');
+  });
+
+  it('ranks your starters against the league\u2019s real rosters and moves with the chosen candidate', () => {
+    const pick = (pickNumber: number, index: number, teamIndex: number) => ({
+      pickNumber, playerId: `wr-${String(index)}`, playerName: `Receiver ${String(index)}`, position: 'WR' as const, teamIndex, teamName: `Team ${String(teamIndex + 1)}`,
+    });
+    act(() => {
+      draftStore.getState().recordProvisionalPick(pick(2, 91, 1));
+    });
+    try {
+      renderPage('live');
+      click(button('Roster needs'));
+      // No WR against Team 2's one: 2nd now, level with them (tied 1st) once Receiver 1 joins.
+      const ladder = rosterPanel().querySelector('[data-ladder="WR"]');
+      expect(ladder?.getAttribute('aria-label')).toMatch(/^WR: 2nd of \d+ now, 1st with Receiver 1$/);
+      expect(rosterPanel().querySelector('details summary')?.textContent).toMatch(/^See all \d+ teams$/);
+      // Choosing another candidate keeps the same ladder element, so its dots can move instead of remounting.
+      const candidate = rosterPanel().querySelector<HTMLButtonElement>('[data-candidate="wr-2"]');
+      if (!candidate) throw new Error('Missing candidate');
+      click(candidate);
+      expect(rosterPanel().querySelector('[data-ladder="WR"]')).toBe(ladder);
+      expect(rosterPanel().querySelector('[aria-pressed="true"][data-candidate]')?.getAttribute('data-candidate')).toBe('wr-2');
+    } finally {
+      act(() => { draftStore.setState({ draftHistory: [] }); });
+    }
   });
 });

@@ -21,7 +21,8 @@ import { getPlayerRisk } from '@/lib/player-risk';
 import { formatAdp, getInjuryTag, getPlayerAdp } from '@/lib/player-status';
 import { AnalysisTabs, type AnalysisTab } from './AssistantLayout';
 import { CompareAnswer } from './AssistantComparison';
-import { RosterAnswer, WhyAnswer } from './AssistantAnswers';
+import { WhyAnswer } from './AssistantAnswers';
+import { RosterNeeds } from './RosterNeeds';
 import type { AssistantDraftMode } from './assistant-context';
 import { MISSING_SELECTION_NOTICE } from './assistant-navigation';
 import type { AnalysisSubject } from './useAssistantSubject';
@@ -285,7 +286,8 @@ export const AssistantAnalysisPanel = React.forwardRef<HTMLElement, AssistantAna
           <AnalysisTabs tab={tab} onChange={onTabChange} />
           {/* Scrolls inside the fixed-height column, so switching subjects never changes the column's height. */}
           <div id="rec-analysis-panel" role="tabpanel" aria-labelledby={`rec-tab-${tab}`} className="rec-answer" tabIndex={0}>
-            <div key={`${tab}:${recommendation.playerId}`}>
+            {/* Roster needs stays mounted across subjects so its rank dots glide to the new candidate. */}
+            <div key={tab === 'roster' ? tab : `${tab}:${recommendation.playerId}`}>
               {tab === 'why' ? (
                 <WhyAnswer recommendation={recommendation} isTopPick={subject.isTopPick} lens={lens} preferredExplanation={decision.explanationByPlayerId.get(recommendation.playerId)} expandReasoning={subject.expandReasoning} />
               ) : tab === 'compare' ? (
@@ -297,7 +299,7 @@ export const AssistantAnalysisPanel = React.forwardRef<HTMLElement, AssistantAna
                   playerById={playerById}
                 />
               ) : (
-                <RosterAnswer needs={needs} recommendation={recommendation} player={player} sameByeName={subject.sameByeName} />
+                <RosterNeeds recommendation={recommendation} decision={decision} playerById={playerById} onViewPlayer={onViewPlayer} />
               )}
             </div>
           </div>
