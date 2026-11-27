@@ -1,7 +1,7 @@
 import { createModeActions } from '@/stores/draft/mode-actions';
 import { dispatchDraftCommand } from './dispatch-command';
 import { createDefaultLeagueSettings } from '@fantasy-draft/shared/league';
-import { deriveDraftCursor } from '@fantasy-draft/shared/draft';
+import { DEFAULT_DECISION_LENS, deriveDraftCursor } from '@fantasy-draft/shared/draft';
 import { createConfigurationActions } from '@/stores/draft/configuration-actions';
 import { createPickActions } from '@/stores/draft/pick-actions';
 import { createProvisionalActions } from '@/stores/draft/provisional-actions';
@@ -21,12 +21,13 @@ export function initialDraftState(identity: DraftSessionIdentity): DraftState {
     mockSettings: { ...defaultMockSettings }, mockAutoAdvance: { paused: false, settingsOpen: false },
     draftProgress: { anchor: { kind: 'start' }, historyLength: 0 }, draftHistory: [],
     shortlistedPlayerIds: [], preloadedKeepers: [], keepersInitialized: false,
-    mockSurvivalProbabilities: {}, unresolvedProviderPicks: [], decisionLens: 'best-pick', filter: { ...defaultFilter },
+    mockSurvivalProbabilities: {}, unresolvedProviderPicks: [], decisionLens: DEFAULT_DECISION_LENS, filter: { ...defaultFilter },
   };
 }
 
 export function stateFromSession(session: PersistedDraftSession): DraftState {
-  return { ...initialDraftState(session.identity), ...session, sessionMode: 'live', liveSession: session.identity };
+  const { decisionLensDefault: _default, ...fields } = session;
+  return { ...initialDraftState(session.identity), ...fields, sessionMode: 'live', liveSession: session.identity };
 }
 
 export function sessionFromState(state: DraftState, identity: DraftSessionIdentity, revision: number, lineage: readonly string[] = []): PersistedDraftSession {
@@ -34,7 +35,7 @@ export function sessionFromState(state: DraftState, identity: DraftSessionIdenti
     currentPick: deriveDraftCursor(state.draftHistory, state.draftProgress), draftProgress: state.draftProgress,
     draftHistory: state.draftHistory, shortlistedPlayerIds: state.shortlistedPlayerIds,
     preloadedKeepers: state.preloadedKeepers, keepersInitialized: state.keepersInitialized,
-    unresolvedProviderPicks: state.unresolvedProviderPicks, decisionLens: state.decisionLens,
+    unresolvedProviderPicks: state.unresolvedProviderPicks, decisionLens: state.decisionLens, decisionLensDefault: DEFAULT_DECISION_LENS,
     manualContinuityBaselineAt: state.manualContinuityBaselineAt, lastConfirmedSyncAt: state.lastConfirmedSyncAt,
     lastConfirmedPickNumber: state.lastConfirmedPickNumber };
 }

@@ -1,6 +1,7 @@
 import { RANKING_LABELS } from '@/lib/demo-mode';
 import type {
   DecisionDivergenceFactor,
+  DecisionLens,
   Recommendation,
 } from '@fantasy-draft/shared/draft';
 import { formatSignedNumber } from '@fantasy-draft/shared/draft';
@@ -29,10 +30,12 @@ function getReasonFactor(
 
 export function getDraftDecisionBarReason(
   recommendation: Recommendation,
+  lens: DecisionLens = 'best-pick',
   divergenceFactor: DecisionDivergenceFactor | null = null
 ): string {
   const factors = recommendation.decisionFactors;
-  if (!factors) {
+  // Only Best Pick's order comes from its factors; the other lenses say why they rank the player.
+  if (!factors || lens !== 'best-pick') {
     return sentenceCase(recommendation.reason.split(' · ')[0] ?? recommendation.reason);
   }
 

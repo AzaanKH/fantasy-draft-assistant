@@ -498,26 +498,34 @@
   {
     "file": "extension/src/background/message-security.test.ts",
     "detector": "provider-url-id",
-    "line": 10,
-    "column": 25,
-    "fingerprint": "d59716db3662ef86181c6d6f4ddc67a925065e5a023a5d7a5396315d82c6ac0d",
-    "reason": "Synthetic ESPN sender URL verifies extension draft-session authorization."
+    "line": 13,
+    "column": 20,
+    "fingerprint": "83d5e3e920dcbe4b5eef4cd46a50f30033acce1d370c1f5f385d73c230b6ba8f",
+    "reason": "Synthetic ESPN tab URL verifies extension draft-session authorization."
   },
   {
     "file": "extension/src/background/message-security.test.ts",
     "detector": "provider-url-id",
-    "line": 27,
-    "column": 26,
-    "fingerprint": "eee5cff47c7a78830dd00e27ed2e882f570306ad4eb50a529937ce3645ff87a7",
+    "line": 28,
+    "column": 11,
+    "fingerprint": "fff49af4ff25028174eb64bd785cade8a3289c13fd1b20911ffb2f624969a938",
     "reason": "Synthetic mismatched ESPN league URL verifies rejection of unauthorized extension messages."
   },
   {
     "file": "extension/src/background/message-security.test.ts",
     "detector": "provider-url-id",
-    "line": 29,
-    "column": 26,
-    "fingerprint": "41007a4648fac4d8756fa6ca1e19f3e133930af91e9fc4262ee95bcac8df21a8",
+    "line": 30,
+    "column": 11,
+    "fingerprint": "0c3c484c9e1da2cdfe5bcb4fea60cddacbcbe6a08cbd6312c185fedb420c816c",
     "reason": "Synthetic HTTP ESPN URL verifies rejection of insecure extension message senders."
+  },
+  {
+    "file": "extension/src/background/message-security.test.ts",
+    "detector": "provider-url-id",
+    "line": 59,
+    "column": 51,
+    "fingerprint": "2371eac35bb3eeffa51255e1070a39f7c970f5100ced4bc3debaa7bb4d56d8c2",
+    "reason": "Synthetic trailing-slash ESPN draft URL verifies every recognized draft-room route is accepted."
   },
   {
     "file": "extension/src/content/draft-room-lifecycle.test.ts",

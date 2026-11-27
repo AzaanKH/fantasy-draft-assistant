@@ -1,6 +1,6 @@
 # Recommendation Backtest
 
-Generated: 2026-11-25T08:39:01.410Z
+Generated: 2026-11-25T19:50:12.602Z
 
 This replay is roster-aware and walk-forward. Promotion requires both the
 feature-family gate and the ECR release gate; a failure keeps the model experimental.
@@ -139,7 +139,7 @@ written.
 ```json
 {
   "version": 3,
-  "policySourceHash": "sha256:832ddf42dfa6d3ea2e7bc001467be68d1b9986cf074ea4158b819b4ec97ce1de",
+  "policySourceHash": "sha256:25960cffb87fa8371218a53cbbc7cf19942002233d4fa1b942e1938d47d0007f",
   "folds": [
     {
       "season": 2022,

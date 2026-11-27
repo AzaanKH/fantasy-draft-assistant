@@ -8,7 +8,7 @@ import {
 } from '@fantasy-draft/shared/draft';
 import { cn } from '@/lib/utils';
 import { type Player } from '@fantasy-draft/shared/league';
-import { type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
+import { type DecisionLens, type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
 import { ChevronDown } from 'lucide-react';
 import * as React from 'react';
 
@@ -54,8 +54,10 @@ function AnswerRows({ rows }: { readonly rows: readonly AssistantAnswerRow[] }):
   );
 }
 
-export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredExplanation, expandReasoning = 0 }: {
+export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredExplanation, expandReasoning = 0, lens = 'best-pick' }: {
   readonly recommendation: Recommendation;
+  /** The Decision Lens that ranked this player; only Best Pick's order comes from its factors. */
+  readonly lens?: DecisionLens;
   readonly isTopPick: boolean;
   readonly positionRank?: number;
   readonly preferredExplanation?: string;
@@ -64,8 +66,8 @@ export function WhyAnswer({ recommendation, isTopPick, positionRank, preferredEx
 }): React.ReactElement {
   return (
     <div>
-      <AnswerRows rows={getWhyRows(recommendation, isTopPick, positionRank, DRAFT_DISPLAY)} />
-      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY)} key={expandReasoning} defaultOpen={expandReasoning > 0} />
+      <AnswerRows rows={getWhyRows(recommendation, isTopPick, positionRank, DRAFT_DISPLAY, lens)} />
+      <CalculationDetails explanation={preferredExplanation ?? getRecommendationExplanation(recommendation, DRAFT_DISPLAY, lens)} key={expandReasoning} defaultOpen={expandReasoning > 0} />
     </div>
   );
 }

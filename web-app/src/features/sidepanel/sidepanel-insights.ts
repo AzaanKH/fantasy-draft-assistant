@@ -1,7 +1,7 @@
 /** Pure helpers shared by the side panel views: availability, compact decision text and roster-need labels. */
 import { toWholePercent, type Percent } from '@fantasy-draft/shared/units';
 import { availabilityProbability, describeMissingAvailability, formatAvailabilityPercent, getNextPickAvailability } from '@/lib/next-pick-availability';
-import { type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
+import { type DecisionLens, type PositionNeed, type Recommendation } from '@fantasy-draft/shared/draft';
 import type { TakeOrWaitVerdict } from '@/features/draft-room/suggestion-reasons';
 
 /** The shared next-pick availability, as a whole percent; null when there is no estimate or no later pick. */
@@ -18,12 +18,26 @@ export function getAvailabilityText(recommendation: Recommendation | undefined):
 export function getMissingSurvivalText(recommendation: Recommendation | undefined, pending: string): string {
   return getNextPickAvailability(recommendation?.diagnostics).kind === 'no-next-pick' ? 'No later pick' : pending;
 }
+/** One-line forms of the full lens ordering sentences (getDecisionLensOrderSentence), for the compact hero. */
+const COMPACT_LENS_RULES: Readonly<Record<Exclude<DecisionLens, 'best-pick'>, string>> = {
+  'ranked-fit': 'Ranked Fit: the rankings, keeping a legal roster.',
+  'best-player': 'Best Player: the rankings alone.',
+};
+
 /**
  * The hero's one sentence: what the stat line beside it does not already say (VOR, tier and availability are
- * shown as figures). Null when there is nothing to add.
+ * shown as figures). Null when there is nothing to add. The timing factor is Best Pick's: outside Best Pick the
+ * sentence is the active lens's ordering rule in one line, so the compare list stays on the first screen; Best
+ * Pick's timing analysis stays in "Can I wait?" and the full explanation, which label it. On the final pick there
+ * is no timing to weigh.
  */
-export function getCompactDecisionExplanation(recommendation: Recommendation): string | null {
-  if (getNextPickAvailability(recommendation.diagnostics).kind === 'no-next-pick') return 'Your last pick: take the most value left.';
+export function getCompactDecisionExplanation(recommendation: Recommendation, lens: DecisionLens = 'best-pick'): string | null {
+  if (getNextPickAvailability(recommendation.diagnostics).kind === 'no-next-pick') {
+    // Only Best Pick orders by value; other lenses lead with their own rule, and timing has no later pick to weigh.
+    if (lens === 'best-pick') return 'Your last pick: take the most value left.';
+    return `${COMPACT_LENS_RULES[lens]} This is your last pick, so timing does not apply.`;
+  }
+  if (lens !== 'best-pick') return COMPACT_LENS_RULES[lens];
   const timing = recommendation.decisionFactors?.draftTiming;
   if (!timing || timing.nextPickNumber === undefined) return null;
   const at = timing.nextPickLabel ?? `#${String(timing.nextPickNumber)}`;
