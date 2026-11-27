@@ -24,6 +24,7 @@ import {
   yahooPlayersFixture,
   yahooSettingsFixture,
 } from './__fixtures__/yahoo-fixtures.js';
+import { DraftSession } from './draft-session.js';
 import { SleeperSyncAdapter } from './sleeper-adapter.js';
 import {
   YAHOO_PUBLIC_API_BASE,
@@ -818,7 +819,7 @@ describe('draft session polling', () => {
       return fixtureFetch(url, signal);
     }));
     const runtime = ManagedRuntime.make(TestClock.layer());
-    const session = new syncServerInternals.DraftSession(
+    const session = new DraftSession(
       'sleeper', 'fixture-draft', adapter, normalIntervalMs, requestTimeoutMs, 1 << 20, runtime, completedIntervalMs,
     );
     const frames: string[] = [];
