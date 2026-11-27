@@ -10,7 +10,8 @@ const DIST_DIR = join(REPO_ROOT, 'web-app', 'dist');
 const OUTPUT_FILE = join(REPO_ROOT, catalogPath(CATALOG.bundleReport));
 // Includes React 19, Motion, Radix, Sonner, and deferred Recharts views; see local-development.md.
 const JS_GZIP_BUDGET = 400 * 1024;
-const CSS_GZIP_BUDGET = 28 * 1024;
+// The Assistant redesign (#161–#163) added the decision hero, position tiers and roster-needs styles.
+const CSS_GZIP_BUDGET = 32 * 1024;
 const STATIC_OUTPUT_BUDGET = 9 * 1024 * 1024;
 const PROHIBITED_STATIC_EXTENSIONS = new Set(['.duckdb', '.ndjson', '.parquet']);
 
