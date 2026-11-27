@@ -1,6 +1,60 @@
-import { DECISION_LENSES, formatSignedNumber, type DecisionLens, type DecisionOutput, type Recommendation } from '@fantasy-draft/shared/draft';
+import { DECISION_LENSES, formatSignedNumber, type DecisionDivergenceFactor, type DecisionLens, type DecisionOutput, type Recommendation } from '@fantasy-draft/shared/draft';
 import type { Position } from '@fantasy-draft/shared/league';
+import { getReasonFactor } from '@/features/draft-room/draft-decision-bar-reason';
 import type { NextPickAvailability } from '@/lib/next-pick-availability';
+
+const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? '' : 's'}`;
+
+/**
+ * The call's one reason, in plain words, from the same figures as the lens's why-text: Ranked Fit and Best Player
+ * rank by the rankings alone (Ranked Fit only among players who keep a legal roster possible), so their line is the
+ * rank; Best Pick's line is the factor that decided it, as the decision bar picks it.
+ */
+export function getHeroReason(
+  recommendation: Recommendation,
+  lens: DecisionLens,
+  divergenceFactor: DecisionDivergenceFactor | null = null
+): string {
+  const factors = recommendation.decisionFactors;
+  const rank = recommendation.diagnostics?.expertRank ?? factors?.playerQuality.ecrRank;
+  const overall = typeof rank === 'number' ? `#${String(rank)} overall` : null;
+  if (lens === 'ranked-fit') return `Highest-ranked player who still fits your roster${overall ? `, ${overall}` : ''}`;
+  if (lens === 'best-player') return `Highest-ranked player left on the board${overall ? `, ${overall}` : ''}`;
+
+  const position = recommendation.position;
+  const overFillIn = (vor: number): string => `${formatSignedNumber(Math.round(vor))} points over a fill-in ${position}`;
+  if (!factors) {
+    const vor = recommendation.diagnostics?.valueOverReplacement;
+    return typeof vor === 'number' && Number.isFinite(vor) ? `Projects ${overFillIn(vor)}` : `Best Pick's top choice${overall ? `, ${overall}` : ''}`;
+  }
+  const factorValue = overFillIn(factors.leagueValue.valueOverReplacement);
+  if (factors.conservativeBoundary.feasibilityException) {
+    return `Keeps your roster fillable with ${plural(factors.rosterFit.selectionsRemaining, 'pick')} left`;
+  }
+  switch (getReasonFactor(recommendation, divergenceFactor)) {
+    case 'draft-timing': {
+      const at = factors.draftTiming.nextPickLabel;
+      return `Waiting${at ? ` until ${at}` : ''} costs about ${plural(Math.round(factors.draftTiming.costOfWaiting), 'point')}`;
+    }
+    case 'tier-supply': {
+      const { remainingInTier, currentTier } = factors.tierSupply;
+      const drop = `a ${String(Math.round(factors.tierSupply.dropoffPoints))}-point drop`;
+      return remainingInTier === 1
+        ? `Last ${position} in Tier ${String(currentTier)} before ${drop}`
+        : `Only ${plural(remainingInTier, position)} left in Tier ${String(currentTier)} before ${drop}`;
+    }
+    case 'roster-fit': {
+      const open = factors.rosterFit.fixedStartersOpen + factors.rosterFit.flexSlotsOpen;
+      return open === 1 ? 'Fills your last open starting spot' : `Fills one of your ${String(open)} open starting spots`;
+    }
+    case 'depth-value':
+      return `Adds ${position} depth: you have ${String(factors.depthValue.reserveCount)} of ${String(factors.depthValue.targetReserveCount)} backups`;
+    case 'league-value':
+      return `Projects ${factorValue} in your scoring`;
+    default:
+      return `Projects ${factorValue}${overall ? `, ${overall}` : ''}`;
+  }
+}
 
 /** The top pick of each lens, as the decision output names them. */
 function lensLeader(output: Pick<DecisionOutput, 'rankedFit' | 'bestPick' | 'bestPlayer'>, lens: DecisionLens): Recommendation | null {

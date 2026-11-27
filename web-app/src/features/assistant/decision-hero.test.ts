@@ -1,9 +1,9 @@
 import { asProbability, asRank, asVor } from '@fantasy-draft/shared/units';
-import type { Recommendation } from '@fantasy-draft/shared/draft';
+import type { Recommendation, RecommendationDecisionFactors } from '@fantasy-draft/shared/draft';
 import type { Position } from '@fantasy-draft/shared/league';
 import { describe, expect, it } from 'vitest';
 import type { NextPickAvailability } from '@/lib/next-pick-availability';
-import { getDisagreeingLens, getHeroStats, getSkipRow, shortPlayerName } from './decision-hero';
+import { getDisagreeingLens, getHeroReason, getHeroStats, getSkipRow, shortPlayerName } from './decision-hero';
 
 function rec(playerId: string, position: Position = 'WR', diagnostics: Partial<NonNullable<Recommendation['diagnostics']>> = {}): Recommendation {
   return {
@@ -13,6 +13,75 @@ function rec(playerId: string, position: Position = 'WR', diagnostics: Partial<N
     reason: 'ECR champion',
     score: 1,
     diagnostics: { expertRank: asRank(1), marketRank: 1, marketDelta: 0, projectedPoints: 200, valueOverReplacement: asVor(60), tier: 2, ...diagnostics },
+  };
+}
+
+function decisionFactors(): RecommendationDecisionFactors {
+  return {
+    playerQuality: { ecrRank: asRank(8), score: -8 },
+    leagueValue: {
+      score: 2,
+      minScore: 0,
+      maxScore: 6,
+      projectedPoints: 240,
+      replacementPoints: 200,
+      valueOverReplacement: asVor(40),
+      materiallyChangedOrdering: false,
+    },
+    rosterFit: {
+      score: 6,
+      minScore: 0,
+      maxScore: 8,
+      fixedStartersOpen: 2,
+      flexSlotsOpen: 1,
+      benchSlotsOpen: 5,
+      selectionsRemaining: 8,
+      legalCompletionPossible: true,
+      materiallyChangedOrdering: false,
+    },
+    depthValue: {
+      score: 0,
+      minScore: 0,
+      maxScore: 4,
+      positionCount: 0,
+      startersAtPosition: 0,
+      reserveCount: 0,
+      targetReserveCount: 2,
+      reserveDeficit: 2,
+      contingencyPoints: 0,
+      materiallyChangedOrdering: false,
+    },
+    tierSupply: {
+      score: 3,
+      minScore: 0,
+      maxScore: 4,
+      currentTier: 2,
+      remainingInTier: 1,
+      nextTier: 3,
+      nextTierProjectedPoints: 220,
+      dropoffPoints: 20,
+      meaningfulCliff: true,
+      costOfWaiting: 3,
+      materiallyChangedOrdering: false,
+    },
+    draftTiming: {
+      score: 4,
+      minScore: 0,
+      maxScore: 4,
+      nextPickNumber: 25,
+      nextPickLabel: '3.05',
+      picksUntilNextPick: 10,
+      returnProbability: asProbability(0.18),
+      candidateValue: 40,
+      costOfWaiting: 16.5,
+      materiallyChangedOrdering: false,
+    },
+    conservativeBoundary: {
+      ecrRankLimit: asRank(9),
+      samePositionTier: false,
+      withinBoundary: true,
+      feasibilityException: false,
+    },
   };
 }
 
@@ -71,5 +140,38 @@ describe('getSkipRow', () => {
 
   it('is omitted when no estimate says anyone lasts', () => {
     expect(getSkipRow({ hero, ranked: [hero, rbs[0] ?? hero], byPosition: { RB: rbs }, availabilityById: new Map() })).toBeNull();
+  });
+});
+
+describe('getHeroReason', () => {
+  const withFactors = (change: (factors: RecommendationDecisionFactors) => RecommendationDecisionFactors = (factors) => factors): Recommendation => ({
+    ...rec('a', 'RB', { expertRank: asRank(47) }),
+    decisionFactors: change(decisionFactors()),
+  });
+  const moved = (key: 'draftTiming' | 'tierSupply' | 'rosterFit' | 'depthValue' | 'leagueValue') => (factors: RecommendationDecisionFactors): RecommendationDecisionFactors => ({
+    ...factors,
+    [key]: { ...factors[key], materiallyChangedOrdering: true },
+  });
+
+  it('says what Ranked Fit and Best Player rank by, with the overall rank, never model names', () => {
+    expect(getHeroReason(withFactors(), 'ranked-fit')).toBe('Highest-ranked player who still fits your roster, #47 overall');
+    expect(getHeroReason(withFactors(), 'best-player')).toBe('Highest-ranked player left on the board, #47 overall');
+  });
+
+  it('states the Best Pick factor that decided the pick, in plain words', () => {
+    expect(getHeroReason(withFactors(moved('draftTiming')), 'best-pick')).toBe('Waiting until 3.05 costs about 17 points');
+    expect(getHeroReason(withFactors(moved('tierSupply')), 'best-pick')).toBe('Last RB in Tier 2 before a 20-point drop');
+    expect(getHeroReason(withFactors(moved('rosterFit')), 'best-pick')).toBe('Fills one of your 3 open starting spots');
+    expect(getHeroReason(withFactors(moved('depthValue')), 'best-pick')).toBe('Adds RB depth: you have 0 of 2 backups');
+    expect(getHeroReason(withFactors(moved('leagueValue')), 'best-pick')).toBe('Projects +40 points over a fill-in RB in your scoring');
+    expect(getHeroReason(withFactors(), 'best-pick')).toBe('Projects +40 points over a fill-in RB, #47 overall');
+    // The divergence factor (why Best Pick differs from Ranked Fit) wins over the factors' own order.
+    expect(getHeroReason(withFactors(moved('draftTiming')), 'best-pick', 'roster-fit')).toBe('Fills one of your 3 open starting spots');
+  });
+
+  it('keeps a roster-completion pick in plain words, and falls back to value without factors', () => {
+    const feasibility = withFactors((factors) => ({ ...factors, conservativeBoundary: { ...factors.conservativeBoundary, feasibilityException: true } }));
+    expect(getHeroReason(feasibility, 'best-pick')).toBe('Keeps your roster fillable with 8 picks left');
+    expect(getHeroReason(rec('a', 'WR'), 'best-pick')).toBe('Projects +60 points over a fill-in WR');
   });
 });

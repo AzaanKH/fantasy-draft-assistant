@@ -5,11 +5,10 @@ import { ArrowLeftRight, GitCompareArrows } from 'lucide-react';
 import * as React from 'react';
 import { PlayerHeadshot } from '@/components/PlayerHeadshot';
 import { Button } from '@/components/ui/button';
-import { getDraftDecisionBarReason } from '@/features/draft-room/draft-decision-bar-reason';
 import { getNextPickAvailability, type NextPickAvailability } from '@/lib/next-pick-availability';
 import type { AssistantDraftMode } from './assistant-context';
 import { HeroTopRow } from './AssistantLayout';
-import { getDisagreeingLens, getHeroStats, getSkipRow, shortPlayerName } from './decision-hero';
+import { getDisagreeingLens, getHeroReason, getHeroStats, getSkipRow, shortPlayerName } from './decision-hero';
 import { ViewedPlayerAction } from './ViewedPlayerAction';
 import './decision-hero.css';
 
@@ -82,7 +81,7 @@ function HeroCall({ view, output, lens, onLensChange, byPosition, availabilityBy
 }): React.ReactElement | null {
   const hero = view.preferred;
   if (!hero) return null;
-  const reason = getDraftDecisionBarReason(hero, lens, output.decisionDivergenceFactor);
+  const reason = getHeroReason(hero, lens, output.decisionDivergenceFactor);
   const availability = availabilityById.get(hero.playerId) ?? getNextPickAvailability(hero.diagnostics);
   const stats = getHeroStats(hero, availability);
   const positionOrder: Partial<Record<Position, DraftDecisionView['recommendations']>> = {};

@@ -680,6 +680,11 @@ describe('Assistant decision hero', () => {
   it('calls the lens leader with its Draft action and the model facts', () => {
     renderPage('mock');
     expect(document.querySelector('h1')?.textContent).toBe('Draft Receiver 1');
+    expect(hero().querySelector('.call-why')?.textContent).toBe('WR · Highest-ranked player who still fits your roster, #1 overall');
+    // Position tiers keeps the call in the hero; the bar no longer repeats the top pick.
+    click(button('Position tiers'));
+    expect(document.querySelector('.rec-context')?.textContent).not.toContain('Receiver 1');
+    click(button('Suggestions'));
     // The availability map's 90% survival, not the recommendation's own 40%: the page's one source for the estimate.
     expect([...hero().querySelectorAll('.call-stat')].map((stat) => stat.textContent)).toEqual(['10%gone by 2.12', '+59over fill-in', 'Tier 13 WRs left']);
     const draft = [...hero().querySelectorAll('button')].find((candidate) => candidate.textContent === 'Draft 1');

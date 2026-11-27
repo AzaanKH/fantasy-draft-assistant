@@ -15,7 +15,7 @@ import { useQueueActions } from '@/hooks/useQueueActions';
 import { useTeamNeeds } from '@/hooks/useTeamNeeds';
 import { ArrowLeft, X } from 'lucide-react';
 import * as React from 'react';
-import { AssistantContextBar, AssistantTopPick } from './AssistantContextBar';
+import { AssistantContextBar } from './AssistantContextBar';
 import { AssistantSkeleton, AssistantViewTabs, LeadHeading, SuggestionsLayout } from './AssistantLayout';
 import { AssistantQueue, AssistantRailSummary, AssistantRoster, UpcomingPicks } from './AssistantRail';
 import { AssistantAnalysisPanel } from './AssistantAnalysisPanel';
@@ -238,14 +238,6 @@ export function AssistantPage({
       />
       <AssistantContextBar
         tabs={<AssistantViewTabs view={view} onChange={setView} />}
-        topPick={view === 'tiers' && topSuggestion ? (
-          <AssistantTopPick
-            recommendation={topSuggestion}
-            player={playerById.get(topSuggestion.playerId)}
-            draft={{ mode, provider: liveSync.connection?.provider ?? null, nextPickLabel }}
-            onSelect={openTierAnalysis}
-          />
-        ) : null}
         sync={sync}
       />
 
