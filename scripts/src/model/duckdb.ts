@@ -140,3 +140,23 @@ export async function runStatements(
     await connection.run(statement);
   }
 }
+
+/**
+ * Runs the statements as one transaction: either every table they replace is published, or none is.
+ *
+ * Requires an idle connection with no open transaction. DuckDB has no nested transactions: the BEGIN here fails
+ * inside a caller's transaction, and that failure aborts the caller's transaction too.
+ */
+export async function runStatementsInTransaction(
+  connection: DuckDBConnection,
+  statements: readonly string[]
+): Promise<void> {
+  await connection.run('begin transaction');
+  try {
+    await runStatements(connection, statements);
+  } catch (error) {
+    await connection.run('rollback');
+    throw error;
+  }
+  await connection.run('commit');
+}

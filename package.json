@@ -58,6 +58,7 @@
     "model:dataset": "pnpm model:duckdb:init && pnpm --filter scripts model:dataset",
     "model:snapshots": "pnpm --filter scripts model:snapshots",
     "model:league-survival": "pnpm --filter scripts build:league-survival",
+    "model:prospective": "pnpm --filter scripts backtest:prospective",
     "model:backtest": "pnpm --filter scripts backtest:recommendations",
     "model:backtest:accept-best-pick": "pnpm --filter scripts backtest:recommendations --accept-best-pick-baseline",
     "model:backtest:contracts": "pnpm --filter scripts backtest:contracts",

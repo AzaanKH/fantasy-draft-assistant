@@ -38,6 +38,7 @@ build output is missing.
 | Inspect source coverage | `pnpm model:profile` | Reads initialized tables; writes `data/model/profile-report.json`. |
 | Rebuild the prediction dataset | `pnpm model:dataset` | Initializes current joins, downloads historical sources, and writes training data, snapshots, predictions, and reports. |
 | Rebuild historical snapshots only | `pnpm model:snapshots` | Reads stored draft dates and remote historical sources; writes snapshot tables, Parquet, and the coverage report. |
+| Fetch prospective outcomes | `pnpm model:prospective` | Reads league history; downloads nflverse weekly stats and the schedule for seasons from 2026 on; writes `model.prospective_*` tables. |
 | Evaluate recommendations | `pnpm model:backtest` | Reads the built model dataset; rewrites backtest reports and historical recommendation evaluation. |
 | Evaluate the contract feature | `pnpm model:backtest:contracts` | Reads historical data; rewrites contract evaluation reports and historical validation evidence. |
 
@@ -199,6 +200,34 @@ Decisions:
   unchanged declaration beats roster-aware ECR on every release check applied
   to the 2026 prospective fold alone, the first season scored after the
   declaration was frozen. Seasons won does not apply to a single season.
+
+The prospective fold replays the 2026 Primary League draft. `pnpm --filter
+scripts import:league-history` adds it after the configured seasons from the
+confirmed league in the private `data/primary-league-settings.json`, so its
+IDs stay out of source. The manager is whoever held the configured slot in last
+season's draft order; the confirmed draft's own order and slot-to-roster map
+give this season's slot and roster. If that cannot be resolved the import
+reports it and writes the historical seasons without 2026. The board's player
+pool and positions come from the last DynastyProcess ranking snapshot scraped
+before the draft started (the cutoff is applied before the latest rank is
+chosen), plus every offensive player the room drafted, so off-board picks and
+keepers still score; off-board players are scored against the board's
+replacement level but never offered to a strategy. Trailing features are
+rebuilt from the three training seasons before the draft, keyed by gsis_id,
+with the same SQL as `model.current_prediction_features` and the workload
+input chosen by the draft-day position, so they do not depend on today's
+player pool. Outcomes are nflverse regular-season weekly stats from scored
+games whose player stats have arrived (matched by `game_id`), scaled to a
+17-game pace by the matched team games played across each player's team
+stints, missed games included; a complete season scores raw totals. The board
+ranks only players in the latest pre-draft scrape date, and the fold keeps its
+pre-draft training window when a rebuild adds the season's own rows. Until all
+272 regular-season games are scheduled, scored and matched, the fold is
+labelled provisional and stays out of every gate, aggregate and historical
+coverage count; afterwards it counts on its own single-season release check
+list with no flag to flip. `pnpm model:prospective` is an explicit command,
+not part of `pnpm prepare:draft`: run it, then `pnpm model:backtest`, to
+refresh the fold.
 
 ## Prediction outputs and live use
 
