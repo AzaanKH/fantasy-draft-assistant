@@ -15,6 +15,8 @@ export interface DraftRoomLifecycleEnvironment {
   readonly document: Document;
   readonly getUrl: () => string;
   readonly createObserver: (callback: MutationCallback) => Observer;
+  /** Calls back when the URL may have changed; returns a function that stops watching. */
+  readonly watchUrl: (onChange: () => void) => () => void;
   readonly setTimeout: (callback: () => void, delay: number) => number;
   readonly clearTimeout: (timer: number) => void;
   readonly setInterval: (callback: () => void, delay: number) => number;
@@ -43,7 +45,7 @@ export function createDraftRoomLifecycle(
   const detectedPicks = new Set<string>();
   let started = false;
   let lastUrl = '';
-  let urlObserver: Observer | null = null;
+  let stopWatchingUrl: (() => void) | null = null;
   let pickObserver: Observer | null = null;
   let scanTimer: number | null = null;
   let pollTimer: number | null = null;
@@ -131,15 +133,11 @@ export function createDraftRoomLifecycle(
 
     started = true;
     applyUrl(environment.getUrl());
-    urlObserver = environment.createObserver(() => {
+    stopWatchingUrl = environment.watchUrl(() => {
       const currentUrl = environment.getUrl();
       if (currentUrl !== lastUrl) {
         applyUrl(currentUrl);
       }
-    });
-    urlObserver.observe(environment.document.body, {
-      childList: true,
-      subtree: true,
     });
   };
 
@@ -149,8 +147,8 @@ export function createDraftRoomLifecycle(
     }
 
     started = false;
-    urlObserver?.disconnect();
-    urlObserver = null;
+    stopWatchingUrl?.();
+    stopWatchingUrl = null;
     stopSleeperDetection();
   };
 

@@ -406,11 +406,12 @@ export function PositionTiersView({
                 key={position}
                 type="button"
                 aria-pressed={filter === position}
-                aria-label={position === 'ALL' ? 'QB, RB, WR and TE' : `${position}, ${String(need?.startersFilled ?? 0)} of ${String(need?.startersNeeded ?? 0)} starters filled`}
                 onClick={() => { setFilter(position); }}
               >
                 <span>{position === 'ALL' ? 'All' : position}</span>
-                {need ? <small>{String(need.startersFilled)}/{String(need.startersNeeded)}</small> : null}
+                {position === 'ALL' ? <span className="sr-only"> (QB, RB, WR and TE)</span> : null}
+                {need ? <small aria-hidden="true">{String(need.startersFilled)}/{String(need.startersNeeded)}</small> : null}
+                {position === 'ALL' ? null : <span className="sr-only">, {String(need?.startersFilled ?? 0)} of {String(need?.startersNeeded ?? 0)} starters filled</span>}
               </button>
             );
           })}

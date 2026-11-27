@@ -17,6 +17,7 @@
     "primary-league:release-gate": "tsx --conditions=@fantasy-draft/source src/primary-league-release-gate.ts",
     "check:dev-ports": "tsx --conditions=@fantasy-draft/source src/check-dev-ports.ts",
     "measure:web-bundle": "tsx --conditions=@fantasy-draft/source src/measure-web-bundle.ts",
+    "experiment:primary-league": "tsx --conditions=@fantasy-draft/source src/experiments/run-primary-league-experiments.ts",
     "measure:effect-adoption": "tsx --conditions=@fantasy-draft/source src/measure-effect-adoption.ts",
     "import:league-history": "tsx --conditions=@fantasy-draft/source src/import-league-draft-history.ts",
     "build:league-survival": "tsx --conditions=@fantasy-draft/source src/build-league-survival-model.ts",
@@ -45,12 +46,12 @@
     "@duckdb/node-api": "1.5.3-r.2",
     "@fantasy-draft/shared": "workspace:*",
     "dotenv": "^16.6.1",
-    "effect": "^4.0.0",
-    "playwright": "^1.49.0"
+    "effect": "^4.1.5"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.10.2",
+    "@axe-core/playwright": "4.14.1",
     "@types/node": "^22.10.0",
+    "playwright": "^1.65.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.0",
     "vite": "^6.4.4"

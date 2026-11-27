@@ -1,5 +1,5 @@
 import { IS_DEMO } from '@/lib/demo-mode';
-import { CircleHelp } from 'lucide-react';
+import { CircleQuestionMark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { IconTooltip } from '@/components/ui/tooltip';
 import {
@@ -57,7 +57,7 @@ export function DraftGlossary(): React.ReactElement {
       <IconTooltip label="How scores work">
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" aria-label="How scores work">
-          <CircleHelp />
+          <CircleQuestionMark />
           <span className="draft-header-label">How scores work</span>
         </Button>
       </DialogTrigger>
